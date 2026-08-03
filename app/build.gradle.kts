@@ -1,5 +1,6 @@
 plugins {
     id("openstory.android.application")
+    id("openstory.hilt")
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -29,6 +30,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:common"))
+    implementation(libs.kotlinx.coroutines.core)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)

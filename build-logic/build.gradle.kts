@@ -5,6 +5,8 @@ plugins {
 dependencies {
     implementation(libs.android.gradle.plugin)
     implementation(libs.kotlin.gradle.plugin)
+    implementation(libs.hilt.gradle.plugin)
+    implementation(libs.ksp.gradle.plugin)
 
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.junit)
@@ -22,6 +24,12 @@ gradlePlugin {
             id = "openstory.android.library"
             implementationClass =
                 "app.openstory.build.AndroidLibraryConventionPlugin"
+        }
+
+        register("hilt") {
+            id = "openstory.hilt"
+            implementationClass =
+                "app.openstory.build.HiltConventionPlugin"
         }
 
         register("kotlinJvm") {
