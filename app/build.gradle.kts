@@ -1,7 +1,7 @@
 plugins {
     id("openstory.android.application")
     id("openstory.hilt")
-    alias(libs.plugins.kotlin.compose)
+    id("openstory.compose")
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -24,9 +24,6 @@ android {
         }
     }
 
-    buildFeatures {
-        compose = true
-    }
 }
 
 dependencies {

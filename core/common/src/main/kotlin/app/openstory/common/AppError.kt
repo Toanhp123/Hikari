@@ -1,5 +1,17 @@
 package app.openstory.common
 
+private val safeMachineToken =
+    Regex("[A-Za-z0-9._-]+")
+
+private fun requireSafeMachineToken(
+    value: String,
+    label: String,
+) {
+    require(value.matches(safeMachineToken)) {
+        "$label must be a non-blank machine-readable token"
+    }
+}
+
 sealed interface AppError {
     val code: String
     val retryable: Boolean
@@ -10,9 +22,6 @@ sealed interface AppError {
         private val tokens: Map<String, String>,
     ) {
         companion object {
-            private val safeToken =
-                Regex("[A-Za-z0-9._-]+")
-
             fun empty(): Diagnostic =
                 Diagnostic(emptyMap())
 
@@ -20,12 +29,14 @@ sealed interface AppError {
                 vararg entries: Pair<String, String>,
             ): Diagnostic {
                 entries.forEach { (key, value) ->
-                    require(key.matches(safeToken)) {
-                        "Diagnostic key must be a safe token"
-                    }
-                    require(value.matches(safeToken)) {
-                        "Diagnostic value must be a safe token"
-                    }
+                    requireSafeMachineToken(
+                        value = key,
+                        label = "Diagnostic key",
+                    )
+                    requireSafeMachineToken(
+                        value = value,
+                        label = "Diagnostic value",
+                    )
                 }
 
                 return Diagnostic(
@@ -39,23 +50,51 @@ sealed interface AppError {
         override val code: String,
         override val retryable: Boolean,
         override val diagnostic: Diagnostic = Diagnostic.empty(),
-    ) : AppError
+    ) : AppError {
+        init {
+            requireSafeMachineToken(
+                value = code,
+                label = "Error code",
+            )
+        }
+    }
 
     data class Validation(
         override val code: String,
         override val retryable: Boolean = false,
         override val diagnostic: Diagnostic = Diagnostic.empty(),
-    ) : AppError
+    ) : AppError {
+        init {
+            requireSafeMachineToken(
+                value = code,
+                label = "Error code",
+            )
+        }
+    }
 
     data class Storage(
         override val code: String,
         override val retryable: Boolean,
         override val diagnostic: Diagnostic = Diagnostic.empty(),
-    ) : AppError
+    ) : AppError {
+        init {
+            requireSafeMachineToken(
+                value = code,
+                label = "Error code",
+            )
+        }
+    }
 
     data class Plugin(
         override val code: String,
         override val retryable: Boolean,
         override val diagnostic: Diagnostic = Diagnostic.empty(),
-    ) : AppError
+    ) : AppError {
+        init {
+            requireSafeMachineToken(
+                value = code,
+                label = "Error code",
+            )
+        }
+    }
 }

@@ -115,4 +115,77 @@ fun versionCatalogUsesPinnedFoundationVersions() {
             )
         }
     }
+
+    @Test
+    fun versionCatalogUsesPinnedWaveOneVersions() {
+        val catalog = File("../gradle/libs.versions.toml").readText()
+
+        mapOf(
+            "composeBom" to "2026.06.00",
+            "room" to "2.8.4",
+        ).forEach { (name, version) ->
+            assertTrue(
+                "$name = \"$version\"" in catalog,
+                "Expected $name version $version",
+            )
+        }
+    }
+
+    @Test
+    fun buildLogicRegistersAllFoundationConventionPlugins() {
+        val buildLogic = File("build.gradle.kts").readText()
+
+        listOf(
+            "openstory.android.application",
+            "openstory.android.library",
+            "openstory.kotlin.jvm",
+            "openstory.compose",
+            "openstory.hilt",
+            "openstory.room",
+        ).forEach { pluginId ->
+            assertTrue(
+                "id = \"$pluginId\"" in buildLogic,
+                "Missing convention plugin $pluginId",
+            )
+        }
+    }
+
+    @Test
+    fun applicationUsesComposeConventionPlugin() {
+        val appBuild = File("../app/build.gradle.kts").readText()
+
+        assertTrue(
+            "id(\"openstory.compose\")" in appBuild,
+            "Application must apply the Compose convention plugin",
+        )
+    }
+
+    @Test
+    fun roomConventionConfiguresCommittedSchemaExport() {
+        val catalog = File("../gradle/libs.versions.toml").readText()
+        val buildLogic = File("build.gradle.kts").readText()
+        val convention = File(
+            "src/main/kotlin/app/openstory/build/RoomConventionPlugin.kt",
+        ).readText()
+
+        assertTrue(
+            "room-gradle-plugin" in catalog,
+            "Version catalog must expose the Room Gradle plugin",
+        )
+
+        assertTrue(
+            "implementation(libs.room.gradle.plugin)" in buildLogic,
+            "Build logic must load the Room Gradle plugin",
+        )
+
+        listOf(
+            "pluginManager.apply(\"androidx.room\")",
+            "schemaDirectory(\"${'$'}projectDir/schemas\")",
+        ).forEach { expected ->
+            assertTrue(
+                expected in convention,
+                "Room convention is missing: $expected",
+            )
+        }
+    }
 }
