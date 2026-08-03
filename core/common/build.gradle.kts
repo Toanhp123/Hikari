@@ -3,5 +3,5 @@ plugins {
 }
 
 dependencies {
-    testImplementation(libs.junit)
+    testImplementation(kotlin("test-junit"))
 }
