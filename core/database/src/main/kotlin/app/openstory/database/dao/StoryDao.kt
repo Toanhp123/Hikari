@@ -2,7 +2,9 @@ package app.openstory.database.dao
 
 import androidx.room.Dao
 import androidx.room.Embedded
+import androidx.room.Insert
 import androidx.room.Junction
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
@@ -81,31 +83,28 @@ internal abstract class StoryDao {
         storyId: String,
     )
 
+    @Insert(
+        onConflict = OnConflictStrategy.IGNORE,
+    )
+    protected abstract suspend fun insertLibraryMembership(
+        entry: LibraryEntryEntity,
+    ): Long
+
     @Query(
         """
-        INSERT INTO library_entries(
-            story_id,
-            status,
-            added_at_epoch_millis,
-            updated_at_epoch_millis
-        )
-        VALUES(
-            :storyId,
-            :status,
-            :nowEpochMillis,
-            :nowEpochMillis
-        )
-        ON CONFLICT(story_id) DO UPDATE SET
-            status = excluded.status,
+        UPDATE library_entries
+        SET
+            status = :status,
             updated_at_epoch_millis =
-                excluded.updated_at_epoch_millis
+                :updatedAtEpochMillis
+        WHERE story_id = :storyId
         """,
     )
-    protected abstract suspend fun upsertLibraryMembership(
+    protected abstract suspend fun updateLibraryMembership(
         storyId: String,
         status: String,
-        nowEpochMillis: Long,
-    )
+        updatedAtEpochMillis: Long,
+    ): Int
 
     @Transaction
     open suspend fun addToLibrary(
@@ -123,10 +122,34 @@ internal abstract class StoryDao {
             upsertCatalogLinks(catalogLinks)
         }
 
-        upsertLibraryMembership(
-            storyId = story.storyId,
-            status = status,
-            nowEpochMillis = nowEpochMillis,
-        )
+        val insertedRowId =
+            insertLibraryMembership(
+                LibraryEntryEntity(
+                    storyId = story.storyId,
+                    status = status,
+                    addedAtEpochMillis =
+                        nowEpochMillis,
+                    updatedAtEpochMillis =
+                        nowEpochMillis,
+                ),
+            )
+
+        if (insertedRowId == INSERT_CONFLICT) {
+            val updatedRows =
+                updateLibraryMembership(
+                    storyId = story.storyId,
+                    status = status,
+                    updatedAtEpochMillis =
+                        nowEpochMillis,
+                )
+
+            check(updatedRows == 1) {
+                "Expected an existing library membership"
+            }
+        }
+    }
+
+    private companion object {
+        const val INSERT_CONFLICT = -1L
     }
 }
