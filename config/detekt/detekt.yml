@@ -1,0 +1,9 @@
+config:
+  validation: true
+  warningsAsErrors: true
+  excludes: []
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated:
+      - Composable
