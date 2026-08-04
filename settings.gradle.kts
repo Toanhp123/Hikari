@@ -35,8 +35,10 @@ require(currentJavaVersion == JavaVersion.VERSION_17) {
 }
 
 rootProject.name = "Hikari"
+
 include(":app")
 include(":core:common")
 include(":core:model")
 include(":test:fixtures")
 include(":core:database")
+include(":core:plugin-api")

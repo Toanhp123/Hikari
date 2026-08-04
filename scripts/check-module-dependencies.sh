@@ -58,6 +58,11 @@ assert_allowed_project_dependencies \
   ":core:common" \
   ":core:model"
 
+assert_allowed_project_dependencies \
+  ":core:plugin-api" \
+  "core/plugin-api/build.gradle.kts" \
+  ":core:model"
+
 CORE_MODEL_SOURCE="core/model/src/main"
 
 if [[ -d "$CORE_MODEL_SOURCE" ]]; then
@@ -71,6 +76,22 @@ if [[ -d "$CORE_MODEL_SOURCE" ]]; then
   if [[ -n "$forbidden_imports" ]]; then
     echo "$forbidden_imports" >&2
     fail ":core:model imports Android or Compose APIs"
+  fi
+fi
+
+PLUGIN_API_SOURCE="core/plugin-api/src/main"
+
+if [[ -d "$PLUGIN_API_SOURCE" ]]; then
+  forbidden_plugin_imports="$(
+    grep -RInE \
+      '^[[:space:]]*import[[:space:]]+(android\.|androidx\.|java\.io\.|java\.nio\.file\.|kotlin\.io\.path\.)' \
+      "$PLUGIN_API_SOURCE" ||
+      true
+  )"
+
+  if [[ -n "$forbidden_plugin_imports" ]]; then
+    echo "$forbidden_plugin_imports" >&2
+    fail ":core:plugin-api imports Android, Room, WebView, or filesystem APIs"
   fi
 fi
 
