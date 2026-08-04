@@ -1,9 +1,12 @@
 plugins {
     id("openstory.kotlin.jvm")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
     api(project(":core:common"))
 
-    testImplementation(libs.junit)
+    implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(kotlin("test-junit"))
 }
