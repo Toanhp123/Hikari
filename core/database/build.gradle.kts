@@ -16,9 +16,13 @@ android {
 dependencies {
     api(project(":core:model"))
 
+    api(project(":core:common"))
+    api(libs.kotlinx.coroutines.core)
+
     implementation(libs.kotlinx.serialization.json)
 
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }

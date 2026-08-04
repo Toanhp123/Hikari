@@ -1,0 +1,132 @@
+package app.openstory.database.dao
+
+import androidx.room.Dao
+import androidx.room.Embedded
+import androidx.room.Junction
+import androidx.room.Query
+import androidx.room.Relation
+import androidx.room.Transaction
+import androidx.room.Upsert
+import app.openstory.database.entity.CanonicalStoryEntity
+import app.openstory.database.entity.CatalogEntryEntity
+import app.openstory.database.entity.LibraryEntryEntity
+import app.openstory.database.entity.StoryCatalogEntryEntity
+import kotlinx.coroutines.flow.Flow
+
+internal data class StoryAggregate(
+    @Embedded
+    val story: CanonicalStoryEntity,
+    @Relation(
+        parentColumn = "story_id",
+        entityColumn = "catalog_entry_id",
+        associateBy =
+            Junction(
+                value = StoryCatalogEntryEntity::class,
+                parentColumn = "story_id",
+                entityColumn = "catalog_entry_id",
+            ),
+    )
+    val catalogEntries: List<CatalogEntryEntity>,
+)
+
+@Dao
+internal abstract class StoryDao {
+
+    @Transaction
+    @Query(
+        """
+        SELECT *
+        FROM canonical_stories
+        WHERE story_id = :storyId
+        """,
+    )
+    abstract fun observeStory(
+        storyId: String,
+    ): Flow<StoryAggregate?>
+
+    @Query(
+        """
+        SELECT *
+        FROM library_entries
+        ORDER BY
+            updated_at_epoch_millis DESC,
+            story_id ASC
+        """,
+    )
+    abstract fun observeLibrary():
+        Flow<List<LibraryEntryEntity>>
+
+    @Upsert
+    protected abstract suspend fun upsertStory(
+        story: CanonicalStoryEntity,
+    )
+
+    @Upsert
+    protected abstract suspend fun upsertCatalogEntries(
+        catalogEntries: List<CatalogEntryEntity>,
+    )
+
+    @Upsert
+    protected abstract suspend fun upsertCatalogLinks(
+        links: List<StoryCatalogEntryEntity>,
+    )
+
+    @Query(
+        """
+        DELETE FROM story_catalog_entries
+        WHERE story_id = :storyId
+        """,
+    )
+    protected abstract suspend fun deleteCatalogLinks(
+        storyId: String,
+    )
+
+    @Query(
+        """
+        INSERT INTO library_entries(
+            story_id,
+            status,
+            added_at_epoch_millis,
+            updated_at_epoch_millis
+        )
+        VALUES(
+            :storyId,
+            :status,
+            :nowEpochMillis,
+            :nowEpochMillis
+        )
+        ON CONFLICT(story_id) DO UPDATE SET
+            status = excluded.status,
+            updated_at_epoch_millis =
+                excluded.updated_at_epoch_millis
+        """,
+    )
+    protected abstract suspend fun upsertLibraryMembership(
+        storyId: String,
+        status: String,
+        nowEpochMillis: Long,
+    )
+
+    @Transaction
+    open suspend fun addToLibrary(
+        story: CanonicalStoryEntity,
+        catalogEntries: List<CatalogEntryEntity>,
+        catalogLinks: List<StoryCatalogEntryEntity>,
+        status: String,
+        nowEpochMillis: Long,
+    ) {
+        upsertStory(story)
+        deleteCatalogLinks(story.storyId)
+
+        if (catalogEntries.isNotEmpty()) {
+            upsertCatalogEntries(catalogEntries)
+            upsertCatalogLinks(catalogLinks)
+        }
+
+        upsertLibraryMembership(
+            storyId = story.storyId,
+            status = status,
+            nowEpochMillis = nowEpochMillis,
+        )
+    }
+}

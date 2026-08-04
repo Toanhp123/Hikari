@@ -5,6 +5,9 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import app.openstory.database.dao.ProgressDao
+import app.openstory.database.dao.ChapterDao
+import app.openstory.database.dao.StoryDao
 import app.openstory.database.entity.CanonicalChapterEntity
 import app.openstory.database.entity.CanonicalChapterReleaseEntity
 import app.openstory.database.entity.CanonicalStoryEntity
@@ -38,6 +41,12 @@ import app.openstory.database.entity.StoryContentMappingEntity
     DatabaseConverters::class,
 )
 abstract class OpenStoryDatabase : RoomDatabase() {
+
+    internal abstract fun storyDao(): StoryDao
+
+    internal abstract fun chapterDao(): ChapterDao
+
+    internal abstract fun progressDao(): ProgressDao
 
     companion object {
         private const val DATABASE_NAME =
