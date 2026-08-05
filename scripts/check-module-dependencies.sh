@@ -56,12 +56,20 @@ assert_allowed_project_dependencies \
   ":test:fixtures" \
   "test/fixtures/build.gradle.kts" \
   ":core:common" \
-  ":core:model"
+  ":core:model" \
+  ":core:plugin-api"
 
 assert_allowed_project_dependencies \
   ":core:plugin-api" \
   "core/plugin-api/build.gradle.kts" \
-  ":core:model"
+  ":core:model" \
+  ":test:fixtures"
+
+if grep -Eq \
+  '^[[:space:]]*(api|implementation|compileOnly|runtimeOnly)\([[:space:]]*project\(":test:fixtures"\)' \
+  "core/plugin-api/build.gradle.kts"; then
+  fail ":core:plugin-api may consume :test:fixtures only through testImplementation"
+fi
 
 CORE_MODEL_SOURCE="core/model/src/main"
 

@@ -1,0 +1,28 @@
+{
+  "id": "fixture.content",
+  "name": "Content Contract Fixture",
+  "version": "1.0.0",
+  "packageChecksumSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "homepageUrl": "https://fixture.example/content",
+  "sourceUrl": "https://fixture.example/content/source",
+  "minimumHostVersion": "1.0.0",
+  "updateUrl": "https://fixture.example/content/manifest.json",
+  "api": {
+    "major": 1,
+    "minor": 0
+  },
+  "kinds": [
+    "CONTENT"
+  ],
+  "languages": [
+    "en"
+  ],
+  "allowedHosts": [
+    "fixture.example"
+  ],
+  "capabilities": [
+    "NETWORK"
+  ],
+  "runtime": "JAVASCRIPT",
+  "entry": "main.js"
+}
