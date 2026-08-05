@@ -172,7 +172,7 @@ A conforming installer performs these steps in order:
 2. Enforce entry count, byte ceilings, and compression-ratio limits.
 3. Reject absolute paths, traversal, duplicate names, and symbolic links.
 4. Confirm `manifest.json` exists and entries match the supported layout.
-5. Parse and validate the manifest and API compatibility.
+5. Parse the manifest and validate it against the [plugin API versioning policy](api-versioning.md).
 6. Calculate SHA-256 over the exact archive bytes.
 7. Compare the checksum with package or repository metadata.
 8. Verify the Ed25519 signature when present.
