@@ -71,6 +71,11 @@ if grep -Eq \
   fail ":core:plugin-api may consume :test:fixtures only through testImplementation"
 fi
 
+assert_allowed_project_dependencies \
+  ":core:network" \
+  "core/network/build.gradle.kts" \
+  ":core:common" \
+  ":core:plugin-api"
 CORE_MODEL_SOURCE="core/model/src/main"
 
 if [[ -d "$CORE_MODEL_SOURCE" ]]; then
