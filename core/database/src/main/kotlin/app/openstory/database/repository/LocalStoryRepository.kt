@@ -24,6 +24,10 @@ interface LocalStoryRepository {
         status: LibraryStatus,
     ): AppResult<Unit>
 
+    suspend fun purgeStory(
+        storyId: StoryId,
+    ): AppResult<Unit>
+
     suspend fun replaceSourceReleases(
         mappingId: ContentMappingId,
         releases: List<ChapterRelease>,

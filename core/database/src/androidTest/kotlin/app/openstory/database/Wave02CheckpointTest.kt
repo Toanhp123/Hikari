@@ -57,4 +57,16 @@ class Wave02CheckpointTest {
                 )
             }
         }
+
+    @Test
+    fun pluginRegistrationRemovalPreservesCanonicalAndSourceData() =
+        runTest {
+            withFreshCheckpointDatabase(
+                PLUGIN_REMOVAL_DATABASE_NAME,
+            ) { context ->
+                persistPluginOwnedGraph(context)
+                removePluginRegistration(context)
+                assertPluginRemovalAfterReopen(context)
+            }
+        }
 }

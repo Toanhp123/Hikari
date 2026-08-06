@@ -35,3 +35,57 @@ internal val migration1To2 =
             )
         }
     }
+
+internal val migration2To3 =
+    object : Migration(
+        2,
+        3,
+    ) {
+        override fun migrate(
+            db: SupportSQLiteDatabase,
+        ) {
+            db.execSQL(
+                """
+                ALTER TABLE `catalog_entries`
+                ADD COLUMN `external_story_id` TEXT NOT NULL DEFAULT ''
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                UPDATE `catalog_entries`
+                SET `external_story_id` = `catalog_entry_id`
+                WHERE `external_story_id` = ''
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                ALTER TABLE `catalog_entries`
+                ADD COLUMN `source_url` TEXT
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                ALTER TABLE `catalog_entries`
+                ADD COLUMN `authors_json` TEXT NOT NULL DEFAULT '[]'
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                ALTER TABLE `catalog_entries`
+                ADD COLUMN `genres_json` TEXT NOT NULL DEFAULT '[]'
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                ALTER TABLE `catalog_entries`
+                ADD COLUMN `cover_reference` TEXT
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                ALTER TABLE `catalog_entries`
+                ADD COLUMN `publication_status` TEXT
+                """.trimIndent(),
+            )
+        }
+    }

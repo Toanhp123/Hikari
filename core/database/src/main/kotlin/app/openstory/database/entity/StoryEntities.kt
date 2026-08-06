@@ -42,6 +42,27 @@ internal data class CatalogEntryEntity(
     val score: Double?,
     @ColumnInfo(name = "score_scale")
     val scoreScale: Double?,
+    @ColumnInfo(
+        name = "external_story_id",
+        defaultValue = "''",
+    )
+    val externalStoryId: String,
+    @ColumnInfo(name = "source_url")
+    val sourceUrl: String?,
+    @ColumnInfo(
+        name = "authors_json",
+        defaultValue = "'[]'",
+    )
+    val authorsJson: String,
+    @ColumnInfo(
+        name = "genres_json",
+        defaultValue = "'[]'",
+    )
+    val genresJson: String,
+    @ColumnInfo(name = "cover_reference")
+    val coverReference: String?,
+    @ColumnInfo(name = "publication_status")
+    val publicationStatus: String?,
 )
 
 @Entity(

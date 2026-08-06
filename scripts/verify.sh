@@ -11,6 +11,10 @@ for test_script in ./scripts/tests/*.sh; do
   bash "$test_script"
 done
 
+ROOM_SCHEMA_FINGERPRINT="$(
+  ./scripts/verify-room-schema-stability.sh
+)"
+
 ./scripts/check-module-dependencies.sh
 
 "$GRADLEW" --no-daemon \
@@ -22,3 +26,6 @@ done
   detekt \
   :app:assembleDebug \
   --stacktrace
+
+./scripts/verify-room-schema-stability.sh \
+  "$ROOM_SCHEMA_FINGERPRINT"

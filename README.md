@@ -105,6 +105,21 @@ To run one device independently:
 CI runs API 26 and API 37 as independent jobs. The Wave 01 checkpoint job is
 green only when fast verification and both instrumentation jobs succeed.
 
+Wave 02 additionally runs the complete Room/database instrumentation suite on
+both required API levels:
+
+    ANDROID_SERIAL_API_26=emulator-5556 \
+    ANDROID_SERIAL_API_37=emulator-5554 \
+      ./scripts/verify-wave-02-checkpoint.sh
+
+To run only the database suite on one connected device:
+
+    ANDROID_SERIAL=emulator-5556 \
+      ./scripts/verify-database-instrumentation.sh 26
+
+The Wave 02 CI checkpoint requires the Wave 01 checkpoint plus both database
+instrumentation jobs.
+
 ## Current module graph
 
 - `:app` — composition root, Hilt, Compose shell, navigation

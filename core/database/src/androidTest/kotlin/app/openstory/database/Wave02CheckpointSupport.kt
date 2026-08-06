@@ -33,6 +33,9 @@ internal const val RELEASE_DATABASE_NAME =
 internal const val SOURCE_REMOVAL_DATABASE_NAME =
     "wave-02-checkpoint-source-removal.db"
 
+internal const val PLUGIN_REMOVAL_DATABASE_NAME =
+    "wave-02-checkpoint-plugin-removal.db"
+
 internal suspend fun <T> withFreshCheckpointDatabase(
     databaseName: String,
     block: suspend (Context) -> T,
@@ -680,3 +683,89 @@ private data class StoredReleaseLink(
     val mappingId: String,
     val pluginId: String,
 )
+
+internal suspend fun persistPluginOwnedGraph(
+    context: Context,
+) {
+    withCheckpointDatabase(
+        context = context,
+        databaseName = PLUGIN_REMOVAL_DATABASE_NAME,
+    ) { database ->
+        seedReleaseGraph(database)
+        val sqlite = database.openHelper.writableDatabase
+        sqlite.execSQL(
+            """
+            INSERT INTO plugin_states(
+                plugin_id,
+                enabled,
+                active_version,
+                previous_version,
+                updated_at_epoch_millis
+            )
+            VALUES(?, 1, '1.0.0', NULL, 1000)
+            """.trimIndent(),
+            arrayOf("plugin-a"),
+        )
+        RoomStoryRepository(database).replaceSourceReleases(
+            mappingId = ContentMappingId("mapping-a"),
+            releases = listOf(
+                checkpointRelease(
+                    id = "release-a",
+                    mappingId = "mapping-a",
+                    pluginId = "plugin-a",
+                ),
+            ),
+        )
+        RoomStoryRepository(database).upsertProgress(
+            ReadingProgress(
+                storyId = StoryId("checkpoint-story"),
+                chapterId = ChapterId("checkpoint-chapter"),
+                releaseId = ReleaseId("release-a"),
+                position = ReaderPosition.Paragraph(4, 0.5f),
+                completed = true,
+                updatedAtEpochMillis = 2_000L,
+            ),
+        )
+    }
+}
+
+internal suspend fun removePluginRegistration(
+    context: Context,
+) {
+    withCheckpointDatabase(
+        context = context,
+        databaseName = PLUGIN_REMOVAL_DATABASE_NAME,
+    ) { database ->
+        database.openHelper.writableDatabase.execSQL(
+            "DELETE FROM plugin_states WHERE plugin_id = ?",
+            arrayOf("plugin-a"),
+        )
+    }
+}
+
+internal suspend fun assertPluginRemovalAfterReopen(
+    context: Context,
+) {
+    withCheckpointDatabase(
+        context = context,
+        databaseName = PLUGIN_REMOVAL_DATABASE_NAME,
+    ) { database ->
+        assertEquals(
+            1,
+            rowCount(database, "SELECT COUNT(*) FROM canonical_stories"),
+        )
+        assertEquals(
+            2,
+            rowCount(database, "SELECT COUNT(*) FROM content_mappings"),
+        )
+        assertEquals(
+            1,
+            rowCount(database, "SELECT COUNT(*) FROM chapter_releases"),
+        )
+        assertEquals(
+            1,
+            rowCount(database, "SELECT COUNT(*) FROM reading_progress"),
+        )
+        assertNoForeignKeyViolations(database)
+    }
+}
