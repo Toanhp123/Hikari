@@ -90,22 +90,25 @@ data class PluginManifest(
         }
     }
 
-    private companion object {
-        val PLUGIN_ID_PATTERN =
+    companion object {
+        private val PLUGIN_ID_PATTERN =
             Regex("""[a-z0-9]+(?:[._-][a-z0-9]+)+""")
 
-        val SEMANTIC_VERSION_PATTERN =
+        private val SEMANTIC_VERSION_PATTERN =
             Regex("""\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?""")
 
-        val SHA_256_PATTERN =
+        private val SHA_256_PATTERN =
             Regex("""[0-9a-f]{64}""")
 
-        val HOST_PATTERN =
+        private val HOST_PATTERN =
             Regex("""(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?""")
 
-        fun isHttpsUrl(value: String): Boolean =
+        private fun isHttpsUrl(
+            value: String,
+        ): Boolean =
             runCatching {
-                val uri = URI(value)
+                val uri =
+                    URI(value)
 
                 uri.scheme == "https" &&
                     !uri.host.isNullOrBlank() &&

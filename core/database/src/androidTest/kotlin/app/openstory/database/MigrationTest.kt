@@ -1,7 +1,7 @@
 package app.openstory.database
 
 import android.content.Context
-import androidx.room.Room
+
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
@@ -44,7 +44,8 @@ class MigrationTest {
                 """.trimIndent(),
             ).use { cursor ->
                 while (cursor.moveToNext()) {
-                    tables += cursor.getString(0)
+                    tables +=
+                        cursor.getString(0)
                 }
             }
 
@@ -57,9 +58,10 @@ class MigrationTest {
             assertTrue(
                 "chapter_releases" in tables,
             )
-            assertNoForeignKeyViolations(database)
-        }
-        finally {
+            assertNoForeignKeyViolations(
+                database,
+            )
+        } finally {
             database.close()
         }
     }
@@ -71,28 +73,180 @@ class MigrationTest {
                 .getApplicationContext<Context>()
 
         copyFixtureToDatabase(
-            context = context,
-            databaseName = FIXTURE_DATABASE_NAME,
+            context =
+                context,
+            databaseName =
+                FIXTURE_DATABASE_NAME,
         )
 
         val database =
-            Room.databaseBuilder(
-                context,
-                OpenStoryDatabase::class.java,
-                FIXTURE_DATABASE_NAME,
+            OpenStoryDatabase.open(
+                context =
+                    context,
+                databaseName =
+                    FIXTURE_DATABASE_NAME,
             )
-                .allowMainThreadQueries()
-                .build()
 
         try {
             assertFixtureContents(
-                database.openHelper.writableDatabase,
+                database
+                    .openHelper
+                    .writableDatabase,
             )
-        }
-        finally {
+        } finally {
             database.close()
+
             context.deleteDatabase(
                 FIXTURE_DATABASE_NAME,
+            )
+        }
+    }
+
+    @Test
+    fun versionOneDatabaseMigratesToVersionTwoPreservingPluginState() {
+        val context =
+            ApplicationProvider
+                .getApplicationContext<Context>()
+
+        context.deleteDatabase(
+            MIGRATION_DATABASE_NAME,
+        )
+
+        createVersionOneDatabaseWithPluginState()
+
+        val migratedDatabase =
+            OpenStoryDatabase.open(
+                context,
+            )
+
+        try {
+            assertVersionTwoMigration(
+                migratedDatabase
+                    .openHelper
+                    .writableDatabase,
+            )
+        } finally {
+            migratedDatabase.close()
+
+            context.deleteDatabase(
+                MIGRATION_DATABASE_NAME,
+            )
+        }
+    }
+
+    private fun createVersionOneDatabaseWithPluginState() {
+        val database =
+            migrationHelper.createDatabase(
+                MIGRATION_DATABASE_NAME,
+                VERSION_ONE,
+            )
+
+        try {
+            database.execSQL(
+                """
+                INSERT INTO plugin_states (
+                    plugin_id,
+                    enabled,
+                    active_version,
+                    previous_version,
+                    updated_at_epoch_millis
+                )
+                VALUES (
+                    '$FIXTURE_PLUGIN_ID',
+                    0,
+                    '1.0.0',
+                    NULL,
+                    1000
+                )
+                """.trimIndent(),
+            )
+        } finally {
+            database.close()
+        }
+    }
+
+    private fun assertVersionTwoMigration(
+        database: SupportSQLiteDatabase,
+    ) {
+        assertTrue(
+            tableExists(
+                database =
+                    database,
+                table =
+                    "plugin_versions",
+            ),
+        )
+
+        assertEquals(
+            expected =
+                0,
+            actual =
+                rowCount(
+                    database =
+                        database,
+                    table =
+                        "plugin_versions",
+                ),
+        )
+
+        assertPluginStatePreserved(
+            database =
+                database,
+        )
+
+        assertNoForeignKeyViolations(
+            database,
+        )
+    }
+
+    private fun assertPluginStatePreserved(
+        database: SupportSQLiteDatabase,
+    ) {
+        database.query(
+            """
+            SELECT
+                enabled,
+                active_version,
+                previous_version,
+                updated_at_epoch_millis
+            FROM plugin_states
+            WHERE plugin_id =
+                '$FIXTURE_PLUGIN_ID'
+            """.trimIndent(),
+        ).use { cursor ->
+            assertTrue(
+                cursor.moveToFirst(),
+                "Expected migrated plugin state.",
+            )
+
+            assertEquals(
+                expected =
+                    0,
+                actual =
+                    cursor.getInt(0),
+            )
+
+            assertEquals(
+                expected =
+                    "1.0.0",
+                actual =
+                    cursor.getString(1),
+            )
+
+            assertTrue(
+                cursor.isNull(2),
+            )
+
+            assertEquals(
+                expected =
+                    1_000L,
+                actual =
+                    cursor.getLong(3),
+            )
+
+            assertFalse(
+                cursor.moveToNext(),
+                "Expected one migrated plugin state.",
             )
         }
     }
@@ -112,51 +266,88 @@ class MigrationTest {
 
         expectedTables.forEach { table ->
             assertEquals(
-                expected = 1,
+                expected =
+                    1,
                 actual =
                     rowCount(
-                        database = database,
-                        table = table,
+                        database =
+                            database,
+                        table =
+                            table,
                     ),
                 message =
                     "Expected one fixture row in $table",
             )
         }
 
-        assertNoForeignKeyViolations(database)
+        assertNoForeignKeyViolations(
+            database,
+        )
     }
+
     private fun copyFixtureToDatabase(
         context: Context,
         databaseName: String,
     ) {
-        context.deleteDatabase(databaseName)
+        context.deleteDatabase(
+            databaseName,
+        )
 
         val destination =
-            context.getDatabasePath(databaseName)
+            context.getDatabasePath(
+                databaseName,
+            )
 
-        checkNotNull(destination.parentFile)
-            .mkdirs()
+        checkNotNull(
+            destination.parentFile,
+        ).mkdirs()
 
         InstrumentationRegistry
             .getInstrumentation()
             .context
             .assets
-            .open(FIXTURE_ASSET_PATH)
+            .open(
+                FIXTURE_ASSET_PATH,
+            )
             .use { input ->
                 destination
                     .outputStream()
                     .use { output ->
-                        input.copyTo(output)
+                        input.copyTo(
+                            output,
+                        )
                     }
             }
 
         assertTrue(
             destination.isFile,
         )
+
         assertTrue(
             destination.length() > 0L,
         )
     }
+
+    private fun tableExists(
+        database: SupportSQLiteDatabase,
+        table: String,
+    ): Boolean =
+        database.query(
+            """
+            SELECT COUNT(*)
+            FROM sqlite_master
+            WHERE
+                type = 'table'
+                AND name = '$table'
+            """.trimIndent(),
+        ).use { cursor ->
+            assertTrue(
+                cursor.moveToFirst(),
+            )
+
+            cursor.getInt(0) ==
+                1
+        }
 
     private fun rowCount(
         database: SupportSQLiteDatabase,
@@ -165,7 +356,10 @@ class MigrationTest {
         database.query(
             "SELECT COUNT(*) FROM $table",
         ).use { cursor ->
-            assertTrue(cursor.moveToFirst())
+            assertTrue(
+                cursor.moveToFirst(),
+            )
+
             cursor.getInt(0)
         }
 
@@ -183,10 +377,17 @@ class MigrationTest {
     }
 
     private companion object {
-        const val VERSION_ONE = 1
+        const val VERSION_ONE =
+            1
+
+        const val FIXTURE_PLUGIN_ID =
+            "community.fixture"
 
         const val HARNESS_DATABASE_NAME =
             "migration-harness.db"
+
+        const val MIGRATION_DATABASE_NAME =
+            "openstory.db"
 
         const val FIXTURE_DATABASE_NAME =
             "migration-fixture.db"

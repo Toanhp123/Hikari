@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import app.openstory.database.dao.PluginStateDao
 import app.openstory.database.dao.ProgressDao
 import app.openstory.database.dao.ChapterDao
 import app.openstory.database.dao.StoryDao
@@ -16,6 +17,7 @@ import app.openstory.database.entity.ChapterReleaseEntity
 import app.openstory.database.entity.ContentMappingEntity
 import app.openstory.database.entity.LibraryEntryEntity
 import app.openstory.database.entity.PluginStateEntity
+import app.openstory.database.entity.PluginVersionEntity
 import app.openstory.database.entity.ReadingProgressEntity
 import app.openstory.database.entity.StoryCatalogEntryEntity
 import app.openstory.database.entity.StoryContentMappingEntity
@@ -33,8 +35,9 @@ import app.openstory.database.entity.StoryContentMappingEntity
         CanonicalChapterReleaseEntity::class,
         ReadingProgressEntity::class,
         PluginStateEntity::class,
+        PluginVersionEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(
@@ -48,6 +51,8 @@ abstract class OpenStoryDatabase : RoomDatabase() {
 
     internal abstract fun progressDao(): ProgressDao
 
+    internal abstract fun pluginStateDao(): PluginStateDao
+
     companion object {
         private const val DATABASE_NAME =
             "openstory.db"
@@ -55,13 +60,27 @@ abstract class OpenStoryDatabase : RoomDatabase() {
         fun open(
             context: Context,
         ): OpenStoryDatabase =
+            open(
+                context =
+                    context,
+                databaseName =
+                    DATABASE_NAME,
+            )
+
+        internal fun open(
+            context: Context,
+            databaseName: String,
+        ): OpenStoryDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 OpenStoryDatabase::class.java,
-                DATABASE_NAME,
+                databaseName,
             )
                 .setJournalMode(
                     JournalMode.WRITE_AHEAD_LOGGING,
+                )
+                .addMigrations(
+                    migration1To2,
                 )
                 .build()
     }

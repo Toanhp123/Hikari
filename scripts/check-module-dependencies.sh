@@ -76,6 +76,19 @@ assert_allowed_project_dependencies \
   "core/network/build.gradle.kts" \
   ":core:common" \
   ":core:plugin-api"
+
+assert_allowed_project_dependencies \
+  ":core:plugin-host" \
+  "core/plugin-host/build.gradle.kts" \
+  ":core:common" \
+  ":core:plugin-api"
+
+assert_allowed_project_dependencies \
+  ":core:database" \
+  "core/database/build.gradle.kts" \
+  ":core:common" \
+  ":core:model" \
+  ":core:plugin-host"
 CORE_MODEL_SOURCE="core/model/src/main"
 
 if [[ -d "$CORE_MODEL_SOURCE" ]]; then

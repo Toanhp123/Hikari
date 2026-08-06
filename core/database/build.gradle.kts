@@ -25,10 +25,13 @@ dependencies {
     api(project(":core:model"))
 
     api(project(":core:common"))
+
+    implementation(project(":core:plugin-host"))
     api(libs.kotlinx.coroutines.core)
 
     implementation(libs.kotlinx.serialization.json)
 
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(kotlin("test-junit"))
 
     androidTestImplementation(kotlin("test-junit"))
