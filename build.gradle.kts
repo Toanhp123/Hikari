@@ -1,5 +1,37 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
+import dev.detekt.gradle.Detekt
+
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.detekt)
+}
+
+detekt {
+    toolVersion = libs.versions.detekt.get()
+    buildUponDefaultConfig = true
+    config.setFrom(
+        rootProject.file("config/detekt/detekt.yml"),
+    )
+    source.setFrom(
+        rootProject.fileTree(rootDir) {
+            include("**/*.kt")
+            exclude(
+                "**/build/**",
+                "**/.gradle/**",
+                "**/.idea/**",
+            )
+        },
+    )
+    parallel = true
+    ignoreFailures = false
+    basePath.set(rootDir)
+}
+
+tasks.withType<Detekt>().configureEach {
+    reports {
+        checkstyle.required.set(true)
+        html.required.set(true)
+        sarif.required.set(true)
+        markdown.required.set(true)
+    }
 }
