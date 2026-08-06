@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "modules": {
+    ":app": {
+      "path": "app",
+      "platform": "android-application",
+      "productionDependencies": [
+        ":core:common"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": []
+    },
+    ":core:common": {
+      "path": "core/common",
+      "platform": "jvm",
+      "productionDependencies": [],
+      "testDependencies": [],
+      "forbiddenProductionImports": []
+    },
+    ":core:model": {
+      "path": "core/model",
+      "platform": "jvm",
+      "productionDependencies": [
+        ":core:common"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.compose."
+      ]
+    },
+    ":core:database": {
+      "path": "core/database",
+      "platform": "android-library",
+      "productionDependencies": [
+        ":core:common",
+        ":core:model",
+        ":core:plugin-host"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": []
+    },
+    ":core:plugin-api": {
+      "path": "core/plugin-api",
+      "platform": "jvm",
+      "productionDependencies": [
+        ":core:model"
+      ],
+      "testDependencies": [
+        ":test:fixtures"
+      ],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.",
+        "java.io.",
+        "java.nio.file.",
+        "kotlin.io.path."
+      ]
+    },
+    ":core:network": {
+      "path": "core/network",
+      "platform": "jvm",
+      "productionDependencies": [
+        ":core:common",
+        ":core:plugin-api"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": []
+    },
+    ":core:plugin-host": {
+      "path": "core/plugin-host",
+      "platform": "android-library",
+      "productionDependencies": [
+        ":core:common",
+        ":core:network",
+        ":core:plugin-api"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": []
+    },
+    ":test:fixtures": {
+      "path": "test/fixtures",
+      "platform": "jvm",
+      "productionDependencies": [
+        ":core:common",
+        ":core:model",
+        ":core:plugin-api"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": []
+    }
+  }
+}

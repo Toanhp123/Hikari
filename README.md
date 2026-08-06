@@ -1,12 +1,15 @@
 # Hikari
 
-Hikari is the Android application shell for the OpenStory local-first novel
-library.
+Hikari is the Android application repository for the OpenStory local-first
+novel library. The Android package namespace and application ID are
+`app.openstory`.
 
 ## Requirements
 
 - JDK 17
 - Android SDK Platform 37
+- Android SDK Platform 26 emulator image for the min-SDK checkpoint
+- Android SDK Platform 37 emulator image for the target-SDK checkpoint
 - SDK Build-Tools 36.0.0
 - Git
 - Git Bash on Windows, or Bash on Linux/macOS
@@ -19,12 +22,22 @@ dependency verification metadata are committed to the repository.
 Install the required Android SDK packages through Android Studio's SDK Manager,
 or with `sdkmanager`:
 
-    sdkmanager "platforms;android-37" "build-tools;36.0.0"
+    sdkmanager \
+      "platform-tools" \
+      "emulator" \
+      "platforms;android-37" \
+      "build-tools;36.0.0" \
+      "system-images;android-26;google_apis;x86_64" \
+      "system-images;android-37;google_apis;x86_64"
 
 The equivalent package identifiers are:
 
+- `platform-tools`
+- `emulator`
 - `platforms;android-37`
 - `build-tools;36.0.0`
+- `system-images;android-26;google_apis;x86_64`
+- `system-images;android-37;google_apis;x86_64`
 
 Create `local.properties` in the repository root and point `sdk.dir` to the
 installed Android SDK.
@@ -50,7 +63,7 @@ On Windows PowerShell:
 
     .\gradlew.bat --version
 
-## Verify
+## Fast verification
 
 Linux, macOS, and Git Bash:
 
@@ -60,12 +73,13 @@ Windows PowerShell with Git Bash installed:
 
     & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify.sh
 
-The shared verification command runs:
+The shared fast verification command runs:
 
-- module dependency boundary checks;
+- versioned module dependency and platform-import policy;
+- `app.openstory` application identity verification;
 - build-logic tests;
 - JVM tests across all modules;
-- Android unit tests across all Android modules;
+- Android local unit tests across all Android modules;
 - Android Lint across all Android modules;
 - Detekt;
 - strict Gradle dependency verification;
@@ -73,18 +87,45 @@ The shared verification command runs:
 
 CI executes the same `scripts/verify.sh` command.
 
-## Module boundaries
+## Wave checkpoint verification
 
-The Wave 01 bootstrap modules are:
+Wave checkpoints additionally require connected instrumentation and launcher
+smoke tests on API 26 and API 37.
 
-- `:app`
-- `:core:common`
-- `:core:model`
-- `:test:fixtures`
+With both emulators running:
 
-`core:model` must remain independent from Android and Compose APIs.
+    ANDROID_SERIAL_API_26=emulator-5554 \
+    ANDROID_SERIAL_API_37=emulator-5556 \
+      ./scripts/verify-wave-checkpoint.sh
 
-`test:fixtures` may depend only on `core:common` and `core:model`.
+To run one device independently:
+
+    ANDROID_SERIAL=emulator-5554 ./scripts/verify-instrumentation.sh 26
+
+CI runs API 26 and API 37 as independent jobs. The Wave 01 checkpoint job is
+green only when fast verification and both instrumentation jobs succeed.
+
+## Current module graph
+
+- `:app` — composition root, Hilt, Compose shell, navigation
+- `:core:common` — typed results, errors, clocks, dispatchers, stable primitives
+- `:core:model` — platform-independent canonical domain models
+- `:core:database` — Room schema, DAOs, migrations, repositories
+- `:core:plugin-api` — public plugin contracts, package schemas, fixtures
+- `:core:network` — allowlisted plugin HTTP capability
+- `:core:plugin-host` — package installation, registry, selector host
+- `:test:fixtures` — deterministic shared test data
+
+The direct project dependency policy is stored in:
+
+    config/architecture/module-boundaries.json
+
+Every module included by `settings.gradle.kts` must be declared in this policy.
+`core:model` remains independent from Android and Compose APIs. `core:plugin-api`
+remains independent from Android and filesystem APIs. Test fixtures cannot leak
+into production dependencies.
+
+See `docs/contributing/adding-a-module.md` before adding a module.
 
 ## Dependency updates
 

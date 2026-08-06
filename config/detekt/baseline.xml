@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LargeClass:SelectorRuntimeTest.kt:SelectorRuntimeTest</ID>
+    <ID>LongMethod:SelectorInterpreter.kt:SelectorInterpreter$private suspend fun executeHttpGet: AppResult&lt;SelectorValue&gt;</ID>
+    <ID>MagicNumber:SelectorInterpreter.kt:SelectorInterpreter$200</ID>
+    <ID>MagicNumber:SelectorInterpreter.kt:SelectorInterpreter$299</ID>
+    <ID>ReturnCount:SelectorExecutionContext.kt:SelectorExecutionContext$internal fun resolveUrlTemplate: String?</ID>
+    <ID>ReturnCount:SelectorInterpreter.kt:SelectorInterpreter$private fun normalizeWhitespace: AppResult&lt;SelectorValue&gt;</ID>
+    <ID>ReturnCount:SelectorInterpreter.kt:SelectorInterpreter$private fun selectAll: AppResult&lt;SelectorValue&gt;</ID>
+    <ID>ReturnCount:SelectorInterpreter.kt:SelectorInterpreter$private fun selectAttribute: AppResult&lt;SelectorValue&gt;</ID>
+    <ID>ReturnCount:SelectorInterpreter.kt:SelectorInterpreter$private suspend fun executeHttpGet: AppResult&lt;SelectorValue&gt;</ID>
+    <ID>ReturnCount:SelectorInterpreter.kt:SelectorInterpreter$private suspend fun executeWithinWallClockBudget: AppResult&lt;SelectorValue&gt;</ID>
+    <ID>ReturnCount:SelectorInterpreter.kt:private fun AppResult.Failure.withOperationIndex: AppResult.Failure</ID>
+    <ID>SwallowedException:SelectorInterpreter.kt:SelectorInterpreter$exception: Exception</ID>
+    <ID>TooGenericExceptionCaught:SelectorInterpreter.kt:SelectorInterpreter$exception: Exception</ID>
+    <ID>TooManyFunctions:SelectorInterpreter.kt:SelectorInterpreter</ID>
+  </CurrentIssues>
+</SmellBaseline>

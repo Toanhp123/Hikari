@@ -1,6 +1,7 @@
 import dev.detekt.gradle.Detekt
 
 plugins {
+    id("openstory.architecture")
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.detekt)
@@ -8,6 +9,7 @@ plugins {
 
 detekt {
     toolVersion = libs.versions.detekt.get()
+    baseline.set(rootProject.file("config/detekt/baseline.xml"))
     buildUponDefaultConfig = true
     config.setFrom(
         rootProject.file("config/detekt/detekt.yml"),
