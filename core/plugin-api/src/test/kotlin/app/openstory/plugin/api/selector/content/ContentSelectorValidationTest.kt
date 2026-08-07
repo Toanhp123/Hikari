@@ -6,7 +6,7 @@ import app.openstory.plugin.api.selector.HttpGet
 import app.openstory.plugin.api.selector.ListBinding
 import app.openstory.plugin.api.selector.ObjectBinding
 import app.openstory.plugin.api.selector.SELECTOR_JSON
-import app.openstory.plugin.api.selector.SelectorPluginDefinitionV2
+import app.openstory.plugin.api.selector.SelectorDefinition
 import app.openstory.plugin.api.selector.SelectorRequestPlan
 import app.openstory.plugin.api.selector.SelectorTokenKind
 import app.openstory.plugin.api.selector.SelectorValidationErrorCode
@@ -43,7 +43,7 @@ class ContentSelectorValidationTest {
     fun chapterBindingRejectsUnknownBlockVariant() {
         val source = """
             {
-              "schemaVersion": 2,
+              "schemaVersion": 1,
               "content": {
                 "chapter": {
                   "request": {"operations":[{"type":"http_get","urlTemplate":"https://allowed.example/chapter"}]},
@@ -105,7 +105,7 @@ class ContentSelectorValidationTest {
     }
 
     @Test
-    fun versionTwoContentEndpointsRoundTrip() {
+    fun contentEndpointsRoundTrip() {
         val release = ListBinding(
             css = ".chapter",
             item = ObjectBinding(
@@ -117,7 +117,7 @@ class ContentSelectorValidationTest {
                 ),
             ),
         )
-        val definition = SelectorPluginDefinitionV2(
+        val definition = SelectorDefinition(
             content = ContentSelectorEndpoints(
                 search = ContentSearchSelector(
                     request = documentRequest(),
@@ -160,15 +160,15 @@ class ContentSelectorValidationTest {
         assertDefinitionRoundTrips(definition)
     }
 
-    private fun assertDefinitionRoundTrips(definition: SelectorPluginDefinitionV2) {
+    private fun assertDefinitionRoundTrips(definition: SelectorDefinition) {
         val encoded = SELECTOR_JSON.encodeToString(
-            SelectorPluginDefinitionV2.serializer(),
+            SelectorDefinition.serializer(),
             definition,
         )
         assertEquals(
             definition,
             SELECTOR_JSON.decodeFromString(
-                SelectorPluginDefinitionV2.serializer(),
+                SelectorDefinition.serializer(),
                 encoded,
             ),
         )

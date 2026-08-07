@@ -4,27 +4,6 @@ import app.openstory.plugin.api.PluginManifest
 import java.util.Locale
 
 internal object SelectorRequestPlanValidation {
-    fun validateV1(
-        definition: SelectorPluginDefinition,
-        allowedHosts: Set<String>,
-    ): Result<Unit> = runCatching {
-        if (definition.schemaVersion != SelectorPluginDefinition.CURRENT_SCHEMA_VERSION) {
-            selectorFail(
-                SelectorValidationErrorCode.UNSUPPORTED_SCHEMA_VERSION,
-                "Unsupported selector schema version ${definition.schemaVersion}.",
-            )
-        }
-        validatePipeline(
-            operations = definition.operations,
-            context = RequestValidationContext(
-                allowedHosts = normalizeHosts(allowedHosts),
-                declarativeOrigin = null,
-                requireDocumentOutput = false,
-                relativeRequiresOrigin = false,
-            ),
-        )
-    }
-
     fun validate(
         request: SelectorRequestPlan,
         manifest: PluginManifest,
@@ -35,14 +14,13 @@ internal object SelectorRequestPlanValidation {
             context = RequestValidationContext(
                 allowedHosts = normalizeHosts(manifest.allowedHosts),
                 declarativeOrigin = manifest.declarativeOrigin,
-                requireDocumentOutput = true,
                 relativeRequiresOrigin = true,
             ),
         )
     }
 
     private fun validatePipeline(
-        operations: List<SelectorOperation>,
+        operations: List<SelectorRequestOperation>,
         context: RequestValidationContext,
     ) {
         if (operations.isEmpty()) {
@@ -58,27 +36,25 @@ internal object SelectorRequestPlanValidation {
             )
         }
 
-        var currentType = SelectorValueType.NONE
-        operations.forEachIndexed { index, operation ->
-            if (operation.inputType != currentType) {
-                selectorFail(
-                    SelectorValidationErrorCode.TYPE_MISMATCH,
-                    "Operation $index expects ${operation.inputType} but received $currentType.",
-                )
-            }
-            validateOperation(operation, context)
-            currentType = operation.outputType
-        }
-        if (context.requireDocumentOutput && currentType != SelectorValueType.DOCUMENT) {
+        if (operations.first() !is HttpGet) {
             selectorFail(
                 SelectorValidationErrorCode.TYPE_MISMATCH,
-                "Selector request plan must finish with a document.",
+                "Selector request plan must start with HTTP GET.",
             )
         }
+        operations.drop(1).forEach { operation ->
+            if (operation !is RemoveElements) {
+                selectorFail(
+                    SelectorValidationErrorCode.TYPE_MISMATCH,
+                    "Only element removal may follow HTTP GET.",
+                )
+            }
+        }
+        operations.forEach { operation -> validateOperation(operation, context) }
     }
 
     private fun validateOperation(
-        operation: SelectorOperation,
+        operation: SelectorRequestOperation,
         context: RequestValidationContext,
     ) {
         when (operation) {
@@ -88,14 +64,7 @@ internal object SelectorRequestPlanValidation {
                 declarativeOrigin = context.declarativeOrigin,
                 relativeRequiresOrigin = context.relativeRequiresOrigin,
             )
-            is SelectAll -> SelectorSyntaxValidation.validateCss(operation.css)
-            is SelectText -> SelectorSyntaxValidation.validateCss(operation.css)
-            is SelectAttribute -> {
-                SelectorSyntaxValidation.validateCss(operation.css)
-                SelectorSyntaxValidation.validateAttribute(operation.attribute)
-            }
             is RemoveElements -> SelectorSyntaxValidation.validateCss(operation.css)
-            is NormalizeWhitespace -> Unit
         }
     }
 
@@ -121,7 +90,6 @@ internal object SelectorRequestPlanValidation {
     private data class RequestValidationContext(
         val allowedHosts: Set<String>,
         val declarativeOrigin: String?,
-        val requireDocumentOutput: Boolean,
         val relativeRequiresOrigin: Boolean,
     )
 

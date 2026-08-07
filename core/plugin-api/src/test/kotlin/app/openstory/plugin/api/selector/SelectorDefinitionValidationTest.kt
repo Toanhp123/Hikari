@@ -5,18 +5,12 @@ import app.openstory.plugin.api.PluginCapability
 import app.openstory.plugin.api.PluginKind
 import app.openstory.plugin.api.PluginManifest
 import app.openstory.plugin.api.PluginRuntime
-import app.openstory.plugin.api.selector.catalog.CatalogSelectorEndpoints
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class SelectorV2ValidationTest {
+class SelectorDefinitionValidationTest {
     @Test
     fun relativeRequestRequiresExplicitDeclarativeOrigin() {
-        val definition = SelectorPluginDefinitionV2(
-            catalog = CatalogSelectorEndpoints(
-                search = null,
-            ),
-        )
         val request = SelectorRequestPlan(
             operations = listOf(HttpGet("/search?q={query}")),
         )
@@ -30,18 +24,13 @@ class SelectorV2ValidationTest {
             SelectorValidationErrorCode.INVALID_DECLARATIVE_ORIGIN,
             result.validationCode(),
         )
-        // Keep the root reference live so the test also compiles the V2 envelope.
-        assertEquals(2, definition.schemaVersion)
     }
 
     @Test
-    fun requestPlanMustFinishWithDocument() {
+    fun requestPlanMustStartWithHttpGet() {
         val result = SelectorValidation.validateRequestPlan(
             request = SelectorRequestPlan(
-                operations = listOf(
-                    HttpGet("https://allowed.example/search"),
-                    SelectAll("article"),
-                ),
+                operations = listOf(RemoveElements(".noise")),
             ),
             manifest = manifest("https://allowed.example/"),
         )
@@ -59,11 +48,9 @@ class SelectorV2ValidationTest {
             binding = OptionalBinding(binding)
         }
 
-        val result = SelectorValidation.validateBinding(binding)
-
         assertEquals(
             SelectorValidationErrorCode.EXCESSIVE_BINDING_DEPTH,
-            result.validationCode(),
+            SelectorValidation.validateBinding(binding).validationCode(),
         )
     }
 
@@ -71,19 +58,15 @@ class SelectorV2ValidationTest {
     fun requestPlanRejectsMoreThanSixtyFourOperations() {
         val operations = buildList {
             add(HttpGet("https://allowed.example/search"))
-            repeat(64) { index ->
-                add(RemoveElements(".noise-$index"))
-            }
+            repeat(64) { index -> add(RemoveElements(".noise-$index")) }
         }
-
-        val result = SelectorValidation.validateRequestPlan(
-            request = SelectorRequestPlan(operations),
-            manifest = manifest("https://allowed.example/"),
-        )
 
         assertEquals(
             SelectorValidationErrorCode.EXCESSIVE_OPERATION_COUNT,
-            result.validationCode(),
+            SelectorValidation.validateRequestPlan(
+                request = SelectorRequestPlan(operations),
+                manifest = manifest("https://allowed.example/"),
+            ).validationCode(),
         )
     }
 
@@ -91,17 +74,13 @@ class SelectorV2ValidationTest {
     fun bindingValidationRejectsMoreThanFiveHundredTwelveNodes() {
         val fields = (0 until 128).associate { index ->
             "field$index" to OptionalBinding(
-                OptionalBinding(
-                    OptionalBinding(TextBinding()),
-                ),
+                OptionalBinding(OptionalBinding(TextBinding())),
             )
         }
 
-        val result = SelectorValidation.validateBinding(ObjectBinding(fields))
-
         assertEquals(
             SelectorValidationErrorCode.EXCESSIVE_BINDING_COUNT,
-            result.validationCode(),
+            SelectorValidation.validateBinding(ObjectBinding(fields)).validationCode(),
         )
     }
 

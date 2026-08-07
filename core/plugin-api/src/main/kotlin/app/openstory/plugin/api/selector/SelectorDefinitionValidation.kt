@@ -8,12 +8,12 @@ import app.openstory.plugin.api.selector.catalog.CatalogSelectorValidation
 import app.openstory.plugin.api.selector.content.ContentSelectorEndpoints
 import app.openstory.plugin.api.selector.content.ContentSelectorValidation
 
-internal object SelectorV2DefinitionValidation {
+internal object SelectorDefinitionValidation {
     fun validate(
-        definition: SelectorPluginDefinitionV2,
+        definition: SelectorDefinition,
         manifest: PluginManifest,
     ): Result<Unit> = runCatching {
-        if (definition.schemaVersion != SelectorPluginDefinitionV2.CURRENT_SCHEMA_VERSION) {
+        if (definition.schemaVersion != SelectorDefinition.CURRENT_SCHEMA_VERSION) {
             selectorFail(
                 SelectorValidationErrorCode.UNSUPPORTED_SCHEMA_VERSION,
                 "Unsupported selector schema version ${definition.schemaVersion}.",
@@ -22,13 +22,13 @@ internal object SelectorV2DefinitionValidation {
         if (manifest.runtime != PluginRuntime.DECLARATIVE) {
             selectorFail(
                 SelectorValidationErrorCode.INVALID_DEFINITION,
-                "Selector V2 requires a declarative plugin manifest.",
+                "Selector definition requires a declarative plugin manifest.",
             )
         }
         if (definition.catalog == null && definition.content == null) {
             selectorFail(
                 SelectorValidationErrorCode.EMPTY_DEFINITION,
-                "Selector V2 must declare at least one endpoint group.",
+                "Selector definition must declare at least one endpoint group.",
             )
         }
         definition.catalog?.let {
@@ -45,7 +45,8 @@ internal object SelectorV2DefinitionValidation {
         endpoints: CatalogSelectorEndpoints,
         manifest: PluginManifest,
     ) {
-        if (listOf(
+        if (
+            listOf(
                 endpoints.home,
                 endpoints.search,
                 endpoints.details,
@@ -75,7 +76,8 @@ internal object SelectorV2DefinitionValidation {
         endpoints: ContentSelectorEndpoints,
         manifest: PluginManifest,
     ) {
-        if (listOf(
+        if (
+            listOf(
                 endpoints.search,
                 endpoints.story,
                 endpoints.latest,

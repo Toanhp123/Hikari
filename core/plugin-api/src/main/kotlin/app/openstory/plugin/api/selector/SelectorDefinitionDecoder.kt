@@ -5,20 +5,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-sealed interface DecodedSelectorDefinition {
-    data class V1(
-        val definition: SelectorPluginDefinition,
-    ) : DecodedSelectorDefinition
-
-    data class V2(
-        val definition: SelectorPluginDefinitionV2,
-    ) : DecodedSelectorDefinition
-}
-
 class SelectorDefinitionDecoder(
     private val json: Json = SELECTOR_JSON,
 ) {
-    fun decode(source: String): Result<DecodedSelectorDefinition> =
+    fun decode(source: String): Result<SelectorDefinition> =
         runCatching {
             val root = json.parseToJsonElement(source) as? JsonObject
                 ?: selectorFail(
@@ -26,28 +16,20 @@ class SelectorDefinitionDecoder(
                     "Selector definition root must be an object.",
                 )
 
-            when (root["schemaVersion"]?.jsonPrimitive?.intOrNull) {
-                SelectorPluginDefinition.CURRENT_SCHEMA_VERSION ->
-                    DecodedSelectorDefinition.V1(
-                        json.decodeFromJsonElement(
-                            SelectorPluginDefinition.serializer(),
-                            root,
-                        ),
-                    )
-
-                SelectorPluginDefinitionV2.CURRENT_SCHEMA_VERSION ->
-                    DecodedSelectorDefinition.V2(
-                        json.decodeFromJsonElement(
-                            SelectorPluginDefinitionV2.serializer(),
-                            root,
-                        ),
-                    )
-
-                else -> selectorFail(
+            if (
+                root["schemaVersion"]?.jsonPrimitive?.intOrNull !=
+                SelectorDefinition.CURRENT_SCHEMA_VERSION
+            ) {
+                selectorFail(
                     SelectorValidationErrorCode.UNSUPPORTED_SCHEMA_VERSION,
                     "Unsupported selector schema version.",
                 )
             }
+
+            json.decodeFromJsonElement(
+                SelectorDefinition.serializer(),
+                root,
+            )
         }.recoverCatching { exception ->
             if (exception is SelectorValidationException) {
                 throw exception

@@ -6,7 +6,7 @@ import app.openstory.plugin.api.selector.HttpGet
 import app.openstory.plugin.api.selector.ListBinding
 import app.openstory.plugin.api.selector.ObjectBinding
 import app.openstory.plugin.api.selector.SELECTOR_JSON
-import app.openstory.plugin.api.selector.SelectorPluginDefinitionV2
+import app.openstory.plugin.api.selector.SelectorDefinition
 import app.openstory.plugin.api.selector.SelectorRequestPlan
 import app.openstory.plugin.api.selector.SelectorTokenKind
 import app.openstory.plugin.api.selector.SelectorValidationErrorCode
@@ -73,8 +73,8 @@ class CatalogSelectorValidationTest {
     }
 
     @Test
-    fun versionTwoCatalogEndpointsRoundTrip() {
-        val definition = SelectorPluginDefinitionV2(
+    fun catalogEndpointsRoundTrip() {
+        val definition = SelectorDefinition(
             catalog = CatalogSelectorEndpoints(
                 search = validSearch(),
                 details = CatalogDetailsSelector(
@@ -97,13 +97,13 @@ class CatalogSelectorValidationTest {
         )
 
         val encoded = SELECTOR_JSON.encodeToString(
-            SelectorPluginDefinitionV2.serializer(),
+            SelectorDefinition.serializer(),
             definition,
         )
         assertEquals(
             definition,
             SELECTOR_JSON.decodeFromString(
-                SelectorPluginDefinitionV2.serializer(),
+                SelectorDefinition.serializer(),
                 encoded,
             ),
         )

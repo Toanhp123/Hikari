@@ -39,17 +39,9 @@ class SelectorValidationException(
 
 object SelectorValidation {
     fun validate(
-        definition: SelectorPluginDefinition,
-        allowedHosts: Set<String>,
-    ): Result<Unit> = SelectorRequestPlanValidation.validateV1(
-        definition = definition,
-        allowedHosts = allowedHosts,
-    )
-
-    fun validate(
-        definition: SelectorPluginDefinitionV2,
+        definition: SelectorDefinition,
         manifest: PluginManifest,
-    ): Result<Unit> = SelectorV2DefinitionValidation.validate(
+    ): Result<Unit> = SelectorDefinitionValidation.validate(
         definition = definition,
         manifest = manifest,
     )
