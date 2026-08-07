@@ -9,27 +9,27 @@ import kotlin.test.assertIs
 
 class ZipPackageArchiveInspectorSelectorValidationTest {
     @Test
-    fun validVersionTwoSelectorIsAcceptedBeforeInstallation() {
+    fun canonicalSelectorSchemaOneIsAccepted() {
         val result = ZipPackageArchiveInspector().inspect(
-            selectorPackage(VALID_SELECTOR_V2),
+            selectorPackage(VALID_SELECTOR),
         )
 
         assertIs<AppResult.Success<*>>(result)
     }
 
     @Test
-    fun unsupportedSelectorSchemaFailsBeforeInstallation() {
+    fun selectorSchemaTwoIsRejectedAsUnsupported() {
         val result = ZipPackageArchiveInspector().inspect(
-            selectorPackage("""{"schemaVersion":99}"""),
+            selectorPackage("""{"schemaVersion":2}"""),
         )
 
         assertIs<AppResult.Failure>(result)
     }
 
     @Test
-    fun selectorOutputShapeMismatchFailsBeforeInstallation() {
+    fun malformedSchemaOneOutputBindingIsRejectedBeforeActivation() {
         val result = ZipPackageArchiveInspector().inspect(
-            selectorPackage(INVALID_SELECTOR_V2),
+            selectorPackage(INVALID_SELECTOR),
         )
 
         assertIs<AppResult.Failure>(result)
@@ -74,10 +74,10 @@ private val SELECTOR_MANIFEST =
     }
     """.trimIndent()
 
-private val VALID_SELECTOR_V2 =
+private val VALID_SELECTOR =
     """
     {
-      "schemaVersion": 2,
+      "schemaVersion": 1,
       "catalog": {
         "search": {
           "request": {
@@ -101,10 +101,10 @@ private val VALID_SELECTOR_V2 =
     }
     """.trimIndent()
 
-private val INVALID_SELECTOR_V2 =
+private val INVALID_SELECTOR =
     """
     {
-      "schemaVersion": 2,
+      "schemaVersion": 1,
       "catalog": {
         "search": {
           "request": {

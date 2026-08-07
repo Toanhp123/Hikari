@@ -6,7 +6,6 @@ import app.openstory.plugin.api.PluginManifest
 import app.openstory.plugin.api.PluginRuntime
 import app.openstory.plugin.api.packageformat.PackageArchiveEntry
 import app.openstory.plugin.api.packageformat.PackageArchiveLimits
-import app.openstory.plugin.api.selector.DecodedSelectorDefinition
 import app.openstory.plugin.api.selector.SelectorDefinitionDecoder
 import app.openstory.plugin.api.selector.SelectorValidation
 import java.io.ByteArrayInputStream
@@ -176,30 +175,18 @@ private fun validateSelectorDefinition(
         return
     }
 
-    when (
-        val decoded =
-            SelectorDefinitionDecoder()
-                .decode(
-                    requireNotNull(
-                        selectorSource,
-                    ) {
-                        "Declarative package is missing selector.json."
-                    },
-                )
-                .getOrThrow()
-    ) {
-        is DecodedSelectorDefinition.V1 ->
-            SelectorValidation.validate(
-                definition = decoded.definition,
-                allowedHosts = manifest.allowedHosts,
-            ).getOrThrow()
+    val definition = SelectorDefinitionDecoder()
+        .decode(
+            requireNotNull(selectorSource) {
+                "Declarative package is missing selector.json."
+            },
+        )
+        .getOrThrow()
 
-        is DecodedSelectorDefinition.V2 ->
-            SelectorValidation.validate(
-                definition = decoded.definition,
-                manifest = manifest,
-            ).getOrThrow()
-    }
+    SelectorValidation.validate(
+        definition = definition,
+        manifest = manifest,
+    ).getOrThrow()
 }
 
 private fun ZipInputStream.readCurrentEntry(

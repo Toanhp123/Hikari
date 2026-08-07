@@ -1,12 +1,12 @@
 {
-  "id": "fixture.selector-v2",
-  "name": "Selector V2 Contract Fixture",
+  "id": "fixture.selector",
+  "name": "Selector Contract Fixture",
   "version": "1.0.0",
   "packageChecksumSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "homepageUrl": "https://fixture.example/selector-v2",
-  "sourceUrl": "https://fixture.example/selector-v2/source",
+  "homepageUrl": "https://fixture.example/selector",
+  "sourceUrl": "https://fixture.example/selector/source",
   "minimumHostVersion": "1.0.0",
-  "updateUrl": "https://fixture.example/selector-v2/manifest.json",
+  "updateUrl": "https://fixture.example/selector/manifest.json",
   "api": {
     "major": 1,
     "minor": 0
