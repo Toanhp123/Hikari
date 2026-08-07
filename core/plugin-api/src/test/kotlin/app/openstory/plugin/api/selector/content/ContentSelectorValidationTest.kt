@@ -35,7 +35,7 @@ class ContentSelectorValidationTest {
 
         assertEquals(
             SelectorValidationErrorCode.OUTPUT_TYPE_MISMATCH,
-            ContentSelectorValidation.validateReleases(selector).validationCode(),
+            ContentSelectorValidator.validateReleases(selector).validationCode(),
         )
     }
 
@@ -82,7 +82,7 @@ class ContentSelectorValidationTest {
 
         assertEquals(
             SelectorValidationErrorCode.OUTPUT_TYPE_MISMATCH,
-            ContentSelectorValidation.validateSearch(selector).validationCode(),
+            ContentSelectorValidator.validateSearch(selector).validationCode(),
         )
     }
 
@@ -101,7 +101,7 @@ class ContentSelectorValidationTest {
             ),
         )
 
-        assertTrue(ContentSelectorValidation.validateChapter(selector).isSuccess)
+        assertTrue(ContentSelectorValidator.validateChapter(selector).isSuccess)
     }
 
     @Test

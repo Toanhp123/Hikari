@@ -4,16 +4,16 @@ import app.openstory.plugin.api.selector.ListBinding
 import app.openstory.plugin.api.selector.ObjectBinding
 import app.openstory.plugin.api.selector.OptionalBinding
 import app.openstory.plugin.api.selector.SelectorBinding
-import app.openstory.plugin.api.selector.SelectorOutputShape
 import app.openstory.plugin.api.selector.SelectorTextValueBinding
 import app.openstory.plugin.api.selector.SelectorTokenKind
 import app.openstory.plugin.api.selector.UrlBinding
 import app.openstory.plugin.api.selector.SelectorValidation
 import app.openstory.plugin.api.selector.SelectorValidationErrorCode
 import app.openstory.plugin.api.selector.selectorFail
-import app.openstory.plugin.api.selector.validateOutputObject
+import app.openstory.plugin.api.selector.validation.SelectorOutputShape
+import app.openstory.plugin.api.selector.validation.SelectorOutputValidator
 
-object CatalogSelectorValidation {
+object CatalogSelectorValidator {
     fun validateHome(selector: CatalogHomeSelector): Result<Unit> = runCatching {
         SelectorValidation.validateBinding(selector.sections).getOrThrow()
 
@@ -23,7 +23,7 @@ object CatalogSelectorValidation {
                 "catalog.home.sections",
             )
 
-        validateOutputObject(
+        SelectorOutputValidator.validateObject(
             binding =
                 requireObjectBinding(
                     sections.item,
@@ -70,7 +70,7 @@ object CatalogSelectorValidation {
                 "catalog.search.items",
             )
 
-        validateOutputObject(
+        SelectorOutputValidator.validateObject(
             binding =
                 requireObjectBinding(
                     items.item,
@@ -83,7 +83,7 @@ object CatalogSelectorValidation {
 
     fun validateDetails(selector: CatalogDetailsSelector): Result<Unit> = runCatching {
         SelectorValidation.validateBinding(selector.details).getOrThrow()
-        validateOutputObject(
+        SelectorOutputValidator.validateObject(
             binding =
                 requireObjectBinding(
                     selector.details,

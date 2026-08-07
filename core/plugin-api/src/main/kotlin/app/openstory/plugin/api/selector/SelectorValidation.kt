@@ -1,6 +1,10 @@
 package app.openstory.plugin.api.selector
 
 import app.openstory.plugin.api.PluginManifest
+import app.openstory.plugin.api.selector.validation.SelectorBindingValidator
+import app.openstory.plugin.api.selector.validation.SelectorDefinitionValidator
+import app.openstory.plugin.api.selector.validation.SelectorRequestValidator
+import app.openstory.plugin.api.selector.validation.SelectorSyntaxValidator
 
 enum class SelectorValidationErrorCode {
     EMPTY_PIPELINE,
@@ -41,7 +45,7 @@ object SelectorValidation {
     fun validate(
         definition: SelectorDefinition,
         manifest: PluginManifest,
-    ): Result<Unit> = SelectorDefinitionValidation.validate(
+    ): Result<Unit> = SelectorDefinitionValidator.validate(
         definition = definition,
         manifest = manifest,
     )
@@ -49,15 +53,20 @@ object SelectorValidation {
     fun validateRequestPlan(
         request: SelectorRequestPlan,
         manifest: PluginManifest,
-    ): Result<Unit> = SelectorRequestPlanValidation.validate(
+    ): Result<Unit> = SelectorRequestValidator.validate(
         request = request,
         manifest = manifest,
     )
 
     fun validateBinding(binding: SelectorBinding): Result<Unit> =
-        SelectorBindingValidation.validate(binding)
+        SelectorBindingValidator.validate(binding)
 
     fun validateCssForContract(css: String): Result<Unit> = runCatching {
-        SelectorSyntaxValidation.validateCss(css)
+        SelectorSyntaxValidator.validateCss(css)
     }
 }
+
+internal fun selectorFail(
+    code: SelectorValidationErrorCode,
+    message: String,
+): Nothing = throw SelectorValidationException(code, message)

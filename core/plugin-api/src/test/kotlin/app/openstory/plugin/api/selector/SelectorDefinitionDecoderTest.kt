@@ -10,7 +10,20 @@ class SelectorDefinitionDecoderTest {
     @Test
     fun decodesCanonicalSchemaOne() {
         val decoded = decoder.decode(
-            """{"schemaVersion":1,"catalog":null,"content":{"search":null,"story":null,"latest":null,"allChapters":null,"sync":null,"chapter":null}}""",
+            """
+            {
+              "schemaVersion": 1,
+              "catalog": null,
+              "content": {
+                "search": null,
+                "story": null,
+                "latest": null,
+                "allChapters": null,
+                "sync": null,
+                "chapter": null
+              }
+            }
+            """.trimIndent(),
         ).getOrThrow()
 
         assertEquals(1, decoded.schemaVersion)

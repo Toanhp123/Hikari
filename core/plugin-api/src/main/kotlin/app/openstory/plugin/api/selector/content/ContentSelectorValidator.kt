@@ -3,18 +3,18 @@ package app.openstory.plugin.api.selector.content
 import app.openstory.plugin.api.selector.IntegerBinding
 import app.openstory.plugin.api.selector.OptionalBinding
 import app.openstory.plugin.api.selector.SelectorBinding
-import app.openstory.plugin.api.selector.SelectorOutputShape
 import app.openstory.plugin.api.selector.SelectorTextValueBinding
 import app.openstory.plugin.api.selector.SelectorTokenKind
 import app.openstory.plugin.api.selector.SelectorValidation
 import app.openstory.plugin.api.selector.SelectorValidationErrorCode
 import app.openstory.plugin.api.selector.UrlBinding
 import app.openstory.plugin.api.selector.selectorFail
-import app.openstory.plugin.api.selector.validateOutputObject
+import app.openstory.plugin.api.selector.validation.SelectorOutputShape
+import app.openstory.plugin.api.selector.validation.SelectorOutputValidator
 import app.openstory.plugin.api.selector.ListBinding
 import app.openstory.plugin.api.selector.ObjectBinding
 
-object ContentSelectorValidation {
+object ContentSelectorValidator {
     fun validateSearch(selector: ContentSearchSelector): Result<Unit> = runCatching {
         SelectorValidation.validateBinding(selector.items).getOrThrow()
         selector.nextToken?.let {
@@ -31,7 +31,7 @@ object ContentSelectorValidation {
                 "content.search.items",
             )
 
-        validateOutputObject(
+        SelectorOutputValidator.validateObject(
             binding =
                 requireObjectBinding(
                     items.item,
@@ -44,7 +44,7 @@ object ContentSelectorValidation {
 
     fun validateStory(selector: ContentStorySelector): Result<Unit> = runCatching {
         SelectorValidation.validateBinding(selector.details).getOrThrow()
-        validateOutputObject(
+        SelectorOutputValidator.validateObject(
             binding =
                 requireObjectBinding(
                     selector.details,
@@ -63,7 +63,7 @@ object ContentSelectorValidation {
                 "content.releases",
             )
 
-        validateOutputObject(
+        SelectorOutputValidator.validateObject(
             binding =
                 requireObjectBinding(
                     releases.item,
@@ -83,7 +83,7 @@ object ContentSelectorValidation {
                 "content.sync",
             )
 
-        validateOutputObject(
+        SelectorOutputValidator.validateObject(
             binding = delta,
             shape = SYNC_SHAPE,
             path = "content.sync",

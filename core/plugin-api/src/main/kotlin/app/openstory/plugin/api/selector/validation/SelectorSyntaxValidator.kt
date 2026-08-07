@@ -1,9 +1,11 @@
-package app.openstory.plugin.api.selector
+package app.openstory.plugin.api.selector.validation
 
+import app.openstory.plugin.api.selector.SelectorValidationErrorCode
+import app.openstory.plugin.api.selector.selectorFail
 import java.net.URI
 import java.util.Locale
 
-internal object SelectorSyntaxValidation {
+internal object SelectorSyntaxValidator {
     fun validateRequestTemplate(
         template: String,
         allowedHosts: Set<String>,

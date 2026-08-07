@@ -1,6 +1,28 @@
-package app.openstory.plugin.api.selector
+package app.openstory.plugin.api.selector.validation
 
-internal object SelectorBindingValidation {
+import app.openstory.plugin.api.selector.AttributeBinding
+import app.openstory.plugin.api.selector.BooleanBinding
+import app.openstory.plugin.api.selector.ConstantTextBinding
+import app.openstory.plugin.api.selector.DoubleBinding
+import app.openstory.plugin.api.selector.ElementTextBinding
+import app.openstory.plugin.api.selector.EnumBinding
+import app.openstory.plugin.api.selector.IntegerBinding
+import app.openstory.plugin.api.selector.ListBinding
+import app.openstory.plugin.api.selector.LongBinding
+import app.openstory.plugin.api.selector.ObjectBinding
+import app.openstory.plugin.api.selector.OptionalBinding
+import app.openstory.plugin.api.selector.SelectorBinding
+import app.openstory.plugin.api.selector.SelectorTextValueBinding
+import app.openstory.plugin.api.selector.SelectorTimestampFormat
+import app.openstory.plugin.api.selector.SelectorValidationErrorCode
+import app.openstory.plugin.api.selector.TextBinding
+import app.openstory.plugin.api.selector.TextListBinding
+import app.openstory.plugin.api.selector.TextSetBinding
+import app.openstory.plugin.api.selector.TimestampBinding
+import app.openstory.plugin.api.selector.UrlBinding
+import app.openstory.plugin.api.selector.selectorFail
+
+internal object SelectorBindingValidator {
     fun validate(binding: SelectorBinding): Result<Unit> = runCatching {
         Visitor().visit(binding, depth = 1)
     }
@@ -12,7 +34,7 @@ internal object SelectorBindingValidation {
             count(depth)
             when (binding) {
                 ElementTextBinding -> Unit
-                is TextBinding -> binding.css?.let(SelectorSyntaxValidation::validateCss)
+                is TextBinding -> binding.css?.let(SelectorSyntaxValidator::validateCss)
                 is AttributeBinding -> validateAttribute(binding)
                 is ConstantTextBinding -> validateConstant(binding.value)
                 else -> visitStructuredBinding(binding, depth)
@@ -39,7 +61,7 @@ internal object SelectorBindingValidation {
                 is TextSetBinding -> validateCollection(binding.css, binding.value, depth)
                 is ObjectBinding -> validateObject(binding, depth)
                 is ListBinding -> {
-                    SelectorSyntaxValidation.validateCss(binding.css)
+                    SelectorSyntaxValidator.validateCss(binding.css)
                     visit(binding.item, depth + 1)
                 }
                 else -> error("Leaf selector binding reached structured validation.")
@@ -63,8 +85,8 @@ internal object SelectorBindingValidation {
         }
 
         private fun validateAttribute(binding: AttributeBinding) {
-            binding.css?.let(SelectorSyntaxValidation::validateCss)
-            SelectorSyntaxValidation.validateAttribute(binding.attribute)
+            binding.css?.let(SelectorSyntaxValidator::validateCss)
+            SelectorSyntaxValidator.validateAttribute(binding.attribute)
         }
 
         private fun validateConstant(value: String) {
@@ -124,7 +146,7 @@ internal object SelectorBindingValidation {
             value: SelectorTextValueBinding,
             depth: Int,
         ) {
-            SelectorSyntaxValidation.validateCss(css)
+            SelectorSyntaxValidator.validateCss(css)
             visit(value, depth + 1)
         }
 

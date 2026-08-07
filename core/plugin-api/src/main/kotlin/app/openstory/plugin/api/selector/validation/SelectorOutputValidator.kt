@@ -1,4 +1,21 @@
-package app.openstory.plugin.api.selector
+package app.openstory.plugin.api.selector.validation
+
+import app.openstory.plugin.api.selector.BooleanBinding
+import app.openstory.plugin.api.selector.DoubleBinding
+import app.openstory.plugin.api.selector.EnumBinding
+import app.openstory.plugin.api.selector.IntegerBinding
+import app.openstory.plugin.api.selector.ListBinding
+import app.openstory.plugin.api.selector.LongBinding
+import app.openstory.plugin.api.selector.ObjectBinding
+import app.openstory.plugin.api.selector.OptionalBinding
+import app.openstory.plugin.api.selector.SelectorBinding
+import app.openstory.plugin.api.selector.SelectorTextValueBinding
+import app.openstory.plugin.api.selector.SelectorValidationErrorCode
+import app.openstory.plugin.api.selector.TextListBinding
+import app.openstory.plugin.api.selector.TextSetBinding
+import app.openstory.plugin.api.selector.TimestampBinding
+import app.openstory.plugin.api.selector.UrlBinding
+import app.openstory.plugin.api.selector.selectorFail
 
 internal sealed interface SelectorOutputShape {
     data object Text : SelectorOutputShape
@@ -23,7 +40,17 @@ internal sealed interface SelectorOutputShape {
     ) : SelectorOutputShape
 }
 
-internal fun validateOutputObject(
+internal object SelectorOutputValidator {
+    fun validateObject(
+        binding: ObjectBinding,
+        shape: SelectorOutputShape.Object,
+        path: String,
+    ) {
+        validateOutputObject(binding, shape, path)
+    }
+}
+
+private fun validateOutputObject(
     binding: ObjectBinding,
     shape: SelectorOutputShape.Object,
     path: String,

@@ -1,9 +1,16 @@
-package app.openstory.plugin.api.selector
+package app.openstory.plugin.api.selector.validation
 
 import app.openstory.plugin.api.PluginManifest
+import app.openstory.plugin.api.selector.HttpGet
+import app.openstory.plugin.api.selector.RemoveElements
+import app.openstory.plugin.api.selector.SelectorRequestOperation
+import app.openstory.plugin.api.selector.SelectorRequestPlan
+import app.openstory.plugin.api.selector.SelectorRequestedLimits
+import app.openstory.plugin.api.selector.SelectorValidationErrorCode
+import app.openstory.plugin.api.selector.selectorFail
 import java.util.Locale
 
-internal object SelectorRequestPlanValidation {
+internal object SelectorRequestValidator {
     fun validate(
         request: SelectorRequestPlan,
         manifest: PluginManifest,
@@ -58,13 +65,13 @@ internal object SelectorRequestPlanValidation {
         context: RequestValidationContext,
     ) {
         when (operation) {
-            is HttpGet -> SelectorSyntaxValidation.validateRequestTemplate(
+            is HttpGet -> SelectorSyntaxValidator.validateRequestTemplate(
                 template = operation.urlTemplate,
                 allowedHosts = context.allowedHosts,
                 declarativeOrigin = context.declarativeOrigin,
                 relativeRequiresOrigin = context.relativeRequiresOrigin,
             )
-            is RemoveElements -> SelectorSyntaxValidation.validateCss(operation.css)
+            is RemoveElements -> SelectorSyntaxValidator.validateCss(operation.css)
         }
     }
 

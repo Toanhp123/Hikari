@@ -36,7 +36,7 @@ class CatalogSelectorValidationTest {
 
         assertEquals(
             SelectorValidationErrorCode.OUTPUT_TYPE_MISMATCH,
-            CatalogSelectorValidation.validateSearch(selector).validationCode(),
+            CatalogSelectorValidator.validateSearch(selector).validationCode(),
         )
     }
 
@@ -55,7 +55,7 @@ class CatalogSelectorValidationTest {
 
         assertEquals(
             SelectorValidationErrorCode.INVALID_CONSTANT,
-            CatalogSelectorValidation.validateFilters(selector).validationCode(),
+            CatalogSelectorValidator.validateFilters(selector).validationCode(),
         )
     }
 
@@ -68,7 +68,7 @@ class CatalogSelectorValidationTest {
 
         assertEquals(
             SelectorValidationErrorCode.OUTPUT_TYPE_MISMATCH,
-            CatalogSelectorValidation.validateSearch(selector).validationCode(),
+            CatalogSelectorValidator.validateSearch(selector).validationCode(),
         )
     }
 

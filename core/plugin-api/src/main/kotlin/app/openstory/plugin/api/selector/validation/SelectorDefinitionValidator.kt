@@ -1,14 +1,18 @@
-package app.openstory.plugin.api.selector
+package app.openstory.plugin.api.selector.validation
 
 import app.openstory.plugin.api.PluginKind
 import app.openstory.plugin.api.PluginManifest
 import app.openstory.plugin.api.PluginRuntime
+import app.openstory.plugin.api.selector.SelectorDefinition
+import app.openstory.plugin.api.selector.SelectorRequestPlan
+import app.openstory.plugin.api.selector.SelectorValidationErrorCode
+import app.openstory.plugin.api.selector.selectorFail
 import app.openstory.plugin.api.selector.catalog.CatalogSelectorEndpoints
-import app.openstory.plugin.api.selector.catalog.CatalogSelectorValidation
+import app.openstory.plugin.api.selector.catalog.CatalogSelectorValidator
 import app.openstory.plugin.api.selector.content.ContentSelectorEndpoints
-import app.openstory.plugin.api.selector.content.ContentSelectorValidation
+import app.openstory.plugin.api.selector.content.ContentSelectorValidator
 
-internal object SelectorDefinitionValidation {
+internal object SelectorDefinitionValidator {
     fun validate(
         definition: SelectorDefinition,
         manifest: PluginManifest,
@@ -57,18 +61,18 @@ internal object SelectorDefinitionValidation {
         }
         endpoints.home?.let {
             validateRequest(it.request, manifest)
-            CatalogSelectorValidation.validateHome(it).getOrThrow()
+            CatalogSelectorValidator.validateHome(it).getOrThrow()
         }
         endpoints.search?.let {
             validateRequest(it.request, manifest)
-            CatalogSelectorValidation.validateSearch(it).getOrThrow()
+            CatalogSelectorValidator.validateSearch(it).getOrThrow()
         }
         endpoints.details?.let {
             validateRequest(it.request, manifest)
-            CatalogSelectorValidation.validateDetails(it).getOrThrow()
+            CatalogSelectorValidator.validateDetails(it).getOrThrow()
         }
         endpoints.filters?.let {
-            CatalogSelectorValidation.validateFilters(it).getOrThrow()
+            CatalogSelectorValidator.validateFilters(it).getOrThrow()
         }
     }
 
@@ -90,27 +94,27 @@ internal object SelectorDefinitionValidation {
         }
         endpoints.search?.let {
             validateRequest(it.request, manifest)
-            ContentSelectorValidation.validateSearch(it).getOrThrow()
+            ContentSelectorValidator.validateSearch(it).getOrThrow()
         }
         endpoints.story?.let {
             validateRequest(it.request, manifest)
-            ContentSelectorValidation.validateStory(it).getOrThrow()
+            ContentSelectorValidator.validateStory(it).getOrThrow()
         }
         endpoints.latest?.let {
             validateRequest(it.request, manifest)
-            ContentSelectorValidation.validateReleases(it).getOrThrow()
+            ContentSelectorValidator.validateReleases(it).getOrThrow()
         }
         endpoints.allChapters?.let {
             validateRequest(it.request, manifest)
-            ContentSelectorValidation.validateReleases(it).getOrThrow()
+            ContentSelectorValidator.validateReleases(it).getOrThrow()
         }
         endpoints.sync?.let {
             validateRequest(it.request, manifest)
-            ContentSelectorValidation.validateSync(it).getOrThrow()
+            ContentSelectorValidator.validateSync(it).getOrThrow()
         }
         endpoints.chapter?.let {
             validateRequest(it.request, manifest)
-            ContentSelectorValidation.validateChapter(it).getOrThrow()
+            ContentSelectorValidator.validateChapter(it).getOrThrow()
         }
     }
 
@@ -118,7 +122,7 @@ internal object SelectorDefinitionValidation {
         request: SelectorRequestPlan,
         manifest: PluginManifest,
     ) {
-        SelectorRequestPlanValidation.validate(request, manifest).getOrThrow()
+        SelectorRequestValidator.validate(request, manifest).getOrThrow()
     }
 
     private fun requireManifestKind(
