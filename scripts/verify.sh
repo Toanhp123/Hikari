@@ -11,6 +11,8 @@ for test_script in ./scripts/tests/*.sh; do
   bash "$test_script"
 done
 
+./scripts/verify-baseline-architecture.sh
+
 ROOM_SCHEMA_FINGERPRINT="$(
   ./scripts/verify-room-schema-stability.sh
 )"

@@ -50,9 +50,11 @@ class ArchitectureSmokeTest {
             "config/architecture/module-boundaries.json",
             "config/detekt/detekt.yml",
             "scripts/check-module-dependencies.sh",
+            "scripts/verify-baseline-architecture.sh",
             "scripts/verify.sh",
             "scripts/verify-instrumentation.sh",
             "scripts/verify-wave-checkpoint.sh",
+            "scripts/tests/verify-baseline-architecture-test.sh",
             "scripts/tests/verify-instrumentation-test.sh",
             "scripts/tests/verify-wave-checkpoint-test.sh",
             "docs/contributing/adding-a-module.md",
@@ -135,6 +137,15 @@ class ArchitectureSmokeTest {
         assertTrue(
             "for test_script in ./scripts/tests/*.sh" in verifyScript,
             "Fast verification must run every shell contract test",
+        )
+        assertTrue(
+            "./scripts/verify-baseline-architecture.sh" in verifyScript,
+            "Fast verification must invoke the baseline architecture gate",
+        )
+        assertTrue(
+            verifyScript.indexOf("./scripts/verify-baseline-architecture.sh") <
+                verifyScript.indexOf("ROOM_SCHEMA_FINGERPRINT"),
+            "Baseline architecture must be checked before Room fingerprinting",
         )
         assertTrue(
             "./scripts/check-module-dependencies.sh" in verifyScript,
