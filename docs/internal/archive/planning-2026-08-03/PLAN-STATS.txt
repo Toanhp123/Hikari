@@ -1,0 +1,8 @@
+Planning package date: 2026-08-03
+Approved design specs: 1
+Roadmaps: 1
+Implementation waves: 11
+Detailed TDD tasks: 65
+Tracked implementation steps: 325
+Checkpoint gates: 11
+Primary namespace assumption: app.openstory
