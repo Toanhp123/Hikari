@@ -12,6 +12,7 @@ Use this directory instead of hunting through dated plans.
 ## Normative product and requirement documents
 
 - [Approved product design](project/approved-product-design.md)
+- [Pre-MVP Baseline 1 decision](project/pre-mvp-baseline-1.md)
 - [Requirement coverage](project/requirement-coverage.md)
 - [Documentation precedence/governance](project/document-governance.md)
 

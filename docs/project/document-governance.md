@@ -33,6 +33,10 @@ Use `../implementation/current-roadmap.md`, then the active wave plan. For the
 current source snapshot, Selector V2 continuation uses
 `../implementation/wave-04-selector-v2-runtime.md`.
 
+Pre-MVP Baseline 1 decisions in [`pre-mvp-baseline-1.md`](pre-mvp-baseline-1.md)
+override active implementation wording that requires Selector V1/V2 coexistence or
+Room 1->2->3 migration history. Archived documents remain historical evidence only.
+
 ### “Has a wave passed its gate?”
 
 Use `../internal/checkpoints/`. Required evidence marked `NOT RUN` remains open
@@ -54,6 +58,7 @@ Use `../plugin-sdk/`. These are public SDK-facing documents and should match
 | 2026-08-06 Selector V2 implementation Tasks 1–3 | Already absorbed into Wave 03 remediation in this snapshot; do not execute again |
 | 2026-08-06 Selector V2 implementation Tasks 4–9 | Canonical remaining basis for Wave 04 Task 03, repackaged in `wave-04-selector-v2-runtime.md` |
 | Historical remediation checkpoint `NOT RUN` statements | Evidence history; do not infer PASS merely because later-wave code exists |
+| Pre-baseline Selector V1/V2 or Room migration instructions | Superseded by `pre-mvp-baseline-1.md`; retain only as historical evidence |
 
 ## Lifecycle labels
 
