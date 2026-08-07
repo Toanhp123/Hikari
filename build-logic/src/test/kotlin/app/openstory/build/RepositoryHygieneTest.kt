@@ -2,7 +2,6 @@ package app.openstory.build
 
 import java.io.File
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class RepositoryHygieneTest {
@@ -10,7 +9,21 @@ class RepositoryHygieneTest {
 
     @Test
     fun ideStateIsNotPartOfRepositoryBaseline() {
-        assertFalse(File(root, ".idea").exists())
+        val trackedIdeState = ProcessBuilder(
+            "git",
+            "ls-files",
+            ".idea",
+        )
+            .directory(root)
+            .start()
+            .also { process ->
+                assertTrue(process.waitFor() == 0)
+            }
+            .inputStream
+            .bufferedReader()
+            .readText()
+
+        assertTrue(trackedIdeState.isBlank())
         assertTrue(
             File(root, ".gitignore")
                 .readText()
