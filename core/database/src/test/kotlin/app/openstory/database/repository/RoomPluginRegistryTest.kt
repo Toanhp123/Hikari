@@ -5,12 +5,7 @@ import app.openstory.common.Clock
 import app.openstory.database.dao.PluginStateDao
 import app.openstory.database.entity.PluginStateEntity
 import app.openstory.database.entity.PluginVersionEntity
-import app.openstory.plugin.api.PluginCapability
-import app.openstory.plugin.api.packageformat.PackageInstallProvenance
-import app.openstory.plugin.api.packageformat.PackageInstallSource
-import app.openstory.plugin.api.packageformat.PackageSignatureState
-import app.openstory.plugin.host.install.PackageSignatureDecision
-import app.openstory.plugin.host.install.StagedPluginPackage
+import app.openstory.plugin.host.registry.PluginActivation
 import app.openstory.plugin.host.registry.PluginRegistration
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.test.runTest
@@ -19,13 +14,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class PluginStateRepositoryTest {
+class RoomPluginRegistryTest {
 
     @Test
     fun activationCancellationIsPropagated() =
         runTest {
             val repository =
-                PluginStateRepository(
+                RoomPluginRegistry(
                     dao =
                         RecordingPluginStateDao(
                             initial =
@@ -41,7 +36,7 @@ class PluginStateRepositoryTest {
 
             assertFailsWith<CancellationException> {
                 repository.activate(
-                    stagedPluginPackage(),
+                    pluginActivation(),
                 )
             }
         }
@@ -56,7 +51,7 @@ class PluginStateRepositoryTest {
                 )
 
             val repository =
-                PluginStateRepository(
+                RoomPluginRegistry(
                     dao =
                         dao,
                     clock =
@@ -65,7 +60,7 @@ class PluginStateRepositoryTest {
 
             val result =
                 repository.activate(
-                    stagedPluginPackage(),
+                    pluginActivation(),
                 )
 
             assertTrue(
@@ -101,7 +96,7 @@ class PluginStateRepositoryTest {
                 )
 
             val repository =
-                PluginStateRepository(
+                RoomPluginRegistry(
                     dao =
                         dao,
                     clock =
@@ -110,7 +105,7 @@ class PluginStateRepositoryTest {
 
             val result =
                 repository.activate(
-                    verifiedStagedPluginPackage(),
+                    verifiedPluginActivation(),
                 )
 
             assertTrue(
@@ -149,7 +144,7 @@ class PluginStateRepositoryTest {
                 )
 
             val repository =
-                PluginStateRepository(
+                RoomPluginRegistry(
                     dao =
                         dao,
                     clock =
@@ -158,7 +153,7 @@ class PluginStateRepositoryTest {
 
             val result =
                 repository.activate(
-                    verifiedStagedPluginPackage(),
+                    verifiedPluginActivation(),
                 )
 
             assertTrue(
@@ -204,9 +199,9 @@ class PluginStateRepositoryTest {
                 1_000L,
         )
 
-    private fun stagedPluginPackage():
-        StagedPluginPackage =
-        StagedPluginPackage(
+    private fun pluginActivation():
+        PluginActivation =
+        PluginActivation(
             pluginId =
                 FIXTURE_PLUGIN_ID,
             version =
@@ -215,25 +210,18 @@ class PluginStateRepositoryTest {
                 "active/community.fixture/2.0.0",
             packageSha256 =
                 "0".repeat(64),
-            signatureDecision =
-                PackageSignatureDecision
-                    .unsigned(),
-            provenance =
-                PackageInstallProvenance(
-                    source =
-                        PackageInstallSource.LOCAL_FILE,
-                    sourceReference =
-                        "fixture-2.0.0.osp",
-                    signatureState =
-                        PackageSignatureState.UNSIGNED,
-                    unsignedWarningAcknowledged =
-                        true,
-                ),
+            signatureState = "UNSIGNED",
+            signerKeyId = null,
+            signerFingerprintSha256 = null,
+            installSource = "LOCAL_FILE",
+            sourceReference = "fixture-2.0.0.osp",
+            unsignedWarningAcknowledged = true,
+            acceptedCapabilities = emptySet(),
         )
 
-    private fun verifiedStagedPluginPackage():
-        StagedPluginPackage =
-        StagedPluginPackage(
+    private fun verifiedPluginActivation():
+        PluginActivation =
+        PluginActivation(
             pluginId =
                 FIXTURE_PLUGIN_ID,
             version =
@@ -242,28 +230,15 @@ class PluginStateRepositoryTest {
                 "active/community.fixture/2.0.0",
             packageSha256 =
                 "a".repeat(64),
-            signatureDecision =
-                PackageSignatureDecision
-                    .verified(
-                        signerKeyId =
-                            "fixture-author-main",
-                        signerFingerprintSha256 =
-                            "ab".repeat(32),
-                    ),
-            provenance =
-                PackageInstallProvenance(
-                    source =
-                        PackageInstallSource.REPOSITORY,
-                    sourceReference =
-                        "fixture-repository",
-                    signatureState =
-                        PackageSignatureState.INVALID,
-                    unsignedWarningAcknowledged =
-                        false,
-                ),
+            signatureState = "VERIFIED",
+            signerKeyId = "fixture-author-main",
+            signerFingerprintSha256 = "ab".repeat(32),
+            installSource = "REPOSITORY",
+            sourceReference = "fixture-repository",
+            unsignedWarningAcknowledged = false,
             acceptedCapabilities =
                 setOf(
-                    PluginCapability.NETWORK,
+                    "NETWORK",
                 ),
         )
 
@@ -281,19 +256,19 @@ class PluginStateRepositoryTest {
             location =
                 "active/community.fixture/2.0.0",
             trustSignatureState =
-                PackageSignatureState.VERIFIED.name,
+                "VERIFIED",
             signerKeyId =
                 "fixture-author-main",
             signerFingerprintSha256 =
                 "ab".repeat(32),
             installSource =
-                PackageInstallSource.REPOSITORY.name,
+                "REPOSITORY",
             sourceReference =
                 "fixture-repository",
             unsignedWarningAcknowledged =
                 false,
             acceptedCapabilities =
-                PluginCapability.NETWORK.name,
+                "NETWORK",
             installedAtEpochMillis =
                 installedAtEpochMillis,
         )

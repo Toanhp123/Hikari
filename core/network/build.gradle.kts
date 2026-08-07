@@ -4,7 +4,6 @@ plugins {
 
 dependencies {
     implementation(project(":core:common"))
-    implementation(project(":core:plugin-api"))
     implementation(libs.okhttp.client)
 
     testImplementation(libs.okhttp.mockwebserver)

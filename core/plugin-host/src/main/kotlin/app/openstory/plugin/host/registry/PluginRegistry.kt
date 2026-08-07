@@ -1,8 +1,27 @@
 package app.openstory.plugin.host.registry
 
 import app.openstory.common.AppResult
-import app.openstory.plugin.host.install.InstalledPlugin
-import app.openstory.plugin.host.install.StagedPluginPackage
+
+data class PluginActivation(
+    val pluginId: String,
+    val version: String,
+    val packageSha256: String,
+    val location: String,
+    val signatureState: String,
+    val signerKeyId: String?,
+    val signerFingerprintSha256: String?,
+    val installSource: String,
+    val sourceReference: String,
+    val unsignedWarningAcknowledged: Boolean,
+    val acceptedCapabilities: Set<String>,
+)
+
+data class ActivatedPlugin(
+    val pluginId: String,
+    val version: String,
+    val location: String,
+    val enabled: Boolean,
+)
 
 data class PluginRegistration(
     val pluginId: String,
@@ -19,8 +38,8 @@ interface PluginRegistry {
 
 interface MutablePluginRegistry : PluginRegistry {
     suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin>
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin>
 
     suspend fun setEnabled(
         pluginId: String,

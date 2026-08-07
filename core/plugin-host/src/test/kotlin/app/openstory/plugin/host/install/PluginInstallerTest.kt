@@ -7,7 +7,9 @@ import app.openstory.plugin.api.packageformat.PackageInstallProvenance
 import app.openstory.plugin.api.packageformat.PackageInstallSource
 import app.openstory.plugin.api.packageformat.PackageSignatureState
 import app.openstory.plugin.api.packageformat.PluginPackageMetadata
+import app.openstory.plugin.host.registry.ActivatedPlugin
 import app.openstory.plugin.host.registry.MutablePluginRegistry
+import app.openstory.plugin.host.registry.PluginActivation
 import app.openstory.plugin.host.registry.PluginRegistration
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -357,8 +359,8 @@ private class RecordingPluginRegistry :
         null
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activationCalls += 1
 
         error(
@@ -420,8 +422,8 @@ private class FailingActivationRegistry :
         null
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activationCalls += 1
 
         return AppResult.Failure(
@@ -552,8 +554,8 @@ private class ExistingVersionRegistry :
         )
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activationCalls += 1
 
         error(
@@ -707,18 +709,18 @@ private class UpgradeRecordingRegistry :
         )
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activationCalls += 1
 
         return AppResult.Success(
-            InstalledPlugin(
+            ActivatedPlugin(
                 pluginId =
-                    stagedPackage.pluginId,
+                    activation.pluginId,
                 version =
-                    stagedPackage.version,
+                    activation.version,
                 location =
-                    stagedPackage.location,
+                    activation.location,
                 enabled = true,
             ),
         )

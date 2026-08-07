@@ -8,12 +8,12 @@ import app.openstory.database.OpenStoryDatabase
 import app.openstory.database.dao.PluginStateDao
 import app.openstory.database.entity.PluginStateEntity
 import app.openstory.database.entity.PluginVersionEntity
-import app.openstory.plugin.host.install.InstalledPlugin
-import app.openstory.plugin.host.install.StagedPluginPackage
+import app.openstory.plugin.host.registry.ActivatedPlugin
 import app.openstory.plugin.host.registry.MutablePluginRegistry
+import app.openstory.plugin.host.registry.PluginActivation
 import app.openstory.plugin.host.registry.PluginRegistration
 
-class PluginStateRepository internal constructor(
+class RoomPluginRegistry internal constructor(
     private val dao: PluginStateDao,
     private val clock: Clock = SystemClock,
 ) : MutablePluginRegistry {
@@ -35,8 +35,8 @@ class PluginStateRepository internal constructor(
             ?.toRegistration()
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> =
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> =
         storageWrite {
             val nowEpochMillis =
                 clock.nowEpochMillis()
@@ -44,7 +44,7 @@ class PluginStateRepository internal constructor(
             val activatedState =
                 dao.activate(
                     version =
-                        stagedPackage.toVersionEntity(
+                        activation.toVersionEntity(
                             installedAtEpochMillis =
                                 nowEpochMillis,
                         ),
@@ -52,13 +52,13 @@ class PluginStateRepository internal constructor(
                         nowEpochMillis,
                 )
 
-            InstalledPlugin(
+            ActivatedPlugin(
                 pluginId =
-                    stagedPackage.pluginId,
+                    activation.pluginId,
                 version =
-                    stagedPackage.version,
+                    activation.version,
                 location =
-                    stagedPackage.location,
+                    activation.location,
                 enabled =
                     activatedState.enabled,
             )
@@ -111,7 +111,7 @@ class PluginStateRepository internal constructor(
         }
 }
 
-private fun StagedPluginPackage.toVersionEntity(
+private fun PluginActivation.toVersionEntity(
     installedAtEpochMillis: Long,
 ): PluginVersionEntity =
     PluginVersionEntity(
@@ -124,26 +124,19 @@ private fun StagedPluginPackage.toVersionEntity(
         location =
             location,
         trustSignatureState =
-            signatureDecision
-                .signatureState
-                .name,
+            signatureState,
         signerKeyId =
-            signatureDecision.signerKeyId,
+            signerKeyId,
         signerFingerprintSha256 =
-            signatureDecision
-                .signerFingerprintSha256,
+            signerFingerprintSha256,
         installSource =
-            provenance.source.name,
+            installSource,
         sourceReference =
-            provenance.sourceReference,
+            sourceReference,
         unsignedWarningAcknowledged =
-            provenance
-                .unsignedWarningAcknowledged,
+            unsignedWarningAcknowledged,
         acceptedCapabilities =
             acceptedCapabilities
-                .map { capability ->
-                    capability.name
-                }
                 .sorted()
                 .joinToString(
                     separator = ",",

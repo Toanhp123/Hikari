@@ -38,7 +38,9 @@
         ":core:plugin-host"
       ],
       "testDependencies": [],
-      "forbiddenProductionImports": []
+      "forbiddenProductionImports": [
+        "app.openstory.plugin.host.install."
+      ]
     },
     ":core:plugin-api": {
       "path": "core/plugin-api",
@@ -61,8 +63,7 @@
       "path": "core/network",
       "platform": "jvm",
       "productionDependencies": [
-        ":core:common",
-        ":core:plugin-api"
+        ":core:common"
       ],
       "testDependencies": [],
       "forbiddenProductionImports": []

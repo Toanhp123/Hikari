@@ -69,10 +69,16 @@ class PluginRollbackManager(
                 installedPackage.version != previousVersion ->
                 rollbackPackageMismatch()
 
-            else ->
-                registry.activate(
-                    installedPackage,
+            else -> when (
+                val activation = registry.activate(
+                    installedPackage.toActivation(),
                 )
+            ) {
+                is AppResult.Failure -> activation
+                is AppResult.Success -> AppResult.Success(
+                    activation.value.toInstalledPlugin(),
+                )
+            }
         }
 }
 

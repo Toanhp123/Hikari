@@ -1,10 +1,43 @@
 package app.openstory.build.architecture
 
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ModuleBoundaryVerifierTest {
+    @Test
+    fun databasePolicyRejectsPluginInstallerInternals() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        val actual = policy.modules.mapValues { (module, rule) ->
+            ActualModule(
+                path = rule.path,
+                platform = rule.platform,
+                productionDependencies = rule.productionDependencies,
+                testDependencies = rule.testDependencies,
+                unknownProjectDependencyConfigurations = emptyMap(),
+                productionImports = if (module == ":core:database") {
+                    setOf("app.openstory.plugin.host.install.StagedPluginPackage")
+                } else {
+                    emptySet()
+                },
+            )
+        }
+
+        val violations = ModuleBoundaryVerifier.verify(policy, actual)
+
+        assertTrue(
+            violations.any {
+                it.code == "module_policy.platform_import_denied" &&
+                    it.module == ":core:database" &&
+                    it.detail ==
+                    "app.openstory.plugin.host.install.StagedPluginPackage"
+            },
+        )
+    }
+
     @Test
     fun missingIncludedModuleFailsClosed() {
         val policy = policyOf(

@@ -5,7 +5,9 @@ import app.openstory.common.AppResult
 import app.openstory.plugin.api.PluginCapability
 import app.openstory.plugin.api.packageformat.PackageInstallProvenance
 import app.openstory.plugin.api.packageformat.PluginPackageMetadata
+import app.openstory.plugin.host.registry.ActivatedPlugin
 import app.openstory.plugin.host.registry.MutablePluginRegistry
+import app.openstory.plugin.host.registry.PluginActivation
 import java.math.BigInteger
 
 data class InstallRequest(
@@ -138,11 +140,13 @@ class PluginInstaller(
         when (
             val activationResult =
                 registry.activate(
-                    stagedPackage,
+                    stagedPackage.toActivation(),
                 )
         ) {
             is AppResult.Success ->
-                activationResult
+                AppResult.Success(
+                    activationResult.value.toInstalledPlugin(),
+                )
 
             is AppResult.Failure -> {
                 storage.remove(
@@ -153,6 +157,29 @@ class PluginInstaller(
             }
         }
 }
+
+internal fun StagedPluginPackage.toActivation(): PluginActivation =
+    PluginActivation(
+        pluginId = pluginId,
+        version = version,
+        packageSha256 = packageSha256,
+        location = location,
+        signatureState = signatureDecision.signatureState.name,
+        signerKeyId = signatureDecision.signerKeyId,
+        signerFingerprintSha256 = signatureDecision.signerFingerprintSha256,
+        installSource = provenance.source.name,
+        sourceReference = provenance.sourceReference,
+        unsignedWarningAcknowledged = provenance.unsignedWarningAcknowledged,
+        acceptedCapabilities = acceptedCapabilities.map { it.name }.toSet(),
+    )
+
+internal fun ActivatedPlugin.toInstalledPlugin(): InstalledPlugin =
+    InstalledPlugin(
+        pluginId = pluginId,
+        version = version,
+        location = location,
+        enabled = enabled,
+    )
 
 class PluginVersionPolicy {
 

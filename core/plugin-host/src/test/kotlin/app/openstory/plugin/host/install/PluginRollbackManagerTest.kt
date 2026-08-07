@@ -4,7 +4,9 @@ import app.openstory.common.AppResult
 import app.openstory.plugin.api.packageformat.PackageInstallProvenance
 import app.openstory.plugin.api.packageformat.PackageInstallSource
 import app.openstory.plugin.api.packageformat.PackageSignatureState
+import app.openstory.plugin.host.registry.ActivatedPlugin
 import app.openstory.plugin.host.registry.MutablePluginRegistry
+import app.openstory.plugin.host.registry.PluginActivation
 import app.openstory.plugin.host.registry.PluginRegistration
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -119,19 +121,19 @@ private class RecordingRollbackRegistry :
         )
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activatedVersion =
-            stagedPackage.version
+            activation.version
 
         return AppResult.Success(
-            InstalledPlugin(
+            ActivatedPlugin(
                 pluginId =
-                    stagedPackage.pluginId,
+                    activation.pluginId,
                 version =
-                    stagedPackage.version,
+                    activation.version,
                 location =
-                    stagedPackage.location,
+                    activation.location,
                 enabled =
                     true,
             ),
