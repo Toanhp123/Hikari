@@ -61,8 +61,8 @@ when their owning wave starts.
 
 | Task | Outcome | State |
 |---|---|---|
-| 04.01 | Allowlisted HTTP gateway, request budgets, sessions, decoding, redaction | Implementation present |
-| 04.02 | Transactional install, registry, rollback | Implementation present |
+| 04.01 | Allowlisted HTTP gateway, shared URL policy, bounded body reader, budgets, sessions, decoding, redaction | Implementation present |
+| 04.02 | Transactional install, neutral registry port, Room adapter, rollback | Implementation present |
 | 04.03 | Selector Schema 1 document loading, typed evaluation, DTO mapping, adapters | **Active**; document loader present, evaluator/mappers/adapters pending |
 | 04.04 | JavaScript capability sandbox | Planned |
 | 04.05 | Update and capability-diff lifecycle | Partial; rollback primitive present |

@@ -35,6 +35,10 @@ The same commit must include:
 - Production source in `:core:model` cannot import Android or Compose.
 - Production source in `:core:plugin-api` cannot import Android or filesystem
   APIs.
+- Production source in `:core:database` may implement the neutral plugin registry port,
+  but cannot import `app.openstory.plugin.host.install.*` internals.
+- Public reusable contract-test utilities belong to `:core:plugin-api` test fixtures;
+  internal deterministic fake implementations and data belong to `:test:fixtures`.
 
 ## Commands
 
@@ -48,4 +52,7 @@ Then run the complete fast gate:
 
 Before closing the wave, run API 26 and API 37 checkpoint verification:
 
-    ./scripts/verify-wave-checkpoint.sh
+    ./scripts/checkpoints/app-shell.sh
+
+If the module affects database or plugin contracts, also run the corresponding
+`scripts/checkpoints/database.sh` or `scripts/checkpoints/plugin-contracts.sh` gate.

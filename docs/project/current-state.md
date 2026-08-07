@@ -60,14 +60,15 @@ The repository contains:
 Implementation present:
 
 - allowlisted network gateway with resource, redirect, rate, and cancellation budgets;
+- shared validation-only `PluginUrlPolicy` and isolated `BoundedResponseReader`;
 - transactional plugin verification, staging, activation, registry, and rollback;
+- neutral `PluginActivation` registry records implemented by `RoomPluginRegistry`;
 - `SelectorDocumentLoader` for bounded HTTP document acquisition and DOM cleanup;
 - `HtmlDocumentAdapter` as the opaque host DOM boundary;
 - no development-generation selector runtime or compatibility pipeline.
 
 Still required for Wave 04 Task 03:
 
-- shared validation-only `PluginUrlPolicy`;
 - endpoint-wide selector evaluation budgets;
 - typed `SelectorBindingEvaluator`;
 - Catalog and Content mappers;

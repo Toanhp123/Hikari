@@ -45,7 +45,7 @@ Use `../plugin-sdk/`. SDK documents must match `:core:plugin-api` and tested fix
 | 2026-08-03 Waves 01–03 plans | Intent and coverage history; implementation is already present |
 | 2026-08-03 Wave 04 selector sketch | Replaced by the canonical typed Selector Schema 1 continuation |
 | 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/` |
-| Source-local Wave 03 selector remediation specs/plans | Historical contract-development records; do not execute again |
+| Source-local Wave 01–03 remediation specs/plans/checkpoints | Archived under `../internal/archive/pre-baseline-development/`; do not execute again |
 | Pre-baseline Room migration instructions | Historical only; current complete database is initial schema 1 |
 | Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |
 | Project-wide Baseline 1 refactor plan | Execution record for the one-time reset; not the next feature plan after completion |

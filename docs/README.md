@@ -30,9 +30,9 @@ package format and repository-index rules.
 ## Evidence and history
 
 - `internal/checkpoints/` — checkpoint evidence; do not rewrite `NOT RUN` into `PASS` without reviewed execution evidence.
-- `internal/DOCUMENTATION-AUDIT.md` — findings that motivated this consolidation.
+- `internal/archive/pre-baseline-development/DOCUMENTATION-AUDIT.md` — historical findings that motivated the consolidation.
 - `internal/archive/` — raw supplied planning/review packages retained unchanged for provenance.
-- `superpowers/` — source-local remediation specs/plans retained for historical review and tests; they are no longer the first navigation path.
+- `superpowers/` — current source-local baseline design material only; superseded remediation records are archived under `internal/archive/pre-baseline-development/`.
 
 ## One rule
 

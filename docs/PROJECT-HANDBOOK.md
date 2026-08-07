@@ -85,6 +85,11 @@ Current repository modules are documented in `project/current-state.md`. Future 
 are created only when their wave starts; the full target graph is in
 `implementation/current-roadmap.md`.
 
+The database implements the neutral plugin registry port from `:core:plugin-host`; it
+persists activation records but never imports installer-internal package types. Network
+URL validation and bounded response reading are separate from HTTP orchestration through
+`PluginUrlPolicy` and `BoundedResponseReader`.
+
 ## 6. Plugin execution model
 
 A package may expose `CATALOG`, `CONTENT`, or both kinds, but contracts remain independent.
@@ -143,9 +148,10 @@ Detailed lifecycle/status: `implementation/current-roadmap.md`.
 
 ## 9. Verification model
 
-The repository separates fast verification, Android instrumentation and wave-specific
-checkpoint gates. `scripts/verify.sh` is the common fast gate. API 26/API 37 launcher and
-wave-specific database/plugin contract gates are exposed through `scripts/verify-*.sh`.
+The repository separates fast verification, Android instrumentation and capability
+checkpoints. `scripts/verify.sh` is the common fast gate. Reusable device runners live in
+`scripts/instrumentation/`; application, database, and plugin contract checkpoints live
+in `scripts/checkpoints/`.
 
 A requirement is not considered checkpoint-proven solely because implementation exists.
 Evidence files under `internal/checkpoints/` retain `PASS`, `FAIL`, `NOT RUN`, or
@@ -164,6 +170,10 @@ Read in this order:
 7. `internal/archive/` only for historical provenance.
 
 `project/document-governance.md` defines precedence when documents disagree.
+
+Reusable public contract assertions and builders belong to `:core:plugin-api` test
+fixtures. Internal deterministic fake plugin implementations and data belong to
+`:test:fixtures`; neither layer calls live websites in routine tests.
 
 ## 11. Contributor execution rules
 

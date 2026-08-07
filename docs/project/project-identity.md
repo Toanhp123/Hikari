@@ -37,3 +37,7 @@ decision.
 Likewise, technical types using `OpenStory` do not change the user-facing application
 name. Contributors preserve these roles unless a task explicitly changes the relevant
 identity boundary.
+
+Repository cleanup, module moves, and verification-script renames do not authorize an
+identity change. IDE metadata is intentionally excluded from the repository and is not a
+source of naming or JDK policy.

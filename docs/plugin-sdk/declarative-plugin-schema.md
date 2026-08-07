@@ -131,3 +131,7 @@ The literal SDK example is the repository fixture
 It is decoded by contract tests and covers all four Catalog and all six Content endpoint
 shapes. Documentation links to that file instead of maintaining a second hand-written
 copy that can drift from the tested contract.
+
+Reusable plugin-author contract assertions and fixture builders are exported through
+`:core:plugin-api` test fixtures. The separate `:test:fixtures` module owns only internal
+deterministic fake implementations and data used by the host application test suite.
