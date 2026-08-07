@@ -1,5 +1,10 @@
 package app.openstory.plugin.api.packageformat
 
+import app.openstory.plugin.api.PLUGIN_ID_PATTERN
+import app.openstory.plugin.api.SEMANTIC_VERSION_PATTERN
+import app.openstory.plugin.api.SHA_256_PATTERN
+import app.openstory.plugin.api.isHttpsUrl
+import java.util.Base64
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -14,13 +19,24 @@ data class PluginPackageSignature(
     val signatureBase64: String,
 ) {
     init {
-        require(signerKeyId.isNotBlank()) {
-            "Signer key ID must not be blank."
+        require(signerKeyId.matches(SIGNER_KEY_PATTERN)) {
+            "Signer key ID must use the canonical token format."
         }
+        val signatureBytes = runCatching {
+            Base64.getDecoder().decode(signatureBase64)
+        }.getOrNull()
+        require(
+            when (algorithm) {
+                PluginSignatureAlgorithm.ED25519 -> signatureBytes?.size == ED25519_SIGNATURE_BYTES
+            },
+        ) {
+            "Package signature has an invalid encoding or length."
+        }
+    }
 
-        require(signatureBase64.isNotBlank()) {
-            "Package signature must not be blank."
-        }
+    private companion object {
+        const val ED25519_SIGNATURE_BYTES = 64
+        val SIGNER_KEY_PATTERN = Regex("""[a-z0-9]+(?:[._-][a-z0-9]+)*""")
     }
 }
 
@@ -32,25 +48,18 @@ data class PluginPackageMetadata(
     val signature: PluginPackageSignature?,
 ) {
     init {
-        require(pluginId.isNotBlank()) {
-            "Plugin ID must not be blank."
+        require(pluginId.matches(PLUGIN_ID_PATTERN)) {
+            "Plugin ID must use the canonical token format."
         }
-
-        require(version.isNotBlank()) {
-            "Plugin version must not be blank."
+        require(version.matches(SEMANTIC_VERSION_PATTERN)) {
+            "Plugin version must use semantic version format."
         }
-
         require(exactPackageSha256.matches(SHA_256_PATTERN)) {
             "Exact package checksum must be a lowercase SHA-256 value."
         }
     }
 
-    fun signaturePayload(): String =
-        "$exactPackageSha256\n$pluginId\n$version"
-
-    private companion object {
-        val SHA_256_PATTERN = Regex("""[0-9a-f]{64}""")
-    }
+    fun signaturePayload(): String = "$exactPackageSha256\n$pluginId\n$version"
 }
 
 @Serializable
@@ -78,10 +87,13 @@ data class PackageInstallProvenance(
         require(sourceReference.isNotBlank()) {
             "Package install source reference must not be blank."
         }
-
         require(
-            signatureState != PackageSignatureState.UNSIGNED ||
-                unsignedWarningAcknowledged,
+            source != PackageInstallSource.MANIFEST_URL || isHttpsUrl(sourceReference),
+        ) {
+            "Manifest URL provenance must use HTTPS."
+        }
+        require(
+            signatureState != PackageSignatureState.UNSIGNED || unsignedWarningAcknowledged,
         ) {
             "Unsigned packages require explicit warning acknowledgement."
         }

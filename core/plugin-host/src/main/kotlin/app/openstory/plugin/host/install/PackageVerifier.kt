@@ -1,9 +1,8 @@
 package app.openstory.plugin.host.install
 
-import app.openstory.plugin.api.PluginCapability
-
 import app.openstory.common.AppError
 import app.openstory.common.AppResult
+import app.openstory.plugin.api.PluginCapability
 import app.openstory.plugin.api.packageformat.PackageArchiveEntry
 import app.openstory.plugin.api.packageformat.PackageLayoutValidator
 import app.openstory.plugin.api.packageformat.PackageSignatureState
@@ -187,6 +186,10 @@ class PackageVerifier(
                 declaredExecutableEntries =
                     inspection
                         .declaredExecutableEntries,
+                requiredRuntimeEntry =
+                    inspection
+                        .declaredExecutableEntries
+                        .singleOrNull(),
             )
 
         val signatureDecision =
@@ -275,7 +278,10 @@ class PackageVerifier(
                 signatureDecision =
                     signatureDecision,
                 provenance =
-                    request.provenance,
+                    request.provenance.copy(
+                        signatureState =
+                            signatureDecision.signatureState,
+                    ),
                 acceptedCapabilities =
                     request.acceptedCapabilities,
             ),

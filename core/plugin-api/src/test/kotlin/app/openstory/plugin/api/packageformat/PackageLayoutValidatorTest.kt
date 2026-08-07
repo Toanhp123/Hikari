@@ -1,14 +1,14 @@
 package app.openstory.plugin.api.packageformat
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class PackageLayoutValidatorTest {
 
@@ -193,7 +193,8 @@ class PackageLayoutValidatorTest {
             signature = PluginPackageSignature(
                 algorithm = PluginSignatureAlgorithm.ED25519,
                 signerKeyId = "author-main",
-                signatureBase64 = "c2lnbmF0dXJl",
+                signatureBase64 = java.util.Base64.getEncoder()
+                    .encodeToString(ByteArray(64)),
             ),
         )
 

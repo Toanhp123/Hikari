@@ -120,6 +120,18 @@ To run only the database suite on one connected device:
 The Wave 02 CI checkpoint requires the Wave 01 checkpoint plus both database
 instrumentation jobs.
 
+Wave 03 freezes the plugin contracts and validates Selector V1/V2 packages
+before installation:
+
+    ./scripts/verify-wave-03-checkpoint.sh
+
+On Windows PowerShell:
+
+    & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify-wave-03-checkpoint.sh
+
+The Wave 03 checkpoint runs fast verification plus explicit plugin API,
+plugin-host package-inspection, and shared-fixture test suites.
+
 ## Current module graph
 
 - `:app` — composition root, Hilt, Compose shell, navigation

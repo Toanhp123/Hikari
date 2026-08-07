@@ -69,6 +69,15 @@ class PackageVerifierTrustDecisionTest {
                 result.value
                     .signatureDecision,
         )
+
+        assertEquals(
+            expected =
+                PackageSignatureState.VERIFIED,
+            actual =
+                result.value
+                    .provenance
+                    .signatureState,
+        )
     }
 
     @Test
@@ -119,7 +128,10 @@ private fun fixtureInstallRequest():
                         signerKeyId =
                             FIXTURE_SIGNER_KEY_ID,
                         signatureBase64 =
-                            "AA==",
+                            java.util.Base64.getEncoder()
+                                .encodeToString(
+                                    ByteArray(64),
+                                ),
                     ),
             ),
         provenance =

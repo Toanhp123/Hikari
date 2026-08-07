@@ -187,7 +187,7 @@ private fun verifiedPackage(
                 sourceReference =
                     "fixture-repository",
                 signatureState =
-                    PackageSignatureState.INVALID,
+                    PackageSignatureState.VERIFIED,
                 unsignedWarningAcknowledged =
                     false,
             ),

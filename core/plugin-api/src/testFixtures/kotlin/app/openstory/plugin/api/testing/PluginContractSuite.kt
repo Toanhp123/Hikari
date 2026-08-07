@@ -458,6 +458,9 @@ private fun pageExceptionViolation(
         "Continuation token" in message ->
             "malformed_cursor"
 
+        "normalized lowercase language tag" in message ->
+            "invalid_language_tag"
+
         else ->
             "exception"
     }

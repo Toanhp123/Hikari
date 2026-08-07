@@ -238,7 +238,10 @@ class PackageVerifierTest {
             signerKeyId =
                 "fixture-author",
             signatureBase64 =
-                "aW52YWxpZA==",
+                java.util.Base64.getEncoder()
+                    .encodeToString(
+                        ByteArray(64),
+                    ),
         )
 
     private fun archiveEntry(
