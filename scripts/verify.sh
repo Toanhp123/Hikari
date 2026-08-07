@@ -4,9 +4,23 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+GRADLEW="${GRADLEW:-./gradlew}"
+export GRADLEW
+
+for test_script in ./scripts/tests/*.sh; do
+  bash "$test_script"
+done
+
+./scripts/verify-source-layout.sh
+./scripts/verify-baseline-architecture.sh
+
+ROOM_SCHEMA_FINGERPRINT="$(
+  ./scripts/verify-room-schema-stability.sh
+)"
+
 ./scripts/check-module-dependencies.sh
 
-./gradlew --no-daemon \
+"$GRADLEW" --no-daemon \
   --dependency-verification strict \
   :build-logic:test \
   test \
@@ -15,3 +29,6 @@ cd "$ROOT_DIR"
   detekt \
   :app:assembleDebug \
   --stacktrace
+
+./scripts/verify-room-schema-stability.sh \
+  "$ROOM_SCHEMA_FINGERPRINT"

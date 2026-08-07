@@ -33,6 +33,12 @@ internal fun CatalogEntry.toEntity():
         description = description,
         score = score,
         scoreScale = scoreScale,
+        externalStoryId = externalStoryId,
+        sourceUrl = sourceUrl,
+        authorsJson = Json.encodeToString(authors),
+        genresJson = Json.encodeToString(genres),
+        coverReference = coverReference,
+        publicationStatus = publicationStatus,
     )
 
 internal fun StoryAggregate.toDomain():
@@ -70,4 +76,10 @@ internal fun CatalogEntryEntity.toDomain():
         description = description,
         score = score,
         scoreScale = scoreScale,
+        externalStoryId = externalStoryId,
+        sourceUrl = sourceUrl,
+        authors = Json.decodeFromString(authorsJson),
+        genres = Json.decodeFromString(genresJson),
+        coverReference = coverReference,
+        publicationStatus = publicationStatus,
     )

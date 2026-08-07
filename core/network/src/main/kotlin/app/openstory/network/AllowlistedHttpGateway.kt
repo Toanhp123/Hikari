@@ -2,22 +2,14 @@ package app.openstory.network
 
 import app.openstory.common.AppError
 import app.openstory.common.AppResult
-import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.util.concurrent.TimeUnit
 import okhttp3.HttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.Interceptor
-import okhttp3.MediaType
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.ResponseBody
-import okio.Buffer
-import okio.BufferedSource
-import okio.ForwardingSource
-import okio.buffer
 
 class AllowlistedHttpGateway private constructor(
     client: OkHttpClient,
@@ -76,32 +68,27 @@ class AllowlistedHttpGateway private constructor(
             )
             .build()
 
-    private val normalizedAllowedHosts =
-        allowedHosts.map(String::lowercase).toSet()
+    private val urlPolicy =
+        if (allowCleartextForTesting) {
+            PluginUrlPolicy.forTesting(allowedHosts)
+        } else {
+            PluginUrlPolicy(allowedHosts)
+        }
+
+    private val responseReader = BoundedResponseReader()
 
     override suspend fun execute(
         request: PluginHttpRequest,
         budget: RequestBudget,
     ): AppResult<PluginHttpResponse> =
-        request.url
-            .toHttpUrlOrNull()
-            ?.let { initialUrl ->
-                when {
-                    !isSecure(initialUrl) ->
-                        httpsRequired()
-
-                    !isAllowed(initialUrl) ->
-                        domainDenied()
-
-                    else ->
-                        executeAllowed(
-                            request = request,
-                            budget = budget,
-                            initialUrl = initialUrl,
-                        )
-                }
-            }
-            ?: invalidUrl()
+        when (val validated = urlPolicy.resolve(request.url)) {
+            is AppResult.Failure -> validated
+            is AppResult.Success -> executeAllowed(
+                request = request,
+                budget = budget,
+                initialUrl = validated.value.value.toHttpUrl(),
+            )
+        }
 
     private fun executeAllowed(
         request: PluginHttpRequest,
@@ -137,17 +124,11 @@ class AllowlistedHttpGateway private constructor(
                     terminalResult = step.result
 
                 is NetworkStep.Redirect ->
-                    when {
-                        !isSecure(step.url) ->
-                            terminalResult =
-                                httpsRequired()
-
-                        isAllowed(step.url) ->
-                            currentUrl = step.url
-
-                        else ->
-                            terminalResult =
-                                domainDenied()
+                    when (val validated = urlPolicy.resolve(step.url.toString())) {
+                        is AppResult.Failure -> terminalResult = validated
+                        is AppResult.Success -> {
+                            currentUrl = validated.value.value.toHttpUrl()
+                        }
                     }
             }
         }
@@ -333,11 +314,7 @@ class AllowlistedHttpGateway private constructor(
 
         return when (
             val bodyResult =
-                readBoundedBody(
-                    body = response.body,
-                    maxBytes =
-                        budget.maxDecompressedBytes,
-                )
+                responseReader.read(response, budget)
         ) {
             is AppResult.Success -> {
                 val decodedText =
@@ -375,62 +352,6 @@ class AllowlistedHttpGateway private constructor(
                 bodyResult
         }
     }
-    private fun readBoundedBody(
-        body: ResponseBody,
-        maxBytes: Long,
-    ): AppResult<ByteArray> =
-        try {
-            body.byteStream().use { input ->
-                val output =
-                    ByteArrayOutputStream()
-
-                val buffer =
-                    ByteArray(DEFAULT_BUFFER_SIZE)
-
-                var totalBytes = 0L
-
-                while (true) {
-                    val read = input.read(buffer)
-
-                    if (read == -1) {
-                        break
-                    }
-
-                    totalBytes += read
-
-                    if (totalBytes > maxBytes) {
-                        return decompressedBodyTooLarge()
-                    }
-
-                    output.write(
-                        buffer,
-                        0,
-                        read,
-                    )
-                }
-
-                AppResult.Success(
-                    output.toByteArray(),
-                )
-            }
-        } catch (
-            _: CompressedBodyTooLargeException,
-        ) {
-            compressedBodyTooLarge()
-        } catch (_: IOException) {
-            networkFailure()
-        }
-
-    private fun isSecure(
-        url: HttpUrl,
-    ): Boolean =
-        url.isHttps || allowCleartextForTesting
-
-    private fun isAllowed(
-        url: HttpUrl,
-    ): Boolean =
-        url.host.lowercase() in
-            normalizedAllowedHosts
 }
 
 private class OperationDeadline(
@@ -471,109 +392,6 @@ private sealed interface NetworkStep {
     ) : NetworkStep
 }
 
-private data class CompressedByteLimit(
-    val maxBytes: Long,
-)
-
-private class CompressedLimitInterceptor :
-    Interceptor {
-    override fun intercept(
-        chain: Interceptor.Chain,
-    ): Response {
-        val response =
-            chain.proceed(chain.request())
-
-        val limit =
-            chain.request()
-                .tag(
-                    CompressedByteLimit::class.java,
-                )
-                ?.maxBytes
-                ?: return response
-
-        val body = response.body
-
-        if (body.contentLength() > limit) {
-            response.close()
-            throw CompressedBodyTooLargeException()
-        }
-
-        return response.newBuilder()
-            .body(
-                CompressedLimitResponseBody(
-                    delegate = body,
-                    maxBytes = limit,
-                ),
-            )
-            .build()
-    }
-}
-
-private class CompressedLimitResponseBody(
-    private val delegate: ResponseBody,
-    private val maxBytes: Long,
-) : ResponseBody() {
-    private val limitedSource: BufferedSource by lazy {
-        object :
-            ForwardingSource(delegate.source()) {
-            private var totalBytes = 0L
-
-            override fun read(
-                sink: Buffer,
-                byteCount: Long,
-            ): Long {
-                val read =
-                    super.read(
-                        sink,
-                        byteCount,
-                    )
-
-                if (read > 0) {
-                    totalBytes += read
-
-                    if (totalBytes > maxBytes) {
-                        throw CompressedBodyTooLargeException()
-                    }
-                }
-
-                return read
-            }
-        }.buffer()
-    }
-
-    override fun contentType(): MediaType? =
-        delegate.contentType()
-
-    override fun contentLength(): Long =
-        delegate.contentLength()
-
-    override fun source(): BufferedSource =
-        limitedSource
-}
-
-private class CompressedBodyTooLargeException :
-    IOException(
-        "Compressed response exceeds its byte budget.",
-    )
-
-private fun domainDenied(): AppResult.Failure =
-    networkError(
-        code = "plugin.domain_denied",
-        retryable = false,
-    )
-
-private fun invalidUrl(): AppResult.Failure =
-    networkError(
-        code = "plugin.invalid_url",
-        retryable = false,
-    )
-
-private fun httpsRequired(): AppResult.Failure =
-    networkError(
-        code = "plugin.https_required",
-        retryable = false,
-    )
-
 private fun invalidRedirect(): AppResult.Failure =
     networkError(
         code = "plugin.invalid_redirect",
@@ -603,22 +421,6 @@ private fun requestBudgetExceeded():
     networkError(
         code =
             "network.request_budget_exceeded",
-        retryable = false,
-    )
-
-private fun compressedBodyTooLarge():
-    AppResult.Failure =
-    networkError(
-        code =
-            "network.response_compressed_too_large",
-        retryable = false,
-    )
-
-private fun decompressedBodyTooLarge():
-    AppResult.Failure =
-    networkError(
-        code =
-            "network.response_decompressed_too_large",
         retryable = false,
     )
 

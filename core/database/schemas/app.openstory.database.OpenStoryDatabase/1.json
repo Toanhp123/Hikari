@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "0b4b3a938aedabfba7969cd4f84bf594",
+    "identityHash": "1aa0fa81d85a24bca1720aa3d64775ee",
     "entities": [
       {
         "tableName": "canonical_stories",
@@ -42,7 +42,7 @@
       },
       {
         "tableName": "catalog_entries",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`catalog_entry_id` TEXT NOT NULL, `catalog_plugin_id` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `score` REAL, `score_scale` REAL, PRIMARY KEY(`catalog_entry_id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`catalog_entry_id` TEXT NOT NULL, `catalog_plugin_id` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `score` REAL, `score_scale` REAL, `external_story_id` TEXT NOT NULL DEFAULT '', `source_url` TEXT, `authors_json` TEXT NOT NULL DEFAULT '[]', `genres_json` TEXT NOT NULL DEFAULT '[]', `cover_reference` TEXT, `publication_status` TEXT, PRIMARY KEY(`catalog_entry_id`))",
         "fields": [
           {
             "fieldPath": "catalogEntryId",
@@ -76,6 +76,42 @@
             "fieldPath": "scoreScale",
             "columnName": "score_scale",
             "affinity": "REAL"
+          },
+          {
+            "fieldPath": "externalStoryId",
+            "columnName": "external_story_id",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "sourceUrl",
+            "columnName": "source_url",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "authorsJson",
+            "columnName": "authors_json",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'[]'"
+          },
+          {
+            "fieldPath": "genresJson",
+            "columnName": "genres_json",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'[]'"
+          },
+          {
+            "fieldPath": "coverReference",
+            "columnName": "cover_reference",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "publicationStatus",
+            "columnName": "publication_status",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -791,11 +827,94 @@
             "plugin_id"
           ]
         }
+      },
+      {
+        "tableName": "plugin_versions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `version` TEXT NOT NULL, `package_sha256` TEXT NOT NULL, `location` TEXT NOT NULL, `trust_signature_state` TEXT NOT NULL, `signer_key_id` TEXT, `signer_fingerprint_sha256` TEXT, `install_source` TEXT NOT NULL, `source_reference` TEXT NOT NULL, `unsigned_warning_acknowledged` INTEGER NOT NULL, `accepted_capabilities` TEXT NOT NULL, `installed_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`plugin_id`, `version`))",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageSha256",
+            "columnName": "package_sha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "location",
+            "columnName": "location",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trustSignatureState",
+            "columnName": "trust_signature_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signerKeyId",
+            "columnName": "signer_key_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "signerFingerprintSha256",
+            "columnName": "signer_fingerprint_sha256",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "installSource",
+            "columnName": "install_source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceReference",
+            "columnName": "source_reference",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unsignedWarningAcknowledged",
+            "columnName": "unsigned_warning_acknowledged",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "acceptedCapabilities",
+            "columnName": "accepted_capabilities",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "installedAtEpochMillis",
+            "columnName": "installed_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id",
+            "version"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0b4b3a938aedabfba7969cd4f84bf594')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1aa0fa81d85a24bca1720aa3d64775ee')"
     ]
   }
 }

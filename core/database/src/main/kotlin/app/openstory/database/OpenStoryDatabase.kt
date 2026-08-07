@@ -5,10 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import app.openstory.database.dao.ChapterDao
 import app.openstory.database.dao.PluginStateDao
 import app.openstory.database.dao.ProgressDao
-import app.openstory.database.dao.ChapterDao
 import app.openstory.database.dao.StoryDao
+import app.openstory.database.dao.StoryPurgeDao
 import app.openstory.database.entity.CanonicalChapterEntity
 import app.openstory.database.entity.CanonicalChapterReleaseEntity
 import app.openstory.database.entity.CanonicalStoryEntity
@@ -37,7 +38,7 @@ import app.openstory.database.entity.StoryContentMappingEntity
         PluginStateEntity::class,
         PluginVersionEntity::class,
     ],
-    version = 2,
+    version = 1,
     exportSchema = true,
 )
 @TypeConverters(
@@ -46,6 +47,8 @@ import app.openstory.database.entity.StoryContentMappingEntity
 abstract class OpenStoryDatabase : RoomDatabase() {
 
     internal abstract fun storyDao(): StoryDao
+
+    internal abstract fun storyPurgeDao(): StoryPurgeDao
 
     internal abstract fun chapterDao(): ChapterDao
 
@@ -76,12 +79,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
                 OpenStoryDatabase::class.java,
                 databaseName,
             )
-                .setJournalMode(
-                    JournalMode.WRITE_AHEAD_LOGGING,
-                )
-                .addMigrations(
-                    migration1To2,
-                )
+                .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
                 .build()
     }
 }

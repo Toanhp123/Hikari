@@ -103,7 +103,10 @@ class PluginManifestTest {
     @Test
     fun manifestCapabilitiesDefaultToDeny() {
         kotlin.test.assertTrue(
-            validManifest().capabilities.isEmpty(),
+            validManifest(
+                allowedHosts = emptySet(),
+                capabilities = emptySet(),
+            ).capabilities.isEmpty(),
         )
     }
 
@@ -225,6 +228,8 @@ class PluginManifestTest {
         updateUrl: String? = "https://example.com/plugin.json",
         repositoryProvenance: PluginRepositoryProvenance? = null,
         allowedHosts: Set<String> = setOf("example.com"),
+        capabilities: Set<PluginCapability> =
+            setOf(PluginCapability.NETWORK),
         entry: String = "main.js",
     ): PluginManifest = PluginManifest(
         id = id,
@@ -243,6 +248,7 @@ class PluginManifestTest {
         kinds = setOf(PluginKind.CONTENT),
         languages = setOf("vi"),
         allowedHosts = allowedHosts,
+        capabilities = capabilities,
         runtime = PluginRuntime.JAVASCRIPT,
         entry = entry,
     )

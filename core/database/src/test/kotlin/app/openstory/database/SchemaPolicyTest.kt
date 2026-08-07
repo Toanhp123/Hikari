@@ -4,6 +4,7 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -11,44 +12,50 @@ import org.w3c.dom.Node
 class SchemaPolicyTest {
 
     @Test
-    fun versionOneSchemaAndFixtureAreCommitted() {
-        val moduleRoot =
-            findRepositoryRoot()
-                .resolve("core/database")
+    fun databaseBaselineIsExactlySchemaOne() {
+        val repositoryRoot = findRepositoryRoot()
+        val moduleRoot = repositoryRoot.resolve("core/database")
+        val databaseSource = moduleRoot.resolve(
+            "src/main/kotlin/app/openstory/database/OpenStoryDatabase.kt",
+        ).readText()
+        val committed = moduleRoot.resolve(
+            "schemas/app.openstory.database.OpenStoryDatabase",
+        ).listFiles { file -> file.extension == "json" }
+            .orEmpty()
+            .map { it.name }
+            .sorted()
 
-        val schema =
+        assertTrue("version = 1" in databaseSource)
+        assertEquals(listOf("1.json"), committed)
+        assertFalse(
             moduleRoot.resolve(
-                "schemas/" +
-                    "app.openstory.database.OpenStoryDatabase/" +
-                    "1.json",
-            )
+                "src/main/kotlin/app/openstory/database/OpenStoryDatabaseMigrations.kt",
+            ).exists(),
+        )
+    }
 
-        val fixture =
-            moduleRoot.resolve(
-                "src/androidTest/assets/database/v1/openstory.db",
-            )
-
-        assertTrue(
-            schema.isFile,
-            "Commit the Room v1 schema JSON",
+    @Test
+    fun backedUpDatabaseSchemaContainsNoSecretSessionTables() {
+        val moduleRoot = findRepositoryRoot().resolve("core/database")
+        val schema = moduleRoot.resolve(
+            "schemas/app.openstory.database.OpenStoryDatabase/1.json",
+        ).readText()
+        val tableNames = Regex("\"tableName\": \"([^\"]+)\"")
+            .findAll(schema)
+            .map { match -> match.groupValues[1].lowercase() }
+            .toList()
+        val forbiddenTokens = listOf(
+            "session",
+            "cookie",
+            "token",
+            "auth_secret",
         )
 
-        val schemaText =
-            schema.readText()
-
         assertTrue(
-            "canonical_chapters" in schemaText,
-        )
-        assertTrue(
-            "chapter_releases" in schemaText,
-        )
-        assertTrue(
-            fixture.isFile,
-            "Commit the seeded Room v1 database fixture",
-        )
-        assertTrue(
-            fixture.length() > 0L,
-            "The v1 fixture must not be empty",
+            tableNames.none { table ->
+                forbiddenTokens.any(table::contains)
+            },
+            "Backed-up Room database must not contain session secret tables",
         )
     }
 

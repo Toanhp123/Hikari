@@ -29,16 +29,21 @@ The host rejects a package before extraction when any of the following condition
 
 | Error | Meaning |
 |---|---|
-| `PATH_TRAVERSAL` | An entry is absolute or contains a `..` path segment |
-| `DUPLICATE_ENTRY` | Two ZIP entries have the same path |
+| `PATH_TRAVERSAL` | An entry is absolute, drive-qualified, uses backslashes, or contains a `..` path segment |
+| `INVALID_ENTRY_PATH` | An entry is blank, contains control characters, or uses empty/dot segments |
+| `DUPLICATE_ENTRY` | Two ZIP entries have the same path, including case-folded duplicates |
 | `UNDECLARED_ENTRY` | An entry is not part of the supported package layout |
 | `MISSING_MANIFEST` | `manifest.json` is absent |
 | `SYMBOLIC_LINK` | An entry is a symbolic link |
+| `INVALID_ENTRY_SIZE` | An entry reports a negative or unknown size |
+| `SIZE_OVERFLOW` | Total size metadata overflows a signed 64-bit counter |
 | `ENTRY_COUNT_LIMIT` | The archive contains too many entries |
 | `COMPRESSED_SIZE_LIMIT` | Total compressed bytes exceed the configured ceiling |
 | `UNCOMPRESSED_SIZE_LIMIT` | Total expanded bytes exceed the configured ceiling |
 | `SUSPICIOUS_COMPRESSION_RATIO` | An entry exceeds the allowed expansion ratio |
 | `UNDECLARED_EXECUTABLE` | An executable entry is not declared by the package metadata |
+| `MISSING_DECLARED_EXECUTABLE` | A declared executable entry is absent from the archive |
+| `RUNTIME_ENTRY_MISMATCH` | The manifest runtime entry is absent from the archive |
 
 Validation is performed using entry metadata before extraction. The installer must not write rejected content to its final plugin directory.
 
@@ -173,12 +178,14 @@ A conforming installer performs these steps in order:
 3. Reject absolute paths, traversal, duplicate names, and symbolic links.
 4. Confirm `manifest.json` exists and entries match the supported layout.
 5. Parse the manifest and validate it against the [plugin API versioning policy](api-versioning.md).
-6. Calculate SHA-256 over the exact archive bytes.
-7. Compare the checksum with package or repository metadata.
-8. Verify the Ed25519 signature when present.
-9. Require and record acknowledgement for unsigned packages.
-10. Extract into an isolated temporary location.
-11. Re-check the declared runtime entry.
-12. Atomically publish the verified package into plugin-scoped storage.
+6. For declarative packages, decode `selector.json`, require the supported selector schema version, and run the complete selector contract validator before any runtime is initialized.
+7. Confirm exactly the runtime entry declared by the manifest is present and no entry for the other runtime is bundled.
+8. Calculate SHA-256 over the exact archive bytes.
+9. Compare the checksum with package or repository metadata.
+10. Verify the Ed25519 signature when present.
+11. Require and record acknowledgement for unsigned packages.
+12. Extract into an isolated temporary location.
+13. Re-check the declared runtime entry.
+14. Atomically publish the verified package into plugin-scoped storage.
 
 No runtime code or selector definition is initialized before all applicable checks succeed.

@@ -29,6 +29,9 @@ class RoomStoryRepository(
     private val storyDao =
         database.storyDao()
 
+    private val storyPurgeDao =
+        database.storyPurgeDao()
+
     private val chapterDao =
         database.chapterDao()
 
@@ -60,7 +63,7 @@ class RoomStoryRepository(
         story: CanonicalStory,
         status: LibraryStatus,
     ): AppResult<Unit> =
-        storageWrite {
+        executeStorageWrite {
             val catalogEntries =
                 story.catalogEntries.map { entry ->
                     entry.toEntity()
@@ -83,20 +86,31 @@ class RoomStoryRepository(
             )
         }
 
+    override suspend fun purgeStory(
+        storyId: StoryId,
+    ): AppResult<Unit> =
+        executeStorageWrite {
+            storyPurgeDao.purgeStory(storyId.value)
+        }
+
     override suspend fun replaceSourceReleases(
         mappingId: ContentMappingId,
         releases: List<ChapterRelease>,
-    ): AppResult<Unit> =
-        storageWrite {
-            require(
-                releases.all { release ->
-                    release.contentMappingId ==
-                        mappingId
-                },
-            ) {
-                "All releases must belong to the replaced mapping"
+    ): AppResult<Unit> {
+        if (
+            releases.any { release ->
+                release.contentMappingId != mappingId
             }
+        ) {
+            return AppResult.Failure(
+                AppError.Validation(
+                    code =
+                        "storage.release_mapping_mismatch",
+                ),
+            )
+        }
 
+        return executeStorageWrite {
             chapterDao.replaceSourceReleases(
                 mappingId = mappingId.value,
                 releases =
@@ -114,11 +128,12 @@ class RoomStoryRepository(
                     },
             )
         }
+    }
 
     override suspend fun upsertProgress(
         progress: ReadingProgress,
     ): AppResult<Unit> =
-        storageWrite {
+        executeStorageWrite {
             progressDao.upsertProgress(
                 ReadingProgressEntity(
                     storyId = progress.storyId.value,
@@ -129,22 +144,6 @@ class RoomStoryRepository(
                     completed = progress.completed,
                     updatedAtEpochMillis =
                         progress.updatedAtEpochMillis,
-                ),
-            )
-        }
-
-    private suspend fun storageWrite(
-        block: suspend () -> Unit,
-    ): AppResult<Unit> =
-        try {
-            block()
-            AppResult.Success(Unit)
-        }
-        catch (_: Exception) {
-            AppResult.Failure(
-                AppError.Storage(
-                    code = "storage.write_failed",
-                    retryable = true,
                 ),
             )
         }

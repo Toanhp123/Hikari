@@ -21,6 +21,30 @@ sealed interface AppError {
     data class Diagnostic private constructor(
         private val tokens: Map<String, String>,
     ) {
+        fun with(
+            vararg entries: Pair<String, String>,
+        ): Diagnostic {
+            val merged =
+                linkedMapOf<String, String>()
+
+            merged.putAll(tokens)
+
+            entries.forEach { (key, value) ->
+                requireSafeMachineToken(
+                    value = key,
+                    label = "Diagnostic key",
+                )
+                requireSafeMachineToken(
+                    value = value,
+                    label = "Diagnostic value",
+                )
+
+                merged[key] = value
+            }
+
+            return Diagnostic(merged)
+        }
+
         companion object {
             fun empty(): Diagnostic =
                 Diagnostic(emptyMap())

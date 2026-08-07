@@ -1,271 +1,137 @@
 # Declarative Selector Plugin Schema
 
-The declarative selector schema defines a bounded, non-Turing-complete pipeline for extracting catalog and content data.
-
-The host owns parsing, validation, networking, and execution. Plugin definitions contain data only and cannot execute scripts, reflection, filesystem access, Android APIs, replacement callbacks, or user-defined regular expressions.
+OpenStory declarative plugins describe bounded document requests and typed Catalog or
+Content output bindings. The definition is data, not executable code.
 
 ## Schema version
 
-The current schema version is `1`.
+Selector Schema `1` is the initial and only supported declarative selector schema.
 
 ```json
 {
   "schemaVersion": 1,
-  "operations": []
+  "catalog": null,
+  "content": null
 }
 ```
 
-The host rejects unknown schema versions with:
+The host rejects any other value with `UNSUPPORTED_SCHEMA_VERSION`. There is no
+development-generation compatibility dispatch in the public contract.
 
-```text
-UNSUPPORTED_SCHEMA_VERSION
-```
-
-Existing operation semantics must never be silently changed. Any incompatible addition or reinterpretation requires a new schema version.
+Selector schema, Plugin API version, repository-index schema, Room schema, application
+version, and package layout are independent version spaces. A plugin package does not
+declare a separate package-layout schema-version field.
 
 ## Validation lifecycle
 
-`SelectorValidation.validate` must run before package installation or runtime initialization.
+Before activation, the host performs this flow:
 
-Validation checks:
+```text
+read selector.json
+  -> decode SelectorDefinition
+  -> require schemaVersion = 1
+  -> validate request plans, bindings, endpoint output shapes, and manifest capabilities
+  -> accept or reject the package
+```
 
-- the pipeline is not empty;
-- the schema version is supported;
-- operation input and output types connect correctly;
-- request URLs are relative or absolute HTTPS URLs on declared hosts;
-- CSS selectors and attribute names are non-blank;
-- no unsupported executable operation exists.
+Unknown fields and unknown polymorphic binding types fail closed. Validation occurs
+before a selector runtime or plugin adapter is initialized.
 
-A successful validation returns `Result.success(Unit)`. A failure contains `SelectorValidationException` with a stable `SelectorValidationErrorCode`.
+## Root contract
 
-## Value types
+`SelectorDefinition` may expose Catalog endpoints, Content endpoints, or both. At least
+one capability must agree with the package manifest.
 
-| Type | Meaning |
+| Group | Endpoints |
 |---|---|
-| `NONE` | No prior pipeline value |
-| `DOCUMENT` | Host-parsed document |
-| `ELEMENTS` | Selected document elements |
-| `TEXT` | Extracted text |
+| Catalog | `home`, `search`, `details`, `filters` |
+| Content | `search`, `story`, `latest`, `allChapters`, `sync`, `chapter` |
 
-## Operations
+Catalog metadata and readable Content contracts remain separate even when they share
+one `selector.json`.
 
-### `http_get`
+## Request plans
 
-Fetches a document through the host-controlled network gateway.
+Each network-backed endpoint owns a `SelectorRequestPlan` with an ordered `operations`
+list and optional requested output limits.
 
-Type:
+Supported request operations:
 
-```text
-NONE -> DOCUMENT
-```
+| Type | Fields | Behavior |
+|---|---|---|
+| `http_get` | `urlTemplate` | Fetch one document through the host-owned HTTP gateway |
+| `remove_elements` | `css` | Remove matching elements from the current document |
 
-Relative URL example:
+`http_get` templates may use named inputs such as `{query}` or `{sourceStoryId}`.
+Inputs are URL-encoded by the host. Relative templates require the package's persisted
+declarative origin. Network allowlists, redirects, response limits, cancellation, and
+diagnostic redaction remain host responsibilities.
 
-```json
-{
-  "type": "http_get",
-  "urlTemplate": "/search?q={query}"
-}
-```
+Requested limits may narrow `maxOutputItems`, `maxChapterBlocks`, and
+`maxChapterTextCharacters`; they never weaken host ceilings.
 
-Declared absolute URL example:
+## Closed binding model
 
-```json
-{
-  "type": "http_get",
-  "urlTemplate": "https://allowed.example/search?q={query}"
-}
-```
+Bindings are a closed, non-executable AST. The serialized `type` values are:
 
-Possible validation errors:
-
-- `BLANK_URL_TEMPLATE`
-- `PROTOCOL_RELATIVE_URL`
-- `INSECURE_SCHEME`
-- `INVALID_ABSOLUTE_URL`
-- `UNDECLARED_HOST`
-- `TYPE_MISMATCH`
-
-Absolute URLs must use HTTPS and their normalized host must appear in the plugin manifest's `allowedHosts`. Relative URLs are resolved by the host against a declared plugin origin.
-
-### `remove_elements`
-
-Removes matching elements from the current document before extraction.
-
-Type:
-
-```text
-DOCUMENT -> DOCUMENT
-```
-
-Example:
-
-```json
-{
-  "type": "remove_elements",
-  "css": ".advertisement"
-}
-```
-
-Possible validation errors:
-
-- `BLANK_CSS_SELECTOR`
-- `TYPE_MISMATCH`
-
-### `select_all`
-
-Selects all elements matching a CSS selector.
-
-Type:
-
-```text
-DOCUMENT -> ELEMENTS
-```
-
-Example:
-
-```json
-{
-  "type": "select_all",
-  "css": "article.chapter"
-}
-```
-
-Possible validation errors:
-
-- `BLANK_CSS_SELECTOR`
-- `TYPE_MISMATCH`
-
-### `select_text`
-
-Extracts text from the current element selection.
-
-Type:
-
-```text
-ELEMENTS -> TEXT
-```
-
-Example:
-
-```json
-{
-  "type": "select_text",
-  "css": ".chapter-title"
-}
-```
-
-Possible validation errors:
-
-- `BLANK_CSS_SELECTOR`
-- `TYPE_MISMATCH`
-
-### `select_attribute`
-
-Extracts an attribute from the current element selection. It can be used to obtain links such as a next-page URL; the host must validate any resulting request before fetching it.
-
-Type:
-
-```text
-ELEMENTS -> TEXT
-```
-
-Example:
-
-```json
-{
-  "type": "select_attribute",
-  "css": "a.next-page",
-  "attribute": "href"
-}
-```
-
-Possible validation errors:
-
-- `BLANK_CSS_SELECTOR`
-- `BLANK_ATTRIBUTE_NAME`
-- `TYPE_MISMATCH`
-
-### `normalize_whitespace`
-
-Applies the host-provided whitespace normalization transform.
-
-Type:
-
-```text
-TEXT -> TEXT
-```
-
-Example:
-
-```json
-{
-  "type": "normalize_whitespace",
-  "enabled": true
-}
-```
-
-Possible validation errors:
-
-- `TYPE_MISMATCH`
-
-The operation invokes a fixed host transformation. Plugins cannot provide callbacks or executable replacement expressions.
-
-## Complete pipeline example
-
-```json
-{
-  "schemaVersion": 1,
-  "operations": [
-    {
-      "type": "http_get",
-      "urlTemplate": "/story/{sourceStoryId}"
-    },
-    {
-      "type": "remove_elements",
-      "css": ".advertisement"
-    },
-    {
-      "type": "select_all",
-      "css": "article.chapter"
-    },
-    {
-      "type": "select_text",
-      "css": ".chapter-body"
-    },
-    {
-      "type": "normalize_whitespace",
-      "enabled": true
-    }
-  ]
-}
-```
-
-## Schema-level errors
-
-| Error code | Meaning |
+| Category | Types |
 |---|---|
-| `EMPTY_PIPELINE` | No operations were declared |
-| `UNSUPPORTED_SCHEMA_VERSION` | The host does not support the schema version |
-| `TYPE_MISMATCH` | An operation received an incompatible pipeline value |
-| `BLANK_URL_TEMPLATE` | A request template was empty |
-| `PROTOCOL_RELATIVE_URL` | A URL began with `//` |
-| `INSECURE_SCHEME` | An absolute URL did not use HTTPS |
-| `INVALID_ABSOLUTE_URL` | An absolute URL was malformed or contained user information |
-| `UNDECLARED_HOST` | An absolute URL targeted a host absent from `allowedHosts` |
-| `BLANK_CSS_SELECTOR` | A CSS selector was empty |
-| `BLANK_ATTRIBUTE_NAME` | An attribute name was empty |
+| Text sources | `element_text`, `text`, `attribute`, `constant` |
+| Wrappers/scalars | `optional`, `integer`, `long`, `double`, `boolean`, `enum`, `timestamp`, `url` |
+| Collections/objects | `text_list`, `text_set`, `object`, `list` |
 
-## Security boundary
+Text and attribute bindings may select relative to the current element and normalize
+whitespace. Scalar bindings parse a text source. URL bindings resolve against the
+fetched document base URL and must pass the same validation-only URL policy used by
+plugin networking.
 
-The operation hierarchy is closed and serializable. Schema version 1 exposes no operation for:
+Objects declare a field-to-binding map. Lists select ordered elements and evaluate one
+item binding relative to each element. Optional bindings permit absence; required
+fields fail when missing or malformed.
 
-- JavaScript or other scripts;
-- reflection or dynamic class loading;
-- filesystem paths or file reads;
-- Android services or application context;
-- arbitrary regular expressions;
-- user-provided replacement callbacks;
-- direct networking outside the host gateway.
+Timestamp formats are `EPOCH_MILLIS`, `EPOCH_SECONDS`, `ISO_8601`, and
+`HOST_PATTERN_ID`. Pagination tokens are classified as `OPAQUE` or `URL`.
 
-Unknown operation discriminators must fail decoding or validation. They must never be ignored or interpreted as another operation.
+## Catalog contracts
+
+- `home` maps ordered sections containing story summaries.
+- `search` maps story summaries and an optional next token.
+- `details` maps one catalog story detail record.
+- `filters` declares select, multi-select, range, text, and sort filters.
+
+Install-time validation checks every endpoint binding against the corresponding public
+Catalog wire DTO shape.
+
+## Content contracts
+
+- `search` maps content-source story summaries and an optional next token.
+- `story` maps one content-source story detail record.
+- `latest` and `allChapters` map chapter-release lists.
+- `sync` maps upserts, tombstone source-release IDs, and an optional next cursor.
+- `chapter` maps a title and ordered semantic chapter blocks.
+
+Chapter blocks support paragraph, heading, divider, image, and note variants. Text spans
+may use `NONE` or `SEMANTIC_HTML`. Unmatched elements use the endpoint's declared `SKIP`
+or `ERROR` policy.
+
+## Security and limits
+
+The validator and host enforce bounded definition depth, binding counts, selector text,
+request operations, document characters, DOM nodes, produced items, chapter blocks,
+chapter text, and wall-clock work. A selector cannot access Android APIs, Room, files,
+processes, reflection, cookies, headers, or arbitrary network hosts.
+
+Errors expose stable codes and safe field paths. They do not expose raw HTML, chapter
+text, credentials, private URLs, or cursor contents.
+
+## Canonical complete fixture
+
+The literal SDK example is the repository fixture
+[`sample-plugins/selector-fixture/selector.json`](../../sample-plugins/selector-fixture/selector.json).
+It is decoded by contract tests and covers all four Catalog and all six Content endpoint
+shapes. Documentation links to that file instead of maintaining a second hand-written
+copy that can drift from the tested contract.
+
+Reusable plugin-author contract assertions and fixture builders are exported through
+`:core:plugin-api` test fixtures. The separate `:test:fixtures` module owns only internal
+deterministic fake implementations and data used by the host application test suite.

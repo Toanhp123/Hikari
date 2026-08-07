@@ -28,7 +28,7 @@ internal abstract class ProgressDao {
             updated_at_epoch_millis = :updatedAtEpochMillis
         WHERE story_id = :storyId
             AND chapter_id = :chapterId
-            AND updated_at_epoch_millis <= :updatedAtEpochMillis
+            AND updated_at_epoch_millis < :updatedAtEpochMillis
         """,
     )
     protected abstract suspend fun updateIfNotStale(

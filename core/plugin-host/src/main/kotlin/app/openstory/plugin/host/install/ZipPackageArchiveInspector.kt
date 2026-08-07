@@ -3,8 +3,11 @@ package app.openstory.plugin.host.install
 import app.openstory.common.AppError
 import app.openstory.common.AppResult
 import app.openstory.plugin.api.PluginManifest
+import app.openstory.plugin.api.PluginRuntime
 import app.openstory.plugin.api.packageformat.PackageArchiveEntry
 import app.openstory.plugin.api.packageformat.PackageArchiveLimits
+import app.openstory.plugin.api.selector.SelectorDefinitionDecoder
+import app.openstory.plugin.api.selector.SelectorValidation
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
@@ -76,6 +79,11 @@ class ZipPackageArchiveInspector(
                     scannedArchive.manifestSource,
             )
 
+        validateSelectorDefinition(
+            manifest = manifest,
+            selectorSource = scannedArchive.selectorSource,
+        )
+
         return PluginPackageInspection(
             pluginId =
                 manifest.id,
@@ -94,78 +102,60 @@ class ZipPackageArchiveInspector(
 
     private fun scanArchive(
         packageBytes: ByteArray,
-    ): ScannedArchive {
-        val entries =
-            mutableListOf<PackageArchiveEntry>()
-
-        var manifestSource:
-            String? =
-            null
-
-        var uncompressedBytes =
-            0L
-
-        ZipInputStream(
-            ByteArrayInputStream(
-                packageBytes,
-            ),
-        ).use { archive ->
-            var entry =
-                archive.nextEntry
-
-            while (entry != null) {
-                if (
-                    entries.size >=
-                    limits.maximumEntryCount
-                ) {
-                    throw ArchiveLimitExceededException()
-                }
-
-                val remainingBytes =
-                    limits.maximumUncompressedBytes -
-                        uncompressedBytes
-
-                val entryBytes =
-                    archive.readCurrentEntry(
-                        maximumBytes =
-                            remainingBytes,
-                    )
-
-                uncompressedBytes +=
-                    entryBytes.size.toLong()
-
-                entries +=
-                    entry.toArchiveEntry(
-                        entryBytes =
-                            entryBytes,
-                    )
-
-                if (
-                    entry.name ==
-                    MANIFEST_ENTRY
-                ) {
-                    manifestSource =
-                        entryBytes.decodeToString()
-                }
-
-                archive.closeEntry()
-
-                entry =
-                    archive.nextEntry
-            }
+    ): ScannedArchive =
+        ZipInputStream(ByteArrayInputStream(packageBytes)).use { archive ->
+            scanEntries(archive)
         }
 
-        return ScannedArchive(
-            entries =
-                entries,
-            manifestSource =
-                requireNotNull(
-                    manifestSource,
-                ) {
-                    "Plugin package is missing manifest.json."
-                },
-        )
+    private fun scanEntries(archive: ZipInputStream): ScannedArchive {
+        val entries = mutableListOf<PackageArchiveEntry>()
+        var manifestSource: String? = null
+        var selectorSource: String? = null
+        var uncompressedBytes = 0L
+        var entry = archive.nextEntry
+
+        while (entry != null) {
+            ensureEntryLimit(entries)
+            val entryBytes = readEntryBytes(archive, uncompressedBytes)
+            uncompressedBytes += entryBytes.size.toLong()
+            entries += entry.toArchiveEntry(entryBytes = entryBytes)
+
+            when (entry.name) {
+                MANIFEST_ENTRY -> manifestSource = entryBytes.decodeToString()
+                SELECTOR_ENTRY -> selectorSource = entryBytes.decodeToString()
+            }
+
+            archive.closeEntry()
+            entry = archive.nextEntry
+        }
+
+        return scannedArchive(entries, manifestSource, selectorSource)
     }
+
+    private fun ensureEntryLimit(entries: List<PackageArchiveEntry>) {
+        if (entries.size >= limits.maximumEntryCount) {
+            throw ArchiveLimitExceededException()
+        }
+    }
+
+    private fun readEntryBytes(
+        archive: ZipInputStream,
+        uncompressedBytes: Long,
+    ): ByteArray = archive.readCurrentEntry(
+        maximumBytes = limits.maximumUncompressedBytes - uncompressedBytes,
+    )
+
+    private fun scannedArchive(
+        entries: List<PackageArchiveEntry>,
+        manifestSource: String?,
+        selectorSource: String?,
+    ): ScannedArchive = ScannedArchive(
+        entries = entries,
+        manifestSource = requireNotNull(manifestSource) {
+            "Plugin package is missing manifest.json."
+        },
+        selectorSource = selectorSource,
+    )
 }
 
 private data class ScannedArchive(
@@ -173,7 +163,31 @@ private data class ScannedArchive(
         List<PackageArchiveEntry>,
     val manifestSource:
         String,
+    val selectorSource:
+        String?,
 )
+
+private fun validateSelectorDefinition(
+    manifest: PluginManifest,
+    selectorSource: String?,
+) {
+    if (manifest.runtime != PluginRuntime.DECLARATIVE) {
+        return
+    }
+
+    val definition = SelectorDefinitionDecoder()
+        .decode(
+            requireNotNull(selectorSource) {
+                "Declarative package is missing selector.json."
+            },
+        )
+        .getOrThrow()
+
+    SelectorValidation.validate(
+        definition = definition,
+        manifest = manifest,
+    ).getOrThrow()
+}
 
 private fun ZipInputStream.readCurrentEntry(
     maximumBytes: Long,
@@ -275,3 +289,6 @@ private fun archiveInspectionFailure():
 
 private const val MANIFEST_ENTRY =
     "manifest.json"
+
+private const val SELECTOR_ENTRY =
+    "selector.json"

@@ -9,6 +9,7 @@ dependencies {
     implementation(libs.hilt.gradle.plugin)
     implementation(libs.ksp.gradle.plugin)
     implementation(libs.room.gradle.plugin)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.junit)
@@ -16,6 +17,12 @@ dependencies {
 
 gradlePlugin {
     plugins {
+        register("architecture") {
+            id = "openstory.architecture"
+            implementationClass =
+                "app.openstory.build.ArchitectureConventionPlugin"
+        }
+
         register("androidApplication") {
             id = "openstory.android.application"
             implementationClass =

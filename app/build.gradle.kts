@@ -6,10 +6,10 @@ plugins {
 }
 
 android {
-    namespace = "com.example.hikari"
+    namespace = "app.openstory"
 
     defaultConfig {
-        applicationId = "com.example.hikari"
+        applicationId = "app.openstory"
         versionCode = 1
         versionName = "1.0"
 

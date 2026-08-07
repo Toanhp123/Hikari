@@ -1,24 +1,19 @@
 package app.openstory.plugin.api.selector
 
+import app.openstory.plugin.api.PluginApiVersion
+import app.openstory.plugin.api.PluginCapability
+import app.openstory.plugin.api.PluginKind
+import app.openstory.plugin.api.PluginManifest
+import app.openstory.plugin.api.PluginRuntime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SelectorValidationTest {
-
     @Test
-    fun definitionRejectsCrossHostRequestTemplate() {
-        val definition = SelectorPluginDefinition(
-            operations = listOf(
-                HttpGet(
-                    urlTemplate = "https://evil.invalid/search?q={query}",
-                ),
-            ),
-        )
-
-        val result = SelectorValidation.validate(
-            definition = definition,
-            allowedHosts = setOf("allowed.example"),
+    fun requestRejectsCrossHostTemplate() {
+        val result = validateRequest(
+            HttpGet("https://evil.invalid/search?q={query}"),
         )
 
         assertEquals(
@@ -28,49 +23,12 @@ class SelectorValidationTest {
     }
 
     @Test
-    fun definitionRejectsUnsupportedSchemaVersion() {
-        val definition = SelectorPluginDefinition(
-            schemaVersion = SelectorPluginDefinition.CURRENT_SCHEMA_VERSION + 1,
-            operations = listOf(
-                HttpGet(urlTemplate = "/search?q={query}"),
-            ),
+    fun requestRejectsInsecureAndProtocolRelativeTemplates() {
+        val insecure = validateRequest(
+            HttpGet("http://allowed.example/search?q={query}"),
         )
-
-        val result = SelectorValidation.validate(
-            definition = definition,
-            allowedHosts = setOf("allowed.example"),
-        )
-
-        assertEquals(
-            SelectorValidationErrorCode.UNSUPPORTED_SCHEMA_VERSION,
-            result.validationCode(),
-        )
-    }
-
-    @Test
-    fun definitionRejectsInsecureAndProtocolRelativeRequests() {
-        val insecure = SelectorValidation.validate(
-            definition = SelectorPluginDefinition(
-                operations = listOf(
-                    HttpGet(
-                        urlTemplate =
-                            "http://allowed.example/search?q={query}",
-                    ),
-                ),
-            ),
-            allowedHosts = setOf("allowed.example"),
-        )
-
-        val protocolRelative = SelectorValidation.validate(
-            definition = SelectorPluginDefinition(
-                operations = listOf(
-                    HttpGet(
-                        urlTemplate =
-                            "//allowed.example/search?q={query}",
-                    ),
-                ),
-            ),
-            allowedHosts = setOf("allowed.example"),
+        val protocolRelative = validateRequest(
+            HttpGet("//allowed.example/search?q={query}"),
         )
 
         assertEquals(
@@ -84,72 +42,25 @@ class SelectorValidationTest {
     }
 
     @Test
-    fun definitionAcceptsRelativeAndDeclaredHttpsRequests() {
-        val relative = SelectorValidation.validate(
-            definition = SelectorPluginDefinition(
-                operations = listOf(
-                    HttpGet(urlTemplate = "/search?q={query}"),
-                ),
-            ),
-            allowedHosts = setOf("allowed.example"),
-        )
-
-        val absolute = SelectorValidation.validate(
-            definition = SelectorPluginDefinition(
-                operations = listOf(
-                    HttpGet(
-                        urlTemplate =
-                            "https://allowed.example/search?q={query}",
-                    ),
-                ),
-            ),
-            allowedHosts = setOf("allowed.example"),
-        )
-
-        assertTrue(relative.isSuccess)
-        assertTrue(absolute.isSuccess)
-    }
-
-    @Test
-    fun operationsDeclareExplicitInputAndOutputTypes() {
-        assertEquals(
-            SelectorValueType.NONE to SelectorValueType.DOCUMENT,
-            HttpGet("/story").types(),
-        )
-        assertEquals(
-            SelectorValueType.DOCUMENT to SelectorValueType.DOCUMENT,
-            RemoveElements(".advertisement").types(),
-        )
-        assertEquals(
-            SelectorValueType.DOCUMENT to SelectorValueType.ELEMENTS,
-            SelectAll(".chapter").types(),
-        )
-        assertEquals(
-            SelectorValueType.ELEMENTS to SelectorValueType.TEXT,
-            SelectText(".title").types(),
-        )
-        assertEquals(
-            SelectorValueType.ELEMENTS to SelectorValueType.TEXT,
-            SelectAttribute("a", "href").types(),
-        )
-        assertEquals(
-            SelectorValueType.TEXT to SelectorValueType.TEXT,
-            NormalizeWhitespace().types(),
+    fun requestAcceptsRelativeAndDeclaredHttpsTemplates() {
+        assertTrue(validateRequest(HttpGet("/search?q={query}")).isSuccess)
+        assertTrue(
+            validateRequest(
+                HttpGet("https://allowed.example/search?q={query}"),
+            ).isSuccess,
         )
     }
 
     @Test
-    fun definitionRejectsTypeMismatchedPipeline() {
-        val definition = SelectorPluginDefinition(
-            operations = listOf(
-                HttpGet(urlTemplate = "/story"),
-                NormalizeWhitespace(),
+    fun requestRejectsSecondHttpGet() {
+        val result = SelectorValidation.validateRequestPlan(
+            request = SelectorRequestPlan(
+                operations = listOf(
+                    HttpGet("/story"),
+                    HttpGet("/other"),
+                ),
             ),
-        )
-
-        val result = SelectorValidation.validate(
-            definition = definition,
-            allowedHosts = setOf("allowed.example"),
+            manifest = manifest(),
         )
 
         assertEquals(
@@ -159,48 +70,28 @@ class SelectorValidationTest {
     }
 
     @Test
-    fun definitionRejectsBlankCssAndAttributeNames() {
-        val blankCss = SelectorValidation.validate(
-            definition = SelectorPluginDefinition(
+    fun requestRejectsBlankRemovalSelector() {
+        val result = SelectorValidation.validateRequestPlan(
+            request = SelectorRequestPlan(
                 operations = listOf(
-                    HttpGet(urlTemplate = "/story"),
-                    SelectAll(css = "   "),
+                    HttpGet("/story"),
+                    RemoveElements("   "),
                 ),
             ),
-            allowedHosts = setOf("allowed.example"),
-        )
-
-        val blankAttribute = SelectorValidation.validate(
-            definition = SelectorPluginDefinition(
-                operations = listOf(
-                    HttpGet(urlTemplate = "/story"),
-                    SelectAll(css = "article"),
-                    SelectAttribute(
-                        css = "a",
-                        attribute = " ",
-                    ),
-                ),
-            ),
-            allowedHosts = setOf("allowed.example"),
+            manifest = manifest(),
         )
 
         assertEquals(
             SelectorValidationErrorCode.BLANK_CSS_SELECTOR,
-            blankCss.validationCode(),
-        )
-        assertEquals(
-            SelectorValidationErrorCode.BLANK_ATTRIBUTE_NAME,
-            blankAttribute.validationCode(),
+            result.validationCode(),
         )
     }
 
     @Test
-    fun definitionRejectsEmptyPipeline() {
-        val result = SelectorValidation.validate(
-            definition = SelectorPluginDefinition(
-                operations = emptyList(),
-            ),
-            allowedHosts = setOf("allowed.example"),
+    fun requestRejectsEmptyPipeline() {
+        val result = SelectorValidation.validateRequestPlan(
+            request = SelectorRequestPlan(emptyList()),
+            manifest = manifest(),
         )
 
         assertEquals(
@@ -209,11 +100,29 @@ class SelectorValidationTest {
         )
     }
 
-    private fun SelectorOperation.types():
-        Pair<SelectorValueType, SelectorValueType> =
-        inputType to outputType
+    private fun validateRequest(operation: SelectorRequestOperation): Result<Unit> =
+        SelectorValidation.validateRequestPlan(
+            request = SelectorRequestPlan(listOf(operation)),
+            manifest = manifest(),
+        )
 
-    private fun Result<Unit>.validationCode():
-        SelectorValidationErrorCode =
+    private fun manifest() = PluginManifest(
+        id = "community.selector",
+        name = "Selector",
+        version = "1.0.0",
+        packageChecksumSha256 = "a".repeat(64),
+        minimumHostVersion = "1.0.0",
+        updateUrl = "https://allowed.example/plugin.json",
+        api = PluginApiVersion(1, 0),
+        kinds = setOf(PluginKind.CATALOG),
+        languages = setOf("en"),
+        allowedHosts = setOf("allowed.example"),
+        capabilities = setOf(PluginCapability.NETWORK),
+        runtime = PluginRuntime.DECLARATIVE,
+        entry = "selector.json",
+        declarativeOrigin = "https://allowed.example/",
+    )
+
+    private fun Result<Unit>.validationCode() =
         (exceptionOrNull() as SelectorValidationException).code
 }

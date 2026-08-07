@@ -35,7 +35,7 @@ Each version is represented by one immutable artifact record:
   "signature": {
     "algorithm": "ED25519",
     "signerKeyId": "author-main",
-    "signatureBase64": "c2lnbmF0dXJl"
+    "signatureBase64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
   },
   "changelogUrl": "https://repo.example/community.example/1.2.3-changelog.md",
   "declaredCapabilities": [
@@ -189,3 +189,8 @@ Redirects must remain subject to the host's network and declared-host policy. Au
 | `IMMUTABLE_VERSION_CONFLICT` | One plugin/version pair points to conflicting immutable artifacts |
 
 Additional transport, URL, checksum, signature, and manifest failures are reported by the host's package-download and package-validation layers.
+
+
+## Security-field validation
+
+Known security fields fail closed. Repository/plugin IDs and versions use canonical formats; artifact, changelog, and rollback URLs use HTTPS; checksums are lowercase SHA-256 values; an Ed25519 signature decodes to exactly 64 bytes; and rollback metadata must reference a strictly older, distinct artifact. Identical duplicate artifact records are rejected explicitly, while conflicting records for one plugin/version remain `IMMUTABLE_VERSION_CONFLICT`.

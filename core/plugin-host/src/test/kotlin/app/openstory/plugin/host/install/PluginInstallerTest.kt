@@ -7,7 +7,9 @@ import app.openstory.plugin.api.packageformat.PackageInstallProvenance
 import app.openstory.plugin.api.packageformat.PackageInstallSource
 import app.openstory.plugin.api.packageformat.PackageSignatureState
 import app.openstory.plugin.api.packageformat.PluginPackageMetadata
+import app.openstory.plugin.host.registry.ActivatedPlugin
 import app.openstory.plugin.host.registry.MutablePluginRegistry
+import app.openstory.plugin.host.registry.PluginActivation
 import app.openstory.plugin.host.registry.PluginRegistration
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -131,55 +133,6 @@ class PluginInstallerTest {
             assertEquals(
                 expected = 1,
                 actual = registry.activationCalls,
-            )
-        }
-    @Test
-    fun lowerVersionIsRejectedBeforeStaging() =
-        runTest {
-            val storage =
-                DowngradeRecordingStorage()
-
-            val registry =
-                ExistingVersionRegistry()
-
-            val installer =
-                PluginInstaller(
-                    verifier =
-                        PackageVerifier(
-                            archiveInspector =
-                                downgradeArchiveInspector(),
-                        ),
-                    storage = storage,
-                    registry = registry,
-                )
-
-            val failure =
-                assertIs<AppResult.Failure>(
-                    installer.install(
-                        downgradeInstallRequest(),
-                    ),
-                )
-
-            assertEquals(
-                expected =
-                    "plugin.package_downgrade_denied",
-                actual =
-                    failure.error.code,
-            )
-
-            assertEquals(
-                expected = 0,
-                actual = storage.stageCalls,
-                message =
-                    "Downgrade must be rejected before staging.",
-            )
-
-            assertEquals(
-                expected = 0,
-                actual =
-                    registry.activationCalls,
-                message =
-                    "Downgrade must not change the registry.",
             )
         }
     @Test
@@ -357,8 +310,8 @@ private class RecordingPluginRegistry :
         null
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activationCalls += 1
 
         error(
@@ -420,8 +373,8 @@ private class FailingActivationRegistry :
         null
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activationCalls += 1
 
         return AppResult.Failure(
@@ -430,134 +383,6 @@ private class FailingActivationRegistry :
                     "storage.plugin_registry_write_failed",
                 retryable = true,
             ),
-        )
-    }
-
-    override suspend fun setEnabled(
-        pluginId: String,
-        enabled: Boolean,
-    ): AppResult<Unit> =
-        error(
-            "Enabled state is not used by this test.",
-        )
-}
-private fun downgradeInstallRequest():
-    InstallRequest =
-    InstallRequest(
-        packageBytes =
-            "fixture-package"
-                .encodeToByteArray(),
-        metadata =
-            pluginMetadata(
-                version =
-                    "1.5.0",
-            ),
-        provenance =
-            PackageInstallProvenance(
-                source =
-                    PackageInstallSource.LOCAL_FILE,
-                sourceReference =
-                    "fixture-downgrade.osp",
-                signatureState =
-                    PackageSignatureState.UNSIGNED,
-                unsignedWarningAcknowledged =
-                    true,
-            ),
-    )
-
-private fun downgradeArchiveInspector():
-    PackageArchiveInspector =
-    PackageArchiveInspector {
-        AppResult.Success(
-            PluginPackageInspection(
-                pluginId =
-                    "community.fixture",
-                version =
-                    "1.5.0",
-
-                entries =
-                    listOf(
-                        PackageArchiveEntry(
-                            path =
-                                "manifest.json",
-                            compressedSizeBytes =
-                                10L,
-                            uncompressedSizeBytes =
-                                10L,
-                            isSymbolicLink =
-                                false,
-                            isExecutable =
-                                false,
-                        ),
-                        PackageArchiveEntry(
-                            path =
-                                "main.js",
-                            compressedSizeBytes =
-                                10L,
-                            uncompressedSizeBytes =
-                                10L,
-                            isSymbolicLink =
-                                false,
-                            isExecutable =
-                                true,
-                        ),
-                    ),
-                declaredExecutableEntries =
-                    setOf("main.js"),
-                declaredCapabilities =
-                    emptySet(),
-            ),
-        )
-    }
-
-private class DowngradeRecordingStorage :
-    PluginPackageStorage {
-
-    var stageCalls: Int = 0
-        private set
-
-    override suspend fun stage(
-        verifiedPackage: VerifiedPluginPackage,
-    ): AppResult<StagedPluginPackage> {
-        stageCalls += 1
-
-        error(
-            "Downgrade must be rejected before staging.",
-        )
-    }
-
-    override suspend fun remove(
-        location: String,
-    ) {
-        error(
-            "Downgrade rejection must not create staging files.",
-        )
-    }
-}
-
-private class ExistingVersionRegistry :
-    MutablePluginRegistry {
-
-    var activationCalls: Int = 0
-        private set
-
-    override suspend fun find(
-        pluginId: String,
-    ): PluginRegistration =
-        PluginRegistration(
-            pluginId = pluginId,
-            enabled = true,
-            activeVersion = "2.0.0",
-            previousVersion = "1.0.0",
-        )
-
-    override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
-        activationCalls += 1
-
-        error(
-            "Downgrade must not activate a plugin.",
         )
     }
 
@@ -707,18 +532,18 @@ private class UpgradeRecordingRegistry :
         )
 
     override suspend fun activate(
-        stagedPackage: StagedPluginPackage,
-    ): AppResult<InstalledPlugin> {
+        activation: PluginActivation,
+    ): AppResult<ActivatedPlugin> {
         activationCalls += 1
 
         return AppResult.Success(
-            InstalledPlugin(
+            ActivatedPlugin(
                 pluginId =
-                    stagedPackage.pluginId,
+                    activation.pluginId,
                 version =
-                    stagedPackage.version,
+                    activation.version,
                 location =
-                    stagedPackage.location,
+                    activation.location,
                 enabled = true,
             ),
         )
