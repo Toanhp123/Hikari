@@ -25,16 +25,16 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 internal const val METADATA_DATABASE_NAME =
-    "wave-02-checkpoint-metadata.db"
+    "database-acceptance-metadata.db"
 
 internal const val RELEASE_DATABASE_NAME =
-    "wave-02-checkpoint-releases.db"
+    "database-acceptance-releases.db"
 
 internal const val SOURCE_REMOVAL_DATABASE_NAME =
-    "wave-02-checkpoint-source-removal.db"
+    "database-acceptance-source-removal.db"
 
 internal const val PLUGIN_REMOVAL_DATABASE_NAME =
-    "wave-02-checkpoint-plugin-removal.db"
+    "database-acceptance-plugin-removal.db"
 
 internal suspend fun <T> withFreshCheckpointDatabase(
     databaseName: String,
@@ -376,7 +376,7 @@ private fun assertCanonicalProgressPreserved(
     )
 }
 
-private fun assertNoForeignKeyViolations(
+internal fun assertNoForeignKeyViolations(
     database: OpenStoryDatabase,
 ) {
     database.openHelper.writableDatabase
@@ -590,7 +590,7 @@ private fun storedReleaseLinks(
     return links
 }
 
-private fun rowCount(
+internal fun rowCount(
     database: OpenStoryDatabase,
     query: String,
 ): Int =
@@ -647,7 +647,7 @@ private fun storedProgress(
             )
         }
 
-private suspend fun <T> withCheckpointDatabase(
+internal suspend fun <T> withCheckpointDatabase(
     context: Context,
     databaseName: String,
     block:
@@ -740,32 +740,5 @@ internal suspend fun removePluginRegistration(
             "DELETE FROM plugin_states WHERE plugin_id = ?",
             arrayOf("plugin-a"),
         )
-    }
-}
-
-internal suspend fun assertPluginRemovalAfterReopen(
-    context: Context,
-) {
-    withCheckpointDatabase(
-        context = context,
-        databaseName = PLUGIN_REMOVAL_DATABASE_NAME,
-    ) { database ->
-        assertEquals(
-            1,
-            rowCount(database, "SELECT COUNT(*) FROM canonical_stories"),
-        )
-        assertEquals(
-            2,
-            rowCount(database, "SELECT COUNT(*) FROM content_mappings"),
-        )
-        assertEquals(
-            1,
-            rowCount(database, "SELECT COUNT(*) FROM chapter_releases"),
-        )
-        assertEquals(
-            1,
-            rowCount(database, "SELECT COUNT(*) FROM reading_progress"),
-        )
-        assertNoForeignKeyViolations(database)
     }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 GRADLEW="${GRADLEW:-./gradlew}"
@@ -13,9 +13,9 @@ export GRADLEW
 ./scripts/verify.sh
 
 ANDROID_SERIAL="$ANDROID_SERIAL_API_26" \
-  ./scripts/verify-instrumentation.sh 26
+  ./scripts/instrumentation/android.sh 26
 
 ANDROID_SERIAL="$ANDROID_SERIAL_API_37" \
-  ./scripts/verify-instrumentation.sh 37
+  ./scripts/instrumentation/android.sh 37
 
-echo "Wave checkpoint verification passed on API 26 and API 37."
+echo "Application shell checkpoint passed on API 26 and API 37."

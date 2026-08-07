@@ -18,39 +18,27 @@ data class SelectorExecutionContext(
                 "value",
             )
 
-        if (URI(probeUrl).isAbsolute) {
-            return urlTemplate
+        return when {
+            URI(probeUrl).isAbsolute -> urlTemplate
+            origin == null -> null
+            else -> resolveRelativeTemplate(origin, urlTemplate)
         }
-
-        val baseUri =
-            origin?.let(::URI)
-                ?: return null
-
-        val escapedTemplate =
-            urlTemplate
-                .replace(
-                    oldValue = "{",
-                    newValue = "%7B",
-                )
-                .replace(
-                    oldValue = "}",
-                    newValue = "%7D",
-                )
-
-        return baseUri
-            .resolve(escapedTemplate)
-            .toASCIIString()
-            .replace(
-                oldValue = "%7B",
-                newValue = "{",
-                ignoreCase = true,
-            )
-            .replace(
-                oldValue = "%7D",
-                newValue = "}",
-                ignoreCase = true,
-            )
     }
+}
+
+private fun resolveRelativeTemplate(
+    origin: String,
+    urlTemplate: String,
+): String {
+    val escapedTemplate = urlTemplate
+        .replace(oldValue = "{", newValue = "%7B")
+        .replace(oldValue = "}", newValue = "%7D")
+
+    return URI(origin)
+        .resolve(escapedTemplate)
+        .toASCIIString()
+        .replace(oldValue = "%7B", newValue = "{", ignoreCase = true)
+        .replace(oldValue = "%7D", newValue = "}", ignoreCase = true)
 }
 
 private fun validateOrigin(

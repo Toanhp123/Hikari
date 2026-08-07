@@ -26,6 +26,16 @@ case "${1:-} ${2:-} ${3:-}" in
   "shell getprop ro.build.version.sdk")
     printf '26\r\n'
     ;;
+  "shell am force-stop")
+    ;;
+  "shell am start")
+    printf 'Status: ok\nActivity: app.openstory/app.openstory.MainActivity\n'
+    ;;
+  "shell pidof app.openstory")
+    printf '4242\n'
+    ;;
+  "logcat -d -t")
+    ;;
   *)
     printf 'Unexpected fake adb invocation: %s\n' "$*" >&2
     exit 90
@@ -42,15 +52,16 @@ chmod +x "$TEMP_DIR/fake-gradlew"
 
 PATH="$FAKE_BIN:$PATH" \
 GRADLEW="$TEMP_DIR/fake-gradlew" \
-  "$ROOT_DIR/scripts/verify-database-instrumentation.sh" 26 >/dev/null
+  "$ROOT_DIR/scripts/instrumentation/android.sh" 26 >/dev/null
 
-grep -q ':core:database:connectedDebugAndroidTest' "$GRADLE_LOG"
+grep -q ':app:connectedDebugAndroidTest' "$GRADLE_LOG"
+grep -q ':app:installDebug' "$GRADLE_LOG"
 
 set +e
 PATH="$FAKE_BIN:$PATH" \
 ANDROID_SERIAL="fake-api-26" \
 GRADLEW="$TEMP_DIR/fake-gradlew" \
-  "$ROOT_DIR/scripts/verify-database-instrumentation.sh" 37 >/dev/null 2>&1
+  "$ROOT_DIR/scripts/instrumentation/android.sh" 37 >/dev/null 2>&1
 STATUS=$?
 set -e
 
@@ -59,4 +70,4 @@ if [[ "$STATUS" -eq 0 ]]; then
   exit 1
 fi
 
-echo "verify-database-instrumentation.sh contract verified."
+echo "instrumentation/android.sh contract verified."

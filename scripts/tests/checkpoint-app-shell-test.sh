@@ -5,10 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-mkdir -p "$TEMP_DIR/scripts"
-cp "$ROOT_DIR/scripts/verify-wave-checkpoint.sh" \
-  "$TEMP_DIR/scripts/verify-wave-checkpoint.sh"
-chmod +x "$TEMP_DIR/scripts/verify-wave-checkpoint.sh"
+mkdir -p "$TEMP_DIR/scripts/checkpoints" "$TEMP_DIR/scripts/instrumentation"
+cp "$ROOT_DIR/scripts/checkpoints/app-shell.sh" \
+  "$TEMP_DIR/scripts/checkpoints/app-shell.sh"
+chmod +x "$TEMP_DIR/scripts/checkpoints/app-shell.sh"
 
 CALL_LOG="$TEMP_DIR/calls.log"
 
@@ -19,18 +19,18 @@ printf 'verify\n' >> "$CALL_LOG"
 EOF_VERIFY
 chmod +x "$TEMP_DIR/scripts/verify.sh"
 
-cat > "$TEMP_DIR/scripts/verify-instrumentation.sh" <<EOF_INSTRUMENTATION
+cat > "$TEMP_DIR/scripts/instrumentation/android.sh" <<EOF_INSTRUMENTATION
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'instrumentation api=%s serial=%s\n' "\${1:-}" "\${ANDROID_SERIAL:-}" >> "$CALL_LOG"
 EOF_INSTRUMENTATION
-chmod +x "$TEMP_DIR/scripts/verify-instrumentation.sh"
+chmod +x "$TEMP_DIR/scripts/instrumentation/android.sh"
 
 (
   cd "$TEMP_DIR"
   ANDROID_SERIAL_API_26="fake-api-26" \
   ANDROID_SERIAL_API_37="fake-api-37" \
-    ./scripts/verify-wave-checkpoint.sh >/dev/null
+    ./scripts/checkpoints/app-shell.sh >/dev/null
 )
 
 EXPECTED_CALLS="$TEMP_DIR/expected.log"
@@ -46,7 +46,7 @@ set +e
 (
   cd "$TEMP_DIR"
   unset ANDROID_SERIAL_API_26 ANDROID_SERIAL_API_37
-  ./scripts/verify-wave-checkpoint.sh >/dev/null 2>&1
+  ./scripts/checkpoints/app-shell.sh >/dev/null 2>&1
 )
 STATUS=$?
 set -e
@@ -56,4 +56,4 @@ if [[ "$STATUS" -eq 0 ]]; then
   exit 1
 fi
 
-echo "verify-wave-checkpoint.sh contract verified."
+echo "checkpoints/app-shell.sh contract verified."

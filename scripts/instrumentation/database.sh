@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 GRADLEW="${GRADLEW:-./gradlew}"
@@ -57,5 +57,5 @@ fi
   --stacktrace
 
 echo \
-  "Wave 02 database instrumentation passed on API $EXPECTED_API "\
+  "Database instrumentation passed on API $EXPECTED_API "\
   "($ANDROID_SERIAL)."

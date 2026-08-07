@@ -9,7 +9,6 @@ plugins {
 
 detekt {
     toolVersion = libs.versions.detekt.get()
-    baseline.set(rootProject.file("config/detekt/baseline.xml"))
     buildUponDefaultConfig = true
     config.setFrom(
         rootProject.file("config/detekt/detekt.yml"),

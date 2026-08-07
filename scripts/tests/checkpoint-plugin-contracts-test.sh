@@ -5,10 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-mkdir -p "$TEMP_DIR/scripts"
-cp "$ROOT_DIR/scripts/verify-wave-03-checkpoint.sh" \
-  "$TEMP_DIR/scripts/verify-wave-03-checkpoint.sh"
-chmod +x "$TEMP_DIR/scripts/verify-wave-03-checkpoint.sh"
+mkdir -p "$TEMP_DIR/scripts/checkpoints"
+cp "$ROOT_DIR/scripts/checkpoints/plugin-contracts.sh" \
+  "$TEMP_DIR/scripts/checkpoints/plugin-contracts.sh"
+chmod +x "$TEMP_DIR/scripts/checkpoints/plugin-contracts.sh"
 
 CALL_LOG="$TEMP_DIR/calls.log"
 
@@ -29,7 +29,7 @@ chmod +x "$TEMP_DIR/fake-gradlew"
 (
   cd "$TEMP_DIR"
   GRADLEW="$TEMP_DIR/fake-gradlew" \
-    ./scripts/verify-wave-03-checkpoint.sh >/dev/null
+    ./scripts/checkpoints/plugin-contracts.sh >/dev/null
 )
 
 cat > "$TEMP_DIR/expected.log" <<EOF_EXPECTED
@@ -39,4 +39,4 @@ EOF_EXPECTED
 
 diff -u "$TEMP_DIR/expected.log" "$CALL_LOG"
 
-echo "verify-wave-03-checkpoint.sh contract verified."
+echo "checkpoints/plugin-contracts.sh contract verified."

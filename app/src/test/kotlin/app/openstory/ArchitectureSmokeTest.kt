@@ -51,12 +51,14 @@ class ArchitectureSmokeTest {
             "config/detekt/detekt.yml",
             "scripts/check-module-dependencies.sh",
             "scripts/verify-baseline-architecture.sh",
+            "scripts/verify-source-layout.sh",
             "scripts/verify.sh",
-            "scripts/verify-instrumentation.sh",
-            "scripts/verify-wave-checkpoint.sh",
+            "scripts/instrumentation/android.sh",
+            "scripts/checkpoints/app-shell.sh",
             "scripts/tests/verify-baseline-architecture-test.sh",
-            "scripts/tests/verify-instrumentation-test.sh",
-            "scripts/tests/verify-wave-checkpoint-test.sh",
+            "scripts/tests/verify-source-layout-test.sh",
+            "scripts/tests/instrumentation-android-test.sh",
+            "scripts/tests/checkpoint-app-shell-test.sh",
             "docs/contributing/adding-a-module.md",
             "docs/internal/checkpoints/wave-01-remediation.md",
             "README.md",
@@ -99,8 +101,8 @@ class ArchitectureSmokeTest {
             "instrumentation-api-37:",
             "api-level: 26",
             "api-level: 37",
-            "./scripts/verify-instrumentation.sh 26",
-            "./scripts/verify-instrumentation.sh 37",
+            "./scripts/instrumentation/android.sh 26",
+            "./scripts/instrumentation/android.sh 37",
             "wave-01-checkpoint:",
             "core/database/build/reports",
             "core/network/build/reports",
@@ -139,15 +141,6 @@ class ArchitectureSmokeTest {
             "Fast verification must run every shell contract test",
         )
         assertTrue(
-            "./scripts/verify-baseline-architecture.sh" in verifyScript,
-            "Fast verification must invoke the baseline architecture gate",
-        )
-        assertTrue(
-            verifyScript.indexOf("./scripts/verify-baseline-architecture.sh") <
-                verifyScript.indexOf("ROOM_SCHEMA_FINGERPRINT"),
-            "Baseline architecture must be checked before Room fingerprinting",
-        )
-        assertTrue(
             "./scripts/check-module-dependencies.sh" in verifyScript,
             "Fast verification must invoke the architecture gate",
         )
@@ -184,6 +177,22 @@ class ArchitectureSmokeTest {
     }
 
     @Test
+    fun sharedVerificationRunsRepositoryGatesBeforeGradleWork() {
+        val verifyScript = File(root, "scripts/verify.sh").readText()
+
+        listOf(
+            "./scripts/verify-source-layout.sh",
+            "./scripts/verify-baseline-architecture.sh",
+        ).forEach { gate ->
+            assertTrue(gate in verifyScript, "Fast verification must invoke $gate")
+            assertTrue(
+                verifyScript.indexOf(gate) < verifyScript.indexOf("ROOM_SCHEMA_FINGERPRINT"),
+                "$gate must run before Room fingerprinting",
+            )
+        }
+    }
+
+    @Test
     fun readmeDocumentsFastAndCheckpointBootstrap() {
         val readme = File(root, "README.md").readText()
 
@@ -196,7 +205,7 @@ class ArchitectureSmokeTest {
             "local.properties",
             "sdk.dir=",
             "./scripts/verify.sh",
-            "./scripts/verify-wave-checkpoint.sh",
+            "./scripts/checkpoints/app-shell.sh",
             "API 26",
             "API 37",
             "config/architecture/module-boundaries.json",

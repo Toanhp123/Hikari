@@ -89,7 +89,7 @@ jobs:
           arch: x86_64
           profile: Nexus 6
           disable-animations: true
-          script: ./scripts/verify-instrumentation.sh 26
+          script: ./scripts/instrumentation/android.sh 26
 
       - name: Upload API 26 reports
         if: always()
@@ -135,7 +135,7 @@ jobs:
           arch: x86_64
           profile: Nexus 6
           disable-animations: true
-          script: ./scripts/verify-instrumentation.sh 37
+          script: ./scripts/instrumentation/android.sh 37
 
       - name: Upload API 37 reports
         if: always()
@@ -181,7 +181,7 @@ jobs:
           arch: x86_64
           profile: Nexus 6
           disable-animations: true
-          script: ./scripts/verify-database-instrumentation.sh 26
+          script: ./scripts/instrumentation/database.sh 26
 
       - name: Upload API 26 database reports
         if: always()
@@ -227,7 +227,7 @@ jobs:
           arch: x86_64
           profile: Nexus 6
           disable-animations: true
-          script: ./scripts/verify-database-instrumentation.sh 37
+          script: ./scripts/instrumentation/database.sh 37
 
       - name: Upload API 37 database reports
         if: always()
@@ -313,7 +313,7 @@ jobs:
         run: find scripts -type f -name '*.sh' -exec chmod +x {} +
 
       - name: Verify Wave 03 plugin contracts
-        run: ./scripts/verify-wave-03-checkpoint.sh
+        run: ./scripts/checkpoints/plugin-contracts.sh
 
       - name: Upload Wave 03 reports
         if: always()

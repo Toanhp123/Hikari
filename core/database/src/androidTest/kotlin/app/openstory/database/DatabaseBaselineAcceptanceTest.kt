@@ -6,7 +6,7 @@ import kotlin.test.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class Wave02CheckpointTest {
+class DatabaseBaselineAcceptanceTest {
 
     @Test
     fun metadataOnlyStorySurvivesDatabaseReopen() =

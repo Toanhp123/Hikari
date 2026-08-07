@@ -96,11 +96,11 @@ With both emulators running:
 
     ANDROID_SERIAL_API_26=emulator-5554 \
     ANDROID_SERIAL_API_37=emulator-5556 \
-      ./scripts/verify-wave-checkpoint.sh
+      ./scripts/checkpoints/app-shell.sh
 
 To run one device independently:
 
-    ANDROID_SERIAL=emulator-5554 ./scripts/verify-instrumentation.sh 26
+    ANDROID_SERIAL=emulator-5554 ./scripts/instrumentation/android.sh 26
 
 CI runs API 26 and API 37 as independent jobs. The Wave 01 checkpoint job is
 green only when fast verification and both instrumentation jobs succeed.
@@ -110,12 +110,12 @@ both required API levels:
 
     ANDROID_SERIAL_API_26=emulator-5556 \
     ANDROID_SERIAL_API_37=emulator-5554 \
-      ./scripts/verify-wave-02-checkpoint.sh
+      ./scripts/checkpoints/database.sh
 
 To run only the database suite on one connected device:
 
     ANDROID_SERIAL=emulator-5556 \
-      ./scripts/verify-database-instrumentation.sh 26
+      ./scripts/instrumentation/database.sh 26
 
 The Wave 02 CI checkpoint requires the Wave 01 checkpoint plus both database
 instrumentation jobs.
@@ -123,11 +123,11 @@ instrumentation jobs.
 Wave 03 freezes the plugin contracts and validates Selector Schema 1 packages
 before installation:
 
-    ./scripts/verify-wave-03-checkpoint.sh
+    ./scripts/checkpoints/plugin-contracts.sh
 
 On Windows PowerShell:
 
-    & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify-wave-03-checkpoint.sh
+    & "C:\Program Files\Git\bin\bash.exe" ./scripts/checkpoints/plugin-contracts.sh
 
 The Wave 03 checkpoint runs fast verification plus explicit plugin API,
 plugin-host package-inspection, and shared-fixture test suites.
