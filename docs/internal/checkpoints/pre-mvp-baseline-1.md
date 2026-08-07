@@ -1,48 +1,69 @@
 # Pre-MVP Baseline 1 Checkpoint
 
-Date opened: 2026-08-07
-Status: **IN PROGRESS - final project-wide checkpoint not yet executed**
+Date accepted: 2026-08-07
+Status: **PASS - Baseline 1 accepted as the starting point for Wave 04 Task 03**
 
-This record is updated only from observed command output. Task 15 freezes the final
-commit range and changes this status after both required Android API levels pass.
+This record contains only observed command results. Pre-baseline developer databases,
+selector fixtures, packages, and emulator installs are intentionally not migrated.
 
 ## Baseline identity
 
-| Item | Value |
+| Item | Observed value |
 |---|---|
 | Branch | `refactor/pre-mvp-baseline-1` |
-| Current recorded range | `923191b..a943282` |
-| JDK | OpenJDK 17.0.20 |
-| Gradle / AGP / Kotlin | 9.5 / 9.3.0 / 2.4.10 |
+| Implementation commit range | `923191b..635addb` |
+| JDK | OpenJDK Temurin 17.0.20+8 |
+| Gradle | 9.5.0 |
+| Android Gradle Plugin | 9.3.0 |
+| Project Kotlin plugin | 2.4.10 |
+| Gradle embedded Kotlin | 2.3.20 |
 | Application | version code 1 / name 1.0 |
-| Room | schema 1; only `1.json` active |
-| Selector | schema 1 |
+| Room | schema 1; exported file list: `1.json` |
+| Selector | `SelectorDefinition.CURRENT_SCHEMA_VERSION = 1` |
 | Plugin API | major/minor compatibility, baseline major 1 |
 | Repository index | schema 1 |
 
-## Evidence recorded so far
+## Verification evidence
 
-| Command or gate | Result | Notes |
+| Command or gate | Result | Observed evidence |
 |---|---|---|
-| Initial shared `scripts/verify.sh` preflight | PASS | Run before implementation changes. |
-| Database unit/schema verification | PASS | New schema 1 structurally compared with the former complete development schema. |
-| Database instrumentation on API 26 | PASS | 18 tests on `emulator-5554`. |
-| `:core:plugin-api:test` and Detekt during contract/layout tasks | PASS | Canonical selector contract and source layout. |
-| `:core:plugin-host:test` and Detekt for document loader | PASS | Loader limits, cancellation, and diagnostics covered. |
-| `:core:plugin-api:test :core:plugin-host:test :test:fixtures:test` | PASS | Canonical package fixture and inspector verification. |
-| `scripts/tests/verify-baseline-architecture-test.sh` | PASS | Temporary pass/fail fixture contract. |
-| `scripts/verify-baseline-architecture.sh` | PASS | Current repository architecture. |
-| Focused `ArchitectureSmokeTest` | PASS | Shared verification integration. |
-| Final shared verification after all refactor tasks | NOT RUN | Required by Task 15. |
-| Database instrumentation on API 37 | NOT RUN | Required by Task 15. |
-| Application checkpoint smoke on API 26 and API 37 | NOT RUN | Required by Task 15. |
+| `bash ./scripts/verify-baseline-architecture.sh` | PASS | Baseline architecture verified. |
+| Focused Gradle suites for database, plugin API, network, plugin host, and test fixtures | PASS | Strict dependency verification completed with exit code 0. |
+| `bash ./scripts/verify.sh` | PASS | Architecture, source layout, shell contracts, unit tests, lint, Detekt, assembly, and Room schema stability passed under JDK 17. |
+| `bash ./scripts/checkpoints/database.sh` | PASS | Database instrumentation ran 18 tests on each required API level. |
+| Application checkpoint invoked by `database.sh` | PASS | App instrumentation and launcher smoke passed on both required API levels. |
+| Final stale architecture scan across `core`, `app`, and `sample-plugins` | PASS | No old selector runtime symbols or V1/V2 generation names matched. |
+| Worktree check before recording evidence | PASS | `git status --short --branch` reported only the branch header and no changes. |
 
-## Remaining checkpoint work
+The focused module command was:
 
-- complete project-wide ownership, network, installer, verification, and documentation cleanup;
-- run all shell contract tests and strict shared Gradle verification under JDK 17;
-- run database and application checkpoint scripts on API 26 and API 37;
-- record final commit range, device IDs, command results, and clean-worktree evidence.
+```powershell
+./gradlew.bat --no-daemon --dependency-verification strict `
+  :core:database:testDebugUnitTest `
+  :core:plugin-api:test `
+  :core:network:test `
+  :core:plugin-host:test `
+  :test:fixtures:test `
+  --stacktrace
+```
 
-Known next feature work after approval remains Wave 04 Task 03: typed selector binding
-evaluation, Catalog/Content mapping, final DTO validation, and plugin adapters.
+## Android evidence
+
+| Required level | Device | Observed API | Application checkpoint | Database instrumentation |
+|---|---|---:|---|---|
+| API 26 | `emulator-5554` | 26 | PASS, 2 instrumentation tests plus launcher smoke | PASS, 18 tests |
+| API 37 | `emulator-5556` | 37 | PASS, 2 instrumentation tests plus launcher smoke | PASS, 18 tests |
+
+The serials were supplied through `ANDROID_SERIAL_API_26` and
+`ANDROID_SERIAL_API_37`; they are environment configuration and are not committed.
+
+## Accepted boundary
+
+Baseline 1 now has one active Room schema, one active typed selector schema, no legacy
+selector execution pipeline, neutral plugin-registry records, separated network and
+installer policies, capability-named verification, no tracked IDE state, and clean
+Detekt/source-layout gates.
+
+Known next work remains Wave 04 Task 03: endpoint-wide selector evaluation budgets,
+typed binding evaluation, Catalog and Content mapping, final wire DTO validation,
+selector plugin adapters/factory, and cancellation/redaction checkpoint evidence.
