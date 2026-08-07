@@ -4,6 +4,7 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -11,38 +12,33 @@ import org.w3c.dom.Node
 class SchemaPolicyTest {
 
     @Test
-    fun schemasAreContiguousThroughCurrentDatabaseVersion() {
+    fun databaseBaselineIsExactlySchemaOne() {
         val repositoryRoot = findRepositoryRoot()
         val moduleRoot = repositoryRoot.resolve("core/database")
         val databaseSource = moduleRoot.resolve(
             "src/main/kotlin/app/openstory/database/OpenStoryDatabase.kt",
         ).readText()
-        val currentVersion = requireNotNull(
-            Regex("version = (\\d+)").find(databaseSource),
-        ).groupValues[1].toInt()
-        val schemaDirectory = moduleRoot.resolve(
+        val committed = moduleRoot.resolve(
             "schemas/app.openstory.database.OpenStoryDatabase",
-        )
-        val committedVersions = schemaDirectory
-            .listFiles { file -> file.extension == "json" }
+        ).listFiles { file -> file.extension == "json" }
             .orEmpty()
-            .map { file -> file.nameWithoutExtension.toInt() }
+            .map { it.name }
             .sorted()
 
-        assertEquals((1..currentVersion).toList(), committedVersions)
-
-        val fixture = moduleRoot.resolve(
-            "src/androidTest/assets/database/v1/openstory.db",
+        assertTrue("version = 1" in databaseSource)
+        assertEquals(listOf("1.json"), committed)
+        assertFalse(
+            moduleRoot.resolve(
+                "src/main/kotlin/app/openstory/database/OpenStoryDatabaseMigrations.kt",
+            ).exists(),
         )
-        assertTrue(fixture.isFile)
-        assertTrue(fixture.length() > 0L)
     }
 
     @Test
     fun backedUpDatabaseSchemaContainsNoSecretSessionTables() {
         val moduleRoot = findRepositoryRoot().resolve("core/database")
         val schema = moduleRoot.resolve(
-            "schemas/app.openstory.database.OpenStoryDatabase/3.json",
+            "schemas/app.openstory.database.OpenStoryDatabase/1.json",
         ).readText()
         val tableNames = Regex("\"tableName\": \"([^\"]+)\"")
             .findAll(schema)

@@ -38,7 +38,7 @@ import app.openstory.database.entity.StoryContentMappingEntity
         PluginStateEntity::class,
         PluginVersionEntity::class,
     ],
-    version = 3,
+    version = 1,
     exportSchema = true,
 )
 @TypeConverters(
@@ -79,13 +79,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
                 OpenStoryDatabase::class.java,
                 databaseName,
             )
-                .setJournalMode(
-                    JournalMode.WRITE_AHEAD_LOGGING,
-                )
-                .addMigrations(
-                    migration1To2,
-                    migration2To3,
-                )
+                .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
                 .build()
     }
 }
