@@ -1,3 +1,10 @@
+<!--
+DOCUMENT LIFECYCLE
+Status: HISTORICAL AUDIT
+Canonical execution status: ../project/current-state.md
+Findings below describe the pre-baseline documentation state and are not instructions.
+-->
+
 # Documentation Audit Report
 
 Date: 2026-08-07  

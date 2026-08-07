@@ -1,86 +1,97 @@
 # Repository Current State
 
 Date: 2026-08-07  
-Snapshot reviewed: `Hikari-wave-04-task-03-selector-runtime(2).zip`  
-Purpose: single source of truth for **where implementation is now**.
+Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
-- Product baseline: approved Android local-first unified novel library design.
+- Product baseline: approved Android-only, local-first unified novel library design.
+- Package namespace and application ID: `app.openstory`.
 - Current Gradle modules: 8.
-- Current active wave: **Wave 04 — Plugin Host and Security**.
-- Current active boundary: **Wave 04 Task 03 — Selector V2 runtime execution**.
-- Wave 05 must not begin until Wave 04 checkpoint evidence is accepted.
+- Wave 01-03 implementation is present.
+- Wave 04 Tasks 01-02 implementation is present.
+- Pre-MVP Baseline 1 project-wide refactor is complete.
+- Current active boundary: **Wave 04 Task 03 - Selector Schema 1 runtime execution**.
+- Wave 05 must not begin until the Wave 04 checkpoint is accepted.
+
+## Independent version spaces
+
+| Surface | Current baseline |
+|---|---|
+| Application | `versionCode = 1`, `versionName = 1.0` |
+| Room database | schema 1, rebased current complete durable model |
+| Declarative selector | schema 1, typed endpoint/binding contract |
+| Plugin API | major/minor compatibility, baseline major 1 |
+| Repository index | schema 1 |
+| Package layout | no separate schema-version field in the current contract |
+
+These versions are independent. A change in one does not imply a change in another.
 
 ## What is present
 
 ### Wave 01 boundary
 
-The repository contains the build architecture policy, `app.openstory` identity,
-Compose/Navigation shell, Hilt/dispatcher boundaries, verification scripts, CI
-configuration and module governance introduced by remediation.
-
-**Status:** implementation present. Historical checkpoint files remain evidence
-records and are not rewritten to claim a later gate passed.
+The repository contains the JDK 17 build gate, `app.openstory` identity,
+Compose/Navigation shell, dependency-boundary policy, shared verification, CI, and
+module governance.
 
 ### Wave 02 boundary
 
-The repository contains canonical models, Room database/repositories, schemas 1–3,
-migrations, metadata-only library persistence and lifecycle/progress safety work.
-
-**Status:** implementation present. The embedded Wave 02 checkpoint explicitly
-retains target-device/CI gates, so this snapshot alone is not used to declare the
-checkpoint accepted.
+The repository contains canonical story/chapter/release models and the complete current
+Room database/repository implementation rebased as initial schema 1. Pre-baseline local
+database migrations are intentionally unsupported; historical migration evidence remains
+in documentation archives only.
 
 ### Wave 03 boundary
 
 The repository contains:
 
-- versioned plugin manifest/API compatibility rules;
+- Plugin API major/minor compatibility rules;
 - Catalog and Content wire contracts;
-- package/repository formats and deterministic contract fixtures;
-- Selector V1 schema;
-- Selector V2 version-aware decoding;
-- closed non-executable binding AST;
-- all four Catalog and six Content endpoint declarations;
-- install-time V2 structural/output-shape validation;
-- package inspection that rejects malformed V1/V2 selector definitions before activation.
-
-**Status:** implementation present. Runtime V2 evaluation remains a Wave 04 responsibility.
+- package and repository-index formats;
+- Selector Schema 1 typed endpoint and closed binding contracts;
+- all four Catalog and all six Content endpoint declarations;
+- install-time request, binding, output-shape, and manifest validation;
+- deterministic complete contract fixtures;
+- package inspection that rejects unsupported or malformed selectors before activation.
 
 ### Wave 04 boundary
 
 Implementation present:
 
-- allowlisted network gateway and resource/rate budgets;
-- transactional plugin package verification/staging/activation;
-- registry and rollback primitive;
-- bounded Selector V1 runtime.
+- allowlisted network gateway with resource, redirect, rate, and cancellation budgets;
+- transactional plugin verification, staging, activation, registry, and rollback;
+- `SelectorDocumentLoader` for bounded HTTP document acquisition and DOM cleanup;
+- `HtmlDocumentAdapter` as the opaque host DOM boundary;
+- no development-generation selector runtime or compatibility pipeline.
 
-Still required for Selector V2 Task 03:
+Still required for Wave 04 Task 03:
 
-- shared validation-only `PluginUrlPolicy` used by both network gateway and output validation;
-- shared final Catalog/Content wire DTO validators;
-- endpoint-wide binding/output budgets;
-- richer opaque DOM adapter with ordered relative traversal and semantic text/span extraction;
-- typed V2 binding evaluator;
-- Catalog mapper for all 4 endpoints;
-- Content mapper for all 6 endpoints;
-- selector Catalog/Content adapters and factory/dispatch integration;
-- V1 regression + V2 cancellation/redaction/security evidence.
+- shared validation-only `PluginUrlPolicy`;
+- endpoint-wide selector evaluation budgets;
+- typed `SelectorBindingEvaluator`;
+- Catalog and Content mappers;
+- shared final wire DTO validation;
+- Selector Catalog/Content adapters and factory dispatch;
+- cancellation, redaction, and deterministic runtime checkpoint evidence.
 
-Later Wave 04 work remains after Task 03: JavaScript sandbox, full update lifecycle,
-redacted diagnostics and unified host facade.
+Later Wave 04 work remains after Task 03: JavaScript isolation, the full update
+lifecycle, redacted diagnostics, and the unified host facade.
+
+## Verification status
+
+Implementation presence is not checkpoint acceptance. Evidence under
+`../internal/checkpoints/` records commands actually run and keeps unexecuted gates as
+`NOT RUN`. The Baseline 1 checkpoint is `../internal/checkpoints/pre-mvp-baseline-1.md`.
 
 ## Source-of-truth rule
 
 When documents disagree:
 
-1. Approved product design owns product scope and invariants.
-2. Actual repository code owns what is physically implemented.
-3. Accepted checkpoint evidence owns whether a gate is proven complete.
-4. Newer source-local remediation/spec documents supersede older greenfield
-   implementation instructions for repository ownership and sequencing.
+1. Approved product design owns scope and domain invariants.
+2. Repository code and tests own what is physically implemented.
+3. Accepted checkpoint evidence owns whether a gate passed.
+4. This file owns current implementation position.
 5. Archived documents are historical context, not execution entry points.
 
-See `document-governance.md` for the full precedence policy.
+See `document-governance.md` for the complete precedence policy.

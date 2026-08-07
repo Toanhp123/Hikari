@@ -1,3 +1,10 @@
+<!--
+DOCUMENT LIFECYCLE
+Status: HISTORICAL / SUPERSEDED BY PRE-MVP BASELINE 1
+Canonical execution status: ../../project/current-state.md
+The original implementation text below is retained for audit and must not be executed.
+-->
+
 # Wave 03 Remediation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

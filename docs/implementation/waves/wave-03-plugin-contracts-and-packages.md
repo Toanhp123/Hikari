@@ -1,7 +1,7 @@
 <!--
 DOCUMENT LIFECYCLE
 Status: HISTORICAL / IMPLEMENTATION PRESENT
-Current repository note: Source-local Wave 03 remediation owns current plugin contracts, package hardening, and Selector V2 public contracts.
+Current repository note: The canonical Selector Schema 1 contract and package hardening are implemented; the original planning text below is historical.
 Canonical execution status: ../../project/current-state.md
 Original planning text below is preserved rather than retroactively rewritten.
 -->

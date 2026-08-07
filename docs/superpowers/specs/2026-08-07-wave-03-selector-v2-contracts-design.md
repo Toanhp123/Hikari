@@ -1,4 +1,11 @@
-# Selector V2 Output Bindings Design
+<!--
+DOCUMENT LIFECYCLE
+Status: HISTORICAL / SUPERSEDED BY SELECTOR SCHEMA 1 BASELINE
+Canonical SDK contract: ../../plugin-sdk/declarative-plugin-schema.md
+The original design text below is retained for audit and must not be executed.
+-->
+
+# Historical Selector Output Bindings Design
 
 ## Status
 

@@ -8,9 +8,9 @@ preserved rather than re-invented. Current implementation progress is tracked in
 `current-state.md`; this matrix answers **where each MVP requirement belongs**, not
 whether it is already complete.
 
-Current boundary: Waves 01–03 have implementation present in the snapshot; Wave 04
-is active; Waves 05–11 remain planned. Selector V2 public contracts now belong to
-Wave 03 remediation while runtime evaluation remains Wave 04.
+Current boundary: Waves 01–03 have implementation present; Wave 04 is active; Waves
+05–11 remain planned. Selector Schema 1 public contracts belong to Wave 03 while typed
+runtime evaluation and host adapters remain Wave 04.
 
 ---
 

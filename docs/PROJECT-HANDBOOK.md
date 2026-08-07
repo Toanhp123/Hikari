@@ -91,18 +91,20 @@ A package may expose `CATALOG`, `CONTENT`, or both kinds, but contracts remain i
 
 ### Declarative plugins
 
-- Schema V1 is a bounded linear request/DOM/text pipeline and remains backward compatible.
-- Schema V2 is endpoint-oriented with typed, closed output bindings capable of describing
-  every current Catalog and Content wire DTO.
-- V2 contracts and install-time validation are Wave 03-owned and already present.
-- V2 runtime evaluation/mapping/final validation are Wave 04-owned and are the active work.
+- Selector Schema 1 is the initial canonical contract: endpoint-oriented, typed, and
+  closed over every current Catalog and Content wire DTO.
+- Request acquisition is bounded by `SelectorDocumentLoader`; the removed development
+  runtime has no compatibility role.
+- Contracts and install-time validation are Wave 03-owned and present.
+- Binding evaluation, DTO mapping, final validation, and adapters are Wave 04-owned and
+  remain the active work.
 
 ### JavaScript plugins
 
 The approved Wave 04 architecture requires AndroidX JavaScriptEngine isolation and a small
 host capability bridge. JavaScript must not obtain Android classes, reflection, process,
 arbitrary files, databases or unrestricted networking. Full JS sandbox implementation
-comes after the current Selector V2 runtime boundary.
+comes after the current Selector Schema 1 runtime boundary.
 
 ### Network/security
 
@@ -113,10 +115,10 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 04 / Task 03 — Selector V2 runtime execution.**
+**Wave 04 / Task 03 — Selector Schema 1 runtime execution.**
 
-Do not restart Wave 01–03 from the old planning package. Do not recreate Selector V2
-contracts. Continue from `implementation/wave-04-selector-v2-runtime.md`.
+Do not restart Wave 01–03 from the old planning package or recreate the typed selector
+contracts. Continue from `implementation/wave-04-selector-runtime.md`.
 
 After Task 03, finish Wave 04 JavaScript isolation, update lifecycle and unified
 host/diagnostics, then pass the Wave 04 checkpoint before starting Wave 05.
@@ -127,7 +129,7 @@ host/diagnostics, then pass the Wave 04 checkpoint before starting Wave 05.
 |---|---|
 | 01 | reproducible build, architecture guardrails, navigation shell, common primitives |
 | 02 | canonical domain + durable local Room state |
-| 03 | stable plugin contracts, Selector V2 public schema, package/repository validation |
+| 03 | stable plugin contracts, Selector Schema 1, package/repository validation |
 | 04 | secure plugin execution, update/rollback, diagnostics and host facade |
 | 05 | combined/per-catalog Home, search, filters, rankings, story metadata |
 | 06 | immediate local Library + explainable content-source matching |
@@ -156,7 +158,7 @@ Read in this order:
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`implementation/wave-04-selector-v2-runtime.md` now).
+4. Active implementation plan (`implementation/wave-04-selector-runtime.md` now).
 5. `plugin-sdk/` when changing public plugin contracts/packages.
 6. `internal/checkpoints/` when deciding whether a gate is proven.
 7. `internal/archive/` only for historical provenance.
@@ -175,5 +177,5 @@ Read in this order:
 
 ## 12. Next action
 
-Open `implementation/wave-04-selector-v2-runtime.md` and start with its first remaining
-production task: shared URL policy and shared wire DTO validation.
+Open `implementation/wave-04-selector-runtime.md` and start with its first remaining
+production task: shared URL policy, followed by bounded typed binding evaluation.

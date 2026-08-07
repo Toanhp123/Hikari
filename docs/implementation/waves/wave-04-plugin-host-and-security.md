@@ -1,7 +1,7 @@
 <!--
 DOCUMENT LIFECYCLE
 Status: ACTIVE WAVE / PARTIALLY IMPLEMENTED
-Current repository note: Tasks 01–02 and bounded Selector V1 runtime are present. Selector V2 runtime remains active; use ../wave-04-selector-v2-runtime.md for Task 03 continuation.
+Current repository note: Tasks 01–02 and the bounded document loader are present. Selector Schema 1 runtime work remains active; use ../wave-04-selector-runtime.md for Task 03 continuation.
 Canonical execution status: ../../project/current-state.md
 Original planning text below is preserved rather than retroactively rewritten.
 -->

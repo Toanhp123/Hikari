@@ -7,7 +7,7 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[implementation/wave-04-selector-v2-runtime.md](implementation/wave-04-selector-v2-runtime.md)** — active implementation plan.
+4. **[implementation/wave-04-selector-runtime.md](implementation/wave-04-selector-runtime.md)** — active implementation plan.
 
 ## Normative product and requirement documents
 
@@ -20,7 +20,7 @@ Use this directory instead of hunting through dated plans.
 
 The original eleven wave plans are retained under `implementation/waves/` with lifecycle
 headers. They remain useful as self-contained TDD plans, but Waves 01–03 are historical
-for this source snapshot and Wave 04 has a current Selector V2 continuation plan.
+for this source snapshot and Wave 04 has a current Selector Schema 1 continuation plan.
 
 ## Public/plugin documentation
 

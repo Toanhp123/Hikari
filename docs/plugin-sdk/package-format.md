@@ -178,7 +178,7 @@ A conforming installer performs these steps in order:
 3. Reject absolute paths, traversal, duplicate names, and symbolic links.
 4. Confirm `manifest.json` exists and entries match the supported layout.
 5. Parse the manifest and validate it against the [plugin API versioning policy](api-versioning.md).
-6. For declarative packages, decode `selector.json` by schema version and run the complete V1/V2 contract validator.
+6. For declarative packages, decode `selector.json`, require the supported selector schema version, and run the complete selector contract validator before any runtime is initialized.
 7. Confirm exactly the runtime entry declared by the manifest is present and no entry for the other runtime is bundled.
 8. Calculate SHA-256 over the exact archive bytes.
 9. Compare the checksum with package or repository metadata.

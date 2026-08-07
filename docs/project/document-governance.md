@@ -1,82 +1,71 @@
 # Documentation Governance and Precedence
 
 Date: 2026-08-07  
-Status: Canonical documentation policy
+Status: **CANONICAL documentation policy**
 
-## Problem this policy solves
+## Purpose
 
-The repository accumulated three different document classes:
-
-1. the 2026-08-03 greenfield planning package written before the repository tree existed;
-2. source-local remediation specs/plans/checkpoints added while Waves 01–03 were hardened;
-3. the 2026-08-06 Selector V2 review package, portions of which were subsequently absorbed into Wave 03.
-
-All three are useful, but treating them as equal execution instructions creates
-contradictions and duplicate work.
+The repository retains approved greenfield plans, source-local remediation records,
+checkpoint evidence, and raw review packages. They remain useful for audit, but they are
+not equal execution instructions.
 
 ## Precedence by question
 
-### “What product are we building?”
+### What product are we building?
 
-Use `approved-product-design.md`. The approved baseline is preserved verbatim.
-A later implementation document may clarify repository mechanics but may not silently
-change product scope or domain invariants.
+Use `approved-product-design.md`. Later implementation documents may clarify mechanics
+but may not silently change product scope or domain invariants.
 
-### “What is implemented right now?”
+### What is implemented now?
 
-Use `current-state.md`, then inspect code/tests. A plan checkbox is not proof that
+Use `current-state.md`, then inspect code and tests. A checked plan item is not proof that
 code exists, and code existence is not proof that a checkpoint passed.
 
-### “What do I implement next?”
+### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active wave plan. For the
-current source snapshot, Selector V2 continuation uses
-`../implementation/wave-04-selector-v2-runtime.md`.
+Use `../implementation/current-roadmap.md`, then the active wave plan. The current
+continuation is `../implementation/wave-04-selector-runtime.md`.
 
-Pre-MVP Baseline 1 decisions in [`pre-mvp-baseline-1.md`](pre-mvp-baseline-1.md)
-override active implementation wording that requires Selector V1/V2 coexistence or
-Room 1->2->3 migration history. Archived documents remain historical evidence only.
+The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
+that retain development-only database migrations or selector generations.
 
-### “Has a wave passed its gate?”
+### Has a gate passed?
 
-Use `../internal/checkpoints/`. Required evidence marked `NOT RUN` remains open
-until the checkpoint record is explicitly updated from reviewed command output.
+Use `../internal/checkpoints/`. A required command remains `NOT RUN` until its actual
+output is reviewed and recorded.
 
-### “How does a plugin/package format work?”
+### How does a public plugin contract work?
 
-Use `../plugin-sdk/`. These are public SDK-facing documents and should match
-`:core:plugin-api` contracts.
+Use `../plugin-sdk/`. SDK documents must match `:core:plugin-api` and tested fixtures.
 
 ## Supersession map
 
-| Older document | Current interpretation |
+| Historical source | Current interpretation |
 |---|---|
-| Planning-pack `README.md` saying to start Wave 01 | Historical bootstrap instruction; repository has progressed beyond it |
-| 2026-08-03 Wave 01–03 implementation plans | Preserve for intent/coverage; source-local remediation governs actual completed repository work |
-| 2026-08-03 Wave 04 Task 03 five-file sketch | Expanded by reviewed Selector V2 design because wire-DTO output requires typed V2 bindings |
-| 2026-08-06 Selector V2 design | Superseded for ownership/status by source-local `2026-08-07-wave-03-selector-v2-contracts-design.md`; technical runtime requirements remain applicable |
-| 2026-08-06 Selector V2 implementation Tasks 1–3 | Already absorbed into Wave 03 remediation in this snapshot; do not execute again |
-| 2026-08-06 Selector V2 implementation Tasks 4–9 | Canonical remaining basis for Wave 04 Task 03, repackaged in `wave-04-selector-v2-runtime.md` |
-| Historical remediation checkpoint `NOT RUN` statements | Evidence history; do not infer PASS merely because later-wave code exists |
-| Pre-baseline Selector V1/V2 or Room migration instructions | Superseded by `pre-mvp-baseline-1.md`; retain only as historical evidence |
+| 2026-08-03 Waves 01–03 plans | Intent and coverage history; implementation is already present |
+| 2026-08-03 Wave 04 selector sketch | Replaced by the canonical typed Selector Schema 1 continuation |
+| 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/` |
+| Source-local Wave 03 selector remediation specs/plans | Historical contract-development records; do not execute again |
+| Pre-baseline Room migration instructions | Historical only; current complete database is initial schema 1 |
+| Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |
+| Project-wide Baseline 1 refactor plan | Execution record for the one-time reset; not the next feature plan after completion |
 
 ## Lifecycle labels
 
-Every planning document should be understood as one of:
-
-- **CANONICAL** — current entry point or normative baseline;
-- **ACTIVE** — current implementation work;
-- **PLANNED** — future approved work;
-- **HISTORICAL** — completed/superseded execution instructions retained for audit;
-- **EVIDENCE** — checkpoint result record;
-- **ARCHIVE** — raw package retained unchanged for provenance.
+- **CANONICAL**: current entry point or normative baseline.
+- **ACTIVE**: current implementation work.
+- **PLANNED**: approved future work.
+- **HISTORICAL**: completed or superseded instructions retained for audit.
+- **EVIDENCE**: command/result checkpoint record.
+- **ARCHIVE**: raw provenance retained unchanged.
 
 ## Change rules
 
-- Do not edit historical evidence to make the timeline look cleaner.
-- Do not duplicate project status in multiple files; `current-state.md` owns it.
-- Do not duplicate the full roadmap in root `README.md`; link to the canonical docs.
-- When a design correction changes wave ownership, update this supersession map.
-- When a checkpoint is accepted, update `current-state.md` and the checkpoint record together.
-- When a new module is created, update `settings.gradle.kts`, architecture policy,
-  README module map, tests and current status in the same reviewed change.
+- Do not edit historical results to make the timeline cleaner.
+- Do not duplicate project status; `current-state.md` owns it.
+- Root and docs READMEs link to canonical files instead of duplicating the roadmap.
+- Public SDK examples point to tested fixtures where possible.
+- When a design correction changes ownership, update this supersession map.
+- When a checkpoint is accepted, update its evidence record and `current-state.md` together.
+- When a module is added, update settings, architecture policy, module documentation,
+  tests, and current state in one reviewed change.

@@ -120,7 +120,7 @@ To run only the database suite on one connected device:
 The Wave 02 CI checkpoint requires the Wave 01 checkpoint plus both database
 instrumentation jobs.
 
-Wave 03 freezes the plugin contracts and validates Selector V1/V2 packages
+Wave 03 freezes the plugin contracts and validates Selector Schema 1 packages
 before installation:
 
     ./scripts/verify-wave-03-checkpoint.sh

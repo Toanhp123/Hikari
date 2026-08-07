@@ -1,3 +1,9 @@
+<!--
+DOCUMENT LIFECYCLE
+Status: HISTORICAL MIGRATION RECORD
+Canonical documentation policy: ../project/document-governance.md
+-->
+
 # Documentation Migration Map
 
 This consolidation adds a canonical navigation layer without deleting source history.
@@ -14,4 +20,4 @@ This consolidation adds a canonical navigation layer without deleting source his
 | plan coverage matrix | `docs/project/requirement-coverage.md` canonical ownership index |
 | current project status | `docs/project/current-state.md` **new single owner** |
 | current roadmap | `docs/implementation/current-roadmap.md` **new single owner** |
-| Selector V2 continuation | `docs/implementation/wave-04-selector-v2-runtime.md` **active plan** |
+| Canonical selector continuation | `docs/implementation/wave-04-selector-runtime.md` **active plan** |
