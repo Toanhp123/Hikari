@@ -35,6 +35,25 @@ class SchemaPolicyTest {
     }
 
     @Test
+    fun schemaOneContainsWave05CatalogHomePersistence() {
+        val schema = findRepositoryRoot().resolve(
+            "core/database/schemas/app.openstory.database.OpenStoryDatabase/1.json",
+        ).readText()
+
+        listOf(
+            "catalog_home_snapshots",
+            "catalog_home_sections",
+            "catalog_home_items",
+            "index_catalog_entries_plugin_external_story",
+        ).forEach { required ->
+            assertTrue(
+                required in schema,
+                "Missing Wave 05 schema object: $required",
+            )
+        }
+    }
+
+    @Test
     fun backedUpDatabaseSchemaContainsNoSecretSessionTables() {
         val moduleRoot = findRepositoryRoot().resolve("core/database")
         val schema = moduleRoot.resolve(

@@ -7,6 +7,7 @@ import app.openstory.model.CanonicalStory
 import app.openstory.model.CatalogEntry
 import app.openstory.model.CatalogEntryId
 import app.openstory.model.ContentType
+import app.openstory.model.LanguageTag
 import app.openstory.model.PluginId
 import app.openstory.model.StoryId
 import kotlinx.serialization.decodeFromString
@@ -29,16 +30,25 @@ internal fun CatalogEntry.toEntity():
         catalogEntryId = id.value,
         catalogPluginId =
             catalogPluginId.value,
-        title = title,
-        description = description,
-        score = score,
-        scoreScale = scoreScale,
         externalStoryId = externalStoryId,
         sourceUrl = sourceUrl,
+        title = title,
+        aliasesJson = Json.encodeToString(aliases),
         authorsJson = Json.encodeToString(authors),
+        description = description,
         genresJson = Json.encodeToString(genres),
+        contentType = contentType.name,
+        languageTagsJson =
+            Json.encodeToString(
+                languageTags.map(LanguageTag::value).toSet(),
+            ),
         coverReference = coverReference,
         publicationStatus = publicationStatus,
+        score = score,
+        scoreScale = scoreScale,
+        popularityRank = popularityRank,
+        pluginVersion = pluginVersion,
+        fetchedAtEpochMillis = fetchedAtEpochMillis,
     )
 
 internal fun StoryAggregate.toDomain():
@@ -72,14 +82,23 @@ internal fun CatalogEntryEntity.toDomain():
             PluginId(
                 catalogPluginId,
             ),
-        title = title,
-        description = description,
-        score = score,
-        scoreScale = scoreScale,
         externalStoryId = externalStoryId,
         sourceUrl = sourceUrl,
+        title = title,
+        aliases = Json.decodeFromString(aliasesJson),
         authors = Json.decodeFromString(authorsJson),
+        description = description,
         genres = Json.decodeFromString(genresJson),
+        contentType = ContentType.valueOf(contentType),
+        languageTags =
+            Json.decodeFromString<Set<String>>(
+                languageTagsJson,
+            ).map { value -> LanguageTag(value) }.toSet(),
         coverReference = coverReference,
         publicationStatus = publicationStatus,
+        score = score,
+        scoreScale = scoreScale,
+        popularityRank = popularityRank,
+        pluginVersion = pluginVersion,
+        fetchedAtEpochMillis = fetchedAtEpochMillis,
     )

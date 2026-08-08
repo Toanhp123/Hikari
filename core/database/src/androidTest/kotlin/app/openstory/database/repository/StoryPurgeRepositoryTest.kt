@@ -30,6 +30,7 @@ class StoryPurgeRepositoryTest {
         try {
             seedReleaseGraph(database)
             seedCatalogEntry(database)
+            seedHomeMembership(database)
             val repository = RoomStoryRepository(database)
             val mapping = ContentMappingId("mapping-a")
 
@@ -60,6 +61,7 @@ class StoryPurgeRepositoryTest {
             listOf(
                 "canonical_stories",
                 "catalog_entries",
+                "catalog_home_items",
                 "content_mappings",
                 "canonical_chapters",
                 "chapter_releases",
@@ -178,24 +180,36 @@ class StoryPurgeRepositoryTest {
             INSERT INTO catalog_entries(
                 catalog_entry_id,
                 catalog_plugin_id,
-                title,
-                description,
-                score,
-                score_scale,
                 external_story_id,
                 source_url,
+                title,
+                aliases_json,
                 authors_json,
+                description,
                 genres_json,
+                content_type,
+                language_tags_json,
                 cover_reference,
-                publication_status
+                publication_status,
+                score,
+                score_scale,
+                popularity_rank,
+                plugin_version,
+                fetched_at_epoch_millis
             )
-            VALUES(?, ?, ?, NULL, NULL, NULL, ?, NULL, '[]', '[]', NULL, NULL)
+            VALUES(
+                ?, ?, ?, NULL, ?, '[]', '[]', NULL, '[]', ?, '[]',
+                NULL, NULL, NULL, NULL, NULL, ?, ?
+            )
             """.trimIndent(),
-            arrayOf(
+            arrayOf<Any?>(
                 "catalog.example:story-1",
                 "catalog.example",
-                "Story",
                 "story-1",
+                "Story",
+                "WEB_NOVEL",
+                "1.0.0",
+                1_000L,
             ),
         )
         sqlite.execSQL(
@@ -204,6 +218,47 @@ class StoryPurgeRepositoryTest {
             VALUES(?, ?)
             """.trimIndent(),
             arrayOf("story-1", "catalog.example:story-1"),
+        )
+    }
+
+    private fun seedHomeMembership(database: OpenStoryDatabase) {
+        val sqlite = database.openHelper.writableDatabase
+        sqlite.execSQL(
+            """
+            INSERT INTO catalog_home_snapshots(
+                catalog_plugin_id,
+                plugin_version,
+                refreshed_at_epoch_millis
+            ) VALUES(?, ?, ?)
+            """.trimIndent(),
+            arrayOf<Any?>("catalog.example", "1.0.0", 1_000L),
+        )
+        sqlite.execSQL(
+            """
+            INSERT INTO catalog_home_sections(
+                catalog_plugin_id,
+                section_source_id,
+                title,
+                section_position
+            ) VALUES(?, ?, ?, ?)
+            """.trimIndent(),
+            arrayOf<Any?>("catalog.example", "home", "Home", 0),
+        )
+        sqlite.execSQL(
+            """
+            INSERT INTO catalog_home_items(
+                catalog_plugin_id,
+                section_source_id,
+                catalog_entry_id,
+                item_position
+            ) VALUES(?, ?, ?, ?)
+            """.trimIndent(),
+            arrayOf<Any?>(
+                "catalog.example",
+                "home",
+                "catalog.example:story-1",
+                0,
+            ),
         )
     }
 

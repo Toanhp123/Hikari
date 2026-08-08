@@ -27,7 +27,11 @@ internal data class CanonicalStoryEntity(
         Index(
             value = [
                 "catalog_plugin_id",
+                "external_story_id",
             ],
+            unique = true,
+            name =
+                "index_catalog_entries_plugin_external_story",
         ),
     ],
 )
@@ -37,32 +41,35 @@ internal data class CatalogEntryEntity(
     val catalogEntryId: String,
     @ColumnInfo(name = "catalog_plugin_id")
     val catalogPluginId: String,
-    val title: String,
-    val description: String?,
-    val score: Double?,
-    @ColumnInfo(name = "score_scale")
-    val scoreScale: Double?,
-    @ColumnInfo(
-        name = "external_story_id",
-        defaultValue = "''",
-    )
+    @ColumnInfo(name = "external_story_id")
     val externalStoryId: String,
     @ColumnInfo(name = "source_url")
     val sourceUrl: String?,
-    @ColumnInfo(
-        name = "authors_json",
-        defaultValue = "'[]'",
-    )
+    val title: String,
+    @ColumnInfo(name = "aliases_json")
+    val aliasesJson: String,
+    @ColumnInfo(name = "authors_json")
     val authorsJson: String,
-    @ColumnInfo(
-        name = "genres_json",
-        defaultValue = "'[]'",
-    )
+    val description: String?,
+    @ColumnInfo(name = "genres_json")
     val genresJson: String,
+    @ColumnInfo(name = "content_type")
+    val contentType: String,
+    @ColumnInfo(name = "language_tags_json")
+    val languageTagsJson: String,
     @ColumnInfo(name = "cover_reference")
     val coverReference: String?,
     @ColumnInfo(name = "publication_status")
     val publicationStatus: String?,
+    val score: Double?,
+    @ColumnInfo(name = "score_scale")
+    val scoreScale: Double?,
+    @ColumnInfo(name = "popularity_rank")
+    val popularityRank: Long?,
+    @ColumnInfo(name = "plugin_version")
+    val pluginVersion: String,
+    @ColumnInfo(name = "fetched_at_epoch_millis")
+    val fetchedAtEpochMillis: Long,
 )
 
 @Entity(

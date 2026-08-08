@@ -41,6 +41,9 @@ class DatabaseBaselineTest {
                         "canonical_stories",
                         "catalog_entries",
                         "story_catalog_entries",
+                        "catalog_home_snapshots",
+                        "catalog_home_sections",
+                        "catalog_home_items",
                         "library_entries",
                         "content_mappings",
                         "story_content_mappings",
@@ -50,6 +53,7 @@ class DatabaseBaselineTest {
                         "reading_progress",
                         "plugin_states",
                         "plugin_versions",
+                        "plugin_diagnostics",
                     ),
                 actual = tables.filterNotTo(mutableSetOf()) { table ->
                     table == "android_metadata" ||
