@@ -11,6 +11,7 @@ import app.openstory.plugin.api.PluginKind
 import app.openstory.plugin.api.PluginManifest
 import app.openstory.plugin.api.PluginRuntime
 import app.openstory.plugin.api.catalog.CatalogHomeRequest
+import app.openstory.plugin.api.catalog.CatalogDetails
 import app.openstory.plugin.api.catalog.CatalogSearchRequest
 import app.openstory.plugin.api.content.ContentSearchRequest
 import app.openstory.plugin.api.selector.SelectorDefinitionDecoder
@@ -22,6 +23,18 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 class SelectorCanonicalFixtureTest {
+    internal suspend fun catalogDetails(): CatalogDetails {
+        val definition = SelectorDefinitionDecoder().decode(fixtureSource()).getOrThrow()
+        val plugins = assertIs<AppResult.Success<SelectorPlugins>>(
+            SelectorPluginFactory().create(manifest(), definition, FixtureGateway()),
+        ).value
+        val catalog = assertNotNull(plugins.catalog)
+
+        return assertIs<AppResult.Success<CatalogDetails>>(
+            catalog.details("catalog-1"),
+        ).value
+    }
+
     @Test
     fun canonicalFixtureExecutesAllEndpointsAgainstDeterministicHtml() = runTest {
         val definition = SelectorDefinitionDecoder().decode(fixtureSource()).getOrThrow()
