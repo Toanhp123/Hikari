@@ -7,6 +7,8 @@ import app.openstory.plugin.api.packageformat.PluginPackageMetadata
 import app.openstory.plugin.host.registry.ActivatedPlugin
 import app.openstory.plugin.host.registry.MutablePluginRegistry
 import app.openstory.plugin.host.registry.PluginActivation
+import app.openstory.plugin.host.update.PluginUpdateInstaller
+import app.openstory.plugin.host.update.PreparedPluginUpdate
 
 data class InstallRequest(
     val packageBytes: ByteArray,
@@ -55,16 +57,34 @@ class PluginInstaller(
     private val storage: PluginPackageStorage,
     private val registry: MutablePluginRegistry,
     private val versionPolicy: PluginVersionPolicy = PluginVersionPolicy(),
-) {
+) : PluginUpdateInstaller {
     suspend fun install(request: InstallRequest): AppResult<InstalledPlugin> =
-        when (val verificationResult = verifier.verify(request)) {
-            is AppResult.Failure -> verificationResult
-            is AppResult.Success -> installVerified(verificationResult.value)
+        when (val staged = stage(request)) {
+            is AppResult.Failure -> staged
+            is AppResult.Success -> activate(staged.value)
         }
 
-    private suspend fun installVerified(
-        verifiedPackage: VerifiedPluginPackage,
+    override suspend fun stage(request: InstallRequest): AppResult<PreparedPluginUpdate> =
+        when (val verificationResult = verifier.verify(request)) {
+            is AppResult.Failure -> verificationResult
+            is AppResult.Success -> prepareVerified(verificationResult.value)
+        }
+
+    override suspend fun activate(
+        prepared: PreparedPluginUpdate,
     ): AppResult<InstalledPlugin> {
+        val stagedPackage = prepared.stagedPackage
+            ?: return invalidPreparedUpdate()
+        return activateOrRemove(stagedPackage)
+    }
+
+    override suspend fun discard(prepared: PreparedPluginUpdate) {
+        storage.remove(prepared.location)
+    }
+
+    private suspend fun prepareVerified(
+        verifiedPackage: VerifiedPluginPackage,
+    ): AppResult<PreparedPluginUpdate> {
         val registration = registry.find(verifiedPackage.pluginId)
 
         return when (
@@ -74,16 +94,16 @@ class PluginInstaller(
             )
         ) {
             is AppResult.Failure -> versionResult
-            is AppResult.Success -> stageAndActivate(verifiedPackage)
+            is AppResult.Success -> stagePrepared(verifiedPackage)
         }
     }
 
-    private suspend fun stageAndActivate(
+    private suspend fun stagePrepared(
         verifiedPackage: VerifiedPluginPackage,
-    ): AppResult<InstalledPlugin> =
+    ): AppResult<PreparedPluginUpdate> =
         when (val stagingResult = storage.stage(verifiedPackage)) {
             is AppResult.Failure -> stagingResult
-            is AppResult.Success -> activateOrRemove(stagingResult.value)
+            is AppResult.Success -> AppResult.Success(stagingResult.value.toPreparedUpdate())
         }
 
     private suspend fun activateOrRemove(
@@ -100,6 +120,25 @@ class PluginInstaller(
             }
         }
 }
+
+private fun StagedPluginPackage.toPreparedUpdate(): PreparedPluginUpdate =
+    PreparedPluginUpdate(
+        pluginId = pluginId,
+        version = version,
+        location = location,
+        signatureState = signatureDecision.signatureState,
+        signerKeyId = signatureDecision.signerKeyId,
+        signerFingerprintSha256 = signatureDecision.signerFingerprintSha256,
+        stagedPackage = this,
+    )
+
+private fun invalidPreparedUpdate(): AppResult.Failure =
+    AppResult.Failure(
+        app.openstory.common.AppError.Plugin(
+            code = "plugin.update_prepared_package_invalid",
+            retryable = false,
+        ),
+    )
 
 internal fun StagedPluginPackage.toActivation(): PluginActivation =
     PluginActivation(

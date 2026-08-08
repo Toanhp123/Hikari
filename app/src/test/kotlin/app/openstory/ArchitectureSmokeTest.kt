@@ -60,7 +60,7 @@ class ArchitectureSmokeTest {
             "scripts/tests/instrumentation-android-test.sh",
             "scripts/tests/checkpoint-app-shell-test.sh",
             "docs/contributing/adding-a-module.md",
-            "docs/internal/checkpoints/wave-01-remediation.md",
+            "docs/internal/archive/pre-baseline-development/checkpoints/wave-01-remediation.md",
             "README.md",
             "gradle/verification-metadata.xml",
         )
