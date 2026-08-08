@@ -46,6 +46,17 @@ internal abstract class StoryDao {
         storyId: String,
     ): Flow<StoryAggregate?>
 
+    @Transaction
+    @Query(
+        """
+        SELECT *
+        FROM canonical_stories
+        ORDER BY story_id ASC
+        """,
+    )
+    abstract suspend fun canonicalStoryCandidates():
+        List<StoryAggregate>
+
     @Query(
         """
         SELECT *

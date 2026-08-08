@@ -9,6 +9,7 @@ import app.openstory.model.CatalogEntry
 import app.openstory.model.CatalogEntryId
 import app.openstory.model.ContentType
 import app.openstory.model.LibraryStatus
+import app.openstory.model.LanguageTag
 import app.openstory.model.PluginId
 import app.openstory.model.StoryId
 import kotlinx.coroutines.flow.first
@@ -35,16 +36,22 @@ class CatalogMetadataRepositoryTest {
                     CatalogEntry(
                         id = CatalogEntryId("catalog.example:story-1"),
                         catalogPluginId = PluginId("catalog.example"),
-                        title = "Catalog Story",
-                        description = "Description",
-                        score = 8.4,
-                        scoreScale = 10.0,
                         externalStoryId = "story-1",
                         sourceUrl = "https://catalog.example/story-1",
+                        title = "Catalog Story",
+                        aliases = setOf("Catalog Alias"),
                         authors = linkedSetOf("Author A", "Author B"),
+                        description = "Description",
                         genres = linkedSetOf("Fantasy", "Adventure"),
+                        contentType = ContentType.WEB_NOVEL,
+                        languageTags = setOf(LanguageTag("en")),
                         coverReference = "https://catalog.example/cover.jpg",
                         publicationStatus = "ONGOING",
+                        score = 8.4,
+                        scoreScale = 10.0,
+                        popularityRank = 12L,
+                        pluginVersion = "1.0.0",
+                        fetchedAtEpochMillis = 1_000L,
                     ),
                 ),
             )

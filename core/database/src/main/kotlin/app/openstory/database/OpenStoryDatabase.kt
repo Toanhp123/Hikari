@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import app.openstory.database.dao.CatalogDao
 import app.openstory.database.dao.ChapterDao
 import app.openstory.database.dao.PluginDiagnosticDao
 import app.openstory.database.dao.PluginDiagnosticEntity
@@ -16,6 +17,9 @@ import app.openstory.database.entity.CanonicalChapterEntity
 import app.openstory.database.entity.CanonicalChapterReleaseEntity
 import app.openstory.database.entity.CanonicalStoryEntity
 import app.openstory.database.entity.CatalogEntryEntity
+import app.openstory.database.entity.CatalogHomeItemEntity
+import app.openstory.database.entity.CatalogHomeSectionEntity
+import app.openstory.database.entity.CatalogHomeSnapshotEntity
 import app.openstory.database.entity.ChapterReleaseEntity
 import app.openstory.database.entity.ContentMappingEntity
 import app.openstory.database.entity.LibraryEntryEntity
@@ -30,6 +34,9 @@ import app.openstory.database.entity.StoryContentMappingEntity
         CanonicalStoryEntity::class,
         CatalogEntryEntity::class,
         StoryCatalogEntryEntity::class,
+        CatalogHomeSnapshotEntity::class,
+        CatalogHomeSectionEntity::class,
+        CatalogHomeItemEntity::class,
         LibraryEntryEntity::class,
         ContentMappingEntity::class,
         StoryContentMappingEntity::class,
@@ -50,6 +57,8 @@ import app.openstory.database.entity.StoryContentMappingEntity
 abstract class OpenStoryDatabase : RoomDatabase() {
 
     internal abstract fun storyDao(): StoryDao
+
+    internal abstract fun catalogDao(): CatalogDao
 
     internal abstract fun storyPurgeDao(): StoryPurgeDao
 
