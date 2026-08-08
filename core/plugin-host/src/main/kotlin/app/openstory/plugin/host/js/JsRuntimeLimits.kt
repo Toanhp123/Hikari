@@ -7,6 +7,7 @@ data class JsRuntimeLimits(
     val maxBridgeMessageBytes: Int = DEFAULT_MAX_BRIDGE_MESSAGE_BYTES,
     val maxHostCalls: Int = 8,
     val maxResponseBytes: Long = DEFAULT_MAX_RESPONSE_BYTES,
+    val maxHeapBytes: Long = DEFAULT_MAX_HEAP_BYTES,
     val maxDurationMillis: Long = 30_000L,
 ) {
     init {
@@ -16,6 +17,7 @@ data class JsRuntimeLimits(
         require(maxBridgeMessageBytes > 0)
         require(maxHostCalls > 0)
         require(maxResponseBytes in 1..Int.MAX_VALUE.toLong())
+        require(maxHeapBytes > 0)
         require(maxDurationMillis > 0)
     }
 
@@ -27,6 +29,7 @@ data class JsRuntimeLimits(
         const val DEFAULT_MAX_OUTPUT_JSON_BYTES = 2 * MEBIBYTE
         const val DEFAULT_MAX_BRIDGE_MESSAGE_BYTES = 256 * KIBIBYTE
         const val DEFAULT_MAX_RESPONSE_BYTES = 8L * MEBIBYTE
+        const val DEFAULT_MAX_HEAP_BYTES = 32L * MEBIBYTE
     }
 }
 

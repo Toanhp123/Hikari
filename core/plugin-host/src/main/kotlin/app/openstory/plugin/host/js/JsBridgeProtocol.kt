@@ -5,8 +5,10 @@ import app.openstory.common.AppResult
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 
 data class JsBridgeRequest(
     val id: String,
@@ -44,6 +46,32 @@ class JsBridgeCodec(
             onFailure = { bridgeFailure(INVALID_MESSAGE) },
         )
     }
+
+    fun encodeResponse(response: JsBridgeResponse): String {
+        val encoded = buildJsonObject {
+            put("id", response.id)
+            response.result?.let { put("result", it) }
+            response.error?.let { error ->
+                put("error", buildJsonObject { put("code", error.code) })
+            }
+        }.toString()
+        val boundedError = buildJsonObject {
+            put("id", response.id)
+            put("error", buildJsonObject { put("code", MESSAGE_TOO_LARGE) })
+        }.toString()
+        val compactError = buildJsonObject {
+            put("id", response.id)
+            put("error", JsonPrimitive(true))
+        }.toString()
+        return when {
+            encoded.fitsMessageLimit() -> encoded
+            boundedError.fitsMessageLimit() -> boundedError
+            else -> compactError.takeIf { it.fitsMessageLimit() }.orEmpty()
+        }
+    }
+
+    private fun String.fitsMessageLimit(): Boolean =
+        encodeToByteArray().size <= limits.maxBridgeMessageBytes
 
     private fun parseRequest(source: String): JsBridgeRequest {
         val value = JSON.parseToJsonElement(source).jsonObject
