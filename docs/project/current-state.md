@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-07  
+Date: 2026-08-08
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -9,10 +9,12 @@ Purpose: single source of truth for the implemented repository boundary.
 - Package namespace and application ID: `app.openstory`.
 - Current Gradle modules: 8.
 - Wave 01-03 implementation is present.
-- Wave 04 Tasks 01-02 implementation is present.
+- Wave 04 Tasks 01-06 implementation is present.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
-- Current active boundary: **Wave 04 Task 03 - Selector Schema 1 runtime execution**.
-- Wave 05 must not begin until the Wave 04 checkpoint is accepted.
+- Wave 04 checkpoint is accepted with unit, lint, source-layout, and Android sandbox
+  instrumentation evidence.
+- Current active boundary: **Wave 05 Task 01 - catalog ingestion repository and
+  canonical merge boundary**.
 
 ## Independent version spaces
 
@@ -63,27 +65,38 @@ Implementation present:
 - shared validation-only `PluginUrlPolicy` and isolated `BoundedResponseReader`;
 - transactional plugin verification, staging, activation, registry, and rollback;
 - neutral `PluginActivation` registry records implemented by `RoomPluginRegistry`;
-- `SelectorDocumentLoader` for bounded HTTP document acquisition and DOM cleanup;
-- `HtmlDocumentAdapter` as the opaque host DOM boundary;
+- complete Selector Schema 1 runtime with bounded document acquisition, opaque DOM
+  evaluation, Catalog/Content mapping, final wire validation, and runtime adapters;
+- AndroidX JavaScriptEngine isolation with a validated capability bridge, bounded
+  messages, timeout/cancellation handling, and host-controlled networking;
+- capability-aware update review, staged activation, retained previous versions, and
+  atomic rollback behavior;
+- bounded redacted plugin diagnostics and a unified host facade whose batch operations
+  isolate failures to the offending plugin;
+- selector/JavaScript contract parity coverage using deterministic fixtures;
 - no development-generation selector runtime or compatibility pipeline.
 
-Still required for Wave 04 Task 03:
+Wave 04 checkpoint acceptance proves:
 
-- endpoint-wide selector evaluation budgets;
-- typed `SelectorBindingEvaluator`;
-- Catalog and Content mappers;
-- shared final wire DTO validation;
-- Selector Catalog/Content adapters and factory dispatch;
-- cancellation, redaction, and deterministic runtime checkpoint evidence.
+- selector and JavaScript fixtures return the same contract DTO;
+- undeclared hosts, traversal archives, oversized bodies, timeouts, and invalid bridge
+  messages fail closed;
+- failed updates and rollbacks leave the previously active plugin version usable;
+- diagnostics exclude fixture secrets;
+- batch host calls contain per-plugin failures.
 
-Later Wave 04 work remains after Task 03: JavaScript isolation, the full update
-lifecycle, redacted diagnostics, and the unified host facade.
+### Wave 05 boundary
+
+Wave 05 implementation has not started. The next task is the catalog ingestion
+repository and canonical merge boundary described in
+`../implementation/waves/wave-05-catalog-home-and-discovery.md`.
 
 ## Verification status
 
 Implementation presence is not checkpoint acceptance. Evidence under
 `../internal/checkpoints/` records commands actually run and keeps unexecuted gates as
-`NOT RUN`. The Baseline 1 checkpoint is `../internal/checkpoints/pre-mvp-baseline-1.md`.
+`NOT RUN`. Wave 04 acceptance is recorded in
+`../internal/checkpoints/wave-04-plugin-host-and-security.md`.
 
 ## Source-of-truth rule
 
