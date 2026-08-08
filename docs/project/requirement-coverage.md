@@ -8,10 +8,9 @@ preserved rather than re-invented. Current implementation progress is tracked in
 `current-state.md`; this matrix answers **where each MVP requirement belongs**, not
 whether it is already complete.
 
-Current boundary: Waves 01–04 have implementation present and the Wave 04 checkpoint is
-accepted. Wave 05 Tasks 01–06 have implementation present; Tasks 02–05 verification is PASS,
-and Task 06 verification is open. Waves 06–11 remain planned and Wave 06 remains blocked until
-the Wave 05 checkpoint is accepted.
+Current boundary: Waves 01–04 have implementation present and their checkpoints are accepted.
+Wave 05 Tasks 01–06 are implemented and verified; the Wave 05 checkpoint is accepted.
+Wave 06 is ready to start and Waves 07–11 remain planned.
 
 ---
 

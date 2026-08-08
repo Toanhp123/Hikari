@@ -14,9 +14,9 @@ Purpose: single source of truth for the implemented repository boundary.
 - Wave 04 checkpoint is accepted with unit, lint, source-layout, and Android sandbox
   instrumentation evidence.
 - Wave 05 Tasks 01-06 implementation is present.
-- Wave 05 Tasks 02-05 verification is accepted; Task 06 verification is open.
-- Current active boundary: **Wave 05 Task 06 - search, filters, and source-preserving story detail verification**.
-- The Wave 05 checkpoint remains open until Task 06 and the full Wave 05 checkpoint gates are accepted.
+- Wave 05 Tasks 01-06 verification is accepted by the Wave 05 checkpoint.
+- Current active boundary: **Wave 06 Task 01 - metadata-only Library persistence and story matching foundations**.
+- The Wave 05 checkpoint is closed; Wave 06 may begin.
 
 ## Independent version spaces
 
@@ -124,9 +124,10 @@ repository verification, and Room schema-stability verification are recorded as 
 `../internal/checkpoints/wave-05-task-03-catalog-matching.md`. Task 04 verification is accepted
 in `../internal/checkpoints/wave-05-task-04-home-refresh.md`. Task 05 unit, Compose
 instrumentation, architecture, full repository, and Room schema-stability verification is
-accepted in `../internal/checkpoints/wave-05-task-05-home-ui.md`. Task 06 implementation is
-recorded with verification still open in
-`../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`.
+accepted in `../internal/checkpoints/wave-05-task-05-home-ui.md`. Task 06 verification is
+recorded in `../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`. The full
+Wave 05 acceptance is recorded in
+`../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
 
 ## Verification status
 
@@ -138,8 +139,9 @@ is recorded in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.
 verification is accepted in `../internal/checkpoints/wave-05-task-03-catalog-matching.md`; Wave 05
 Task 04 verification is accepted in `../internal/checkpoints/wave-05-task-04-home-refresh.md`;
 Wave 05 Task 05 verification is accepted in
-`../internal/checkpoints/wave-05-task-05-home-ui.md`; Wave 05 Task 06 implementation is recorded
-with verification open in `../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`.
+`../internal/checkpoints/wave-05-task-05-home-ui.md`; Wave 05 Task 06 verification is accepted in
+`../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`. The Wave 05 checkpoint is
+accepted in `../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
 
 ## Source-of-truth rule
 
