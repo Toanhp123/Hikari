@@ -19,8 +19,8 @@ separate states.
 ## Current position
 
 The repository has accepted the **Wave 04 - Plugin Host and Security** checkpoint and
-Wave 05 is now in progress. **Tasks 01-04 have implementation present and Tasks 02-04 are verified.**
-The current implementation boundary is **Wave 05 Task 05 - combined and catalog-specific Home UI**.
+Wave 05 is now in progress. **Tasks 01-05 have implementation present and Tasks 02-05 are verified.**
+The current implementation boundary is **Wave 05 Task 06 ready to start**.
 
 Wave 04 provides secure selector and JavaScript execution, transactional lifecycle, safe
 updates/rollback, redacted diagnostics, and the unified host boundary now consumed by
@@ -53,7 +53,7 @@ when their owning wave starts.
 | 02 | Domain and local storage | Implementation present on Room schema 1; checkpoint acceptance remains evidence-driven | `waves/wave-02-domain-and-local-storage.md` |
 | 03 | Plugin contracts and packages | Implementation present on Selector Schema 1 | `waves/wave-03-plugin-contracts-and-packages.md` |
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
-| 05 | Catalog Home and discovery | **In progress; Tasks 01-04 implementation present, Tasks 02-04 verified; Task 05 ready to start** | `waves/wave-05-catalog-home-and-discovery.md` |
+| 05 | Catalog Home and discovery | **In progress; Tasks 01-05 implementation present and Tasks 02-05 verified; Task 06 ready to start** | `waves/wave-05-catalog-home-and-discovery.md` |
 | 06 | Library and story matching | Planned | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | Planned | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | Planned | `waves/wave-08-reader-and-reading-progress.md` |
@@ -80,8 +80,8 @@ when their owning wave starts.
 | 05.02 | Deterministic bundled default catalog and safe bootstrap/update boundary | Verified |
 | 05.03 | Deterministic cross-catalog matching and aggregate ranking | Verified |
 | 05.04 | Cached Home refresh/orchestration | Verified |
-| 05.05 | Combined and catalog-specific Home UI | Ready to start |
-| 05.06 | Search, filters, and source-preserving story detail | Planned |
+| 05.05 | Combined and catalog-specific Home UI | Verified |
+| 05.06 | Search, filters, and source-preserving story detail | Ready to start |
 
 ## Critical dependency chain
 
@@ -91,7 +91,7 @@ architecture
     -> plugin contracts and package validation
       -> secure plugin execution
         -> catalog discovery
-             ^ Tasks 01-04 implementation present; Tasks 02-04 verified; Task 05 ready to start
+             ^ Tasks 01-05 implementation present; Tasks 02-05 verified; Task 06 ready to start
           -> story matching
             -> chapter aggregation
               -> reader
@@ -102,11 +102,10 @@ architecture
 
 ## Execution rule
 
-1. Begin Wave 05 Task 05 from the verified cached Home models/use cases.
-2. Compose must not call plugins or Room directly; Task 05 consumes the Task 04 application boundary.
-3. Keep Task 03 matching/ranking and Task 04 Home-refresh evidence immutable under
-   `internal/checkpoints/`.
-4. Do not begin Task 06 until Task 05 is independently verified.
+1. Begin Wave 05 Task 06 from the active wave plan.
+2. Keep search/story-detail flows source-preserving and behind domain/repository interfaces.
+3. Keep Compose behind cached/use-case models; no direct plugin or Room access is allowed.
+4. Do not mark the Wave 05 checkpoint accepted until the remaining Wave 05 tasks pass their required gates.
 
 ## Verification principle
 

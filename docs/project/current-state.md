@@ -13,10 +13,10 @@ Purpose: single source of truth for the implemented repository boundary.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
 - Wave 04 checkpoint is accepted with unit, lint, source-layout, and Android sandbox
   instrumentation evidence.
-- Wave 05 Tasks 01-04 implementation is present.
-- Wave 05 Tasks 02-04 verification is accepted.
-- Current active boundary: **Wave 05 Task 05 - combined and catalog-specific Home UI**.
-- Wave 05 Task 05 is ready to begin from the verified cached Home/use-case boundary.
+- Wave 05 Tasks 01-05 implementation is present.
+- Wave 05 Tasks 02-05 verification is accepted.
+- Current active boundary: **Wave 05 Task 06 - search, filters, and source-preserving story detail**.
+- Task 06 is ready to begin; the Wave 05 checkpoint remains open until the remaining Wave 05 work is complete.
 
 ## Independent version spaces
 
@@ -89,7 +89,7 @@ Wave 04 checkpoint acceptance proves:
 
 ### Wave 05 boundary
 
-Implementation present through Task 04:
+Implementation present through Task 05:
 
 - Task 01 provides source-preserving catalog snapshots, source metadata, cached Home
   persistence, and the temporary source-isolated canonical resolver behind the approved
@@ -105,14 +105,20 @@ Implementation present through Task 04:
 - Task 04 adds the Android `:feature:home` application boundary, exact hosted-plugin to
   `CatalogSnapshot` normalization, bounded/isolated multi-catalog refresh, cached freshness
   reporting, and combined/source-specific cached Home projections using Task 03 ranking.
+- Task 05 adds presentation-only `HomeScreenState`, combined and catalog-specific Compose
+  screens, accessible source/score semantics, stable lazy-list keys, source switching,
+  non-blocking partial-refresh status, and a cover-renderer seam without direct plugin,
+  Room, or network access from Compose.
 
 Task 02 focused package/bootstrap tests, Android instrumentation, repository verification,
 lint, module-boundary checks, and Room schema-stability verification are recorded as PASS
 in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`. Task 03 focused
 matching tests, the complete matching module suite, 9-module architecture verification,
 repository verification, and Room schema-stability verification are recorded as PASS in
-`../internal/checkpoints/wave-05-task-03-catalog-matching.md`. Task 04 verification remains
-open and is tracked in `../internal/checkpoints/wave-05-task-04-home-refresh.md`.
+`../internal/checkpoints/wave-05-task-03-catalog-matching.md`. Task 04 verification is accepted
+in `../internal/checkpoints/wave-05-task-04-home-refresh.md`. Task 05 unit, Compose
+instrumentation, architecture, full repository, and Room schema-stability verification is
+accepted in `../internal/checkpoints/wave-05-task-05-home-ui.md`.
 
 ## Verification status
 
@@ -122,8 +128,9 @@ Implementation presence is not checkpoint acceptance. Evidence under
 `../internal/checkpoints/wave-04-plugin-host-and-security.md`; Wave 05 Task 02 verification
 is recorded in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`; Wave 05 Task 03
 verification is accepted in `../internal/checkpoints/wave-05-task-03-catalog-matching.md`; Wave 05
-Task 04 verification is accepted in
-`../internal/checkpoints/wave-05-task-04-home-refresh.md`.
+Task 04 verification is accepted in `../internal/checkpoints/wave-05-task-04-home-refresh.md`;
+Wave 05 Task 05 verification is accepted in
+`../internal/checkpoints/wave-05-task-05-home-ui.md`.
 
 ## Source-of-truth rule
 
