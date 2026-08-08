@@ -23,8 +23,12 @@ import app.openstory.plugin.api.selector.TextBinding
 import app.openstory.plugin.api.selector.catalog.CatalogSearchSelector
 import app.openstory.plugin.api.selector.catalog.CatalogSelectorEndpoints
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
@@ -66,6 +70,37 @@ class SelectorPluginFactoryTest {
         assertEquals("https://allowed.example/search?q=Novel", gateway.requests.single().url)
     }
 
+    @Test
+    fun cancellationPropagatesThroughCatalogAdapterDispatch() = runTest {
+        val definition = SelectorDefinition(
+            catalog = CatalogSelectorEndpoints(
+                search = CatalogSearchSelector(
+                    request = SelectorRequestPlan(listOf(HttpGet("/search?q={query}"))),
+                    items = ListBinding(
+                        css = "article",
+                        item = ObjectBinding(
+                            linkedMapOf(
+                                "sourceId" to AttributeBinding(attribute = "data-id"),
+                                "title" to TextBinding("h2"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val plugins = assertIs<AppResult.Success<SelectorPlugins>>(
+            SelectorPluginFactory().create(manifest(), definition, CancellingGateway()),
+        ).value
+        val deferred = async {
+            assertNotNull(plugins.catalog).search(CatalogSearchRequest(query = "Novel"))
+        }
+
+        yield()
+        deferred.cancel()
+
+        assertFailsWith<kotlinx.coroutines.CancellationException> { deferred.await() }
+    }
+
     private fun manifest() = PluginManifest(
         id = "community.fixture",
         name = "Fixture",
@@ -102,5 +137,12 @@ class SelectorPluginFactoryTest {
                 ),
             )
         }
+    }
+
+    private class CancellingGateway : PluginHttpGateway {
+        override suspend fun execute(
+            request: PluginHttpRequest,
+            budget: RequestBudget,
+        ): AppResult<PluginHttpResponse> = awaitCancellation()
     }
 }

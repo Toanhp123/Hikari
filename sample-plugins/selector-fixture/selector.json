@@ -49,11 +49,13 @@
                         "type": "url",
                         "source": {
                           "type": "attribute",
+                          "css": "img.cover",
                           "attribute": "src"
                         }
                       },
                       "declaredHost": {
-                        "type": "text"
+                        "type": "constant",
+                        "value": "fixture.example"
                       }
                     }
                   },
@@ -117,11 +119,13 @@
                   "type": "url",
                   "source": {
                     "type": "attribute",
+                    "css": "img.cover",
                     "attribute": "src"
                   }
                 },
                 "declaredHost": {
-                  "type": "text"
+                  "type": "constant",
+                  "value": "fixture.example"
                 }
               }
             },
@@ -166,12 +170,14 @@
         "fields": {
           "sourceId": {
             "type": "attribute",
+            "css": "main",
             "attribute": "data-id"
           },
           "sourceUrl": {
             "type": "url",
             "source": {
               "type": "attribute",
+              "css": "main",
               "attribute": "data-url"
             }
           },
@@ -213,11 +219,13 @@
                 "type": "url",
                 "source": {
                   "type": "attribute",
+                  "css": "img.cover",
                   "attribute": "src"
                 }
               },
               "declaredHost": {
-                "type": "text"
+                "type": "constant",
+                "value": "fixture.example"
               }
             }
           },
@@ -370,12 +378,14 @@
         "fields": {
           "sourceStoryId": {
             "type": "attribute",
+            "css": "main",
             "attribute": "data-id"
           },
           "sourceUrl": {
             "type": "url",
             "source": {
               "type": "attribute",
+              "css": "main",
               "attribute": "data-url"
             }
           },
@@ -792,7 +802,8 @@
                 }
               },
               "declaredHost": {
-                "type": "text"
+                "type": "constant",
+                "value": "fixture.example"
               },
               "altText": {
                 "type": "attribute",

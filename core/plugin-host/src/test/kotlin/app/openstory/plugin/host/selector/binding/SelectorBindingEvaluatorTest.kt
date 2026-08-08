@@ -4,11 +4,18 @@ import app.openstory.common.AppError
 import app.openstory.common.AppResult
 import app.openstory.network.PluginUrlPolicy
 import app.openstory.plugin.api.selector.AttributeBinding
+import app.openstory.plugin.api.selector.BooleanBinding
+import app.openstory.plugin.api.selector.DoubleBinding
+import app.openstory.plugin.api.selector.EnumBinding
+import app.openstory.plugin.api.selector.IntegerBinding
 import app.openstory.plugin.api.selector.ListBinding
+import app.openstory.plugin.api.selector.LongBinding
 import app.openstory.plugin.api.selector.ObjectBinding
 import app.openstory.plugin.api.selector.TextBinding
 import app.openstory.plugin.api.selector.TextListBinding
 import app.openstory.plugin.api.selector.ConstantTextBinding
+import app.openstory.plugin.api.selector.SelectorTimestampFormat
+import app.openstory.plugin.api.selector.TimestampBinding
 import app.openstory.plugin.api.selector.UrlBinding
 import app.openstory.plugin.host.selector.JsoupHtmlDocumentAdapter
 import kotlinx.coroutines.async
@@ -98,6 +105,57 @@ class SelectorBindingEvaluatorTest {
 
         val success = assertIs<AppResult.Success<SelectorBoundValue.Text>>(result)
         assertEquals("https://allowed.example/novel/1", success.value.value)
+    }
+
+    @Test
+    fun scalarBindingsProduceTypedValues() = runTest {
+        val document = parser.parse("<main></main>", "https://allowed.example/")
+        val binding = ObjectBinding(
+            linkedMapOf(
+                "integer" to IntegerBinding(ConstantTextBinding("7")),
+                "long" to LongBinding(ConstantTextBinding("9000000000")),
+                "double" to DoubleBinding(ConstantTextBinding("8.5")),
+                "boolean" to BooleanBinding(ConstantTextBinding("yes"), setOf("yes")),
+                "enum" to EnumBinding(ConstantTextBinding("novel"), mapOf("novel" to "LIGHT_NOVEL")),
+                "timestamp" to TimestampBinding(
+                    ConstantTextBinding("2026-08-07T00:00:00Z"),
+                    SelectorTimestampFormat.ISO_8601,
+                ),
+            ),
+        )
+
+        val result = evaluator.evaluate(
+            binding,
+            document,
+            SelectorFieldPath.root("values"),
+            SelectorEvaluationBudget(),
+        )
+
+        val fields = assertIs<AppResult.Success<SelectorBoundValue.ObjectValue>>(result).value.fields
+        assertEquals(SelectorBoundValue.IntegerValue(7), fields["integer"])
+        assertEquals(SelectorBoundValue.LongValue(9_000_000_000), fields["long"])
+        assertEquals(SelectorBoundValue.DoubleValue(8.5), fields["double"])
+        assertEquals(SelectorBoundValue.BooleanValue(true), fields["boolean"])
+        assertEquals(SelectorBoundValue.Text("LIGHT_NOVEL"), fields["enum"])
+        assertEquals(SelectorBoundValue.LongValue(1_786_060_800_000), fields["timestamp"])
+    }
+
+    @Test
+    fun malformedScalarFailsClosedWithOnlyItsFieldPath() = runTest {
+        val document = parser.parse("<main></main>", "https://allowed.example/private?cursor=secret")
+
+        val result = evaluator.evaluate(
+            IntegerBinding(ConstantTextBinding("not-an-integer")),
+            document,
+            SelectorFieldPath.root("details").field("popularityRank"),
+            SelectorEvaluationBudget(),
+        )
+
+        assertPluginFailure(
+            result,
+            code = "plugin.selector_field_invalid",
+            fieldPath = "details.popularityRank",
+        )
     }
 
     @Test
