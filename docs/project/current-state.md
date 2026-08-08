@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-08
+Date: 2026-08-09
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -13,8 +13,9 @@ Purpose: single source of truth for the implemented repository boundary.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
 - Wave 04 checkpoint is accepted with unit, lint, source-layout, and Android sandbox
   instrumentation evidence.
-- Current active boundary: **Wave 05 Task 01 - catalog ingestion repository and
-  canonical merge boundary**.
+- Current active boundary: **Wave 05 Task 02 verified complete**.
+- Next implementation boundary: **Wave 05 Task 03 - deterministic catalog matching and
+  aggregate ranking**.
 
 ## Independent version spaces
 
@@ -87,16 +88,28 @@ Wave 04 checkpoint acceptance proves:
 
 ### Wave 05 boundary
 
-Wave 05 implementation has not started. The next task is the catalog ingestion
-repository and canonical merge boundary described in
-`../implementation/waves/wave-05-catalog-home-and-discovery.md`.
+Implementation present through Task 02:
+
+- Task 01 provides source-preserving catalog snapshots, source metadata, cached Home
+  persistence, and the temporary source-isolated canonical resolver behind the approved
+  resolver port.
+- Task 02 provides the deterministic bundled default Catalog fixture, exact package-byte
+  pinning, local asset loading, idempotent bootstrap behavior, and an update coordinator
+  that delegates newer bundled versions to the normal capability-diff/update service.
+- User-disabled state is preserved by the registry during activation; expanded-access
+  bundled updates remain review-gated rather than being installed by the bootstrap path.
+
+Task 02 focused package/bootstrap tests, Android instrumentation, repository verification,
+lint, module-boundary checks, and Room schema-stability verification are recorded as PASS
+in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`. Task 03 may begin.
 
 ## Verification status
 
 Implementation presence is not checkpoint acceptance. Evidence under
 `../internal/checkpoints/` records commands actually run and keeps unexecuted gates as
 `NOT RUN`. Wave 04 acceptance is recorded in
-`../internal/checkpoints/wave-04-plugin-host-and-security.md`.
+`../internal/checkpoints/wave-04-plugin-host-and-security.md`; Wave 05 Task 02 verification
+is recorded in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`.
 
 ## Source-of-truth rule
 

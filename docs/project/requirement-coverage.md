@@ -9,7 +9,8 @@ preserved rather than re-invented. Current implementation progress is tracked in
 whether it is already complete.
 
 Current boundary: Waves 01–04 have implementation present and the Wave 04 checkpoint is
-accepted. Wave 05 is ready to start at Task 01; Waves 06–11 remain planned.
+accepted. Wave 05 Tasks 01–02 are implemented and Task 02 verification is PASS; Wave 05
+Task 03 is the next implementation boundary. Waves 06–11 remain planned.
 
 ---
 

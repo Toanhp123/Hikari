@@ -18,13 +18,14 @@ separate states.
 
 ## Current position
 
-The repository has accepted the **Wave 04 - Plugin Host and Security** checkpoint. The
-next implementation boundary is **Wave 05 Task 01 - catalog ingestion repository and
-canonical merge boundary**.
+The repository has accepted the **Wave 04 - Plugin Host and Security** checkpoint and
+Wave 05 is now in progress. **Tasks 01-02 have implementation present; Task 02
+verification remains open.** After the focused Task 02 gates pass, the next implementation
+boundary is **Wave 05 Task 03 - deterministic catalog matching and aggregate ranking**.
 
-Wave 04 now provides secure selector and JavaScript execution, transactional lifecycle,
-safe updates/rollback, redacted diagnostics, and the unified host boundary consumed by
-Wave 05 catalog ingestion.
+Wave 04 provides secure selector and JavaScript execution, transactional lifecycle, safe
+updates/rollback, redacted diagnostics, and the unified host boundary now consumed by
+Wave 05 catalog persistence and bundled catalog bootstrap.
 
 ## Current module graph
 
@@ -51,7 +52,7 @@ when their owning wave starts.
 | 02 | Domain and local storage | Implementation present on Room schema 1; checkpoint acceptance remains evidence-driven | `waves/wave-02-domain-and-local-storage.md` |
 | 03 | Plugin contracts and packages | Implementation present on Selector Schema 1 | `waves/wave-03-plugin-contracts-and-packages.md` |
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
-| 05 | Catalog Home and discovery | **Ready to start at Task 01** | `waves/wave-05-catalog-home-and-discovery.md` |
+| 05 | Catalog Home and discovery | **In progress; Tasks 01-02 implementation present, Task 02 verification open** | `waves/wave-05-catalog-home-and-discovery.md` |
 | 06 | Library and story matching | Planned | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | Planned | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | Planned | `waves/wave-08-reader-and-reading-progress.md` |
@@ -70,6 +71,17 @@ when their owning wave starts.
 | 04.05 | Update and capability-diff lifecycle | Implementation present |
 | 04.06 | Redacted diagnostics and unified host facade | Implementation present |
 
+## Wave 05 decomposition
+
+| Task | Outcome | State |
+|---|---|---|
+| 05.01 | Source-preserving catalog ingestion and cached Home persistence | Implementation present |
+| 05.02 | Deterministic bundled default catalog and safe bootstrap/update boundary | Implementation present; verification open |
+| 05.03 | Deterministic cross-catalog matching and aggregate ranking | Next after Task 02 verification |
+| 05.04 | Cached Home refresh/orchestration | Planned |
+| 05.05 | Combined and catalog-specific Home UI | Planned |
+| 05.06 | Search, filters, and source-preserving story detail | Planned |
+
 ## Critical dependency chain
 
 ```text
@@ -77,7 +89,8 @@ architecture
   -> canonical domain and Room
     -> plugin contracts and package validation
       -> secure plugin execution
-        -> catalog discovery  <-- current position
+        -> catalog discovery
+             ^ Tasks 01-02 implementation present; Task 02 verification open
           -> story matching
             -> chapter aggregation
               -> reader
@@ -88,10 +101,12 @@ architecture
 
 ## Execution rule
 
-1. Start Wave 05 Task 01 from `waves/wave-05-catalog-home-and-discovery.md`.
-2. Keep catalog ingestion behind the accepted plugin-host and repository boundaries.
-3. Preserve source identity while creating the canonical merge boundary.
-4. Follow focused RED/GREEN verification before the affected module suite.
+1. Finish the Wave 05 Task 02 focused/module verification from
+   `waves/wave-05-catalog-home-and-discovery.md`.
+2. Do not mark Task 02 accepted from source presence alone.
+3. After Task 02 verification passes, start Task 03 through the existing
+   `CatalogCanonicalResolver` boundary without changing Task 01 Room persistence.
+4. Follow focused RED/GREEN verification before every affected module suite.
 
 ## Verification principle
 
