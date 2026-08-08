@@ -14,7 +14,7 @@ import app.openstory.plugin.api.PluginCapability
 import app.openstory.plugin.api.PluginKind
 import app.openstory.plugin.api.PluginManifest
 import app.openstory.plugin.api.PluginRuntime
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,7 +24,7 @@ import kotlin.test.assertIs
 @RunWith(AndroidJUnit4::class)
 class JavaScriptPluginRuntimeInstrumentedTest {
     @Test
-    fun scriptCannotCallUndeclaredHost() = runTest {
+    fun scriptCannotCallUndeclaredHost() = runBlocking {
         assumeTrue(JavaScriptSandbox.isSupported())
         val executor = AndroidxJsIsolateExecutor(
             ApplicationProvider.getApplicationContext(),
