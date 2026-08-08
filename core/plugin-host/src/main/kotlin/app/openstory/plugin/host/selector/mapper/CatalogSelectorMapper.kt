@@ -34,8 +34,8 @@ class CatalogSelectorMapper(
     fun mapHome(
         value: SelectorBoundValue,
     ): AppResult<List<CatalogSection>> =
-        mapSelectorValue("sections") {
-            SelectorValueReader(value, "sections").values().map(::mapSection)
+        mapBoundOutput("sections") {
+            BoundValueReader(value, "sections").values().map(::mapSection)
         }.flatMap(outputValidator::validateCatalogHome)
 
     fun mapSearch(
@@ -43,9 +43,9 @@ class CatalogSelectorMapper(
         nextToken: SelectorBoundValue?,
         nextTokenKind: SelectorTokenKind,
     ): AppResult<Page<CatalogCard>> =
-        mapSelectorValue("items") {
+        mapBoundOutput("items") {
             Page(
-                items = SelectorValueReader(items, "items").values().map(::mapCard),
+                items = BoundValueReader(items, "items").values().map(::mapCard),
                 nextToken = mapToken(nextToken, nextTokenKind),
             )
         }.flatMap(outputValidator::validateCatalogSearch)
@@ -53,8 +53,8 @@ class CatalogSelectorMapper(
     fun mapDetails(
         value: SelectorBoundValue,
     ): AppResult<CatalogDetails> =
-        mapSelectorValue("details") {
-            val details = SelectorValueReader(value, "details")
+        mapBoundOutput("details") {
+            val details = BoundValueReader(value, "details")
             CatalogDetails(
                 sourceId = details.field("sourceId").text(),
                 sourceUrl = details.optionalField("sourceUrl")?.text(),
@@ -74,16 +74,16 @@ class CatalogSelectorMapper(
     fun mapFilters(
         values: List<CatalogFilterBinding>,
     ): AppResult<List<CatalogFilterDefinition>> =
-        mapSelectorValue("filters") { values.map(::mapFilter) }
+        mapBoundOutput("filters") { values.map(::mapFilter) }
             .flatMap(outputValidator::validateCatalogFilters)
 
-    private fun mapSection(value: SelectorValueReader): CatalogSection = CatalogSection(
+    private fun mapSection(value: BoundValueReader): CatalogSection = CatalogSection(
         sourceId = value.field("sourceId").text(),
         title = value.field("title").text(),
         items = value.field("items").values().map(::mapCard),
     )
 
-    private fun mapCard(value: SelectorValueReader): CatalogCard = CatalogCard(
+    private fun mapCard(value: BoundValueReader): CatalogCard = CatalogCard(
         sourceId = value.field("sourceId").text(),
         title = value.field("title").text(),
         authors = value.optionalTextList("authors"),
@@ -91,7 +91,7 @@ class CatalogSelectorMapper(
         score = value.optionalField("score")?.let(::mapScore),
     )
 
-    private fun mapImage(value: SelectorValueReader): CatalogImageReference {
+    private fun mapImage(value: BoundValueReader): CatalogImageReference {
         val url = value.field("url").text()
         val decision = urlPolicy.resolve(url)
         val validated = (decision as? AppResult.Success)?.value
@@ -102,7 +102,7 @@ class CatalogSelectorMapper(
         )
     }
 
-    private fun mapScore(value: SelectorValueReader): CatalogScore = CatalogScore(
+    private fun mapScore(value: BoundValueReader): CatalogScore = CatalogScore(
         value = value.field("value").double(),
         scale = value.field("scale").double(),
     )
@@ -112,7 +112,7 @@ class CatalogSelectorMapper(
         kind: SelectorTokenKind,
     ): String? {
         if (value == null || value == SelectorBoundValue.Null) return null
-        val token = SelectorValueReader(value, "nextToken").text()
+        val token = BoundValueReader(value, "nextToken").text()
         return if (kind == SelectorTokenKind.URL) {
             val decision = urlPolicy.resolve(token)
             (decision as? AppResult.Success)?.value?.value

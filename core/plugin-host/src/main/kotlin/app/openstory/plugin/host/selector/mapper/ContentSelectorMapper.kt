@@ -35,16 +35,16 @@ class ContentSelectorMapper(
     fun mapSearch(
         items: SelectorBoundValue,
         nextToken: SelectorBoundValue?,
-    ): AppResult<Page<ContentStoryCandidate>> = mapSelectorValue("items") {
+    ): AppResult<Page<ContentStoryCandidate>> = mapBoundOutput("items") {
         Page(
-            items = SelectorValueReader(items, "items").values().map(::mapCandidate),
+            items = BoundValueReader(items, "items").values().map(::mapCandidate),
             nextToken = optionalToken(nextToken, "nextToken"),
         )
     }.flatMap(outputValidator::validateContentSearch)
 
     fun mapStory(value: SelectorBoundValue): AppResult<ContentStoryDetails> =
-        mapSelectorValue("story") {
-            val story = SelectorValueReader(value, "story")
+        mapBoundOutput("story") {
+            val story = BoundValueReader(value, "story")
             ContentStoryDetails(
                 sourceStoryId = story.field("sourceStoryId").text(),
                 sourceUrl = story.field("sourceUrl").text(),
@@ -62,13 +62,13 @@ class ContentSelectorMapper(
         }.flatMap(outputValidator::validateContentStory)
 
     fun mapReleases(value: SelectorBoundValue): AppResult<List<SourceChapterRelease>> =
-        mapSelectorValue("releases") {
-            SelectorValueReader(value, "releases").values().map(::mapRelease)
+        mapBoundOutput("releases") {
+            BoundValueReader(value, "releases").values().map(::mapRelease)
         }.flatMap(outputValidator::validateReleases)
 
     fun mapSync(value: SelectorBoundValue): AppResult<ChapterSyncDelta> =
-        mapSelectorValue("delta") {
-            val delta = SelectorValueReader(value, "delta")
+        mapBoundOutput("delta") {
+            val delta = BoundValueReader(value, "delta")
             ChapterSyncDelta(
                 upserts = delta.field("upserts").values().map(::mapRelease),
                 tombstoneSourceReleaseIds = delta
@@ -84,7 +84,7 @@ class ContentSelectorMapper(
         budget: SelectorEvaluationBudget,
     ): AppResult<ChapterDocument> = chapterMapper.map(document, binding, budget)
 
-    private fun mapCandidate(value: SelectorValueReader): ContentStoryCandidate =
+    private fun mapCandidate(value: BoundValueReader): ContentStoryCandidate =
         ContentStoryCandidate(
             sourceStoryId = value.field("sourceStoryId").text(),
             sourceUrl = value.optionalField("sourceUrl")?.text(),
@@ -94,12 +94,12 @@ class ContentSelectorMapper(
             languageTags = value.optionalTextList("languageTags").toSet(),
         )
 
-    private fun mapDirectCatalogMapping(value: SelectorValueReader) = DirectCatalogMapping(
+    private fun mapDirectCatalogMapping(value: BoundValueReader) = DirectCatalogMapping(
         catalogPluginId = value.field("catalogPluginId").text(),
         catalogSourceId = value.field("catalogSourceId").text(),
     )
 
-    private fun mapRelease(value: SelectorValueReader) = SourceChapterRelease(
+    private fun mapRelease(value: BoundValueReader) = SourceChapterRelease(
         sourceReleaseId = value.field("sourceReleaseId").text(),
         sourceUrl = value.field("sourceUrl").text(),
         languageTag = value.field("languageTag").text(),
@@ -121,5 +121,5 @@ class ContentSelectorMapper(
 
     private fun optionalToken(value: SelectorBoundValue?, path: String): String? =
         if (value == null || value == SelectorBoundValue.Null) null
-        else SelectorValueReader(value, path).text()
+        else BoundValueReader(value, path).text()
 }

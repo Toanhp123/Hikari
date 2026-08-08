@@ -4,20 +4,20 @@ import app.openstory.common.AppError
 import app.openstory.common.AppResult
 import app.openstory.plugin.host.selector.binding.SelectorBoundValue
 
-internal class SelectorValueReader(
+internal class BoundValueReader(
     private val value: SelectorBoundValue,
     val path: String,
 ) {
-    fun field(name: String): SelectorValueReader {
+    fun field(name: String): BoundValueReader {
         val fields = objectFields()
         val child = fields[name]
             ?: throw SelectorMappingFailure("plugin.selector_field_missing", "$path.$name")
-        return SelectorValueReader(child, "$path.$name")
+        return BoundValueReader(child, "$path.$name")
     }
 
-    fun optionalField(name: String): SelectorValueReader? {
+    fun optionalField(name: String): BoundValueReader? {
         val child = objectFields()[name] ?: return null
-        return if (child == SelectorBoundValue.Null) null else SelectorValueReader(child, "$path.$name")
+        return if (child == SelectorBoundValue.Null) null else BoundValueReader(child, "$path.$name")
     }
 
     fun text(): String = (value as? SelectorBoundValue.Text)?.value
@@ -35,9 +35,9 @@ internal class SelectorValueReader(
     fun boolean(): Boolean = (value as? SelectorBoundValue.BooleanValue)?.value
         ?: invalid()
 
-    fun values(): List<SelectorValueReader> =
+    fun values(): List<BoundValueReader> =
         (value as? SelectorBoundValue.ListValue)?.values
-            ?.mapIndexed { index, child -> SelectorValueReader(child, "$path.$index") }
+            ?.mapIndexed { index, child -> BoundValueReader(child, "$path.$index") }
             ?: invalid()
 
     private fun objectFields(): Map<String, SelectorBoundValue> =
@@ -52,10 +52,10 @@ internal class SelectorMappingFailure(
     val path: String,
 ) : RuntimeException(null, null, false, false)
 
-internal fun SelectorValueReader.optionalTextList(name: String): List<String> =
-    optionalField(name)?.values()?.map(SelectorValueReader::text).orEmpty()
+internal fun BoundValueReader.optionalTextList(name: String): List<String> =
+    optionalField(name)?.values()?.map(BoundValueReader::text).orEmpty()
 
-internal inline fun <T> mapSelectorValue(
+internal inline fun <T> mapBoundOutput(
     rootPath: String,
     block: () -> T,
 ): AppResult<T> = try {
