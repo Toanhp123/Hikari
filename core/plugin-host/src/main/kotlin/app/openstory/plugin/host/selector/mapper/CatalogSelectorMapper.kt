@@ -155,6 +155,3 @@ class CatalogSelectorMapper(
     private fun mapOption(value: CatalogFilterOptionBinding) =
         CatalogFilterOption(value.value, value.label)
 }
-
-private fun SelectorValueReader.optionalTextList(name: String): List<String> =
-    optionalField(name)?.values()?.map(SelectorValueReader::text).orEmpty()

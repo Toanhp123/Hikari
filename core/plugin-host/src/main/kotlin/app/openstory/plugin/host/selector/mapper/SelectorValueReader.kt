@@ -52,6 +52,9 @@ internal class SelectorMappingFailure(
     val path: String,
 ) : RuntimeException(null, null, false, false)
 
+internal fun SelectorValueReader.optionalTextList(name: String): List<String> =
+    optionalField(name)?.values()?.map(SelectorValueReader::text).orEmpty()
+
 internal inline fun <T> mapSelectorValue(
     rootPath: String,
     block: () -> T,
