@@ -125,6 +125,7 @@ class SelectorEndpointCoverageTest {
             linkedMapOf(
                 "sourceId" to AttributeBinding(attribute = "data-id"),
                 "title" to TextBinding(".title"),
+                "contentType" to EnumBinding(TextBinding(".content-type")),
             ),
         ),
     )
@@ -208,11 +209,11 @@ class SelectorEndpointCoverageTest {
             "/home" in url -> """
                 <section class='catalog' data-id='section-1'>
                   <h2>Featured</h2>
-                  <article class='story' data-id='catalog-1'><span class='title'>Novel</span></article>
+                  <article class='story' data-id='catalog-1'><span class='title'>Novel</span><span class='content-type'>LIGHT_NOVEL</span></article>
                 </section>
             """.trimIndent()
             "/search" in url && "/content/" !in url ->
-                "<article class='story' data-id='catalog-1'><span class='title'>Novel</span></article>"
+                "<article class='story' data-id='catalog-1'><span class='title'>Novel</span><span class='content-type'>LIGHT_NOVEL</span></article>"
             "/story/catalog-1" in url -> """
                 <main data-id='catalog-1'><h1>Novel</h1><span class='content-type'>LIGHT_NOVEL</span><span class='language'>en</span></main>
             """.trimIndent()

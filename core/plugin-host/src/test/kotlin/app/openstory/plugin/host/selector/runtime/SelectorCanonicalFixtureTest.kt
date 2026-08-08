@@ -122,6 +122,7 @@ class SelectorCanonicalFixtureTest {
         private fun catalogCard() = """
             <article class="story" data-id="catalog-1">
               <span class="title">Novel</span><span class="author">Author</span>
+              <span class="content-type">LIGHT_NOVEL</span>
               <img class="cover" src="/images/cover.jpg">
               <span class="score-value">8.5</span><span class="score-scale">10</span>
             </article>

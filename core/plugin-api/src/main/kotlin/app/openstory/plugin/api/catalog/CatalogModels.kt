@@ -68,6 +68,7 @@ data class CatalogSection(
 data class CatalogCard(
     val sourceId: String,
     val title: String,
+    val contentType: ContentType,
     val authors: List<String>,
     val image: CatalogImageReference?,
     val score: CatalogScore?,

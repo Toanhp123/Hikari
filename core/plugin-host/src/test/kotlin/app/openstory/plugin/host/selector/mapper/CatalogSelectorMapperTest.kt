@@ -1,6 +1,7 @@
 package app.openstory.plugin.host.selector.mapper
 
 import app.openstory.common.AppResult
+import app.openstory.model.ContentType
 import app.openstory.network.PluginUrlPolicy
 import app.openstory.plugin.api.selector.SelectorTokenKind
 import app.openstory.plugin.host.selector.binding.SelectorBoundValue
@@ -23,6 +24,7 @@ class CatalogSelectorMapperTest {
                 obj(
                     "sourceId" to text("novel-1"),
                     "title" to text("Novel One"),
+                    "contentType" to text("LIGHT_NOVEL"),
                     "authors" to list(text("Author")),
                     "image" to SelectorBoundValue.Null,
                     "score" to SelectorBoundValue.Null,
@@ -40,6 +42,7 @@ class CatalogSelectorMapperTest {
         val card = page.items.single() as app.openstory.plugin.api.catalog.CatalogCard
         assertEquals("novel-1", card.sourceId)
         assertEquals("Novel One", card.title)
+        assertEquals(ContentType.LIGHT_NOVEL, card.contentType)
         assertEquals(listOf("Author"), card.authors)
         assertEquals("cursor-2", page.nextToken)
     }

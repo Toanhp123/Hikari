@@ -86,6 +86,7 @@ class CatalogSelectorMapper(
     private fun mapCard(value: BoundValueReader): CatalogCard = CatalogCard(
         sourceId = value.field("sourceId").text(),
         title = value.field("title").text(),
+        contentType = ContentType.valueOf(value.field("contentType").text()),
         authors = value.optionalTextList("authors"),
         image = value.optionalField("image")?.let(::mapImage),
         score = value.optionalField("score")?.let(::mapScore),

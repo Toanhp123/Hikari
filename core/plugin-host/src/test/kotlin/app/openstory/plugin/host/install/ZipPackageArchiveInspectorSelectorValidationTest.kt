@@ -92,7 +92,14 @@ private val VALID_SELECTOR =
               "type": "object",
               "fields": {
                 "sourceId": {"type": "attribute", "attribute": "data-id"},
-                "title": {"type": "text", "css": ".title"}
+                "title": {"type": "text", "css": ".title"},
+                "contentType": {
+                  "type": "enum",
+                  "source": {
+                    "type": "text",
+                    "css": ".content-type"
+                  }
+                }
               }
             }
           }

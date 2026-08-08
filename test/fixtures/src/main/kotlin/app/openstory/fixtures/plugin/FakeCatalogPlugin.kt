@@ -96,6 +96,7 @@ class FakeCatalogPlugin(
         CatalogCard(
             sourceId = sourceId,
             title = "Deterministic Catalog Story",
+            contentType = ContentType.WEB_NOVEL,
             authors = listOf("Fixture Author"),
             image = image(),
             score = null,

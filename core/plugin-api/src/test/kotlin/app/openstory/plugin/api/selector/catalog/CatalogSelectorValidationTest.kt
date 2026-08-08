@@ -18,6 +18,27 @@ import kotlin.test.assertEquals
 
 class CatalogSelectorValidationTest {
     @Test
+    fun searchRequiresContentTypeBinding() {
+        val selector = CatalogSearchSelector(
+            request = documentRequest(),
+            items = ListBinding(
+                css = "article",
+                item = ObjectBinding(
+                    fields = mapOf(
+                        "sourceId" to AttributeBinding("a", "data-id"),
+                        "title" to TextBinding(".title"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            SelectorValidationErrorCode.OUTPUT_TYPE_MISMATCH,
+            CatalogSelectorValidator.validateSearch(selector).validationCode(),
+        )
+    }
+
+    @Test
     fun searchRequiresSourceIdAndTitleBindings() {
         val selector = CatalogSearchSelector(
             request = documentRequest(),
@@ -29,6 +50,7 @@ class CatalogSelectorValidationTest {
                             css = "a",
                             attribute = "href",
                         ),
+                        "contentType" to EnumBinding(TextBinding(".type")),
                     ),
                 ),
             ),
@@ -117,6 +139,7 @@ class CatalogSelectorValidationTest {
                 fields = mapOf(
                     "sourceId" to AttributeBinding("a", "data-id"),
                     "title" to TextBinding(".title"),
+                    "contentType" to EnumBinding(TextBinding(".type")),
                     "authors" to TextListBinding(".author"),
                 ),
             ),
