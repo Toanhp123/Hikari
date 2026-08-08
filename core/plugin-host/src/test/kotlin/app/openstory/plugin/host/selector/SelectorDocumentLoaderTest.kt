@@ -218,17 +218,23 @@ class SelectorDocumentLoaderTest {
             return document
         }
 
-        override fun selectAll(document: HtmlDocument, css: String) =
+        override fun selectAll(scope: HtmlScope, css: String) =
             emptyList<HtmlElement>()
 
-        override fun selectText(elements: List<HtmlElement>, css: String) =
-            emptyList<String>()
+        override fun text(scope: HtmlScope, css: String?) = null
 
-        override fun selectAttribute(
-            elements: List<HtmlElement>,
-            css: String,
+        override fun attribute(
+            scope: HtmlScope,
+            css: String?,
             attribute: String,
-        ) = emptyList<HtmlAttributeValue>()
+        ) = HtmlAttributeValue(value = "", present = false)
+
+        override fun baseUri(scope: HtmlScope) = "https://allowed.example/"
+
+        override fun matches(element: HtmlElement, css: String) = false
+
+        override fun semanticText(scope: HtmlScope, css: String?) =
+            HtmlSemanticText(value = "", spans = emptyList())
     }
 
     private data object TestDocument : HtmlDocument

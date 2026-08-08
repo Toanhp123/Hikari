@@ -25,8 +25,12 @@ class PluginUrlPolicy private constructor(
 
     private val normalizedAllowedHosts = allowedHosts.map(String::lowercase).toSet()
 
-    fun resolve(candidate: String): AppResult<ValidatedPluginUrl> {
+    fun resolve(
+        candidate: String,
+        documentBaseUrl: String? = null,
+    ): AppResult<ValidatedPluginUrl> {
         val url = candidate.toHttpUrlOrNull()
+            ?: documentBaseUrl?.toHttpUrlOrNull()?.resolve(candidate)
             ?: baseUrl?.toHttpUrlOrNull()?.resolve(candidate)
             ?: return pluginUrlFailure("plugin.invalid_url")
 

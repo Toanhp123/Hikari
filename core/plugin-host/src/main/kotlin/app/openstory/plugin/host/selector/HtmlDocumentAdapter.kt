@@ -4,14 +4,32 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-interface HtmlDocument
+interface HtmlScope
 
-interface HtmlElement
+interface HtmlDocument : HtmlScope
+
+interface HtmlElement : HtmlScope
 
 data class HtmlAttributeValue(
     val value: String,
     val present: Boolean,
 )
+
+data class HtmlSemanticText(
+    val value: String,
+    val spans: List<HtmlSemanticSpan>,
+)
+
+data class HtmlSemanticSpan(
+    val start: Int,
+    val endExclusive: Int,
+    val style: HtmlSemanticStyle,
+)
+
+enum class HtmlSemanticStyle {
+    EMPHASIS,
+    STRONG,
+}
 
 interface HtmlDocumentAdapter {
     fun parse(
@@ -29,20 +47,32 @@ interface HtmlDocumentAdapter {
     ): HtmlDocument
 
     fun selectAll(
-        document: HtmlDocument,
+        scope: HtmlScope,
         css: String,
     ): List<HtmlElement>
 
-    fun selectText(
-        elements: List<HtmlElement>,
-        css: String,
-    ): List<String>
+    fun text(
+        scope: HtmlScope,
+        css: String? = null,
+    ): String?
 
-    fun selectAttribute(
-        elements: List<HtmlElement>,
-        css: String,
+    fun attribute(
+        scope: HtmlScope,
+        css: String? = null,
         attribute: String,
-    ): List<HtmlAttributeValue>
+    ): HtmlAttributeValue
+
+    fun baseUri(scope: HtmlScope): String
+
+    fun matches(
+        element: HtmlElement,
+        css: String,
+    ): Boolean
+
+    fun semanticText(
+        scope: HtmlScope,
+        css: String? = null,
+    ): HtmlSemanticText
 }
 
 class JsoupHtmlDocumentAdapter :
@@ -82,49 +112,69 @@ class JsoupHtmlDocumentAdapter :
     }
 
     override fun selectAll(
-        document: HtmlDocument,
+        scope: HtmlScope,
         css: String,
     ): List<HtmlElement> =
-        document
-            .requireJsoupDocument()
+        scope
+            .requireJsoupElement()
             .select(css)
-            .map { element ->
-                JsoupHtmlElement(element)
-            }
+            .map(::JsoupHtmlElement)
 
-    override fun selectText(
-        elements: List<HtmlElement>,
-        css: String,
-    ): List<String> =
-        elements.flatMap { value ->
-            value
-                .requireJsoupElement()
-                .select(css)
-                .map(Element::text)
-        }
+    override fun text(
+        scope: HtmlScope,
+        css: String?,
+    ): String? =
+        selectedElement(scope, css)?.text()
 
-    override fun selectAttribute(
-        elements: List<HtmlElement>,
-        css: String,
+    override fun attribute(
+        scope: HtmlScope,
+        css: String?,
         attribute: String,
-    ): List<HtmlAttributeValue> =
-        elements.flatMap { value ->
-            value
-                .requireJsoupElement()
-                .select(css)
-                .map { element ->
-                    HtmlAttributeValue(
-                        value =
-                            element.normalizedAttribute(
-                                attribute,
-                            ),
-                        present =
-                            element.hasAttr(
-                                attribute,
-                            ),
-                    )
-                }
+    ): HtmlAttributeValue {
+        val element = selectedElement(scope, css)
+            ?: return HtmlAttributeValue(value = "", present = false)
+
+        return HtmlAttributeValue(
+            value = element.normalizedAttribute(attribute),
+            present = element.hasAttr(attribute),
+        )
+    }
+
+    override fun baseUri(scope: HtmlScope): String =
+        scope.requireJsoupElement().baseUri()
+
+    override fun matches(
+        element: HtmlElement,
+        css: String,
+    ): Boolean = element.requireJsoupElement().`is`(css)
+
+    override fun semanticText(
+        scope: HtmlScope,
+        css: String?,
+    ): HtmlSemanticText {
+        val element = selectedElement(scope, css)
+            ?: return HtmlSemanticText(value = "", spans = emptyList())
+        val value = element.text()
+        var searchStart = 0
+        val spans = element.select("em, i, strong, b").mapNotNull { styled ->
+            val text = styled.text()
+            val start = value.indexOf(text, startIndex = searchStart)
+            if (text.isEmpty() || start < 0) {
+                null
+            } else {
+                searchStart = start + text.length
+                HtmlSemanticSpan(
+                    start = start,
+                    endExclusive = start + text.length,
+                    style = when (styled.normalName()) {
+                        "em", "i" -> HtmlSemanticStyle.EMPHASIS
+                        else -> HtmlSemanticStyle.STRONG
+                    },
+                )
+            }
         }
+        return HtmlSemanticText(value = value, spans = spans)
+    }
 }
 
 private data class JsoupHtmlDocument(
@@ -142,12 +192,22 @@ private fun HtmlDocument.requireJsoupDocument():
             "Unsupported HTML document value.",
         )
 
-private fun HtmlElement.requireJsoupElement():
-    Element =
-    (this as? JsoupHtmlElement)?.value
-        ?: throw IllegalArgumentException(
-            "Unsupported HTML element value.",
+private fun HtmlScope.requireJsoupElement(): Element =
+    when (this) {
+        is JsoupHtmlDocument -> value
+        is JsoupHtmlElement -> value
+        else -> throw IllegalArgumentException(
+            "Unsupported HTML scope value.",
         )
+    }
+
+private fun selectedElement(
+    scope: HtmlScope,
+    css: String?,
+): Element? {
+    val element = scope.requireJsoupElement()
+    return if (css == null) element else element.selectFirst(css)
+}
 private val urlAttributeNames =
     setOf(
         "action",
