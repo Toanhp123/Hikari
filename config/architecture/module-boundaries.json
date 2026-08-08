@@ -79,6 +79,53 @@
       "testDependencies": [],
       "forbiddenProductionImports": []
     },
+    ":core:matching": {
+      "path": "core/matching",
+      "platform": "jvm",
+      "productionDependencies": [
+        ":core:common",
+        ":core:model"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.",
+        "app.openstory.database.",
+        "app.openstory.plugin.",
+        "app.openstory.home.",
+        "app.openstory.story."
+      ]
+    },
+    ":feature:home": {
+      "path": "feature/home",
+      "platform": "android-library",
+      "productionDependencies": [
+        ":core:common",
+        ":core:model",
+        ":core:database",
+        ":core:plugin-host",
+        ":core:matching"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "app.openstory.database.entity."
+      ]
+    },
+    ":feature:story": {
+      "path": "feature/story",
+      "platform": "android-library",
+      "productionDependencies": [
+        ":core:common",
+        ":core:model",
+        ":core:database",
+        ":core:plugin-host",
+        ":core:matching"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "app.openstory.database.entity."
+      ]
+    },
     ":test:fixtures": {
       "path": "test/fixtures",
       "platform": "jvm",

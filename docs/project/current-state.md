@@ -1,20 +1,22 @@
 # Repository Current State
 
-Date: 2026-08-08
+Date: 2026-08-09
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
 - Product baseline: approved Android-only, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current Gradle modules: 8.
+- Current Gradle modules: 11.
 - Wave 01-03 implementation is present.
 - Wave 04 Tasks 01-06 implementation is present.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
 - Wave 04 checkpoint is accepted with unit, lint, source-layout, and Android sandbox
   instrumentation evidence.
-- Current active boundary: **Wave 05 Task 01 - catalog ingestion repository and
-  canonical merge boundary**.
+- Wave 05 Tasks 01-06 implementation is present.
+- Wave 05 Tasks 01-06 verification is accepted by the Wave 05 checkpoint.
+- Current active boundary: **Wave 06 Task 01 - metadata-only Library persistence and story matching foundations**.
+- The Wave 05 checkpoint is closed; Wave 06 may begin.
 
 ## Independent version spaces
 
@@ -87,16 +89,59 @@ Wave 04 checkpoint acceptance proves:
 
 ### Wave 05 boundary
 
-Wave 05 implementation has not started. The next task is the catalog ingestion
-repository and canonical merge boundary described in
-`../implementation/waves/wave-05-catalog-home-and-discovery.md`.
+Implementation present through Task 06:
+
+- Task 01 provides source-preserving catalog snapshots, source metadata, cached Home
+  persistence, and the temporary source-isolated canonical resolver behind the approved
+  resolver port.
+- Task 02 provides the deterministic bundled default Catalog fixture, exact package-byte
+  pinning, local asset loading, idempotent bootstrap behavior, and an update coordinator
+  that delegates newer bundled versions to the normal capability-diff/update service.
+- User-disabled state is preserved by the registry during activation; expanded-access
+  bundled updates remain review-gated rather than being installed by the bootstrap path.
+- Task 03 adds the pure Kotlin/JVM `:core:matching` module, deterministic title/author
+  evidence scoring, trusted direct-mapping validation, source-isolated fallback identity,
+  and aggregate ranking that preserves original catalog score/scale values.
+- Task 04 adds the Android `:feature:home` application boundary, exact hosted-plugin to
+  `CatalogSnapshot` normalization, bounded/isolated multi-catalog refresh, cached freshness
+  reporting, and combined/source-specific cached Home projections using Task 03 ranking.
+- Task 05 adds presentation-only `HomeScreenState`, combined and catalog-specific Compose
+  screens, accessible source/score semantics, stable lazy-list keys, source switching,
+  non-blocking partial-refresh status, and a cover-renderer seam without direct plugin,
+  Room, or network access from Compose.
+- Task 06 adds cancellable/debounced multi-catalog search, source-scoped filter values,
+  Task-03 canonicalized search display that preserves per-source scores, memory-only recent
+  searches, the Android `:feature:story` boundary, exact Catalog detail normalization, and
+  source-preserving detail enrichment through `CatalogRepository.upsertSourceMetadata(...)`.
+  Search pages remain transient and story-detail UI state exposes neither Room entities nor
+  plugin DTOs.
+
+Task 02 focused package/bootstrap tests, Android instrumentation, repository verification,
+lint, module-boundary checks, and Room schema-stability verification are recorded as PASS
+in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`. Task 03 focused
+matching tests, the complete matching module suite, 9-module architecture verification,
+repository verification, and Room schema-stability verification are recorded as PASS in
+`../internal/checkpoints/wave-05-task-03-catalog-matching.md`. Task 04 verification is accepted
+in `../internal/checkpoints/wave-05-task-04-home-refresh.md`. Task 05 unit, Compose
+instrumentation, architecture, full repository, and Room schema-stability verification is
+accepted in `../internal/checkpoints/wave-05-task-05-home-ui.md`. Task 06 verification is
+recorded in `../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`. The full
+Wave 05 acceptance is recorded in
+`../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
 
 ## Verification status
 
 Implementation presence is not checkpoint acceptance. Evidence under
 `../internal/checkpoints/` records commands actually run and keeps unexecuted gates as
 `NOT RUN`. Wave 04 acceptance is recorded in
-`../internal/checkpoints/wave-04-plugin-host-and-security.md`.
+`../internal/checkpoints/wave-04-plugin-host-and-security.md`; Wave 05 Task 02 verification
+is recorded in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`; Wave 05 Task 03
+verification is accepted in `../internal/checkpoints/wave-05-task-03-catalog-matching.md`; Wave 05
+Task 04 verification is accepted in `../internal/checkpoints/wave-05-task-04-home-refresh.md`;
+Wave 05 Task 05 verification is accepted in
+`../internal/checkpoints/wave-05-task-05-home-ui.md`; Wave 05 Task 06 verification is accepted in
+`../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`. The Wave 05 checkpoint is
+accepted in `../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
 
 ## Source-of-truth rule
 

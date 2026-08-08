@@ -1,7 +1,7 @@
 <!--
 DOCUMENT LIFECYCLE
-Status: PLANNED / NOT STARTED IN THIS SNAPSHOT
-Current repository note: Start only after the Wave 05 checkpoint is accepted.
+Status: READY TO START / WAVE 05 CHECKPOINT ACCEPTED
+Current repository note: The Wave 05 checkpoint is accepted; Wave 06 Task 01 may begin.
 Canonical execution status: ../../project/current-state.md
 Original planning text below is preserved rather than retroactively rewritten.
 -->

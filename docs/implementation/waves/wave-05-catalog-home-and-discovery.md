@@ -1,7 +1,7 @@
 <!--
 DOCUMENT LIFECYCLE
-Status: ACTIVE WAVE / READY TO START TASK 01
-Current repository note: The Wave 04 checkpoint is accepted. Begin with Task 01; no Wave 05 implementation is present yet.
+Status: CLOSED WAVE / TASKS 01-06 VERIFIED / WAVE CHECKPOINT ACCEPTED
+Current repository note: Wave 05 Tasks 01-06 are implemented and verified. The accepted wave checkpoint is recorded in `../../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
 Canonical execution status: ../../project/current-state.md
 Planning note: Task 01 and its dependent Wave 05 interfaces were rebased on 2026-08-08 against the accepted Wave 04 source and `../../superpowers/specs/2026-08-08-wave-05-catalog-home-and-discovery-design.md`. Earlier archived planning remains historical evidence.
 -->

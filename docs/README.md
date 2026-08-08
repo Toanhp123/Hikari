@@ -7,7 +7,8 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[implementation/waves/wave-05-catalog-home-and-discovery.md](implementation/waves/wave-05-catalog-home-and-discovery.md)** — next implementation plan, starting at Task 01.
+4. **[implementation/waves/wave-05-catalog-home-and-discovery.md](implementation/waves/wave-05-catalog-home-and-discovery.md)** — closed Wave 05 implementation plan; Tasks 01-06 are verified.
+5. **[internal/checkpoints/wave-05-catalog-home-and-discovery.md](internal/checkpoints/wave-05-catalog-home-and-discovery.md)** — accepted Wave 05 checkpoint evidence.
 
 ## Normative product and requirement documents
 
@@ -20,7 +21,7 @@ Use this directory instead of hunting through dated plans.
 
 The original eleven wave plans are retained under `implementation/waves/` with lifecycle
 headers. They remain useful as self-contained TDD plans, but Waves 01–04 are historical
-for this source snapshot and Wave 05 is ready to start.
+for this source snapshot and Wave 05 is active.
 
 ## Public/plugin documentation
 

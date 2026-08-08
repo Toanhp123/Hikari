@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-08
+Date: 2026-08-09
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence while interpreting it against the
@@ -18,13 +18,13 @@ separate states.
 
 ## Current position
 
-The repository has accepted the **Wave 04 - Plugin Host and Security** checkpoint. The
-next implementation boundary is **Wave 05 Task 01 - catalog ingestion repository and
-canonical merge boundary**.
+The repository has accepted the **Wave 04 - Plugin Host and Security** checkpoint and has
+now accepted the **Wave 05 - Catalog Home and Discovery** checkpoint. Tasks 01-06 are
+implemented and verified. The current implementation boundary is **Wave 06 Task 01**.
 
-Wave 04 now provides secure selector and JavaScript execution, transactional lifecycle,
-safe updates/rollback, redacted diagnostics, and the unified host boundary consumed by
-Wave 05 catalog ingestion.
+Wave 04 provides secure selector and JavaScript execution, transactional lifecycle, safe
+updates/rollback, redacted diagnostics, and the unified host boundary now consumed by
+Wave 05 catalog persistence and bundled catalog bootstrap.
 
 ## Current module graph
 
@@ -36,6 +36,9 @@ Wave 05 catalog ingestion.
 :core:plugin-api
 :core:network
 :core:plugin-host
+:core:matching
+:feature:home
+:feature:story
 :test:fixtures
 ```
 
@@ -51,8 +54,8 @@ when their owning wave starts.
 | 02 | Domain and local storage | Implementation present on Room schema 1; checkpoint acceptance remains evidence-driven | `waves/wave-02-domain-and-local-storage.md` |
 | 03 | Plugin contracts and packages | Implementation present on Selector Schema 1 | `waves/wave-03-plugin-contracts-and-packages.md` |
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
-| 05 | Catalog Home and discovery | **Ready to start at Task 01** | `waves/wave-05-catalog-home-and-discovery.md` |
-| 06 | Library and story matching | Planned | `waves/wave-06-library-and-story-matching.md` |
+| 05 | Catalog Home and discovery | **Implementation present; checkpoint accepted** | `waves/wave-05-catalog-home-and-discovery.md` |
+| 06 | Library and story matching | **Ready to start; Wave 05 checkpoint accepted** | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | Planned | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | Planned | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | Planned | `waves/wave-09-cache-downloads-and-storage.md` |
@@ -70,6 +73,17 @@ when their owning wave starts.
 | 04.05 | Update and capability-diff lifecycle | Implementation present |
 | 04.06 | Redacted diagnostics and unified host facade | Implementation present |
 
+## Wave 05 decomposition
+
+| Task | Outcome | State |
+|---|---|---|
+| 05.01 | Source-preserving catalog ingestion and cached Home persistence | Verified by Wave 05 checkpoint |
+| 05.02 | Deterministic bundled default catalog and safe bootstrap/update boundary | Verified |
+| 05.03 | Deterministic cross-catalog matching and aggregate ranking | Verified |
+| 05.04 | Cached Home refresh/orchestration | Verified |
+| 05.05 | Combined and catalog-specific Home UI | Verified |
+| 05.06 | Search, filters, and source-preserving story detail | Verified |
+
 ## Critical dependency chain
 
 ```text
@@ -77,7 +91,8 @@ architecture
   -> canonical domain and Room
     -> plugin contracts and package validation
       -> secure plugin execution
-        -> catalog discovery  <-- current position
+        -> catalog discovery
+             ^ Wave 05 checkpoint accepted; Wave 06 Task 01 is next
           -> story matching
             -> chapter aggregation
               -> reader
@@ -88,10 +103,10 @@ architecture
 
 ## Execution rule
 
-1. Start Wave 05 Task 01 from `waves/wave-05-catalog-home-and-discovery.md`.
-2. Keep catalog ingestion behind the accepted plugin-host and repository boundaries.
-3. Preserve source identity while creating the canonical merge boundary.
-4. Follow focused RED/GREEN verification before the affected module suite.
+1. Begin Wave 06 Task 01 from the accepted Wave 05 checkpoint.
+2. Keep search/story-detail flows source-preserving and behind domain/repository interfaces.
+3. Keep Compose behind cached/use-case models; no direct plugin or Room access is allowed.
+4. Preserve the accepted Wave 05 checkpoint evidence as historical execution proof.
 
 ## Verification principle
 

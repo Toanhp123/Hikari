@@ -52,9 +52,12 @@ jobs:
             core/common/build/reports
             core/database/build/reports
             core/model/build/reports
+            core/matching/build/reports
             core/network/build/reports
             core/plugin-api/build/reports
             core/plugin-host/build/reports
+            feature/home/build/reports
+            feature/story/build/reports
             test/fixtures/build/reports
 
   instrumentation-api-26:
@@ -325,5 +328,7 @@ jobs:
           path: |
             core/plugin-api/build/reports
             core/plugin-host/build/reports
+            feature/home/build/reports
+            feature/story/build/reports
             test/fixtures/build/reports
             build/reports/detekt
