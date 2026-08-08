@@ -7,16 +7,16 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: approved Android-only, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current Gradle modules: 10.
+- Current Gradle modules: 11.
 - Wave 01-03 implementation is present.
 - Wave 04 Tasks 01-06 implementation is present.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
 - Wave 04 checkpoint is accepted with unit, lint, source-layout, and Android sandbox
   instrumentation evidence.
-- Wave 05 Tasks 01-05 implementation is present.
-- Wave 05 Tasks 02-05 verification is accepted.
-- Current active boundary: **Wave 05 Task 06 - search, filters, and source-preserving story detail**.
-- Task 06 is ready to begin; the Wave 05 checkpoint remains open until the remaining Wave 05 work is complete.
+- Wave 05 Tasks 01-06 implementation is present.
+- Wave 05 Tasks 02-05 verification is accepted; Task 06 verification is open.
+- Current active boundary: **Wave 05 Task 06 - search, filters, and source-preserving story detail verification**.
+- The Wave 05 checkpoint remains open until Task 06 and the full Wave 05 checkpoint gates are accepted.
 
 ## Independent version spaces
 
@@ -89,7 +89,7 @@ Wave 04 checkpoint acceptance proves:
 
 ### Wave 05 boundary
 
-Implementation present through Task 05:
+Implementation present through Task 06:
 
 - Task 01 provides source-preserving catalog snapshots, source metadata, cached Home
   persistence, and the temporary source-isolated canonical resolver behind the approved
@@ -109,6 +109,12 @@ Implementation present through Task 05:
   screens, accessible source/score semantics, stable lazy-list keys, source switching,
   non-blocking partial-refresh status, and a cover-renderer seam without direct plugin,
   Room, or network access from Compose.
+- Task 06 adds cancellable/debounced multi-catalog search, source-scoped filter values,
+  Task-03 canonicalized search display that preserves per-source scores, memory-only recent
+  searches, the Android `:feature:story` boundary, exact Catalog detail normalization, and
+  source-preserving detail enrichment through `CatalogRepository.upsertSourceMetadata(...)`.
+  Search pages remain transient and story-detail UI state exposes neither Room entities nor
+  plugin DTOs.
 
 Task 02 focused package/bootstrap tests, Android instrumentation, repository verification,
 lint, module-boundary checks, and Room schema-stability verification are recorded as PASS
@@ -118,7 +124,9 @@ repository verification, and Room schema-stability verification are recorded as 
 `../internal/checkpoints/wave-05-task-03-catalog-matching.md`. Task 04 verification is accepted
 in `../internal/checkpoints/wave-05-task-04-home-refresh.md`. Task 05 unit, Compose
 instrumentation, architecture, full repository, and Room schema-stability verification is
-accepted in `../internal/checkpoints/wave-05-task-05-home-ui.md`.
+accepted in `../internal/checkpoints/wave-05-task-05-home-ui.md`. Task 06 implementation is
+recorded with verification still open in
+`../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`.
 
 ## Verification status
 
@@ -130,7 +138,8 @@ is recorded in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.
 verification is accepted in `../internal/checkpoints/wave-05-task-03-catalog-matching.md`; Wave 05
 Task 04 verification is accepted in `../internal/checkpoints/wave-05-task-04-home-refresh.md`;
 Wave 05 Task 05 verification is accepted in
-`../internal/checkpoints/wave-05-task-05-home-ui.md`.
+`../internal/checkpoints/wave-05-task-05-home-ui.md`; Wave 05 Task 06 implementation is recorded
+with verification open in `../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`.
 
 ## Source-of-truth rule
 

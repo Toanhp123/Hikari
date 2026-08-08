@@ -79,6 +79,7 @@ class ModuleGraphTest {
             ":core:plugin-host",
             ":core:matching",
             ":feature:home",
+            ":feature:story",
             ":test:fixtures",
         )
 
@@ -123,6 +124,7 @@ class ModuleGraphTest {
             "../core/plugin-host/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../core/matching/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../feature/home/build.gradle.kts" to "id(\"openstory.android.library\")",
+            "../feature/story/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
         )
 

@@ -57,6 +57,7 @@ jobs:
             core/plugin-api/build/reports
             core/plugin-host/build/reports
             feature/home/build/reports
+            feature/story/build/reports
             test/fixtures/build/reports
 
   instrumentation-api-26:
@@ -328,5 +329,6 @@ jobs:
             core/plugin-api/build/reports
             core/plugin-host/build/reports
             feature/home/build/reports
+            feature/story/build/reports
             test/fixtures/build/reports
             build/reports/detekt

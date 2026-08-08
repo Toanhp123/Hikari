@@ -1,7 +1,7 @@
 <!--
 DOCUMENT LIFECYCLE
-Status: ACTIVE WAVE / TASKS 01-05 IMPLEMENTATION PRESENT / TASKS 02-05 VERIFIED / TASK 06 READY
-Current repository note: Tasks 01-05 have implementation present and Tasks 02-05 are verified. Task 06 is ready to begin.
+Status: ACTIVE WAVE / TASKS 01-06 IMPLEMENTATION PRESENT / TASKS 02-05 VERIFIED / TASK 06 VERIFICATION OPEN
+Current repository note: Tasks 01-06 have implementation present and Tasks 02-05 are verified. Task 06 implementation is present with verification still open.
 Canonical execution status: ../../project/current-state.md
 Planning note: Task 01 and its dependent Wave 05 interfaces were rebased on 2026-08-08 against the accepted Wave 04 source and `../../superpowers/specs/2026-08-08-wave-05-catalog-home-and-discovery-design.md`. Earlier archived planning remains historical evidence.
 -->
