@@ -24,7 +24,7 @@ code exists, and code existence is not proof that a checkpoint passed.
 ### What is implemented next?
 
 Use `../implementation/current-roadmap.md`, then the active wave plan. The current
-continuation is `../implementation/wave-04-selector-runtime.md`.
+continuation is `../implementation/waves/wave-05-catalog-home-and-discovery.md`.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
 that retain development-only database migrations or selector generations.

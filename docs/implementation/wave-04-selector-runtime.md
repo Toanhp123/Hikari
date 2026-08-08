@@ -1,7 +1,12 @@
 # Wave 04 Task 03 - Selector Schema 1 Runtime Continuation
 
-Date: 2026-08-07
-Status: **ACTIVE**
+Date: 2026-08-08
+Status: **HISTORICAL / IMPLEMENTATION PRESENT**
+
+Completion note: Task 03 is implemented and its focused/module verification contributes
+to the accepted Wave 04 checkpoint recorded in
+`../internal/checkpoints/wave-04-plugin-host-and-security.md`. The responsibility list
+below is retained as the implementation record, not as current work.
 
 This continuation starts from the pre-MVP Baseline 1 source tree. It does not restore
 development-generation compatibility or the removed linear extraction pipeline.
@@ -15,7 +20,7 @@ development-generation compatibility or the removed linear extraction pipeline.
 - `HtmlDocumentAdapter` as the opaque DOM boundary.
 - No legacy selector runtime exists.
 
-## Remaining Wave 04 Task 03
+## Wave 04 Task 03 responsibilities
 
 Implement these responsibilities in dependency order:
 

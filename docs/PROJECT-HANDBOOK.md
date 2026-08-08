@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-07  
+Date: 2026-08-08
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -102,14 +102,13 @@ A package may expose `CATALOG`, `CONTENT`, or both kinds, but contracts remain i
   runtime has no compatibility role.
 - Contracts and install-time validation are Wave 03-owned and present.
 - Binding evaluation, DTO mapping, final validation, and adapters are Wave 04-owned and
-  remain the active work.
+  implemented behind the shared plugin contract validators.
 
 ### JavaScript plugins
 
-The approved Wave 04 architecture requires AndroidX JavaScriptEngine isolation and a small
-host capability bridge. JavaScript must not obtain Android classes, reflection, process,
-arbitrary files, databases or unrestricted networking. Full JS sandbox implementation
-comes after the current Selector Schema 1 runtime boundary.
+JavaScript plugins execute through AndroidX JavaScriptEngine isolation and a small
+validated host capability bridge. JavaScript does not receive Android classes,
+reflection, process, arbitrary files, databases, or unrestricted networking.
 
 ### Network/security
 
@@ -120,13 +119,13 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 04 / Task 03 — Selector Schema 1 runtime execution.**
+**Wave 05 / Task 01 — catalog ingestion repository and canonical merge boundary.**
 
-Do not restart Wave 01–03 from the old planning package or recreate the typed selector
-contracts. Continue from `implementation/wave-04-selector-runtime.md`.
+Wave 04 secure plugin execution, update/rollback, diagnostics, and host-facade work is
+implemented and its checkpoint is accepted. Do not recreate those boundaries in Wave 05.
 
-After Task 03, finish Wave 04 JavaScript isolation, update lifecycle and unified
-host/diagnostics, then pass the Wave 04 checkpoint before starting Wave 05.
+Continue from `implementation/waves/wave-05-catalog-home-and-discovery.md`, beginning
+with Task 01.
 
 ## 8. Roadmap
 
@@ -164,7 +163,7 @@ Read in this order:
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`implementation/wave-04-selector-runtime.md` now).
+4. Active implementation plan (`implementation/waves/wave-05-catalog-home-and-discovery.md` now).
 5. `plugin-sdk/` when changing public plugin contracts/packages.
 6. `internal/checkpoints/` when deciding whether a gate is proven.
 7. `internal/archive/` only for historical provenance.
@@ -187,5 +186,5 @@ fixtures. Internal deterministic fake plugin implementations and data belong to
 
 ## 12. Next action
 
-Open `implementation/wave-04-selector-runtime.md` and start with its first remaining
-production task: shared URL policy, followed by bounded typed binding evaluation.
+Open `implementation/waves/wave-05-catalog-home-and-discovery.md` and start with Task 01:
+the catalog ingestion repository and canonical merge boundary.

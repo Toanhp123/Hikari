@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-07  
+Date: 2026-08-08
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence while interpreting it against the
@@ -12,17 +12,19 @@ separate states.
 - **Implementation present**: production code and tests exist for the boundary.
 - **Verification open**: required checkpoint evidence is missing or still `NOT RUN`.
 - **In progress**: some deliverables exist and some remain.
+- **Ready to start**: entry checkpoint is accepted, but the next wave has no
+  implementation yet.
 - **Planned**: approved work has not started in this repository.
 
 ## Current position
 
-The repository is inside **Wave 04 - Plugin Host and Security**, specifically
-**Task 03 - Selector Schema 1 runtime execution**.
+The repository has accepted the **Wave 04 - Plugin Host and Security** checkpoint. The
+next implementation boundary is **Wave 05 Task 01 - catalog ingestion repository and
+canonical merge boundary**.
 
-Wave 03 owns the canonical typed selector contract and install-time validation. Wave 04
-owns document acquisition, DOM evaluation, DTO mapping, endpoint budgets, cancellation,
-redaction, and final host output validation. The active work must consume the existing
-contract rather than introduce a compatibility envelope.
+Wave 04 now provides secure selector and JavaScript execution, transactional lifecycle,
+safe updates/rollback, redacted diagnostics, and the unified host boundary consumed by
+Wave 05 catalog ingestion.
 
 ## Current module graph
 
@@ -48,8 +50,8 @@ when their owning wave starts.
 | 01 | Foundation, architecture, CI | Implementation present; historical checkpoint evidence retained | `waves/wave-01-foundation-and-architecture.md` |
 | 02 | Domain and local storage | Implementation present on Room schema 1; checkpoint acceptance remains evidence-driven | `waves/wave-02-domain-and-local-storage.md` |
 | 03 | Plugin contracts and packages | Implementation present on Selector Schema 1 | `waves/wave-03-plugin-contracts-and-packages.md` |
-| 04 | Plugin host and security | **In progress** | `waves/wave-04-plugin-host-and-security.md`; Task 03: `wave-04-selector-runtime.md` |
-| 05 | Catalog Home and discovery | Planned | `waves/wave-05-catalog-home-and-discovery.md` |
+| 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
+| 05 | Catalog Home and discovery | **Ready to start at Task 01** | `waves/wave-05-catalog-home-and-discovery.md` |
 | 06 | Library and story matching | Planned | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | Planned | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | Planned | `waves/wave-08-reader-and-reading-progress.md` |
@@ -63,10 +65,10 @@ when their owning wave starts.
 |---|---|---|
 | 04.01 | Allowlisted HTTP gateway, shared URL policy, bounded body reader, budgets, sessions, decoding, redaction | Implementation present |
 | 04.02 | Transactional install, neutral registry port, Room adapter, rollback | Implementation present |
-| 04.03 | Selector Schema 1 document loading, typed evaluation, DTO mapping, adapters | **Active**; document loader present, evaluator/mappers/adapters pending |
-| 04.04 | JavaScript capability sandbox | Planned |
-| 04.05 | Update and capability-diff lifecycle | Partial; rollback primitive present |
-| 04.06 | Redacted diagnostics and unified host facade | Planned |
+| 04.03 | Selector Schema 1 document loading, typed evaluation, DTO mapping, adapters | Implementation present |
+| 04.04 | JavaScript capability sandbox | Implementation present; Android instrumentation passed |
+| 04.05 | Update and capability-diff lifecycle | Implementation present |
+| 04.06 | Redacted diagnostics and unified host facade | Implementation present |
 
 ## Critical dependency chain
 
@@ -74,8 +76,8 @@ when their owning wave starts.
 architecture
   -> canonical domain and Room
     -> plugin contracts and package validation
-      -> secure plugin execution  <-- current position
-        -> catalog discovery
+      -> secure plugin execution
+        -> catalog discovery  <-- current position
           -> story matching
             -> chapter aggregation
               -> reader
@@ -86,12 +88,10 @@ architecture
 
 ## Execution rule
 
-1. Complete `wave-04-selector-runtime.md` from its first remaining responsibility.
-2. Close Wave 04 Task 03 with all Catalog/Content DTO execution, budgets,
-   cancellation, URL validation, and redaction evidence.
-3. Complete the remaining Wave 04 JavaScript, update, diagnostics, and host work.
-4. Run and record the Wave 04 checkpoint.
-5. Begin Wave 05 only after checkpoint acceptance.
+1. Start Wave 05 Task 01 from `waves/wave-05-catalog-home-and-discovery.md`.
+2. Keep catalog ingestion behind the accepted plugin-host and repository boundaries.
+3. Preserve source identity while creating the canonical merge boundary.
+4. Follow focused RED/GREEN verification before the affected module suite.
 
 ## Verification principle
 

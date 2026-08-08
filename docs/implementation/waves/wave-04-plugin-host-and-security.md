@@ -1,7 +1,7 @@
 <!--
 DOCUMENT LIFECYCLE
-Status: ACTIVE WAVE / PARTIALLY IMPLEMENTED
-Current repository note: Tasks 01–02 and the bounded document loader are present. Selector Schema 1 runtime work remains active; use ../wave-04-selector-runtime.md for Task 03 continuation.
+Status: HISTORICAL / IMPLEMENTATION PRESENT / CHECKPOINT ACCEPTED
+Current repository note: Tasks 01–06 are implemented. Checkpoint evidence is recorded in ../../internal/checkpoints/wave-04-plugin-host-and-security.md; Wave 05 Task 01 is next.
 Canonical execution status: ../../project/current-state.md
 Original planning text below is preserved rather than retroactively rewritten.
 -->
