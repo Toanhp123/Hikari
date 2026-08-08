@@ -209,6 +209,7 @@ object CatalogSelectorValidator {
         required = mapOf(
             "sourceId" to SelectorOutputShape.Text,
             "title" to SelectorOutputShape.Text,
+            "contentType" to SelectorOutputShape.Enum,
         ),
         optional = mapOf(
             "authors" to SelectorOutputShape.TextList,

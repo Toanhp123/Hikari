@@ -29,7 +29,7 @@ data class Page<T : PageItem>(
         }
     }
 
-    private companion object {
-        const val MAX_ITEMS = 100
+    companion object {
+        private const val MAX_ITEMS = 100
     }
 }

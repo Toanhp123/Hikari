@@ -1,6 +1,7 @@
 package app.openstory.plugin.host.selector.runtime
 
 import app.openstory.common.AppResult
+import app.openstory.model.ContentType
 import app.openstory.network.PluginHttpGateway
 import app.openstory.network.PluginHttpRequest
 import app.openstory.network.PluginHttpResponse
@@ -14,6 +15,7 @@ import app.openstory.plugin.api.Page
 import app.openstory.plugin.api.catalog.CatalogCard
 import app.openstory.plugin.api.catalog.CatalogSearchRequest
 import app.openstory.plugin.api.selector.AttributeBinding
+import app.openstory.plugin.api.selector.EnumBinding
 import app.openstory.plugin.api.selector.HttpGet
 import app.openstory.plugin.api.selector.ListBinding
 import app.openstory.plugin.api.selector.ObjectBinding
@@ -47,6 +49,7 @@ class SelectorPluginFactoryTest {
                             linkedMapOf(
                                 "sourceId" to AttributeBinding(attribute = "data-id"),
                                 "title" to TextBinding("h2"),
+                                "contentType" to EnumBinding(TextBinding(".content-type")),
                             ),
                         ),
                     ),
@@ -54,7 +57,7 @@ class SelectorPluginFactoryTest {
             ),
         )
         val gateway = StaticGateway(
-            "<article data-id='novel-1'><h2>Novel One</h2></article>",
+            "<article data-id='novel-1'><h2>Novel One</h2><span class='content-type'>LIGHT_NOVEL</span></article>",
         )
 
         val plugins = assertIs<AppResult.Success<SelectorPlugins>>(
@@ -67,6 +70,7 @@ class SelectorPluginFactoryTest {
         val page = assertIs<AppResult.Success<Page<CatalogCard>>>(result).value
         assertEquals("novel-1", page.items.single().sourceId)
         assertEquals("Novel One", page.items.single().title)
+        assertEquals(ContentType.LIGHT_NOVEL, page.items.single().contentType)
         assertEquals("https://allowed.example/search?q=Novel", gateway.requests.single().url)
     }
 
@@ -82,6 +86,7 @@ class SelectorPluginFactoryTest {
                             linkedMapOf(
                                 "sourceId" to AttributeBinding(attribute = "data-id"),
                                 "title" to TextBinding("h2"),
+                                "contentType" to EnumBinding(TextBinding(".content-type")),
                             ),
                         ),
                     ),

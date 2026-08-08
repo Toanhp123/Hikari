@@ -1,5 +1,6 @@
 package app.openstory.plugin.api.catalog
 
+import app.openstory.model.ContentType
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
@@ -96,6 +97,7 @@ class CatalogWireInvariantTest {
     private fun card(sourceId: String) = CatalogCard(
         sourceId = sourceId,
         title = "Story",
+        contentType = ContentType.WEB_NOVEL,
         authors = emptyList(),
         image = null,
         score = null,

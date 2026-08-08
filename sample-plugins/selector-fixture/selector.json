@@ -38,6 +38,13 @@
                     "type": "text",
                     "css": ".title"
                   },
+                  "contentType": {
+                    "type": "enum",
+                    "source": {
+                      "type": "text",
+                      "css": ".content-type"
+                    }
+                  },
                   "authors": {
                     "type": "text_list",
                     "css": ".author"
@@ -107,6 +114,13 @@
             "title": {
               "type": "text",
               "css": ".title"
+            },
+            "contentType": {
+              "type": "enum",
+              "source": {
+                "type": "text",
+                "css": ".content-type"
+              }
             },
             "authors": {
               "type": "text_list",

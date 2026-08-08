@@ -10,6 +10,33 @@ import kotlin.test.assertIs
 
 class JsWireDtoDecoderTest {
     @Test
+    fun catalogSearchRejectsCardWithoutContentType() {
+        val decoder = JsWireDtoDecoder(
+            PluginWireDtoValidator(PluginUrlPolicy(setOf("allowed.example"))),
+        )
+        val source = """
+            {
+              "items":[
+                {
+                  "sourceId":"story-1",
+                  "title":"Novel",
+                  "authors":[],
+                  "image":null,
+                  "score":null
+                }
+              ],
+              "nextToken":null
+            }
+        """.trimIndent()
+
+        val result = decoder.decodeCatalogSearch(source)
+
+        val failure = assertIs<AppResult.Failure>(result)
+        val error = assertIs<AppError.Plugin>(failure.error)
+        assertEquals("plugin.javascript_output_invalid", error.code)
+    }
+
+    @Test
     fun catalogDetailsUsesTheSharedOutputHostValidator() {
         val decoder = JsWireDtoDecoder(
             PluginWireDtoValidator(PluginUrlPolicy(setOf("allowed.example"))),

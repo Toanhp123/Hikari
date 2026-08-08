@@ -1,6 +1,7 @@
 package app.openstory.plugin.api.catalog
 
 import app.openstory.common.AppResult
+import app.openstory.model.ContentType
 import app.openstory.plugin.api.Page
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,6 +9,13 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 class CatalogContractTest {
+
+    @Test
+    fun catalogCardCarriesExplicitContentType() {
+        val card = catalogCard(sourceId = "story-1")
+
+        assertEquals(ContentType.WEB_NOVEL, card.contentType)
+    }
 
     @Test
     fun catalogPageRejectsDuplicateSourceIds() {
@@ -154,6 +162,7 @@ class CatalogContractTest {
     ): CatalogCard = CatalogCard(
         sourceId = sourceId,
         title = "Title",
+        contentType = ContentType.WEB_NOVEL,
         authors = emptyList(),
         image = null,
         score = null,
