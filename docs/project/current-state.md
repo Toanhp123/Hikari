@@ -7,15 +7,15 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: approved Android-only, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current Gradle modules: 8.
+- Current Gradle modules: 9.
 - Wave 01-03 implementation is present.
 - Wave 04 Tasks 01-06 implementation is present.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
 - Wave 04 checkpoint is accepted with unit, lint, source-layout, and Android sandbox
   instrumentation evidence.
-- Current active boundary: **Wave 05 Task 02 verified complete**.
-- Next implementation boundary: **Wave 05 Task 03 - deterministic catalog matching and
-  aggregate ranking**.
+- Wave 05 Tasks 01-03 implementation is present.
+- Wave 05 Tasks 02-03 verification is accepted.
+- Current active boundary: **Wave 05 Task 04 - cached Home refresh/orchestration**.
 
 ## Independent version spaces
 
@@ -88,7 +88,7 @@ Wave 04 checkpoint acceptance proves:
 
 ### Wave 05 boundary
 
-Implementation present through Task 02:
+Implementation present through Task 03:
 
 - Task 01 provides source-preserving catalog snapshots, source metadata, cached Home
   persistence, and the temporary source-isolated canonical resolver behind the approved
@@ -98,10 +98,16 @@ Implementation present through Task 02:
   that delegates newer bundled versions to the normal capability-diff/update service.
 - User-disabled state is preserved by the registry during activation; expanded-access
   bundled updates remain review-gated rather than being installed by the bootstrap path.
+- Task 03 adds the pure Kotlin/JVM `:core:matching` module, deterministic title/author
+  evidence scoring, trusted direct-mapping validation, source-isolated fallback identity,
+  and aggregate ranking that preserves original catalog score/scale values.
 
 Task 02 focused package/bootstrap tests, Android instrumentation, repository verification,
 lint, module-boundary checks, and Room schema-stability verification are recorded as PASS
-in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`. Task 03 may begin.
+in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`. Task 03 focused
+matching tests, the complete matching module suite, 9-module architecture verification,
+repository verification, and Room schema-stability verification are recorded as PASS in
+`../internal/checkpoints/wave-05-task-03-catalog-matching.md`.
 
 ## Verification status
 
@@ -109,7 +115,8 @@ Implementation presence is not checkpoint acceptance. Evidence under
 `../internal/checkpoints/` records commands actually run and keeps unexecuted gates as
 `NOT RUN`. Wave 04 acceptance is recorded in
 `../internal/checkpoints/wave-04-plugin-host-and-security.md`; Wave 05 Task 02 verification
-is recorded in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`.
+is recorded in `../internal/checkpoints/wave-05-task-02-bundled-default-catalog.md`; Wave 05 Task 03
+verification is accepted in `../internal/checkpoints/wave-05-task-03-catalog-matching.md`.
 
 ## Source-of-truth rule
 

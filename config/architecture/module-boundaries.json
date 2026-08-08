@@ -79,6 +79,23 @@
       "testDependencies": [],
       "forbiddenProductionImports": []
     },
+    ":core:matching": {
+      "path": "core/matching",
+      "platform": "jvm",
+      "productionDependencies": [
+        ":core:common",
+        ":core:model"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.",
+        "app.openstory.database.",
+        "app.openstory.plugin.",
+        "app.openstory.home.",
+        "app.openstory.story."
+      ]
+    },
     ":test:fixtures": {
       "path": "test/fixtures",
       "platform": "jvm",

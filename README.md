@@ -141,6 +141,7 @@ plugin-host package-inspection, and shared-fixture test suites.
 - `:core:plugin-api` — public plugin contracts, package schemas, fixtures
 - `:core:network` — allowlisted plugin HTTP capability
 - `:core:plugin-host` — package installation, registry, selector host
+- `:core:matching` — deterministic catalog identity matching and aggregate ranking
 - `:test:fixtures` — deterministic shared test data
 
 The direct project dependency policy is stored in:

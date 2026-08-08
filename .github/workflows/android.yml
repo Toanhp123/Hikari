@@ -52,6 +52,7 @@ jobs:
             core/common/build/reports
             core/database/build/reports
             core/model/build/reports
+            core/matching/build/reports
             core/network/build/reports
             core/plugin-api/build/reports
             core/plugin-host/build/reports
