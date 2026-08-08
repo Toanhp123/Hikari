@@ -177,10 +177,31 @@ class PluginInstallerTest {
                 actual = registry.activationCalls,
             )
         }
+
+    @Test
+    fun preparedUpdateDoesNotActivateUntilExplicitActivation() = runTest {
+        val storage = UpgradeRecordingStorage()
+        val registry = UpgradeRecordingRegistry()
+        val installer = upgradeInstaller(storage, registry)
+
+        val prepared = installer.stage(upgradeInstallRequest()).value()
+
+        assertEquals(1, storage.stageCalls)
+        assertEquals(0, registry.activationCalls)
+
+        installer.activate(prepared).value()
+
+        assertEquals(1, registry.activationCalls)
+    }
     private companion object {
         const val FIXTURE_PLUGIN_ID =
             "community.fixture"
     }
+}
+
+private fun <T> AppResult<T>.value(): T = when (this) {
+    is AppResult.Success -> value
+    is AppResult.Failure -> error("Expected success, got ${error.code}.")
 }
 
 private fun fixtureInstallRequest(

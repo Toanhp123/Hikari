@@ -19,6 +19,7 @@ ksp = "2.3.9"
 room = "2.8.4"
 detekt = "2.0.0-alpha.5"
 bouncyCastle = "1.84"
+javascriptEngine = "1.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -59,6 +60,7 @@ androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
+androidx-javascriptengine = { module = "androidx.javascriptengine:javascriptengine", version.ref = "javascriptEngine" }
 [plugins]
 detekt = { id = "dev.detekt", version.ref = "detekt" }
 android-application = { id = "com.android.application", version.ref = "agp" }

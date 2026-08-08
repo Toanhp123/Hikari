@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import app.openstory.database.dao.ChapterDao
+import app.openstory.database.dao.PluginDiagnosticDao
+import app.openstory.database.dao.PluginDiagnosticEntity
 import app.openstory.database.dao.PluginStateDao
 import app.openstory.database.dao.ProgressDao
 import app.openstory.database.dao.StoryDao
@@ -37,6 +39,7 @@ import app.openstory.database.entity.StoryContentMappingEntity
         ReadingProgressEntity::class,
         PluginStateEntity::class,
         PluginVersionEntity::class,
+        PluginDiagnosticEntity::class,
     ],
     version = 1,
     exportSchema = true,
@@ -55,6 +58,8 @@ abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun progressDao(): ProgressDao
 
     internal abstract fun pluginStateDao(): PluginStateDao
+
+    internal abstract fun pluginDiagnosticDao(): PluginDiagnosticDao
 
     companion object {
         private const val DATABASE_NAME =
