@@ -4,9 +4,11 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-interface HtmlDocument
+interface HtmlScope
 
-interface HtmlElement
+interface HtmlDocument : HtmlScope
+
+interface HtmlElement : HtmlScope
 
 data class HtmlAttributeValue(
     val value: String,
@@ -43,6 +45,24 @@ interface HtmlDocumentAdapter {
         css: String,
         attribute: String,
     ): List<HtmlAttributeValue>
+
+    fun selectAll(
+        scope: HtmlScope,
+        css: String,
+    ): List<HtmlElement>
+
+    fun text(
+        scope: HtmlScope,
+        css: String? = null,
+    ): String?
+
+    fun attribute(
+        scope: HtmlScope,
+        css: String? = null,
+        attribute: String,
+    ): HtmlAttributeValue
+
+    fun baseUri(scope: HtmlScope): String
 }
 
 class JsoupHtmlDocumentAdapter :
@@ -125,6 +145,38 @@ class JsoupHtmlDocumentAdapter :
                     )
                 }
         }
+
+    override fun selectAll(
+        scope: HtmlScope,
+        css: String,
+    ): List<HtmlElement> =
+        scope
+            .requireJsoupElement()
+            .select(css)
+            .map(::JsoupHtmlElement)
+
+    override fun text(
+        scope: HtmlScope,
+        css: String?,
+    ): String? =
+        selectedElement(scope, css)?.text()
+
+    override fun attribute(
+        scope: HtmlScope,
+        css: String?,
+        attribute: String,
+    ): HtmlAttributeValue {
+        val element = selectedElement(scope, css)
+            ?: return HtmlAttributeValue(value = "", present = false)
+
+        return HtmlAttributeValue(
+            value = element.normalizedAttribute(attribute),
+            present = element.hasAttr(attribute),
+        )
+    }
+
+    override fun baseUri(scope: HtmlScope): String =
+        scope.requireJsoupElement().baseUri()
 }
 
 private data class JsoupHtmlDocument(
@@ -148,6 +200,23 @@ private fun HtmlElement.requireJsoupElement():
         ?: throw IllegalArgumentException(
             "Unsupported HTML element value.",
         )
+
+private fun HtmlScope.requireJsoupElement(): Element =
+    when (this) {
+        is JsoupHtmlDocument -> value
+        is JsoupHtmlElement -> value
+        else -> throw IllegalArgumentException(
+            "Unsupported HTML scope value.",
+        )
+    }
+
+private fun selectedElement(
+    scope: HtmlScope,
+    css: String?,
+): Element? {
+    val element = scope.requireJsoupElement()
+    return if (css == null) element else element.selectFirst(css)
+}
 private val urlAttributeNames =
     setOf(
         "action",

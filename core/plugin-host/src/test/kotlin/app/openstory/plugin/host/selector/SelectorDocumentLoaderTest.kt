@@ -229,6 +229,19 @@ class SelectorDocumentLoaderTest {
             css: String,
             attribute: String,
         ) = emptyList<HtmlAttributeValue>()
+
+        override fun selectAll(scope: HtmlScope, css: String) =
+            emptyList<HtmlElement>()
+
+        override fun text(scope: HtmlScope, css: String?) = null
+
+        override fun attribute(
+            scope: HtmlScope,
+            css: String?,
+            attribute: String,
+        ) = HtmlAttributeValue(value = "", present = false)
+
+        override fun baseUri(scope: HtmlScope) = "https://allowed.example/"
     }
 
     private data object TestDocument : HtmlDocument
