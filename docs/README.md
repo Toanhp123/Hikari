@@ -7,7 +7,7 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[implementation/waves/wave-05-catalog-home-and-discovery.md](implementation/waves/wave-05-catalog-home-and-discovery.md)** — active implementation plan; Tasks 01-03 have implementation present; Tasks 02-03 are verified and Task 04 is next.
+4. **[implementation/waves/wave-05-catalog-home-and-discovery.md](implementation/waves/wave-05-catalog-home-and-discovery.md)** — active implementation plan; Tasks 01-04 have implementation present; Tasks 02-03 are verified and Task 04 verification is open.
 
 ## Normative product and requirement documents
 

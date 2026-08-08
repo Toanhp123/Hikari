@@ -96,6 +96,22 @@
         "app.openstory.story."
       ]
     },
+    ":feature:home": {
+      "path": "feature/home",
+      "platform": "android-library",
+      "productionDependencies": [
+        ":core:common",
+        ":core:model",
+        ":core:database",
+        ":core:plugin-host",
+        ":core:matching"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "androidx.compose.",
+        "app.openstory.database.entity."
+      ]
+    },
     ":test:fixtures": {
       "path": "test/fixtures",
       "platform": "jvm",

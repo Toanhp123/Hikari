@@ -78,6 +78,7 @@ class ModuleGraphTest {
             ":core:network",
             ":core:plugin-host",
             ":core:matching",
+            ":feature:home",
             ":test:fixtures",
         )
 
@@ -121,6 +122,7 @@ class ModuleGraphTest {
             "../core/network/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../core/plugin-host/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../core/matching/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
+            "../feature/home/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
         )
 
