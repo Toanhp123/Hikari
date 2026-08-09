@@ -46,11 +46,11 @@ printf '<project/>\n' > "$FAKE_ROOT/.idea/misc.xml"
 assert_failure "IDE metadata" verify
 rm -rf "$FAKE_ROOT/.idea"
 
-mkdir -p "$FAKE_ROOT/core/database/src/main/kotlin"
+mkdir -p "$FAKE_ROOT/storage/room/src/main/kotlin"
 printf 'import app.openstory.plugin.host.install.StagedPluginPackage\n' \
-  > "$FAKE_ROOT/core/database/src/main/kotlin/BadImport.kt"
+  > "$FAKE_ROOT/storage/room/src/main/kotlin/BadImport.kt"
 assert_failure "database installer imports" verify
-rm "$FAKE_ROOT/core/database/src/main/kotlin/BadImport.kt"
+rm "$FAKE_ROOT/storage/room/src/main/kotlin/BadImport.kt"
 
 write_lines 501 "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 assert_failure "a 501-line production source" verify

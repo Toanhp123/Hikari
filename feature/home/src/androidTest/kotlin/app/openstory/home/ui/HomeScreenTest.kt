@@ -16,9 +16,9 @@ import app.openstory.home.model.HomeCombinedSource
 import app.openstory.home.model.HomeRefreshReport
 import app.openstory.home.model.HomeSectionMembership
 import app.openstory.home.model.HomeUiModel
-import app.openstory.model.ContentType
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.catalog.model.ContentType
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals

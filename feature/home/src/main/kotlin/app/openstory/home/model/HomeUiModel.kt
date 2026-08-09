@@ -1,9 +1,9 @@
 package app.openstory.home.model
 
 import app.openstory.common.AppError
-import app.openstory.model.ContentType
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.catalog.model.ContentType
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 
 data class HomeUiModel(
     val combined: List<HomeCombinedCard>,
@@ -45,7 +45,6 @@ data class HomeCombinedCard(
 
 data class HomeCombinedSource(
     val pluginId: PluginId,
-    val pluginVersion: String,
     val sourceId: String,
     val title: String,
     val contentType: ContentType,
@@ -55,7 +54,6 @@ data class HomeCombinedSource(
     val scoreScale: Double?,
     val normalizedScore: Double?,
     val priorityWeight: Double,
-    val fetchedAtEpochMillis: Long,
     val sections: List<HomeSectionMembership>,
 )
 

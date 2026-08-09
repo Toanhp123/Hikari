@@ -51,10 +51,8 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
-    implementation(project(":core:model"))
-    implementation(project(":core:database"))
-    implementation(project(":core:matching"))
     implementation(project(":catalog"))
+    implementation(project(":storage:room"))
     implementation(project(":plugins:api"))
     implementation(project(":plugins:runtime"))
     implementation(project(":feature:home"))

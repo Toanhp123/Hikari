@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import app.openstory.home.domain.SearchCatalogs
 import app.openstory.home.domain.SearchRequest
 import app.openstory.home.domain.SearchResultPage
-import app.openstory.model.PluginId
+import app.openstory.common.id.PluginId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

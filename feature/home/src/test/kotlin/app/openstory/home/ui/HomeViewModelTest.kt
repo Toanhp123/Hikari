@@ -5,9 +5,9 @@ import app.openstory.home.model.HomeCatalogCard
 import app.openstory.home.model.HomeCatalogSection
 import app.openstory.home.model.HomeRefreshReport
 import app.openstory.home.model.HomeUiModel
-import app.openstory.model.ContentType
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.catalog.model.ContentType
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

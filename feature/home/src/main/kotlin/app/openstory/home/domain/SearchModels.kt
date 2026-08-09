@@ -1,9 +1,9 @@
 package app.openstory.home.domain
 
 import app.openstory.common.AppError
-import app.openstory.model.ContentType
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.catalog.model.ContentType
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 
 data class SearchRequest(
     val query: String,

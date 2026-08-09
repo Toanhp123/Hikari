@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="${OPENSTORY_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-DATABASE_SOURCE="$ROOT_DIR/core/database/src/main/kotlin/app/openstory/database/OpenStoryDatabase.kt"
-SCHEMA_DIR="$ROOT_DIR/core/database/schemas/app.openstory.database.OpenStoryDatabase"
+DATABASE_SOURCE="$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
+SCHEMA_DIR="$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase"
 
 grep -Eq 'version[[:space:]]*=[[:space:]]*1([^0-9]|$)' "$DATABASE_SOURCE" || {
   echo "OpenStoryDatabase must remain at pre-MVP baseline version 1." >&2
@@ -16,7 +16,7 @@ mapfile -d '' SCHEMA_FILES < <(find "$SCHEMA_DIR" -type f -name '*.json' -print0
   exit 1
 }
 
-for removed in core/plugin-api core/plugin-host core/network; do
+for removed in core/plugin-api core/plugin-host core/network core/model core/matching core/database; do
   [[ ! -e "$ROOT_DIR/$removed" ]] || { echo "Legacy module still exists: $removed" >&2; exit 1; }
 done
 

@@ -53,7 +53,7 @@ fi
 
 "$GRADLEW" --no-daemon \
   --dependency-verification strict \
-  :core:database:connectedDebugAndroidTest \
+  :storage:room:connectedDebugAndroidTest \
   --stacktrace
 
 echo \

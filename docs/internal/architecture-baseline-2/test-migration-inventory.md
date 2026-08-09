@@ -12,8 +12,8 @@ Tests move by invariant rather than by historical module ownership. A suite mark
 | `plugins/api/src/test/kotlin/app/openstory/plugins/api/testing/MyAnimeListReferenceContractTest.kt` | REWRITE | `:plugins:api`; protocol contract suite |
 | `plugins/runtime/src/test/kotlin/app/openstory/plugins/runtime/execution/PluginOperationRunnerTest.kt` | REWRITE | `:plugins:runtime`; isolated operation runtime |
 | `plugins/runtime/src/test/kotlin/app/openstory/plugins/runtime/install/PackageVerifierTest.kt` | DELETE_WITH_OWNER | Selector runtime removed in R2 |
-| `core/database/src/androidTest/kotlin/app/openstory/database/repository/RoomCatalogRepositoryTest.kt` | REWRITE | `:storage:room`; semantic catalog commit contract |
-| `core/matching/src/test/kotlin/app/openstory/matching/CatalogStoryResolverTest.kt` | REWRITE | `:catalog`; pure matcher |
+| `storage/room/src/androidTest/kotlin/app/openstory/storage/room/catalog/RoomCatalogRepositoryTest.kt` | REWRITE | `:storage:room`; semantic catalog commit contract |
+| `catalog/src/test/kotlin/app/openstory/catalog/matching/StoryMatcherTest.kt` | REWRITE | `:catalog`; pure matcher |
 | `feature/home/src/test/kotlin/app/openstory/home/domain/RefreshHomeTest.kt` | REWRITE | `:catalog`; refresh service |
 | `feature/home/src/test/kotlin/app/openstory/home/domain/SearchCatalogsTest.kt` | REWRITE | `:catalog`; search service |
 | `feature/story/src/test/kotlin/app/openstory/story/ui/StoryDetailViewModelTest.kt` | REWRITE | R4 `:feature:catalog` ViewModel |

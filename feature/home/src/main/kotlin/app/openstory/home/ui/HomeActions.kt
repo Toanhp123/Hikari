@@ -1,7 +1,7 @@
 package app.openstory.home.ui
 
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 
 data class HomeStorySelection(
     val storyId: StoryId,

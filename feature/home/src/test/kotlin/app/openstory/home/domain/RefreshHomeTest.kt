@@ -1,480 +1,55 @@
 package app.openstory.home.domain
 
-import app.openstory.catalog.source.CatalogSource
-import app.openstory.catalog.source.CatalogSourceRegistry
-import app.openstory.catalog.source.CatalogSourceResult
-import app.openstory.catalog.source.SourceContentType
-import app.openstory.catalog.source.SourceDetails
-import app.openstory.catalog.source.SourceFilter
-import app.openstory.catalog.source.SourceHomeRequest
-import app.openstory.catalog.source.SourceItem
-import app.openstory.catalog.source.SourceSearchPage
-import app.openstory.catalog.source.SourceSearchRequest
-import app.openstory.catalog.source.SourceSection
-import app.openstory.common.AppError
-import app.openstory.common.AppResult
-import app.openstory.common.dispatchers.FixedAppDispatchers
-import app.openstory.database.repository.CatalogRepository
-import app.openstory.home.model.HomeCatalogFreshness
-import app.openstory.matching.AggregateRanking
-import app.openstory.model.CatalogEntry
-import app.openstory.model.CatalogEntryId
-import app.openstory.model.CatalogEntryWithStory
-import app.openstory.model.CatalogHomeSection
-import app.openstory.model.CatalogHomeSnapshot
-import app.openstory.model.CatalogSnapshot
-import app.openstory.model.CatalogSourceMetadata
-import app.openstory.model.ContentType
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
+import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.repository.CatalogDetailsMutation
+import app.openstory.catalog.repository.CatalogHomeMutation
+import app.openstory.catalog.repository.CatalogMatchSnapshot
+import app.openstory.catalog.source.*
+import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.common.FakeClock
+import app.openstory.common.Outcome
+import app.openstory.common.id.PluginId
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.max
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class RefreshHomeTest {
     @Test
-    fun oneCatalogFailureStillPersistsSuccessfulCatalog() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val repository = FakeCatalogRepository()
-        val sources = FakeCatalogSourceRegistry(
-            listOf(
-                hosted("catalog.a", "2.3.4") { CatalogSourceResult.Success(homeSections("catalog.a")) },
-                hosted("catalog.b", "4.0.0") {
-                    CatalogSourceResult.Failure(
-                        app.openstory.catalog.source.CatalogSourceFailure("network.timeout", retryable = true),
-                    )
-                },
-            ),
-        )
-        val useCase = RefreshHome(
-            sources = sources,
-            mapper = CatalogSnapshotMapper(),
-            repository = repository,
-            dispatchers = FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-        )
-
-        val report = useCase()
-
-        assertEquals(setOf("catalog.a"), report.succeeded.map { it.value }.toSet())
-        assertEquals(setOf("catalog.b"), report.failed.keys.map { it.value }.toSet())
-        assertEquals(listOf("catalog.a"), repository.savedSnapshots.map { it.pluginId.value })
-        assertEquals("2.3.4", repository.savedSnapshots.single().pluginVersion)
-        assertFalse(report.freshness.getValue(PluginId("catalog.a")).stale)
-        assertTrue(report.freshness.getValue(PluginId("catalog.b")).stale)
-    }
-
-    @Test
-    fun failedCatalogReportsPreviousCachedTimestampWithoutReplacingIt() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val cached = cachedHome("catalog.b", refreshedAt = 42L)
-        val repository = FakeCatalogRepository(initialHomes = listOf(cached))
-        val sources = FakeCatalogSourceRegistry(
-            listOf(
-                hosted("catalog.b", "2.0.0") {
-                    CatalogSourceResult.Failure(
-                        app.openstory.catalog.source.CatalogSourceFailure("plugin.refresh_failed", retryable = false),
-                    )
-                },
-            ),
-        )
+    fun sourceFailureIsReportedWithoutWritingAHomeSnapshot() = runTest {
+        val plugin = PluginId("catalog.a")
+        val repository = EmptyCatalogRepository()
         val report = RefreshHome(
-            sources,
-            CatalogSnapshotMapper(),
-            repository,
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+            app.openstory.catalog.home.CatalogRefreshService(
+                SingleSourceRegistry(FailingSource(plugin)), repository, StoryMatcher(), FakeClock(100),
+            ), repository,
         )()
-
-        assertEquals(
-            HomeCatalogFreshness(refreshedAtEpochMillis = 42L, stale = true),
-            report.freshness.getValue(PluginId("catalog.b")),
-        )
-        assertEquals(cached, repository.observeCatalogHome(PluginId("catalog.b")).first())
-        assertTrue(repository.savedSnapshots.isEmpty())
-    }
-
-    @Test
-    fun thrownPluginFailureIsIsolatedFromSiblingCatalogs() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val repository = FakeCatalogRepository()
-        val sources = FakeCatalogSourceRegistry(
-            listOf(
-                hosted("catalog.throwing", "1.0.0") { error("fixture failure") },
-                hosted("catalog.ok", "1.0.0") { CatalogSourceResult.Success(homeSections("catalog.ok")) },
-            ),
-        )
-
-        val report = RefreshHome(
-            sources,
-            CatalogSnapshotMapper(),
-            repository,
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-        )()
-
-        assertEquals(setOf("catalog.ok"), report.succeeded.map { it.value }.toSet())
-        assertEquals("catalog.refresh_failed", report.failed.getValue(PluginId("catalog.throwing")).code)
-        assertEquals(listOf("catalog.ok"), repository.savedSnapshots.map { it.pluginId.value })
-    }
-
-    @Test
-    fun successfulCatalogPersistsBeforeSlowSiblingCompletes() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val releaseSlow = CompletableDeferred<Unit>()
-        val repository = FakeCatalogRepository()
-        val useCase = RefreshHome(
-            FakeCatalogSourceRegistry(
-                listOf(
-                    hosted("catalog.fast", "1.0.0") {
-                        CatalogSourceResult.Success(homeSections("catalog.fast"))
-                    },
-                    hosted("catalog.slow", "1.0.0") {
-                        releaseSlow.await()
-                        CatalogSourceResult.Success(homeSections("catalog.slow"))
-                    },
-                ),
-            ),
-            CatalogSnapshotMapper(),
-            repository,
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-        )
-
-        val refresh = async { useCase() }
-        runCurrent()
-
-        assertFalse(refresh.isCompleted)
-        assertEquals(listOf("catalog.fast"), repository.savedSnapshots.map { it.pluginId.value })
-
-        releaseSlow.complete(Unit)
-        refresh.await()
-        assertEquals(setOf("catalog.fast", "catalog.slow"), repository.savedSnapshots.map { it.pluginId.value }.toSet())
-    }
-
-    @Test
-    fun repositoryFailureReportsStaleCachedSnapshot() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val pluginId = PluginId("catalog.storage")
-        val cached = cachedHome(pluginId.value, refreshedAt = 77L)
-        val repository = FakeCatalogRepository(
-            initialHomes = listOf(cached),
-            ingestFailures = mapOf(
-                pluginId to AppError.Storage(code = "storage.write_failed", retryable = false),
-            ),
-        )
-        val useCase = RefreshHome(
-            FakeCatalogSourceRegistry(
-                listOf(
-                    hosted(pluginId.value, "2.0.0") {
-                        CatalogSourceResult.Success(homeSections(pluginId.value))
-                    },
-                ),
-            ),
-            CatalogSnapshotMapper(),
-            repository,
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-        )
-
-        val report = useCase()
-
-        assertEquals("storage.write_failed", report.failed.getValue(pluginId).code)
-        assertEquals(HomeCatalogFreshness(77L, stale = true), report.freshness.getValue(pluginId))
-        assertEquals(cached, repository.observeCatalogHome(pluginId).first())
-    }
-
-    @Test
-    fun refreshConcurrencyNeverExceedsConfiguredBound() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val release = CompletableDeferred<Unit>()
-        val active = AtomicInteger(0)
-        val maximum = AtomicInteger(0)
-        val plugins = (1..4).map { index ->
-            hosted("catalog.$index", "1.0.0") {
-                val nowActive = active.incrementAndGet()
-                maximum.updateAndGet { current -> max(current, nowActive) }
-                try {
-                    release.await()
-                    CatalogSourceResult.Success(homeSections("catalog.$index"))
-                } finally {
-                    active.decrementAndGet()
-                }
-            }
-        }
-        val useCase = RefreshHome(
-            FakeCatalogSourceRegistry(plugins),
-            CatalogSnapshotMapper(),
-            FakeCatalogRepository(),
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-            maxConcurrentCatalogs = 2,
-        )
-
-        val refresh = async { useCase() }
-        runCurrent()
-        assertEquals(2, maximum.get())
-        release.complete(Unit)
-        refresh.await()
-        assertEquals(2, maximum.get())
-    }
-
-    @Test
-    fun cachedCombinedHomeExcludesDisabledCatalogSnapshots() = runTest {
-        val repository = FakeCatalogRepository(
-            initialHomes = listOf(
-                cachedHome(
-                    "catalog.enabled",
-                    refreshedAt = 10L,
-                    storyId = "story-enabled",
-                    sectionTitle = "Enabled",
-                    score = 8.0,
-                    scale = 10.0,
-                ),
-                cachedHome(
-                    "catalog.disabled",
-                    refreshedAt = 20L,
-                    storyId = "story-disabled",
-                    sectionTitle = "Disabled",
-                    score = 9.0,
-                    scale = 10.0,
-                ),
-            ),
-        )
-        val observe = ObserveCombinedHome(
-            repository = repository,
-            ranking = AggregateRanking(),
-            enabledCatalogIds = { setOf(PluginId("catalog.enabled")) },
-        )
-
-        val home = observe().first()
-
-        assertEquals(listOf("catalog.enabled"), home.catalogs.map { it.pluginId.value })
-        assertEquals(
-            setOf("catalog.enabled"),
-            home.combined.flatMap { combined -> combined.sources }.map { it.pluginId.value }.toSet(),
-        )
-    }
-
-    @Test
-    fun cachedCombinedHomeEmitsWhileNetworkRefreshIsStillSuspended() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val release = CompletableDeferred<Unit>()
-        val repository = FakeCatalogRepository(
-            initialHomes = listOf(
-                cachedHome(
-                    "catalog.a",
-                    refreshedAt = 10L,
-                    storyId = "story-shared",
-                    sectionTitle = "Trending",
-                    score = 8.0,
-                    scale = 10.0,
-                ),
-                cachedHome(
-                    "catalog.b",
-                    refreshedAt = 20L,
-                    storyId = "story-shared",
-                    sectionTitle = "Popular",
-                    score = 90.0,
-                    scale = 100.0,
-                ),
-            ),
-        )
-        val refresh = RefreshHome(
-            FakeCatalogSourceRegistry(
-                listOf(
-                    hosted("catalog.a", "2.0.0") {
-                        release.await()
-                        CatalogSourceResult.Success(homeSections("catalog.a"))
-                    },
-                ),
-            ),
-            CatalogSnapshotMapper(),
-            repository,
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-        )
-        val observe = ObserveCombinedHome(
-            repository = repository,
-            ranking = AggregateRanking(),
-            enabledCatalogIds = { setOf(PluginId("catalog.a"), PluginId("catalog.b")) },
-        )
-
-        val refreshJob = async { refresh() }
-        runCurrent()
-        val cached = observe().first()
-
-        assertFalse(refreshJob.isCompleted)
-        assertEquals(1, cached.combined.size)
-        val combined = cached.combined.single()
-        assertEquals(StoryId("story-shared"), combined.storyId)
-        assertEquals(setOf("catalog.a", "catalog.b"), combined.sources.map { it.pluginId.value }.toSet())
-        assertEquals(setOf("Trending", "Popular"), combined.sources.flatMap { it.sections }.map { it.title }.toSet())
-        assertEquals(setOf(10.0, 100.0), combined.sources.mapNotNull { it.scoreScale }.toSet())
-        assertEquals(2, cached.catalogs.size)
-
-        release.complete(Unit)
-        refreshJob.await()
+        assertEquals(listOf(plugin), report.failed.keys.toList())
+        assertEquals(emptyList(), report.succeeded)
     }
 }
 
-private class FakeCatalogSourceRegistry(
-    private val catalogs: List<CatalogSource>,
-) : CatalogSourceRegistry {
-    override suspend fun source(pluginId: PluginId): CatalogSource? = catalogs.singleOrNull { it.pluginId == pluginId }
-    override suspend fun enabled(): List<CatalogSource> = catalogs
+private class FailingSource(override val pluginId: PluginId) : CatalogSource {
+    override val version = "1.0.0"
+    override suspend fun home(request: SourceHomeRequest) = CatalogSourceResult.Failure(CatalogSourceFailure("catalog.unavailable", true))
+    override suspend fun search(request: SourceSearchRequest) = CatalogSourceResult.Failure(CatalogSourceFailure("unused", false))
+    override suspend fun details(sourceId: String) = CatalogSourceResult.Failure(CatalogSourceFailure("unused", false))
+    override suspend fun filters() = CatalogSourceResult.Success(emptyList<SourceFilter>())
 }
 
-private fun hosted(
-    id: String,
-    version: String,
-    home: suspend () -> CatalogSourceResult<List<SourceSection>>,
-): CatalogSource = object : CatalogSource {
-    override val pluginId = PluginId(id)
-    override val version = version
-    override suspend fun home(request: SourceHomeRequest) = home()
-    override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> =
-        CatalogSourceResult.Success(SourceSearchPage(emptyList(), null))
-    override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> = error("Not used")
-    override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = CatalogSourceResult.Success(emptyList())
+private class SingleSourceRegistry(private val sourceValue: CatalogSource) : CatalogSourceRegistry {
+    override suspend fun enabled() = listOf(sourceValue)
+    override suspend fun source(pluginId: PluginId) = sourceValue.takeIf { it.pluginId == pluginId }
 }
 
-private fun homeSections(pluginId: String): List<SourceSection> = listOf(
-    SourceSection(
-        sourceId = "home",
-        title = "Home",
-        items = listOf(
-            SourceItem(
-                sourceId = "$pluginId-story",
-                title = "$pluginId Story",
-                contentType = SourceContentType.WEB_NOVEL,
-                authors = setOf("Author"),
-                coverUrl = null,
-                scoreValue = 8.0,
-                scoreScale = 10.0,
-            ),
-        ),
-    ),
-)
-
-private class FakeCatalogRepository(
-    initialHomes: List<CatalogHomeSnapshot> = emptyList(),
-    private val ingestFailures: Map<PluginId, AppError> = emptyMap(),
-) : CatalogRepository {
-    private val homes = MutableStateFlow(initialHomes)
-    val savedSnapshots = mutableListOf<CatalogSnapshot>()
-    private var nextTimestamp = 100L
-
-    override suspend fun ingest(snapshot: CatalogSnapshot): AppResult<Unit> {
-        ingestFailures[snapshot.pluginId]?.let { return AppResult.Failure(it) }
-        savedSnapshots += snapshot
-        val home = snapshot.toCachedHome(nextTimestamp++)
-        homes.value = homes.value.filterNot { it.pluginId == snapshot.pluginId } + home
-        return AppResult.Success(Unit)
-    }
-
-    override suspend fun upsertSourceMetadata(
-        pluginId: PluginId,
-        pluginVersion: String,
-        metadata: CatalogSourceMetadata,
-    ): AppResult<CatalogEntryWithStory> = error("Not used")
-
-    override suspend fun catalogEntry(
-        pluginId: PluginId,
-        sourceId: String,
-    ): AppResult<CatalogEntryWithStory?> = error("Not used")
-
-    override fun observeCatalogHome(pluginId: PluginId): Flow<CatalogHomeSnapshot?> =
-        homes.map { current -> current.firstOrNull { it.pluginId == pluginId } }
-
-    override fun observeCatalogHomes(): Flow<List<CatalogHomeSnapshot>> = homes
+private class EmptyCatalogRepository : CatalogRepository {
+    override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = flowOf(emptyList())
+    override fun observeStory(storyId: app.openstory.common.id.StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
+    override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+    override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
+    override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<app.openstory.common.id.StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
 }
-
-private fun CatalogSnapshot.toCachedHome(timestamp: Long): CatalogHomeSnapshot = CatalogHomeSnapshot(
-    pluginId = pluginId,
-    pluginVersion = pluginVersion,
-    refreshedAtEpochMillis = timestamp,
-    sections = sections.map { section ->
-        CatalogHomeSection(
-            sourceId = section.sourceId,
-            title = section.title,
-            items = section.items.map { item ->
-                CatalogEntryWithStory(
-                    storyId = StoryId("story:${pluginId.value}:${item.sourceId}"),
-                    entry = catalogEntry(
-                        pluginId = pluginId.value,
-                        version = pluginVersion,
-                        sourceId = item.sourceId,
-                        storyTitle = item.title,
-                        score = item.score,
-                        scale = item.scoreScale,
-                    ),
-                )
-            },
-        )
-    },
-)
-
-private fun cachedHome(
-    pluginId: String,
-    refreshedAt: Long,
-    storyId: String = "story-$pluginId",
-    sectionTitle: String = "Home",
-    score: Double? = 8.0,
-    scale: Double? = 10.0,
-): CatalogHomeSnapshot {
-    val plugin = PluginId(pluginId)
-    val sourceId = "source-$pluginId"
-    return CatalogHomeSnapshot(
-        pluginId = plugin,
-        pluginVersion = "1.0.0",
-        refreshedAtEpochMillis = refreshedAt,
-        sections = listOf(
-            CatalogHomeSection(
-                sourceId = "section-$pluginId",
-                title = sectionTitle,
-                items = listOf(
-                    CatalogEntryWithStory(
-                        storyId = StoryId(storyId),
-                        entry = catalogEntry(pluginId, "1.0.0", sourceId, "$pluginId Story", score, scale),
-                    ),
-                ),
-            ),
-        ),
-    )
-}
-
-private fun catalogEntry(
-    pluginId: String,
-    version: String,
-    sourceId: String,
-    storyTitle: String,
-    score: Double?,
-    scale: Double?,
-) = CatalogEntry(
-    id = CatalogEntryId("$pluginId:$sourceId"),
-    catalogPluginId = PluginId(pluginId),
-    externalStoryId = sourceId,
-    sourceUrl = null,
-    title = storyTitle,
-    aliases = emptySet(),
-    authors = setOf("Author"),
-    description = null,
-    genres = emptySet(),
-    contentType = ContentType.WEB_NOVEL,
-    languageTags = emptySet(),
-    coverReference = null,
-    publicationStatus = null,
-    score = score,
-    scoreScale = scale,
-    popularityRank = null,
-    pluginVersion = version,
-    fetchedAtEpochMillis = 1L,
-)

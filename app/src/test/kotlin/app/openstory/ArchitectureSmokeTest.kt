@@ -9,20 +9,10 @@ class ArchitectureSmokeTest {
     private val root = File("..").canonicalFile
 
     @Test
-    fun coreModelStaysPlatformIndependent() {
-        val source = File(root, "core/model/src/main")
-            .walkTopDown()
-            .filter { file -> file.isFile && file.extension == "kt" }
-            .joinToString(separator = "\n") { file -> file.readText() }
-
-        assertFalse(
-            "android." in source,
-            "core:model must not import Android APIs",
-        )
-        assertFalse(
-            "androidx.compose" in source,
-            "core:model must not import Compose APIs",
-        )
+    fun legacyCoreModulesAreDeletedAfterCatalogCutover() {
+        listOf("core/model", "core/matching", "core/database").forEach { module ->
+            assertFalse(File(root, module).exists(), "Legacy module must be deleted: $module")
+        }
     }
 
     @Test
@@ -104,7 +94,7 @@ class ArchitectureSmokeTest {
             "./scripts/instrumentation/android.sh 26",
             "./scripts/instrumentation/android.sh 37",
             "wave-01-checkpoint:",
-            "core/database/build/reports",
+            "storage/room/build/reports",
             "plugins/api/build/reports",
             "plugins/runtime/build/reports",
             "catalog/build/reports",

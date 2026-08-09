@@ -23,8 +23,8 @@ import app.openstory.home.ui.HomeViewModel
 import app.openstory.home.ui.SearchScreen
 import app.openstory.home.ui.SearchStorySelection
 import app.openstory.home.ui.SearchViewModel
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import app.openstory.story.ui.StoryDetailRequest
 import app.openstory.story.ui.StoryDetailScreen
 import app.openstory.story.ui.StoryDetailViewModel

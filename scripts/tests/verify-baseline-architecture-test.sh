@@ -6,8 +6,8 @@ TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 FAKE_ROOT="$TEMP_DIR/repository"
-DATABASE_SOURCE="$FAKE_ROOT/core/database/src/main/kotlin/app/openstory/database/OpenStoryDatabase.kt"
-SCHEMA_DIR="$FAKE_ROOT/core/database/schemas/app.openstory.database.OpenStoryDatabase"
+DATABASE_SOURCE="$FAKE_ROOT/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
+SCHEMA_DIR="$FAKE_ROOT/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase"
 ASSET_DIR="$FAKE_ROOT/app/src/main/assets/plugins"
 
 mkdir -p "$(dirname "$DATABASE_SOURCE")" "$SCHEMA_DIR" "$ASSET_DIR"

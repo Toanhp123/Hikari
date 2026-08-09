@@ -20,7 +20,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.openstory.home.model.HomeCombinedCard
-import app.openstory.model.PluginId
+import app.openstory.common.id.PluginId
 
 @Composable
 fun HomeScreen(

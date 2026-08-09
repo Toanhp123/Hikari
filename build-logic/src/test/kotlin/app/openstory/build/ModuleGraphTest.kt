@@ -72,9 +72,6 @@ class ModuleGraphTest {
         val expectedModules = setOf(
             ":app",
             ":core:common",
-            ":core:model",
-            ":core:database",
-            ":core:matching",
             ":feature:home",
             ":feature:story",
             ":test:fixtures",
@@ -135,9 +132,6 @@ class ModuleGraphTest {
         val expectedPlugins = mapOf(
             "../app/build.gradle.kts" to "id(\"openstory.android.application\")",
             "../core/common/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/model/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/database/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../core/matching/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../feature/home/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../feature/story/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",

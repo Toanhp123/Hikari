@@ -4,7 +4,8 @@ plugins {
 
 dependencies {
     api(project(":core:common"))
-    api(project(":core:model"))
+    api(project(":core:common"))
+    api(project(":catalog"))
 
     testImplementation(libs.junit)
 }

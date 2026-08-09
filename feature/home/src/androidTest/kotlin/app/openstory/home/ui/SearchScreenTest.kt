@@ -7,7 +7,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import app.openstory.home.domain.SearchCatalogFilters
 import app.openstory.home.domain.SearchRangeFilterDefinition
 import app.openstory.home.domain.SearchResultPage
-import app.openstory.model.PluginId
+import app.openstory.common.id.PluginId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import org.junit.Rule

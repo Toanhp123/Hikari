@@ -31,8 +31,8 @@ import app.openstory.home.domain.SearchRangeFilterDefinition
 import app.openstory.home.domain.SearchResultCard
 import app.openstory.home.domain.SearchResultSource
 import app.openstory.home.domain.SearchTextFilterDefinition
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import java.math.BigDecimal
 import kotlin.math.round
 import kotlin.math.roundToInt

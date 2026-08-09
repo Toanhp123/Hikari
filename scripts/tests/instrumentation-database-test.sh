@@ -44,7 +44,7 @@ PATH="$FAKE_BIN:$PATH" \
 GRADLEW="$TEMP_DIR/fake-gradlew" \
   "$ROOT_DIR/scripts/instrumentation/database.sh" 26 >/dev/null
 
-grep -q ':core:database:connectedDebugAndroidTest' "$GRADLE_LOG"
+grep -q ':storage:room:connectedDebugAndroidTest' "$GRADLE_LOG"
 
 set +e
 PATH="$FAKE_BIN:$PATH" \

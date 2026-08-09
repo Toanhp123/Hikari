@@ -6,7 +6,7 @@ import app.openstory.home.domain.RefreshHome
 import app.openstory.home.model.HomeCatalog
 import app.openstory.home.model.HomeRefreshReport
 import app.openstory.home.model.HomeUiModel
-import app.openstory.model.PluginId
+import app.openstory.common.id.PluginId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

@@ -18,9 +18,9 @@ fi
 [[ ! -f "$ROOT_DIR/config/detekt/baseline.xml" ]] ||
   fail "Detekt baseline debt is forbidden."
 
-if [[ -d "$ROOT_DIR/core/database/src/main" ]] &&
+if [[ -d "$ROOT_DIR/storage/room/src/main" ]] &&
   grep -R -n -E '^import app\.openstory\.plugin\.host\.install\.' \
-    "$ROOT_DIR/core/database/src/main" >/dev/null; then
+    "$ROOT_DIR/storage/room/src/main" >/dev/null; then
   fail "Database production source imports plugin installer internals."
 fi
 

@@ -38,10 +38,7 @@ rootProject.name = "Hikari"
 
 include(":app")
 include(":core:common")
-include(":core:model")
 include(":test:fixtures")
-include(":core:database")
-include(":core:matching")
 include(":feature:home")
 include(":feature:story")
 include(":catalog")

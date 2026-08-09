@@ -19,9 +19,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.openstory.model.ContentType
-import app.openstory.model.PluginId
-import app.openstory.model.StoryId
+import app.openstory.catalog.model.ContentType
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 
 interface HomeCoverRenderer {
     @Composable

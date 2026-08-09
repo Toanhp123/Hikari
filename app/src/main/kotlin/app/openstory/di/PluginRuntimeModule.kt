@@ -4,9 +4,6 @@ import android.content.Context
 import app.openstory.BuildConfig
 import app.openstory.catalog.source.CatalogSourceRegistry
 import app.openstory.catalog.source.PluginCatalogSourceRegistry
-import app.openstory.database.OpenStoryDatabase
-import app.openstory.database.repository.RoomPluginDiagnosticsSink
-import app.openstory.database.repository.RoomPluginStateStore
 import app.openstory.plugins.runtime.DefaultPluginRuntime
 import app.openstory.plugins.runtime.PluginRuntime
 import app.openstory.plugins.runtime.capabilities.CapabilityBroker
@@ -23,6 +20,9 @@ import app.openstory.plugins.runtime.install.TransactionalPluginPackageStorage
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 import app.openstory.plugins.runtime.update.PluginUpdateService
+import app.openstory.storage.room.OpenStoryDatabase
+import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
+import app.openstory.storage.room.plugins.RoomPluginStateStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

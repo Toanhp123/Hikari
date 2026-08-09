@@ -13,10 +13,7 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
-    implementation(project(":core:model"))
-    implementation(project(":core:database"))
     implementation(project(":catalog"))
-    implementation(project(":core:matching"))
     implementation(libs.kotlinx.coroutines.core)
 
     implementation(platform(libs.androidx.compose.bom))

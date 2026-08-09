@@ -120,7 +120,6 @@ private fun StorySourceCard(source: StoryDetailSource) {
         }
         source.sourceUrl?.let { url -> Text(url, style = MaterialTheme.typography.bodySmall) }
         Text(sourceScoreLabel(source), style = MaterialTheme.typography.bodySmall)
-        Text("Fetched ${source.fetchedAtEpochMillis}", style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -140,6 +139,4 @@ private fun sourceSemantics(source: StoryDetailSource): String = buildString {
     append(source.pluginId.value)
     append(", ")
     append(sourceScoreLabel(source))
-    append(", fetched ")
-    append(source.fetchedAtEpochMillis)
 }

@@ -1,43 +1,35 @@
 package app.openstory.home.domain
 
-import app.openstory.catalog.source.CatalogSource
-import app.openstory.catalog.source.SourceContentType
-import app.openstory.catalog.source.SourceSection
-import app.openstory.model.CatalogSnapshot
-import app.openstory.model.CatalogSnapshotItem
-import app.openstory.model.CatalogSnapshotSection
-import app.openstory.model.ContentType
+import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.home.model.HomeCatalog
+import app.openstory.home.model.HomeCatalogCard
+import app.openstory.home.model.HomeCatalogSection
 
 class CatalogSnapshotMapper {
-    internal fun map(
-        source: CatalogSource,
-        sections: List<SourceSection>,
-    ): CatalogSnapshot = CatalogSnapshot(
-        pluginId = source.pluginId,
-        pluginVersion = source.version,
-        sections = sections.map { section ->
-            CatalogSnapshotSection(
+    internal fun map(snapshot: CatalogHomeSnapshot): HomeCatalog = HomeCatalog(
+        pluginId = snapshot.pluginId,
+        pluginVersion = snapshot.pluginVersion,
+        refreshedAtEpochMillis = snapshot.refreshedAtEpochMillis,
+        sections = snapshot.sections.map { section ->
+            HomeCatalogSection(
                 sourceId = section.sourceId,
                 title = section.title,
-                items = section.items.map { card ->
-                    CatalogSnapshotItem(
-                        sourceId = card.sourceId,
-                        title = card.title,
-                        contentType = card.contentType.toModel(),
-                        authors = card.authors.toList(),
-                        coverReference = card.coverUrl,
-                        score = card.scoreValue,
-                        scoreScale = card.scoreScale,
+                items = section.items.map { entry ->
+                    HomeCatalogCard(
+                        storyId = entry.storyId,
+                        pluginId = entry.pluginId,
+                        pluginVersion = snapshot.pluginVersion,
+                        sourceId = entry.sourceId,
+                        title = entry.title,
+                        contentType = entry.contentType,
+                        authors = entry.authors,
+                        coverReference = entry.coverUrl,
+                        score = entry.score?.value,
+                        scoreScale = entry.score?.scale,
+                        fetchedAtEpochMillis = snapshot.refreshedAtEpochMillis,
                     )
                 },
             )
         },
     )
-}
-
-internal fun SourceContentType.toModel(): ContentType = when (this) {
-    SourceContentType.LIGHT_NOVEL -> ContentType.LIGHT_NOVEL
-    SourceContentType.WEB_NOVEL -> ContentType.WEB_NOVEL
-    SourceContentType.MANGA -> ContentType.MANGA
-    SourceContentType.ANIME -> ContentType.ANIME
 }
