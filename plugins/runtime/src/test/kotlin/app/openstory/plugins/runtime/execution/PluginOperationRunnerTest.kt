@@ -8,11 +8,8 @@ import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.manifest.NetworkCapability
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.PluginCallResult
-import app.openstory.plugins.runtime.capabilities.CapabilityBroker
-import app.openstory.plugins.runtime.capabilities.html.HtmlCapability
-import app.openstory.plugins.runtime.capabilities.http.PluginHttpCapability
+import app.openstory.plugins.runtime.capabilities.CapabilityDispatcher
 import app.openstory.plugins.runtime.capabilities.http.PluginHttpRequest
-import app.openstory.plugins.runtime.capabilities.log.SafePluginLogger
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticEvent
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import kotlin.test.Test
@@ -23,14 +20,13 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import okhttp3.OkHttpClient
 
 class PluginOperationRunnerTest {
     @Test
     fun operationWithoutNetworkCapabilityCanExecute() = runTest {
         val diagnostics = MemoryDiagnosticsSink()
         val engine = JavaScriptEngine { _, _, _, _, _ -> "{\"sections\":[]}" }
-        val runner = PluginOperationRunner(engine, broker(diagnostics), diagnostics)
+        val runner = PluginOperationRunner(engine, broker(), diagnostics)
 
         val result = runner.run(
             PluginId("org.example.plugin"),
@@ -133,7 +129,7 @@ class PluginOperationRunnerTest {
         engine: JavaScriptEngine,
         diagnostics: PluginDiagnosticsSink,
         limits: RuntimeLimits = RuntimeLimits(),
-    ) = PluginOperationRunner(engine, broker(diagnostics), diagnostics, limits)
+    ) = PluginOperationRunner(engine, broker(), diagnostics, limits)
 
     private fun bridgeFailureEngine(
         method: String,
@@ -147,11 +143,13 @@ class PluginOperationRunnerTest {
         throw JavaScriptExecutionFailure(checkNotNull(response.error).code)
     }
 
-    private fun broker(diagnostics: PluginDiagnosticsSink) = CapabilityBroker(
-        PluginHttpCapability(OkHttpClient()),
-        HtmlCapability(),
-        SafePluginLogger(diagnostics),
-    )
+    private fun broker(): CapabilityDispatcher =
+        CapabilityDispatcher { _, _, method, _, _ ->
+            when (method) {
+                "http.execute" -> PluginCallResult.Failure("plugin.http_domain_denied", false)
+                else -> PluginCallResult.Failure("plugin.capability_denied", false)
+            }
+        }
 
     private fun manifestWithoutNetwork() = PluginManifest(
         id = "org.example.plugin",

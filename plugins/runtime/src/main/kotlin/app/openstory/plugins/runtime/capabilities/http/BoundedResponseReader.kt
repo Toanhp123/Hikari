@@ -33,6 +33,8 @@ internal object BoundedResponseReader {
     private fun propagateReadFailure(failure: IOException): Nothing =
         throw if (failure is ResponseBudgetExceeded) {
             failure
+        } else if (failure is CompressedResponseBudgetExceeded) {
+            failure
         } else {
             HttpCapabilityFailure("plugin.http_read_failed", retryable = true, failure)
         }

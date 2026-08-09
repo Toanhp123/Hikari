@@ -45,6 +45,14 @@ class PluginHttpCapabilityTest {
         }
     }
 
+    @Test
+    fun compressedResponseStreamIsBoundedBeforeTransparentDecode() {
+        val body = CompressedLimitResponseBody("x".repeat(1024).toResponseBody(), 32)
+        assertFailsWith<CompressedResponseBudgetExceeded> {
+            body.bytes()
+        }
+    }
+
     private fun capability() = PluginHttpCapability(OkHttpClient())
 
     private fun policy(hosts: Set<String>, responseBytes: Long = 1024) = PluginRequestPolicy(

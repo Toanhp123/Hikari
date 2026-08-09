@@ -9,9 +9,16 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.buffer
 
 @Serializable
 data class PluginHttpRequest(
@@ -34,6 +41,7 @@ class PluginHttpCapability(
     private val client = client.newBuilder()
         .followRedirects(false)
         .followSslRedirects(false)
+        .addNetworkInterceptor(CompressedLimitInterceptor())
         .build()
 
     suspend fun execute(
@@ -47,6 +55,8 @@ class PluginHttpCapability(
         throw failure
     } catch (failure: HttpCapabilityFailure) {
         PluginCallResult.Failure(failure.code, failure.retryable)
+    } catch (_: CompressedResponseBudgetExceeded) {
+        PluginCallResult.Failure("plugin.http_compressed_response_too_large", retryable = false)
     } catch (_: ResponseBudgetExceeded) {
         PluginCallResult.Failure("plugin.http_response_too_large", retryable = false)
     } catch (_: IOException) {
@@ -74,7 +84,14 @@ class PluginHttpCapability(
             requests++
             if (requests > policy.maxRequests) throw HttpCapabilityFailure("plugin.http_request_budget_exceeded")
             val uri = requireAllowedUrl(current.url, policy.allowedHosts)
-            val response = client.newCall(buildRequest(current, policy, uri.host.lowercase())).execute()
+            val response = client.newCall(
+                buildRequest(current, policy, uri.host.lowercase()) {
+                    tag(
+                        CompressedByteLimit::class.java,
+                        CompressedByteLimit(policy.maxCompressedResponseBytes),
+                    )
+                },
+            ).execute()
             response.use {
                 if (it.isRedirect) {
                     redirects++
@@ -87,8 +104,6 @@ class PluginHttpCapability(
                     requireAllowedUrl(resolved, policy.allowedHosts)
                     current = PluginHttpRequest(url = resolved)
                 } else {
-                    val length = it.body.contentLength()
-                    if (length > policy.maxCompressedResponseBytes) throw ResponseBudgetExceeded()
                     val bytes = BoundedResponseReader.read(it.body, policy.maxDecompressedResponseBytes)
                     return@withContext PluginCallResult.Success(
                         PluginHttpResponse(it.code, bytes.toString(Charsets.UTF_8)),
@@ -104,6 +119,7 @@ class PluginHttpCapability(
         source: PluginHttpRequest,
         policy: PluginRequestPolicy,
         host: String,
+        customize: Request.Builder.() -> Unit = {},
     ): Request {
         val bodyBytes = source.body?.encodeToByteArray()
         if ((bodyBytes?.size ?: 0) > policy.maxRequestBytes) {
@@ -116,6 +132,7 @@ class PluginHttpCapability(
         credentials.headers(policy.pluginId, host).forEach(builder::header)
         val body = bodyBytes?.toRequestBody(source.headers["Content-Type"]?.toMediaTypeOrNull())
         builder.method(source.method.uppercase(), body)
+        builder.customize()
         return builder.build()
     }
 
@@ -138,6 +155,53 @@ class PluginHttpCapability(
         val FORBIDDEN_SCRIPT_HEADERS = setOf("authorization", "cookie", "proxy-authorization")
     }
 }
+
+private data class CompressedByteLimit(val maxBytes: Long)
+
+private class CompressedLimitInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val response = chain.proceed(chain.request())
+        val limit = chain.request().tag(CompressedByteLimit::class.java)?.maxBytes
+        return if (limit == null) response else limitResponse(response, limit)
+    }
+
+    private fun limitResponse(response: Response, limit: Long): Response {
+        val body = response.body
+        if (body.contentLength() > limit) {
+            response.close()
+            throw CompressedResponseBudgetExceeded()
+        }
+        return response.newBuilder().body(CompressedLimitResponseBody(body, limit)).build()
+    }
+}
+
+internal class CompressedLimitResponseBody(
+    private val delegate: ResponseBody,
+    private val maxBytes: Long,
+) : ResponseBody() {
+    private val limitedSource: BufferedSource by lazy {
+        object : ForwardingSource(delegate.source()) {
+            private var totalBytes = 0L
+
+            override fun read(sink: Buffer, byteCount: Long): Long {
+                val read = super.read(sink, byteCount)
+                if (read > 0) {
+                    totalBytes += read
+                    if (totalBytes > maxBytes) throw CompressedResponseBudgetExceeded()
+                }
+                return read
+            }
+        }.buffer()
+    }
+
+    override fun contentType() = delegate.contentType()
+
+    override fun contentLength() = delegate.contentLength()
+
+    override fun source(): BufferedSource = limitedSource
+}
+
+internal class CompressedResponseBudgetExceeded : IOException()
 
 internal class HttpCapabilityFailure(
     val code: String,

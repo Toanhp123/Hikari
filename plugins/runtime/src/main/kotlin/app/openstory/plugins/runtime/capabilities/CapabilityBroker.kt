@@ -14,13 +14,23 @@ import app.openstory.plugins.runtime.capabilities.log.SafePluginLogger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
+fun interface CapabilityDispatcher {
+    suspend fun dispatch(
+        pluginId: PluginId,
+        operation: String?,
+        method: String,
+        payload: JsonElement,
+        requestPolicy: PluginRequestPolicy,
+    ): PluginCallResult<JsonElement>
+}
+
 class CapabilityBroker(
     private val http: PluginHttpCapability,
     private val html: HtmlCapability,
     private val logger: SafePluginLogger,
     private val json: Json = Json,
-) {
-    suspend fun dispatch(
+) : CapabilityDispatcher {
+    override suspend fun dispatch(
         pluginId: PluginId,
         operation: String?,
         method: String,

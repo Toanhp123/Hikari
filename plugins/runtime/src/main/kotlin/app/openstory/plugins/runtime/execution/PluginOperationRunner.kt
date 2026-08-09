@@ -5,7 +5,7 @@ import app.openstory.plugins.api.manifest.PluginManifest
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.PluginProtocolValidator
 import app.openstory.plugins.runtime.PluginCallResult
-import app.openstory.plugins.runtime.capabilities.CapabilityBroker
+import app.openstory.plugins.runtime.capabilities.CapabilityDispatcher
 import app.openstory.plugins.runtime.capabilities.http.PluginRequestPolicy
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticEvent
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
@@ -18,7 +18,7 @@ import kotlinx.serialization.json.JsonElement
 
 class PluginOperationRunner(
     private val engine: JavaScriptEngine,
-    private val capabilities: CapabilityBroker,
+    private val capabilities: CapabilityDispatcher,
     private val diagnostics: PluginDiagnosticsSink,
     private val limits: RuntimeLimits = RuntimeLimits(),
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
