@@ -131,7 +131,13 @@ At every R0-R6 boundary:
 4. run the checkpoint's architecture/source-layout gate;
 5. record actual commands/results in the checkpoint evidence file;
 6. update `docs/project/current-state.md` only after the checkpoint is accepted;
-7. commit the checkpoint state before starting the next plan.
+7. perform one final deep review of the checkpoint state (ownership, boundaries,
+   behavior, documentation, and test gaps) and fix findings in the same checkpoint;
+8. commit the checkpoint state before starting the next plan.
+
+The deep review is intentionally a single end-of-checkpoint pass. It does not add
+review/test cycles between individual tasks unless a task is blocked or the focused
+gate exposes a failure.
 
 ## Final Acceptance Contract
 
