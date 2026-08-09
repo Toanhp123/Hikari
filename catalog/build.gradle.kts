@@ -5,7 +5,6 @@ plugins {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":plugins:api"))
-    implementation(project(":plugins:runtime"))
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(kotlin("test-junit"))

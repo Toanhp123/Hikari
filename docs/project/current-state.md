@@ -7,7 +7,7 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: approved Android-only, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current Gradle modules: 11.
+- Current Gradle modules: 16 during the Baseline 2 parallel-replacement transition.
 - Wave 01-03 implementation is present.
 - Wave 04 Tasks 01-06 implementation is present.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
@@ -15,8 +15,8 @@ Purpose: single source of truth for the implemented repository boundary.
   instrumentation evidence.
 - Wave 05 Tasks 01-06 implementation is present.
 - Wave 05 Tasks 01-06 verification is accepted by the Wave 05 checkpoint.
-- Architecture Baseline 2 R0: **ACCEPTED**.
-- Current active boundary: **Architecture Baseline 2 - R1 Foundation and Module Graph**.
+- Architecture Baseline 2 R1: **ACCEPTED**.
+- Current active boundary: **R2 - Plugin Subsystem VNext**.
 - Wave 06 is frozen until Architecture Baseline 2 R6 is accepted.
 - The Wave 05 checkpoint remains historical evidence, not a compatibility requirement.
 
