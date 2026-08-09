@@ -7,22 +7,46 @@ import java.security.MessageDigest
 
 class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
     fun resolve(source: CatalogMatchCandidate, candidates: List<CatalogMatchCandidate>): StoryResolution {
-        val direct = candidates.firstOrNull { it.sourceKeys.intersect(source.sourceKeys).isNotEmpty() }
-        if (direct != null) return StoryResolution.Existing(direct.story.id)
+        val direct = candidates
+            .filter { it.sourceKeys.intersect(source.sourceKeys).isNotEmpty() }
+            .minByOrNull { it.story.id.value }
+        return direct?.let { StoryResolution.Existing(it.story.id) }
+            ?: resolveByEvidence(source, candidates)
+    }
 
-        val ranked = candidates.map { compare(source, it) }
-            .sortedWith(compareBy<CatalogMatchResult> { it.decision.ordinal }.thenByDescending { it.score }.thenBy { it.storyId.value })
+    private fun resolveByEvidence(
+        source: CatalogMatchCandidate,
+        candidates: List<CatalogMatchCandidate>,
+    ): StoryResolution {
+        val ranked = candidates.map { compare(source, it) }.sortedWith(matchOrdering)
         val best = ranked.firstOrNull()
-        val second = ranked.drop(1).firstOrNull { it.decision == MergeDecision.AUTO_LINK }
-        if (best != null && best.decision == MergeDecision.AUTO_LINK &&
-            (second == null || best.score - second.score >= policy.minimumAutoLinkLead)
-        ) return StoryResolution.Existing(best.storyId)
+        val second = ranked.drop(1).firstOrNull {
+            it.decision == MergeDecision.AUTO_LINK
+        }
+        val accepted = best?.takeIf { candidate ->
+            candidate.decision == MergeDecision.AUTO_LINK && hasSufficientLead(candidate, second)
+        }
+        return accepted?.let { StoryResolution.Existing(it.storyId) }
+            ?: createStory(source, candidates)
+    }
 
+    private fun hasSufficientLead(
+        best: CatalogMatchResult,
+        second: CatalogMatchResult?,
+    ): Boolean = second == null || best.score - second.score >= policy.minimumAutoLinkLead
+
+    private fun createStory(
+        source: CatalogMatchCandidate,
+        candidates: List<CatalogMatchCandidate>,
+    ): StoryResolution.Create {
         val semantic = listOf(
             source.story.contentType.name,
-            source.titles.map(TitleNormalizer::normalize).filter(String::isNotBlank).sorted().joinToString("|"),
-            source.authors.map(TitleNormalizer::normalize).filter(String::isNotBlank).sorted().joinToString("|"),
-            source.sourceKeys.map { "${it.pluginId.value}:${it.sourceId}" }.sorted().joinToString("|"),
+            source.titles.normalizedSignature(),
+            source.authors.normalizedSignature(),
+            source.sourceKeys
+                .map { "${it.pluginId.value}:${it.sourceId}" }
+                .sorted()
+                .joinToString("|"),
         ).joinToString("#")
         val base = "catalog:${digest(semantic)}"
         val id = generateSequence(1) { it + 1 }
@@ -32,8 +56,15 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
     }
 
     fun compare(source: CatalogMatchCandidate, candidate: CatalogMatchCandidate): CatalogMatchResult {
-        val title = candidate.titles.map { it to source.titles.maxOf { sourceTitle -> TitleNormalizer.similarity(sourceTitle, it) } }
-            .maxWithOrNull(compareBy<Pair<String, Double>> { it.second }.thenByDescending { TitleNormalizer.normalize(it.first) })
+        val title = candidate.titles.flatMap { candidateTitle ->
+            source.titles.map { sourceTitle ->
+                candidateTitle to TitleNormalizer.similarity(sourceTitle, candidateTitle)
+            }
+        }
+            .maxWithOrNull(
+                compareBy<Pair<String, Double>> { it.second }
+                    .thenByDescending { TitleNormalizer.normalize(it.first) },
+            )
             ?: ("" to 0.0)
         val sourceAuthors = source.authors.map(TitleNormalizer::normalize).filter(String::isNotBlank).toSet()
         val candidateAuthors = candidate.authors.map(TitleNormalizer::normalize).filter(String::isNotBlank).toSet()
@@ -43,15 +74,35 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
         val score = if (author == null) title.second else title.second * 0.8 + author * 0.2
         val decision = when {
             contentConflict -> MergeDecision.SEPARATE
-            title.second >= policy.autoLinkTitleSimilarityAt && author != null && author >= policy.autoLinkAuthorSimilarityAt -> MergeDecision.AUTO_LINK
+            title.second >= policy.autoLinkTitleSimilarityAt &&
+                author != null &&
+                author >= policy.autoLinkAuthorSimilarityAt -> MergeDecision.AUTO_LINK
             title.second >= policy.reviewTitleSimilarityAt -> MergeDecision.REVIEW
             else -> MergeDecision.SEPARATE
         }
-        return CatalogMatchResult(candidate.story.id, score, decision, CatalogMatchExplanation(title.second, title.first, author, conflict, contentConflict))
+        return CatalogMatchResult(
+            candidate.story.id,
+            score,
+            decision,
+            CatalogMatchExplanation(title.second, title.first, author, conflict, contentConflict),
+        )
     }
 
     private fun digest(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray())
-        .take(8)
+        .take(DIGEST_BYTES)
         .joinToString("") { "%02x".format(it) }
+
+    private fun Set<String>.normalizedSignature(): String = map(TitleNormalizer::normalize)
+        .filter(String::isNotBlank)
+        .sorted()
+        .joinToString("|")
+
+    private companion object {
+        const val DIGEST_BYTES = 8
+        val matchOrdering: Comparator<CatalogMatchResult> =
+            compareBy<CatalogMatchResult> { it.decision.ordinal }
+                .thenByDescending { it.score }
+                .thenBy { it.storyId.value }
+    }
 }

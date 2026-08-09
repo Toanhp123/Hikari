@@ -19,6 +19,9 @@ class CatalogModelsTest {
     fun scoreRequiresPositiveScaleAndBoundedValue() {
         assertFailsWith<IllegalArgumentException> { Score(8.0, 0.0) }
         assertFailsWith<IllegalArgumentException> { Score(11.0, 10.0) }
+        assertFailsWith<IllegalArgumentException> {
+            Score(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY)
+        }
     }
 
     @Test

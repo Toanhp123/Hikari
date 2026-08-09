@@ -19,5 +19,14 @@ data class CatalogHomeMutation(
         require(refreshedAtEpochMillis >= 0)
         require(entries.all { it.pluginId == pluginId })
         require(sections.flatMap { it.items }.all { it.pluginId == pluginId })
+        val storyIds = stories.map { it.id }.toSet()
+        require(entries.all { it.storyId in storyIds })
+        require(sections.flatMap { it.items }.toSet() == entries.toSet())
+        require(orderedSourceItemIds.keys == sections.map { it.sourceId }.toSet())
+        require(
+            sections.all { section ->
+                orderedSourceItemIds.getValue(section.sourceId) == section.items.map { it.sourceId }
+            },
+        )
     }
 }

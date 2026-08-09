@@ -2,33 +2,181 @@ package app.openstory.catalog.search
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.StoryCatalogSnapshot
-import app.openstory.catalog.repository.*
-import app.openstory.catalog.source.*
+import app.openstory.catalog.repository.CatalogDetailsMutation
+import app.openstory.catalog.repository.CatalogHomeMutation
+import app.openstory.catalog.repository.CatalogMatchSnapshot
+import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.CatalogSourceFailure
+import app.openstory.catalog.source.CatalogSourceRegistry
+import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceDetails
+import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceHomeRequest
+import app.openstory.catalog.source.SourceItem
+import app.openstory.catalog.source.SourceSearchPage
+import app.openstory.catalog.source.SourceSearchRequest
+import app.openstory.catalog.source.SourceSection
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class CatalogSearchServiceTest {
-    @Test fun sameStoryFromTwoSourcesAppearsOnceWithBothCardsAndDoesNotCommitHome() = runTest {
+    @Test
+    fun sameStoryFromTwoSourcesAppearsOnceWithBothCardsAndDoesNotCommitHome() = runTest {
         val repository = FakeRepository()
-        val sources = Registry(listOf(Source("a", SourceSearchPage(listOf(item("a", "Same", setOf("Author"))), null)), Source("b", SourceSearchPage(listOf(item("b", "Same", setOf("Author"))), null))))
-        val result = CatalogSearchService(sources, repository, StoryMatcher()).search(CatalogSearchRequest("same"))
+        val sources = Registry(
+            listOf(
+                Source("a", page(item("a", "Same", setOf("Author")))),
+                Source("b", page(item("b", "Same", setOf("Author")))),
+            ),
+        )
+
+        val result = service(sources, repository).search(CatalogSearchRequest("same"))
+
         assertEquals(1, result.stories.size)
-        assertEquals(setOf("a", "b"), result.stories.single().sources.map { it.pluginId.value }.toSet())
+        assertEquals(
+            setOf("a", "b"),
+            result.stories.single().sources.map { it.pluginId.value }.toSet(),
+        )
         assertEquals(0, repository.homeCommits)
     }
-    @Test fun failingSourceDoesNotEraseSuccessfulSource() = runTest {
-        val result = CatalogSearchService(Registry(listOf(Source("a", SourceSearchPage(listOf(item("a", "A", emptySet())), null)), Source("b", null))), FakeRepository(), StoryMatcher()).search(CatalogSearchRequest("a"))
+
+    @Test
+    fun failingSourceDoesNotEraseSuccessfulSource() = runTest {
+        val sources = Registry(
+            listOf(
+                Source("a", page(item("a", "A", emptySet()))),
+                Source("b", null),
+            ),
+        )
+
+        val result = service(sources, FakeRepository()).search(CatalogSearchRequest("a"))
+
         assertEquals(1, result.stories.size)
         assertEquals(listOf("b"), result.failures.map { it.pluginId.value })
     }
-    private fun item(id: String, title: String, authors: Set<String>) = SourceItem(id, title, SourceContentType.MANGA, authors, null, null, null)
-    private class Registry(private val values: List<CatalogSource>) : CatalogSourceRegistry { override suspend fun enabled() = values; override suspend fun source(pluginId: PluginId) = values.firstOrNull { it.pluginId == pluginId } }
-    private class Source(id: String, private val page: SourceSearchPage?) : CatalogSource { override val pluginId = PluginId(id); override val version = "1"; override suspend fun home(request: SourceHomeRequest) = error("unused"); override suspend fun search(request: SourceSearchRequest) = page?.let { CatalogSourceResult.Success(it) } ?: CatalogSourceResult.Failure(CatalogSourceFailure("down", true)); override suspend fun details(sourceId: String) = error("unused"); override suspend fun filters() = error("unused") }
-    private class FakeRepository : CatalogRepository { var homeCommits = 0; override fun observeHomes() = emptyFlow<List<app.openstory.catalog.model.CatalogHomeSnapshot>>(); override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>(); override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList()); override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> { homeCommits++; return Outcome.Success(Unit) }; override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId) }
+
+    @Test
+    fun sourcePageIsDiscardedAtomicallyWhenOneItemIsInvalid() = runTest {
+        val valid = item("valid", "Valid", emptySet())
+        val invalid = valid.copy(
+            sourceId = "invalid",
+            scoreValue = Double.POSITIVE_INFINITY,
+            scoreScale = Double.POSITIVE_INFINITY,
+        )
+        val sources = Registry(listOf(Source("a", SourceSearchPage(listOf(valid, invalid), null))))
+
+        val result = service(sources, FakeRepository()).search(CatalogSearchRequest("query"))
+
+        assertEquals(emptyList(), result.stories)
+        assertEquals(listOf("catalog.source.invalid"), result.failures.map { it.code })
+    }
+
+    @Test
+    fun allSourcesStartBeforeSlowSourceCompletes() = runTest {
+        val release = CompletableDeferred<Unit>()
+        val firstStarted = CompletableDeferred<Unit>()
+        val secondStarted = CompletableDeferred<Unit>()
+        val sources = Registry(
+            listOf(
+                GatedSource("a", firstStarted, release),
+                GatedSource("b", secondStarted, release),
+            ),
+        )
+
+        val result = async {
+            service(sources, FakeRepository()).search(CatalogSearchRequest("query"))
+        }
+        firstStarted.await()
+        secondStarted.await()
+        release.complete(Unit)
+
+        assertEquals(2, result.await().stories.size)
+    }
+
+    private fun service(sources: CatalogSourceRegistry, repository: CatalogRepository) =
+        CatalogSearchService(sources, repository, StoryMatcher())
+
+    private fun page(item: SourceItem) = SourceSearchPage(listOf(item), null)
+
+    private fun item(id: String, title: String, authors: Set<String>) = SourceItem(
+        id,
+        title,
+        SourceContentType.MANGA,
+        authors,
+        null,
+        null,
+        null,
+    )
+
+    private class Registry(
+        private val values: List<CatalogSource>,
+    ) : CatalogSourceRegistry {
+        override suspend fun enabled() = values
+        override suspend fun source(pluginId: PluginId) =
+            values.firstOrNull { it.pluginId == pluginId }
+    }
+
+    private open class Source(
+        id: String,
+        private val page: SourceSearchPage?,
+    ) : CatalogSource {
+        override val pluginId = PluginId(id)
+        override val version = "1"
+        override suspend fun home(request: SourceHomeRequest): CatalogSourceResult<List<SourceSection>> =
+            error("unused")
+        override suspend fun search(request: SourceSearchRequest) = page
+            ?.let { CatalogSourceResult.Success(it) }
+            ?: CatalogSourceResult.Failure(CatalogSourceFailure("down", true))
+        override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> =
+            error("unused")
+        override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
+    }
+
+    private class GatedSource(
+        id: String,
+        private val started: CompletableDeferred<Unit>,
+        private val release: CompletableDeferred<Unit>,
+    ) : Source(id, null) {
+        override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> {
+            started.complete(Unit)
+            release.await()
+            val item = SourceItem(
+                pluginId.value,
+                pluginId.value,
+                SourceContentType.MANGA,
+                emptySet(),
+                null,
+                null,
+                null,
+            )
+            return CatalogSourceResult.Success(SourceSearchPage(listOf(item), null))
+        }
+    }
+
+    private class FakeRepository : CatalogRepository {
+        var homeCommits = 0
+        override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
+        override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
+        override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+        override suspend fun commitHomeRefresh(
+            mutation: CatalogHomeMutation,
+        ): Outcome<Unit, CatalogStoreFailure> {
+            homeCommits++
+            return Outcome.Success(Unit)
+        }
+        override suspend fun commitDetails(
+            mutation: CatalogDetailsMutation,
+        ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+    }
 }
