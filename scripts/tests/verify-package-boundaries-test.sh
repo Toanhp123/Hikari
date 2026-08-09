@@ -28,3 +28,10 @@ run_case 'catalog/src/main/kotlin/F.kt' 'import androidx.compose.runtime.Composa
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.persistence.PluginStateStore' 0
 run_case 'catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 0
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 0
+run_case 'plugins/api/src/main/kotlin/F.kt' 'import app.openstory.common.Outcome' 1
+run_case 'catalog/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
+run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.api.PluginManifest' 1
+run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.execution.PluginOperationRunner' 1
+run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.persistence.PluginStateStore' 0
+run_case 'catalog/src/main/kotlin/F.kt' 'import app.openstory.model.StoryId' 1
+run_case 'plugins/runtime/src/main/kotlin/F.kt' 'import app.openstory.model.PluginId' 1

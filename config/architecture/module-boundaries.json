@@ -168,7 +168,8 @@
       "testDependencies": [],
       "forbiddenProductionImports": [
         "app.openstory.catalog.ui.",
-        "app.openstory.storage.room."
+        "app.openstory.storage.room.",
+        "app.openstory.model."
       ]
     },
     ":catalog": {
@@ -219,7 +220,8 @@
         "app.openstory.plugins.runtime.install.",
         "app.openstory.plugins.runtime.capabilities.",
         "app.openstory.plugins.runtime.security.",
-        "app.openstory.plugins.runtime.diagnostics."
+        "app.openstory.plugins.runtime.diagnostics.",
+        "app.openstory.model."
       ]
     },
     ":test:fixtures": {
