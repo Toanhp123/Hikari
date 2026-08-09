@@ -15,7 +15,8 @@ Purpose: single source of truth for the implemented repository boundary.
   instrumentation evidence.
 - Wave 05 Tasks 01-06 implementation is present.
 - Wave 05 Tasks 01-06 verification is accepted by the Wave 05 checkpoint.
-- Current active boundary: **Architecture Baseline 2 - R0 Freeze and Guardrails**.
+- Architecture Baseline 2 R0: **ACCEPTED**.
+- Current active boundary: **Architecture Baseline 2 - R1 Foundation and Module Graph**.
 - Wave 06 is frozen until Architecture Baseline 2 R6 is accepted.
 - The Wave 05 checkpoint remains historical evidence, not a compatibility requirement.
 

@@ -18,7 +18,8 @@ acceptance remain separate states.
 
 ## Current position
 
-Architecture Baseline 2 is active at **R0 - Freeze and Guardrails**. Wave 05 remains
+Architecture Baseline 2 R0 is accepted. The active boundary is **R1 - Foundation and
+Module Graph**. Wave 05 remains
 accepted historical evidence, but it does not require compatibility with superseded
 development architecture. Wave 06 is frozen until Baseline 2 R6 is accepted.
 
