@@ -16,17 +16,23 @@ import app.openstory.storage.room.OpenStoryDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CancellationException
 
 class RoomCatalogRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: CatalogDao,
+    private val homeDao: CatalogHomeDao,
 ) : CatalogRepository {
-    constructor(database: OpenStoryDatabase) : this(database, database.catalogDao())
+    constructor(database: OpenStoryDatabase) : this(
+        database,
+        database.catalogDao(),
+        database.catalogHomeDao(),
+    )
 
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = combine(
-        dao.observeSnapshots(),
-        dao.observeSections(),
-        dao.observeItems(),
+        homeDao.observeSnapshots(),
+        homeDao.observeSections(),
+        homeDao.observeItems(),
         dao.observeAllEntries(),
     ) { snapshots, sections, items, storedEntries ->
         val entries = storedEntries.associateBy { it.pluginId to it.sourceId }
@@ -47,12 +53,16 @@ class RoomCatalogRepository internal constructor(
     }
 
     override suspend fun matchSnapshot(): CatalogMatchSnapshot = CatalogMatchSnapshot(
-        dao.entries().sortedWith(compareBy<CatalogEntryEntity> { it.storyId }.thenBy { it.pluginId }.thenBy { it.sourceId })
+        dao.entries().sortedWith(
+            compareBy<CatalogEntryEntity> { it.storyId }
+                .thenBy { it.pluginId }
+                .thenBy { it.sourceId },
+        )
             .map(CatalogEntryEntity::toCandidate),
     )
 
     override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
-        runCatching {
+        try {
             database.withTransaction {
                 val existing = mutation.entries.mapNotNull { entry ->
                     dao.findEntry(entry.pluginId.value, entry.sourceId)
@@ -63,41 +73,49 @@ class RoomCatalogRepository internal constructor(
                         merge(existing[entry.pluginId.value to entry.sourceId], entry, mutation)
                     },
                 )
-                dao.deleteSections(mutation.pluginId.value)
-                dao.upsertSnapshot(
+                homeDao.deleteSections(mutation.pluginId.value)
+                homeDao.upsertSnapshot(
                     app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity(
                         mutation.pluginId.value,
                         mutation.pluginVersion,
                         mutation.refreshedAtEpochMillis,
                     ),
                 )
-                dao.upsertSections(mutation.sections.mapIndexed { index, section ->
+                homeDao.upsertSections(mutation.sections.mapIndexed { index, section ->
                     CatalogHomeSectionEntity(mutation.pluginId.value, section.sourceId, section.title, index)
                 })
-                dao.upsertItems(mutation.sections.flatMap { section ->
+                homeDao.upsertItems(mutation.sections.flatMap { section ->
                     section.items.mapIndexed { index, entry ->
                         CatalogHomeItemEntity(mutation.pluginId.value, section.sourceId, index, entry.sourceId)
                     }
                 })
             }
-            Unit
-        }.fold(
-            onSuccess = { Outcome.Success(Unit) },
-            onFailure = { Outcome.Failure(CatalogStoreFailure("catalog.home.commit_failed", retryable = true)) },
-        )
+            Outcome.Success(Unit)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            Outcome.Failure(CatalogStoreFailure("catalog.home.commit_failed", retryable = true))
+        }
 
     override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> =
-        runCatching {
+        try {
             database.withTransaction {
-                dao.upsertStories(listOf(app.openstory.storage.room.catalog.StoryEntity(mutation.storyId.value, mutation.entry.contentType.name)))
+                if (dao.findStory(mutation.storyId.value) == null) {
+                    dao.upsertStories(
+                        listOf(StoryEntity(mutation.storyId.value, mutation.entry.contentType.name)),
+                    )
+                }
                 val existing = dao.findEntry(mutation.entry.pluginId.value, mutation.entry.sourceId)
-                dao.upsertEntries(listOf(merge(existing, mutation.entry, mutation)))
+                dao.upsertEntries(
+                    listOf(merge(existing, mutation.entry, mutation)),
+                )
             }
-            mutation.storyId
-        }.fold(
-            onSuccess = { Outcome.Success(it) },
-            onFailure = { Outcome.Failure(CatalogStoreFailure("catalog.details.commit_failed", retryable = true)) },
-        )
+            Outcome.Success(mutation.storyId)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            Outcome.Failure(CatalogStoreFailure("catalog.details.commit_failed", retryable = true))
+        }
 
     private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogHomeMutation) =
         entry.toEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis).let { incoming ->

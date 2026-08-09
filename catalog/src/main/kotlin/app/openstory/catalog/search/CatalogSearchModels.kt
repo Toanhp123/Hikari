@@ -30,5 +30,5 @@ data class CatalogSearchResult(
 
 data class CatalogSearchRequest(
     val query: String,
-    val filterValues: Map<String, List<String>> = emptyMap(),
+    val filterValues: Map<PluginId, Map<String, List<String>>> = emptyMap(),
 )

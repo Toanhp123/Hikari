@@ -185,7 +185,6 @@ private fun fixtureSection(
         HomeCatalogCard(
             storyId = storyId,
             pluginId = pluginId,
-            pluginVersion = "1.0.0",
             sourceId = "source-1",
             title = "Fixture Novel",
             contentType = ContentType.WEB_NOVEL,
@@ -193,14 +192,12 @@ private fun fixtureSection(
             coverReference = null,
             score = 8.4,
             scoreScale = 10.0,
-            fetchedAtEpochMillis = 100L,
         ),
     ),
 )
 
 private fun fixtureSource(pluginId: PluginId): HomeCombinedSource = HomeCombinedSource(
     pluginId = pluginId,
-    pluginVersion = "1.0.0",
     sourceId = "source-1",
     title = "Fixture Novel",
     contentType = ContentType.WEB_NOVEL,
@@ -210,7 +207,6 @@ private fun fixtureSource(pluginId: PluginId): HomeCombinedSource = HomeCombined
     scoreScale = 10.0,
     normalizedScore = 0.84,
     priorityWeight = 1.0,
-    fetchedAtEpochMillis = 100L,
     sections = listOf(
         HomeSectionMembership(
             sourceId = "trending",

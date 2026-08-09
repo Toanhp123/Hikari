@@ -10,13 +10,23 @@ internal abstract class PluginDiagnosticDao {
     @Insert
     protected abstract suspend fun insert(event: PluginDiagnosticEntity)
 
-    @Query("SELECT * FROM plugin_diagnostics WHERE plugin_id = :pluginId ORDER BY occurred_at_epoch_millis DESC, id DESC LIMIT :limit")
+    @Query(
+        "SELECT * FROM plugin_diagnostics WHERE plugin_id = :pluginId " +
+            "ORDER BY occurred_at_epoch_millis DESC, id DESC LIMIT :limit",
+    )
     abstract suspend fun recent(pluginId: String, limit: Int): List<PluginDiagnosticEntity>
 
-    @Query("DELETE FROM plugin_diagnostics WHERE id IN (SELECT id FROM plugin_diagnostics WHERE plugin_id = :pluginId ORDER BY occurred_at_epoch_millis DESC, id DESC LIMIT -1 OFFSET :limit)")
+    @Query(
+        "DELETE FROM plugin_diagnostics WHERE id IN (SELECT id FROM plugin_diagnostics " +
+            "WHERE plugin_id = :pluginId ORDER BY occurred_at_epoch_millis DESC, id DESC " +
+            "LIMIT -1 OFFSET :limit)",
+    )
     protected abstract suspend fun trimPlugin(pluginId: String, limit: Int)
 
-    @Query("DELETE FROM plugin_diagnostics WHERE id IN (SELECT id FROM plugin_diagnostics ORDER BY occurred_at_epoch_millis DESC, id DESC LIMIT -1 OFFSET :limit)")
+    @Query(
+        "DELETE FROM plugin_diagnostics WHERE id IN (SELECT id FROM plugin_diagnostics " +
+            "ORDER BY occurred_at_epoch_millis DESC, id DESC LIMIT -1 OFFSET :limit)",
+    )
     protected abstract suspend fun trimGlobal(limit: Int)
 
     @Transaction

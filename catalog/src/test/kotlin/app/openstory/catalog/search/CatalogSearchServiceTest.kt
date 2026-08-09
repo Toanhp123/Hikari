@@ -104,6 +104,27 @@ class CatalogSearchServiceTest {
         assertEquals(2, result.await().stories.size)
     }
 
+    @Test
+    fun eachSourceReceivesOnlyItsOwnFilters() = runTest {
+        val sourceA = RecordingSource("a")
+        val sourceB = RecordingSource("b")
+        val filtersA = mapOf("genre" to listOf("fantasy"))
+        val filtersB = mapOf("status" to listOf("completed"))
+
+        service(Registry(listOf(sourceA, sourceB)), FakeRepository()).search(
+            CatalogSearchRequest(
+                query = "story",
+                filterValues = mapOf(
+                    sourceA.pluginId to filtersA,
+                    sourceB.pluginId to filtersB,
+                ),
+            ),
+        )
+
+        assertEquals(filtersA, sourceA.request?.filterValues)
+        assertEquals(filtersB, sourceB.request?.filterValues)
+    }
+
     private fun service(sources: CatalogSourceRegistry, repository: CatalogRepository) =
         CatalogSearchService(sources, repository, StoryMatcher())
 
@@ -161,6 +182,15 @@ class CatalogSearchServiceTest {
                 null,
             )
             return CatalogSourceResult.Success(SourceSearchPage(listOf(item), null))
+        }
+    }
+
+    private class RecordingSource(id: String) : Source(id, SourceSearchPage(emptyList(), null)) {
+        var request: SourceSearchRequest? = null
+
+        override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> {
+            this.request = request
+            return CatalogSourceResult.Success(SourceSearchPage(emptyList(), null))
         }
     }
 

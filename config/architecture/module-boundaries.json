@@ -57,7 +57,7 @@
     },
     ":test:fixtures": {
       "path": "test/fixtures", "platform": "jvm", "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":catalog"], "testDependencies": [],
+      "productionDependencies": [":core:common"], "testDependencies": [],
       "forbiddenProductionImports": []
     }
   }

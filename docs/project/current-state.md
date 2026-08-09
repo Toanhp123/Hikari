@@ -7,7 +7,7 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: approved Android-only, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current Gradle modules: 16 during the Baseline 2 parallel-replacement transition.
+- Current Gradle modules: 10 during the Baseline 2 parallel-replacement transition.
 - Wave 01-03 implementation is present.
 - Wave 04 Tasks 01-06 implementation is present.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
@@ -15,8 +15,8 @@ Purpose: single source of truth for the implemented repository boundary.
   instrumentation evidence.
 - Wave 05 Tasks 01-06 implementation is present.
 - Wave 05 Tasks 01-06 verification is accepted by the Wave 05 checkpoint.
-- Architecture Baseline 2 R2: **ACCEPTED**.
-- Current active boundary: **R3 - Catalog Core and Persistence**.
+- Architecture Baseline 2 R3: **ACCEPTED**.
+- Current active boundary: **R4 - Presentation, Navigation, and DI**.
 - Wave 06 is frozen until Architecture Baseline 2 R6 is accepted.
 - The Wave 05 checkpoint remains historical evidence, not a compatibility requirement.
 
@@ -131,6 +131,22 @@ recorded in `../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`
 Wave 05 acceptance is recorded in
 `../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
 
+### Architecture Baseline 2 R3 boundary
+
+R3 replaces the historical Wave 05 catalog persistence internals with the accepted
+Baseline 2 ownership model:
+
+- `StoryId` and `PluginId` are owned by `:core:common`;
+- catalog models, matching, ranking, repository contracts, and services are owned by
+  `:catalog`;
+- the fresh Room schema 1 and catalog/plugin persistence adapters are owned by
+  `:storage:room`;
+- current Home, Search, Story, and app composition use the new catalog/storage boundary;
+- `:core:model`, `:core:matching`, and `:core:database` are deleted.
+
+R3 acceptance evidence is recorded in
+`../internal/checkpoints/architecture-baseline-2-r3.md`.
+
 ## Verification status
 
 Implementation presence is not checkpoint acceptance. Evidence under
@@ -144,6 +160,8 @@ Wave 05 Task 05 verification is accepted in
 `../internal/checkpoints/wave-05-task-05-home-ui.md`; Wave 05 Task 06 verification is accepted in
 `../internal/checkpoints/wave-05-task-06-search-and-story-detail.md`. The Wave 05 checkpoint is
 accepted in `../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
+Architecture Baseline 2 R3 is accepted in
+`../internal/checkpoints/architecture-baseline-2-r3.md`.
 
 ## Source-of-truth rule
 

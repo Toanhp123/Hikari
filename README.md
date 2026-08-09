@@ -136,12 +136,10 @@ plugin-host package-inspection, and shared-fixture test suites.
 
 - `:app` — composition root, Hilt, Compose shell, navigation
 - `:core:common` — typed results, errors, clocks, dispatchers, stable primitives
-- `:core:model` — platform-independent canonical domain models
-- `:core:database` — Room schema, DAOs, migrations, repositories
 - `:plugins:api` — public plugin protocol and package schemas
 - `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
-- `:catalog` — application-facing catalog source seam
-- `:core:matching` — deterministic catalog identity matching and aggregate ranking
+- `:catalog` — catalog models, source seam, matching, ranking, and application services
+- `:storage:room` — fresh Room schema and durable catalog/plugin persistence
 - `:feature:home` — cached catalog Home refresh, search, normalization, and combined projections
 - `:feature:story` — source-preserving catalog story detail and metadata enrichment
 - `:test:fixtures` — deterministic shared test data
@@ -151,7 +149,7 @@ The direct project dependency policy is stored in:
     config/architecture/module-boundaries.json
 
 Every module included by `settings.gradle.kts` must be declared in this policy.
-`core:model` remains independent from Android and Compose APIs. `core:plugin-api`
+`:core:common` remains independent from Android and Compose APIs. `:plugins:api`
 remains independent from Android and filesystem APIs. Test fixtures cannot leak
 into production dependencies.
 

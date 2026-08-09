@@ -33,7 +33,11 @@ internal fun CatalogEntry.toEntity(pluginVersion: String, fetchedAtEpochMillis: 
     fetchedAtEpochMillis = fetchedAtEpochMillis,
 )
 
-internal fun CatalogHomeSnapshotEntity.toModel(sections: List<CatalogHomeSectionEntity>, items: List<CatalogHomeItemEntity>, entries: Map<Pair<String, String>, CatalogEntry>): CatalogHomeSnapshot {
+internal fun CatalogHomeSnapshotEntity.toModel(
+    sections: List<CatalogHomeSectionEntity>,
+    items: List<CatalogHomeItemEntity>,
+    entries: Map<Pair<String, String>, CatalogEntry>,
+): CatalogHomeSnapshot {
     val sectionsById = items.groupBy { it.sectionId }
     return CatalogHomeSnapshot(
         pluginId = PluginId(pluginId),

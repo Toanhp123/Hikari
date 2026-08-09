@@ -57,8 +57,34 @@ class RoomCatalogRepositoryTest {
             )
 
             assertIs<Outcome.Success<StoryId>>(result)
-            assertEquals(before, repository.observeHomes().first())
+            assertEquals(
+                before.single().sections.flatMap { it.items }.map { it.pluginId to it.sourceId },
+                repository.observeHomes().first().single().sections.flatMap { it.items }
+                    .map { it.pluginId to it.sourceId },
+            )
             assertEquals("rich details", repository.observeStory(entry.storyId).first()!!.entries.single().description)
+        }
+    }
+
+    @Test
+    fun detailEnrichmentDoesNotOverwriteCanonicalStoryContentType() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 1))
+            val stored = repository.observeStory(StoryId("story:a-1")).first()!!
+
+            repository.commitDetails(
+                CatalogDetailsMutation(
+                    stored.story.id,
+                    stored.entries.single().copy(contentType = ContentType.WEB_NOVEL),
+                    "2.0.0",
+                    2,
+                ),
+            )
+
+            val enriched = repository.observeStory(stored.story.id).first()!!
+            assertEquals(ContentType.MANGA, enriched.story.contentType)
+            assertEquals(ContentType.WEB_NOVEL, enriched.entries.single().contentType)
         }
     }
 
@@ -68,22 +94,19 @@ class RoomCatalogRepositoryTest {
             val repository = RoomCatalogRepository(database)
             repository.commitHomeRefresh(mutation("a", listOf("a-1"), 1))
             val before = repository.observeHomes().first()
-            val duplicateEntry = mutation("a", listOf("a-2"), 2).entries.single()
+            database.openHelper.writableDatabase.execSQL(
+                """CREATE TRIGGER reject_snapshot_update
+                   BEFORE INSERT ON catalog_home_snapshots
+                   WHEN NEW.refreshed_at_epoch_millis = 2
+                   BEGIN SELECT RAISE(ABORT, 'forced failure'); END""",
+            )
 
             val failed = repository.commitHomeRefresh(
-                mutation("a", listOf("a-2"), 2).copy(
-                    sections = listOf(
-                        CatalogHomeSection(
-                            "section",
-                            "Section",
-                            listOf(duplicateEntry, duplicateEntry),
-                        ),
-                    ),
-                    orderedSourceItemIds = mapOf("section" to listOf("a-2", "a-2")),
-                ),
+                mutation("a", listOf("a-2"), 2),
             )
 
             assertIs<Outcome.Failure<*>>(failed)
+            database.openHelper.writableDatabase.execSQL("DROP TRIGGER reject_snapshot_update")
             assertEquals(before, repository.observeHomes().first())
         }
     }

@@ -26,7 +26,6 @@ data class HomeCatalogSection(
 data class HomeCatalogCard(
     val storyId: StoryId,
     val pluginId: PluginId,
-    val pluginVersion: String,
     val sourceId: String,
     val title: String,
     val contentType: ContentType,
@@ -34,7 +33,6 @@ data class HomeCatalogCard(
     val coverReference: String?,
     val score: Double?,
     val scoreScale: Double?,
-    val fetchedAtEpochMillis: Long,
 )
 
 data class HomeCombinedCard(

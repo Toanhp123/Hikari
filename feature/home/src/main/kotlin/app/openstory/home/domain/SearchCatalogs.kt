@@ -50,7 +50,7 @@ class SearchCatalogs(
         val result = searchService.search(
             CatalogSearchRequest(
                 query = request.query,
-                filterValues = request.filterValues.values.flatMap { it.entries }.associate { it.toPair() },
+                filterValues = request.filterValues,
             ),
         )
         val filters = enabled.map { source -> async { loadFilters(source) } }.awaitAll()

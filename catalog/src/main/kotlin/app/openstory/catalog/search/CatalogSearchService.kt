@@ -71,7 +71,7 @@ class CatalogSearchService(
         source: CatalogSource,
         request: CatalogSearchRequest,
     ): CatalogSourceResult<SourceSearchPage> = try {
-        source.search(SourceSearchRequest(request.query, request.filterValues))
+        source.search(SourceSearchRequest(request.query, request.filterValues[source.pluginId].orEmpty()))
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {

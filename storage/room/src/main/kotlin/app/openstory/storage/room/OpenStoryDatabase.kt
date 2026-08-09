@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import app.openstory.storage.room.catalog.CatalogDao
 import app.openstory.storage.room.catalog.CatalogEntryEntity
 import app.openstory.storage.room.catalog.CatalogHomeItemEntity
+import app.openstory.storage.room.catalog.CatalogHomeDao
 import app.openstory.storage.room.catalog.CatalogHomeSectionEntity
 import app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity
 import app.openstory.storage.room.catalog.StoryEntity
@@ -34,11 +35,12 @@ import app.openstory.storage.room.plugins.PluginVersionEntity
 @TypeConverters(DatabaseConverters::class)
 abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun catalogDao(): CatalogDao
+    internal abstract fun catalogHomeDao(): CatalogHomeDao
     internal abstract fun pluginStateDao(): PluginStateDao
     internal abstract fun pluginDiagnosticDao(): PluginDiagnosticDao
 
     companion object {
-        private const val DATABASE_NAME = "openstory.db"
+        private const val DATABASE_NAME = "openstory-baseline-2.db"
 
         fun open(context: Context): OpenStoryDatabase = Room.databaseBuilder(
             context.applicationContext,

@@ -112,7 +112,6 @@ private fun cachedHome(): HomeUiModel = HomeUiModel(
                         HomeCatalogCard(
                             storyId = StoryId("story-1"),
                             pluginId = PluginId("catalog.a"),
-                            pluginVersion = "1.0.0",
                             sourceId = "source-1",
                             title = "Fixture Novel",
                             contentType = ContentType.WEB_NOVEL,
@@ -120,7 +119,6 @@ private fun cachedHome(): HomeUiModel = HomeUiModel(
                             coverReference = null,
                             score = 8.4,
                             scoreScale = 10.0,
-                            fetchedAtEpochMillis = 100L,
                         ),
                     ),
                 ),

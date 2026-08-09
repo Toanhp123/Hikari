@@ -14,12 +14,14 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -34,10 +36,11 @@ class StoryDetailViewModel private constructor(
     ) : this(storyDetailDependencies(request, catalogRepository, detailsService))
 
     internal constructor(
-        storyFlow: Flow<StoryCatalogSnapshot?>,
-        enrichAction: suspend () -> AppResult<Unit>,
+        initialStoryId: StoryId,
+        observeStory: (StoryId) -> Flow<StoryCatalogSnapshot?>,
+        enrichAction: suspend () -> AppResult<StoryId>,
         scope: CoroutineScope,
-    ) : this(StoryDetailDependencies(storyFlow, enrichAction), scope)
+    ) : this(storyDetailDependencies(initialStoryId, observeStory, enrichAction), scope)
 
     private val loading = MutableStateFlow(false)
     private val error = MutableStateFlow<AppError?>(null)
@@ -54,7 +57,10 @@ class StoryDetailViewModel private constructor(
         scope.launch {
             try {
                 when (val result = dependencies.enrichAction()) {
-                    is AppResult.Success -> error.value = null
+                    is AppResult.Success -> {
+                        dependencies.selectStoryId(result.value)
+                        error.value = null
+                    }
                     is AppResult.Failure -> error.value = result.error
                 }
             } finally { loading.value = false }
@@ -68,22 +74,41 @@ class StoryDetailViewModel private constructor(
 
 private data class StoryDetailDependencies(
     val storyFlow: Flow<StoryCatalogSnapshot?>,
-    val enrichAction: suspend () -> AppResult<Unit>,
+    val enrichAction: suspend () -> AppResult<StoryId>,
+    val selectStoryId: (StoryId) -> Unit,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 private fun storyDetailDependencies(
     request: StoryDetailRequest,
     repository: CatalogRepository,
     detailsService: CatalogDetailsService,
-) = StoryDetailDependencies(
-    storyFlow = repository.observeStory(request.storyId),
+): StoryDetailDependencies = storyDetailDependencies(
+    request.storyId,
+    repository::observeStory,
     enrichAction = {
         when (val result = detailsService.load(request.pluginId, request.sourceId)) {
-            is CatalogDetailsResult.Success -> AppResult.Success(Unit)
+            is CatalogDetailsResult.Success -> AppResult.Success(result.story.id)
             is CatalogDetailsResult.Failure -> AppResult.Failure(result.failure.toAppError())
         }
     },
 )
+
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun storyDetailDependencies(
+    initialStoryId: StoryId,
+    observeStory: (StoryId) -> Flow<StoryCatalogSnapshot?>,
+    enrichAction: suspend () -> AppResult<StoryId>,
+): StoryDetailDependencies {
+    val selectedStoryId = MutableStateFlow(initialStoryId)
+    return StoryDetailDependencies(
+        storyFlow = selectedStoryId.flatMapLatest(observeStory),
+        enrichAction = {
+            enrichAction()
+        },
+        selectStoryId = { storyId -> selectedStoryId.value = storyId },
+    )
+}
 
 private fun CatalogDetailsFailure.toAppError(): AppError = when (this) {
     is CatalogDetailsFailure.SourceUnavailable -> AppError.Plugin("catalog.source_unavailable", false)
@@ -93,13 +118,33 @@ private fun CatalogDetailsFailure.toAppError(): AppError = when (this) {
 }
 
 data class StoryDetailRequest(val storyId: StoryId, val pluginId: PluginId, val sourceId: String)
-data class StoryDetailScreenState(val story: StoryDetailStory? = null, val loading: Boolean = false, val error: AppError? = null)
-data class StoryDetailStory(val storyId: StoryId, val preferredTitle: String, val contentType: ContentType, val aliases: Set<String>, val sources: List<StoryDetailSource>)
+data class StoryDetailScreenState(
+    val story: StoryDetailStory? = null,
+    val loading: Boolean = false,
+    val error: AppError? = null,
+)
+data class StoryDetailStory(
+    val storyId: StoryId,
+    val preferredTitle: String,
+    val contentType: ContentType,
+    val aliases: Set<String>,
+    val sources: List<StoryDetailSource>,
+)
 data class StoryDetailSource(
-    val pluginId: PluginId, val sourceId: String, val sourceUrl: String?, val title: String,
-    val aliases: Set<String>, val authors: Set<String>, val description: String?, val genres: Set<String>,
-    val contentType: ContentType, val languageTags: Set<String>, val coverReference: String?,
-    val score: Double?, val scoreScale: Double?, val popularityRank: Long?,
+    val pluginId: PluginId,
+    val sourceId: String,
+    val sourceUrl: String?,
+    val title: String,
+    val aliases: Set<String>,
+    val authors: Set<String>,
+    val description: String?,
+    val genres: Set<String>,
+    val contentType: ContentType,
+    val languageTags: Set<String>,
+    val coverReference: String?,
+    val score: Double?,
+    val scoreScale: Double?,
+    val popularityRank: Long?,
 )
 
 private fun StoryCatalogSnapshot.toStoryDetailStory() = StoryDetailStory(
@@ -107,7 +152,9 @@ private fun StoryCatalogSnapshot.toStoryDetailStory() = StoryDetailStory(
     preferredTitle = entries.minByOrNull { it.pluginId.value }?.title ?: story.id.value,
     contentType = story.contentType,
     aliases = entries.flatMap { it.aliases }.toSet(),
-    sources = entries.sortedWith(compareBy<CatalogEntry> { it.pluginId.value }.thenBy { it.sourceId }).map { it.toSource() },
+    sources = entries
+        .sortedWith(compareBy<CatalogEntry> { it.pluginId.value }.thenBy { it.sourceId })
+        .map { it.toSource() },
 )
 
 private fun CatalogEntry.toSource() = StoryDetailSource(

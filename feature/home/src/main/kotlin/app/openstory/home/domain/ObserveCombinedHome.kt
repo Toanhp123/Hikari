@@ -19,11 +19,10 @@ import kotlinx.coroutines.flow.map
 class ObserveCombinedHome(
     private val repository: CatalogRepository,
     private val ranking: AggregateRanking = AggregateRanking(),
-    private val enabledCatalogIds: suspend () -> Set<PluginId>,
     private val mapper: CatalogSnapshotMapper = CatalogSnapshotMapper(),
 ) {
     operator fun invoke(): Flow<HomeUiModel> = repository.observeHomes().map { snapshots ->
-        toHomeUiModel(snapshots.filter { it.pluginId in enabledCatalogIds() })
+        toHomeUiModel(snapshots)
     }
 
     fun catalog(pluginId: PluginId): Flow<HomeCatalog?> = repository.observeHomes().map { homes ->
@@ -37,7 +36,12 @@ class ObserveCombinedHome(
                 snapshot.sections.forEachIndexed { sectionPosition, section ->
                     section.items.forEachIndexed { itemPosition, entry ->
                         val key = entry.pluginId to entry.sourceId
-                        val membership = HomeSectionMembership(section.sourceId, section.title, sectionPosition, itemPosition)
+                        val membership = HomeSectionMembership(
+                            section.sourceId,
+                            section.title,
+                            sectionPosition,
+                            itemPosition,
+                        )
                         put(key, get(key).orEmpty() + membership)
                     }
                 }

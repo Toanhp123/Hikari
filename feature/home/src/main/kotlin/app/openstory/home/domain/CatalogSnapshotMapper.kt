@@ -18,7 +18,6 @@ class CatalogSnapshotMapper {
                     HomeCatalogCard(
                         storyId = entry.storyId,
                         pluginId = entry.pluginId,
-                        pluginVersion = snapshot.pluginVersion,
                         sourceId = entry.sourceId,
                         title = entry.title,
                         contentType = entry.contentType,
@@ -26,7 +25,6 @@ class CatalogSnapshotMapper {
                         coverReference = entry.coverUrl,
                         score = entry.score?.value,
                         scoreScale = entry.score?.scale,
-                        fetchedAtEpochMillis = snapshot.refreshedAtEpochMillis,
                     )
                 },
             )

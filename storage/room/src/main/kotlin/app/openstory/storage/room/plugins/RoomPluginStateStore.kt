@@ -21,6 +21,10 @@ class RoomPluginStateStore internal constructor(
 
     override suspend fun replace(state: StoredPluginState) {
         val now = clock.nowEpochMillis()
+        val active = state.activeVersion.resolveEntity(state, now)
+        val previous = state.previousVersion?.let { version ->
+            version.resolveEntity(state, now)
+        }
         dao.replace(
             PluginStateEntity(
                 pluginId = state.pluginId.value,
@@ -29,8 +33,7 @@ class RoomPluginStateStore internal constructor(
                 previousVersion = state.previousVersion?.version,
                 updatedAtEpochMillis = now,
             ),
-            listOfNotNull(state.activeVersion, state.previousVersion)
-                .map { it.toEntity(state, now) },
+            listOfNotNull(active, previous),
         )
     }
 
@@ -60,6 +63,18 @@ class RoomPluginStateStore internal constructor(
         acceptedNetworkHosts = state.acceptedNetworkHosts,
         installedAtEpochMillis = installedAt,
     )
+
+    private suspend fun StoredPluginVersion.resolveEntity(
+        state: StoredPluginState,
+        installedAt: Long,
+    ): PluginVersionEntity {
+        val existing = dao.findVersion(state.pluginId.value, version)
+            ?: return toEntity(state, installedAt)
+        check(existing.toStoredVersion() == this) {
+            "Installed plugin version provenance is immutable."
+        }
+        return existing
+    }
 }
 
 private fun PluginVersionEntity.toStoredVersion() = StoredPluginVersion(

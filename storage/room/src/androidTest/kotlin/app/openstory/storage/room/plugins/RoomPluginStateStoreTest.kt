@@ -12,6 +12,7 @@ import app.openstory.storage.room.OpenStoryDatabase
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -32,6 +33,96 @@ class RoomPluginStateStoreTest {
             store.replace(expected)
 
             assertEquals(expected, store.find(expected.pluginId))
+        }
+    }
+
+    @Test
+    fun activatingNewVersionKeepsImmutablePreviousProvenance() = runTest {
+        withDatabase { database ->
+            val store = RoomPluginStateStore(database)
+            val first = StoredPluginState(
+                pluginId = PluginId("org.example.plugin"),
+                services = setOf(PluginService.CATALOG),
+                enabled = true,
+                activeVersion = version("1.0.0"),
+                previousVersion = null,
+                acceptedNetworkHosts = setOf("old.example.com"),
+            )
+            store.replace(first)
+            val second = first.copy(
+                services = setOf(PluginService.CONTENT),
+                activeVersion = version("2.0.0"),
+                previousVersion = version("1.0.0"),
+                acceptedNetworkHosts = setOf("new.example.com"),
+            )
+
+            store.replace(second)
+
+            assertEquals(second, store.find(second.pluginId))
+        }
+    }
+
+    @Test
+    fun rollbackRestoresCapabilitiesOwnedByPreviousVersion() = runTest {
+        withDatabase { database ->
+            val store = RoomPluginStateStore(database)
+            val first = StoredPluginState(
+                pluginId = PluginId("org.example.plugin"),
+                services = setOf(PluginService.CATALOG),
+                enabled = true,
+                activeVersion = version("1.0.0"),
+                previousVersion = null,
+                acceptedNetworkHosts = setOf("old.example.com"),
+            )
+            store.replace(first)
+            val second = first.copy(
+                services = setOf(PluginService.CONTENT),
+                activeVersion = version("2.0.0"),
+                previousVersion = first.activeVersion,
+                acceptedNetworkHosts = setOf("new.example.com"),
+            )
+            store.replace(second)
+
+            store.replace(
+                second.copy(
+                    activeVersion = first.activeVersion,
+                    previousVersion = second.activeVersion,
+                ),
+            )
+
+            assertEquals(
+                first.copy(previousVersion = second.activeVersion),
+                store.find(first.pluginId),
+            )
+        }
+    }
+
+    @Test
+    fun sameVersionWithDifferentArtifactProvenanceIsRejected() = runTest {
+        withDatabase { database ->
+            val store = RoomPluginStateStore(database)
+            val original = StoredPluginState(
+                pluginId = PluginId("org.example.plugin"),
+                services = setOf(PluginService.CATALOG),
+                enabled = true,
+                activeVersion = version("1.0.0"),
+                previousVersion = null,
+                acceptedNetworkHosts = setOf("api.example.com"),
+            )
+            store.replace(original)
+
+            assertFailsWith<IllegalStateException> {
+                store.replace(
+                    original.copy(
+                        activeVersion = original.activeVersion.copy(
+                            packageLocation = "plugins/tampered/1.0.0",
+                            sha256 = "b".repeat(64),
+                        ),
+                    ),
+                )
+            }
+
+            assertEquals(original, store.find(original.pluginId))
         }
     }
 

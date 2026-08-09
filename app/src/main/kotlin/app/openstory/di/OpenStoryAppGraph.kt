@@ -33,7 +33,6 @@ class OpenStoryAppGraph @Inject constructor(
     private val observeCombinedHome = ObserveCombinedHome(
         repository = catalogRepository,
         ranking = AggregateRanking(),
-        enabledCatalogIds = { catalogSources.enabled().mapTo(mutableSetOf()) { it.pluginId } },
     )
     private val refreshHome = RefreshHome(refreshService, catalogRepository)
     private val searchCatalogs = SearchCatalogs(searchService, catalogSources)

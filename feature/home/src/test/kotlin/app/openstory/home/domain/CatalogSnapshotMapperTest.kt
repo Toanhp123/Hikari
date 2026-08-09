@@ -36,7 +36,6 @@ class CatalogSnapshotMapperTest {
         val mapped = CatalogSnapshotMapper().map(snapshot)
 
         assertEquals("2.3.4", mapped.pluginVersion)
-        assertEquals(100L, mapped.sections.single().items.single().fetchedAtEpochMillis)
         assertEquals("Story One", mapped.sections.single().items.single().title)
     }
 }
