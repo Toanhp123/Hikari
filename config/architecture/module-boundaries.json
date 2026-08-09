@@ -1,9 +1,10 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "modules": {
     ":app": {
       "path": "app",
       "platform": "android-application",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
         ":core:model",
@@ -21,6 +22,7 @@
     ":core:common": {
       "path": "core/common",
       "platform": "jvm",
+      "dependencyMode": "exact",
       "productionDependencies": [],
       "testDependencies": [],
       "forbiddenProductionImports": []
@@ -28,6 +30,7 @@
     ":core:model": {
       "path": "core/model",
       "platform": "jvm",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common"
       ],
@@ -40,6 +43,7 @@
     ":core:database": {
       "path": "core/database",
       "platform": "android-library",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
         ":core:model",
@@ -53,6 +57,7 @@
     ":core:plugin-api": {
       "path": "core/plugin-api",
       "platform": "jvm",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:model"
       ],
@@ -70,6 +75,7 @@
     ":core:network": {
       "path": "core/network",
       "platform": "jvm",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common"
       ],
@@ -79,6 +85,7 @@
     ":core:plugin-host": {
       "path": "core/plugin-host",
       "platform": "android-library",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
         ":core:network",
@@ -90,6 +97,7 @@
     ":core:matching": {
       "path": "core/matching",
       "platform": "jvm",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
         ":core:model"
@@ -107,6 +115,7 @@
     ":feature:home": {
       "path": "feature/home",
       "platform": "android-library",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
         ":core:model",
@@ -122,6 +131,7 @@
     ":feature:story": {
       "path": "feature/story",
       "platform": "android-library",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
         ":core:model",
@@ -137,6 +147,7 @@
     ":test:fixtures": {
       "path": "test/fixtures",
       "platform": "jvm",
+      "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
         ":core:model",

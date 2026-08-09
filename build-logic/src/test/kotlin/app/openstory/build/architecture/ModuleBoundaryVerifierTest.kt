@@ -169,6 +169,80 @@ class ModuleBoundaryVerifierTest {
     }
 
     @Test
+    fun allowlistModeAllowsUnusedApprovedEdge() {
+        val policy = policyOf(
+            ":a" to rule("a"),
+            ":b" to rule("b"),
+            ":consumer" to rule(
+                path = "consumer",
+                productionDependencies = setOf(":a", ":b"),
+                dependencyMode = DependencyMode.ALLOWLIST,
+            ),
+        )
+        val actual = mapOf(
+            ":a" to actual("a"),
+            ":b" to actual("b"),
+            ":consumer" to actual("consumer").copy(
+                productionDependencies = setOf(":a"),
+            ),
+        )
+
+        val violations = ModuleBoundaryVerifier.verify(policy, actual)
+
+        assertTrue(violations.isEmpty())
+    }
+
+    @Test
+    fun allowlistModeStillRejectsUnapprovedEdge() {
+        val policy = policyOf(
+            ":a" to rule("a"),
+            ":b" to rule("b"),
+            ":c" to rule("c"),
+            ":consumer" to rule(
+                path = "consumer",
+                productionDependencies = setOf(":a", ":b"),
+                dependencyMode = DependencyMode.ALLOWLIST,
+            ),
+        )
+        val actual = mapOf(
+            ":a" to actual("a"),
+            ":b" to actual("b"),
+            ":c" to actual("c"),
+            ":consumer" to actual("consumer").copy(
+                productionDependencies = setOf(":c"),
+            ),
+        )
+
+        val violations = ModuleBoundaryVerifier.verify(policy, actual)
+
+        assertTrue(violations.any { it.code == "module_policy.production_dependency_denied" })
+    }
+
+    @Test
+    fun exactModeStillReportsStaleAllowance() {
+        val policy = policyOf(
+            ":a" to rule("a"),
+            ":b" to rule("b"),
+            ":consumer" to rule(
+                path = "consumer",
+                productionDependencies = setOf(":a", ":b"),
+                dependencyMode = DependencyMode.EXACT,
+            ),
+        )
+        val actual = mapOf(
+            ":a" to actual("a"),
+            ":b" to actual("b"),
+            ":consumer" to actual("consumer").copy(
+                productionDependencies = setOf(":a"),
+            ),
+        )
+
+        val violations = ModuleBoundaryVerifier.verify(policy, actual)
+
+        assertTrue(violations.any { it.code == "module_policy.production_dependency_allowance_stale" })
+    }
+
+    @Test
     fun staleTestDependencyAllowanceIsReported() {
         val policy = policyOf(
             ":core:plugin-api" to rule(
@@ -251,9 +325,11 @@ class ModuleBoundaryVerifierTest {
         productionDependencies: Set<String> = emptySet(),
         testDependencies: Set<String> = emptySet(),
         forbiddenProductionImports: Set<String> = emptySet(),
+        dependencyMode: DependencyMode = DependencyMode.EXACT,
     ): ModuleBoundaryRule = ModuleBoundaryRule(
         path = path,
         platform = ModulePlatform.JVM,
+        dependencyMode = dependencyMode,
         productionDependencies = productionDependencies,
         testDependencies = testDependencies,
         forbiddenProductionImports = forbiddenProductionImports,

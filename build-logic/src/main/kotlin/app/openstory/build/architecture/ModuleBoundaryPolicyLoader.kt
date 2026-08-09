@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.int
 
 object ModuleBoundaryPolicyLoader {
-    private const val SUPPORTED_SCHEMA_VERSION = 1
+    private const val CURRENT_SCHEMA_VERSION = 2
 
     private val rootFields = setOf(
         "schemaVersion",
@@ -18,6 +18,7 @@ object ModuleBoundaryPolicyLoader {
     private val moduleFields = setOf(
         "path",
         "platform",
+        "dependencyMode",
         "productionDependencies",
         "testDependencies",
         "forbiddenProductionImports",
@@ -33,7 +34,7 @@ object ModuleBoundaryPolicyLoader {
         root.requireKnownFields(rootFields, "root")
 
         val schemaVersion = root.requiredPrimitive("schemaVersion").int
-        require(schemaVersion == SUPPORTED_SCHEMA_VERSION) {
+        require(schemaVersion in 1..CURRENT_SCHEMA_VERSION) {
             "module_policy.unsupported_schema: $schemaVersion"
         }
 
@@ -90,6 +91,10 @@ object ModuleBoundaryPolicyLoader {
             platform = ModulePlatform.fromPolicyValue(
                 rule.requiredPrimitive("platform").content,
             ),
+            dependencyMode = rule.optionalPrimitive("dependencyMode")
+                ?.content
+                ?.let(DependencyMode::fromPolicyValue)
+                ?: DependencyMode.EXACT,
             productionDependencies = production,
             testDependencies = test,
             forbiddenProductionImports = rule.stringSet(
@@ -134,6 +139,14 @@ object ModuleBoundaryPolicyLoader {
             ?: throw IllegalArgumentException(
                 "module_policy.missing_or_invalid_field: $name",
             )
+
+    private fun JsonObject.optionalPrimitive(name: String): JsonPrimitive? =
+        get(name)?.let { value ->
+            value as? JsonPrimitive
+                ?: throw IllegalArgumentException(
+                    "module_policy.missing_or_invalid_field: $name",
+                )
+        }
 
     private fun JsonObject.stringSet(name: String): Set<String> {
         val values = get(name) as? JsonArray

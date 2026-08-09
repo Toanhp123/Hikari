@@ -17,6 +17,22 @@ enum class ModulePlatform(
     }
 }
 
+enum class DependencyMode(
+    val policyValue: String,
+) {
+    EXACT("exact"),
+    ALLOWLIST("allowlist"),
+    ;
+
+    companion object {
+        fun fromPolicyValue(value: String): DependencyMode =
+            entries.firstOrNull { it.policyValue == value }
+                ?: throw IllegalArgumentException(
+                    "module_policy.unknown_dependency_mode: $value",
+                )
+    }
+}
+
 data class ModuleBoundaryPolicy(
     val schemaVersion: Int,
     val modules: Map<String, ModuleBoundaryRule>,
@@ -25,6 +41,7 @@ data class ModuleBoundaryPolicy(
 data class ModuleBoundaryRule(
     val path: String,
     val platform: ModulePlatform,
+    val dependencyMode: DependencyMode,
     val productionDependencies: Set<String>,
     val testDependencies: Set<String>,
     val forbiddenProductionImports: Set<String>,
