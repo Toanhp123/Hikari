@@ -2,14 +2,8 @@ package app.openstory.model
 
 import app.openstory.common.StableId
 
-@JvmInline
-value class StoryId(
-    val value: String,
-) {
-    init {
-        StableId.requireValid(value)
-    }
-}
+typealias StoryId = app.openstory.common.id.StoryId
+typealias PluginId = app.openstory.common.id.PluginId
 
 @JvmInline
 value class ChapterId(
@@ -22,15 +16,6 @@ value class ChapterId(
 
 @JvmInline
 value class ReleaseId(
-    val value: String,
-) {
-    init {
-        StableId.requireValid(value)
-    }
-}
-
-@JvmInline
-value class PluginId(
     val value: String,
 ) {
     init {
