@@ -18,17 +18,22 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
             (second == null || best.score - second.score >= policy.minimumAutoLinkLead)
         ) return StoryResolution.Existing(best.storyId)
 
-        val semantic = source.titles.map(TitleNormalizer::normalize).filter(String::isNotBlank).sorted().firstOrNull()
-            ?: source.sourceKeys.map { "${it.pluginId.value}:${it.sourceId}" }.sorted().first()
-        val id = StoryId("catalog:${digest(semantic)}")
-        val existing = candidates.firstOrNull { it.story.id == id }
-        return if (existing != null) StoryResolution.Existing(id)
-        else StoryResolution.Create(Story(id, source.story.contentType))
+        val semantic = listOf(
+            source.story.contentType.name,
+            source.titles.map(TitleNormalizer::normalize).filter(String::isNotBlank).sorted().joinToString("|"),
+            source.authors.map(TitleNormalizer::normalize).filter(String::isNotBlank).sorted().joinToString("|"),
+            source.sourceKeys.map { "${it.pluginId.value}:${it.sourceId}" }.sorted().joinToString("|"),
+        ).joinToString("#")
+        val base = "catalog:${digest(semantic)}"
+        val id = generateSequence(1) { it + 1 }
+            .map { suffix -> StoryId(if (suffix == 1) base else "$base:$suffix") }
+            .first { candidateId -> candidates.none { it.story.id == candidateId } }
+        return StoryResolution.Create(Story(id, source.story.contentType))
     }
 
     fun compare(source: CatalogMatchCandidate, candidate: CatalogMatchCandidate): CatalogMatchResult {
-        val title = (source.titles + candidate.titles).map { it to source.titles.maxOf { s -> TitleNormalizer.similarity(s, it) } }
-            .maxWithOrNull(compareBy<Pair<String, Double>> { it.second }.thenBy { TitleNormalizer.normalize(it.first) })
+        val title = candidate.titles.map { it to source.titles.maxOf { sourceTitle -> TitleNormalizer.similarity(sourceTitle, it) } }
+            .maxWithOrNull(compareBy<Pair<String, Double>> { it.second }.thenByDescending { TitleNormalizer.normalize(it.first) })
             ?: ("" to 0.0)
         val sourceAuthors = source.authors.map(TitleNormalizer::normalize).filter(String::isNotBlank).toSet()
         val candidateAuthors = candidate.authors.map(TitleNormalizer::normalize).filter(String::isNotBlank).toSet()
