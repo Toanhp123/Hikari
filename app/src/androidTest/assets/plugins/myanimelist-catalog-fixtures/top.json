@@ -1,0 +1,37 @@
+{
+  "data": [
+    {
+      "node": {
+        "id": 2,
+        "title": "Berserk",
+        "main_picture": {
+          "large": "https://cdn.myanimelist.net/images/manga/1/157897l.jpg"
+        },
+        "mean": 9.47,
+        "media_type": "manga",
+        "authors": [
+          {"node": {"first_name": "Kentarou", "last_name": "Miura"}}
+        ]
+      },
+      "ranking": {"rank": 1}
+    },
+    {
+      "node": {
+        "id": 13,
+        "title": "One Piece",
+        "main_picture": {
+          "large": "https://cdn.myanimelist.net/images/manga/2/253146l.jpg"
+        },
+        "mean": 9.22,
+        "media_type": "manga",
+        "authors": [
+          {"node": {"first_name": "Eiichiro", "last_name": "Oda"}}
+        ]
+      },
+      "ranking": {"rank": 2}
+    }
+  ],
+  "paging": {
+    "next": "https://api.myanimelist.net/v2/manga/ranking?ranking_type=manga&limit=25&offset=25"
+  }
+}

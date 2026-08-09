@@ -1,0 +1,31 @@
+{
+  "id": "org.openstory.catalog.myanimelist",
+  "name": "MyAnimeList Manga Catalog",
+  "version": "1.1.0",
+  "packageChecksumSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "homepageUrl": "https://myanimelist.net/",
+  "minimumHostVersion": "1.0.0",
+  "updateUrl": "https://openstory.example/plugins/myanimelist-catalog/manifest.json",
+  "api": {
+    "major": 1,
+    "minor": 0
+  },
+  "kinds": [
+    "CATALOG"
+  ],
+  "languages": [
+    "ja",
+    "ko",
+    "zh-hans"
+  ],
+  "allowedHosts": [
+    "api.myanimelist.net",
+    "cdn.myanimelist.net",
+    "myanimelist.net"
+  ],
+  "capabilities": [
+    "NETWORK"
+  ],
+  "runtime": "JAVASCRIPT",
+  "entry": "main.js"
+}

@@ -215,6 +215,22 @@ object DefaultCatalogBundledPlugin {
         )
 }
 
+object JavaScriptCatalogBundledPlugin {
+    const val PLUGIN_ID = "org.openstory.catalog.javascript.fixture"
+    const val VERSION = "1.0.0"
+    const val ASSET_PATH = "plugins/javascript-catalog.osp"
+    const val PACKAGE_SHA_256 = "bd5f15f550fcafb72317fccd1b438652fdc62a0a5f53b957feb18d7050f98129"
+
+    val descriptor: BundledPluginAssetDescriptor
+        get() = BundledPluginAssetDescriptor(
+            assetPath = ASSET_PATH,
+            pluginId = PLUGIN_ID,
+            version = VERSION,
+            exactPackageSha256 = PACKAGE_SHA_256,
+            acceptedCapabilities = setOf(PluginCapability.NETWORK),
+        )
+}
+
 private fun <T> AppResult<T>.toUnitResult(): AppResult<Unit> = when (this) {
     is AppResult.Success -> AppResult.Success(Unit)
     is AppResult.Failure -> this

@@ -125,5 +125,5 @@ internal object SelectorSyntaxValidator {
     private const val MAX_URL_TEMPLATE_LENGTH = 2_048
     private const val MAX_CSS_LENGTH = 1_024
     private const val MAX_ATTRIBUTE_LENGTH = 128
-    private val TEMPLATE_VARIABLE = Regex("""\{[A-Za-z][A-Za-z0-9_]*}""")
+    private val TEMPLATE_VARIABLE = Regex("""\{[A-Za-z][A-Za-z0-9_]*\}""")
 }

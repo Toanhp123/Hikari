@@ -225,6 +225,43 @@ class RefreshHomeTest {
     }
 
     @Test
+    fun cachedCombinedHomeExcludesDisabledCatalogSnapshots() = runTest {
+        val repository = FakeCatalogRepository(
+            initialHomes = listOf(
+                cachedHome(
+                    "catalog.enabled",
+                    refreshedAt = 10L,
+                    storyId = "story-enabled",
+                    sectionTitle = "Enabled",
+                    score = 8.0,
+                    scale = 10.0,
+                ),
+                cachedHome(
+                    "catalog.disabled",
+                    refreshedAt = 20L,
+                    storyId = "story-disabled",
+                    sectionTitle = "Disabled",
+                    score = 9.0,
+                    scale = 10.0,
+                ),
+            ),
+        )
+        val observe = ObserveCombinedHome(
+            repository = repository,
+            ranking = AggregateRanking(),
+            enabledCatalogIds = { setOf(PluginId("catalog.enabled")) },
+        )
+
+        val home = observe().first()
+
+        assertEquals(listOf("catalog.enabled"), home.catalogs.map { it.pluginId.value })
+        assertEquals(
+            setOf("catalog.enabled"),
+            home.combined.flatMap { combined -> combined.sources }.map { it.pluginId.value }.toSet(),
+        )
+    }
+
+    @Test
     fun cachedCombinedHomeEmitsWhileNetworkRefreshIsStillSuspended() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val release = CompletableDeferred<Unit>()
@@ -261,7 +298,11 @@ class RefreshHomeTest {
             repository,
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
         )
-        val observe = ObserveCombinedHome(repository, AggregateRanking())
+        val observe = ObserveCombinedHome(
+            repository = repository,
+            ranking = AggregateRanking(),
+            enabledCatalogIds = { setOf(PluginId("catalog.a"), PluginId("catalog.b")) },
+        )
 
         val refreshJob = async { refresh() }
         runCurrent()

@@ -72,8 +72,8 @@ class HomeScreenTest {
     }
 
     @Test
-    fun cardClickReportsCanonicalStoryId() {
-        var selected: StoryId? = null
+    fun cardClickReportsCanonicalStoryAndSourceIdentity() {
+        var selected: HomeStorySelection? = null
 
         compose.setContent {
             MaterialTheme {
@@ -90,7 +90,35 @@ class HomeScreenTest {
         compose.onNodeWithContentDescription(
             "Fixture Novel. Web novel. Section Trending. Score 8.4 out of 10 from catalog.a.",
         ).performClick()
-        assertEquals(StoryId("story-1"), selected)
+        assertEquals(
+            HomeStorySelection(
+                storyId = StoryId("story-1"),
+                pluginId = PluginId("catalog.a"),
+                sourceId = "source-1",
+            ),
+            selected,
+        )
+    }
+
+    @Test
+    fun searchButtonReportsSearchAction() {
+        var searchRequested = false
+
+        compose.setContent {
+            MaterialTheme {
+                HomeScreen(
+                    state = fixtureState(),
+                    actions = HomeActions(
+                        refresh = {},
+                        search = { searchRequested = true },
+                        storySelected = {},
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Search").performClick()
+        assertEquals(true, searchRequested)
     }
 
     @Test

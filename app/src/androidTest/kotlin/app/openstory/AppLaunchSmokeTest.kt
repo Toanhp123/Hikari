@@ -1,6 +1,7 @@
 package app.openstory
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -29,6 +30,24 @@ class AppLaunchSmokeTest {
             .performClick()
         composeRule.onAllNodesWithText("Plugins")
             .assertCountEquals(2)
+    }
+
+    @Test
+    fun wave05HomeOpensCatalogSearch() {
+        composeRule.onNodeWithText("Refresh")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Search")
+            .performClick()
+        composeRule.onNodeWithText("Search catalogs")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun productionHomeDoesNotExposeFixtureCatalogCards() {
+        composeRule.onAllNodesWithText("Hikari Chronicles")
+            .assertCountEquals(0)
+        composeRule.onAllNodesWithText("JavaScript Lantern")
+            .assertCountEquals(0)
     }
 
     @Test

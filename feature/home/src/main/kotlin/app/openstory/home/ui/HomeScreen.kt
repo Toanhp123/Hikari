@@ -38,6 +38,7 @@ fun HomeScreen(
             HomeHeader(
                 refreshing = state.refreshing,
                 onRefresh = actions.refresh,
+                onSearch = actions.search,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -116,6 +117,7 @@ private fun CombinedHomeContent(
 private fun HomeHeader(
     refreshing: Boolean,
     onRefresh: () -> Unit,
+    onSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -126,11 +128,16 @@ private fun HomeHeader(
             text = "Home",
             style = MaterialTheme.typography.headlineMedium,
         )
-        Button(
-            onClick = onRefresh,
-            enabled = !refreshing,
-        ) {
-            Text("Refresh")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onSearch) {
+                Text("Search")
+            }
+            Button(
+                onClick = onRefresh,
+                enabled = !refreshing,
+            ) {
+                Text("Refresh")
+            }
         }
     }
 }
@@ -207,6 +214,7 @@ private fun CombinedHomeCard(
     HomeCard(
         card = HomeCardPresentation(
             storyId = combined.storyId,
+            sourceId = primary.sourceId,
             title = primary.title,
             contentType = primary.contentType,
             authors = primary.authors,

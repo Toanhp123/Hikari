@@ -82,4 +82,4 @@ private fun validateOrigin(
 }
 
 private val templateVariable =
-    Regex("""\{[A-Za-z][A-Za-z0-9_]*}""")
+    Regex("""\{[A-Za-z][A-Za-z0-9_]*\}""")

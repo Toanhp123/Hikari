@@ -158,7 +158,7 @@ class SelectorDocumentLoader(
             .replace("+", "%20")
 
     private companion object {
-        val TEMPLATE_VARIABLE = Regex("""\{([A-Za-z][A-Za-z0-9_]*)}""")
+        val TEMPLATE_VARIABLE = Regex("""\{([A-Za-z][A-Za-z0-9_]*)\}""")
         const val HTTP_SUCCESS_MIN = 200
         const val HTTP_SUCCESS_MAX = 299
     }

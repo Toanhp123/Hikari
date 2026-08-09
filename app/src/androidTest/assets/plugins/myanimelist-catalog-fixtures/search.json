@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "node": {
+        "id": 13,
+        "title": "One Piece",
+        "main_picture": {
+          "large": "https://cdn.myanimelist.net/images/manga/2/253146l.jpg"
+        },
+        "mean": 9.22,
+        "media_type": "manga",
+        "authors": [
+          {"node": {"first_name": "Eiichiro", "last_name": "Oda"}}
+        ]
+      }
+    }
+  ],
+  "paging": {}
+}

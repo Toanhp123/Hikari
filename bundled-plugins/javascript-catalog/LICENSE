@@ -1,0 +1,10 @@
+OpenStory JavaScript Catalog development fixture notice
+
+The metadata, names, descriptions, and JSON fixture content in this bundled development
+catalog are synthetic OpenStory project test data and are not copied from a third-party
+catalog or website. No third-party credentials, API keys, or copyrighted catalog data are
+included in this package.
+
+The project-wide open-source license will be selected and committed during the release
+hardening wave. Until then, this notice documents provenance for the bundled fixture and
+does not grant rights beyond the license governing the repository that contains it.
