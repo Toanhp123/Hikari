@@ -8,10 +8,10 @@ Tests move by invariant rather than by historical module ownership. A suite mark
 
 | Current test | Action | New owner / reason |
 |---|---|---|
-| `core/plugin-api/src/test/kotlin/app/openstory/plugin/api/PluginManifestTest.kt` | REWRITE | `:plugins:api`; new pure manifest |
-| `core/plugin-api/src/test/kotlin/app/openstory/plugin/api/testing/PluginContractSuiteTest.kt` | REWRITE | `:plugins:api`; protocol contract suite |
-| `core/plugin-host/src/test/kotlin/app/openstory/plugin/host/js/JavaScriptPluginRuntimeTest.kt` | REWRITE | `:plugins:runtime`; isolated operation runtime |
-| `core/plugin-host/src/test/kotlin/app/openstory/plugin/host/selector/runtime/SelectorEndpointCoverageTest.kt` | DELETE_WITH_OWNER | Selector runtime removed in R2 |
+| `plugins/api/src/test/kotlin/app/openstory/plugins/api/manifest/PluginManifestTest.kt` | REWRITE | `:plugins:api`; new pure manifest |
+| `plugins/api/src/test/kotlin/app/openstory/plugins/api/testing/MyAnimeListReferenceContractTest.kt` | REWRITE | `:plugins:api`; protocol contract suite |
+| `plugins/runtime/src/test/kotlin/app/openstory/plugins/runtime/execution/PluginOperationRunnerTest.kt` | REWRITE | `:plugins:runtime`; isolated operation runtime |
+| `plugins/runtime/src/test/kotlin/app/openstory/plugins/runtime/install/PackageVerifierTest.kt` | DELETE_WITH_OWNER | Selector runtime removed in R2 |
 | `core/database/src/androidTest/kotlin/app/openstory/database/repository/RoomCatalogRepositoryTest.kt` | REWRITE | `:storage:room`; semantic catalog commit contract |
 | `core/matching/src/test/kotlin/app/openstory/matching/CatalogStoryResolverTest.kt` | REWRITE | `:catalog`; pure matcher |
 | `feature/home/src/test/kotlin/app/openstory/home/domain/RefreshHomeTest.kt` | REWRITE | `:catalog`; refresh service |

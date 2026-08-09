@@ -1,6 +1,10 @@
 package app.openstory.story.ui
 
 import androidx.lifecycle.ViewModel
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.CatalogSourceRegistry
+import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.SourceDetails
 import app.openstory.common.AppError
 import app.openstory.common.AppResult
 import app.openstory.database.repository.CatalogRepository
@@ -10,9 +14,6 @@ import app.openstory.model.CatalogEntry
 import app.openstory.model.ContentType
 import app.openstory.model.PluginId
 import app.openstory.model.StoryId
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.host.HostedPlugin
-import app.openstory.plugin.host.PluginHost
 import app.openstory.story.domain.CatalogDetailsMapper
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -40,21 +41,21 @@ class StoryDetailViewModel private constructor(
         request: StoryDetailRequest,
         storyRepository: LocalStoryRepository,
         catalogRepository: CatalogRepository,
-        host: PluginHost,
+        sources: CatalogSourceRegistry,
         detailsMapper: CatalogDetailsMapper,
     ) : this(
-        dependencies = storyDetailDependencies(request, storyRepository, catalogRepository, host, detailsMapper),
+        dependencies = storyDetailDependencies(request, storyRepository, catalogRepository, sources, detailsMapper),
     )
 
     internal constructor(
         request: StoryDetailRequest,
         storyRepository: LocalStoryRepository,
         catalogRepository: CatalogRepository,
-        host: PluginHost,
+        sources: CatalogSourceRegistry,
         detailsMapper: CatalogDetailsMapper,
         scope: CoroutineScope,
     ) : this(
-        dependencies = storyDetailDependencies(request, storyRepository, catalogRepository, host, detailsMapper),
+        dependencies = storyDetailDependencies(request, storyRepository, catalogRepository, sources, detailsMapper),
         scope = scope,
     )
 
@@ -130,7 +131,7 @@ private fun storyDetailDependencies(
     request: StoryDetailRequest,
     storyRepository: LocalStoryRepository,
     catalogRepository: CatalogRepository,
-    host: PluginHost,
+    sources: CatalogSourceRegistry,
     detailsMapper: CatalogDetailsMapper,
 ): StoryDetailDependencies {
     val selectedStoryId = MutableStateFlow(request.storyId)
@@ -140,7 +141,7 @@ private fun storyDetailDependencies(
             enrichCatalogSource(
                 request = request,
                 repository = catalogRepository,
-                host = host,
+                sources = sources,
                 detailsMapper = detailsMapper,
             ).map<StoryId?> { storyId -> storyId }
         },
@@ -225,24 +226,28 @@ private fun CatalogEntry.toStoryDetailSource(): StoryDetailSource = StoryDetailS
 private suspend fun enrichCatalogSource(
     request: StoryDetailRequest,
     repository: CatalogRepository,
-    host: PluginHost,
+    sources: CatalogSourceRegistry,
     detailsMapper: CatalogDetailsMapper,
 ): AppResult<StoryId> = try {
-    val hosted = host.catalog(request.pluginId)
-    when (val details = hosted.instance.details(request.sourceId)) {
-        is AppResult.Success -> if (details.value.sourceId != request.sourceId) {
+    val source = sources.source(request.pluginId) ?: return AppResult.Failure(
+        AppError.Plugin(code = DETAILS_SOURCE_UNAVAILABLE_CODE, retryable = false),
+    )
+    when (val details = source.details(request.sourceId)) {
+        is CatalogSourceResult.Success -> if (details.value.sourceId != request.sourceId) {
             AppResult.Failure(
                 AppError.Validation(code = DETAILS_SOURCE_MISMATCH_CODE),
             )
         } else {
             persistDetails(
-                hosted = hosted,
+                source = source,
                 details = details.value,
                 repository = repository,
                 mapper = detailsMapper,
             )
         }
-        is AppResult.Failure -> details
+        is CatalogSourceResult.Failure -> AppResult.Failure(
+            AppError.Plugin(code = details.failure.code, retryable = details.failure.retryable),
+        )
     }
 } catch (failure: CancellationException) {
     throw failure
@@ -256,12 +261,12 @@ private suspend fun enrichCatalogSource(
 }
 
 private suspend fun persistDetails(
-    hosted: HostedPlugin<CatalogPlugin>,
-    details: app.openstory.plugin.api.catalog.CatalogDetails,
+    source: CatalogSource,
+    details: SourceDetails,
     repository: CatalogRepository,
     mapper: CatalogDetailsMapper,
 ): AppResult<StoryId> {
-    val mapped = mapper.map(hosted, details)
+    val mapped = mapper.map(source, details)
     return repository.upsertSourceMetadata(
         pluginId = mapped.pluginId,
         pluginVersion = mapped.pluginVersion,
@@ -271,3 +276,4 @@ private suspend fun persistDetails(
 
 private const val DETAILS_FAILED_CODE = "catalog.details_failed"
 private const val DETAILS_SOURCE_MISMATCH_CODE = "catalog.details_source_mismatch"
+private const val DETAILS_SOURCE_UNAVAILABLE_CODE = "catalog.source_unavailable"

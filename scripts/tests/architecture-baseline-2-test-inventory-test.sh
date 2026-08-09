@@ -7,10 +7,10 @@ FILE="$ROOT_DIR/docs/internal/architecture-baseline-2/test-migration-inventory.m
 test -f "$FILE"
 
 required_paths=(
-  'core/plugin-api/src/test/kotlin/app/openstory/plugin/api/PluginManifestTest.kt'
-  'core/plugin-api/src/test/kotlin/app/openstory/plugin/api/testing/PluginContractSuiteTest.kt'
-  'core/plugin-host/src/test/kotlin/app/openstory/plugin/host/js/JavaScriptPluginRuntimeTest.kt'
-  'core/plugin-host/src/test/kotlin/app/openstory/plugin/host/selector/runtime/SelectorEndpointCoverageTest.kt'
+  'plugins/api/src/test/kotlin/app/openstory/plugins/api/manifest/PluginManifestTest.kt'
+  'plugins/api/src/test/kotlin/app/openstory/plugins/api/testing/MyAnimeListReferenceContractTest.kt'
+  'plugins/runtime/src/test/kotlin/app/openstory/plugins/runtime/execution/PluginOperationRunnerTest.kt'
+  'plugins/runtime/src/test/kotlin/app/openstory/plugins/runtime/install/PackageVerifierTest.kt'
   'core/database/src/androidTest/kotlin/app/openstory/database/repository/RoomCatalogRepositoryTest.kt'
   'core/matching/src/test/kotlin/app/openstory/matching/CatalogStoryResolverTest.kt'
   'feature/home/src/test/kotlin/app/openstory/home/domain/RefreshHomeTest.kt'

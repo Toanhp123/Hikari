@@ -1,11 +1,12 @@
 package app.openstory.story.domain
 
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceDetails
 import app.openstory.model.CatalogSourceMetadata
 import app.openstory.model.LanguageTag
 import app.openstory.model.PluginId
-import app.openstory.plugin.api.catalog.CatalogDetails
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.host.HostedPlugin
+import app.openstory.model.ContentType
 
 data class MappedCatalogDetails(
     val pluginId: PluginId,
@@ -14,12 +15,12 @@ data class MappedCatalogDetails(
 )
 
 class CatalogDetailsMapper {
-    fun map(
-        hosted: HostedPlugin<CatalogPlugin>,
-        details: CatalogDetails,
+    internal fun map(
+        source: CatalogSource,
+        details: SourceDetails,
     ): MappedCatalogDetails = MappedCatalogDetails(
-        pluginId = hosted.id,
-        pluginVersion = hosted.version,
+        pluginId = source.pluginId,
+        pluginVersion = source.version,
         metadata = CatalogSourceMetadata(
             sourceId = details.sourceId,
             sourceUrl = details.sourceUrl,
@@ -28,13 +29,20 @@ class CatalogDetailsMapper {
             authors = details.authors.toSet(),
             description = details.description,
             genres = details.genres.toSet(),
-            contentType = details.contentType,
+            contentType = details.contentType.toModel(),
             languageTags = details.languageTags.map { tag -> LanguageTag(tag) }.toSet(),
-            coverReference = details.image?.url,
+            coverReference = details.coverUrl,
             publicationStatus = null,
-            score = details.score?.value,
-            scoreScale = details.score?.scale,
+            score = details.scoreValue,
+            scoreScale = details.scoreScale,
             popularityRank = details.popularityRank,
         ),
     )
+}
+
+private fun SourceContentType.toModel(): ContentType = when (this) {
+    SourceContentType.LIGHT_NOVEL -> ContentType.LIGHT_NOVEL
+    SourceContentType.WEB_NOVEL -> ContentType.WEB_NOVEL
+    SourceContentType.MANGA -> ContentType.MANGA
+    SourceContentType.ANIME -> ContentType.ANIME
 }

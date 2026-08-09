@@ -1,0 +1,15 @@
+{
+  "id": "org.openstory.catalog.myanimelist",
+  "name": "MyAnimeList Manga Catalog",
+  "version": "2.0.0",
+  "protocol": 1,
+  "entry": "main.js",
+  "provides": ["CATALOG"],
+  "languages": ["ja", "ko", "zh-hans"],
+  "homepageUrl": "https://myanimelist.net/",
+  "capabilities": {
+    "network": {
+      "hosts": ["api.myanimelist.net", "cdn.myanimelist.net", "myanimelist.net"]
+    }
+  }
+}

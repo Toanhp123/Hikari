@@ -34,7 +34,7 @@ chmod +x "$TEMP_DIR/fake-gradlew"
 
 cat > "$TEMP_DIR/expected.log" <<EOF_EXPECTED
 verify gradlew=$TEMP_DIR/fake-gradlew
-gradle --no-daemon --dependency-verification strict :core:plugin-api:test :core:plugin-host:test :test:fixtures:test --stacktrace
+gradle --no-daemon --dependency-verification strict :plugins:api:test :plugins:runtime:testDebugUnitTest :catalog:testDebugUnitTest :test:fixtures:test --stacktrace
 EOF_EXPECTED
 
 diff -u "$TEMP_DIR/expected.log" "$CALL_LOG"

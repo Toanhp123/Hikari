@@ -1,24 +1,21 @@
 package app.openstory.home.domain
 
-import app.openstory.common.AppResult
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.CatalogSourceRegistry
+import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceDetails
+import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceFilterOption
+import app.openstory.catalog.source.SourceHomeRequest
+import app.openstory.catalog.source.SourceItem
+import app.openstory.catalog.source.SourceOptionFilter
+import app.openstory.catalog.source.SourceSearchPage
+import app.openstory.catalog.source.SourceSearchRequest
+import app.openstory.catalog.source.SourceSection
 import app.openstory.matching.CatalogStoryResolver
 import app.openstory.matching.defaultCatalogMatchPolicy
-import app.openstory.model.ContentType
 import app.openstory.model.PluginId
-import app.openstory.plugin.api.Page
-import app.openstory.plugin.api.catalog.CatalogCard
-import app.openstory.plugin.api.catalog.CatalogDetails
-import app.openstory.plugin.api.catalog.CatalogFilterDefinition
-import app.openstory.plugin.api.catalog.CatalogFilterOption
-import app.openstory.plugin.api.catalog.CatalogHomeRequest
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.api.catalog.CatalogScore
-import app.openstory.plugin.api.catalog.CatalogSearchRequest
-import app.openstory.plugin.api.catalog.CatalogSection
-import app.openstory.plugin.api.catalog.CatalogSelectFilter
-import app.openstory.plugin.api.content.ContentPlugin
-import app.openstory.plugin.host.HostedPlugin
-import app.openstory.plugin.host.PluginHost
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,7 +38,7 @@ class SearchCatalogsTest {
         val host = FakeSearchHost(emptyList())
         val requests = MutableStateFlow(SearchRequest(query = "   "))
         val result = SearchCatalogs(
-            host = host,
+            sources = host,
             resolver = CatalogStoryResolver(defaultCatalogMatchPolicy()),
             candidates = CanonicalStoryCandidates { emptyList() },
             debounceMillis = 0L,
@@ -63,8 +60,8 @@ class SearchCatalogsTest {
                     } else {
                         delay(10)
                     }
-                    AppResult.Success(
-                        Page(
+                    CatalogSourceResult.Success(
+                        SourceSearchPage(
                             items = listOf(searchCard("${request.query}-result", request.query)),
                             nextToken = null,
                         ),
@@ -74,7 +71,7 @@ class SearchCatalogsTest {
         )
         val requests = MutableStateFlow(SearchRequest(query = ""))
         val useCase = SearchCatalogs(
-            host = host,
+            sources = host,
             resolver = CatalogStoryResolver(defaultCatalogMatchPolicy()),
             candidates = CanonicalStoryCandidates { emptyList() },
             debounceMillis = 300L,
@@ -111,8 +108,8 @@ class SearchCatalogsTest {
                         oldStarted.complete(Unit)
                         delay(100)
                     }
-                    AppResult.Success(
-                        Page(
+                    CatalogSourceResult.Success(
+                        SourceSearchPage(
                             items = listOf(searchCard("${request.query}-result", request.query)),
                             nextToken = null,
                         ),
@@ -123,7 +120,7 @@ class SearchCatalogsTest {
         val requests = MutableStateFlow(SearchRequest(query = ""))
         val pages = mutableListOf<SearchResultPage>()
         val useCase = SearchCatalogs(
-            host = host,
+            sources = host,
             resolver = CatalogStoryResolver(defaultCatalogMatchPolicy()),
             candidates = CanonicalStoryCandidates { emptyList() },
             debounceMillis = 300L,
@@ -153,15 +150,17 @@ class SearchCatalogsTest {
         val host = FakeSearchHost(
             listOf(
                 searchPlugin("catalog.b") {
-                    AppResult.Success(Page(listOf(searchCard("b-1", "Reborn", 90.0, 100.0)), null))
+                    CatalogSourceResult.Success(
+                        SourceSearchPage(listOf(searchCard("b-1", "Reborn", 90.0, 100.0)), null),
+                    )
                 },
                 searchPlugin("catalog.a") {
-                    AppResult.Success(Page(listOf(searchCard("a-1", "Reborn", 8.0, 10.0)), null))
+                    CatalogSourceResult.Success(SourceSearchPage(listOf(searchCard("a-1", "Reborn", 8.0, 10.0)), null))
                 },
             ),
         )
         val page = SearchCatalogs(
-            host = host,
+            sources = host,
             resolver = CatalogStoryResolver(defaultCatalogMatchPolicy()),
             candidates = CanonicalStoryCandidates { emptyList() },
             debounceMillis = 0L,
@@ -180,14 +179,15 @@ class SearchCatalogsTest {
         val pluginA = searchPlugin(
             id = "catalog.a",
             filters = listOf(
-                CatalogSelectFilter(
+                SourceOptionFilter(
                     id = "genre",
                     label = "Genre",
-                    options = listOf(CatalogFilterOption("fantasy", "Fantasy")),
+                    multiple = false,
+                    options = listOf(SourceFilterOption("fantasy", "Fantasy")),
                 ),
             ),
-        ) { AppResult.Success(Page(emptyList(), null)) }
-        val pluginB = searchPlugin("catalog.b") { AppResult.Success(Page(emptyList(), null)) }
+        ) { CatalogSourceResult.Success(SourceSearchPage(emptyList(), null)) }
+        val pluginB = searchPlugin("catalog.b") { CatalogSourceResult.Success(SourceSearchPage(emptyList(), null)) }
         val host = FakeSearchHost(listOf(pluginA, pluginB))
         val request = SearchRequest(
             query = "novel",
@@ -197,7 +197,7 @@ class SearchCatalogsTest {
         )
 
         val page = SearchCatalogs(
-            host = host,
+            sources = host,
             resolver = CatalogStoryResolver(defaultCatalogMatchPolicy()),
             candidates = CanonicalStoryCandidates { emptyList() },
             debounceMillis = 0L,
@@ -211,53 +211,43 @@ class SearchCatalogsTest {
 
 private class FakeSearchHost(
     private val catalogs: List<RecordingCatalogPlugin>,
-) : PluginHost {
+) : CatalogSourceRegistry {
     var enabledCatalogCalls: Int = 0
         private set
 
-    override suspend fun catalog(id: PluginId): HostedPlugin<CatalogPlugin> =
-        catalogs.single { it.hosted.id == id }.hosted
+    override suspend fun source(pluginId: PluginId): CatalogSource? = catalogs.singleOrNull { it.pluginId == pluginId }
 
-    override suspend fun content(id: PluginId): HostedPlugin<ContentPlugin> = error("Not used")
-
-    override suspend fun enabledCatalogs(): List<HostedPlugin<CatalogPlugin>> {
+    override suspend fun enabled(): List<CatalogSource> {
         enabledCatalogCalls += 1
-        return catalogs.map(RecordingCatalogPlugin::hosted)
+        return catalogs
     }
-
-    override suspend fun enabledContentSources(): List<HostedPlugin<ContentPlugin>> = emptyList()
 }
 
 private class RecordingCatalogPlugin(
     id: String,
-    filters: List<CatalogFilterDefinition>,
-    private val searchAction: suspend (CatalogSearchRequest) -> AppResult<Page<CatalogCard>>,
-) {
-    val requests = mutableListOf<CatalogSearchRequest>()
+    private val sourceFilters: List<SourceFilter>,
+    private val searchAction: suspend (SourceSearchRequest) -> CatalogSourceResult<SourceSearchPage>,
+) : CatalogSource {
+    override val pluginId = PluginId(id)
+    override val version = "1.0.0"
+    val requests = mutableListOf<SourceSearchRequest>()
 
-    val hosted: HostedPlugin<CatalogPlugin> = HostedPlugin(
-        id = PluginId(id),
-        version = "1.0.0",
-        instance = object : CatalogPlugin {
-            override suspend fun home(request: CatalogHomeRequest): AppResult<List<CatalogSection>> =
-                AppResult.Success(emptyList())
+    override suspend fun home(request: SourceHomeRequest): CatalogSourceResult<List<SourceSection>> =
+        CatalogSourceResult.Success(emptyList())
 
-            override suspend fun search(request: CatalogSearchRequest): AppResult<Page<CatalogCard>> {
-                requests += request
-                return searchAction(request)
-            }
+    override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> {
+        requests += request
+        return searchAction(request)
+    }
 
-            override suspend fun details(sourceId: String): AppResult<CatalogDetails> = error("Not used")
-
-            override suspend fun filters(): AppResult<List<CatalogFilterDefinition>> = AppResult.Success(filters)
-        },
-    )
+    override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> = error("Not used")
+    override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = CatalogSourceResult.Success(sourceFilters)
 }
 
 private fun searchPlugin(
     id: String,
-    filters: List<CatalogFilterDefinition> = emptyList(),
-    search: suspend (CatalogSearchRequest) -> AppResult<Page<CatalogCard>>,
+    filters: List<SourceFilter> = emptyList(),
+    search: suspend (SourceSearchRequest) -> CatalogSourceResult<SourceSearchPage>,
 ): RecordingCatalogPlugin = RecordingCatalogPlugin(id, filters, search)
 
 private fun searchCard(
@@ -265,11 +255,12 @@ private fun searchCard(
     title: String,
     score: Double = 8.0,
     scale: Double = 10.0,
-): CatalogCard = CatalogCard(
+): SourceItem = SourceItem(
     sourceId = sourceId,
     title = title,
-    contentType = ContentType.WEB_NOVEL,
-    authors = listOf("Author"),
-    image = null,
-    score = CatalogScore(score, scale),
+    contentType = SourceContentType.WEB_NOVEL,
+    authors = setOf("Author"),
+    coverUrl = null,
+    scoreValue = score,
+    scoreScale = scale,
 )

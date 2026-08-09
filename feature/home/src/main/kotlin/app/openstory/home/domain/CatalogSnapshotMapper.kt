@@ -1,19 +1,20 @@
 package app.openstory.home.domain
 
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceSection
 import app.openstory.model.CatalogSnapshot
 import app.openstory.model.CatalogSnapshotItem
 import app.openstory.model.CatalogSnapshotSection
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.api.catalog.CatalogSection
-import app.openstory.plugin.host.HostedPlugin
+import app.openstory.model.ContentType
 
 class CatalogSnapshotMapper {
-    fun map(
-        hosted: HostedPlugin<CatalogPlugin>,
-        sections: List<CatalogSection>,
+    internal fun map(
+        source: CatalogSource,
+        sections: List<SourceSection>,
     ): CatalogSnapshot = CatalogSnapshot(
-        pluginId = hosted.id,
-        pluginVersion = hosted.version,
+        pluginId = source.pluginId,
+        pluginVersion = source.version,
         sections = sections.map { section ->
             CatalogSnapshotSection(
                 sourceId = section.sourceId,
@@ -22,14 +23,21 @@ class CatalogSnapshotMapper {
                     CatalogSnapshotItem(
                         sourceId = card.sourceId,
                         title = card.title,
-                        contentType = card.contentType,
-                        authors = card.authors,
-                        coverReference = card.image?.url,
-                        score = card.score?.value,
-                        scoreScale = card.score?.scale,
+                        contentType = card.contentType.toModel(),
+                        authors = card.authors.toList(),
+                        coverReference = card.coverUrl,
+                        score = card.scoreValue,
+                        scoreScale = card.scoreScale,
                     )
                 },
             )
         },
     )
+}
+
+internal fun SourceContentType.toModel(): ContentType = when (this) {
+    SourceContentType.LIGHT_NOVEL -> ContentType.LIGHT_NOVEL
+    SourceContentType.WEB_NOVEL -> ContentType.WEB_NOVEL
+    SourceContentType.MANGA -> ContentType.MANGA
+    SourceContentType.ANIME -> ContentType.ANIME
 }

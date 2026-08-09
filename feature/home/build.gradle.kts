@@ -15,7 +15,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:database"))
-    implementation(project(":core:plugin-host"))
+    implementation(project(":catalog"))
     implementation(project(":core:matching"))
     implementation(libs.kotlinx.coroutines.core)
 

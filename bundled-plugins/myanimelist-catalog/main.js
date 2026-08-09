@@ -43,7 +43,7 @@ async function getJson(path) {
     throw pluginError("plugin.myanimelist_http_status", "Unexpected MyAnimeList API status");
   }
   try {
-    return JSON.parse(response.bodyText);
+    return JSON.parse(response.body);
   } catch (_) {
     throw pluginError("plugin.myanimelist_invalid_response", "Invalid MyAnimeList API JSON");
   }
@@ -80,7 +80,7 @@ function imageReference(item) {
   if (typeof candidate !== "string" || !candidate.startsWith(`${MAL_IMAGE_ORIGIN}/`)) {
     return null;
   }
-  return {url: candidate, declaredHost: "cdn.myanimelist.net"};
+  return candidate;
 }
 
 function scoreReference(item) {
@@ -108,7 +108,7 @@ function toCard(item) {
     title: String(item.title || "Untitled"),
     contentType: contentType(item.media_type),
     authors: authors(item),
-    image: imageReference(item),
+    coverUrl: imageReference(item),
     score: scoreReference(item),
   };
 }
@@ -162,15 +162,18 @@ function nodeItems(payload) {
 }
 
 globalThis.openstoryPlugin = Object.freeze({
+  catalog: Object.freeze({
   home: async () => {
     const payload = await getJson(
       `/v2/manga/ranking?ranking_type=manga&limit=${PAGE_SIZE}&fields=${encodeURIComponent(CARD_FIELDS)}`
     );
-    return [{
-      sourceId: "mal-top-manga",
-      title: "MyAnimeList Top Manga",
-      items: nodeItems(payload).map(toCard),
-    }];
+    return {
+      sections: [{
+        sourceId: "mal-top-manga",
+        title: "MyAnimeList Top Manga",
+        items: nodeItems(payload).map(toCard),
+      }],
+    };
   },
 
   search: async input => {
@@ -205,11 +208,12 @@ globalThis.openstoryPlugin = Object.freeze({
       genres: genres(item),
       contentType: contentType(item.media_type),
       languageTags: languageTags(item.media_type),
-      image: imageReference(item),
+      coverUrl: imageReference(item),
       score: scoreReference(item),
       popularityRank: popularityRank(item),
     };
   },
 
-  filters: async () => [],
+  filters: async () => ({filters: []}),
+  }),
 });

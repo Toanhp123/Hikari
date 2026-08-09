@@ -5,6 +5,16 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val packageMyAnimeListPlugin by tasks.registering(Zip::class) {
+    from(layout.projectDirectory.dir("../bundled-plugins/myanimelist-catalog")) {
+        include("manifest.json", "main.js")
+    }
+    destinationDirectory.set(layout.projectDirectory.dir("src/main/assets/plugins"))
+    archiveFileName.set("myanimelist-catalog.osp")
+    isReproducibleFileOrder = true
+    isPreserveFileTimestamps = false
+}
+
 val myAnimeListClientId = providers.gradleProperty("openstory.malClientId")
     .orElse(providers.environmentVariable("OPENSTORY_MAL_CLIENT_ID"))
     .orElse("")
@@ -43,10 +53,10 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:database"))
-    implementation(project(":core:network"))
-    implementation(project(":core:plugin-api"))
-    implementation(project(":core:plugin-host"))
     implementation(project(":core:matching"))
+    implementation(project(":catalog"))
+    implementation(project(":plugins:api"))
+    implementation(project(":plugins:runtime"))
     implementation(project(":feature:home"))
     implementation(project(":feature:story"))
     implementation(libs.kotlinx.coroutines.core)
@@ -62,6 +72,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.room.runtime)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

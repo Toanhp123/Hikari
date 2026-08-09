@@ -74,9 +74,6 @@ class ModuleGraphTest {
             ":core:common",
             ":core:model",
             ":core:database",
-            ":core:plugin-api",
-            ":core:network",
-            ":core:plugin-host",
             ":core:matching",
             ":feature:home",
             ":feature:story",
@@ -140,14 +137,11 @@ class ModuleGraphTest {
             "../core/common/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../core/model/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../core/database/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../core/plugin-api/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/network/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/plugin-host/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../core/matching/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../feature/home/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../feature/story/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../catalog/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
+            "../catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../feature/catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../storage/room/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../plugins/api/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
@@ -194,16 +188,16 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun pluginHostNetworkDependencyIsAnExplicitPolicyDecision() {
+    fun catalogRuntimeDependencyIsAnExplicitPolicyDecision() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),
         )
 
         assertTrue(
-            ":core:network" in policy.modules
-                .getValue(":core:plugin-host")
+            ":plugins:runtime" in policy.modules
+                .getValue(":catalog")
                 .productionDependencies,
-            ":core:plugin-host must explicitly allow :core:network",
+            ":catalog must explicitly allow :plugins:runtime",
         )
     }
 

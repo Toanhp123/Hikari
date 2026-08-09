@@ -13,7 +13,7 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
-    implementation(project(":plugins:api"))
+    api(project(":plugins:api"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp.client)

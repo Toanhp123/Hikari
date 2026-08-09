@@ -1,6 +1,6 @@
 package app.openstory.di
 
-import android.content.Context
+import app.openstory.catalog.source.CatalogSourceRegistry
 import app.openstory.common.dispatchers.AppDispatchers
 import app.openstory.database.OpenStoryDatabase
 import app.openstory.database.repository.CatalogRepository
@@ -16,21 +16,18 @@ import app.openstory.home.ui.SearchViewModel
 import app.openstory.matching.AggregateRanking
 import app.openstory.matching.CatalogStoryResolver
 import app.openstory.matching.defaultCatalogMatchPolicy
-import app.openstory.plugin.host.PluginHost
 import app.openstory.story.domain.CatalogDetailsMapper
 import app.openstory.story.ui.StoryDetailRequest
 import app.openstory.story.ui.StoryDetailViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class OpenStoryAppGraph @Inject constructor(
-    @ApplicationContext context: Context,
+    database: OpenStoryDatabase,
     dispatchers: AppDispatchers,
-    private val pluginHost: PluginHost,
+    private val catalogSources: CatalogSourceRegistry,
 ) {
-    private val database = OpenStoryDatabase.open(context)
     private val resolver = CatalogStoryResolver(defaultCatalogMatchPolicy())
     private val catalogRepository: CatalogRepository = RoomCatalogRepository(
         database = database,
@@ -41,17 +38,17 @@ class OpenStoryAppGraph @Inject constructor(
         repository = catalogRepository,
         ranking = AggregateRanking(),
         enabledCatalogIds = {
-            pluginHost.enabledCatalogs().mapTo(mutableSetOf()) { hosted -> hosted.id }
+            catalogSources.enabled().mapTo(mutableSetOf()) { source -> source.pluginId }
         },
     )
     private val refreshHome = RefreshHome(
-        host = pluginHost,
+        sources = catalogSources,
         mapper = CatalogSnapshotMapper(),
         repository = catalogRepository,
         dispatchers = dispatchers,
     )
     private val searchCatalogs = SearchCatalogs(
-        host = pluginHost,
+        sources = catalogSources,
         resolver = resolver,
         repository = catalogRepository,
     )
@@ -70,7 +67,7 @@ class OpenStoryAppGraph @Inject constructor(
         request = request,
         storyRepository = storyRepository,
         catalogRepository = catalogRepository,
-        host = pluginHost,
+        sources = catalogSources,
         detailsMapper = detailsMapper,
     )
 }

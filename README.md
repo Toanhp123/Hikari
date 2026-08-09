@@ -138,9 +138,9 @@ plugin-host package-inspection, and shared-fixture test suites.
 - `:core:common` — typed results, errors, clocks, dispatchers, stable primitives
 - `:core:model` — platform-independent canonical domain models
 - `:core:database` — Room schema, DAOs, migrations, repositories
-- `:core:plugin-api` — public plugin contracts, package schemas, fixtures
-- `:core:network` — allowlisted plugin HTTP capability
-- `:core:plugin-host` — package installation, registry, selector host
+- `:plugins:api` — public plugin protocol and package schemas
+- `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
+- `:catalog` — application-facing catalog source seam
 - `:core:matching` — deterministic catalog identity matching and aggregate ranking
 - `:feature:home` — cached catalog Home refresh, search, normalization, and combined projections
 - `:feature:story` — source-preserving catalog story detail and metadata enrichment

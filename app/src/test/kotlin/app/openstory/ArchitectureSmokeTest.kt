@@ -105,9 +105,9 @@ class ArchitectureSmokeTest {
             "./scripts/instrumentation/android.sh 37",
             "wave-01-checkpoint:",
             "core/database/build/reports",
-            "core/network/build/reports",
-            "core/plugin-api/build/reports",
-            "core/plugin-host/build/reports",
+            "plugins/api/build/reports",
+            "plugins/runtime/build/reports",
+            "catalog/build/reports",
         ).forEach { expected ->
             assertTrue(
                 expected in workflow,
@@ -209,7 +209,7 @@ class ArchitectureSmokeTest {
             "API 26",
             "API 37",
             "config/architecture/module-boundaries.json",
-            ":core:plugin-host",
+            ":plugins:runtime",
         ).forEach { expected ->
             assertTrue(
                 expected in readme,

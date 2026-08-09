@@ -23,6 +23,9 @@ internal abstract class PluginStateDao {
         pluginId: String,
     ): PluginStateEntity?
 
+    @Query("SELECT * FROM plugin_states ORDER BY plugin_id")
+    abstract suspend fun all(): List<PluginStateEntity>
+
     @Query(
         """
         SELECT *

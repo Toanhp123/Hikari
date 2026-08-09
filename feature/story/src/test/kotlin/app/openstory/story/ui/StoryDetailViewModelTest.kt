@@ -1,5 +1,15 @@
 package app.openstory.story.ui
 
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.CatalogSourceRegistry
+import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceDetails
+import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceHomeRequest
+import app.openstory.catalog.source.SourceSearchPage
+import app.openstory.catalog.source.SourceSearchRequest
+import app.openstory.catalog.source.SourceSection
 import app.openstory.common.AppResult
 import app.openstory.database.repository.CatalogRepository
 import app.openstory.database.repository.LocalStoryRepository
@@ -18,18 +28,6 @@ import app.openstory.model.LibraryStatus
 import app.openstory.model.PluginId
 import app.openstory.model.ReadingProgress
 import app.openstory.model.StoryId
-import app.openstory.plugin.api.Page
-import app.openstory.plugin.api.catalog.CatalogCard
-import app.openstory.plugin.api.catalog.CatalogDetails
-import app.openstory.plugin.api.catalog.CatalogFilterDefinition
-import app.openstory.plugin.api.catalog.CatalogHomeRequest
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.api.catalog.CatalogScore
-import app.openstory.plugin.api.catalog.CatalogSearchRequest
-import app.openstory.plugin.api.catalog.CatalogSection
-import app.openstory.plugin.api.content.ContentPlugin
-import app.openstory.plugin.host.HostedPlugin
-import app.openstory.plugin.host.PluginHost
 import app.openstory.story.domain.CatalogDetailsMapper
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -81,7 +79,7 @@ class StoryDetailViewModelTest {
             ),
             storyRepository = storyRepository,
             catalogRepository = catalogRepository,
-            host = FakePluginHost(plugin.hosted),
+            sources = FakeCatalogSourceRegistry(plugin.source),
             detailsMapper = CatalogDetailsMapper(),
             scope = backgroundScope,
         )
@@ -158,11 +156,11 @@ class StoryDetailViewModelTest {
             ),
             storyRepository = FakeStoryRepository(resolvedStory),
             catalogRepository = FakeCatalogRepository(resolvedStory.id),
-            host = FakePluginHost(
+            sources = FakeCatalogSourceRegistry(
                 RecordingDetailsPlugin(
                     hostedId = PluginId("catalog.a"),
                     details = fixtureDetails(),
-                ).hosted,
+                ).source,
             ),
             detailsMapper = CatalogDetailsMapper(),
             scope = backgroundScope,
@@ -185,11 +183,11 @@ class StoryDetailViewModelTest {
             ),
             storyRepository = FakeStoryRepository(story),
             catalogRepository = catalogRepository,
-            host = FakePluginHost(
+            sources = FakeCatalogSourceRegistry(
                 RecordingDetailsPlugin(
                     hostedId = PluginId("catalog.a"),
                     details = fixtureDetails().copy(sourceId = "source-b"),
-                ).hosted,
+                ).source,
             ),
             detailsMapper = CatalogDetailsMapper(),
             scope = backgroundScope,
@@ -263,55 +261,49 @@ private class FakeCatalogRepository(
 
 private class RecordingDetailsPlugin(
     hostedId: PluginId,
-    details: CatalogDetails,
+    details: SourceDetails,
 ) {
     val requestedSourceIds = mutableListOf<String>()
 
-    val hosted: HostedPlugin<CatalogPlugin> = HostedPlugin(
-        id = hostedId,
-        version = "3.2.1",
-        instance = object : CatalogPlugin {
-            override suspend fun home(request: CatalogHomeRequest): AppResult<List<CatalogSection>> =
-                AppResult.Success(emptyList())
-
-            override suspend fun search(request: CatalogSearchRequest): AppResult<Page<CatalogCard>> =
-                AppResult.Success(Page(emptyList(), null))
-
-            override suspend fun details(sourceId: String): AppResult<CatalogDetails> {
-                requestedSourceIds += sourceId
-                return AppResult.Success(details)
-            }
-
-            override suspend fun filters(): AppResult<List<CatalogFilterDefinition>> = AppResult.Success(emptyList())
-        },
-    )
+    val source: CatalogSource = object : CatalogSource {
+        override val pluginId = hostedId
+        override val version = "3.2.1"
+        override suspend fun home(request: SourceHomeRequest): CatalogSourceResult<List<SourceSection>> =
+            CatalogSourceResult.Success(emptyList())
+        override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> =
+            CatalogSourceResult.Success(SourceSearchPage(emptyList(), null))
+        override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> {
+            requestedSourceIds += sourceId
+            return CatalogSourceResult.Success(details)
+        }
+        override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> =
+            CatalogSourceResult.Success(emptyList())
+    }
 }
 
-private class FakePluginHost(
-    private val catalog: HostedPlugin<CatalogPlugin>,
-) : PluginHost {
-    override suspend fun catalog(id: PluginId): HostedPlugin<CatalogPlugin> {
-        assertEquals(catalog.id, id)
+private class FakeCatalogSourceRegistry(
+    private val catalog: CatalogSource,
+) : CatalogSourceRegistry {
+    override suspend fun source(pluginId: PluginId): CatalogSource? {
+        assertEquals(catalog.pluginId, pluginId)
         return catalog
     }
-
-    override suspend fun content(id: PluginId): HostedPlugin<ContentPlugin> = error("Not used")
-    override suspend fun enabledCatalogs(): List<HostedPlugin<CatalogPlugin>> = listOf(catalog)
-    override suspend fun enabledContentSources(): List<HostedPlugin<ContentPlugin>> = emptyList()
+    override suspend fun enabled(): List<CatalogSource> = listOf(catalog)
 }
 
-private fun fixtureDetails(): CatalogDetails = CatalogDetails(
+private fun fixtureDetails(): SourceDetails = SourceDetails(
     sourceId = "source-a",
     sourceUrl = "https://catalog.example/source-a",
     title = "Fixture Novel",
-    aliases = listOf("Alias A"),
-    authors = listOf("Author"),
+    aliases = setOf("Alias A"),
+    authors = setOf("Author"),
     description = "Rich description",
-    genres = listOf("Fantasy"),
-    contentType = ContentType.WEB_NOVEL,
+    genres = setOf("Fantasy"),
+    contentType = SourceContentType.WEB_NOVEL,
     languageTags = setOf("en"),
-    image = null,
-    score = CatalogScore(8.5, 10.0),
+    coverUrl = null,
+    scoreValue = 8.5,
+    scoreScale = 10.0,
     popularityRank = 5,
 )
 

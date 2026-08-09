@@ -26,7 +26,7 @@ dependencies {
 
     api(project(":core:common"))
 
-    implementation(project(":core:plugin-host"))
+    implementation(project(":plugins:runtime"))
     api(libs.kotlinx.coroutines.core)
 
     implementation(libs.kotlinx.serialization.json)

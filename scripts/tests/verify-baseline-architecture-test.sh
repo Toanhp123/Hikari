@@ -8,12 +8,12 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 FAKE_ROOT="$TEMP_DIR/repository"
 DATABASE_SOURCE="$FAKE_ROOT/core/database/src/main/kotlin/app/openstory/database/OpenStoryDatabase.kt"
 SCHEMA_DIR="$FAKE_ROOT/core/database/schemas/app.openstory.database.OpenStoryDatabase"
-SELECTOR_DIR="$FAKE_ROOT/core/plugin-api/src/main/kotlin/app/openstory/plugin/api/selector"
+ASSET_DIR="$FAKE_ROOT/app/src/main/assets/plugins"
 
-mkdir -p "$(dirname "$DATABASE_SOURCE")" "$SCHEMA_DIR" "$SELECTOR_DIR"
+mkdir -p "$(dirname "$DATABASE_SOURCE")" "$SCHEMA_DIR" "$ASSET_DIR"
 printf '@Database(version = 1)\n' > "$DATABASE_SOURCE"
 printf '{"formatVersion":1,"database":{"version":1}}\n' > "$SCHEMA_DIR/1.json"
-printf 'data class SelectorDefinition(val schemaVersion: Int = 1)\n' > "$SELECTOR_DIR/SelectorDefinition.kt"
+printf 'placeholder\n' > "$ASSET_DIR/myanimelist-catalog.osp"
 
 verify() {
   OPENSTORY_ROOT_DIR="$FAKE_ROOT" \
@@ -37,16 +37,15 @@ assert_failure() {
 
 verify
 
-printf 'data class SelectorPluginDefinitionV2(val schemaVersion: Int = 2)\n' \
-  > "$SELECTOR_DIR/SelectorPluginDefinitionV2.kt"
-assert_failure "a generation-labelled selector filename" verify
-rm "$SELECTOR_DIR/SelectorPluginDefinitionV2.kt"
+printf 'placeholder\n' > "$ASSET_DIR/default-catalog.osp"
+assert_failure "a second production plugin asset" verify
+rm "$ASSET_DIR/default-catalog.osp"
 
 printf '{"formatVersion":1,"database":{"version":2}}\n' > "$SCHEMA_DIR/2.json"
 assert_failure "an additional Room schema" verify
 rm "$SCHEMA_DIR/2.json"
 
-printf 'class SelectorInterpreter\n' > "$SELECTOR_DIR/SelectorInterpreter.kt"
-assert_failure "a removed selector runtime symbol" verify
+mkdir -p "$FAKE_ROOT/core/plugin-host"
+assert_failure "a removed legacy module" verify
 
 echo "verify-baseline-architecture.sh contract verified."

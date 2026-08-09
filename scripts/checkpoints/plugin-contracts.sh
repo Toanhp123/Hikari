@@ -11,8 +11,9 @@ export GRADLEW
 
 "$GRADLEW" --no-daemon \
   --dependency-verification strict \
-  :core:plugin-api:test \
-  :core:plugin-host:test \
+  :plugins:api:test \
+  :plugins:runtime:testDebugUnitTest \
+  :catalog:testDebugUnitTest \
   :test:fixtures:test \
   --stacktrace
 

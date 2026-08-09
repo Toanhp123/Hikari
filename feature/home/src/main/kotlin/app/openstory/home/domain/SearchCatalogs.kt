@@ -1,18 +1,17 @@
 package app.openstory.home.domain
 
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.CatalogSourceRegistry
+import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceSearchPage
+import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.common.AppError
 import app.openstory.common.AppResult
 import app.openstory.database.repository.CatalogRepository
 import app.openstory.matching.CatalogStoryResolver
 import app.openstory.model.CanonicalStory
 import app.openstory.model.PluginId
-import app.openstory.plugin.api.Page
-import app.openstory.plugin.api.catalog.CatalogCard
-import app.openstory.plugin.api.catalog.CatalogFilterDefinition
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.api.catalog.CatalogSearchRequest
-import app.openstory.plugin.host.HostedPlugin
-import app.openstory.plugin.host.PluginHost
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -26,7 +25,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.supervisorScope
 
 class SearchCatalogs(
-    private val host: PluginHost,
+    private val sources: CatalogSourceRegistry,
     resolver: CatalogStoryResolver,
     private val candidates: CanonicalStoryCandidates,
     private val debounceMillis: Long = DEFAULT_DEBOUNCE_MILLIS,
@@ -34,11 +33,11 @@ class SearchCatalogs(
     private val canonicalizer = SearchCanonicalizer(resolver)
 
     constructor(
-        host: PluginHost,
+        sources: CatalogSourceRegistry,
         resolver: CatalogStoryResolver,
         repository: CatalogRepository,
     ) : this(
-        host = host,
+        sources = sources,
         resolver = resolver,
         candidates = CachedHomeCanonicalCandidates(repository),
     )
@@ -68,11 +67,11 @@ class SearchCatalogs(
     }
 
     private suspend fun search(request: SearchRequest): SearchResultPage = supervisorScope {
-        val hostedCatalogs = host.enabledCatalogs().sortedBy { hosted -> hosted.id.value }
+        val catalogSources = sources.enabled().sortedBy { source -> source.pluginId.value }
         val candidateResult = loadCandidates()
-        val outcomes = hostedCatalogs.map { hosted ->
+        val outcomes = catalogSources.map { source ->
             async {
-                searchCatalog(hosted, request)
+                searchCatalog(source, request)
             }
         }.awaitAll()
 
@@ -89,13 +88,13 @@ class SearchCatalogs(
     }
 
     private suspend fun searchCatalog(
-        hosted: HostedPlugin<CatalogPlugin>,
+        source: CatalogSource,
         request: SearchRequest,
     ): CatalogSearchOutcome {
-        val filterResult = callFilters(hosted)
-        val searchResult = callSearch(hosted, request)
+        val filterResult = callFilters(source)
+        val searchResult = callSearch(source, request)
         return CatalogSearchOutcome(
-            hosted = hosted,
+            source = source,
             page = searchResult.value,
             filters = filterResult.value.orEmpty(),
             failure = searchResult.error ?: filterResult.error,
@@ -104,19 +103,17 @@ class SearchCatalogs(
 
     @Suppress("SwallowedException", "TooGenericExceptionCaught")
     private suspend fun callSearch(
-        hosted: HostedPlugin<CatalogPlugin>,
+        source: CatalogSource,
         request: SearchRequest,
-    ): SafeCall<Page<CatalogCard>> = try {
-        when (
-            val result = hosted.instance.search(
-                CatalogSearchRequest(
-                    query = request.query,
-                    filterValues = request.filterValues[hosted.id].orEmpty(),
-                ),
-            )
-        ) {
-            is AppResult.Success -> SafeCall(value = result.value)
-            is AppResult.Failure -> SafeCall(error = result.error)
+    ): SafeCall<SourceSearchPage> = try {
+        when (val result = source.search(
+            SourceSearchRequest(
+                query = request.query,
+                filterValues = request.filterValues[source.pluginId].orEmpty(),
+            ),
+        )) {
+            is CatalogSourceResult.Success -> SafeCall(value = result.value)
+            is CatalogSourceResult.Failure -> SafeCall(error = result.failure.toAppError())
         }
     } catch (failure: CancellationException) {
         throw failure
@@ -126,11 +123,11 @@ class SearchCatalogs(
 
     @Suppress("SwallowedException", "TooGenericExceptionCaught")
     private suspend fun callFilters(
-        hosted: HostedPlugin<CatalogPlugin>,
-    ): SafeCall<List<CatalogFilterDefinition>> = try {
-        when (val result = hosted.instance.filters()) {
-            is AppResult.Success -> SafeCall(value = result.value)
-            is AppResult.Failure -> SafeCall(error = result.error)
+        source: CatalogSource,
+    ): SafeCall<List<SourceFilter>> = try {
+        when (val result = source.filters()) {
+            is CatalogSourceResult.Success -> SafeCall(value = result.value)
+            is CatalogSourceResult.Failure -> SafeCall(error = result.failure.toAppError())
         }
     } catch (failure: CancellationException) {
         throw failure
@@ -169,22 +166,22 @@ class SearchCatalogs(
     )
 
     private data class CatalogSearchOutcome(
-        val hosted: HostedPlugin<CatalogPlugin>,
-        val page: Page<CatalogCard>?,
-        val filters: List<CatalogFilterDefinition>,
+        val source: CatalogSource,
+        val page: SourceSearchPage?,
+        val filters: List<SourceFilter>,
         val failure: AppError?,
     ) {
         fun pageForCanonicalization(): SearchCatalogPage? = page?.let { value ->
-            SearchCatalogPage(hosted = hosted, page = value)
+            SearchCatalogPage(source = source, page = value)
         }
 
         fun filtersForUi(): SearchCatalogFilters = SearchCatalogFilters(
-            pluginId = hosted.id,
-            pluginVersion = hosted.version,
-            definitions = filters.map { filter -> filter.toSearchFilterDefinition() },
+            pluginId = source.pluginId,
+            pluginVersion = source.version,
+            definitions = filters.mapNotNull { filter -> filter.toSearchFilterDefinition() },
         )
 
-        fun failureEntry(): Pair<PluginId, AppError>? = failure?.let { error -> hosted.id to error }
+        fun failureEntry(): Pair<PluginId, AppError>? = failure?.let { error -> source.pluginId to error }
     }
 
     private companion object {
@@ -194,3 +191,8 @@ class SearchCatalogs(
         const val CANDIDATES_FAILED_CODE = "catalog.candidates_failed"
     }
 }
+
+private fun app.openstory.catalog.source.CatalogSourceFailure.toAppError() = AppError.Plugin(
+    code = code,
+    retryable = retryable,
+)

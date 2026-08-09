@@ -1,47 +1,42 @@
 package app.openstory.story.domain
 
-import app.openstory.common.AppResult
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceDetails
+import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceHomeRequest
+import app.openstory.catalog.source.SourceSearchPage
+import app.openstory.catalog.source.SourceSearchRequest
+import app.openstory.catalog.source.SourceSection
 import app.openstory.model.ContentType
 import app.openstory.model.LanguageTag
 import app.openstory.model.PluginId
-import app.openstory.plugin.api.Page
-import app.openstory.plugin.api.catalog.CatalogCard
-import app.openstory.plugin.api.catalog.CatalogDetails
-import app.openstory.plugin.api.catalog.CatalogFilterDefinition
-import app.openstory.plugin.api.catalog.CatalogHomeRequest
-import app.openstory.plugin.api.catalog.CatalogImageReference
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.api.catalog.CatalogScore
-import app.openstory.plugin.api.catalog.CatalogSearchRequest
-import app.openstory.plugin.api.catalog.CatalogSection
-import app.openstory.plugin.host.HostedPlugin
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class CatalogDetailsMapperTest {
     @Test
-    fun detailsMapToRichSourceMetadataWithHostedVersion() {
-        val hosted = hostedCatalog(id = "catalog.a", version = "4.5.6")
-        val details = CatalogDetails(
+    fun detailsMapToRichSourceMetadataWithSourceVersion() {
+        val source = UnusedCatalogSource(PluginId("catalog.a"), "4.5.6")
+        val details = SourceDetails(
             sourceId = "story-1",
             sourceUrl = "https://catalog.example/story-1",
             title = "Fixture Novel",
-            aliases = listOf("Alias"),
-            authors = listOf("Author"),
+            aliases = setOf("Alias"),
+            authors = setOf("Author"),
             description = "Rich description",
-            genres = listOf("Fantasy"),
-            contentType = ContentType.WEB_NOVEL,
+            genres = setOf("Fantasy"),
+            contentType = SourceContentType.WEB_NOVEL,
             languageTags = setOf("en"),
-            image = CatalogImageReference(
-                url = "https://images.example/cover.jpg",
-                declaredHost = "images.example",
-            ),
-            score = CatalogScore(8.8, 10.0),
+            coverUrl = "https://images.example/cover.jpg",
+            scoreValue = 8.8,
+            scoreScale = 10.0,
             popularityRank = 7,
         )
 
-        val mapped = CatalogDetailsMapper().map(hosted, details)
+        val mapped = CatalogDetailsMapper().map(source, details)
 
         assertEquals(PluginId("catalog.a"), mapped.pluginId)
         assertEquals("4.5.6", mapped.pluginVersion)
@@ -60,21 +55,12 @@ class CatalogDetailsMapperTest {
     }
 }
 
-private fun hostedCatalog(
-    id: String,
-    version: String,
-): HostedPlugin<CatalogPlugin> = HostedPlugin(
-    id = PluginId(id),
-    version = version,
-    instance = object : CatalogPlugin {
-        override suspend fun home(request: CatalogHomeRequest): AppResult<List<CatalogSection>> =
-            AppResult.Success(emptyList())
-
-        override suspend fun search(request: CatalogSearchRequest): AppResult<Page<CatalogCard>> =
-            AppResult.Success(Page(emptyList(), null))
-
-        override suspend fun details(sourceId: String): AppResult<CatalogDetails> = error("Not used")
-
-        override suspend fun filters(): AppResult<List<CatalogFilterDefinition>> = AppResult.Success(emptyList())
-    },
-)
+private class UnusedCatalogSource(
+    override val pluginId: PluginId,
+    override val version: String,
+) : CatalogSource {
+    override suspend fun home(request: SourceHomeRequest): CatalogSourceResult<List<SourceSection>> = error("Not used")
+    override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> = error("Not used")
+    override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> = error("Not used")
+    override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("Not used")
+}

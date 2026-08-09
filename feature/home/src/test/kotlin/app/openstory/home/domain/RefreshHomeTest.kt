@@ -1,5 +1,16 @@
 package app.openstory.home.domain
 
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.CatalogSourceRegistry
+import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceDetails
+import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceHomeRequest
+import app.openstory.catalog.source.SourceItem
+import app.openstory.catalog.source.SourceSearchPage
+import app.openstory.catalog.source.SourceSearchRequest
+import app.openstory.catalog.source.SourceSection
 import app.openstory.common.AppError
 import app.openstory.common.AppResult
 import app.openstory.common.dispatchers.FixedAppDispatchers
@@ -16,18 +27,6 @@ import app.openstory.model.CatalogSourceMetadata
 import app.openstory.model.ContentType
 import app.openstory.model.PluginId
 import app.openstory.model.StoryId
-import app.openstory.plugin.api.Page
-import app.openstory.plugin.api.catalog.CatalogCard
-import app.openstory.plugin.api.catalog.CatalogDetails
-import app.openstory.plugin.api.catalog.CatalogFilterDefinition
-import app.openstory.plugin.api.catalog.CatalogHomeRequest
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.api.catalog.CatalogScore
-import app.openstory.plugin.api.catalog.CatalogSearchRequest
-import app.openstory.plugin.api.catalog.CatalogSection
-import app.openstory.plugin.api.content.ContentPlugin
-import app.openstory.plugin.host.HostedPlugin
-import app.openstory.plugin.host.PluginHost
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -51,16 +50,18 @@ class RefreshHomeTest {
     fun oneCatalogFailureStillPersistsSuccessfulCatalog() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val repository = FakeCatalogRepository()
-        val host = FakePluginHost(
+        val sources = FakeCatalogSourceRegistry(
             listOf(
-                hosted("catalog.a", "2.3.4") { AppResult.Success(homeSections("catalog.a")) },
+                hosted("catalog.a", "2.3.4") { CatalogSourceResult.Success(homeSections("catalog.a")) },
                 hosted("catalog.b", "4.0.0") {
-                    AppResult.Failure(AppError.Network(code = "network.timeout", retryable = true))
+                    CatalogSourceResult.Failure(
+                        app.openstory.catalog.source.CatalogSourceFailure("network.timeout", retryable = true),
+                    )
                 },
             ),
         )
         val useCase = RefreshHome(
-            host = host,
+            sources = sources,
             mapper = CatalogSnapshotMapper(),
             repository = repository,
             dispatchers = FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
@@ -81,15 +82,17 @@ class RefreshHomeTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val cached = cachedHome("catalog.b", refreshedAt = 42L)
         val repository = FakeCatalogRepository(initialHomes = listOf(cached))
-        val host = FakePluginHost(
+        val sources = FakeCatalogSourceRegistry(
             listOf(
                 hosted("catalog.b", "2.0.0") {
-                    AppResult.Failure(AppError.Plugin(code = "plugin.refresh_failed", retryable = false))
+                    CatalogSourceResult.Failure(
+                        app.openstory.catalog.source.CatalogSourceFailure("plugin.refresh_failed", retryable = false),
+                    )
                 },
             ),
         )
         val report = RefreshHome(
-            host,
+            sources,
             CatalogSnapshotMapper(),
             repository,
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
@@ -107,15 +110,15 @@ class RefreshHomeTest {
     fun thrownPluginFailureIsIsolatedFromSiblingCatalogs() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val repository = FakeCatalogRepository()
-        val host = FakePluginHost(
+        val sources = FakeCatalogSourceRegistry(
             listOf(
                 hosted("catalog.throwing", "1.0.0") { error("fixture failure") },
-                hosted("catalog.ok", "1.0.0") { AppResult.Success(homeSections("catalog.ok")) },
+                hosted("catalog.ok", "1.0.0") { CatalogSourceResult.Success(homeSections("catalog.ok")) },
             ),
         )
 
         val report = RefreshHome(
-            host,
+            sources,
             CatalogSnapshotMapper(),
             repository,
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
@@ -132,14 +135,14 @@ class RefreshHomeTest {
         val releaseSlow = CompletableDeferred<Unit>()
         val repository = FakeCatalogRepository()
         val useCase = RefreshHome(
-            FakePluginHost(
+            FakeCatalogSourceRegistry(
                 listOf(
                     hosted("catalog.fast", "1.0.0") {
-                        AppResult.Success(homeSections("catalog.fast"))
+                        CatalogSourceResult.Success(homeSections("catalog.fast"))
                     },
                     hosted("catalog.slow", "1.0.0") {
                         releaseSlow.await()
-                        AppResult.Success(homeSections("catalog.slow"))
+                        CatalogSourceResult.Success(homeSections("catalog.slow"))
                     },
                 ),
             ),
@@ -171,10 +174,10 @@ class RefreshHomeTest {
             ),
         )
         val useCase = RefreshHome(
-            FakePluginHost(
+            FakeCatalogSourceRegistry(
                 listOf(
                     hosted(pluginId.value, "2.0.0") {
-                        AppResult.Success(homeSections(pluginId.value))
+                        CatalogSourceResult.Success(homeSections(pluginId.value))
                     },
                 ),
             ),
@@ -202,14 +205,14 @@ class RefreshHomeTest {
                 maximum.updateAndGet { current -> max(current, nowActive) }
                 try {
                     release.await()
-                    AppResult.Success(homeSections("catalog.$index"))
+                    CatalogSourceResult.Success(homeSections("catalog.$index"))
                 } finally {
                     active.decrementAndGet()
                 }
             }
         }
         val useCase = RefreshHome(
-            FakePluginHost(plugins),
+            FakeCatalogSourceRegistry(plugins),
             CatalogSnapshotMapper(),
             FakeCatalogRepository(),
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
@@ -286,11 +289,11 @@ class RefreshHomeTest {
             ),
         )
         val refresh = RefreshHome(
-            FakePluginHost(
+            FakeCatalogSourceRegistry(
                 listOf(
                     hosted("catalog.a", "2.0.0") {
                         release.await()
-                        AppResult.Success(homeSections("catalog.a"))
+                        CatalogSourceResult.Success(homeSections("catalog.a"))
                     },
                 ),
             ),
@@ -322,47 +325,40 @@ class RefreshHomeTest {
     }
 }
 
-private class FakePluginHost(
-    private val catalogs: List<HostedPlugin<CatalogPlugin>>,
-) : PluginHost {
-    override suspend fun catalog(id: PluginId): HostedPlugin<CatalogPlugin> =
-        catalogs.single { it.id == id }
-
-    override suspend fun content(id: PluginId): HostedPlugin<ContentPlugin> = error("Not used")
-
-    override suspend fun enabledCatalogs(): List<HostedPlugin<CatalogPlugin>> = catalogs
-
-    override suspend fun enabledContentSources(): List<HostedPlugin<ContentPlugin>> = emptyList()
+private class FakeCatalogSourceRegistry(
+    private val catalogs: List<CatalogSource>,
+) : CatalogSourceRegistry {
+    override suspend fun source(pluginId: PluginId): CatalogSource? = catalogs.singleOrNull { it.pluginId == pluginId }
+    override suspend fun enabled(): List<CatalogSource> = catalogs
 }
 
 private fun hosted(
     id: String,
     version: String,
-    home: suspend () -> AppResult<List<CatalogSection>>,
-): HostedPlugin<CatalogPlugin> = HostedPlugin(
-    id = PluginId(id),
-    version = version,
-    instance = object : CatalogPlugin {
-        override suspend fun home(request: CatalogHomeRequest): AppResult<List<CatalogSection>> = home()
-        override suspend fun search(request: CatalogSearchRequest): AppResult<Page<CatalogCard>> =
-            AppResult.Success(Page(emptyList(), null))
-        override suspend fun details(sourceId: String): AppResult<CatalogDetails> = error("Not used")
-        override suspend fun filters(): AppResult<List<CatalogFilterDefinition>> = AppResult.Success(emptyList())
-    },
-)
+    home: suspend () -> CatalogSourceResult<List<SourceSection>>,
+): CatalogSource = object : CatalogSource {
+    override val pluginId = PluginId(id)
+    override val version = version
+    override suspend fun home(request: SourceHomeRequest) = home()
+    override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> =
+        CatalogSourceResult.Success(SourceSearchPage(emptyList(), null))
+    override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> = error("Not used")
+    override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = CatalogSourceResult.Success(emptyList())
+}
 
-private fun homeSections(pluginId: String): List<CatalogSection> = listOf(
-    CatalogSection(
+private fun homeSections(pluginId: String): List<SourceSection> = listOf(
+    SourceSection(
         sourceId = "home",
         title = "Home",
         items = listOf(
-            CatalogCard(
+            SourceItem(
                 sourceId = "$pluginId-story",
                 title = "$pluginId Story",
-                contentType = ContentType.WEB_NOVEL,
-                authors = listOf("Author"),
-                image = null,
-                score = CatalogScore(8.0, 10.0),
+                contentType = SourceContentType.WEB_NOVEL,
+                authors = setOf("Author"),
+                coverUrl = null,
+                scoreValue = 8.0,
+                scoreScale = 10.0,
             ),
         ),
     ),

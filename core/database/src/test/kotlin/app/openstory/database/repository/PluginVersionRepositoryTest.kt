@@ -38,6 +38,8 @@ private class SwitchingPluginVersionDao : PluginStateDao() {
     override suspend fun find(pluginId: String): PluginStateEntity? =
         state.takeIf { it.pluginId == pluginId }
 
+    override suspend fun all(): List<PluginStateEntity> = listOf(state)
+
     override suspend fun findVersion(
         pluginId: String,
         version: String,

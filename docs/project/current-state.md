@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-09
+Date: 2026-08-10
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -15,8 +15,8 @@ Purpose: single source of truth for the implemented repository boundary.
   instrumentation evidence.
 - Wave 05 Tasks 01-06 implementation is present.
 - Wave 05 Tasks 01-06 verification is accepted by the Wave 05 checkpoint.
-- Architecture Baseline 2 R1: **ACCEPTED**.
-- Current active boundary: **R2 - Plugin Subsystem VNext**.
+- Architecture Baseline 2 R2: **ACCEPTED**.
+- Current active boundary: **R3 - Catalog Core and Persistence**.
 - Wave 06 is frozen until Architecture Baseline 2 R6 is accepted.
 - The Wave 05 checkpoint remains historical evidence, not a compatibility requirement.
 

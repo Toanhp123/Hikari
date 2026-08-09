@@ -1,15 +1,14 @@
 package app.openstory.home.domain
 
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.SourceItem
+import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.matching.CatalogStoryResolver
 import app.openstory.model.CanonicalStory
 import app.openstory.model.CatalogEntry
 import app.openstory.model.CatalogEntryId
 import app.openstory.model.CatalogSnapshotItem
 import app.openstory.model.StoryId
-import app.openstory.plugin.api.Page
-import app.openstory.plugin.api.catalog.CatalogCard
-import app.openstory.plugin.api.catalog.CatalogPlugin
-import app.openstory.plugin.host.HostedPlugin
 
 internal class SearchCanonicalizer(
     private val resolver: CatalogStoryResolver,
@@ -30,16 +29,16 @@ internal class SearchCanonicalizer(
     private fun sourceCandidates(pages: List<SearchCatalogPage>): List<SearchSourceCandidate> = pages
         .asSequence()
         .flatMap { page ->
-            page.page.items.asSequence().mapIndexed { index, card ->
+            page.page.items.asSequence().mapIndexed { index, item ->
                 SearchSourceCandidate(
-                    hosted = page.hosted,
-                    card = card,
+                    source = page.source,
+                    item = item,
                     sourcePosition = index,
                 )
             }
         }
         .sortedWith(
-            compareBy<SearchSourceCandidate> { candidate -> candidate.hosted.id.value }
+            compareBy<SearchSourceCandidate> { candidate -> candidate.source.pluginId.value }
                 .thenBy(SearchSourceCandidate::sourcePosition),
         )
         .toList()
@@ -50,13 +49,13 @@ internal class SearchCanonicalizer(
         workingCandidates: MutableList<CanonicalStory>,
     ): ResolvedSearchSource {
         val resolution = resolver.resolve(
-            pluginId = candidate.hosted.id,
-            source = candidate.card.toSnapshotItem(),
+            pluginId = candidate.source.pluginId,
+            source = candidate.item.toSnapshotItem(),
             candidates = workingCandidates,
         )
         workingCandidates.attachSearchEntry(
             storyId = resolution.storyId,
-            card = candidate.card,
+            item = candidate.item,
             entry = candidate.toCatalogEntry(),
         )
         return ResolvedSearchSource(
@@ -68,7 +67,7 @@ internal class SearchCanonicalizer(
 
     private fun MutableList<CanonicalStory>.attachSearchEntry(
         storyId: StoryId,
-        card: CatalogCard,
+        item: SourceItem,
         entry: CatalogEntry,
     ) {
         val index = indexOfFirst { candidate -> candidate.id == storyId }
@@ -76,8 +75,8 @@ internal class SearchCanonicalizer(
             add(
                 CanonicalStory(
                     id = storyId,
-                    contentType = card.contentType,
-                    preferredTitle = card.title,
+                    contentType = item.contentType.toModel(),
+                    preferredTitle = item.title,
                     aliases = emptySet(),
                     catalogEntries = listOf(entry),
                 ),
@@ -118,13 +117,13 @@ internal class SearchCanonicalizer(
 }
 
 internal data class SearchCatalogPage(
-    val hosted: HostedPlugin<CatalogPlugin>,
-    val page: Page<CatalogCard>,
+    val source: CatalogSource,
+    val page: SourceSearchPage,
 )
 
 private data class SearchSourceCandidate(
-    val hosted: HostedPlugin<CatalogPlugin>,
-    val card: CatalogCard,
+    val source: CatalogSource,
+    val item: SourceItem,
     val sourcePosition: Int,
 )
 
@@ -134,45 +133,45 @@ private data class ResolvedSearchSource(
     val source: SearchResultSource,
 )
 
-private fun CatalogCard.toSnapshotItem(): CatalogSnapshotItem = CatalogSnapshotItem(
+private fun SourceItem.toSnapshotItem(): CatalogSnapshotItem = CatalogSnapshotItem(
     sourceId = sourceId,
     title = title,
-    contentType = contentType,
-    authors = authors,
-    coverReference = image?.url,
-    score = score?.value,
-    scoreScale = score?.scale,
+    contentType = contentType.toModel(),
+    authors = authors.toList(),
+    coverReference = coverUrl,
+    score = scoreValue,
+    scoreScale = scoreScale,
 )
 
 private fun SearchSourceCandidate.toCatalogEntry(): CatalogEntry = CatalogEntry(
-    id = CatalogEntryId("search:${hosted.id.value}:${card.sourceId}"),
-    catalogPluginId = hosted.id,
-    externalStoryId = card.sourceId,
+    id = CatalogEntryId("search:${source.pluginId.value}:${item.sourceId}"),
+    catalogPluginId = source.pluginId,
+    externalStoryId = item.sourceId,
     sourceUrl = null,
-    title = card.title,
+    title = item.title,
     aliases = emptySet(),
-    authors = card.authors.toSet(),
+    authors = item.authors,
     description = null,
     genres = emptySet(),
-    contentType = card.contentType,
+    contentType = item.contentType.toModel(),
     languageTags = emptySet(),
-    coverReference = card.image?.url,
+    coverReference = item.coverUrl,
     publicationStatus = null,
-    score = card.score?.value,
-    scoreScale = card.score?.scale,
+    score = item.scoreValue,
+    scoreScale = item.scoreScale,
     popularityRank = null,
-    pluginVersion = hosted.version,
+    pluginVersion = source.version,
     fetchedAtEpochMillis = 0L,
 )
 
 private fun SearchSourceCandidate.toResultSource(): SearchResultSource = SearchResultSource(
-    pluginId = hosted.id,
-    pluginVersion = hosted.version,
-    sourceId = card.sourceId,
-    title = card.title,
-    contentType = card.contentType,
-    authors = card.authors.toSet(),
-    coverReference = card.image?.url,
-    score = card.score?.value,
-    scoreScale = card.score?.scale,
+    pluginId = source.pluginId,
+    pluginVersion = source.version,
+    sourceId = item.sourceId,
+    title = item.title,
+    contentType = item.contentType.toModel(),
+    authors = item.authors,
+    coverReference = item.coverUrl,
+    score = item.scoreValue,
+    scoreScale = item.scoreScale,
 )

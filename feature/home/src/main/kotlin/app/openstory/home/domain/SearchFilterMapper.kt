@@ -1,43 +1,32 @@
 package app.openstory.home.domain
 
-import app.openstory.plugin.api.catalog.CatalogFilterDefinition
-import app.openstory.plugin.api.catalog.CatalogMultiSelectFilter
-import app.openstory.plugin.api.catalog.CatalogRangeFilter
-import app.openstory.plugin.api.catalog.CatalogSelectFilter
-import app.openstory.plugin.api.catalog.CatalogSortFilter
-import app.openstory.plugin.api.catalog.CatalogTextFilter
+import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceOptionFilter
+import app.openstory.catalog.source.SourceRangeFilter
+import app.openstory.catalog.source.SourceTextFilter
 
-internal fun CatalogFilterDefinition.toSearchFilterDefinition(): SearchFilterDefinition = when (this) {
-    is CatalogSelectFilter -> toOptionFilter(SearchOptionFilterKind.SELECT)
-    is CatalogMultiSelectFilter -> toOptionFilter(SearchOptionFilterKind.MULTI_SELECT)
-    is CatalogSortFilter -> toOptionFilter(SearchOptionFilterKind.SORT)
-    is CatalogRangeFilter -> SearchRangeFilterDefinition(
+internal fun SourceFilter.toSearchFilterDefinition(): SearchFilterDefinition? = when (this) {
+    is SourceOptionFilter -> SearchOptionFilterDefinition(
         id = id,
         label = label,
-        minimum = minimum,
-        maximum = maximum,
-        step = step,
-    )
-    is CatalogTextFilter -> SearchTextFilterDefinition(
-        id = id,
-        label = label,
-        placeholder = placeholder,
-    )
-}
-
-private fun CatalogFilterDefinition.toOptionFilter(
-    kind: SearchOptionFilterKind,
-): SearchOptionFilterDefinition {
-    val options = when (this) {
-        is CatalogSelectFilter -> options
-        is CatalogMultiSelectFilter -> options
-        is CatalogSortFilter -> options
-        else -> error("Filter does not expose options")
-    }
-    return SearchOptionFilterDefinition(
-        id = id,
-        label = label,
-        kind = kind,
+        kind = if (multiple) SearchOptionFilterKind.MULTI_SELECT else SearchOptionFilterKind.SELECT,
         options = options.map { option -> SearchFilterOption(option.value, option.label) },
+    )
+    is SourceRangeFilter -> {
+        val minimum = min
+        val maximum = max
+        val rangeStep = step
+        if (minimum != null && maximum != null && rangeStep != null) SearchRangeFilterDefinition(
+            id = id,
+            label = label,
+            minimum = minimum,
+            maximum = maximum,
+            step = rangeStep,
+        ) else null
+    }
+    is SourceTextFilter -> SearchTextFilterDefinition(
+        id = id,
+        label = label,
+        placeholder = null,
     )
 }
