@@ -144,6 +144,84 @@
         "app.openstory.database.entity."
       ]
     },
+    ":plugins:api": {
+      "path": "plugins/api",
+      "platform": "jvm",
+      "dependencyMode": "allowlist",
+      "productionDependencies": [],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.",
+        "app.openstory.common.",
+        "app.openstory.model."
+      ]
+    },
+    ":plugins:runtime": {
+      "path": "plugins/runtime",
+      "platform": "android-library",
+      "dependencyMode": "allowlist",
+      "productionDependencies": [
+        ":core:common",
+        ":plugins:api"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "app.openstory.catalog.ui.",
+        "app.openstory.storage.room."
+      ]
+    },
+    ":catalog": {
+      "path": "catalog",
+      "platform": "jvm",
+      "dependencyMode": "allowlist",
+      "productionDependencies": [
+        ":core:common",
+        ":plugins:api",
+        ":plugins:runtime"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.compose.",
+        "app.openstory.storage.room.",
+        "app.openstory.model."
+      ]
+    },
+    ":feature:catalog": {
+      "path": "feature/catalog",
+      "platform": "android-library",
+      "dependencyMode": "allowlist",
+      "productionDependencies": [
+        ":core:common",
+        ":catalog"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "app.openstory.storage.room.",
+        "app.openstory.plugins.",
+        "app.openstory.model."
+      ]
+    },
+    ":storage:room": {
+      "path": "storage/room",
+      "platform": "android-library",
+      "dependencyMode": "allowlist",
+      "productionDependencies": [
+        ":core:common",
+        ":catalog",
+        ":plugins:runtime"
+      ],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "app.openstory.catalog.ui.",
+        "app.openstory.plugins.runtime.execution.",
+        "app.openstory.plugins.runtime.install.",
+        "app.openstory.plugins.runtime.capabilities.",
+        "app.openstory.plugins.runtime.security.",
+        "app.openstory.plugins.runtime.diagnostics."
+      ]
+    },
     ":test:fixtures": {
       "path": "test/fixtures",
       "platform": "jvm",

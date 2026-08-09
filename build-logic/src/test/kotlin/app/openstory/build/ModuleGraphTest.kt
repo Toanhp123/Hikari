@@ -81,6 +81,11 @@ class ModuleGraphTest {
             ":feature:home",
             ":feature:story",
             ":test:fixtures",
+            ":catalog",
+            ":feature:catalog",
+            ":storage:room",
+            ":plugins:api",
+            ":plugins:runtime",
         )
 
         expectedModules.forEach { module ->
@@ -90,6 +95,22 @@ class ModuleGraphTest {
             )
         }
         assertEquals(expectedModules, policy.modules.keys)
+    }
+
+    @Test
+    fun baselineTwoTargetModulesAreIncludedDuringTransition() {
+        val settings = File("../settings.gradle.kts").readText()
+
+        listOf(
+            ":catalog",
+            ":feature:catalog",
+            ":storage:room",
+            ":plugins:api",
+            ":plugins:runtime",
+        ).forEach { module ->
+            assertTrue("include(\"$module\")" in settings, "Missing $module")
+        }
+        assertTrue("include(\":feature:home\")" in settings, "R1 must not cut over legacy UI yet")
     }
 
     @Test
@@ -126,6 +147,11 @@ class ModuleGraphTest {
             "../feature/home/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../feature/story/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
+            "../catalog/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
+            "../feature/catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
+            "../storage/room/build.gradle.kts" to "id(\"openstory.android.library\")",
+            "../plugins/api/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
+            "../plugins/runtime/build.gradle.kts" to "id(\"openstory.android.library\")",
         )
 
         expectedPlugins.forEach { (path, expectedPlugin) ->
