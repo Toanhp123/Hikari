@@ -53,6 +53,7 @@ object PlaceholderHomeCoverRenderer : HomeCoverRenderer {
 
 data class HomeCardPresentation(
     val storyId: StoryId,
+    val sourceId: String,
     val title: String,
     val contentType: ContentType,
     val authors: Set<String>,
@@ -66,7 +67,7 @@ data class HomeCardPresentation(
 @Composable
 fun HomeCard(
     card: HomeCardPresentation,
-    onClick: (StoryId) -> Unit,
+    onClick: (HomeStorySelection) -> Unit,
     modifier: Modifier = Modifier,
     coverRenderer: HomeCoverRenderer = PlaceholderHomeCoverRenderer,
 ) {
@@ -76,7 +77,15 @@ fun HomeCard(
             .semantics(mergeDescendants = true) {
                 contentDescription = card.accessibilityDescription()
             },
-        onClick = { onClick(card.storyId) },
+        onClick = {
+            onClick(
+                HomeStorySelection(
+                    storyId = card.storyId,
+                    pluginId = card.scoreSource,
+                    sourceId = card.sourceId,
+                ),
+            )
+        },
     ) {
         Column(
             modifier = Modifier.padding(CARD_PADDING),

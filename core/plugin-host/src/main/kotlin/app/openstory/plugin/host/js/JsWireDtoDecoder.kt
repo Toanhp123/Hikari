@@ -14,6 +14,7 @@ import app.openstory.plugin.api.content.ContentStoryDetails
 import app.openstory.plugin.api.content.SourceChapterRelease
 import app.openstory.plugin.host.selector.validation.PluginWireDtoValidator
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 
@@ -22,7 +23,7 @@ class JsWireDtoDecoder(
 ) {
     fun decodeCatalogHome(source: String): AppResult<List<CatalogSection>> = decode(
         source,
-        serializer<List<CatalogSection>>(),
+        ListSerializer(CatalogSection.serializer()),
         validator::validateCatalogHome,
     )
 

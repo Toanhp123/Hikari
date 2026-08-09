@@ -3,12 +3,32 @@ package app.openstory.plugin.api.catalog
 import app.openstory.common.AppResult
 import app.openstory.model.ContentType
 import app.openstory.plugin.api.Page
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 class CatalogContractTest {
+
+    @Test
+    fun catalogRequestAndSectionExposeGeneratedSerializers() {
+        val request = CatalogSearchRequest(query = "lantern")
+        val requestJson = Json.encodeToString(CatalogSearchRequest.serializer(), request)
+        assertEquals(request, Json.decodeFromString(CatalogSearchRequest.serializer(), requestJson))
+
+        val sections = listOf(
+            CatalogSection(
+                sourceId = "featured",
+                title = "Featured",
+                items = listOf(catalogCard(sourceId = "story-1")),
+            ),
+        )
+        val sectionSerializer = ListSerializer(CatalogSection.serializer())
+        val sectionJson = Json.encodeToString(sectionSerializer, sections)
+        assertEquals(sections, Json.decodeFromString(sectionSerializer, sectionJson))
+    }
 
     @Test
     fun catalogCardCarriesExplicitContentType() {

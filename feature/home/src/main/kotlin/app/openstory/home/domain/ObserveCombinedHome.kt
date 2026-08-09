@@ -14,14 +14,24 @@ import app.openstory.model.CatalogEntryWithStory
 import app.openstory.model.CatalogHomeSnapshot
 import app.openstory.model.PluginId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class ObserveCombinedHome(
     private val repository: CatalogRepository,
     private val ranking: AggregateRanking,
+    private val enabledCatalogIds: suspend () -> Set<PluginId>,
 ) {
-    operator fun invoke(): Flow<HomeUiModel> = repository.observeCatalogHomes()
-        .map(::toHomeUiModel)
+    operator fun invoke(): Flow<HomeUiModel> = flow {
+        val visibleCatalogIds = enabledCatalogIds()
+        repository.observeCatalogHomes().collect { snapshots ->
+            emit(
+                toHomeUiModel(
+                    snapshots.filter { snapshot -> snapshot.pluginId in visibleCatalogIds },
+                ),
+            )
+        }
+    }
 
     fun catalog(pluginId: PluginId): Flow<HomeCatalog?> = repository.observeCatalogHome(pluginId)
         .map { snapshot -> snapshot?.toCatalog() }

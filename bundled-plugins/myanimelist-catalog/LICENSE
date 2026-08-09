@@ -1,0 +1,11 @@
+OpenStory MyAnimeList catalog plugin notice
+
+This package contains OpenStory plugin code only. It does not bundle MyAnimeList catalog
+records, third-party credentials, API keys, cookies, or copied page content.
+
+Runtime metadata is requested directly from the MyAnimeList API using a client identifier
+provided by the host application. The plugin preserves MyAnimeList manga IDs as source
+identifiers and does not perform account mutations.
+
+The project-wide OpenStory license selected for release will govern this plugin source.
+Upstream service and metadata rights remain with their respective owners.

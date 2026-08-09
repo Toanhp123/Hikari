@@ -35,8 +35,8 @@ data class CatalogSearchRequest(
         }
     }
 
-    private companion object {
-        const val MAX_QUERY_LENGTH = 1_024
+    companion object {
+        private const val MAX_QUERY_LENGTH = 1_024
     }
 }
 
@@ -59,8 +59,8 @@ data class CatalogSection(
         }
     }
 
-    private companion object {
-        const val MAX_SECTION_ITEMS = 100
+    companion object {
+        private const val MAX_SECTION_ITEMS = 100
     }
 }
 

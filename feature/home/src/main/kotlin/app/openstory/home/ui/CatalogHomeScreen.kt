@@ -39,6 +39,7 @@ fun CatalogHomeScreen(
                 catalog = catalog,
                 refreshing = refreshing,
                 onRefresh = actions.refresh,
+                onSearch = actions.search,
             )
         }
         item(key = "catalog-combined-switch") {
@@ -98,6 +99,7 @@ private fun CatalogSectionRow(
             HomeCard(
                 card = HomeCardPresentation(
                     storyId = item.storyId,
+                    sourceId = item.sourceId,
                     title = item.title,
                     contentType = item.contentType,
                     authors = item.authors,
@@ -119,6 +121,7 @@ private fun CatalogHeader(
     catalog: HomeCatalog,
     refreshing: Boolean,
     onRefresh: () -> Unit,
+    onSearch: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -136,11 +139,16 @@ private fun CatalogHeader(
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        Button(
-            onClick = onRefresh,
-            enabled = !refreshing,
-        ) {
-            Text("Refresh")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onSearch) {
+                Text("Search")
+            }
+            Button(
+                onClick = onRefresh,
+                enabled = !refreshing,
+            ) {
+                Text("Refresh")
+            }
         }
     }
 }

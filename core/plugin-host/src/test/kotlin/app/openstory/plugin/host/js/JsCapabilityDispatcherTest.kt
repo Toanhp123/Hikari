@@ -37,6 +37,60 @@ class JsCapabilityDispatcherTest {
     }
 
     @Test
+    fun requestHeadersAreForwardedToGateway() = runTest {
+        val gateway = RecordingGateway()
+        val dispatcher = JsCapabilityDispatcher(manifest(network = true), gateway)
+        val request = JsBridgeRequest(
+            id = "call-headers",
+            method = "http.execute",
+            params = buildJsonObject {
+                put("url", "https://allowed.example/data")
+                put(
+                    "headers",
+                    buildJsonObject {
+                        put("Accept", "application/json")
+                        put("X-Source-Client-ID", "catalog-client")
+                    },
+                )
+            },
+        )
+
+        val response = dispatcher.dispatch(request, JsOperationBudget())
+
+        assertNull(response.error)
+        assertEquals(
+            mapOf(
+                "Accept" to "application/json",
+                "X-Source-Client-ID" to "catalog-client",
+            ),
+            gateway.requests.single().headers,
+        )
+    }
+
+    @Test
+    fun invalidRequestHeaderIsRejectedBeforeGatewayDispatch() = runTest {
+        val gateway = RecordingGateway()
+        val dispatcher = JsCapabilityDispatcher(manifest(network = true), gateway)
+        val request = JsBridgeRequest(
+            id = "call-invalid-header",
+            method = "http.execute",
+            params = buildJsonObject {
+                put("url", "https://allowed.example/data")
+                put(
+                    "headers",
+                    buildJsonObject { put("X-Test", "ok\r\ninjected: true") },
+                )
+            },
+        )
+
+        val response = dispatcher.dispatch(request, JsOperationBudget())
+
+        assertEquals("plugin.bridge_message_invalid", response.error?.code)
+        assertNull(response.result)
+        assertEquals(0, gateway.requests.size)
+    }
+
+    @Test
     fun responseLargerThanOperationLimitFailsClosed() = runTest {
         val gateway = RecordingGateway("large".encodeToByteArray())
         val dispatcher = JsCapabilityDispatcher(manifest(network = true), gateway)

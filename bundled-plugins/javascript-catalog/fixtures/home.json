@@ -1,0 +1,19 @@
+[
+  {
+    "sourceId": "javascript-featured",
+    "title": "JavaScript Featured",
+    "items": [
+      {
+        "sourceId": "javascript-lantern",
+        "title": "JavaScript Lantern",
+        "contentType": "WEB_NOVEL",
+        "authors": ["OpenStory JS"],
+        "image": null,
+        "score": {
+          "value": 9.1,
+          "scale": 10.0
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "id": 13,
+  "title": "One Piece",
+  "main_picture": {
+    "large": "https://cdn.myanimelist.net/images/manga/2/253146l.jpg"
+  },
+  "alternative_titles": {
+    "synonyms": ["One Piece"],
+    "en": "One Piece",
+    "ja": "ONE PIECE"
+  },
+  "synopsis": "Gol D. Roger left behind the treasure known as One Piece.",
+  "mean": 9.22,
+  "popularity": 3,
+  "media_type": "manga",
+  "status": "currently_publishing",
+  "authors": [
+    {"node": {"first_name": "Eiichiro", "last_name": "Oda"}}
+  ],
+  "genres": [
+    {"id": 1, "name": "Action"},
+    {"id": 2, "name": "Adventure"},
+    {"id": 3, "name": "Pirates"}
+  ]
+}

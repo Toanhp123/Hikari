@@ -5,7 +5,15 @@
       "path": "app",
       "platform": "android-application",
       "productionDependencies": [
-        ":core:common"
+        ":core:common",
+        ":core:model",
+        ":core:database",
+        ":core:network",
+        ":core:plugin-api",
+        ":core:plugin-host",
+        ":core:matching",
+        ":feature:home",
+        ":feature:story"
       ],
       "testDependencies": [],
       "forbiddenProductionImports": []

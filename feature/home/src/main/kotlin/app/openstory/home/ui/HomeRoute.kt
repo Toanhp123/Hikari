@@ -4,12 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import app.openstory.model.StoryId
 
 @Composable
 fun HomeRoute(
     viewModel: HomeViewModel,
-    onStorySelected: (StoryId) -> Unit,
+    onSearch: () -> Unit,
+    onStorySelected: (HomeStorySelection) -> Unit,
     modifier: Modifier = Modifier,
     coverRenderer: HomeCoverRenderer = PlaceholderHomeCoverRenderer,
 ) {
@@ -17,6 +17,7 @@ fun HomeRoute(
     val selectedCatalog = state.selectedCatalog
     val actions = HomeActions(
         refresh = viewModel::refresh,
+        search = onSearch,
         storySelected = onStorySelected,
         catalogSelected = viewModel::selectCatalog,
         showCombined = viewModel::selectCombined,

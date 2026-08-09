@@ -1,12 +1,15 @@
 package app.openstory.navigation
 
-import kotlinx.serialization.Serializable
 import androidx.navigation3.runtime.NavKey
+import kotlinx.serialization.Serializable
 
 @Serializable
 sealed interface AppRoute : NavKey {
     @Serializable
     data object Home : AppRoute
+
+    @Serializable
+    data object Search : AppRoute
 
     @Serializable
     data object Library : AppRoute
@@ -20,6 +23,8 @@ sealed interface AppRoute : NavKey {
     @Serializable
     data class Story(
         val storyId: String,
+        val pluginId: String,
+        val sourceId: String,
     ) : AppRoute
 
     @Serializable
