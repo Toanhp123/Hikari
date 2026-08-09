@@ -14,7 +14,11 @@ class AggregateRanking(private val catalogWeights: Map<PluginId, Double> = empty
     fun rank(items: List<CatalogEntryWithStory>): List<RankedCatalogStory> = items.groupBy { it.storyId }
         .map { (id, grouped) ->
             val contributions = grouped.map { item ->
-                CatalogRankContribution(item.entry, item.entry.score?.let { score -> item.entry.score?.let { score / item.entry.score.scale } }, catalogWeights[item.entry.pluginId] ?: 1.0)
+                CatalogRankContribution(
+                    item.entry,
+                    item.entry.score?.let { score -> score.value / score.scale },
+                    catalogWeights[item.entry.pluginId] ?: 1.0,
+                )
             }.sortedWith(compareBy<CatalogRankContribution> { it.entry.pluginId.value }.thenBy { it.entry.sourceId })
             val scored = contributions.filter { it.normalizedScore != null }
             val weight = scored.sumOf { it.priorityWeight }

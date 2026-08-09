@@ -25,13 +25,15 @@ class CatalogRefreshServiceTest {
     }
     @Test fun oneMutationCapturesOneTimestamp() = runTest {
         val repository = RecordingRepository()
-        CatalogRefreshService(Registry(listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))))), repository, StoryMatcher(), Clock { 99 }).refresh()
+        val registry = Registry(listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))))
+        CatalogRefreshService(registry, repository, StoryMatcher(), Clock { 99 }).refresh()
         assertEquals(99, repository.mutations.single().refreshedAtEpochMillis)
     }
     @Test fun incomingOrderDoesNotChangeResolvedStories() = runTest {
         suspend fun resolve(items: List<SourceItem>): List<StoryId> {
             val repository = RecordingRepository()
-            CatalogRefreshService(Registry(listOf(Source("a", CatalogSourceResult.Success(listOf(SourceSection("s", "S", items)))))), repository, StoryMatcher(), Clock { 1 }).refresh()
+            val registry = Registry(listOf(Source("a", CatalogSourceResult.Success(listOf(SourceSection("s", "S", items))))))
+            CatalogRefreshService(registry, repository, StoryMatcher(), Clock { 1 }).refresh()
             return repository.mutations.single().entries.sortedBy { it.sourceId }.map { it.storyId }
         }
         val items = listOf(item("one", "One"), item("two", "Two"))
