@@ -23,8 +23,13 @@ code exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active wave plan. The current
-continuation is `../implementation/waves/wave-05-catalog-home-and-discovery.md`.
+Use `../implementation/current-roadmap.md`, then the active Architecture Baseline 2 plan.
+The current continuation is R0 from
+`../superpowers/plans/2026-08-09-architecture-baseline-2-refactor-roadmap.md`.
+
+While the reset is active, the Baseline 2 design and R0-R6 plan set override earlier
+implementation-next instructions. Wave 05 checkpoints remain evidence, and Wave 06 stays
+frozen until R6 acceptance.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
 that retain development-only database migrations or selector generations.
@@ -49,6 +54,7 @@ Use `../plugin-sdk/`. SDK documents must match `:core:plugin-api` and tested fix
 | Pre-baseline Room migration instructions | Historical only; current complete database is initial schema 1 |
 | Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |
 | Project-wide Baseline 1 refactor plan | Execution record for the one-time reset; not the next feature plan after completion |
+| Wave 05 checkpoint and Wave 06 entry instruction | Historical execution evidence; superseded by Architecture Baseline 2 until R6 acceptance |
 
 ## Lifecycle labels
 

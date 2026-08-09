@@ -3,9 +3,9 @@
 Date: 2026-08-09
 Status: **CANONICAL repository execution roadmap**
 
-This roadmap preserves the approved product sequence while interpreting it against the
-pre-MVP Baseline 1 source tree. Implementation presence and checkpoint acceptance remain
-separate states.
+This roadmap preserves the approved product sequence while Architecture Baseline 2 resets
+the pre-Wave-06 implementation architecture. Implementation presence and checkpoint
+acceptance remain separate states.
 
 ## Status vocabulary
 
@@ -18,9 +18,12 @@ separate states.
 
 ## Current position
 
-The repository has accepted the **Wave 04 - Plugin Host and Security** checkpoint and has
-now accepted the **Wave 05 - Catalog Home and Discovery** checkpoint. Tasks 01-06 are
-implemented and verified. The current implementation boundary is **Wave 06 Task 01**.
+Architecture Baseline 2 is active at **R0 - Freeze and Guardrails**. Wave 05 remains
+accepted historical evidence, but it does not require compatibility with superseded
+development architecture. Wave 06 is frozen until Baseline 2 R6 is accepted.
+
+Execute R0 through R6 in the order defined by
+`../superpowers/plans/2026-08-09-architecture-baseline-2-refactor-roadmap.md`.
 
 Wave 04 provides secure selector and JavaScript execution, transactional lifecycle, safe
 updates/rollback, redacted diagnostics, and the unified host boundary now consumed by
@@ -55,7 +58,7 @@ when their owning wave starts.
 | 03 | Plugin contracts and packages | Implementation present on Selector Schema 1 | `waves/wave-03-plugin-contracts-and-packages.md` |
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
 | 05 | Catalog Home and discovery | **Implementation present; checkpoint accepted** | `waves/wave-05-catalog-home-and-discovery.md` |
-| 06 | Library and story matching | **Ready to start; Wave 05 checkpoint accepted** | `waves/wave-06-library-and-story-matching.md` |
+| 06 | Library and story matching | **Frozen until Architecture Baseline 2 R6 acceptance** | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | Planned | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | Planned | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | Planned | `waves/wave-09-cache-downloads-and-storage.md` |
@@ -92,7 +95,7 @@ architecture
     -> plugin contracts and package validation
       -> secure plugin execution
         -> catalog discovery
-             ^ Wave 05 checkpoint accepted; Wave 06 Task 01 is next
+             ^ Architecture Baseline 2 R0-R6 reset is active; Wave 06 is frozen
           -> story matching
             -> chapter aggregation
               -> reader
@@ -103,10 +106,10 @@ architecture
 
 ## Execution rule
 
-1. Begin Wave 06 Task 01 from the accepted Wave 05 checkpoint.
-2. Keep search/story-detail flows source-preserving and behind domain/repository interfaces.
-3. Keep Compose behind cached/use-case models; no direct plugin or Room access is allowed.
-4. Preserve the accepted Wave 05 checkpoint evidence as historical execution proof.
+1. Execute Architecture Baseline 2 R0 through R6 in order.
+2. Do not begin Wave 06 while the architecture reset is active.
+3. Treat Wave 05 checkpoints as historical evidence, not compatibility authority.
+4. Update current state only after each Baseline 2 checkpoint is accepted.
 
 ## Verification principle
 
