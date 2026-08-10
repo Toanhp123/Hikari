@@ -15,7 +15,7 @@ class LibraryServiceTest {
     fun addIsImmediateIdempotentAndPreservesExistingStatus() = runTest {
         val repository = FakeLibraryRepository()
         val clock = FakeClock(1_000L)
-        val service = LibraryService(repository, clock)
+        val service = LibraryService(repository, clock, RecordingMappingScheduler(repository))
         val storyId = StoryId("story:library-service")
 
         val first = service.add(storyId)
@@ -33,15 +33,56 @@ class LibraryServiceTest {
     }
 
     @Test
+    fun mappingWorkIsScheduledOnlyAfterMembershipCommit() = runTest {
+        val repository = FakeLibraryRepository()
+        val scheduler = RecordingMappingScheduler(repository)
+        val service = LibraryService(repository, FakeClock(3_000L), scheduler)
+        val storyId = StoryId("story:schedule-after-commit")
+
+        service.add(storyId)
+
+        assertEquals(listOf(storyId), scheduler.scheduled)
+        assertEquals(true, scheduler.membershipWasPresentWhenScheduled)
+    }
+
+    @Test
+    fun schedulerFailureNeverRollsBackMembership() = runTest {
+        val repository = FakeLibraryRepository()
+        val service = LibraryService(
+            repository,
+            FakeClock(4_000L),
+            LibraryMappingScheduler { error("scheduler unavailable") },
+        )
+        val storyId = StoryId("story:scheduler-failure")
+
+        val entry = service.add(storyId)
+
+        assertEquals(entry, repository.observe().first().single())
+    }
+
+    @Test
     fun changeStatusAndRemoveDoNothingForMissingMembership() = runTest {
         val repository = FakeLibraryRepository()
-        val service = LibraryService(repository, FakeClock(2_000L))
+        val service = LibraryService(repository, FakeClock(2_000L), RecordingMappingScheduler(repository))
         val storyId = StoryId("story:not-added")
 
         assertNull(service.changeStatus(storyId, LibraryStatus.READING))
         service.remove(storyId)
 
         assertEquals(emptyList(), service.observe().first())
+    }
+}
+
+private class RecordingMappingScheduler(
+    private val repository: FakeLibraryRepository,
+) : LibraryMappingScheduler {
+    val scheduled = mutableListOf<StoryId>()
+    var membershipWasPresentWhenScheduled = false
+        private set
+
+    override fun schedule(storyId: StoryId) {
+        membershipWasPresentWhenScheduled = repository.contains(storyId)
+        scheduled += storyId
     }
 }
 
@@ -84,6 +125,8 @@ private class FakeLibraryRepository : LibraryRepository {
             publish()
         }
     }
+
+    fun contains(storyId: StoryId): Boolean = storyId in entries
 
     private fun publish() {
         state.value = entries.values.sortedBy { it.storyId.value }

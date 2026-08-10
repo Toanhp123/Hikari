@@ -69,12 +69,12 @@ mkdir -p "$FIXTURE/unapproved"
 expect_failure 'a module not declared by policy'
 make_fixture
 
-printf '\nimplementation(project(":plugins:runtime"))\n' >> "$FIXTURE/library/build.gradle.kts"
+printf '\nimplementation(project(":storage:room"))\n' >> "$FIXTURE/library/build.gradle.kts"
 expect_failure 'an edge not declared by policy'
 
 # The policy is the source of truth for current edges: when the reviewed policy changes,
-# the verifier follows it rather than freezing the Task 01 graph in shell code.
-sed -i '/"\:library"[[:space:]]*:/,/"\:feature\:catalog"[[:space:]]*:/ s/":catalog"/":catalog", ":plugins:runtime"/' \
+# the verifier follows it rather than freezing the current Wave 06 graph in shell code.
+sed -i '/"\:library"[[:space:]]*:/,/"\:feature\:catalog"[[:space:]]*:/ s/":plugins:runtime"/":plugins:runtime", ":storage:room"/' \
   "$FIXTURE/config/architecture/module-boundaries.json"
 verify
 

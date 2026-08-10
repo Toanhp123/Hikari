@@ -33,13 +33,8 @@ object PluginProtocolValidator {
                 json.decodeFromJsonElement(CatalogFiltersOutputDto.serializer(), payload)
                 emptyList()
             }
-            PluginOperation.CONTENT_SEARCH -> {
-                json.decodeFromJsonElement(
-                    PageDto.serializer(ContentStoryCandidateDto.serializer()),
-                    payload,
-                )
-                emptyList()
-            }
+            PluginOperation.CONTENT_SEARCH -> validateContentSearch(payload, allowedNetworkHosts)
+            PluginOperation.CONTENT_RESOLVE_URL -> validateResolvedContentStory(payload, allowedNetworkHosts)
             PluginOperation.CONTENT_STORY -> {
                 json.decodeFromJsonElement(ContentStoryDetailsDto.serializer(), payload)
                 emptyList()
@@ -54,6 +49,27 @@ object PluginProtocolValidator {
             }
         }
     }.getOrElse { listOf(ProtocolViolation("protocol.invalid_payload", operation.wireName)) }
+
+    private fun validateContentSearch(
+        payload: JsonElement,
+        allowedHosts: Set<String>,
+    ): List<ProtocolViolation> {
+        val output = json.decodeFromJsonElement(
+            PageDto.serializer(ContentStoryCandidateDto.serializer()),
+            payload,
+        )
+        return output.items.mapIndexedNotNull { index, item ->
+            deniedUrl(item.sourceUrl, allowedHosts, "items[$index].sourceUrl")
+        }
+    }
+
+    private fun validateResolvedContentStory(
+        payload: JsonElement,
+        allowedHosts: Set<String>,
+    ): List<ProtocolViolation> {
+        val output = json.decodeFromJsonElement(ContentStoryCandidateDto.serializer(), payload)
+        return listOfNotNull(deniedUrl(output.sourceUrl, allowedHosts, "sourceUrl"))
+    }
 
     private fun validateHome(payload: JsonElement, allowedHosts: Set<String>): List<ProtocolViolation> {
         val output = json.decodeFromJsonElement(CatalogHomeOutputDto.serializer(), payload)

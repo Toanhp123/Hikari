@@ -6,6 +6,7 @@ enum class PluginOperation(val wireName: String) {
     CATALOG_DETAILS("catalog.details"),
     CATALOG_FILTERS("catalog.filters"),
     CONTENT_SEARCH("content.search"),
+    CONTENT_RESOLVE_URL("content.resolveUrl"),
     CONTENT_STORY("content.story"),
     CONTENT_CHAPTERS("content.chapters"),
     CONTENT_CHAPTER("content.chapter"),

@@ -39,7 +39,7 @@ class DefaultPluginRuntime(
     override suspend fun enabled(service: PluginService): List<InstalledPlugin> {
         if (bundled.ensureProvisioned() is PluginCallResult.Failure) return emptyList()
         return state.all().filter { it.enabled && service in it.services }.map {
-            InstalledPlugin(it.pluginId, it.activeVersion.version, it.services)
+            InstalledPlugin(it.pluginId, it.activeVersion.version, it.services, it.acceptedNetworkHosts)
         }.sortedBy { it.pluginId.value }
     }
 

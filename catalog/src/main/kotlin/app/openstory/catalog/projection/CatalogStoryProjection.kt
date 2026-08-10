@@ -10,20 +10,25 @@ data class CatalogStoryProjection(
     val title: String,
     val contentType: ContentType,
     val coverUrl: String?,
+    val aliases: Set<String> = emptySet(),
+    val authors: Set<String> = emptySet(),
 )
 
 fun projectCatalogStory(
     story: Story,
     entries: List<CatalogEntry>,
 ): CatalogStoryProjection {
-    val preferred = entries.minWithOrNull(
+    val ordered = entries.sortedWith(
         compareBy<CatalogEntry> { it.pluginId.value }
             .thenBy { it.sourceId },
     )
+    val preferred = ordered.firstOrNull()
     return CatalogStoryProjection(
         storyId = story.id,
         title = preferred?.title ?: story.id.value,
         contentType = story.contentType,
         coverUrl = preferred?.coverUrl,
+        aliases = ordered.flatMap(CatalogEntry::aliases).toSet(),
+        authors = ordered.flatMap(CatalogEntry::authors).toSet(),
     )
 }

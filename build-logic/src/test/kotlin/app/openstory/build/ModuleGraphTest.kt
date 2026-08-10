@@ -143,19 +143,18 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun libraryBeforeContentSearchHasNoPluginRuntimeDependency() {
+    fun libraryContentSearchUsesOnlyApprovedPluginFacadeDependencies() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),
         )
 
         assertEquals(
-            setOf(":core:common", ":catalog"),
+            setOf(":core:common", ":catalog", ":plugins:api", ":plugins:runtime"),
             policy.modules.getValue(":library").productionDependencies,
         )
-        assertFalse(
-            "project(\":plugins:runtime\")" in File("../library/build.gradle.kts").readText(),
-            "Library matching must remain pure until Task 04 introduces content-source search.",
-        )
+        val libraryBuild = File("../library/build.gradle.kts").readText()
+        assertTrue("project(\":plugins:api\")" in libraryBuild)
+        assertTrue("project(\":plugins:runtime\")" in libraryBuild)
     }
 
     @Test
@@ -209,6 +208,23 @@ class ModuleGraphTest {
         assertTrue(
             "verifyArchitecture" in boundaryScript,
             "Boundary shell entry point must delegate to Gradle architecture verification",
+        )
+    }
+
+    @Test
+    fun roomKeepsApprovedPluginPersistenceSpiAccess() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        val roomRule = policy.modules.getValue(":storage:room")
+
+        assertTrue(
+            ":plugins:runtime" in roomRule.productionDependencies,
+            ":storage:room must keep the runtime dependency required by plugin persistence adapters",
+        )
+        assertFalse(
+            "app.openstory.plugins.runtime.persistence." in roomRule.forbiddenProductionImports,
+            ":storage:room must be allowed to implement plugins.runtime.persistence SPI contracts",
         )
     }
 

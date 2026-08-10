@@ -6,6 +6,7 @@ import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId
 import app.openstory.library.LibraryEntry
+import app.openstory.library.LibraryMappingScheduler
 import app.openstory.library.LibraryRepository
 import app.openstory.library.LibraryService
 import app.openstory.library.LibraryStatus
@@ -124,7 +125,7 @@ class LibraryViewModelTest {
         libraryRepository: FakeLibraryRepository,
         vararg projections: CatalogStoryProjection,
     ) = LibraryViewModel(
-        library = LibraryService(libraryRepository, Clock { 100L }),
+        library = LibraryService(libraryRepository, Clock { 100L }, NoOpMappingScheduler),
         catalog = FakeProjectionRepository(projections.toList()),
     )
 }
@@ -156,3 +157,7 @@ private fun projection(id: String, title: String) = CatalogStoryProjection(
     contentType = ContentType.WEB_NOVEL,
     coverUrl = null,
 )
+
+private object NoOpMappingScheduler : LibraryMappingScheduler {
+    override fun schedule(storyId: StoryId) = Unit
+}

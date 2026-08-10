@@ -42,7 +42,7 @@
       "path": "library",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":catalog"],
+      "productionDependencies": [":core:common", ":catalog", ":plugins:api", ":plugins:runtime"],
       "testDependencies": [],
       "forbiddenProductionImports": [
         "android.content.Context",
@@ -60,6 +60,7 @@
         "app.openstory.plugins.runtime.capabilities.",
         "app.openstory.plugins.runtime.execution.",
         "app.openstory.plugins.runtime.install.",
+        "app.openstory.plugins.runtime.persistence.",
         "app.openstory.plugins.runtime.update."
       ]
     },
