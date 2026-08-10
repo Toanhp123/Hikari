@@ -32,13 +32,14 @@ The same commit must include:
   a test configuration.
 - Unknown dependency configurations fail closed. Extend the architecture plugin
   only when the configuration has a reviewed architectural meaning.
-- Production source in `:core:model` cannot import Android or Compose.
-- Production source in `:core:plugin-api` cannot import Android or filesystem
-  APIs.
-- Production source in `:core:database` may implement the neutral plugin registry port,
-  but cannot import `app.openstory.plugin.host.install.*` internals.
-- Public reusable contract-test utilities belong to `:core:plugin-api` test fixtures;
-  internal deterministic fake implementations and data belong to `:test:fixtures`.
+- Production source in `:plugins:api` is pure Kotlin/JVM protocol code and cannot
+  import Android or host application models.
+- Production source in `:feature:catalog` may import only `:catalog` and
+  `:core:common` project packages.
+- Production source in `:storage:room` may import plugin runtime types only from
+  `app.openstory.plugins.runtime.persistence`.
+- Reusable protocol fixtures belong to the owning module's test resources;
+  deterministic fakes and builders stay in the test source set that owns them.
 
 ## Commands
 
@@ -54,5 +55,7 @@ Before closing the wave, run API 26 and API 37 checkpoint verification:
 
     ./scripts/checkpoints/app-shell.sh
 
-If the module affects database or plugin contracts, also run the corresponding
-`scripts/checkpoints/database.sh` or `scripts/checkpoints/plugin-contracts.sh` gate.
+If the module affects Room storage, also run
+`scripts/instrumentation/storage-room.sh` on API 26 and API 37. Plugin protocol
+changes must run the contract commands documented in
+`docs/plugin-sdk/contract-testing.md`.

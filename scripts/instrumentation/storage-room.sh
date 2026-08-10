@@ -16,7 +16,7 @@ case "$EXPECTED_API" in
 esac
 
 command -v adb >/dev/null 2>&1 || {
-  echo "adb is required for database instrumentation verification." >&2
+  echo "adb is required for Room storage instrumentation verification." >&2
   exit 2
 }
 
@@ -24,18 +24,12 @@ if [[ -z "${ANDROID_SERIAL:-}" ]]; then
   DEVICE_SERIALS=()
   while IFS= read -r serial; do
     [[ -n "$serial" ]] && DEVICE_SERIALS+=("$serial")
-  done < <(
-    adb devices |
-      awk 'NR > 1 && $2 == "device" { print $1 }'
-  )
+  done < <(adb devices | awk 'NR > 1 && $2 == "device" { print $1 }')
 
   if [[ "${#DEVICE_SERIALS[@]}" -ne 1 ]]; then
-    echo \
-      "Set ANDROID_SERIAL when zero or multiple Android devices are connected." \
-      >&2
+    echo "Set ANDROID_SERIAL when zero or multiple Android devices are connected." >&2
     exit 2
   fi
-
   export ANDROID_SERIAL="${DEVICE_SERIALS[0]}"
 fi
 
@@ -45,9 +39,7 @@ ACTUAL_API="$(
 )"
 
 if [[ "$ACTUAL_API" != "$EXPECTED_API" ]]; then
-  echo \
-    "Expected API $EXPECTED_API on $ANDROID_SERIAL, found API $ACTUAL_API." \
-    >&2
+  echo "Expected API $EXPECTED_API on $ANDROID_SERIAL, found API $ACTUAL_API." >&2
   exit 1
 fi
 
@@ -56,6 +48,4 @@ fi
   :storage:room:connectedDebugAndroidTest \
   --stacktrace
 
-echo \
-  "Database instrumentation passed on API $EXPECTED_API "\
-  "($ANDROID_SERIAL)."
+echo "Room storage instrumentation passed on API $EXPECTED_API ($ANDROID_SERIAL)."

@@ -105,44 +105,32 @@ To run one device independently:
 CI runs API 26 and API 37 as independent jobs. The Wave 01 checkpoint job is
 green only when fast verification and both instrumentation jobs succeed.
 
-Wave 02 additionally runs the complete Room/database instrumentation suite on
-both required API levels:
-
-    ANDROID_SERIAL_API_26=emulator-5556 \
-    ANDROID_SERIAL_API_37=emulator-5554 \
-      ./scripts/checkpoints/database.sh
-
-To run only the database suite on one connected device:
+Run the Room storage instrumentation suite on each required API level when
+storage behavior changes:
 
     ANDROID_SERIAL=emulator-5556 \
-      ./scripts/instrumentation/database.sh 26
+      ./scripts/instrumentation/storage-room.sh 26
 
-The Wave 02 CI checkpoint requires the Wave 01 checkpoint plus both database
-instrumentation jobs.
+Repeat with an API 37 device before architecture acceptance.
 
-Wave 03 freezes the plugin contracts and validates Selector Schema 1 packages
-before installation:
+The shared verification command validates the current plugin protocol, package
+installation rules, module boundaries, structural policy, lint, tests, and APK:
 
-    ./scripts/checkpoints/plugin-contracts.sh
+    ./scripts/verify.sh
 
 On Windows PowerShell:
 
-    & "C:\Program Files\Git\bin\bash.exe" ./scripts/checkpoints/plugin-contracts.sh
-
-The Wave 03 checkpoint runs fast verification plus explicit plugin API,
-plugin-host package-inspection, and shared-fixture test suites.
+    & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify.sh
 
 ## Current module graph
 
 - `:app` — composition root, Hilt, Compose shell, navigation
-- `:core:common` — typed results, errors, clocks, dispatchers, stable primitives
+- `:core:common` — Outcome, clocks, dispatchers, and stable cross-capability identifiers
 - `:plugins:api` — public plugin protocol and package schemas
 - `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
 - `:catalog` — catalog models, source seam, matching, ranking, and application services
 - `:storage:room` — fresh Room schema and durable catalog/plugin persistence
-- `:feature:home` — cached catalog Home refresh, search, normalization, and combined projections
-- `:feature:story` — source-preserving catalog story detail and metadata enrichment
-- `:test:fixtures` — deterministic shared test data
+- `:feature:catalog` — Home, Search, and Story presentation
 
 The direct project dependency policy is stored in:
 
