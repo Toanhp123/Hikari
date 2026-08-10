@@ -21,6 +21,9 @@ import app.openstory.catalog.ui.home.HomeScreen
 import app.openstory.catalog.ui.home.HomeViewModel
 import app.openstory.catalog.ui.library.LibraryScreen
 import app.openstory.catalog.ui.library.LibraryViewModel
+import app.openstory.catalog.ui.mapping.MappingActions
+import app.openstory.catalog.ui.mapping.MappingAssistedArgs
+import app.openstory.catalog.ui.mapping.MappingViewModel
 import app.openstory.catalog.ui.search.SearchScreen
 import app.openstory.catalog.ui.search.SearchViewModel
 import app.openstory.catalog.ui.story.StoryAssistedArgs
@@ -135,16 +138,27 @@ private fun LibraryDestination(onStorySelected: (StoryId) -> Unit) {
 
 @Composable
 private fun StoryDestination(route: AppRoute.Story) {
+    val storyId = StoryId(route.storyId)
     val viewModel = hiltViewModel<StoryViewModel, StoryViewModel.Factory>(
-        creationCallback = { factory ->
-            factory.create(StoryAssistedArgs(StoryId(route.storyId)))
-        },
+        creationCallback = { factory -> factory.create(StoryAssistedArgs(storyId)) },
+    )
+    val mappingViewModel = hiltViewModel<MappingViewModel, MappingViewModel.Factory>(
+        creationCallback = { factory -> factory.create(MappingAssistedArgs(storyId)) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val mappingState by mappingViewModel.state.collectAsStateWithLifecycle()
     StoryScreen(
         state = state,
         onRetry = viewModel::retry,
         onSourceSelected = viewModel::selectSource,
+        mappingState = mappingState,
+        mappingActions = MappingActions(
+            onSearch = mappingViewModel::search,
+            onUrlChange = mappingViewModel::updateUrl,
+            onResolveUrl = mappingViewModel::resolveUrl,
+            onApprove = mappingViewModel::approve,
+            onReject = mappingViewModel::reject,
+        ),
     )
 }
 

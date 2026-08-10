@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -19,6 +20,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.ui.mapping.MappingActions
+import app.openstory.catalog.ui.mapping.MappingSheet
+import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
 
 @Composable
@@ -26,6 +30,8 @@ fun StoryScreen(
     state: StoryUiState,
     onRetry: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    mappingState: MappingUiState? = null,
+    mappingActions: MappingActions = MappingActions(),
     modifier: Modifier = Modifier,
 ) {
     val story = state.story
@@ -58,15 +64,35 @@ fun StoryScreen(
                 StoryFailure(currentFailure, onRetry)
             }
         }
-        items(
-            items = story.sources,
-            key = { source -> "${source.pluginId.value}:${source.sourceId}" },
-        ) { source ->
-            StorySourceCard(
-                source = source,
-                selected = state.selectedSource?.matches(source) == true,
-                onSelected = { onSourceSelected(source.pluginId, source.sourceId) },
-            )
+        storySourceItems(story.sources, state.selectedSource, onSourceSelected)
+        mappingItem(mappingState, mappingActions)
+    }
+}
+
+private fun LazyListScope.storySourceItems(
+    sources: List<CatalogEntry>,
+    selectedSource: StorySourceIdentity?,
+    onSourceSelected: (PluginId, String) -> Unit,
+) {
+    items(
+        items = sources,
+        key = { source -> "${source.pluginId.value}:${source.sourceId}" },
+    ) { source ->
+        StorySourceCard(
+            source = source,
+            selected = selectedSource?.matches(source) == true,
+            onSelected = { onSourceSelected(source.pluginId, source.sourceId) },
+        )
+    }
+}
+
+private fun LazyListScope.mappingItem(
+    state: MappingUiState?,
+    actions: MappingActions,
+) {
+    state?.let { currentState ->
+        item(key = "story-content-mapping") {
+            MappingSheet(state = currentState, actions = actions)
         }
     }
 }

@@ -1,0 +1,108 @@
+package app.openstory.catalog.ui.mapping
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import app.openstory.common.id.PluginId
+import app.openstory.library.mapping.ContentMappingOrigin
+import app.openstory.library.matching.ContentMatchDecision
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import org.junit.Rule
+import org.junit.Test
+
+class MappingSheetTest {
+    @get:Rule
+    val compose = createComposeRule()
+
+    @Test
+    fun evidenceAndApprovalRejectionActionsAreVisible() {
+        var approved: Pair<PluginId, String>? = null
+        var rejected: Pair<PluginId, String>? = null
+        compose.setContent {
+            MaterialTheme {
+                MappingSheet(
+                    state = stateWithCandidate(),
+                    actions = MappingActions(
+                        onApprove = { pluginId, sourceStoryId -> approved = pluginId to sourceStoryId },
+                        onReject = { pluginId, sourceStoryId -> rejected = pluginId to sourceStoryId },
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Title 100%").assertIsDisplayed()
+        compose.onNodeWithText("Content type match").assertIsDisplayed()
+        compose.onNodeWithText("Approve").performClick()
+        compose.onNodeWithText("Reject").performClick()
+
+        val expected = PluginId("org.example.reader") to "source-1"
+        assertEquals(expected, approved)
+        assertEquals(expected, rejected)
+    }
+
+    @Test
+    fun urlInputAndResolveStayUiActions() {
+        val url = mutableStateOf("")
+        var resolved = false
+        compose.setContent {
+            MaterialTheme {
+                MappingSheet(
+                    state = MappingUiState(urlInput = url.value),
+                    actions = MappingActions(
+                        onUrlChange = { value -> url.value = value },
+                        onResolveUrl = { resolved = true },
+                    ),
+                )
+            }
+        }
+
+        compose.onNode(hasSetTextAction()).performTextInput("https://reader.example/story/1")
+        assertEquals("https://reader.example/story/1", url.value)
+        compose.onNodeWithText("Resolve URL").assertIsEnabled().performClick()
+        assertTrue(resolved)
+    }
+
+    @Test
+    fun currentProtectedMappingIsRendered() {
+        compose.setContent {
+            MaterialTheme {
+                MappingSheet(
+                    state = MappingUiState(
+                        mappings = listOf(
+                            MappingItemUiModel(
+                                pluginId = PluginId("org.example.reader"),
+                                sourceStoryId = "chosen",
+                                origin = ContentMappingOrigin.USER_APPROVED,
+                            ),
+                        ),
+                    ),
+                    actions = MappingActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("org.example.reader: chosen · Approved").assertIsDisplayed()
+    }
+}
+
+private fun stateWithCandidate() = MappingUiState(
+    candidates = listOf(
+        MappingCandidateUiModel(
+            pluginId = PluginId("org.example.reader"),
+            sourceStoryId = "source-1",
+            title = "The Story",
+            sourceUrl = "https://reader.example/story/source-1",
+            decision = ContentMatchDecision.REVIEW,
+            score = 0.95,
+            evidenceLabels = listOf("Title 100%", "Authors 100%", "Content type match"),
+            fromUrl = false,
+        ),
+    ),
+)
