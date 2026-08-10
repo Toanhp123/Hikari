@@ -14,12 +14,13 @@ import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceItem
 import app.openstory.common.id.StoryId
+import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 
-class CatalogSearchService(
+class CatalogSearchService @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,

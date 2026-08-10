@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.jsoup)
     implementation(libs.androidx.javascriptengine)
     implementation(libs.bouncy.castle.provider)
+    implementation(libs.javax.inject)
 
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.kotlinx.coroutines.test)

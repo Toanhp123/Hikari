@@ -20,12 +20,13 @@ import app.openstory.catalog.source.SourceItem
 import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.StoryId
+import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 
-class CatalogRefreshService(
+class CatalogRefreshService @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,

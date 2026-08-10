@@ -18,6 +18,7 @@ import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 
 sealed interface CatalogDetailsResult {
@@ -32,7 +33,7 @@ sealed interface CatalogDetailsFailure {
     data class StoreFailure(val code: String, val retryable: Boolean) : CatalogDetailsFailure
 }
 
-class CatalogDetailsService(
+class CatalogDetailsService @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,

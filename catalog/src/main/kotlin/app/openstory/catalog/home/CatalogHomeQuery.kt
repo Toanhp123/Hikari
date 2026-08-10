@@ -4,10 +4,11 @@ import app.openstory.catalog.ranking.AggregateRanking
 import app.openstory.catalog.ranking.CatalogEntryWithStory
 import app.openstory.catalog.ranking.RankedCatalogStory
 import app.openstory.catalog.repository.CatalogRepository
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class CatalogHomeQuery(
+class CatalogHomeQuery @Inject constructor(
     repository: CatalogRepository,
     private val ranking: AggregateRanking = AggregateRanking(),
 ) {
