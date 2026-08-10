@@ -1,33 +1,59 @@
 # OpenStory Plugin Package Format
 
-An OpenStory plugin package uses the `.osp` extension and is a bounded ZIP archive with
-this canonical layout:
+An OpenStory plugin is a bounded ZIP archive with the `.osp` extension and this layout:
 
 ```text
 manifest.json
 main.js
-assets/<relative-file>
+assets/<relative-file>  # optional
 ```
 
-`assets/` is optional. Every archive entry must be a regular bounded file with a relative
-normalized path. Installers reject absolute paths, parent traversal, links, duplicate
-entries, unsupported compression behavior, oversized files, and oversized archives.
+Only regular files are accepted. Entry names must be normalized relative paths; absolute
+paths, `.`/`..` segments, backslashes, blank segments, duplicate entries, directories,
+symbolic links, unsupported top-level files, oversized entries, and oversized archives
+are rejected. `manifest.json` and `main.js` are required.
 
 ## Manifest
 
-`manifest.json` is a UTF-8 serialized `PluginManifest`. It declares identity, semantic
-version, protocol major, provided services, optional metadata, and the exact network hosts
-available to the script. The only executable entry is `main.js`.
+`manifest.json` is UTF-8 JSON. A catalog-only package has this shape:
 
-The manifest describes package behavior; it does not attest to the bytes of the archive
-that contains it. Archive integrity and signatures are detached provenance supplied by an
-installer or repository index.
+```json
+{
+  "id": "org.example.catalog",
+  "name": "Example Catalog",
+  "version": "1.0.0",
+  "protocol": 1,
+  "entry": "main.js",
+  "provides": ["CATALOG"],
+  "languages": ["en"],
+  "homepageUrl": "https://example.org/",
+  "sourceUrl": "https://example.org/source",
+  "capabilities": {
+    "network": {
+      "hosts": ["api.example.org", "cdn.example.org"]
+    }
+  }
+}
+```
+
+- `id` is a lowercase reverse-domain identifier.
+- `version` is a semantic version.
+- `protocol` is the supported protocol major.
+- `entry` must be exactly `main.js`.
+- `provides` contains `CATALOG`, `CONTENT`, or both and cannot be empty.
+- language tags are normalized lowercase values.
+- metadata URLs are HTTPS.
+- network hosts are exact lowercase hostnames; wildcards, schemes, ports, and paths are invalid.
+
+The manifest describes execution permissions. It does not attest to its containing archive.
+The installer verifies the SHA-256 of the exact `.osp` bytes against detached provenance.
 
 ## Script and assets
 
-`main.js` communicates only through the versioned serialized plugin protocol and
-host-controlled capabilities. Package files do not receive Android APIs, filesystem paths,
-raw network clients, reflection, or managed credential values.
+`main.js` exposes operations through `globalThis.openstoryPlugin` and communicates with
+the host only through the serialized protocol and host-controlled capabilities. Plugin
+JavaScript never receives Android APIs, filesystem paths, raw network clients, reflection,
+or plaintext managed credentials.
 
-Assets are addressed relative to `assets/`. Their presence does not grant filesystem or
-network access to plugin code.
+Files under `assets/` are package data, not a filesystem capability. Runtime behavior and
+wire examples are documented in [javascript-runtime.md](javascript-runtime.md).

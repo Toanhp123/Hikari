@@ -1,20 +1,31 @@
 # OpenStory Plugin Repository Index
 
-A repository publishes a UTF-8 JSON `RepositoryIndex` containing schema version `1` and a
-bounded list of detached `PluginArtifact` records.
+A repository publishes a bounded UTF-8 JSON index using schema `1`:
 
-Each artifact record contains:
+```json
+{
+  "schema": 1,
+  "artifacts": [
+    {
+      "pluginId": "org.example.catalog",
+      "version": "1.0.0",
+      "downloadUrl": "https://plugins.example.org/org.example.catalog-1.0.0.osp",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "signatureEd25519": "optional-detached-signature"
+    }
+  ]
+}
+```
 
-- the lowercase reverse-domain plugin ID;
-- the semantic plugin version;
-- an HTTPS package download URL;
-- the lowercase SHA-256 of the exact `.osp` bytes;
+Each artifact requires:
+
+- a lowercase reverse-domain `pluginId`;
+- a semantic `version`;
+- an HTTPS `downloadUrl` without user information;
+- a lowercase 64-character `sha256` digest of the exact `.osp` bytes;
 - an optional non-blank detached Ed25519 signature.
 
-The pair `(pluginId, version)` is unique within an index. Installers hash the exact
-downloaded or imported bytes before extraction and compare that digest with trusted
-detached provenance. Package contents cannot replace or weaken this check.
-
-Repository transport, index provenance, signing-key trust, and package-byte verification
-are host responsibilities. Plugin JavaScript never receives signature keys, raw package
-paths, or managed credentials.
+The pair `(pluginId, version)` must be unique and an index contains at most 10,000
+artifacts. Repository transport, index provenance, signing-key trust, download limits,
+and exact package-byte verification are host responsibilities. Plugin JavaScript receives
+none of the repository credentials, signature keys, or raw package paths.
