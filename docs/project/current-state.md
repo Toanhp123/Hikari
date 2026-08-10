@@ -12,6 +12,9 @@ Purpose: single source of truth for the implemented repository boundary.
 - Architecture Baseline 2: **ACCEPTED**.
 - Current active boundary: **Wave 06 Task 01 - metadata-only Library persistence and story matching foundations**.
 - Wave 06 is ready to start; no Wave 06 product implementation is present yet.
+- Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
+  capability/module evolution in
+  `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 ## Independent version spaces
 

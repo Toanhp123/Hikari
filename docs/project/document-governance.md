@@ -29,7 +29,10 @@ continuation is Wave 06 Task 01 from
 
 Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current
 architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence.
-Wave 06 is reopened at Task 01.
+Wave 06 is reopened at Task 01. The post-baseline architecture design owns module
+evolution and cross-wave continuity for Wave 06-11; each active wave plan owns the
+task-level implementation inside that boundary. Its canonical path is
+`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
 that retain development-only database migrations or selector generations.

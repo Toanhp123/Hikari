@@ -14,14 +14,14 @@ Use this directory instead of hunting through dated plans.
 
 - [Approved product design](project/approved-product-design.md)
 - [Architecture Baseline 2 design](superpowers/specs/2026-08-09-architecture-baseline-2-design.md)
+- [Post-Baseline Wave 06-11 architecture](superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md)
 - [Requirement coverage](project/requirement-coverage.md)
 - [Documentation precedence/governance](project/document-governance.md)
 
 ## Detailed implementation plans
 
-The original eleven wave plans are retained under `implementation/waves/` with lifecycle
-headers as historical delivery plans. Architecture Baseline 2 is accepted and Wave 06
-Task 01 is the active implementation boundary.
+Wave 01-05 plans remain historical delivery records. Wave 06-11 plans are rebaselined to
+the approved post-Baseline-2 module evolution; Wave 06 Task 01 is active.
 
 ## Public/plugin documentation
 

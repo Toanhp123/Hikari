@@ -44,7 +44,22 @@ those boundaries for the Wave 06 entry.
 
 Direct dependencies are governed by
 `../../config/architecture/module-boundaries.json`. This seven-module graph is exact for
-the Baseline 2 acceptance checkpoint; later-wave modules require an owning-wave decision.
+the Baseline 2 acceptance checkpoint. The approved post-baseline evolution is defined by
+`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+
+## Approved module evolution
+
+| Wave boundary | New production modules | Capability reason |
+|---|---|---|
+| 06 | `:library` | Library membership and protected content mappings |
+| 07 | `:chapters` | Release synchronization and canonical aggregation |
+| 08 | `:reader`, `:feature:reader` | Reader policy and independent immersive presentation |
+| 09 | `:downloads`, `:storage:files` | Offline/cache policy and atomic file adapter |
+| 10 | `:settings`, `:feature:settings` | Typed policies and independent settings presentation |
+| 11 | `:feature:plugins` | Full plugin-management presentation |
+
+No catch-all synchronization module is planned. Pure orchestration stays with its
+capability; WorkManager and notification adapters stay in `:app`.
 
 ## Wave status
 
@@ -56,12 +71,12 @@ the Baseline 2 acceptance checkpoint; later-wave modules require an owning-wave 
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
 | 05 | Catalog Home and discovery | **Implementation present; checkpoint accepted** | `waves/wave-05-catalog-home-and-discovery.md` |
 | AB2 | Architecture reset between Wave 05 and Wave 06 | **Accepted** | `../internal/checkpoints/architecture-baseline-2.md` |
-| 06 | Library and story matching | **Ready to start at Task 01** | `waves/wave-06-library-and-story-matching.md` |
-| 07 | Chapter sync and aggregation | Planned | `waves/wave-07-chapter-sync-and-aggregation.md` |
-| 08 | Reader and progress | Planned | `waves/wave-08-reader-and-reading-progress.md` |
-| 09 | Cache, downloads, storage | Planned | `waves/wave-09-cache-downloads-and-storage.md` |
-| 10 | Background sync, auth, notifications | Planned | `waves/wave-10-background-sync-auth-and-notifications.md` |
-| 11 | Hardening and open-source release | Planned | `waves/wave-11-hardening-open-source-release.md` |
+| 06 | Library and story matching | **Ready to start at Task 01; post-baseline plan approved** | `waves/wave-06-library-and-story-matching.md` |
+| 07 | Chapter sync and aggregation | Planned; post-baseline plan approved | `waves/wave-07-chapter-sync-and-aggregation.md` |
+| 08 | Reader and progress | Planned; post-baseline plan approved | `waves/wave-08-reader-and-reading-progress.md` |
+| 09 | Cache, downloads, storage | Planned; post-baseline plan approved | `waves/wave-09-cache-downloads-and-storage.md` |
+| 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
+| 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
 
@@ -105,9 +120,10 @@ architecture
 ## Execution rule
 
 1. Begin Wave 06 with Task 01 from its canonical wave plan.
-2. Preserve the accepted seven-module Baseline 2 boundaries unless a reviewed architecture decision changes them.
+2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
-4. Update current state only after actual task/checkpoint evidence is reviewed.
+4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.
+5. Update current state only after actual task/checkpoint evidence is reviewed.
 
 ## Verification principle
 

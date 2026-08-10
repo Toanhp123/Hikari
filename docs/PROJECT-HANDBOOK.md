@@ -136,6 +136,11 @@ Task 01.
 
 Detailed lifecycle/status: `implementation/current-roadmap.md`.
 
+Wave 06-11 module ownership and dependency evolution is fixed by
+`superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. Later
+plans must not recreate removed shared-domain, shared-database, plugin-host, or generic
+synchronization layers.
+
 ## 9. Verification model
 
 The repository separates fast verification, Android instrumentation, and acceptance
@@ -155,9 +160,10 @@ Read in this order:
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
 4. Active implementation plan (`implementation/waves/wave-06-library-and-story-matching.md` now).
-5. `plugin-sdk/` when changing public plugin contracts/packages.
-6. `internal/checkpoints/` when deciding whether a gate is proven.
-7. `internal/archive/` only for historical provenance.
+5. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
+6. `plugin-sdk/` when changing public plugin contracts/packages.
+7. `internal/checkpoints/` when deciding whether a gate is proven.
+8. `internal/archive/` only for historical provenance.
 
 `project/document-governance.md` defines precedence when documents disagree.
 
