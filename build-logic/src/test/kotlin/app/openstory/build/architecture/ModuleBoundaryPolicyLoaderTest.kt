@@ -31,6 +31,33 @@ class ModuleBoundaryPolicyLoaderTest {
         assertEquals(1, policy.schemaVersion)
         assertEquals(setOf(":core:common"), policy.modules.keys)
         assertEquals(ModulePlatform.JVM, policy.modules.getValue(":core:common").platform)
+        assertEquals(DependencyMode.EXACT, policy.modules.getValue(":core:common").dependencyMode)
+    }
+
+    @Test
+    fun loadsVersionTwoDependencyMode() {
+        val file = policyFile(
+            """
+            {
+              "schemaVersion": 2,
+              "modules": {
+                ":core:common": {
+                  "path": "core/common",
+                  "platform": "jvm",
+                  "dependencyMode": "allowlist",
+                  "productionDependencies": [],
+                  "testDependencies": [],
+                  "forbiddenProductionImports": []
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        val policy = ModuleBoundaryPolicyLoader.load(file)
+
+        assertEquals(2, policy.schemaVersion)
+        assertEquals(DependencyMode.ALLOWLIST, policy.modules.getValue(":core:common").dependencyMode)
     }
 
     @Test
@@ -38,7 +65,7 @@ class ModuleBoundaryPolicyLoaderTest {
         val file = policyFile(
             """
             {
-              "schemaVersion": 2,
+              "schemaVersion": 3,
               "modules": {}
             }
             """.trimIndent(),

@@ -4,7 +4,9 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class AppRouteSerializationTest {
     @Test
@@ -15,7 +17,7 @@ class AppRouteSerializationTest {
                 AppRoute.Library,
                 AppRoute.Plugins,
             ),
-            topLevelRoutes,
+            topLevelDestinations.map(TopLevelDestination::route),
         )
     }
 
@@ -47,12 +49,8 @@ class AppRouteSerializationTest {
     }
 
     @Test
-    fun storyRouteRetainsCatalogSourceIdentity() {
-        val route: AppRoute = AppRoute.Story(
-            storyId = "story_123",
-            pluginId = "catalog.example",
-            sourceId = "source_456",
-        )
+    fun storyRouteRoundTripsWithCanonicalIdentityOnly() {
+        val route: AppRoute = AppRoute.Story(storyId = "story_123")
         val encoded = Json.encodeToString(
             AppRoute.serializer(),
             route,
@@ -65,5 +63,8 @@ class AppRouteSerializationTest {
                 encoded,
             ),
         )
+        assertTrue("story_123" in encoded)
+        assertFalse("pluginId" in encoded)
+        assertFalse("sourceId" in encoded)
     }
 }

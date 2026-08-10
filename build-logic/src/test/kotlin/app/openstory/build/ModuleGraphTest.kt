@@ -4,6 +4,7 @@ import app.openstory.build.architecture.ModuleBoundaryPolicyLoader
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ModuleGraphTest {
@@ -72,15 +73,11 @@ class ModuleGraphTest {
         val expectedModules = setOf(
             ":app",
             ":core:common",
-            ":core:model",
-            ":core:database",
-            ":core:plugin-api",
-            ":core:network",
-            ":core:plugin-host",
-            ":core:matching",
-            ":feature:home",
-            ":feature:story",
-            ":test:fixtures",
+            ":catalog",
+            ":feature:catalog",
+            ":storage:room",
+            ":plugins:api",
+            ":plugins:runtime",
         )
 
         expectedModules.forEach { module ->
@@ -90,6 +87,28 @@ class ModuleGraphTest {
             )
         }
         assertEquals(expectedModules, policy.modules.keys)
+    }
+
+    @Test
+    fun finalBaselineTwoGraphContainsNoLegacyModules() {
+        val settings = File("../settings.gradle.kts").readText()
+        val policy = File("../config/architecture/module-boundaries.json").readText()
+
+        val forbidden = listOf(
+            ":core:model",
+            ":core:database",
+            ":core:matching",
+            ":core:plugin-api",
+            ":core:plugin-host",
+            ":core:network",
+            ":feature:home",
+            ":feature:story",
+            ":test:fixtures",
+        )
+        forbidden.forEach { module ->
+            assertFalse(module in settings, "Legacy module still in settings: $module")
+            assertFalse(module in policy, "Legacy module still in architecture policy: $module")
+        }
     }
 
     @Test
@@ -117,15 +136,11 @@ class ModuleGraphTest {
         val expectedPlugins = mapOf(
             "../app/build.gradle.kts" to "id(\"openstory.android.application\")",
             "../core/common/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/model/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/database/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../core/plugin-api/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/network/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../core/plugin-host/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../core/matching/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../feature/home/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../feature/story/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
+            "../catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
+            "../feature/catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
+            "../storage/room/build.gradle.kts" to "id(\"openstory.android.library\")",
+            "../plugins/api/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
+            "../plugins/runtime/build.gradle.kts" to "id(\"openstory.android.library\")",
         )
 
         expectedPlugins.forEach { (path, expectedPlugin) ->
@@ -151,6 +166,31 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun staleFixtureAndResultContractsAreAbsent() {
+        val root = File("..").canonicalFile
+        val gradleFiles = root.walkTopDown()
+            .filter { it.isFile && it.extension == "kts" }
+            .filterNot { "${File.separator}build${File.separator}" in it.path }
+            .toList()
+        val productionSources = root.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .filter { "${File.separator}src${File.separator}main${File.separator}" in it.path }
+            .filterNot { "${File.separator}build${File.separator}" in it.path }
+            .toList()
+
+        gradleFiles.forEach { file ->
+            val source = file.readText()
+            assertFalse("project(\":test:fixtures\")" in source, "Legacy fixture dependency in ${file.path}")
+            assertFalse("include(\":test:fixtures\")" in source, "Legacy fixture module in ${file.path}")
+        }
+        productionSources.forEach { file ->
+            val source = file.readText()
+            assertFalse("AppResult" in source, "Legacy AppResult usage in ${file.path}")
+            assertFalse("AppError" in source, "Legacy AppError usage in ${file.path}")
+        }
+    }
+
+    @Test
     fun architecturePluginIsAppliedAndShellDelegatesToIt() {
         val rootBuild = File("../build.gradle.kts").readText()
         val boundaryScript = File(
@@ -168,16 +208,16 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun pluginHostNetworkDependencyIsAnExplicitPolicyDecision() {
+    fun catalogRuntimeDependencyIsAnExplicitPolicyDecision() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),
         )
 
         assertTrue(
-            ":core:network" in policy.modules
-                .getValue(":core:plugin-host")
+            ":plugins:runtime" in policy.modules
+                .getValue(":catalog")
                 .productionDependencies,
-            ":core:plugin-host must explicitly allow :core:network",
+            ":catalog must explicitly allow :plugins:runtime",
         )
     }
 

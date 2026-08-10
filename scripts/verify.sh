@@ -11,8 +11,12 @@ for test_script in ./scripts/tests/*.sh; do
   bash "$test_script"
 done
 
+./scripts/verify-structural-suppressions.sh
+./scripts/verify-package-boundaries.sh
+
 ./scripts/verify-source-layout.sh
-./scripts/verify-baseline-architecture.sh
+./scripts/structural-review-report.sh
+./scripts/verify-architecture-baseline-2.sh
 
 ROOM_SCHEMA_FINGERPRINT="$(
   ./scripts/verify-room-schema-stability.sh

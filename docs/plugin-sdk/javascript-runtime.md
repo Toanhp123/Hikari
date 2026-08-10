@@ -1,0 +1,76 @@
+# OpenStory JavaScript Runtime
+
+`main.js` defines `globalThis.openstoryPlugin`. The host selects a versioned operation,
+passes one JSON input object, awaits the handler, validates the returned JSON, and maps
+failures to safe machine-readable codes.
+
+```javascript
+globalThis.openstoryPlugin = Object.freeze({
+  catalog: Object.freeze({
+    home: async input => ({sections: []}),
+    search: async input => ({items: [], nextToken: null}),
+    details: async input => ({
+      sourceId: input.sourceId,
+      sourceUrl: null,
+      title: "Example",
+      aliases: [],
+      authors: [],
+      description: null,
+      genres: [],
+      contentType: "LIGHT_NOVEL",
+      languageTags: ["en"],
+      coverUrl: null,
+      score: null,
+      popularityRank: null
+    }),
+    filters: async () => ({filters: []})
+  })
+});
+```
+
+## Catalog operations
+
+- `catalog.home` receives `{languageTags, contentTypes}` and returns `{sections}`.
+- `catalog.search` receives `{query, filterValues, nextToken}` and returns
+  `{items, nextToken}`.
+- `catalog.details` receives `{sourceId}` and returns one complete details object.
+- `catalog.filters` receives an empty object and returns `{filters}`.
+
+Catalog items contain `sourceId`, `title`, `contentType`, optional authors, optional HTTPS
+cover URL, and an optional `{value, scale}` score. Content types are `LIGHT_NOVEL`,
+`WEB_NOVEL`, `MANGA`, or `ANIME`. Filter records use the `option`, `range`, and `text`
+serialized variants defined and tested in `:plugins:api`.
+
+The protocol also reserves `content.search`, `content.story`, `content.chapters`, and
+`content.chapter` for packages that declare the `CONTENT` service.
+
+## Host capabilities
+
+The runtime freezes the global `host` object. Calls cross a bounded serialized bridge;
+unknown methods are denied.
+
+### `host.http(request)`
+
+Accepts `{url, method, headers, body}` and returns `{status, body}`. The host enforces HTTPS,
+the exact manifest host allowlist, redirect/request/body/response/time budgets, strips
+script-provided authorization and cookie headers, and injects managed credentials itself.
+
+### `host.html.query(request)`
+
+Accepts `{body, selector, attribute, limit}` and returns `{values}`. Document size, selector
+length, result count, and result size are bounded by the host.
+
+### `host.log(event)`
+
+Accepts `{code, detail}` and writes a safe diagnostic through host-owned persistence.
+Plugins must not log secrets, credentials, full response bodies, or private URLs.
+
+## Failures and cancellation
+
+Throw an `Error` with a stable `code` for an expected plugin failure. Uncoded failures map
+to `plugin.execution_failed`. Host capability failures also use stable codes. Cancellation
+terminates the invocation and is not converted into a plugin result.
+
+The bundled MyAnimeList catalog is the reference fixture/package for protocol `1`; it is
+not a privileged runtime path and uses the same manifest, bridge, validation, and budgets
+as any other package.

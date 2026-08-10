@@ -7,13 +7,13 @@ class ArchitectureConventionPluginTest {
     @Test
     fun selfProjectDependencyIsExcludedFromArchitectureSnapshot() {
         assertEquals(
-            setOf(":core:common", ":test:fixtures"),
+            setOf(":core:common", ":catalog"),
             interModuleDependencyPaths(
                 ownerPath = ":app",
                 dependencyPaths = listOf(
                     ":app",
                     ":core:common",
-                    ":test:fixtures",
+                    ":catalog",
                     ":app",
                 ),
             ),

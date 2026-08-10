@@ -62,6 +62,7 @@ object ModuleBoundaryVerifier {
                     "module_policy.production_dependency_allowance_stale",
                 actual = actual.productionDependencies,
                 allowed = rule.productionDependencies,
+                mode = rule.dependencyMode,
             ),
         )
         addAll(
@@ -72,6 +73,7 @@ object ModuleBoundaryVerifier {
                     "module_policy.test_dependency_allowance_stale",
                 actual = actual.testDependencies,
                 allowed = rule.testDependencies,
+                mode = rule.dependencyMode,
             ),
         )
         addAll(unknownConfigurationViolations(module, actual))
@@ -115,6 +117,7 @@ object ModuleBoundaryVerifier {
         staleAllowanceCode: String,
         actual: Set<String>,
         allowed: Set<String>,
+        mode: DependencyMode,
     ): List<ArchitectureViolation> = buildList {
         (actual - allowed)
             .sorted()
@@ -128,17 +131,19 @@ object ModuleBoundaryVerifier {
                 )
             }
 
-        (allowed - actual)
-            .sorted()
-            .forEach { dependency ->
-                add(
-                    ArchitectureViolation(
-                        code = staleAllowanceCode,
-                        module = module,
-                        detail = dependency,
-                    ),
-                )
-            }
+        if (mode == DependencyMode.EXACT) {
+            (allowed - actual)
+                .sorted()
+                .forEach { dependency ->
+                    add(
+                        ArchitectureViolation(
+                            code = staleAllowanceCode,
+                            module = module,
+                            detail = dependency,
+                        ),
+                    )
+                }
+        }
     }
 
     private fun unknownConfigurationViolations(

@@ -105,53 +105,39 @@ To run one device independently:
 CI runs API 26 and API 37 as independent jobs. The Wave 01 checkpoint job is
 green only when fast verification and both instrumentation jobs succeed.
 
-Wave 02 additionally runs the complete Room/database instrumentation suite on
-both required API levels:
+Run the Room storage instrumentation suite on each required API level when
+storage behavior changes:
 
-    ANDROID_SERIAL_API_26=emulator-5556 \
-    ANDROID_SERIAL_API_37=emulator-5554 \
-      ./scripts/checkpoints/database.sh
+    ANDROID_SERIAL=emulator-5554 \
+      ./scripts/instrumentation/storage-room.sh 26
 
-To run only the database suite on one connected device:
+Repeat with an API 37 device before architecture acceptance.
 
-    ANDROID_SERIAL=emulator-5556 \
-      ./scripts/instrumentation/database.sh 26
+The shared verification command validates the current plugin protocol, package
+installation rules, module boundaries, structural policy, lint, tests, and APK:
 
-The Wave 02 CI checkpoint requires the Wave 01 checkpoint plus both database
-instrumentation jobs.
-
-Wave 03 freezes the plugin contracts and validates Selector Schema 1 packages
-before installation:
-
-    ./scripts/checkpoints/plugin-contracts.sh
+    ./scripts/verify.sh
 
 On Windows PowerShell:
 
-    & "C:\Program Files\Git\bin\bash.exe" ./scripts/checkpoints/plugin-contracts.sh
-
-The Wave 03 checkpoint runs fast verification plus explicit plugin API,
-plugin-host package-inspection, and shared-fixture test suites.
+    & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify.sh
 
 ## Current module graph
 
 - `:app` — composition root, Hilt, Compose shell, navigation
-- `:core:common` — typed results, errors, clocks, dispatchers, stable primitives
-- `:core:model` — platform-independent canonical domain models
-- `:core:database` — Room schema, DAOs, migrations, repositories
-- `:core:plugin-api` — public plugin contracts, package schemas, fixtures
-- `:core:network` — allowlisted plugin HTTP capability
-- `:core:plugin-host` — package installation, registry, selector host
-- `:core:matching` — deterministic catalog identity matching and aggregate ranking
-- `:feature:home` — cached catalog Home refresh, search, normalization, and combined projections
-- `:feature:story` — source-preserving catalog story detail and metadata enrichment
-- `:test:fixtures` — deterministic shared test data
+- `:core:common` — Outcome, clocks, dispatchers, and stable cross-capability identifiers
+- `:plugins:api` — public plugin protocol and package schemas
+- `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
+- `:catalog` — catalog models, source seam, matching, ranking, and application services
+- `:storage:room` — fresh Room schema and durable catalog/plugin persistence
+- `:feature:catalog` — Home, Search, and Story presentation
 
 The direct project dependency policy is stored in:
 
     config/architecture/module-boundaries.json
 
 Every module included by `settings.gradle.kts` must be declared in this policy.
-`core:model` remains independent from Android and Compose APIs. `core:plugin-api`
+`:core:common` remains independent from Android and Compose APIs. `:plugins:api`
 remains independent from Android and filesystem APIs. Test fixtures cannot leak
 into production dependencies.
 

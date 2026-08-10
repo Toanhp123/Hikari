@@ -7,26 +7,26 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[implementation/waves/wave-05-catalog-home-and-discovery.md](implementation/waves/wave-05-catalog-home-and-discovery.md)** — closed Wave 05 implementation plan; Tasks 01-06 are verified.
-5. **[internal/checkpoints/wave-05-catalog-home-and-discovery.md](internal/checkpoints/wave-05-catalog-home-and-discovery.md)** — accepted Wave 05 checkpoint evidence.
+4. **[implementation/waves/wave-06-library-and-story-matching.md](implementation/waves/wave-06-library-and-story-matching.md)** - active Wave 06 plan, beginning at Task 01.
+5. **[internal/checkpoints/architecture-baseline-2.md](internal/checkpoints/architecture-baseline-2.md)** - accepted Baseline 2 evidence and Wave 06 entry boundary.
 
 ## Normative product and requirement documents
 
 - [Approved product design](project/approved-product-design.md)
-- [Pre-MVP Baseline 1 decision](project/pre-mvp-baseline-1.md)
+- [Architecture Baseline 2 design](superpowers/specs/2026-08-09-architecture-baseline-2-design.md)
+- [Post-Baseline Wave 06-11 architecture](superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md)
 - [Requirement coverage](project/requirement-coverage.md)
 - [Documentation precedence/governance](project/document-governance.md)
 
 ## Detailed implementation plans
 
-The original eleven wave plans are retained under `implementation/waves/` with lifecycle
-headers. They remain useful as self-contained TDD plans, but Waves 01–04 are historical
-for this source snapshot and Wave 05 is active.
+Wave 01-05 plans remain historical delivery records. Wave 06-11 plans are rebaselined to
+the approved post-Baseline-2 module evolution; Wave 06 Task 01 is active.
 
 ## Public/plugin documentation
 
-`plugin-sdk/` contains the SDK-facing API versioning, declarative selector schema,
-package format and repository-index rules.
+`plugin-sdk/` contains the SDK-facing protocol/versioning, JavaScript runtime, package,
+repository-index, and contract-testing rules.
 
 ## Evidence and history
 

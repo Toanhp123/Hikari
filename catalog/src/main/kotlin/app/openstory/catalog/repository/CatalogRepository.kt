@@ -1,0 +1,16 @@
+package app.openstory.catalog.repository
+
+import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.common.Outcome
+import app.openstory.common.id.StoryId
+import kotlinx.coroutines.flow.Flow
+
+interface CatalogRepository {
+    fun observeHomes(): Flow<List<CatalogHomeSnapshot>>
+    fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?>
+    suspend fun matchSnapshot(): CatalogMatchSnapshot
+    suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure>
+    suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure>
+}

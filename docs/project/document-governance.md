@@ -1,6 +1,6 @@
 # Documentation Governance and Precedence
 
-Date: 2026-08-07  
+Date: 2026-08-10
 Status: **CANONICAL documentation policy**
 
 ## Purpose
@@ -24,7 +24,15 @@ code exists, and code existence is not proof that a checkpoint passed.
 ### What is implemented next?
 
 Use `../implementation/current-roadmap.md`, then the active wave plan. The current
-continuation is `../implementation/waves/wave-05-catalog-home-and-discovery.md`.
+continuation is Wave 06 Task 01 from
+`../implementation/waves/wave-06-library-and-story-matching.md`.
+
+Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current
+architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence.
+Wave 06 is reopened at Task 01. The post-baseline architecture design owns module
+evolution and cross-wave continuity for Wave 06-11; each active wave plan owns the
+task-level implementation inside that boundary. Its canonical path is
+`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
 that retain development-only database migrations or selector generations.
@@ -36,19 +44,22 @@ output is reviewed and recorded.
 
 ### How does a public plugin contract work?
 
-Use `../plugin-sdk/`. SDK documents must match `:core:plugin-api` and tested fixtures.
+Use `../plugin-sdk/`. SDK documents must match `:plugins:api`, the JavaScript runtime
+protocol, and tested fixtures.
 
 ## Supersession map
 
 | Historical source | Current interpretation |
 |---|---|
 | 2026-08-03 Waves 01–03 plans | Intent and coverage history; implementation is already present |
-| 2026-08-03 Wave 04 selector sketch | Replaced by the canonical typed Selector Schema 1 continuation |
-| 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/` |
+| 2026-08-03 Wave 04 selector sketch | Historical; superseded by the Baseline 2 JavaScript protocol/runtime |
+| 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/`; no active selector contract |
 | Source-local Wave 01–03 remediation specs/plans/checkpoints | Archived under `../internal/archive/pre-baseline-development/`; do not execute again |
 | Pre-baseline Room migration instructions | Historical only; current complete database is initial schema 1 |
 | Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |
 | Project-wide Baseline 1 refactor plan | Execution record for the one-time reset; not the next feature plan after completion |
+| Wave 05 checkpoint and pre-reset Wave 06 entry instruction | Historical execution evidence; Wave 06 is reopened only through the accepted Baseline 2 boundary |
+| Architecture Baseline 2 R0-R6 plans | Accepted one-time architecture reset record; not the active feature plan after R6 |
 
 ## Lifecycle labels
 

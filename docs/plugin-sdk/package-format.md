@@ -1,191 +1,59 @@
 # OpenStory Plugin Package Format
 
-OpenStory plugins are distributed as portable `.osp` ZIP archives. The host validates the complete archive before installing or initializing any runtime.
-
-## Required package layout
-
-Every package contains:
+An OpenStory plugin is a bounded ZIP archive with the `.osp` extension and this layout:
 
 ```text
 manifest.json
-```
-
-A package may additionally contain only the entries supported by its declared runtime:
-
-```text
-selector.json
 main.js
-CHANGELOG.md
-LICENSE
+assets/<relative-file>  # optional
 ```
 
-`manifest.json` is always required. `selector.json` is used by declarative selector plugins. `main.js` is used by JavaScript plugins.
+Only regular files are accepted. Entry names must be normalized relative paths; absolute
+paths, `.`/`..` segments, backslashes, blank segments, duplicate entries, directories,
+symbolic links, unsupported top-level files, oversized entries, and oversized archives
+are rejected. `manifest.json` and `main.js` are required.
 
-Archive entry names are exact and case-sensitive.
+## Manifest
 
-## Archive validation
-
-The host rejects a package before extraction when any of the following conditions is detected:
-
-| Error | Meaning |
-|---|---|
-| `PATH_TRAVERSAL` | An entry is absolute, drive-qualified, uses backslashes, or contains a `..` path segment |
-| `INVALID_ENTRY_PATH` | An entry is blank, contains control characters, or uses empty/dot segments |
-| `DUPLICATE_ENTRY` | Two ZIP entries have the same path, including case-folded duplicates |
-| `UNDECLARED_ENTRY` | An entry is not part of the supported package layout |
-| `MISSING_MANIFEST` | `manifest.json` is absent |
-| `SYMBOLIC_LINK` | An entry is a symbolic link |
-| `INVALID_ENTRY_SIZE` | An entry reports a negative or unknown size |
-| `SIZE_OVERFLOW` | Total size metadata overflows a signed 64-bit counter |
-| `ENTRY_COUNT_LIMIT` | The archive contains too many entries |
-| `COMPRESSED_SIZE_LIMIT` | Total compressed bytes exceed the configured ceiling |
-| `UNCOMPRESSED_SIZE_LIMIT` | Total expanded bytes exceed the configured ceiling |
-| `SUSPICIOUS_COMPRESSION_RATIO` | An entry exceeds the allowed expansion ratio |
-| `UNDECLARED_EXECUTABLE` | An executable entry is not declared by the package metadata |
-| `MISSING_DECLARED_EXECUTABLE` | A declared executable entry is absent from the archive |
-| `RUNTIME_ENTRY_MISMATCH` | The manifest runtime entry is absent from the archive |
-
-Validation is performed using entry metadata before extraction. The installer must not write rejected content to its final plugin directory.
-
-## Default safety ceilings
-
-The reference contract defines these default limits:
-
-| Limit | Default |
-|---|---:|
-| Maximum entry count | 128 |
-| Maximum compressed bytes | 16 MiB |
-| Maximum uncompressed bytes | 64 MiB |
-| Maximum per-entry compression ratio | 100:1 |
-
-A host may apply stricter limits. It must not silently apply weaker limits to untrusted packages.
-
-## Executable entries
-
-Executable content is denied by default.
-
-A package may execute only the entry declared by its manifest and runtime contract. For example:
-
-- declarative runtime: `selector.json`
-- JavaScript runtime: `main.js`
-
-An executable ZIP entry that is absent from the declared executable-entry set is rejected with `UNDECLARED_EXECUTABLE`.
-
-Plugins cannot declare native libraries, shell scripts, Android components, filesystem adapters, or additional executable binaries.
-
-## Exact package checksum
-
-`exactPackageSha256` is the lowercase SHA-256 digest of the exact `.osp` byte sequence as downloaded or selected by the user.
-
-The checksum is calculated over the archive bytes themselves, not:
-
-- the extracted directory;
-- a re-created ZIP;
-- normalized JSON;
-- individual file digests;
-- transport encoding.
-
-Example:
+`manifest.json` is UTF-8 JSON. A catalog-only package has this shape:
 
 ```json
 {
-  "pluginId": "community.example",
-  "version": "1.2.3",
-  "exactPackageSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "signature": null
+  "id": "org.example.catalog",
+  "name": "Example Catalog",
+  "version": "1.0.0",
+  "protocol": 1,
+  "entry": "main.js",
+  "provides": ["CATALOG"],
+  "languages": ["en"],
+  "homepageUrl": "https://example.org/",
+  "sourceUrl": "https://example.org/source",
+  "capabilities": {
+    "network": {
+      "hosts": ["api.example.org", "cdn.example.org"]
+    }
+  }
 }
 ```
 
-The installer must compare the calculated digest with the expected digest before extraction.
+- `id` is a lowercase reverse-domain identifier.
+- `version` is a semantic version.
+- `protocol` is the supported protocol major.
+- `entry` must be exactly `main.js`.
+- `provides` contains `CATALOG`, `CONTENT`, or both and cannot be empty.
+- language tags are normalized lowercase values.
+- metadata URLs are HTTPS.
+- network hosts are exact lowercase hostnames; wildcards, schemes, ports, and paths are invalid.
 
-## Ed25519 signatures
+The manifest describes execution permissions. It does not attest to its containing archive.
+The installer verifies the SHA-256 of the exact `.osp` bytes against detached provenance.
 
-Signed packages use `ED25519`.
+## Script and assets
 
-The signed UTF-8 payload is exactly:
+`main.js` exposes operations through `globalThis.openstoryPlugin` and communicates with
+the host only through the serialized protocol and host-controlled capabilities. Plugin
+JavaScript never receives Android APIs, filesystem paths, raw network clients, reflection,
+or plaintext managed credentials.
 
-```text
-<exactPackageSha256>
-<pluginId>
-<version>
-```
-
-There is one line-feed character (`\n`) between fields and no trailing newline.
-
-For example:
-
-```text
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-community.example
-1.2.3
-```
-
-Signature metadata:
-
-```json
-{
-  "algorithm": "ED25519",
-  "signerKeyId": "author-main",
-  "signatureBase64": "c2lnbmF0dXJl"
-}
-```
-
-The signature binds the immutable package bytes to the plugin ID and version. A signature valid for one plugin or version cannot be reused for another.
-
-Signer trust is scoped by the user or repository. OpenStory does not assume one globally centralized signing authority.
-
-## Signature states
-
-The installer records one of these states:
-
-| State | Meaning |
-|---|---|
-| `VERIFIED` | Checksum and trusted signature were verified |
-| `UNSIGNED` | No package signature was supplied |
-| `INVALID` | A supplied checksum or signature failed verification |
-
-An invalid package must not initialize.
-
-## Unsigned-package warning path
-
-Unsigned packages remain installable only through an explicit warning flow. The user must acknowledge the warning before installation proceeds.
-
-The host stores install provenance:
-
-```json
-{
-  "source": "LOCAL_FILE",
-  "sourceReference": "example.osp",
-  "signatureState": "UNSIGNED",
-  "unsignedWarningAcknowledged": true
-}
-```
-
-Supported source values are:
-
-- `LOCAL_FILE`
-- `MANIFEST_URL`
-- `REPOSITORY`
-
-For `UNSIGNED`, `unsignedWarningAcknowledged` must be `true`. The provenance record must remain associated with the installed plugin so diagnostics and plugin-management UI can show how it was installed.
-
-## Installation order
-
-A conforming installer performs these steps in order:
-
-1. Read archive metadata without extracting to the final directory.
-2. Enforce entry count, byte ceilings, and compression-ratio limits.
-3. Reject absolute paths, traversal, duplicate names, and symbolic links.
-4. Confirm `manifest.json` exists and entries match the supported layout.
-5. Parse the manifest and validate it against the [plugin API versioning policy](api-versioning.md).
-6. For declarative packages, decode `selector.json`, require the supported selector schema version, and run the complete selector contract validator before any runtime is initialized.
-7. Confirm exactly the runtime entry declared by the manifest is present and no entry for the other runtime is bundled.
-8. Calculate SHA-256 over the exact archive bytes.
-9. Compare the checksum with package or repository metadata.
-10. Verify the Ed25519 signature when present.
-11. Require and record acknowledgement for unsigned packages.
-12. Extract into an isolated temporary location.
-13. Re-check the declared runtime entry.
-14. Atomically publish the verified package into plugin-scoped storage.
-
-No runtime code or selector definition is initialized before all applicable checks succeed.
+Files under `assets/` are package data, not a filesystem capability. Runtime behavior and
+wire examples are documented in [javascript-runtime.md](javascript-runtime.md).

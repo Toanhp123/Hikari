@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="${OPENSTORY_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ROOT_DIR="${REPO_ROOT:-${OPENSTORY_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
 
 fail() {
   echo "$1" >&2
@@ -18,9 +18,9 @@ fi
 [[ ! -f "$ROOT_DIR/config/detekt/baseline.xml" ]] ||
   fail "Detekt baseline debt is forbidden."
 
-if [[ -d "$ROOT_DIR/core/database/src/main" ]] &&
+if [[ -d "$ROOT_DIR/storage/room/src/main" ]] &&
   grep -R -n -E '^import app\.openstory\.plugin\.host\.install\.' \
-    "$ROOT_DIR/core/database/src/main" >/dev/null; then
+    "$ROOT_DIR/storage/room/src/main" >/dev/null; then
   fail "Database production source imports plugin installer internals."
 fi
 
@@ -37,9 +37,12 @@ while IFS= read -r -d '' source_file; do
     fail "Development-history test filename is forbidden: $relative_path"
   fi
 
-  line_count="$(wc -l < "$source_file")"
+  line_count="$(awk 'END { print NR }' "$source_file")"
   if [[ "$relative_path" =~ /src/main/ ]] && ((line_count > 500)); then
     fail "Production Kotlin source exceeds 500 lines: $relative_path ($line_count)"
+  fi
+  if [[ "$relative_path" =~ /src/main/ ]] && ((line_count > 300)); then
+    echo "Structural review candidate exceeds 300 lines: $relative_path ($line_count)" >&2
   fi
   if [[ "$relative_path" =~ /src/(test|androidTest)/ ]] && ((line_count > 750)); then
     fail "Test Kotlin source exceeds 750 lines: $relative_path ($line_count)"

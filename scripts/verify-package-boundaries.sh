@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
+fail_matches() {
+  local source_root="$1" pattern="$2" message="$3"
+  [[ -d "$source_root" ]] || return 0
+
+  local matches
+  matches="$(grep -RInE --include='*.kt' "^[[:space:]]*import[[:space:]]+${pattern}" "$source_root" || true)"
+  if [[ -n "$matches" ]]; then
+    echo "$message" >&2
+    echo "$matches" >&2
+    return 1
+  fi
+}
+
+validate_project_imports() {
+  local source_root="$1" allowed_pattern="$2" message="$3"
+  [[ -d "$source_root" ]] || return 0
+
+  while IFS= read -r match; do
+    [[ -z "$match" ]] && continue
+    import_name="${match#*import }"
+    if [[ ! "$import_name" =~ $allowed_pattern ]]; then
+      echo "$message" >&2
+      echo "$match" >&2
+      return 1
+    fi
+  done < <(
+    grep -RInE --include='*.kt' \
+      '^[[:space:]]*import[[:space:]]+app\.openstory\.' \
+      "$source_root" || true
+  )
+}
+
+fail_forbidden_runtime_references() {
+  local source_root="$1"
+  [[ -d "$source_root" ]] || return 0
+
+  while IFS= read -r -d '' source_file; do
+    compact_source="$(tr -d '[:space:]' < "$source_file")"
+    remainder="$(printf '%s\n' "$compact_source" | sed -E \
+      's/app\.openstory\.plugins\.runtime\.persistence(\.([A-Za-z_][A-Za-z0-9_]*|\*))+/ALLOWED/g')"
+    if [[ "$remainder" == *app.openstory.plugins.runtime* ]]; then
+      echo 'storage/room may reference only plugins.runtime.persistence SPI contracts.' >&2
+      echo "$source_file" >&2
+      return 1
+    fi
+  done < <(
+    find "$source_root" -type f -name '*.kt' -print0
+  )
+}
+
+core_root="$ROOT_DIR/core/common/src/main"
+catalog_root="$ROOT_DIR/catalog/src/main"
+feature_root="$ROOT_DIR/feature/catalog/src/main"
+storage_root="$ROOT_DIR/storage/room/src/main"
+plugin_api_root="$ROOT_DIR/plugins/api/src/main"
+plugin_runtime_root="$ROOT_DIR/plugins/runtime/src/main"
+
+fail_matches "$core_root" '(android|androidx)(\.|$)' \
+  'core/common must remain free of Android dependencies.'
+validate_project_imports "$core_root" '^app\.openstory\.common(\.|$)' \
+  'core/common may import only its own project packages.'
+
+fail_matches "$plugin_api_root" '(android|androidx)(\.|$)' \
+  'plugins/api must remain free of Android dependencies.'
+validate_project_imports "$plugin_api_root" '^app\.openstory\.plugins\.api(\.|$)' \
+  'plugins/api may import only its own project packages.'
+
+validate_project_imports "$plugin_runtime_root" '^app\.openstory\.(common|plugins\.api|plugins\.runtime)(\.|$)' \
+  'plugins/runtime may import only core common, plugin API, and its own packages.'
+
+fail_matches "$catalog_root" 'android\.content\.Context(\.|$)' \
+  'catalog must not import Android Context.'
+fail_matches "$catalog_root" 'androidx\.compose(\.|$)' \
+  'catalog must remain free of Compose dependencies.'
+fail_matches "$catalog_root" 'app\.openstory\.common\.dispatchers\.AppDispatchers(\.|$)' \
+  'catalog must not depend on application dispatchers.'
+validate_project_imports "$catalog_root" '^app\.openstory\.(common|catalog|plugins\.api|plugins\.runtime)(\.|$)' \
+  'catalog may import only core common, plugin API/runtime, and its own packages.'
+
+validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog)(\.|$)' \
+  'feature/catalog may import only core common and catalog project packages.'
+
+validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
+  'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'
+fail_forbidden_runtime_references "$storage_root"
+
+echo "Package boundary policy verified."

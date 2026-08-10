@@ -50,12 +50,11 @@ jobs:
             build/reports/detekt
             build-logic/build/reports
             core/common/build/reports
-            core/database/build/reports
-            core/model/build/reports
-            core/matching/build/reports
-            core/network/build/reports
-            core/plugin-api/build/reports
-            core/plugin-host/build/reports
+            storage/room/build/reports
+            catalog/build/reports
+            plugins/api/build/reports
+            plugins/runtime/build/reports
+            catalog/build/reports
             feature/home/build/reports
             feature/story/build/reports
             test/fixtures/build/reports
@@ -194,9 +193,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: |
-            core/database/build/reports/androidTests
-            core/database/build/outputs/androidTest-results
-            core/database/build/outputs/apk
+            storage/room/build/reports/androidTests
+            storage/room/build/outputs/androidTest-results
+            storage/room/build/outputs/apk
 
   database-api-37:
     name: Wave 02 Database API 37
@@ -240,9 +239,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: |
-            core/database/build/reports/androidTests
-            core/database/build/outputs/androidTest-results
-            core/database/build/outputs/apk
+            storage/room/build/reports/androidTests
+            storage/room/build/outputs/androidTest-results
+            storage/room/build/outputs/apk
 
   wave-01-checkpoint:
     name: Wave 01 Checkpoint
@@ -326,8 +325,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: |
-            core/plugin-api/build/reports
-            core/plugin-host/build/reports
+            plugins/api/build/reports
+            plugins/runtime/build/reports
+            catalog/build/reports
             feature/home/build/reports
             feature/story/build/reports
             test/fixtures/build/reports

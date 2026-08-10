@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCHEMA_DIR="${ROOM_SCHEMA_DIR:-$ROOT_DIR/core/database/schemas}"
+SCHEMA_DIR="${ROOM_SCHEMA_DIR:-$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase}"
 EXPECTED_FINGERPRINT="${1:-}"
 
 if [[ ! -d "$SCHEMA_DIR" ]]; then

@@ -9,20 +9,10 @@ class ArchitectureSmokeTest {
     private val root = File("..").canonicalFile
 
     @Test
-    fun coreModelStaysPlatformIndependent() {
-        val source = File(root, "core/model/src/main")
-            .walkTopDown()
-            .filter { file -> file.isFile && file.extension == "kt" }
-            .joinToString(separator = "\n") { file -> file.readText() }
-
-        assertFalse(
-            "android." in source,
-            "core:model must not import Android APIs",
-        )
-        assertFalse(
-            "androidx.compose" in source,
-            "core:model must not import Compose APIs",
-        )
+    fun legacyCoreModulesAreDeletedAfterCatalogCutover() {
+        listOf("core/model", "core/matching", "core/database").forEach { module ->
+            assertFalse(File(root, module).exists(), "Legacy module must be deleted: $module")
+        }
     }
 
     @Test
@@ -50,12 +40,14 @@ class ArchitectureSmokeTest {
             "config/architecture/module-boundaries.json",
             "config/detekt/detekt.yml",
             "scripts/check-module-dependencies.sh",
-            "scripts/verify-baseline-architecture.sh",
+            "scripts/verify-architecture-baseline-2.sh",
+            "scripts/structural-review-report.sh",
             "scripts/verify-source-layout.sh",
             "scripts/verify.sh",
             "scripts/instrumentation/android.sh",
+            "scripts/instrumentation/storage-room.sh",
             "scripts/checkpoints/app-shell.sh",
-            "scripts/tests/verify-baseline-architecture-test.sh",
+            "scripts/tests/verify-architecture-baseline-2-test.sh",
             "scripts/tests/verify-source-layout-test.sh",
             "scripts/tests/instrumentation-android-test.sh",
             "scripts/tests/checkpoint-app-shell-test.sh",
@@ -104,10 +96,10 @@ class ArchitectureSmokeTest {
             "./scripts/instrumentation/android.sh 26",
             "./scripts/instrumentation/android.sh 37",
             "wave-01-checkpoint:",
-            "core/database/build/reports",
-            "core/network/build/reports",
-            "core/plugin-api/build/reports",
-            "core/plugin-host/build/reports",
+            "storage/room/build/reports",
+            "plugins/api/build/reports",
+            "plugins/runtime/build/reports",
+            "catalog/build/reports",
         ).forEach { expected ->
             assertTrue(
                 expected in workflow,
@@ -182,7 +174,8 @@ class ArchitectureSmokeTest {
 
         listOf(
             "./scripts/verify-source-layout.sh",
-            "./scripts/verify-baseline-architecture.sh",
+            "./scripts/structural-review-report.sh",
+            "./scripts/verify-architecture-baseline-2.sh",
         ).forEach { gate ->
             assertTrue(gate in verifyScript, "Fast verification must invoke $gate")
             assertTrue(
@@ -209,7 +202,7 @@ class ArchitectureSmokeTest {
             "API 26",
             "API 37",
             "config/architecture/module-boundaries.json",
-            ":core:plugin-host",
+            ":plugins:runtime",
         ).forEach { expected ->
             assertTrue(
                 expected in readme,

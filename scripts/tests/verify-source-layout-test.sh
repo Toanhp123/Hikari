@@ -46,15 +46,25 @@ printf '<project/>\n' > "$FAKE_ROOT/.idea/misc.xml"
 assert_failure "IDE metadata" verify
 rm -rf "$FAKE_ROOT/.idea"
 
-mkdir -p "$FAKE_ROOT/core/database/src/main/kotlin"
+mkdir -p "$FAKE_ROOT/storage/room/src/main/kotlin"
 printf 'import app.openstory.plugin.host.install.StagedPluginPackage\n' \
-  > "$FAKE_ROOT/core/database/src/main/kotlin/BadImport.kt"
+  > "$FAKE_ROOT/storage/room/src/main/kotlin/BadImport.kt"
 assert_failure "database installer imports" verify
-rm "$FAKE_ROOT/core/database/src/main/kotlin/BadImport.kt"
+rm "$FAKE_ROOT/storage/room/src/main/kotlin/BadImport.kt"
 
 write_lines 501 "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 assert_failure "a 501-line production source" verify
 rm "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
+
+write_lines 500 "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
+printf '// final line without newline' >> "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
+assert_failure "a 501-line production source without a final newline" verify
+rm "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
+
+write_lines 301 "$FAKE_ROOT/core/sample/src/main/kotlin/Large.kt"
+large_output="$(REPO_ROOT="$FAKE_ROOT" "$ROOT_DIR/scripts/verify-source-layout.sh" 2>&1)"
+grep -q 'Large.kt' <<< "$large_output"
+rm "$FAKE_ROOT/core/sample/src/main/kotlin/Large.kt"
 
 write_lines 751 "$FAKE_ROOT/core/sample/src/test/kotlin/OversizedTest.kt"
 assert_failure "a 751-line test source" verify
