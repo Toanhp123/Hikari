@@ -9,19 +9,19 @@ Purpose: single source of truth for the implemented repository boundary.
 - Package namespace and application ID: `app.openstory`.
 - Current production Gradle graph: 7 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
-- Architecture Baseline 2 R5: **ACCEPTED**.
-- Current active boundary: **R6 - Architecture Acceptance**.
-- Wave 06 product implementation remains frozen until R6 is accepted.
+- Architecture Baseline 2: **ACCEPTED**.
+- Current active boundary: **Wave 06 Task 01 - metadata-only Library persistence and story matching foundations**.
+- Wave 06 is ready to start; no Wave 06 product implementation is present yet.
 
 ## Independent version spaces
 
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 1 |
-| Plugin protocol | major 1 |
+| Room database | schema 1, the frozen Architecture Baseline 2 schema |
+| Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
-| Plugin package | bounded `.osp` ZIP containing `manifest.json`, `main.js`, and optional assets |
+| Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
 
 These versions are independent. A change in one does not imply a change in another.
 
@@ -68,22 +68,26 @@ notifications, and release-hardening behavior are not implemented by Architectur
 - R4 replaced Home/Search/Story presentation, navigation, and DI composition.
 - R5 removed legacy modules/contracts/samples/scripts, rewrote active SDK/governance text,
   froze exact dependency/package rules, and completed the ownership audit.
+- R6 passed deterministic local verification, API 26/37 instrumentation, app launch,
+  MyAnimeList reference integration, and the final ownership/public-surface audit.
 
 Acceptance evidence:
 
 - `../internal/checkpoints/architecture-baseline-2-r3.md`
 - `../internal/checkpoints/architecture-baseline-2-r4.md`
 - `../internal/checkpoints/architecture-baseline-2-r5.md`
+- `../internal/checkpoints/architecture-baseline-2.md`
 
-The final ownership record is
-`../internal/architecture-baseline-2/r5-ownership-audit.md`.
+The final ownership records are
+`../internal/architecture-baseline-2/r5-ownership-audit.md` and
+`../internal/architecture-baseline-2/r6-final-audit.md`.
 
 ## Verification status
 
-R5 repository verification, all unit suites, architecture/source/package gates, Detekt,
-lint, APK assembly, Room schema stability, and structural review are accepted in the R5
-checkpoint. R6 owns the complete architecture acceptance run, including connected-device
-journeys and the final freeze decision.
+Architecture Baseline 2 acceptance proves repository verification, all local unit suites,
+architecture/source/package gates, Detekt, lint, APK assembly, Room schema stability,
+runtime/security instrumentation, storage instrumentation, Compose/app instrumentation,
+and launcher smoke on API 26 and API 37. Wave 06 Task 01 is the next implementation entry.
 
 ## Source-of-truth rule
 

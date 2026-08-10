@@ -1,617 +1,477 @@
 <!--
 DOCUMENT LIFECYCLE
-Status: READY TO START / WAVE 05 CHECKPOINT ACCEPTED
-Current repository note: The Wave 05 checkpoint is accepted; Wave 06 Task 01 may begin.
+Status: READY TO START / ARCHITECTURE BASELINE 2 ACCEPTED
+Current repository note: Begin at Task 01 on the accepted seven-module graph.
 Canonical execution status: ../../project/current-state.md
-Original planning text below is preserved rather than retroactively rewritten.
 -->
 
-# Wave 06 — Library and Story Matching Implementation Plan
+# Wave 06 - Library and Story Matching Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let users add stories instantly to a local Library and find/approve readable content mappings across installed source plugins.
+**Goal:** Let users add stories immediately to a metadata-only local Library, then find, explain, approve, and persist readable content mappings across installed JavaScript plugins.
 
-**Architecture:** Library membership is a local transaction independent of network work. A deterministic, explainable matcher searches preferred plugins quickly, expands in the background, and persists automated or user-protected mappings. Compose UI exposes metadata-only, searching, linked, and review states.
+**Architecture:** Wave 06 extends the accepted Architecture Baseline 2 graph without adding production modules. `:catalog` owns Library and matching behavior, `:storage:room` owns schema and transactions, `:feature:catalog` owns Library and mapping presentation, `:plugins:runtime` remains the only plugin execution facade, and `:app` owns composition, navigation, and Android scheduling adapters.
 
-**Tech Stack:** Room repositories, plugin host, matching algorithms, coroutines, Compose, Navigation, WorkManager scheduling boundary.
+**Tech Stack:** Kotlin 2.4.10, Room 2.8.4, coroutines 1.11.0, Compose BOM 2026.06.00, Navigation 3 1.1.4, Hilt 2.60.1, WorkManager 2.11.2, AndroidX JavaScriptEngine 1.1.0.
 
 ## Global Constraints
 
-- Android-only MVP; no account, cloud sync, remote chapter service, or push backend.
-- Package namespace: `app.openstory`.
-- Minimum SDK: 26. Compile and target SDK: 37.
-- Build runtime: JDK 17, Gradle 9.5, Android Gradle Plugin 9.3.0.
-- Language/UI: Kotlin 2.4.10, Jetpack Compose BOM 2026.06.00, Navigation 3 version 1.1.4.
-- Persistence/background: Room 2.8.4 and WorkManager 2.11.2.
-- Concurrency/serialization: Kotlin coroutines 1.11.0 and kotlinx.serialization 1.11.0.
-- Dependency injection: Hilt 2.60.1.
-- JavaScript plugins execute only through AndroidX JavaScriptEngine 1.1.0 with host-controlled capabilities.
-- Catalog metadata and readable content remain separate plugin responsibilities.
-- Reading progress belongs to `CanonicalChapter`; exact `ChapterRelease` and reader position are also retained.
-- No native-code plugins, unrestricted filesystem access, arbitrary Android APIs, or undeclared network domains.
-- Every persistence change needs a migration test; every plugin contract needs deterministic fixtures.
-- TDD is mandatory: demonstrate the focused failure, implement the smallest behavior, run focused tests, then run the module suite.
-- Commit after each task. Do not combine tasks across checkpoints.
-- Any deterministic `*Fixture`, fake, or test assertion helper shown in a test block is created in that task’s listed test file or `:test:fixtures`; it must not call live websites.
-
-
-## Role of This Wave
-
-This wave connects discovery to readable sources without violating local-first immediacy. It establishes user override semantics before chapter data can arrive.
+- Preserve exactly `:app`, `:core:common`, `:catalog`, `:feature:catalog`, `:storage:room`, `:plugins:api`, and `:plugins:runtime`.
+- Package-first, Gradle-module-second: this wave adds focused packages inside existing owners.
+- Package namespace/application ID remains `app.openstory`; min SDK 26 and compile/target SDK 37 remain fixed.
+- Build runtime remains JDK 17, Gradle 9.5, Android Gradle Plugin 9.3.0, and Kotlin 2.4.10.
+- Room schema 1 is frozen Architecture Baseline 2. Every schema change uses an exported schema and a tested forward migration.
+- JavaScript is the only plugin execution model. Content requests use `PluginOperation.CONTENT_*` through `PluginRuntime` and serialized protocol DTOs.
+- Library membership commits locally before any plugin invocation or scheduled mapping search.
+- Catalog owns matching decisions; Room persists decisions but never computes them.
+- Room entities and DAOs remain internal to `:storage:room`.
+- UI consumes catalog-owned services and models; it does not import Room or plugin runtime internals.
+- No chapter synchronization, Reader, downloads, account sync, authentication, notifications, or release-hardening behavior is implemented in this wave.
+- TDD is mandatory: focused RED, smallest GREEN, affected module suite, then commit.
+- Commit after each task. Do not combine task commits.
 
 ## Entry Dependencies
 
-- Wave 05 checkpoint is approved.
-- Catalog story detail and canonical IDs are stable.
-- Content plugin search/details contracts execute through the secure host.
+- Architecture Baseline 2 checkpoint is accepted.
+- The seven-module graph and package boundaries pass `./scripts/verify.sh`.
+- Catalog story identity and details are stable.
+- Content protocol operations execute through the secure JavaScript runtime.
 
 ## Exit Deliverables
 
-- Immediate metadata-only Library.
-- Library list and statuses.
-- Explainable story matcher.
-- Staged content-source search.
-- Protected mapping persistence.
-- Manual mapping/URL import and review UI.
-
-## File/Module Boundary
-
-Each path listed in a task owns one responsibility. Do not move business rules into Compose screens, Room entities, JavaScript snippets, or WorkManager classes. Domain interfaces are the dependency boundary; Android adapters implement them.
+- Immediate metadata-only Library membership and local status changes.
+- Library list/filter UI with searching, linked, review, and no-mapping states.
+- Deterministic, explainable content-story matching.
+- Preferred-source quick search plus bounded deferred expansion.
+- User-approved mappings protected from later automation.
+- Manual source search and allowlisted URL resolution UI.
 
 ---
 
-### Task 1: Implement immediate metadata-only Library commands
+### Task 1: Add metadata-only Library persistence and commands
 
 **Files:**
-- Create: feature/library/build.gradle.kts
-- Create: feature/library/src/main/kotlin/app/openstory/library/domain/AddStoryToLibrary.kt
-- Create: feature/library/src/main/kotlin/app/openstory/library/domain/RemoveStoryFromLibrary.kt
-- Create: feature/library/src/main/kotlin/app/openstory/library/domain/ChangeLibraryStatus.kt
-- Create: feature/library/src/main/kotlin/app/openstory/library/domain/ObserveLibrary.kt
-- Test: feature/library/src/test/kotlin/app/openstory/library/domain/AddStoryToLibraryTest.kt
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/library/LibraryModels.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/library/LibraryRepository.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/library/LibraryService.kt`
+- Create: `catalog/src/test/kotlin/app/openstory/catalog/library/LibraryServiceTest.kt`
+- Create: `storage/room/src/main/kotlin/app/openstory/storage/room/library/LibraryEntity.kt`
+- Create: `storage/room/src/main/kotlin/app/openstory/storage/room/library/LibraryDao.kt`
+- Create: `storage/room/src/main/kotlin/app/openstory/storage/room/library/RoomLibraryRepository.kt`
+- Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt`
+- Create: `storage/room/src/main/kotlin/app/openstory/storage/room/RoomMigrations.kt`
+- Create: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/library/LibraryMigrationTest.kt`
+- Modify: `app/src/main/kotlin/app/openstory/di/CatalogModule.kt`
+- Modify: `scripts/verify-architecture-baseline-2.sh`
+- Modify: `scripts/tests/verify-architecture-baseline-2-test.sh`
 
 **Interfaces:**
-- Consumes: Catalog story detail, local story repository, clock, library status types.
-- Produces: Library commands that persist canonical metadata and user status immediately without invoking content plugins.
-
-**Acceptance:**
-- Add returns after one local transaction.
-- Adding the same story is idempotent and preserves progress/status unless explicitly changed.
-- Remove from Library does not delete canonical catalog metadata immediately and never deletes explicit downloads without confirmation.
-- Metadata-only entries are valid first-class states.
-
-**Implementation notes:**
-- Content matching is triggered after successful local add through an explicit coordinator in Task 4, never inside the transaction.
-- Keep delete semantics separate: remove membership, delete cached data, delete downloads, and purge all metadata are different actions.
-- Emit library changes through Room Flow so Home/story detail controls update immediately.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `feature/library/src/test/kotlin/app/openstory/library/domain/AddStoryToLibraryTest.kt`:
 
 ```kotlin
-package app.openstory.library.domain
+enum class LibraryStatus { WANT_TO_READ, READING, COMPLETED, ON_HOLD, DROPPED }
 
-import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
+data class LibraryEntry(
+    val storyId: StoryId,
+    val status: LibraryStatus,
+    val addedAtEpochMillis: Long,
+    val updatedAtEpochMillis: Long,
+)
 
-class AddStoryToLibraryTest {
-    @Test fun addDoesNotWaitForContentSearch() = runTest {
-        val fixture = addLibraryFixture(contentSearchWouldSuspend = true)
-        val result = fixture.useCase(fixture.story, LibraryStatus.WANT_TO_READ)
-        assertEquals(Unit, result.value())
-        assertEquals(1, fixture.localRepository.libraryWrites)
-        assertEquals(0, fixture.contentHostCalls)
-    }
+interface LibraryRepository {
+    fun observe(): Flow<List<LibraryEntry>>
+    suspend fun add(storyId: StoryId, status: LibraryStatus, nowEpochMillis: Long)
+    suspend fun remove(storyId: StoryId)
+    suspend fun changeStatus(storyId: StoryId, status: LibraryStatus, nowEpochMillis: Long)
 }
 ```
 
-- [ ] **Step 2: Run the focused test and verify the intended failure**
+- [ ] **Step 1: Write focused RED tests**
+
+Prove that `LibraryService.add` performs one repository write, does not know about plugin execution, and adding the same story preserves its existing status unless a status change is explicit. Add a Room migration test that opens schema 1, migrates to schema 2, and verifies the new membership table without altering Baseline 2 catalog/plugin rows. Update the architecture verifier contract test first: the accepted `1.json` hash must remain `adbd52a78feebd2eee197ccb58f0c209852ca059abd9fe1327bbfa962ba2011a`, contiguous later schema files are allowed, an edited schema 1 is rejected, and a numbered gap is rejected.
+
+- [ ] **Step 2: Verify RED**
 
 ```bash
-./gradlew :feature:library:test --tests app.openstory.library.domain.AddStoryToLibraryTest.addDoesNotWaitForContentSearch
+./gradlew :catalog:test --tests app.openstory.catalog.library.LibraryServiceTest \
+  :storage:room:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.library.LibraryMigrationTest
+./scripts/tests/verify-architecture-baseline-2-test.sh
 ```
 
-Expected: **FAIL** because Library commands and isolation from content search do not exist.
+Expected: **FAIL** because Library contracts, schema 2, the Room adapter, and the post-baseline schema-history rule do not exist.
 
-- [ ] **Step 3: Add the minimal implementation**
+- [ ] **Step 3: Implement the smallest local transaction**
 
-Create or modify `feature/library/src/main/kotlin/app/openstory/library/domain/AddStoryToLibrary.kt`:
+Add catalog-owned Library contracts and a service using the injected `Clock`. Implement schema `1 -> 2`, an internal entity/DAO, and `RoomLibraryRepository`. The Room transaction inserts membership idempotently and never deletes the catalog story when membership is removed. Replace the verifier's `exactly 1.json` rule with a schema-history rule that permanently checks the accepted schema-one SHA-256, requires numeric exports to be contiguous from `1` through the current database version, and rejects missing/uncommitted exports. Keep the seven-module and all other Baseline 2 architecture assertions unchanged.
 
-```kotlin
-package app.openstory.library.domain
-
-class AddStoryToLibrary(
-    private val repository: LocalStoryRepository,
-) {
-    suspend operator fun invoke(story: CanonicalStory, status: LibraryStatus): AppResult<Unit> =
-        repository.addToLibrary(story, status)
-}
-```
-
-- [ ] **Step 4: Re-run focused and module tests**
+- [ ] **Step 4: Run focused and affected suites**
 
 ```bash
-./gradlew :feature:library:test --tests app.openstory.library.domain.AddStoryToLibraryTest.addDoesNotWaitForContentSearch
-./gradlew :feature:library:test
+./gradlew :catalog:test :storage:room:testDebugUnitTest \
+  :storage:room:connectedDebugAndroidTest :app:testDebugUnitTest --stacktrace
+./scripts/tests/verify-architecture-baseline-2-test.sh
+./scripts/verify-room-schema-stability.sh
 ```
 
-Expected: both commands finish with **BUILD SUCCESSFUL** and the new test passes.
+Expected: **BUILD SUCCESSFUL** and a new accepted schema fingerprint for schema 2.
 
-- [ ] **Step 5: Commit the independently reviewable change**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add feature/library/build.gradle.kts feature/library/src/main/kotlin/app/openstory/library/domain/AddStoryToLibrary.kt feature/library/src/main/kotlin/app/openstory/library/domain/RemoveStoryFromLibrary.kt feature/library/src/main/kotlin/app/openstory/library/domain/ChangeLibraryStatus.kt feature/library/src/main/kotlin/app/openstory/library/domain/ObserveLibrary.kt feature/library/src/test/kotlin/app/openstory/library/domain/AddStoryToLibraryTest.kt
-git commit -m "library: add immediate metadata-only commands"
+git add catalog/src/main/kotlin/app/openstory/catalog/library \
+  catalog/src/test/kotlin/app/openstory/catalog/library \
+  storage/room/src/main/kotlin/app/openstory/storage/room \
+  storage/room/src/androidTest/kotlin/app/openstory/storage/room/library \
+  storage/room/schemas app/src/main/kotlin/app/openstory/di/CatalogModule.kt \
+  scripts/verify-architecture-baseline-2.sh \
+  scripts/tests/verify-architecture-baseline-2-test.sh
+git commit -m "library: add metadata-only persistence"
 ```
 
-### Task 2: Build Library list, filters, statuses, and metadata-only states
+### Task 2: Add Library presentation inside the catalog feature
 
 **Files:**
-- Create: feature/library/src/main/kotlin/app/openstory/library/ui/LibraryViewModel.kt
-- Create: feature/library/src/main/kotlin/app/openstory/library/ui/LibraryScreen.kt
-- Create: feature/library/src/main/kotlin/app/openstory/library/ui/LibraryItem.kt
-- Create: feature/library/src/main/kotlin/app/openstory/library/model/LibraryUiState.kt
-- Test: feature/library/src/test/kotlin/app/openstory/library/ui/LibraryViewModelTest.kt
-- Test: feature/library/src/androidTest/kotlin/app/openstory/library/ui/LibraryScreenTest.kt
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryUiState.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryViewModel.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryScreen.kt`
+- Create: `feature/catalog/src/test/kotlin/app/openstory/catalog/ui/library/LibraryViewModelTest.kt`
+- Create: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/ui/library/LibraryScreenTest.kt`
+- Modify: `app/src/main/kotlin/app/openstory/navigation/AppNavHost.kt`
 
 **Interfaces:**
-- Consumes: Library use cases, story/catalog display metadata, Navigation story route.
-- Produces: Compose Library with reading-status filters, local sorting, unread placeholders, and clear mapping/sync state.
-
-**Acceptance:**
-- Metadata-only story displays “finding sources” or “no source linked”, not an error card.
-- Status/filter/sort changes are local and immediate.
-- Stable item keys use StoryId.
-- Accessibility semantics include title, status, source state, and last-read information.
-
-**Implementation notes:**
-- Do not display a fabricated unread count before chapter aggregation exists.
-- Use a single query or repository projection for list rows; avoid one DAO call per story.
-- Preserve scroll/filter state through saved state.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `feature/library/src/test/kotlin/app/openstory/library/ui/LibraryViewModelTest.kt`:
 
 ```kotlin
-package app.openstory.library.ui
-
-import app.cash.turbine.test
-import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-
-class LibraryViewModelTest {
-    @Test fun metadataOnlyEntryRemainsVisible() = runTest {
-        val fixture = libraryViewModelFixture(mappingCount = 0)
-        fixture.viewModel.state.test {
-            val item = awaitItem().items.single()
-            assertEquals(SourceState.NO_MAPPING, item.sourceState)
-        }
-    }
-}
-```
-
-- [ ] **Step 2: Run the focused test and verify the intended failure**
-
-```bash
-./gradlew :feature:library:test --tests app.openstory.library.ui.LibraryViewModelTest.metadataOnlyEntryRemainsVisible
-```
-
-Expected: **FAIL** because Library UI state does not represent metadata-only entries.
-
-- [ ] **Step 3: Add the minimal implementation**
-
-Create or modify `feature/library/src/main/kotlin/app/openstory/library/model/LibraryUiState.kt`:
-
-```kotlin
-package app.openstory.library.model
+enum class LibrarySourceState { SEARCHING, LINKED, REVIEW, NO_MAPPING, FAILED }
+enum class LibrarySort { LAST_ACTIVITY, TITLE, DATE_ADDED, LAST_READ }
 
 data class LibraryUiState(
     val items: List<LibraryItemModel> = emptyList(),
     val selectedStatus: LibraryStatus? = null,
     val sort: LibrarySort = LibrarySort.LAST_ACTIVITY,
 )
-
-enum class SourceState { SEARCHING, LINKED, NO_MAPPING, ERROR }
-enum class LibrarySort { LAST_ACTIVITY, TITLE, DATE_ADDED, LAST_READ }
 ```
 
-- [ ] **Step 4: Re-run focused and module tests**
+- [ ] **Step 1: Write focused RED tests**
+
+Prove a metadata-only entry remains visible as `NO_MAPPING`, filtering/sorting is local, stable keys use `StoryId`, and accessibility semantics expose title, Library status, and source state.
+
+- [ ] **Step 2: Verify RED**
 
 ```bash
-./gradlew :feature:library:test --tests app.openstory.library.ui.LibraryViewModelTest.metadataOnlyEntryRemainsVisible
-./gradlew :feature:library:test :feature:library:connectedDebugAndroidTest
+./gradlew :feature:catalog:testDebugUnitTest \
+  --tests app.openstory.catalog.ui.library.LibraryViewModelTest \
+  :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.ui.library.LibraryScreenTest
 ```
 
-Expected: both commands finish with **BUILD SUCCESSFUL** and the new test passes.
+Expected: **FAIL** because the Library presentation package does not exist.
 
-- [ ] **Step 5: Commit the independently reviewable change**
+- [ ] **Step 3: Implement feature-owned presentation**
+
+Observe `LibraryRepository`, join the already persisted catalog display projection through a catalog service, and map it to immutable UI state. Replace the `AppRoute.Library` placeholder with the Hilt-owned screen. Do not display a fabricated unread count before chapter aggregation exists.
+
+- [ ] **Step 4: Run focused and affected suites**
 
 ```bash
-git add feature/library/src/main/kotlin/app/openstory/library/ui/LibraryViewModel.kt feature/library/src/main/kotlin/app/openstory/library/ui/LibraryScreen.kt feature/library/src/main/kotlin/app/openstory/library/ui/LibraryItem.kt feature/library/src/main/kotlin/app/openstory/library/model/LibraryUiState.kt feature/library/src/test/kotlin/app/openstory/library/ui/LibraryViewModelTest.kt feature/library/src/androidTest/kotlin/app/openstory/library/ui/LibraryScreenTest.kt
+./gradlew :feature:catalog:testDebugUnitTest \
+  :feature:catalog:connectedDebugAndroidTest :app:testDebugUnitTest \
+  :app:connectedDebugAndroidTest --stacktrace
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library \
+  feature/catalog/src/test/kotlin/app/openstory/catalog/ui/library \
+  feature/catalog/src/androidTest/kotlin/app/openstory/catalog/ui/library \
+  app/src/main/kotlin/app/openstory/navigation/AppNavHost.kt
 git commit -m "library: add local list and source states"
 ```
 
-### Task 3: Implement explainable story-match feature extraction and scoring
+### Task 3: Extend catalog-owned matching for content stories
 
 **Files:**
-- Create: core/matching/src/main/kotlin/app/openstory/matching/story/StoryFeatures.kt
-- Create: core/matching/src/main/kotlin/app/openstory/matching/story/StoryMatchScorer.kt
-- Create: core/matching/src/main/kotlin/app/openstory/matching/story/StoryMatchDecision.kt
-- Create: core/matching/src/main/kotlin/app/openstory/matching/story/MatchExplanation.kt
-- Test: core/matching/src/test/kotlin/app/openstory/matching/story/StoryMatchScorerTest.kt
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/matching/content/ContentStoryFeatures.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/matching/content/ContentMatchPolicy.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/matching/content/ContentStoryMatcher.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/matching/content/ContentMatchResult.kt`
+- Create: `catalog/src/test/kotlin/app/openstory/catalog/matching/content/ContentStoryMatcherTest.kt`
 
 **Interfaces:**
-- Consumes: Canonical/catalog metadata, content plugin candidates, title normalizer.
-- Produces: Deterministic score and explanation using exact/direct mappings, title/alias similarity, author overlap, content type, year, description tokens, and optional chapter count.
-
-**Acceptance:**
-- Direct trusted plugin/catalog mapping is highest-priority evidence but still validates content type.
-- Title-only match cannot auto-link when authors conflict.
-- Missing optional fields do not count as negative evidence.
-- Thresholds produce AUTO_LINK, REVIEW, or REJECT with component scores.
-
-**Implementation notes:**
-- Put weights/thresholds in a versioned policy object and store policy version with automated mappings.
-- Use token/Jaro-Winkler-like comparison implemented deterministically; avoid ML/personalization in MVP.
-- Persist the top rejected/review candidates only within bounded history for user review/diagnostics.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `core/matching/src/test/kotlin/app/openstory/matching/story/StoryMatchScorerTest.kt`:
 
 ```kotlin
-package app.openstory.matching.story
+enum class ContentMatchDecision { AUTO_LINK, REVIEW, REJECT }
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-
-class StoryMatchScorerTest {
-    @Test fun titleOnlyWithConflictingAuthorRequiresReview() {
-        val scorer = StoryMatchScorer(defaultStoryMatchPolicy())
-        val result = scorer.score(
-            canonicalFeatures(title = "The Return", authors = setOf("A")),
-            sourceFeatures(title = "The Return", authors = setOf("B")),
-        )
-        assertEquals(StoryMatchDecision.REVIEW, result.decision)
-        assertEquals(true, result.explanation.authorConflict)
-    }
-}
+data class ContentMatchResult(
+    val score: Double,
+    val decision: ContentMatchDecision,
+    val explanation: ContentMatchExplanation,
+    val policyVersion: Int,
+)
 ```
 
-- [ ] **Step 2: Run the focused test and verify the intended failure**
+- [ ] **Step 1: Write focused RED tests**
+
+Cover trusted direct evidence, exact title with conflicting authors, missing optional fields, content-type conflict, threshold boundaries, deterministic ordering, and a bounded explanation containing component scores.
+
+- [ ] **Step 2: Verify RED**
 
 ```bash
-./gradlew :core:matching:test --tests app.openstory.matching.story.StoryMatchScorerTest.titleOnlyWithConflictingAuthorRequiresReview
+./gradlew :catalog:test \
+  --tests app.openstory.catalog.matching.content.ContentStoryMatcherTest
 ```
 
-Expected: **FAIL** because story matching score, thresholds, and explanations are absent.
+Expected: **FAIL** because content matching policy does not exist.
 
-- [ ] **Step 3: Add the minimal implementation**
+- [ ] **Step 3: Implement pure matching**
 
-Create or modify `core/matching/src/main/kotlin/app/openstory/matching/story/StoryMatchScorer.kt`:
+Reuse the catalog title-normalization conventions. Keep weights and thresholds in `ContentMatchPolicy(version = 1)`. Missing evidence contributes no penalty; explicit author/type conflicts prevent automatic linking. The matcher returns a decision only and never calls persistence.
 
-```kotlin
-package app.openstory.matching.story
-
-class StoryMatchScorer(private val policy: StoryMatchPolicy) {
-    fun score(canonical: StoryFeatures, source: StoryFeatures): StoryMatchResult {
-        val title = policy.titleSimilarity(canonical.allTitles, source.allTitles)
-        val authors = policy.authorOverlap(canonical.authors, source.authors)
-        val conflict = canonical.authors.isNotEmpty() && source.authors.isNotEmpty() && authors == 0.0
-        val total = title * 0.60 + authors * 0.20 + policy.typeScore(canonical, source) * 0.15 + policy.yearScore(canonical, source) * 0.05
-        val decision = when {
-            conflict || total < policy.rejectBelow -> StoryMatchDecision.REVIEW
-            total >= policy.autoLinkAt -> StoryMatchDecision.AUTO_LINK
-            else -> StoryMatchDecision.REVIEW
-        }
-        return StoryMatchResult(total, decision, MatchExplanation(title, authors, conflict))
-    }
-}
-```
-
-- [ ] **Step 4: Re-run focused and module tests**
+- [ ] **Step 4: Run catalog suite**
 
 ```bash
-./gradlew :core:matching:test --tests app.openstory.matching.story.StoryMatchScorerTest.titleOnlyWithConflictingAuthorRequiresReview
-./gradlew :core:matching:test
+./gradlew :catalog:test detekt --stacktrace
 ```
 
-Expected: both commands finish with **BUILD SUCCESSFUL** and the new test passes.
-
-- [ ] **Step 5: Commit the independently reviewable change**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add core/matching/src/main/kotlin/app/openstory/matching/story/StoryFeatures.kt core/matching/src/main/kotlin/app/openstory/matching/story/StoryMatchScorer.kt core/matching/src/main/kotlin/app/openstory/matching/story/StoryMatchDecision.kt core/matching/src/main/kotlin/app/openstory/matching/story/MatchExplanation.kt core/matching/src/test/kotlin/app/openstory/matching/story/StoryMatchScorerTest.kt
-git commit -m "matching: score catalog stories against content sources"
+git add catalog/src/main/kotlin/app/openstory/catalog/matching/content \
+  catalog/src/test/kotlin/app/openstory/catalog/matching/content
+git commit -m "catalog: score content story mappings"
 ```
 
-### Task 4: Orchestrate fast preferred-plugin search followed by bounded background expansion
+### Task 4: Search content plugins in quick and deferred stages
 
 **Files:**
-- Create: feature/story/src/main/kotlin/app/openstory/story/domain/FindContentMappings.kt
-- Create: feature/story/src/main/kotlin/app/openstory/story/domain/ContentSearchPlanner.kt
-- Create: feature/story/src/main/kotlin/app/openstory/story/domain/MappingSearchReport.kt
-- Create: sync/src/main/kotlin/app/openstory/sync/MappingSearchCoordinator.kt
-- Test: feature/story/src/test/kotlin/app/openstory/story/domain/FindContentMappingsTest.kt
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/content/ContentSource.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/content/PluginContentSource.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/content/ContentSourceRegistry.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/library/ContentMappingSearchService.kt`
+- Create: `catalog/src/test/kotlin/app/openstory/catalog/library/ContentMappingSearchServiceTest.kt`
+- Modify: `plugins/api/src/main/kotlin/app/openstory/plugins/api/protocol/PluginOperation.kt`
+- Modify: `plugins/api/src/main/kotlin/app/openstory/plugins/api/protocol/content/ContentProtocol.kt`
+- Modify: `plugins/api/src/main/kotlin/app/openstory/plugins/api/protocol/PluginProtocolValidator.kt`
+- Modify: `plugins/api/src/test/kotlin/app/openstory/plugins/api/protocol/PluginProtocolValidatorTest.kt`
+- Modify: `app/build.gradle.kts`
+- Create: `app/src/main/kotlin/app/openstory/work/LibraryMappingWorker.kt`
+- Create: `app/src/test/kotlin/app/openstory/work/LibraryMappingWorkerTest.kt`
+- Modify: `app/src/main/kotlin/app/openstory/di/CatalogModule.kt`
 
 **Interfaces:**
-- Consumes: Enabled content plugin host, story match scorer, mapping repository, language/plugin preferences.
-- Produces: A two-stage mapping search: quick search on preferred plugins for immediate results, then resumable bounded search over remaining enabled sources.
-
-**Acceptance:**
-- Library add schedules mapping search after local persistence.
-- Quick stage has a strict deadline and does not wait for all plugins.
-- Auto-link only stores high-confidence mapping; review candidates remain unlinked.
-- Failure/timeout of one plugin does not cancel others.
-- Installing/enabling a new content plugin can re-run search for metadata-only stories.
-
-**Implementation notes:**
-- Use plugin search query variants from preferred title and aliases, deduplicated and capped.
-- Record last search time/plugin version so unchanged failed searches are not repeated excessively.
-- The deferred coordinator may use WorkManager later, but its pure planning/use case is tested here.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `feature/story/src/test/kotlin/app/openstory/story/domain/FindContentMappingsTest.kt`:
 
 ```kotlin
-package app.openstory.story.domain
-
-import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-
-class FindContentMappingsTest {
-    @Test fun quickStageReturnsBeforeSlowPlugins() = runTest {
-        val fixture = mappingSearchFixture(preferredDelay = 10, otherDelay = 10_000)
-        val quick = fixture.useCase.quick(fixture.story)
-        assertEquals(setOf("preferred"), quick.searchedPluginIds.map { it.value }.toSet())
-        assertEquals(1, quick.autoLinked.size)
-        assertEquals(false, fixture.otherCompleted)
-    }
+interface ContentSource {
+    val pluginId: PluginId
+    val version: String
+    val allowedNetworkHosts: Set<String>
+    suspend fun search(query: String): ContentSourceResult<List<ContentStoryCandidate>>
+    suspend fun resolveStoryUrl(url: String): ContentSourceResult<ContentStoryCandidate?>
 }
+
+data class ContentSearchPlan(
+    val quick: List<PluginId>,
+    val deferred: List<PluginId>,
+)
 ```
 
-- [ ] **Step 2: Run the focused test and verify the intended failure**
+Add the optional additive protocol operation `CONTENT_RESOLVE_URL("content.resolve_url")`
+with `ContentResolveUrlRequestDto(url)` and a nullable `ContentStoryCandidateDto`
+response. `PluginContentSource` serializes protocol requests, calls
+`PluginRuntime.invoke`, validates responses, and maps wire DTOs into catalog candidates.
+Plugins that do not implement URL resolution return the normal bounded unsupported-operation
+failure. No host-side plugin interface is introduced.
+
+- [ ] **Step 1: Write focused RED tests**
+
+Prove preferred sources complete in the quick stage without waiting for slow sources, one plugin failure does not cancel peers, queries are deduplicated/capped, only `AUTO_LINK` results are returned for persistence, the new URL operation accepts only HTTPS input and bounded output, and the worker invokes only the deferred stage for an existing Library entry.
+
+- [ ] **Step 2: Verify RED**
 
 ```bash
-./gradlew :feature:story:test --tests app.openstory.story.domain.FindContentMappingsTest.quickStageReturnsBeforeSlowPlugins
+./gradlew :catalog:test \
+  --tests app.openstory.catalog.library.ContentMappingSearchServiceTest \
+  :plugins:api:test --tests app.openstory.plugins.api.protocol.PluginProtocolValidatorTest \
+  :app:testDebugUnitTest --tests app.openstory.work.LibraryMappingWorkerTest
 ```
 
-Expected: **FAIL** because mapping search planner and staged orchestration do not exist.
+Expected: **FAIL** because content adapters, staged search, and the scheduling adapter do not exist.
 
-- [ ] **Step 3: Add the minimal implementation**
+- [ ] **Step 3: Implement bounded orchestration**
 
-Create or modify `feature/story/src/main/kotlin/app/openstory/story/domain/ContentSearchPlanner.kt`:
+Use `supervisorScope`, per-source deadlines, deterministic plugin preference ordering, and capped title/alias queries. URL resolution parses HTTPS locally and selects only sources whose `allowedNetworkHosts` contain the parsed host before invoking `CONTENT_RESOLVE_URL`. `LibraryService.add` returns after the Room commit; its caller enqueues unique deferred work only after success. The worker delegates to the catalog service and contains no scoring or Room transaction.
 
-```kotlin
-package app.openstory.story.domain
-
-class ContentSearchPlanner {
-    fun plan(enabled: List<HostedPlugin<ContentPlugin>>, preferences: SourcePreferences): SearchPlan {
-        val ordered = enabled.sortedWith(compareBy({ preferences.pluginRank(it.id) }, { it.id.value }))
-        return SearchPlan(quick = ordered.take(preferences.quickPluginCount), deferred = ordered.drop(preferences.quickPluginCount))
-    }
-}
-```
-
-- [ ] **Step 4: Re-run focused and module tests**
+- [ ] **Step 4: Run affected suites**
 
 ```bash
-./gradlew :feature:story:test --tests app.openstory.story.domain.FindContentMappingsTest.quickStageReturnsBeforeSlowPlugins
-./gradlew :feature:story:test :sync:test
+./gradlew :catalog:test :plugins:api:test :plugins:runtime:testDebugUnitTest \
+  :app:testDebugUnitTest detekt --stacktrace
 ```
 
-Expected: both commands finish with **BUILD SUCCESSFUL** and the new test passes.
-
-- [ ] **Step 5: Commit the independently reviewable change**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add feature/story/src/main/kotlin/app/openstory/story/domain/FindContentMappings.kt feature/story/src/main/kotlin/app/openstory/story/domain/ContentSearchPlanner.kt feature/story/src/main/kotlin/app/openstory/story/domain/MappingSearchReport.kt sync/src/main/kotlin/app/openstory/sync/MappingSearchCoordinator.kt feature/story/src/test/kotlin/app/openstory/story/domain/FindContentMappingsTest.kt
-git commit -m "story: find content mappings in staged search"
+git add catalog/src/main/kotlin/app/openstory/catalog/content \
+  catalog/src/main/kotlin/app/openstory/catalog/library/ContentMappingSearchService.kt \
+  catalog/src/test/kotlin/app/openstory/catalog/library/ContentMappingSearchServiceTest.kt \
+  plugins/api/src/main/kotlin/app/openstory/plugins/api/protocol \
+  plugins/api/src/test/kotlin/app/openstory/plugins/api/protocol \
+  app/src/main/kotlin/app/openstory/work app/src/test/kotlin/app/openstory/work \
+  app/src/main/kotlin/app/openstory/di/CatalogModule.kt app/build.gradle.kts
+git commit -m "library: search content sources in stages"
 ```
 
-### Task 5: Persist user-approved mappings and protect them from automation
+### Task 5: Persist protected content mappings
 
 **Files:**
-- Create: core/database/src/main/kotlin/app/openstory/database/repository/ContentMappingRepository.kt
-- Create: core/database/src/main/kotlin/app/openstory/database/repository/RoomContentMappingRepository.kt
-- Create: feature/story/src/main/kotlin/app/openstory/story/domain/ApproveContentMapping.kt
-- Create: feature/story/src/main/kotlin/app/openstory/story/domain/RejectContentCandidate.kt
-- Test: core/database/src/androidTest/kotlin/app/openstory/database/repository/RoomContentMappingRepositoryTest.kt
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/library/ContentMappingModels.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/library/ContentMappingRepository.kt`
+- Create: `catalog/src/main/kotlin/app/openstory/catalog/library/ContentMappingService.kt`
+- Create: `catalog/src/test/kotlin/app/openstory/catalog/library/ContentMappingServiceTest.kt`
+- Create: `storage/room/src/main/kotlin/app/openstory/storage/room/library/ContentMappingEntity.kt`
+- Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/library/LibraryDao.kt`
+- Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/library/RoomLibraryRepository.kt`
+- Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt`
+- Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/RoomMigrations.kt`
+- Create: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/library/ContentMappingMigrationTest.kt`
 
 **Interfaces:**
-- Consumes: Content mapping domain/entity, match decisions/explanations, plugin/source IDs.
-- Produces: Mapping repository that records automated/plugin/user origins, confidence, user lock, rejection fingerprints, and sync cursor independently per plugin/source story.
-
-**Acceptance:**
-- User-approved mapping is `USER_CONFIRMED` and cannot be replaced by later automated search.
-- User rejection suppresses the same candidate/policy version but can be revisited after meaningful metadata change.
-- One story may have multiple mappings across plugins and languages.
-- Disabling plugin marks mapping unavailable without deleting it.
-
-**Implementation notes:**
-- Use a transaction/upsert policy that checks current origin and user lock before mutation.
-- Store source story URL as display/navigation data, not identity.
-- Keep last success/error/sync cursor per mapping for chapter sync and diagnostics.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `core/database/src/androidTest/kotlin/app/openstory/database/repository/RoomContentMappingRepositoryTest.kt`:
 
 ```kotlin
-package app.openstory.database.repository
+enum class MappingOrigin { AUTOMATED, USER_APPROVED, USER_URL }
 
-import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-
-class RoomContentMappingRepositoryTest {
-    @Test fun automaticUpsertCannotReplaceUserLockedMapping() = runTest {
-        val fixture = mappingRepositoryFixture()
-        fixture.repository.save(fixture.userConfirmed(sourceStoryId = "chosen"))
-        fixture.repository.save(fixture.automatic(sourceStoryId = "other", confidence = 0.99))
-        assertEquals("chosen", fixture.repository.mappingsFor(fixture.storyId).single().sourceStoryId)
-    }
-}
-```
-
-- [ ] **Step 2: Run the focused test and verify the intended failure**
-
-```bash
-./gradlew :core:database:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.database.repository.RoomContentMappingRepositoryTest
-```
-
-Expected: **FAIL** because mapping conflict/user-lock persistence is not implemented.
-
-- [ ] **Step 3: Add the minimal implementation**
-
-Create or modify `core/database/src/main/kotlin/app/openstory/database/repository/ContentMappingRepository.kt`:
-
-```kotlin
-package app.openstory.database.repository
+data class ContentMapping(
+    val storyId: StoryId,
+    val pluginId: PluginId,
+    val sourceStoryId: String,
+    val origin: MappingOrigin,
+    val policyVersion: Int?,
+    val updatedAtEpochMillis: Long,
+)
 
 interface ContentMappingRepository {
-    suspend fun save(mapping: ContentMapping): AppResult<Unit>
-    suspend fun mappingsFor(storyId: StoryId): List<ContentMapping>
-    suspend fun updateSyncState(id: ContentMappingId, cursor: String?, fingerprint: String?, successAt: Long): AppResult<Unit>
-    suspend fun markUnavailableForPlugin(pluginId: PluginId): AppResult<Unit>
+    fun observe(storyId: StoryId): Flow<List<ContentMapping>>
+    suspend fun storeAutomated(mapping: ContentMapping): MappingWriteResult
+    suspend fun approve(mapping: ContentMapping)
+    suspend fun reject(storyId: StoryId, pluginId: PluginId, sourceStoryId: String)
 }
 ```
 
-- [ ] **Step 4: Re-run focused and module tests**
+- [ ] **Step 1: Write focused RED tests**
+
+Prove automated writes cannot overwrite `USER_APPROVED` or `USER_URL`, repeated approvals are idempotent, rejected candidates remain blocked for the same source version, and schema `2 -> 3` preserves Library membership.
+
+- [ ] **Step 2: Verify RED**
 
 ```bash
-./gradlew :core:database:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.database.repository.RoomContentMappingRepositoryTest
-./gradlew :core:database:testDebugUnitTest :core:database:connectedDebugAndroidTest
+./gradlew :catalog:test \
+  --tests app.openstory.catalog.library.ContentMappingServiceTest \
+  :storage:room:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.library.ContentMappingMigrationTest
 ```
 
-Expected: both commands finish with **BUILD SUCCESSFUL** and the new test passes.
+- [ ] **Step 3: Implement storage-owned conflict rules**
 
-- [ ] **Step 5: Commit the independently reviewable change**
+The catalog service decides which semantic write is requested. The Room adapter performs the atomic compare-and-write transaction and returns whether an automated result was stored or ignored because a protected mapping already exists.
+
+- [ ] **Step 4: Run focused and affected suites**
 
 ```bash
-git add core/database/src/main/kotlin/app/openstory/database/repository/ContentMappingRepository.kt core/database/src/main/kotlin/app/openstory/database/repository/RoomContentMappingRepository.kt feature/story/src/main/kotlin/app/openstory/story/domain/ApproveContentMapping.kt feature/story/src/main/kotlin/app/openstory/story/domain/RejectContentCandidate.kt core/database/src/androidTest/kotlin/app/openstory/database/repository/RoomContentMappingRepositoryTest.kt
-git commit -m "database: persist protected content mappings"
+./gradlew :catalog:test :storage:room:testDebugUnitTest \
+  :storage:room:connectedDebugAndroidTest --stacktrace
+./scripts/verify-room-schema-stability.sh
 ```
 
-### Task 6: Add mapping review, manual search, and URL import UI
+- [ ] **Step 5: Commit**
+
+```bash
+git add catalog/src/main/kotlin/app/openstory/catalog/library \
+  catalog/src/test/kotlin/app/openstory/catalog/library \
+  storage/room/src/main/kotlin/app/openstory/storage/room \
+  storage/room/src/androidTest/kotlin/app/openstory/storage/room/library \
+  storage/room/schemas
+git commit -m "library: protect approved content mappings"
+```
+
+### Task 6: Add mapping review, manual search, and URL resolution UI
 
 **Files:**
-- Create: feature/story/src/main/kotlin/app/openstory/story/ui/mapping/MappingViewModel.kt
-- Create: feature/story/src/main/kotlin/app/openstory/story/ui/mapping/MappingSheet.kt
-- Create: feature/story/src/main/kotlin/app/openstory/story/ui/mapping/ManualSourceSearchScreen.kt
-- Create: feature/story/src/main/kotlin/app/openstory/story/domain/ResolveSourceUrl.kt
-- Create: feature/story/src/test/kotlin/app/openstory/story/ui/mapping/MappingViewModelTest.kt
-- Create: feature/story/src/androidTest/kotlin/app/openstory/story/ui/mapping/MappingSheetTest.kt
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingUiState.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingViewModel.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/ManualSourceSearchScreen.kt`
+- Create: `feature/catalog/src/test/kotlin/app/openstory/catalog/ui/mapping/MappingViewModelTest.kt`
+- Create: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/ui/mapping/MappingSheetTest.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt`
 
 **Interfaces:**
-- Consumes: Mapping search/report, content plugin URL-recognition capability, approval/rejection commands.
-- Produces: User-facing candidate explanations, approve/reject actions, manual per-plugin search, and pasted URL resolution.
 
-**Acceptance:**
-- UI shows plugin, language, source title, author, confidence components, and reason for review.
-- Pasted URL is offered only to plugins whose declared hosts match it.
-- A plugin may resolve a recognized URL to source story ID; the host still validates returned host/ID.
-- Approve action immediately reflects in story source state and schedules chapter sync.
+The ViewModel consumes `ContentMappingSearchService` and `ContentMappingService`. URL resolution parses HTTPS locally, filters sources by manifest-declared allowed hosts before invocation, then calls only matching `ContentSource.resolveStoryUrl` adapters.
 
-**Implementation notes:**
-- Never send a pasted URL to unrelated plugins.
-- Confidence is explanatory, not a misleading percentage guarantee; label as strong/possible/weak plus details.
-- Allow unlink and remap without deleting chapters/progress until aggregation cleanup policy runs.
+- [ ] **Step 1: Write focused RED tests**
 
-- [ ] **Step 1: Write the failing test**
+Prove explanations show evidence instead of a misleading percentage, approval persists immediately, unlink/remap preserves unrelated catalog data, and a pasted URL reaches only plugins whose declared hosts match it.
 
-Create `feature/story/src/test/kotlin/app/openstory/story/ui/mapping/MappingViewModelTest.kt`:
-
-```kotlin
-package app.openstory.story.ui.mapping
-
-import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-
-class MappingViewModelTest {
-    @Test fun approvalPersistsAndSchedulesInitialSync() = runTest {
-        val fixture = mappingViewModelFixture()
-        fixture.viewModel.approve(fixture.candidate.id)
-        fixture.advanceUntilIdle()
-        assertEquals(1, fixture.approveCalls)
-        assertEquals(listOf(fixture.mappingId), fixture.scheduledInitialSyncs)
-    }
-}
-```
-
-- [ ] **Step 2: Run the focused test and verify the intended failure**
+- [ ] **Step 2: Verify RED**
 
 ```bash
-./gradlew :feature:story:test --tests app.openstory.story.ui.mapping.MappingViewModelTest.approvalPersistsAndSchedulesInitialSync
+./gradlew :feature:catalog:testDebugUnitTest \
+  --tests app.openstory.catalog.ui.mapping.MappingViewModelTest \
+  :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.ui.mapping.MappingSheetTest
 ```
 
-Expected: **FAIL** because mapping review/approval UI orchestration is missing.
+- [ ] **Step 3: Implement feature-owned review UI**
 
-- [ ] **Step 3: Add the minimal implementation**
+Expose strong/possible/weak labels plus title, author, type, year, plugin, and language evidence. Approve/reject/manual-search actions call catalog services; Compose owns no plugin DTO parsing or persistence rules.
 
-Create or modify `feature/story/src/main/kotlin/app/openstory/story/domain/ResolveSourceUrl.kt`:
-
-```kotlin
-package app.openstory.story.domain
-
-class ResolveSourceUrl(private val host: PluginHost) {
-    suspend operator fun invoke(url: String): List<UrlResolution> {
-        val parsed = requireHttpsUrl(url)
-        return host.enabledContentSources()
-            .filter { parsed.host in it.manifest.allowedHosts }
-            .mapNotNull { plugin -> plugin.instance.resolveStoryUrl(parsed.toString()).getOrNull()?.let { UrlResolution(plugin.id, it) } }
-    }
-}
-```
-
-- [ ] **Step 4: Re-run focused and module tests**
+- [ ] **Step 4: Run affected suites**
 
 ```bash
-./gradlew :feature:story:test --tests app.openstory.story.ui.mapping.MappingViewModelTest.approvalPersistsAndSchedulesInitialSync
-./gradlew :feature:story:test :feature:story:connectedDebugAndroidTest
+./gradlew :feature:catalog:testDebugUnitTest \
+  :feature:catalog:connectedDebugAndroidTest :app:testDebugUnitTest \
+  :app:connectedDebugAndroidTest lintDebug --stacktrace
 ```
 
-Expected: both commands finish with **BUILD SUCCESSFUL** and the new test passes.
-
-- [ ] **Step 5: Commit the independently reviewable change**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add feature/story/src/main/kotlin/app/openstory/story/ui/mapping/MappingViewModel.kt feature/story/src/main/kotlin/app/openstory/story/ui/mapping/MappingSheet.kt feature/story/src/main/kotlin/app/openstory/story/ui/mapping/ManualSourceSearchScreen.kt feature/story/src/main/kotlin/app/openstory/story/domain/ResolveSourceUrl.kt feature/story/src/test/kotlin/app/openstory/story/ui/mapping/MappingViewModelTest.kt feature/story/src/androidTest/kotlin/app/openstory/story/ui/mapping/MappingSheetTest.kt
-git commit -m "story: add mapping review and url import"
+git add feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping \
+  feature/catalog/src/test/kotlin/app/openstory/catalog/ui/mapping \
+  feature/catalog/src/androidTest/kotlin/app/openstory/catalog/ui/mapping \
+  feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt
+git commit -m "library: add content mapping review"
 ```
 
 ## Wave Checkpoint
 
-Do not begin `2026-08-03-07-chapter-sync-and-aggregation.md` until every item below is demonstrated on a clean checkout:
+Do not begin Wave 07 until every item below is demonstrated on a clean checkout:
 
-- [ ] Add-to-Library performs no network call before returning.
-- [ ] Metadata-only stories remain usable and visible.
-- [ ] High-confidence mapping auto-links; ambiguous mapping requires review.
-- [ ] User-approved mapping survives repeated automated searches.
-- [ ] Pasted URL reaches only matching declared-host plugins.
+- [ ] The production graph remains exactly the seven Architecture Baseline 2 modules.
+- [ ] Add-to-Library returns after one local Room transaction and before plugin work.
+- [ ] Metadata-only stories remain visible and usable.
+- [ ] Schema migrations `1 -> 2 -> 3` preserve accepted Baseline 2 data.
+- [ ] High-confidence mappings auto-link; ambiguous mappings require review.
+- [ ] User-approved and URL-imported mappings survive repeated automated searches.
+- [ ] A failed or slow plugin does not cancel other content searches.
+- [ ] Pasted URLs reach only matching manifest-declared hosts.
 
 ## Full Verification
 
 ```bash
-./gradlew clean testDebugUnitTest lintDebug --stacktrace
+./scripts/verify.sh
+ANDROID_SERIAL_API_26="$ANDROID_SERIAL_API_26" \
+ANDROID_SERIAL_API_37="$ANDROID_SERIAL_API_37" \
+  ./scripts/checkpoints/architecture-baseline-2.sh
 ```
 
-Expected: **BUILD SUCCESSFUL**, no ignored failing tests, no unresolved lint errors, and no generated database schema drift.
+Expected: **PASS** with no ignored failing tests, unresolved lint errors, architecture drift, or Room schema drift.
 
 ## Review Packet
 
-Attach to the checkpoint review:
-
-- Commit range for this wave.
-- Focused test output for every task.
-- Full verification output.
-- Any deliberate deviations from the approved design, with rationale and updated spec text.
-- Screenshots or screen recordings only when the wave changes visible UI.
+- Commit range for Wave 06.
+- Focused RED/GREEN output for every task.
+- Room migration evidence and final schema fingerprint.
+- Full local and API 26/API 37 verification output.
+- Deep ownership review confirming catalog, storage, runtime, feature, and app responsibilities remain separated.

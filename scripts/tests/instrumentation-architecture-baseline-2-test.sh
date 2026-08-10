@@ -71,3 +71,34 @@ for task in \
 done
 
 echo 'instrumentation/architecture-baseline-2.sh contract verified.'
+
+cat > "$FAKE_BIN/adb" <<EOF_ADB_FAILURE
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "\$*" >> "$ADB_LOG"
+if [[ "\${1:-}" == '-s' ]]; then
+  serial="\${2:-}"
+  shift 2
+  [[ "\$serial" == 'explicit-api-26' ]] || exit 91
+fi
+case "\${1:-} \${2:-} \${3:-}" in
+  'shell getprop ro.build.version.sdk') printf '26\r\n' ;;
+  'shell am force-stop') ;;
+  'shell am start') printf 'Status: ok\nActivity: app.openstory/app.openstory.MainActivity\n' ;;
+  'shell pidof app.openstory') exit 1 ;;
+  'logcat -d -t') printf 'launcher diagnostic\n' ;;
+  *) printf 'Unexpected fake adb invocation: %s\n' "\$*" >&2; exit 90 ;;
+esac
+EOF_ADB_FAILURE
+chmod +x "$FAKE_BIN/adb"
+
+: > "$ADB_LOG"
+if PATH="$FAKE_BIN:$PATH" ANDROID_SERIAL='explicit-api-26' \
+  GRADLEW="$TEMP_DIR/fake-gradlew" \
+  "$ROOT_DIR/scripts/instrumentation/architecture-baseline-2.sh" 26 >/dev/null 2>&1; then
+  echo 'Expected a missing launcher process to fail.' >&2
+  exit 1
+fi
+grep -q -- '-s explicit-api-26 logcat -d -t 300' "$ADB_LOG"
+
+echo 'instrumentation launcher failure diagnostics verified.'

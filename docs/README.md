@@ -7,8 +7,8 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md](superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md)** - active Architecture Baseline 2 acceptance plan.
-5. **[internal/checkpoints/architecture-baseline-2-r5.md](internal/checkpoints/architecture-baseline-2-r5.md)** - accepted R5 cleanup evidence and R6 entry boundary.
+4. **[implementation/waves/wave-06-library-and-story-matching.md](implementation/waves/wave-06-library-and-story-matching.md)** - active Wave 06 plan, beginning at Task 01.
+5. **[internal/checkpoints/architecture-baseline-2.md](internal/checkpoints/architecture-baseline-2.md)** - accepted Baseline 2 evidence and Wave 06 entry boundary.
 
 ## Normative product and requirement documents
 
@@ -20,8 +20,8 @@ Use this directory instead of hunting through dated plans.
 ## Detailed implementation plans
 
 The original eleven wave plans are retained under `implementation/waves/` with lifecycle
-headers as historical delivery plans. Architecture Baseline 2 R6 is the active plan;
-Wave 06 remains frozen until its acceptance checkpoint passes.
+headers as historical delivery plans. Architecture Baseline 2 is accepted and Wave 06
+Task 01 is the active implementation boundary.
 
 ## Public/plugin documentation
 

@@ -56,8 +56,8 @@ grep -q 'Status: ok' <<<"$LAUNCH_OUTPUT" || {
 }
 
 APP_PID="$(
-  adb -s "$ANDROID_SERIAL" shell pidof app.openstory |
-    tr -d '\r[:space:]'
+  adb -s "$ANDROID_SERIAL" shell pidof app.openstory 2>/dev/null |
+    tr -d '\r[:space:]' || true
 )"
 if [[ -z "$APP_PID" ]]; then
   echo 'app.openstory process is not running after launcher start.' >&2

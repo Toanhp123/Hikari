@@ -23,13 +23,13 @@ code exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active Architecture Baseline 2 plan.
-The current continuation is R6 from
-`../superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md`.
+Use `../implementation/current-roadmap.md`, then the active wave plan. The current
+continuation is Wave 06 Task 01 from
+`../implementation/waves/wave-06-library-and-story-matching.md`.
 
-While the reset is active, the Baseline 2 design and R0-R6 plan set override earlier
-implementation-next instructions. Wave 05 checkpoints remain evidence, and Wave 06 stays
-frozen until R6 acceptance.
+Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current
+architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence.
+Wave 06 is reopened at Task 01.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
 that retain development-only database migrations or selector generations.
@@ -55,7 +55,8 @@ protocol, and tested fixtures.
 | Pre-baseline Room migration instructions | Historical only; current complete database is initial schema 1 |
 | Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |
 | Project-wide Baseline 1 refactor plan | Execution record for the one-time reset; not the next feature plan after completion |
-| Wave 05 checkpoint and Wave 06 entry instruction | Historical execution evidence; superseded by Architecture Baseline 2 until R6 acceptance |
+| Wave 05 checkpoint and pre-reset Wave 06 entry instruction | Historical execution evidence; Wave 06 is reopened only through the accepted Baseline 2 boundary |
+| Architecture Baseline 2 R0-R6 plans | Accepted one-time architecture reset record; not the active feature plan after R6 |
 
 ## Lifecycle labels
 

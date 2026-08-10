@@ -110,12 +110,13 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Architecture Baseline 2 R6 - Architecture Acceptance.**
+**Wave 06 / Task 01 - metadata-only Library persistence and story matching foundations.**
 
-R0-R5 are accepted. Wave 06 remains frozen while R6 performs the full architecture,
-device, ownership, and documentation acceptance run.
+Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
+Room, Compose, and final ownership verification.
 
-Continue from `superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md`.
+Continue from `implementation/waves/wave-06-library-and-story-matching.md`, beginning with
+Task 01.
 
 ## 8. Roadmap
 
@@ -153,7 +154,7 @@ Read in this order:
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md` now).
+4. Active implementation plan (`implementation/waves/wave-06-library-and-story-matching.md` now).
 5. `plugin-sdk/` when changing public plugin contracts/packages.
 6. `internal/checkpoints/` when deciding whether a gate is proven.
 7. `internal/archive/` only for historical provenance.
@@ -176,5 +177,5 @@ websites.
 
 ## 12. Next action
 
-Open `superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md` and complete the R6
-acceptance tasks in order. Wave 06 begins only after that checkpoint is accepted.
+Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 01 at the
+accepted seven-module Baseline 2 boundary.
