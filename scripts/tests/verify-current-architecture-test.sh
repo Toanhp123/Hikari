@@ -74,7 +74,7 @@ expect_failure 'an edge not declared by policy'
 
 # The policy is the source of truth for current edges: when the reviewed policy changes,
 # the verifier follows it rather than freezing the Task 01 graph in shell code.
-sed -i 's/"productionDependencies": \[":core:common"\]/"productionDependencies": [":core:common", ":plugins:runtime"]/' \
+sed -i '/"\:library"[[:space:]]*:/,/"\:feature\:catalog"[[:space:]]*:/ s/":catalog"/":catalog", ":plugins:runtime"/' \
   "$FIXTURE/config/architecture/module-boundaries.json"
 verify
 

@@ -19,6 +19,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import app.openstory.catalog.ui.home.HomeScreen
 import app.openstory.catalog.ui.home.HomeViewModel
+import app.openstory.catalog.ui.library.LibraryScreen
+import app.openstory.catalog.ui.library.LibraryViewModel
 import app.openstory.catalog.ui.search.SearchScreen
 import app.openstory.catalog.ui.search.SearchViewModel
 import app.openstory.catalog.ui.story.StoryAssistedArgs
@@ -57,7 +59,11 @@ fun AppNavHost(
                         navigator.navigate(AppRoute.Story(storyId.value))
                     }
                 }
-                entry<AppRoute.Library> { PlaceholderDestination("Library") }
+                entry<AppRoute.Library> {
+                    LibraryDestination { storyId ->
+                        navigator.navigate(AppRoute.Story(storyId.value))
+                    }
+                }
                 entry<AppRoute.Plugins> { PlaceholderDestination("Plugins") }
                 entry<AppRoute.Settings> { PlaceholderDestination("Settings") }
                 entry<AppRoute.Story> { route -> StoryDestination(route) }
@@ -112,6 +118,18 @@ private fun SearchDestination(onStorySelected: (StoryId) -> Unit) {
         onFilterValuesChange = viewModel::setFilterValues,
         onClearFilters = viewModel::clearFilters,
         onStorySelected = { story -> viewModel.selectStory(story, onStorySelected) },
+    )
+}
+
+@Composable
+private fun LibraryDestination(onStorySelected: (StoryId) -> Unit) {
+    val viewModel = hiltViewModel<LibraryViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    LibraryScreen(
+        state = state,
+        onStatusSelected = viewModel::selectStatus,
+        onSortSelected = viewModel::selectSort,
+        onStorySelected = onStorySelected,
     )
 }
 

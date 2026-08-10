@@ -85,11 +85,12 @@ validate_project_imports "$catalog_root" '^app\.openstory\.(common|catalog|plugi
 
 fail_matches "$library_root" 'android\.content\.Context(\.|$)|androidx\.(compose|room|work)(\.|$)' \
   'library must remain free of Android platform, Compose, Room, and WorkManager APIs.'
-validate_project_imports "$library_root" '^app\.openstory\.(common|library)(\.|$)' \
-  'library Task 01 may import only core common and its own packages.'
+validate_project_imports "$library_root" \
+  '^app\.openstory\.(common|library)(\.|$)|^app\.openstory\.catalog\.model\.ContentType$|^app\.openstory\.catalog\.projection(\.|$)' \
+  'library may import only core common, ContentType/catalog projections, and its own packages before plugin search starts.'
 
-validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog)(\.|$)' \
-  'feature/catalog may import only core common and catalog project packages.'
+validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog|library)(\.|$)' \
+  'feature/catalog may import only core common, catalog, and Library project packages.'
 
 validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
   'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'

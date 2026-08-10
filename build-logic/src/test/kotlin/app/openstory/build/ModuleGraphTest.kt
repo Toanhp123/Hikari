@@ -143,18 +143,18 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun libraryTaskOneHasNoPluginRuntimeDependency() {
+    fun libraryBeforeContentSearchHasNoPluginRuntimeDependency() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),
         )
 
         assertEquals(
-            setOf(":core:common"),
+            setOf(":core:common", ":catalog"),
             policy.modules.getValue(":library").productionDependencies,
         )
         assertFalse(
             "project(\":plugins:runtime\")" in File("../library/build.gradle.kts").readText(),
-            "Metadata-only Library must commit without plugin runtime work.",
+            "Library matching must remain pure until Task 04 introduces content-source search.",
         )
     }
 
