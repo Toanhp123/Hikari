@@ -113,15 +113,16 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 06 / Task 05 - persist protected content mappings.**
+**Wave 07 / Task 01 - introduce `:chapters` and normalize release labels.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification.
 
-Wave 06 Tasks 01-04 are verified: metadata-only Library membership, Library presentation,
-pure explainable content-story matching, and bounded quick/deferred plugin content search.
-Continue from `implementation/waves/wave-06-library-and-story-matching.md`, beginning with
-Task 05.
+Wave 06 Tasks 01-06 are verified and Wave 06 is complete: metadata-only Library membership,
+Library presentation, pure explainable content-story matching, bounded quick/deferred plugin
+content search, protected Room-backed mappings/rejections, and mapping review/URL import.
+Continue from `implementation/waves/wave-07-chapter-sync-and-aggregation.md`, beginning with
+Task 01.
 
 ## 8. Roadmap
 
@@ -164,7 +165,7 @@ Read in this order:
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`implementation/waves/wave-06-library-and-story-matching.md` now).
+4. Active implementation plan (`implementation/waves/wave-07-chapter-sync-and-aggregation.md` now).
 5. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
 6. `plugin-sdk/` when changing public plugin contracts/packages.
 7. `internal/checkpoints/` when deciding whether a gate is proven.
@@ -188,5 +189,5 @@ websites.
 
 ## 12. Next action
 
-Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 05 on the
-verified eight-module Task-04 boundary.
+Open `implementation/waves/wave-07-chapter-sync-and-aggregation.md` and begin Task 01 on
+the verified eight-module, Room-schema-3 Wave-06 exit boundary.

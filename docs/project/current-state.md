@@ -10,11 +10,10 @@ Purpose: single source of truth for the implemented repository boundary.
 - Current production Gradle graph: 8 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
-- Wave 06 Tasks 01-04: **VERIFIED**.
-- Current active boundary: **Wave 06 Task 05 - persist protected content mappings**.
-- Wave 06 is in progress; metadata-only membership, Library presentation, pure
-  content-story matching, and bounded plugin-backed content search are implemented and
-  verified, while Tasks 05-06 remain.
+- Wave 06 Tasks 01-06: **VERIFIED**; Wave 06 is complete.
+- Current active boundary: **Wave 07 Task 01 - introduce `:chapters` and normalize release labels**.
+- Wave 07 is ready to start from the verified Wave-06 exit boundary; no Wave-07 production
+  implementation is present yet.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -24,7 +23,7 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 2 current; schema 1 remains the frozen Architecture Baseline 2 schema |
+| Room database | schema 3 current; schemas 1-2 remain frozen historical exports |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -38,11 +37,11 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
 | `:catalog` | Story/catalog models, repository/source contracts, matching, ranking, refresh/search/details |
-| `:feature:catalog` | Home, Search, Story, and Library Compose presentation and UI state |
+| `:feature:catalog` | Home, Search, Story, Library, and mapping-review Compose presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
-| `:library` | Library membership/status, pure explainable matching, and bounded plugin content-source search; protected mappings arrive in Task 05 |
+| `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
@@ -59,9 +58,10 @@ runtime persistence SPI.
 - Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures.
-- Room schema 2 stores the Baseline-2 catalog/runtime state plus metadata-only Library
-  membership; schema 1 remains byte-frozen and Room entities/DAOs remain private to
-  `:storage:room`.
+- Room schema 3 stores the Baseline-2 catalog/runtime state, metadata-only Library
+  membership, protected content mappings, and policy-versioned mapping rejections; schemas
+  1-2 remain historical exports and schema 1 remains byte-frozen. Room entities/DAOs stay
+  private to `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
   does not roll back the committed membership.
@@ -80,13 +80,20 @@ runtime persistence SPI.
   plugin/version. Optional URL resolution rejects non-HTTPS, oversized, or undeclared-host
   input before runtime invocation.
 - `LibraryMappingWorker` is a thin `:app` WorkManager adapter keyed by stable `StoryId`; it
-  delegates Library policy instead of owning matching/search decisions.
+  delegates Library policy instead of owning matching/search decisions. Automatic mapping
+  persistence cannot overwrite `USER_APPROVED` or `USER_URL` mappings.
+- Mapping identity is scoped by canonical story and plugin. User approvals and accepted URL
+  mappings are protected, approval is idempotent, and rejections are persisted with the
+  matcher policy version so a later policy version may reconsider the same candidate.
+- Mapping review and URL import presentation live in `:feature:catalog`. The UI calls only
+  Library services, surfaces evidence/failures, and routes manual URL resolution through the
+  existing HTTPS/declared-host content-source boundary before a protected `USER_URL` write.
 - Plugin JavaScript receives only the host-controlled HTTP, HTML query, and safe-log
   capabilities with allowlists, budgets, cancellation, and managed-credential isolation.
 
-Protected mapping persistence/review, user-facing URL import, chapter synchronization,
-Reader, downloads, periodic background sync, authentication, notifications, and
-release-hardening behavior remain outside the implemented Task-04 boundary.
+Chapter synchronization/aggregation, Reader, downloads, periodic background sync,
+authentication, notifications, and release-hardening behavior remain outside the completed
+Wave-06 boundary.
 
 ## Architecture Baseline 2 status
 
@@ -125,7 +132,13 @@ package gates, lint, Room schema stability, and full repository verification wit
 Task 04 then passed focused catalog/feature/Library/plugin/runtime/app JVM suites and
 Detekt, app instrumentation on API 37 and API 26, exact eight-module/package/source gates,
 lint, dependency verification, Room schema stability, and full repository verification
-with exit 0. Wave 06 Task 05 is the next implementation entry.
+with exit 0. Task 05 added Room schema 3 and protected mapping/rejection persistence, then
+passed focused Library/Room/app JVM gates, Detekt, immutable schema-1/2 checks, and 16/16
+Room instrumentation tests on both API 37 and API 26. Task 06 passed focused feature/Library/
+app JVM gates and Detekt, 15/15 feature instrumentation tests on API 37 and API 26, app
+instrumentation on both API levels, and full repository verification with `exit=0`; current
+architecture verification reported 8 modules and Room schema 1..3 with stable schema export.
+Wave 06 is therefore complete, and Wave 07 Task 01 is the next implementation entry.
 
 Evidence:
 
@@ -133,6 +146,8 @@ Evidence:
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
 - `../internal/checkpoints/wave-06-task-03-content-story-matching.md`
 - `../internal/checkpoints/wave-06-task-04-content-source-search.md`
+- `../internal/checkpoints/wave-06-task-05-protected-content-mappings.md`
+- `../internal/checkpoints/wave-06-task-06-mapping-review-url-import.md`
 
 ## Source-of-truth rule
 

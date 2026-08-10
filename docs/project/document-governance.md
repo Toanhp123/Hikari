@@ -24,14 +24,14 @@ code exists, and code existence is not proof that a checkpoint passed.
 ### What is implemented next?
 
 Use `../implementation/current-roadmap.md`, then the active wave plan. Wave 06 Tasks
-01-04 are verified; the current continuation is Wave 06 Task 05 from
-`../implementation/waves/wave-06-library-and-story-matching.md`.
+01-06 are verified and Wave 06 is complete; the current continuation is Wave 07 Task 01
+from `../implementation/waves/wave-07-chapter-sync-and-aggregation.md`.
 
 Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current
 architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence.
-Wave 06 was reopened at Task 01; Tasks 01-04 are now verified and the active boundary is
-Task 05. The post-baseline architecture design owns module
-evolution and cross-wave continuity for Wave 06-11; each active wave plan owns the
+Wave 06 was reopened at Task 01 and is now complete with Tasks 01-06 verified. The active
+boundary is Wave 07 Task 01. The post-baseline architecture design owns module evolution
+and cross-wave continuity for Wave 06-11; each active wave plan owns the
 task-level implementation inside that boundary. Its canonical path is
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
