@@ -7,3 +7,33 @@ naming:
   FunctionNaming:
     ignoreAnnotated:
       - Composable
+
+complexity:
+  LongMethod:
+    active: true
+    severity: Warning
+    allowedLines: 50
+  LargeClass:
+    active: true
+    severity: Warning
+    allowedLines: 200
+  TooManyFunctions:
+    active: true
+    severity: Warning
+    allowedFunctionsPerFile: 15
+    allowedFunctionsPerClass: 15
+    allowedFunctionsPerInterface: 12
+    allowedFunctionsPerObject: 15
+  LongParameterList:
+    active: true
+    severity: Warning
+    allowedFunctionParameters: 6
+    allowedConstructorParameters: 8
+  NestedBlockDepth:
+    active: true
+    severity: Warning
+    allowedDepth: 4
+  CyclomaticComplexMethod:
+    active: true
+    severity: Warning
+    allowedComplexity: 14

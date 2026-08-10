@@ -56,6 +56,11 @@ write_lines 501 "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 assert_failure "a 501-line production source" verify
 rm "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 
+write_lines 301 "$FAKE_ROOT/core/sample/src/main/kotlin/Large.kt"
+REPO_ROOT="$FAKE_ROOT" "$ROOT_DIR/scripts/verify-source-layout.sh" 2>&1 |
+  grep -q 'Large.kt'
+rm "$FAKE_ROOT/core/sample/src/main/kotlin/Large.kt"
+
 write_lines 751 "$FAKE_ROOT/core/sample/src/test/kotlin/OversizedTest.kt"
 assert_failure "a 751-line test source" verify
 

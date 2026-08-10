@@ -20,6 +20,8 @@ detekt {
                 "**/build/**",
                 "**/.gradle/**",
                 "**/.idea/**",
+                "**/src/test/**",
+                "**/src/androidTest/**",
             )
         },
     )
