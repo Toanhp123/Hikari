@@ -24,6 +24,26 @@ class CatalogSearchService(
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,
 ) {
+    suspend fun filters(): List<CatalogSearchFilterGroup> = supervisorScope {
+        sources.enabled().sortedBy { it.pluginId.value }
+            .map { source ->
+                async {
+                    val definitions = try {
+                        when (val result = source.filters()) {
+                            is CatalogSourceResult.Success -> result.value
+                            is CatalogSourceResult.Failure -> emptyList()
+                        }
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    CatalogSearchFilterGroup(source.pluginId, definitions)
+                }
+            }
+            .awaitAll()
+    }
+
     suspend fun search(request: CatalogSearchRequest): CatalogSearchResult {
         val candidates = repository.matchSnapshot().candidates.toMutableList()
         val stories = linkedMapOf<StoryId, MutableList<CatalogSearchSourceCard>>()

@@ -3,6 +3,7 @@ package app.openstory.catalog.search
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
+import app.openstory.catalog.source.SourceFilter
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 
@@ -31,4 +32,9 @@ data class CatalogSearchResult(
 data class CatalogSearchRequest(
     val query: String,
     val filterValues: Map<PluginId, Map<String, List<String>>> = emptyMap(),
+)
+
+data class CatalogSearchFilterGroup(
+    val pluginId: PluginId,
+    val definitions: List<SourceFilter>,
 )
