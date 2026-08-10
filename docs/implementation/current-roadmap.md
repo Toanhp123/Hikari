@@ -18,12 +18,15 @@ acceptance remain separate states.
 
 ## Current position
 
-Architecture Baseline 2 is accepted. The active boundary is **Wave 06 Task 01 -
-metadata-only Library persistence and story matching foundations**. Wave 01-05
-checkpoints remain historical delivery evidence and do not require compatibility with
-superseded development architecture. Wave 06 is ready to start.
+Architecture Baseline 2 is accepted. Wave 06 Task 01 - metadata-only Library
+membership - is verified. The active boundary is **Wave 06 Task 02 - present Library
+state in `:feature:catalog`**. Wave 01-05 checkpoints remain historical delivery evidence
+and do not require compatibility with superseded development architecture. Wave 06 is
+in progress.
 
-Continue from `waves/wave-06-library-and-story-matching.md`, beginning with Task 01.
+Continue from `waves/wave-06-library-and-story-matching.md`, beginning with Task 02.
+Task-01 evidence is recorded in
+`../internal/checkpoints/wave-06-task-01-metadata-only-library.md`.
 
 The retained implementation uses the Baseline 2 JavaScript protocol/runtime, bounded host
 capabilities, transactional package lifecycle, catalog-owned services, Room-owned
@@ -40,11 +43,13 @@ those boundaries for the Wave 06 entry.
 :storage:room
 :plugins:api
 :plugins:runtime
+:library
 ```
 
 Direct dependencies are governed by
-`../../config/architecture/module-boundaries.json`. This seven-module graph is exact for
-the Baseline 2 acceptance checkpoint. The approved post-baseline evolution is defined by
+`../../config/architecture/module-boundaries.json`. The accepted Baseline 2 graph remains
+historical evidence at seven modules; Task 01 introduced the approved eighth module,
+`:library`. The approved post-baseline evolution is defined by
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 ## Approved module evolution
@@ -71,7 +76,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
 | 05 | Catalog Home and discovery | **Implementation present; checkpoint accepted** | `waves/wave-05-catalog-home-and-discovery.md` |
 | AB2 | Architecture reset between Wave 05 and Wave 06 | **Accepted** | `../internal/checkpoints/architecture-baseline-2.md` |
-| 06 | Library and story matching | **Ready to start at Task 01; post-baseline plan approved** | `waves/wave-06-library-and-story-matching.md` |
+| 06 | Library and story matching | **In progress; Task 01 verified, Task 02 active** | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | Planned; post-baseline plan approved | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | Planned; post-baseline plan approved | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | Planned; post-baseline plan approved | `waves/wave-09-cache-downloads-and-storage.md` |
@@ -100,6 +105,17 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 05.05 | Combined and catalog-specific Home UI | Verified |
 | 05.06 | Search, filters, and source-preserving story detail | Verified |
 
+## Wave 06 decomposition
+
+| Task | Outcome | State |
+|---|---|---|
+| 06.01 | `:library`, metadata-only membership, Room schema 2, current architecture verifier | [Verified](../internal/checkpoints/wave-06-task-01-metadata-only-library.md) |
+| 06.02 | Library presentation in `:feature:catalog` | **Active** |
+| 06.03 | Explainable content-story matching | Planned |
+| 06.04 | Quick/deferred content-plugin search | Planned |
+| 06.05 | Protected content mappings and Room schema 3 | Planned |
+| 06.06 | Mapping review and URL import UI | Planned |
+
 ## Critical dependency chain
 
 ```text
@@ -108,7 +124,7 @@ architecture
     -> plugin contracts and package validation
       -> secure plugin execution
         -> catalog discovery
-             ^ Architecture Baseline 2 accepted; Wave 06 Task 01 is ready
+             ^ Wave 06 Task 01 verified; Task 02 presentation is active
           -> story matching
             -> chapter aggregation
               -> reader
@@ -119,7 +135,7 @@ architecture
 
 ## Execution rule
 
-1. Begin Wave 06 with Task 01 from its canonical wave plan.
+1. Continue Wave 06 with Task 02 from its canonical wave plan.
 2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
 4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.

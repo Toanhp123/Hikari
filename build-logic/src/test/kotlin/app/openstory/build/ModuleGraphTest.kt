@@ -70,27 +70,16 @@ class ModuleGraphTest {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),
         )
-        val expectedModules = setOf(
-            ":app",
-            ":core:common",
-            ":catalog",
-            ":feature:catalog",
-            ":storage:room",
-            ":plugins:api",
-            ":plugins:runtime",
-        )
+        val declaredModules = Regex("""include\("([^"]+)"\)""")
+            .findAll(settings)
+            .map { it.groupValues[1] }
+            .toSet()
 
-        expectedModules.forEach { module ->
-            assertTrue(
-                "include(\"$module\")" in settings,
-                "Missing module $module from settings.gradle.kts",
-            )
-        }
-        assertEquals(expectedModules, policy.modules.keys)
+        assertEquals(policy.modules.keys, declaredModules)
     }
 
     @Test
-    fun finalBaselineTwoGraphContainsNoLegacyModules() {
+    fun currentGraphContainsNoLegacyModules() {
         val settings = File("../settings.gradle.kts").readText()
         val policy = File("../config/architecture/module-boundaries.json").readText()
 
@@ -133,24 +122,40 @@ class ModuleGraphTest {
 
     @Test
     fun modulesUseExpectedPlatformConventions() {
-        val expectedPlugins = mapOf(
-            "../app/build.gradle.kts" to "id(\"openstory.android.application\")",
-            "../core/common/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../feature/catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../storage/room/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../plugins/api/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../plugins/runtime/build.gradle.kts" to "id(\"openstory.android.library\")",
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
         )
 
-        expectedPlugins.forEach { (path, expectedPlugin) ->
-            val buildFile = File(path)
-            assertTrue(buildFile.isFile, "Missing build script $path")
+        policy.modules.forEach { (module, rule) ->
+            val buildFile = File("../${rule.path}/build.gradle.kts")
+            val expectedPlugin = when (rule.platform.policyValue) {
+                "android-application" -> "id(\"openstory.android.application\")"
+                "android-library" -> "id(\"openstory.android.library\")"
+                "jvm" -> "id(\"openstory.kotlin.jvm\")"
+                else -> error("Unexpected platform ${rule.platform.policyValue}")
+            }
+            assertTrue(buildFile.isFile, "Missing build script for $module at ${rule.path}")
             assertTrue(
                 expectedPlugin in buildFile.readText(),
-                "$path does not apply $expectedPlugin",
+                "$module does not apply $expectedPlugin",
             )
         }
+    }
+
+    @Test
+    fun libraryTaskOneHasNoPluginRuntimeDependency() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+
+        assertEquals(
+            setOf(":core:common"),
+            policy.modules.getValue(":library").productionDependencies,
+        )
+        assertFalse(
+            "project(\":plugins:runtime\")" in File("../library/build.gradle.kts").readText(),
+            "Metadata-only Library must commit without plugin runtime work.",
+        )
     }
 
     @Test

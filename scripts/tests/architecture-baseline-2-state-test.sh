@@ -5,11 +5,14 @@ ROOT_DIR="${OPENSTORY_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && p
 
 grep -q 'Architecture Baseline 2' "$ROOT_DIR/docs/project/current-state.md"
 grep -q 'Architecture Baseline 2: \*\*ACCEPTED\*\*' "$ROOT_DIR/docs/project/current-state.md"
-grep -q 'Wave 06 Task 01' "$ROOT_DIR/docs/project/current-state.md"
+grep -q 'Wave 06 Task 01 metadata-only Library membership: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-state.md"
+grep -q 'Wave 06 Task 02' "$ROOT_DIR/docs/project/current-state.md"
 grep -q 'Architecture Baseline 2' "$ROOT_DIR/docs/implementation/current-roadmap.md"
-grep -q 'Ready to start at Task 01' "$ROOT_DIR/docs/implementation/current-roadmap.md"
-grep -q 'Begin Wave 06 with Task 01' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+grep -q 'Task 01 verified, Task 02 active' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+grep -q 'Continue Wave 06 with Task 02' "$ROOT_DIR/docs/implementation/current-roadmap.md"
 grep -q 'Status: ACCEPTED' "$ROOT_DIR/docs/internal/checkpoints/architecture-baseline-2.md"
+grep -q 'Status: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/internal/checkpoints/wave-06-task-01-metadata-only-library.md"
+grep -q '^storage/room/schemas/\*\*/\*.json text eol=lf$' "$ROOT_DIR/.gitattributes"
 
 WAVE_06="$ROOT_DIR/docs/implementation/waves/wave-06-library-and-story-matching.md"
 grep -q 'Architecture Baseline 2' "$WAVE_06"

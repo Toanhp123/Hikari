@@ -41,6 +41,7 @@ class ArchitectureSmokeTest {
             "config/detekt/detekt.yml",
             "scripts/check-module-dependencies.sh",
             "scripts/verify-architecture-baseline-2.sh",
+            "scripts/verify-current-architecture.sh",
             "scripts/structural-review-report.sh",
             "scripts/verify-source-layout.sh",
             "scripts/verify.sh",
@@ -48,6 +49,7 @@ class ArchitectureSmokeTest {
             "scripts/instrumentation/storage-room.sh",
             "scripts/checkpoints/app-shell.sh",
             "scripts/tests/verify-architecture-baseline-2-test.sh",
+            "scripts/tests/verify-current-architecture-test.sh",
             "scripts/tests/verify-source-layout-test.sh",
             "scripts/tests/instrumentation-android-test.sh",
             "scripts/tests/checkpoint-app-shell-test.sh",
@@ -175,7 +177,7 @@ class ArchitectureSmokeTest {
         listOf(
             "./scripts/verify-source-layout.sh",
             "./scripts/structural-review-report.sh",
-            "./scripts/verify-architecture-baseline-2.sh",
+            "./scripts/verify-current-architecture.sh",
         ).forEach { gate ->
             assertTrue(gate in verifyScript, "Fast verification must invoke $gate")
             assertTrue(

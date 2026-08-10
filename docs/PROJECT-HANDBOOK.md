@@ -75,18 +75,21 @@ the repository implementation baseline, not a product-scope rewrite.
 ```text
 :app composition
   -> Compose UI (:feature:catalog) -> services/contracts (:catalog)
-  -> Room adapters (:storage:room) -> :catalog + runtime persistence SPI
+  -> Library membership/status (:library) -> :core:common
+  -> Room adapters (:storage:room) -> :catalog + :library + runtime persistence SPI
   -> :catalog -> plugin facade (:plugins:runtime) -> wire/package contracts (:plugins:api)
 ```
 
-The accepted Baseline 2 production graph is exactly `:app`, `:core:common`, `:catalog`,
-`:feature:catalog`, `:storage:room`, `:plugins:api`, and `:plugins:runtime`. Exact allowed
-edges are governed by `config/architecture/module-boundaries.json`; future modules are
-created only through their owning wave.
+The accepted Baseline 2 production graph is the historical seven-module boundary:
+`:app`, `:core:common`, `:catalog`, `:feature:catalog`, `:storage:room`, `:plugins:api`,
+and `:plugins:runtime`. Wave 06 Task 01 added the approved eighth module, `:library`.
+Exact current edges are governed by `config/architecture/module-boundaries.json`; later
+modules are created only through their owning wave.
 
 Room owns private schema, DAOs, transactions, and persistence adapters. Plugin lifecycle,
 JavaScript execution, bounded host capabilities, and runtime persistence SPI belong to
-`:plugins:runtime`; `:storage:room` may depend only on that persistence SPI surface.
+`:plugins:runtime`; `:storage:room` may depend only on reviewed capability contracts and
+that persistence SPI surface.
 
 ## 6. Plugin execution model
 
@@ -110,13 +113,13 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 06 / Task 01 - metadata-only Library persistence and story matching foundations.**
+**Wave 06 / Task 02 - present Library state in `:feature:catalog`.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification.
 
-Continue from `implementation/waves/wave-06-library-and-story-matching.md`, beginning with
-Task 01.
+Wave 06 Task 01 metadata-only Library membership is verified. Continue from
+`implementation/waves/wave-06-library-and-story-matching.md`, beginning with Task 02.
 
 ## 8. Roadmap
 
@@ -183,5 +186,5 @@ websites.
 
 ## 12. Next action
 
-Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 01 at the
-accepted seven-module Baseline 2 boundary.
+Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 02 on the
+verified eight-module Task-01 boundary.

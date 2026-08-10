@@ -39,6 +39,7 @@ rootProject.name = "Hikari"
 include(":app")
 include(":core:common")
 include(":catalog")
+include(":library")
 include(":feature:catalog")
 include(":storage:room")
 include(":plugins:api")

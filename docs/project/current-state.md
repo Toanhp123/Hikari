@@ -7,11 +7,12 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current production Gradle graph: 7 modules.
+- Current production Gradle graph: 8 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
-- Current active boundary: **Wave 06 Task 01 - metadata-only Library persistence and story matching foundations**.
-- Wave 06 is ready to start; no Wave 06 product implementation is present yet.
+- Wave 06 Task 01 metadata-only Library membership: **VERIFIED**.
+- Current active boundary: **Wave 06 Task 02 - present Library state in `:feature:catalog`**.
+- Wave 06 is in progress; Task 01 is implemented and verified, while Tasks 02-06 remain.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -21,14 +22,14 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 1, the frozen Architecture Baseline 2 schema |
+| Room database | schema 2 current; schema 1 remains the frozen Architecture Baseline 2 schema |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
 
 These versions are independent. A change in one does not imply a change in another.
 
-## Final production graph
+## Current production graph
 
 | Module | Current responsibility |
 |---|---|
@@ -39,10 +40,12 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
+| `:library` | Library membership/status contracts and services; protected content mappings arrive later in Wave 06 |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
-and Android context, and Room imports limited to runtime persistence SPI contracts.
+and Android context, and Room imports limited to reviewed capability contracts plus the
+runtime persistence SPI.
 
 ## Implemented product boundary
 
@@ -54,13 +57,17 @@ and Android context, and Room imports limited to runtime persistence SPI contrac
 - Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures.
-- Room schema 1 stores current catalog snapshots/details and plugin runtime state; entities
-  and DAOs remain private to `:storage:room`.
+- Room schema 2 stores the Baseline-2 catalog/runtime state plus metadata-only Library
+  membership; schema 1 remains byte-frozen and Room entities/DAOs remain private to
+  `:storage:room`.
+- Metadata-only Library membership is local and idempotent. `:library` currently depends
+  only on `:core:common`, so add/remove/status operations do not require plugin work.
 - Plugin JavaScript receives only the host-controlled HTTP, HTML query, and safe-log
   capabilities with allowlists, budgets, cancellation, and managed-credential isolation.
 
-Library, chapter synchronization, Reader, downloads, background sync, authentication,
-notifications, and release-hardening behavior are not implemented by Architecture Baseline 2.
+Library presentation, content-source matching/mappings, chapter synchronization, Reader,
+downloads, background sync, authentication, notifications, and release-hardening behavior
+remain outside the implemented Task-01 boundary.
 
 ## Architecture Baseline 2 status
 
@@ -90,7 +97,12 @@ The final ownership records are
 Architecture Baseline 2 acceptance proves repository verification, all local unit suites,
 architecture/source/package gates, Detekt, lint, APK assembly, Room schema stability,
 runtime/security instrumentation, storage instrumentation, Compose/app instrumentation,
-and launcher smoke on API 26 and API 37. Wave 06 Task 01 is the next implementation entry.
+and launcher smoke on API 26 and API 37. Wave 06 Task 01 then passed Library/Room/app
+JVM gates, Detekt, Room instrumentation on API 26/API 37, the current-architecture
+contract, and full repository verification. Wave 06 Task 02 is the next implementation
+entry.
+
+Task-01 evidence: `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`.
 
 ## Source-of-truth rule
 

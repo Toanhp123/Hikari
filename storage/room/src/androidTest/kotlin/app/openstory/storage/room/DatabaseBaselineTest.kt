@@ -12,7 +12,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class DatabaseBaselineTest {
     @Test
-    fun freshDatabaseContainsOnlyBaselineTwoTables() = withDatabase { database ->
+    fun freshDatabaseContainsCurrentTables() = withDatabase { database ->
         val names = database.openHelper.readableDatabase.query(
             "SELECT name FROM sqlite_master WHERE type='table' " +
                 "AND name NOT LIKE 'android_%' AND name NOT LIKE 'sqlite_%' " +
@@ -30,6 +30,7 @@ class DatabaseBaselineTest {
                 "plugin_state",
                 "plugin_versions",
                 "plugin_diagnostics",
+                "library_entries",
             ),
             names,
         )
@@ -37,7 +38,6 @@ class DatabaseBaselineTest {
             assertEquals(0, it.count)
         }
         listOf(
-            "library_entries",
             "content_mappings",
             "canonical_chapters",
             "chapter_releases",
