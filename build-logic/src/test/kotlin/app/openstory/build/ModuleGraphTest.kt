@@ -90,20 +90,25 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun baselineTwoTargetModulesReplaceLegacyPresentationModules() {
+    fun finalBaselineTwoGraphContainsNoLegacyModules() {
         val settings = File("../settings.gradle.kts").readText()
+        val policy = File("../config/architecture/module-boundaries.json").readText()
 
-        listOf(
-            ":catalog",
-            ":feature:catalog",
-            ":storage:room",
-            ":plugins:api",
-            ":plugins:runtime",
-        ).forEach { module ->
-            assertTrue("include(\"$module\")" in settings, "Missing $module")
+        val forbidden = listOf(
+            ":core:model",
+            ":core:database",
+            ":core:matching",
+            ":core:plugin-api",
+            ":core:plugin-host",
+            ":core:network",
+            ":feature:home",
+            ":feature:story",
+            ":test:fixtures",
+        )
+        forbidden.forEach { module ->
+            assertFalse(module in settings, "Legacy module still in settings: $module")
+            assertFalse(module in policy, "Legacy module still in architecture policy: $module")
         }
-        assertFalse("include(\":feature:home\")" in settings, "Legacy Home module must be removed")
-        assertFalse("include(\":feature:story\")" in settings, "Legacy Story module must be removed")
     }
 
     @Test

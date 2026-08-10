@@ -16,11 +16,6 @@ fail_matches() {
   fi
 }
 
-feature_root="$ROOT_DIR/feature/catalog/src/main"
-storage_root="$ROOT_DIR/storage/room/src/main"
-plugin_api_root="$ROOT_DIR/plugins/api/src/main"
-catalog_root="$ROOT_DIR/catalog/src/main"
-
 validate_project_imports() {
   local source_root="$1" allowed_pattern="$2" message="$3"
   [[ -d "$source_root" ]] || return 0
@@ -40,62 +35,39 @@ validate_project_imports() {
   )
 }
 
-fail_matches \
-  "$feature_root" \
-  'app\.openstory\.storage\.room(\.|$)' \
-  'feature/catalog must not import Room storage internals.'
-fail_matches \
-  "$feature_root" \
-  'app\.openstory\.plugins\.runtime(\.|$)' \
-  'feature/catalog must not import plugin runtime.'
-fail_matches \
-  "$plugin_api_root" \
-  '(android|androidx)(\.|$)' \
-  'plugins/api must remain free of Android dependencies.'
-validate_project_imports \
-  "$plugin_api_root" \
-  '^app\.openstory\.plugins\.api(\.|$)' \
-  'plugins/api must not import host application modules.'
-fail_matches \
-  "$catalog_root" \
-  'androidx\.compose(\.|$)' \
-  'catalog must remain free of Compose dependencies.'
-fail_matches \
-  "$catalog_root" \
-  'app\.openstory\.storage\.room(\.|$)' \
-  'catalog must not import Room storage internals.'
-fail_matches \
-  "$catalog_root" \
-  'app\.openstory\.model(\.|$)' \
-  'Baseline 2 catalog code must import common IDs directly.'
-fail_matches \
-  "$ROOT_DIR/plugins/runtime/src/main" \
-  'app\.openstory\.model(\.|$)' \
-  'Baseline 2 plugin runtime code must import common IDs directly.'
-fail_matches \
-  "$storage_root" \
-  'app\.openstory\.model(\.|$)' \
-  'Baseline 2 Room code must import common IDs directly.'
+core_root="$ROOT_DIR/core/common/src/main"
+catalog_root="$ROOT_DIR/catalog/src/main"
+feature_root="$ROOT_DIR/feature/catalog/src/main"
+storage_root="$ROOT_DIR/storage/room/src/main"
+plugin_api_root="$ROOT_DIR/plugins/api/src/main"
+plugin_runtime_root="$ROOT_DIR/plugins/runtime/src/main"
 
-validate_project_imports \
-  "$feature_root" \
-  '^app\.openstory\.(common|catalog)(\.|$)' \
+fail_matches "$core_root" '(android|androidx)(\.|$)' \
+  'core/common must remain free of Android dependencies.'
+validate_project_imports "$core_root" '^app\.openstory\.common(\.|$)' \
+  'core/common may import only its own project packages.'
+
+fail_matches "$plugin_api_root" '(android|androidx)(\.|$)' \
+  'plugins/api must remain free of Android dependencies.'
+validate_project_imports "$plugin_api_root" '^app\.openstory\.plugins\.api(\.|$)' \
+  'plugins/api may import only its own project packages.'
+
+validate_project_imports "$plugin_runtime_root" '^app\.openstory\.(common|plugins\.api|plugins\.runtime)(\.|$)' \
+  'plugins/runtime may import only core common, plugin API, and its own packages.'
+
+fail_matches "$catalog_root" 'android\.content\.Context(\.|$)' \
+  'catalog must not import Android Context.'
+fail_matches "$catalog_root" 'androidx\.compose(\.|$)' \
+  'catalog must remain free of Compose dependencies.'
+fail_matches "$catalog_root" 'app\.openstory\.common\.dispatchers\.AppDispatchers(\.|$)' \
+  'catalog must not depend on application dispatchers.'
+validate_project_imports "$catalog_root" '^app\.openstory\.(common|catalog|plugins\.api|plugins\.runtime)(\.|$)' \
+  'catalog may import only core common, plugin API/runtime, and its own packages.'
+
+validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog)(\.|$)' \
   'feature/catalog may import only core common and catalog project packages.'
 
-if [[ -d "$storage_root" ]]; then
-  while IFS= read -r match; do
-    [[ -z "$match" ]] && continue
-    import_name="${match#*import }"
-    if [[ "$import_name" != app.openstory.plugins.runtime.persistence.* ]]; then
-      echo 'storage/room may import only plugins.runtime.persistence SPI contracts.' >&2
-      echo "$match" >&2
-      exit 1
-    fi
-  done < <(
-    grep -RInE --include='*.kt' \
-      '^[[:space:]]*import[[:space:]]+app\.openstory\.plugins\.runtime(\.|$)' \
-      "$storage_root" || true
-  )
-fi
+validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
+  'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'
 
 echo "Package boundary policy verified."
