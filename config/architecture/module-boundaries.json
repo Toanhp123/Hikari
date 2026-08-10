@@ -44,11 +44,6 @@
         "app.openstory.plugins.runtime.install.", "app.openstory.plugins.runtime.capabilities.",
         "app.openstory.model."
       ]
-    },
-    ":test:fixtures": {
-      "path": "test/fixtures", "platform": "jvm", "dependencyMode": "exact",
-      "productionDependencies": [":core:common"], "testDependencies": [],
-      "forbiddenProductionImports": []
     }
   }
 }

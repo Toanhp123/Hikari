@@ -73,7 +73,6 @@ class ModuleGraphTest {
         val expectedModules = setOf(
             ":app",
             ":core:common",
-            ":test:fixtures",
             ":catalog",
             ":feature:catalog",
             ":storage:room",
@@ -132,7 +131,6 @@ class ModuleGraphTest {
         val expectedPlugins = mapOf(
             "../app/build.gradle.kts" to "id(\"openstory.android.application\")",
             "../core/common/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../feature/catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../storage/room/build.gradle.kts" to "id(\"openstory.android.library\")",
@@ -160,6 +158,31 @@ class ModuleGraphTest {
             ".filter { it.buildFile.isFile }" in convention,
             "Architecture snapshots must ignore synthetic parent projects such as :core and :test",
         )
+    }
+
+    @Test
+    fun staleFixtureAndResultContractsAreAbsent() {
+        val root = File("..").canonicalFile
+        val gradleFiles = root.walkTopDown()
+            .filter { it.isFile && it.extension == "kts" }
+            .filterNot { "${File.separator}build${File.separator}" in it.path }
+            .toList()
+        val productionSources = root.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .filter { "${File.separator}src${File.separator}main${File.separator}" in it.path }
+            .filterNot { "${File.separator}build${File.separator}" in it.path }
+            .toList()
+
+        gradleFiles.forEach { file ->
+            val source = file.readText()
+            assertFalse("project(\":test:fixtures\")" in source, "Legacy fixture dependency in ${file.path}")
+            assertFalse("include(\":test:fixtures\")" in source, "Legacy fixture module in ${file.path}")
+        }
+        productionSources.forEach { file ->
+            val source = file.readText()
+            assertFalse("AppResult" in source, "Legacy AppResult usage in ${file.path}")
+            assertFalse("AppError" in source, "Legacy AppError usage in ${file.path}")
+        }
     }
 
     @Test
