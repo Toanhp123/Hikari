@@ -21,6 +21,17 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.javax.inject)
+    implementation(libs.kotlinx.coroutines.core)
 
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(kotlin("test-junit"))
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(kotlin("test-junit"))
+
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
