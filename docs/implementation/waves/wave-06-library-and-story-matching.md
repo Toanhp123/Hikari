@@ -1,4 +1,4 @@
-<!-- DOCUMENT LIFECYCLE: ACTIVE / TASKS 01-03 VERIFIED / TASK 04 NEXT -->
+<!-- DOCUMENT LIFECYCLE: ACTIVE / TASKS 01-04 VERIFIED / TASK 05 NEXT -->
 
 # Wave 06 - Library and Story Matching Implementation Plan
 

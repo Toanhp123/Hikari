@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-10
+Date: 2026-08-11
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -18,17 +18,18 @@ acceptance remain separate states.
 
 ## Current position
 
-Architecture Baseline 2 is accepted. Wave 06 Tasks 01-03 are verified. The active
-boundary is **Wave 06 Task 04 - search content plugins in quick and deferred stages**.
-Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
-with superseded development architecture. Wave 06 is in progress.
+Architecture Baseline 2 is accepted. Wave 06 Tasks 01-04 are verified. The active
+boundary is **Wave 06 Task 05 - persist protected content mappings**. Wave 01-05
+checkpoints remain historical delivery evidence and do not require compatibility with
+superseded development architecture. Wave 06 is in progress.
 
-Continue from `waves/wave-06-library-and-story-matching.md`, beginning with Task 04.
+Continue from `waves/wave-06-library-and-story-matching.md`, beginning with Task 05.
 Task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
 - `../internal/checkpoints/wave-06-task-03-content-story-matching.md`
+- `../internal/checkpoints/wave-06-task-04-content-source-search.md`
 
 The retained implementation uses the Baseline 2 JavaScript protocol/runtime, bounded host
 capabilities, transactional package lifecycle, catalog-owned services, Room-owned
@@ -78,7 +79,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
 | 05 | Catalog Home and discovery | **Implementation present; checkpoint accepted** | `waves/wave-05-catalog-home-and-discovery.md` |
 | AB2 | Architecture reset between Wave 05 and Wave 06 | **Accepted** | `../internal/checkpoints/architecture-baseline-2.md` |
-| 06 | Library and story matching | **In progress; Tasks 01-03 verified, Task 04 active** | `waves/wave-06-library-and-story-matching.md` |
+| 06 | Library and story matching | **In progress; Tasks 01-04 verified, Task 05 active** | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | Planned; post-baseline plan approved | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | Planned; post-baseline plan approved | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | Planned; post-baseline plan approved | `waves/wave-09-cache-downloads-and-storage.md` |
@@ -114,8 +115,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 06.01 | `:library`, metadata-only membership, Room schema 2, current architecture verifier | [Verified](../internal/checkpoints/wave-06-task-01-metadata-only-library.md) |
 | 06.02 | Library presentation in `:feature:catalog` | [Verified](../internal/checkpoints/wave-06-task-02-library-presentation.md) |
 | 06.03 | Explainable content-story matching | [Verified](../internal/checkpoints/wave-06-task-03-content-story-matching.md) |
-| 06.04 | Quick/deferred content-plugin search | **Active** |
-| 06.05 | Protected content mappings and Room schema 3 | Planned |
+| 06.04 | Quick/deferred content-plugin search | [Verified](../internal/checkpoints/wave-06-task-04-content-source-search.md) |
+| 06.05 | Protected content mappings and Room schema 3 | **Active** |
 | 06.06 | Mapping review and URL import UI | Planned |
 
 ## Critical dependency chain
@@ -126,7 +127,7 @@ architecture
     -> plugin contracts and package validation
       -> secure plugin execution
         -> catalog discovery
-             ^ Wave 06 Tasks 01-03 verified; Task 04 content-source search is active
+             ^ Wave 06 Tasks 01-04 verified; Task 05 protected mapping persistence is active
           -> story matching
             -> chapter aggregation
               -> reader
@@ -137,7 +138,7 @@ architecture
 
 ## Execution rule
 
-1. Continue Wave 06 with Task 04 from its canonical wave plan.
+1. Continue Wave 06 with Task 05 from its canonical wave plan.
 2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
 4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.

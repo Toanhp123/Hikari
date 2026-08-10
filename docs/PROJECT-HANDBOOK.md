@@ -113,14 +113,15 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 06 / Task 04 - search content plugins in quick and deferred stages.**
+**Wave 06 / Task 05 - persist protected content mappings.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification.
 
-Wave 06 Tasks 01-03 are verified: metadata-only Library membership, Library presentation,
-and pure explainable content-story matching. Continue from
-`implementation/waves/wave-06-library-and-story-matching.md`, beginning with Task 04.
+Wave 06 Tasks 01-04 are verified: metadata-only Library membership, Library presentation,
+pure explainable content-story matching, and bounded quick/deferred plugin content search.
+Continue from `implementation/waves/wave-06-library-and-story-matching.md`, beginning with
+Task 05.
 
 ## 8. Roadmap
 
@@ -187,5 +188,5 @@ websites.
 
 ## 12. Next action
 
-Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 04 on the
-verified eight-module Task-03 boundary.
+Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 05 on the
+verified eight-module Task-04 boundary.

@@ -10,10 +10,11 @@ Purpose: single source of truth for the implemented repository boundary.
 - Current production Gradle graph: 8 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
-- Wave 06 Tasks 01-03: **VERIFIED**.
-- Current active boundary: **Wave 06 Task 04 - search content plugins in quick and deferred stages**.
-- Wave 06 is in progress; metadata-only membership, Library presentation, and pure
-  content-story matching are implemented and verified, while Tasks 04-06 remain.
+- Wave 06 Tasks 01-04: **VERIFIED**.
+- Current active boundary: **Wave 06 Task 05 - persist protected content mappings**.
+- Wave 06 is in progress; metadata-only membership, Library presentation, pure
+  content-story matching, and bounded plugin-backed content search are implemented and
+  verified, while Tasks 05-06 remain.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -34,14 +35,14 @@ These versions are independent. A change in one does not imply a change in anoth
 
 | Module | Current responsibility |
 |---|---|
-| `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack |
+| `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
 | `:catalog` | Story/catalog models, repository/source contracts, matching, ranking, refresh/search/details |
 | `:feature:catalog` | Home, Search, Story, and Library Compose presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
-| `:library` | Library membership/status plus pure explainable content-story matching; plugin search and protected mappings arrive in Tasks 04-05 |
+| `:library` | Library membership/status, pure explainable matching, and bounded plugin content-source search; protected mappings arrive in Task 05 |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
@@ -61,9 +62,12 @@ runtime persistence SPI.
 - Room schema 2 stores the Baseline-2 catalog/runtime state plus metadata-only Library
   membership; schema 1 remains byte-frozen and Room entities/DAOs remain private to
   `:storage:room`.
-- Metadata-only Library membership is local and idempotent. Task 03 adds only the narrow
-  `:library -> :catalog` dependency needed for catalog content types/matching evidence;
-  membership operations still have no plugin/runtime dependency.
+- Metadata-only Library membership remains local and idempotent. After membership commits,
+  `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
+  does not roll back the committed membership.
+- Task 04 adds approved `:library -> :plugins:api` and narrow public-runtime access for
+  content-source execution. Library remains forbidden from Room and plugin-runtime
+  persistence/install/security internals.
 - Library presentation lives in `:feature:catalog`, combines membership with one bulk
   catalog-owned display projection, keeps filtering/sorting local, uses stable `StoryId`
   keys, and represents metadata-only entries as `NO_MAPPING` instead of an error.
@@ -71,12 +75,18 @@ runtime persistence SPI.
   `:library`; content-type conflicts reject, direct evidence may auto-link only when no
   type conflict exists, author conflicts prevent automatic linking, and missing optional
   evidence is not treated as negative evidence.
+- Plugin-backed content discovery runs in deterministic quick/deferred stages with bounded
+  queries/candidates, per-source deadlines, peer failure isolation, and serialized calls per
+  plugin/version. Optional URL resolution rejects non-HTTPS, oversized, or undeclared-host
+  input before runtime invocation.
+- `LibraryMappingWorker` is a thin `:app` WorkManager adapter keyed by stable `StoryId`; it
+  delegates Library policy instead of owning matching/search decisions.
 - Plugin JavaScript receives only the host-controlled HTTP, HTML query, and safe-log
   capabilities with allowlists, budgets, cancellation, and managed-credential isolation.
 
-Plugin-backed content-source search, protected mapping persistence/review, URL import,
-chapter synchronization, Reader, downloads, background sync, authentication, notifications,
-and release-hardening behavior remain outside the implemented Task-03 boundary.
+Protected mapping persistence/review, user-facing URL import, chapter synchronization,
+Reader, downloads, periodic background sync, authentication, notifications, and
+release-hardening behavior remain outside the implemented Task-04 boundary.
 
 ## Architecture Baseline 2 status
 
@@ -112,13 +122,17 @@ contract, and full repository verification. Tasks 02-03 subsequently passed cata
 Library JVM suites plus Detekt, Library Compose instrumentation on API 26/API 37, targeted
 and full API-37 app integration reruns after one transient sandbox failure, exact module/
 package gates, lint, Room schema stability, and full repository verification with exit 0.
-Wave 06 Task 04 is the next implementation entry.
+Task 04 then passed focused catalog/feature/Library/plugin/runtime/app JVM suites and
+Detekt, app instrumentation on API 37 and API 26, exact eight-module/package/source gates,
+lint, dependency verification, Room schema stability, and full repository verification
+with exit 0. Wave 06 Task 05 is the next implementation entry.
 
 Evidence:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
 - `../internal/checkpoints/wave-06-task-03-content-story-matching.md`
+- `../internal/checkpoints/wave-06-task-04-content-source-search.md`
 
 ## Source-of-truth rule
 
