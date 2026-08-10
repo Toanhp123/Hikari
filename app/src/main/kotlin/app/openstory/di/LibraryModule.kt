@@ -6,10 +6,12 @@ import app.openstory.library.LibraryMappingScheduler
 import app.openstory.library.LibraryRepository
 import app.openstory.library.content.ContentSourceRegistry
 import app.openstory.library.content.PluginContentSourceRegistry
+import app.openstory.library.mapping.ContentMappingRepository
 import app.openstory.library.mapping.ContentMappingSearchService
 import app.openstory.library.matching.ContentStoryMatcher
 import app.openstory.plugins.runtime.PluginRuntime
 import app.openstory.storage.room.OpenStoryDatabase
+import app.openstory.storage.room.library.RoomContentMappingRepository
 import app.openstory.storage.room.library.RoomLibraryRepository
 import app.openstory.work.WorkManagerLibraryMappingScheduler
 import dagger.Module
@@ -27,6 +29,11 @@ object LibraryModule {
     @Singleton
     fun provideLibraryRepository(database: OpenStoryDatabase): LibraryRepository =
         RoomLibraryRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideContentMappingRepository(database: OpenStoryDatabase): ContentMappingRepository =
+        RoomContentMappingRepository(database)
 
     @Provides
     @Singleton

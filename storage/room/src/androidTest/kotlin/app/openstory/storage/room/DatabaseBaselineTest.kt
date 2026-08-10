@@ -31,6 +31,8 @@ class DatabaseBaselineTest {
                 "plugin_versions",
                 "plugin_diagnostics",
                 "library_entries",
+                "content_mappings",
+                "content_mapping_rejections",
             ),
             names,
         )
@@ -38,7 +40,6 @@ class DatabaseBaselineTest {
             assertEquals(0, it.count)
         }
         listOf(
-            "content_mappings",
             "canonical_chapters",
             "chapter_releases",
             "reading_progress",

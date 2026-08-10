@@ -12,6 +12,8 @@ import app.openstory.storage.room.catalog.CatalogHomeDao
 import app.openstory.storage.room.catalog.CatalogHomeSectionEntity
 import app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity
 import app.openstory.storage.room.catalog.StoryEntity
+import app.openstory.storage.room.library.ContentMappingEntity
+import app.openstory.storage.room.library.ContentMappingRejectionEntity
 import app.openstory.storage.room.library.LibraryDao
 import app.openstory.storage.room.library.LibraryEntity
 import app.openstory.storage.room.plugins.PluginDiagnosticDao
@@ -31,8 +33,10 @@ import app.openstory.storage.room.plugins.PluginVersionEntity
         PluginVersionEntity::class,
         PluginDiagnosticEntity::class,
         LibraryEntity::class,
+        ContentMappingEntity::class,
+        ContentMappingRejectionEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -50,7 +54,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             context.applicationContext,
             OpenStoryDatabase::class.java,
             DATABASE_NAME,
-        ).addMigrations(RoomMigrations.MIGRATION_1_2)
+        ).addMigrations(RoomMigrations.MIGRATION_1_2, RoomMigrations.MIGRATION_2_3)
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()
     }

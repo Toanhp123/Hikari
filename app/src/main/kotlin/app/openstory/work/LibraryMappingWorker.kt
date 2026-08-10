@@ -13,7 +13,7 @@ import androidx.work.workDataOf
 import app.openstory.common.id.StoryId
 import app.openstory.library.LibraryMappingScheduler
 import app.openstory.library.mapping.ContentMappingSearchReport
-import app.openstory.library.mapping.ContentMappingSearchService
+import app.openstory.library.mapping.ContentMappingService
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
@@ -50,8 +50,8 @@ class LibraryMappingWorker(
         val service = EntryPointAccessors.fromApplication(
             applicationContext,
             LibraryMappingWorkerEntryPoint::class.java,
-        ).searchService()
-        return when (runLibraryMappingWork(inputData.getString(STORY_ID_KEY), service::searchAll)) {
+        ).mappingService()
+        return when (runLibraryMappingWork(inputData.getString(STORY_ID_KEY), service::automate)) {
             LibraryMappingWorkDecision.SUCCESS -> Result.success()
             LibraryMappingWorkDecision.RETRY -> Result.retry()
             LibraryMappingWorkDecision.FAILURE -> Result.failure()
@@ -66,7 +66,7 @@ class LibraryMappingWorker(
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface LibraryMappingWorkerEntryPoint {
-    fun searchService(): ContentMappingSearchService
+    fun mappingService(): ContentMappingService
 }
 
 internal enum class LibraryMappingWorkDecision {

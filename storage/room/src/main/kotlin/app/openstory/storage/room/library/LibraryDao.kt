@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -29,4 +30,34 @@ internal interface LibraryDao {
         status: String,
         updatedAtEpochMillis: Long,
     ): Int
+
+    @Query("SELECT * FROM content_mappings ORDER BY story_id, plugin_id")
+    fun observeMappings(): Flow<List<ContentMappingEntity>>
+
+    @Query("SELECT * FROM content_mappings WHERE story_id = :storyId ORDER BY plugin_id")
+    fun observeMappings(storyId: String): Flow<List<ContentMappingEntity>>
+
+    @Query("SELECT * FROM content_mappings WHERE story_id = :storyId AND plugin_id = :pluginId")
+    suspend fun findMapping(storyId: String, pluginId: String): ContentMappingEntity?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMapping(entity: ContentMappingEntity): Long
+
+    @Update
+    suspend fun updateMapping(entity: ContentMappingEntity): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRejection(entity: ContentMappingRejectionEntity)
+
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM content_mapping_rejections " +
+            "WHERE story_id = :storyId AND plugin_id = :pluginId " +
+            "AND source_story_id = :sourceStoryId AND policy_version = :policyVersion)",
+    )
+    suspend fun isRejected(
+        storyId: String,
+        pluginId: String,
+        sourceStoryId: String,
+        policyVersion: Int,
+    ): Boolean
 }

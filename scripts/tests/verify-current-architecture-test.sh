@@ -29,6 +29,8 @@ make_fixture() {
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json"
   cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json" \
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json"
+  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json" \
+    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json"
   cp "$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" \
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
   printf 'canonical plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/myanimelist-catalog.osp"
@@ -59,7 +61,7 @@ printf '\n' >> "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenSto
 expect_failure 'a changed frozen schema 1'
 make_fixture
 
-sed -i 's/version = 2,/version = 3,/' \
+sed -i 's/version = 3,/version = 4,/' \
   "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
 expect_failure 'a database version without a contiguous exported schema'
 make_fixture
