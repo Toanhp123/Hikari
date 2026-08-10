@@ -113,13 +113,14 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 06 / Task 02 - present Library state in `:feature:catalog`.**
+**Wave 06 / Task 04 - search content plugins in quick and deferred stages.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification.
 
-Wave 06 Task 01 metadata-only Library membership is verified. Continue from
-`implementation/waves/wave-06-library-and-story-matching.md`, beginning with Task 02.
+Wave 06 Tasks 01-03 are verified: metadata-only Library membership, Library presentation,
+and pure explainable content-story matching. Continue from
+`implementation/waves/wave-06-library-and-story-matching.md`, beginning with Task 04.
 
 ## 8. Roadmap
 
@@ -186,5 +187,5 @@ websites.
 
 ## 12. Next action
 
-Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 02 on the
-verified eight-module Task-01 boundary.
+Open `implementation/waves/wave-06-library-and-story-matching.md` and begin Task 04 on the
+verified eight-module Task-03 boundary.

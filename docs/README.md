@@ -7,9 +7,11 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[implementation/waves/wave-06-library-and-story-matching.md](implementation/waves/wave-06-library-and-story-matching.md)** - active Wave 06 plan, continuing at Task 02.
-5. **[internal/checkpoints/wave-06-task-01-metadata-only-library.md](internal/checkpoints/wave-06-task-01-metadata-only-library.md)** - verified Task 01 evidence and Task 02 entry boundary.
-6. **[internal/checkpoints/architecture-baseline-2.md](internal/checkpoints/architecture-baseline-2.md)** - accepted Baseline 2 evidence and historical Wave 06 entry boundary.
+4. **[implementation/waves/wave-06-library-and-story-matching.md](implementation/waves/wave-06-library-and-story-matching.md)** - active Wave 06 plan, continuing at Task 04.
+5. **[internal/checkpoints/wave-06-task-03-content-story-matching.md](internal/checkpoints/wave-06-task-03-content-story-matching.md)** - verified Task 03 evidence and Task 04 entry boundary.
+6. **[internal/checkpoints/wave-06-task-02-library-presentation.md](internal/checkpoints/wave-06-task-02-library-presentation.md)** - verified Task 02 Library presentation evidence.
+7. **[internal/checkpoints/wave-06-task-01-metadata-only-library.md](internal/checkpoints/wave-06-task-01-metadata-only-library.md)** - verified Task 01 metadata-only membership evidence.
+8. **[internal/checkpoints/architecture-baseline-2.md](internal/checkpoints/architecture-baseline-2.md)** - accepted Baseline 2 evidence and historical Wave 06 entry boundary.
 
 ## Normative product and requirement documents
 
@@ -22,7 +24,7 @@ Use this directory instead of hunting through dated plans.
 ## Detailed implementation plans
 
 Wave 01-05 plans remain historical delivery records. Wave 06-11 plans are rebaselined to
-the approved post-Baseline-2 module evolution; Wave 06 Task 01 is verified and Task 02 is active.
+the approved post-Baseline-2 module evolution; Wave 06 Tasks 01-03 are verified and Task 04 is active.
 
 ## Public/plugin documentation
 

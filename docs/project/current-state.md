@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-10
+Date: 2026-08-11
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -10,9 +10,10 @@ Purpose: single source of truth for the implemented repository boundary.
 - Current production Gradle graph: 8 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
-- Wave 06 Task 01 metadata-only Library membership: **VERIFIED**.
-- Current active boundary: **Wave 06 Task 02 - present Library state in `:feature:catalog`**.
-- Wave 06 is in progress; Task 01 is implemented and verified, while Tasks 02-06 remain.
+- Wave 06 Tasks 01-03: **VERIFIED**.
+- Current active boundary: **Wave 06 Task 04 - search content plugins in quick and deferred stages**.
+- Wave 06 is in progress; metadata-only membership, Library presentation, and pure
+  content-story matching are implemented and verified, while Tasks 04-06 remain.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -36,11 +37,11 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
 | `:catalog` | Story/catalog models, repository/source contracts, matching, ranking, refresh/search/details |
-| `:feature:catalog` | Home, Search, and Story Compose presentation and UI state |
+| `:feature:catalog` | Home, Search, Story, and Library Compose presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
-| `:library` | Library membership/status contracts and services; protected content mappings arrive later in Wave 06 |
+| `:library` | Library membership/status plus pure explainable content-story matching; plugin search and protected mappings arrive in Tasks 04-05 |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
@@ -60,14 +61,22 @@ runtime persistence SPI.
 - Room schema 2 stores the Baseline-2 catalog/runtime state plus metadata-only Library
   membership; schema 1 remains byte-frozen and Room entities/DAOs remain private to
   `:storage:room`.
-- Metadata-only Library membership is local and idempotent. `:library` currently depends
-  only on `:core:common`, so add/remove/status operations do not require plugin work.
+- Metadata-only Library membership is local and idempotent. Task 03 adds only the narrow
+  `:library -> :catalog` dependency needed for catalog content types/matching evidence;
+  membership operations still have no plugin/runtime dependency.
+- Library presentation lives in `:feature:catalog`, combines membership with one bulk
+  catalog-owned display projection, keeps filtering/sorting local, uses stable `StoryId`
+  keys, and represents metadata-only entries as `NO_MAPPING` instead of an error.
+- Content-story matching is pure, deterministic, explainable, and policy-versioned in
+  `:library`; content-type conflicts reject, direct evidence may auto-link only when no
+  type conflict exists, author conflicts prevent automatic linking, and missing optional
+  evidence is not treated as negative evidence.
 - Plugin JavaScript receives only the host-controlled HTTP, HTML query, and safe-log
   capabilities with allowlists, budgets, cancellation, and managed-credential isolation.
 
-Library presentation, content-source matching/mappings, chapter synchronization, Reader,
-downloads, background sync, authentication, notifications, and release-hardening behavior
-remain outside the implemented Task-01 boundary.
+Plugin-backed content-source search, protected mapping persistence/review, URL import,
+chapter synchronization, Reader, downloads, background sync, authentication, notifications,
+and release-hardening behavior remain outside the implemented Task-03 boundary.
 
 ## Architecture Baseline 2 status
 
@@ -99,10 +108,17 @@ architecture/source/package gates, Detekt, lint, APK assembly, Room schema stabi
 runtime/security instrumentation, storage instrumentation, Compose/app instrumentation,
 and launcher smoke on API 26 and API 37. Wave 06 Task 01 then passed Library/Room/app
 JVM gates, Detekt, Room instrumentation on API 26/API 37, the current-architecture
-contract, and full repository verification. Wave 06 Task 02 is the next implementation
-entry.
+contract, and full repository verification. Tasks 02-03 subsequently passed catalog/feature/
+Library JVM suites plus Detekt, Library Compose instrumentation on API 26/API 37, targeted
+and full API-37 app integration reruns after one transient sandbox failure, exact module/
+package gates, lint, Room schema stability, and full repository verification with exit 0.
+Wave 06 Task 04 is the next implementation entry.
 
-Task-01 evidence: `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`.
+Evidence:
+
+- `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
+- `../internal/checkpoints/wave-06-task-02-library-presentation.md`
+- `../internal/checkpoints/wave-06-task-03-content-story-matching.md`
 
 ## Source-of-truth rule
 

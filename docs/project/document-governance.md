@@ -1,6 +1,6 @@
 # Documentation Governance and Precedence
 
-Date: 2026-08-10
+Date: 2026-08-11
 Status: **CANONICAL documentation policy**
 
 ## Purpose
@@ -23,14 +23,14 @@ code exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active wave plan. Wave 06 Task 01
-is verified; the current continuation is Wave 06 Task 02 from
+Use `../implementation/current-roadmap.md`, then the active wave plan. Wave 06 Tasks
+01-03 are verified; the current continuation is Wave 06 Task 04 from
 `../implementation/waves/wave-06-library-and-story-matching.md`.
 
 Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current
 architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence.
-Wave 06 was reopened at Task 01; Task 01 is now verified and the active boundary is
-Task 02. The post-baseline architecture design owns module
+Wave 06 was reopened at Task 01; Tasks 01-03 are now verified and the active boundary is
+Task 04. The post-baseline architecture design owns module
 evolution and cross-wave continuity for Wave 06-11; each active wave plan owns the
 task-level implementation inside that boundary. Its canonical path is
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
