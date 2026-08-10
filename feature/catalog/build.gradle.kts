@@ -17,8 +17,10 @@ dependencies {
     implementation(project(":catalog"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.lifecycle.viewmodel)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
+    implementation(libs.javax.inject)
 
     testImplementation(kotlin("test-junit"))
 }

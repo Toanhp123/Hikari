@@ -45,4 +45,17 @@ class RepositoryHygieneTest {
                 .contains("applicationId = \"app.openstory\""),
         )
     }
+
+    @Test
+    fun navigationAndInjectionDependenciesRemainExplicit() {
+        val versionCatalog = File(root, "gradle/libs.versions.toml").readText()
+
+        listOf(
+            "androidx-lifecycle-viewmodel-navigation3",
+            "androidx-hilt-lifecycle-viewmodel-compose",
+            "javax-inject",
+        ).forEach { alias ->
+            assertTrue("$alias =" in versionCatalog, "Missing dependency alias: $alias")
+        }
+    }
 }

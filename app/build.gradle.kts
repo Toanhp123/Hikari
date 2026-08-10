@@ -68,6 +68,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
