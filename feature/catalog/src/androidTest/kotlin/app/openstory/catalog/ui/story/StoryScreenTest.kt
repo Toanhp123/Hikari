@@ -3,8 +3,10 @@ package app.openstory.catalog.ui.story
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
@@ -31,8 +33,26 @@ class StoryScreenTest {
             }
         }
 
-        compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
+        compose.onAllNodesWithText("Fixture Novel").onFirst().assertIsDisplayed()
         compose.onNodeWithText("Source detail refresh failed: catalog.offline").assertIsDisplayed()
+    }
+
+    @Test
+    fun cachedStoryCanRequestDetailRefreshWithoutPriorFailure() {
+        var refreshed = false
+        compose.setContent {
+            MaterialTheme {
+                StoryScreen(
+                    state = fixtureState(),
+                    onRetry = { refreshed = true },
+                    onSourceSelected = { _, _ -> },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Refresh details").performClick()
+
+        assertTrue(refreshed)
     }
 
     @Test

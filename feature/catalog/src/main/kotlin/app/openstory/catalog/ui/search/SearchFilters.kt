@@ -154,10 +154,8 @@ private fun RangeFilter(
     selected: List<String>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
 ) {
-    val minimum = definition.min
-    val maximum = definition.max
-    val step = definition.step
-    if (minimum == null || maximum == null || step == null || step <= 0.0 || maximum <= minimum) {
+    val bounds = definition.validBounds()
+    if (bounds == null) {
         TextFilter(
             pluginId,
             SourceTextFilter(definition.id, definition.label),
@@ -166,6 +164,7 @@ private fun RangeFilter(
         )
         return
     }
+    val (minimum, maximum, step) = bounds
     val current = selected.firstOrNull()?.toDoubleOrNull()?.coerceIn(minimum, maximum) ?: minimum
     val steps = ((maximum - minimum) / step).roundToInt().minus(1).coerceAtLeast(0)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -182,6 +181,24 @@ private fun RangeFilter(
         )
     }
 }
+
+private fun SourceRangeFilter.validBounds(): RangeBounds? {
+    val values = listOfNotNull(min, max, step)
+    if (values.size != RANGE_BOUND_VALUE_COUNT) return null
+
+    val (minimum, maximum, increment) = values
+    return RangeBounds(minimum, maximum, increment).takeIf(RangeBounds::isValid)
+}
+
+private data class RangeBounds(
+    val minimum: Double,
+    val maximum: Double,
+    val step: Double,
+) {
+    fun isValid(): Boolean = step > 0.0 && maximum > minimum
+}
+
+private const val RANGE_BOUND_VALUE_COUNT = 3
 
 private fun nextOptionValues(multiple: Boolean, selected: List<String>, value: String): List<String> =
     if (multiple) {

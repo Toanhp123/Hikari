@@ -61,6 +61,15 @@ fun HomeScreen(
                 )
             }
         }
+        state.globalFailure?.let { failure ->
+            item(key = "home-global-failure") {
+                Text(
+                    text = failure.code,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
         state.refreshReport?.failed?.keys?.sortedBy { it.value }?.forEach { pluginId ->
             item(key = "home-failure-${pluginId.value}") {
                 Text(

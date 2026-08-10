@@ -17,8 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
-import app.openstory.common.id.StoryId
 
 @Composable
 fun SearchScreen(
@@ -27,7 +27,7 @@ fun SearchScreen(
     onRecentSelected: (String) -> Unit,
     onFilterValuesChange: (PluginId, String, List<String>) -> Unit,
     onClearFilters: (PluginId) -> Unit,
-    onStorySelected: (StoryId) -> Unit,
+    onStorySelected: (CatalogSearchStory) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -76,7 +76,7 @@ private fun RecentSearches(queries: List<String>, onSelected: (String) -> Unit) 
 }
 
 @Composable
-private fun SearchResults(state: SearchUiState, onStorySelected: (StoryId) -> Unit) {
+private fun SearchResults(state: SearchUiState, onStorySelected: (CatalogSearchStory) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp),
@@ -85,6 +85,15 @@ private fun SearchResults(state: SearchUiState, onStorySelected: (StoryId) -> Un
         if (state.searching) {
             item(key = "search-progress") {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+        }
+        state.globalFailure?.let { failure ->
+            item(key = "search-global-failure") {
+                Text(
+                    text = failure.code,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
         state.failures.forEach { failure ->
@@ -99,7 +108,7 @@ private fun SearchResults(state: SearchUiState, onStorySelected: (StoryId) -> Un
         items(state.stories, key = { it.story.id.value }) { result ->
             SearchResultCard(
                 result = result,
-                onClick = { onStorySelected(result.story.id) },
+                onClick = { onStorySelected(result) },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }

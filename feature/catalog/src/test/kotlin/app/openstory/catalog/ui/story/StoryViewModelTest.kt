@@ -105,6 +105,20 @@ class StoryViewModelTest {
     }
 
     @Test
+    fun repositoryExceptionDuringRefreshBecomesRetryableFailure() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(fixtureSnapshot(), matchFailuresRemaining = 1)
+        val viewModel = viewModel(repository, DetailsSource("catalog.a"))
+        runCurrent()
+
+        viewModel.retry()
+        runCurrent()
+
+        assertEquals("catalog.story.refresh_exception", viewModel.state.value.failure?.code)
+        assertFalse(viewModel.state.value.refreshing)
+        assertEquals(StoryId("story-1"), viewModel.state.value.storyId)
+    }
+
+    @Test
     fun viewModelHasNoPluginRuntimeOrRoomDependency() {
         val dependencyNames = StoryViewModel::class.java.declaredConstructors
             .flatMap { constructor -> constructor.parameterTypes.map(Class<*>::getName) }
@@ -154,12 +168,19 @@ private class DetailsSource(id: String) : CatalogSource {
     override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
 }
 
-private class StoryRepository(initial: StoryCatalogSnapshot) : CatalogRepository {
+private class StoryRepository(
+    initial: StoryCatalogSnapshot,
+    private var matchFailuresRemaining: Int = 0,
+) : CatalogRepository {
     private val story = MutableStateFlow<StoryCatalogSnapshot?>(initial)
 
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = story
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = error("unused")
     override suspend fun matchSnapshot(): CatalogMatchSnapshot {
+        if (matchFailuresRemaining > 0) {
+            matchFailuresRemaining--
+            error("catalog unavailable")
+        }
         val snapshot = assertNotNull(story.value)
         return CatalogMatchSnapshot(
             listOf(

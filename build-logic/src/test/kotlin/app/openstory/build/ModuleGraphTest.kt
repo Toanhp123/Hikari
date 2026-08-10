@@ -4,6 +4,7 @@ import app.openstory.build.architecture.ModuleBoundaryPolicyLoader
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ModuleGraphTest {
@@ -72,8 +73,6 @@ class ModuleGraphTest {
         val expectedModules = setOf(
             ":app",
             ":core:common",
-            ":feature:home",
-            ":feature:story",
             ":test:fixtures",
             ":catalog",
             ":feature:catalog",
@@ -92,7 +91,7 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun baselineTwoTargetModulesAreIncludedDuringTransition() {
+    fun baselineTwoTargetModulesReplaceLegacyPresentationModules() {
         val settings = File("../settings.gradle.kts").readText()
 
         listOf(
@@ -104,7 +103,8 @@ class ModuleGraphTest {
         ).forEach { module ->
             assertTrue("include(\"$module\")" in settings, "Missing $module")
         }
-        assertTrue("include(\":feature:home\")" in settings, "R1 must not cut over legacy UI yet")
+        assertFalse("include(\":feature:home\")" in settings, "Legacy Home module must be removed")
+        assertFalse("include(\":feature:story\")" in settings, "Legacy Story module must be removed")
     }
 
     @Test
@@ -132,8 +132,6 @@ class ModuleGraphTest {
         val expectedPlugins = mapOf(
             "../app/build.gradle.kts" to "id(\"openstory.android.application\")",
             "../core/common/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
-            "../feature/home/build.gradle.kts" to "id(\"openstory.android.library\")",
-            "../feature/story/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../test/fixtures/build.gradle.kts" to "id(\"openstory.kotlin.jvm\")",
             "../catalog/build.gradle.kts" to "id(\"openstory.android.library\")",
             "../feature/catalog/build.gradle.kts" to "id(\"openstory.android.library\")",

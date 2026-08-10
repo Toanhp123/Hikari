@@ -3,8 +3,10 @@ package app.openstory.catalog.ui.home
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSection
@@ -38,7 +40,7 @@ class HomeScreenTest {
             }
         }
 
-        compose.onNodeWithText("Across catalogs").assertIsDisplayed()
+        compose.onAllNodesWithText("Across catalogs").onFirst().assertIsDisplayed()
         compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
         compose.onNodeWithContentDescription("Refreshing catalog Home").assertIsDisplayed()
         compose.onNodeWithText("catalog.b refresh failed; cached content is still available.")

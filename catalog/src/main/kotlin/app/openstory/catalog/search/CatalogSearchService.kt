@@ -1,5 +1,8 @@
 package app.openstory.catalog.search
 
+import app.openstory.catalog.details.CatalogDetailsFailure
+import app.openstory.catalog.details.CatalogDetailsResult
+import app.openstory.catalog.details.CatalogDetailsService
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
@@ -24,6 +27,7 @@ class CatalogSearchService @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,
+    private val details: CatalogDetailsService,
 ) {
     suspend fun filters(): List<CatalogSearchFilterGroup> = supervisorScope {
         sources.enabled().sortedBy { it.pluginId.value }
@@ -88,6 +92,18 @@ class CatalogSearchService @Inject constructor(
         return CatalogSearchResult(canonicalStories, failures)
     }
 
+    suspend fun select(story: CatalogSearchStory): CatalogSearchSelectionResult {
+        val source = story.sources.firstOrNull()
+            ?: return CatalogSearchSelectionResult.Failure(EMPTY_SELECTION_CODE, retryable = false)
+        return try {
+            details.load(source.pluginId, source.sourceId).toSelectionResult()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            CatalogSearchSelectionResult.Failure(SELECTION_EXCEPTION_CODE, retryable = true)
+        }
+    }
+
     private suspend fun fetch(
         source: CatalogSource,
         request: CatalogSearchRequest,
@@ -128,7 +144,31 @@ class CatalogSearchService @Inject constructor(
 
     private companion object {
         const val SOURCE_EXCEPTION_CODE = "catalog.source.exception"
+        const val EMPTY_SELECTION_CODE = "catalog.search.selection_empty"
+        const val SELECTION_EXCEPTION_CODE = "catalog.search.selection_exception"
     }
+}
+
+private fun CatalogDetailsResult.toSelectionResult(): CatalogSearchSelectionResult = when (this) {
+    is CatalogDetailsResult.Success -> CatalogSearchSelectionResult.Success(story.id)
+    is CatalogDetailsResult.Failure -> CatalogSearchSelectionResult.Failure(
+        code = failure.code(),
+        retryable = failure.retryable(),
+    )
+}
+
+private fun CatalogDetailsFailure.code(): String = when (this) {
+    is CatalogDetailsFailure.SourceUnavailable -> "catalog.source_unavailable"
+    is CatalogDetailsFailure.SourceFailure -> code
+    is CatalogDetailsFailure.SourceIdMismatch -> "catalog.details_source_mismatch"
+    is CatalogDetailsFailure.StoreFailure -> code
+}
+
+private fun CatalogDetailsFailure.retryable(): Boolean = when (this) {
+    is CatalogDetailsFailure.SourceUnavailable -> false
+    is CatalogDetailsFailure.SourceFailure -> retryable
+    is CatalogDetailsFailure.SourceIdMismatch -> false
+    is CatalogDetailsFailure.StoreFailure -> retryable
 }
 
 private fun SourceItem.toCandidate(pluginId: app.openstory.common.id.PluginId) = CatalogMatchCandidate(

@@ -34,6 +34,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -118,6 +119,7 @@ class HomeViewModelTest {
         assertEquals(source.pluginId, viewModel.state.value.selectedCatalog?.pluginId)
         assertEquals(0, source.homeCalls)
         viewModel.selectCombined()
+        runCurrent()
         assertEquals(null, viewModel.state.value.selectedCatalogId)
     }
 
@@ -133,6 +135,54 @@ class HomeViewModelTest {
         runCurrent()
 
         assertEquals(1, source.homeCalls)
+    }
+
+    @Test
+    fun refreshBoundaryExceptionBecomesNonBlockingFailure() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome(), matchFailuresRemaining = 1)
+        val viewModel = viewModel(repository, FakeSource())
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertFalse(viewModel.state.value.refreshing)
+        assertEquals("catalog.home.refresh_exception", viewModel.state.value.globalFailure?.code)
+        assertEquals("Trending", viewModel.state.value.catalogs.single().sections.single().title)
+    }
+
+    @Test
+    fun observationFailureBeforeFirstEmissionIsVisible() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(emptyList(), observeFailure = true)
+        val viewModel = viewModel(repository, FakeSource())
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertTrue(
+            viewModel.state.value.globalFailure?.code in setOf(
+                "catalog.home.observe_exception",
+                "catalog.home.ranking_exception",
+            ),
+        )
+        assertTrue(viewModel.state.value.catalogs.isEmpty())
+    }
+
+    @Test
+    fun observationFailureAfterCachedEmissionRetainsCache() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome(), observeFailureAfterEmission = true)
+        val viewModel = viewModel(repository, FakeSource())
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertEquals("Trending", viewModel.state.value.catalogs.single().sections.single().title)
+        assertTrue(viewModel.state.value.globalFailure != null)
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.observationFailure != null)
+        assertEquals(null, viewModel.state.value.refreshFailure)
     }
 
     private fun viewModel(repository: FakeRepository, source: FakeSource) = HomeViewModel(
@@ -166,11 +216,29 @@ private class FakeSource : CatalogSource {
     override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
 }
 
-private class FakeRepository(initialHomes: List<CatalogHomeSnapshot>) : CatalogRepository {
+private class FakeRepository(
+    initialHomes: List<CatalogHomeSnapshot>,
+    private var matchFailuresRemaining: Int = 0,
+    private val observeFailure: Boolean = false,
+    private val observeFailureAfterEmission: Boolean = false,
+) : CatalogRepository {
     private val homes = MutableStateFlow(initialHomes)
-    override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = homes
+    override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = when {
+        observeFailure -> flow { error("catalog observation unavailable") }
+        observeFailureAfterEmission -> flow {
+            emit(homes.value)
+            error("catalog observation unavailable")
+        }
+        else -> homes
+    }
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
-    override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+    override suspend fun matchSnapshot(): CatalogMatchSnapshot {
+        if (matchFailuresRemaining > 0) {
+            matchFailuresRemaining--
+            error("catalog unavailable")
+        }
+        return CatalogMatchSnapshot(emptyList())
+    }
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
     ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)

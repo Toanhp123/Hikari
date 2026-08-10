@@ -20,6 +20,7 @@ import app.openstory.catalog.source.SourceItem
 import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceSection
+import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -29,8 +30,22 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class CatalogSearchServiceTest {
+    @Test
+    fun selectingFreshResultLoadsDetailsBeforeReturningCanonicalStoryId() = runTest {
+        val repository = FakeRepository()
+        val source = Source("a", page(item("source-a", "Fresh Story", setOf("Author"))))
+        val service = service(Registry(listOf(source)), repository)
+        val result = service.search(CatalogSearchRequest("fresh")).stories.single()
+
+        val selection = service.select(result)
+
+        assertEquals(1, repository.detailCommits)
+        assertEquals(result.story.id, assertIs<CatalogSearchSelectionResult.Success>(selection).storyId)
+    }
+
     @Test
     fun sameStoryFromTwoSourcesAppearsOnceWithBothCardsAndDoesNotCommitHome() = runTest {
         val repository = FakeRepository()
@@ -126,7 +141,17 @@ class CatalogSearchServiceTest {
     }
 
     private fun service(sources: CatalogSourceRegistry, repository: CatalogRepository) =
-        CatalogSearchService(sources, repository, StoryMatcher())
+        CatalogSearchService(
+            sources,
+            repository,
+            StoryMatcher(),
+            app.openstory.catalog.details.CatalogDetailsService(
+                sources,
+                repository,
+                StoryMatcher(),
+                Clock { 100L },
+            ),
+        )
 
     private fun page(item: SourceItem) = SourceSearchPage(listOf(item), null)
 
@@ -160,7 +185,23 @@ class CatalogSearchServiceTest {
             ?.let { CatalogSourceResult.Success(it) }
             ?: CatalogSourceResult.Failure(CatalogSourceFailure("down", true))
         override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> =
-            error("unused")
+            CatalogSourceResult.Success(
+                SourceDetails(
+                    sourceId = sourceId,
+                    sourceUrl = "https://example.test/$sourceId",
+                    title = page?.items?.firstOrNull { it.sourceId == sourceId }?.title ?: sourceId,
+                    aliases = emptySet(),
+                    authors = page?.items?.firstOrNull { it.sourceId == sourceId }?.authors.orEmpty(),
+                    description = "Loaded details",
+                    genres = emptySet(),
+                    contentType = SourceContentType.MANGA,
+                    languageTags = emptySet(),
+                    coverUrl = null,
+                    scoreValue = null,
+                    scoreScale = null,
+                    popularityRank = null,
+                ),
+            )
         override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
     }
 
@@ -196,6 +237,7 @@ class CatalogSearchServiceTest {
 
     private class FakeRepository : CatalogRepository {
         var homeCommits = 0
+        var detailCommits = 0
         override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
         override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
         override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
@@ -207,6 +249,9 @@ class CatalogSearchServiceTest {
         }
         override suspend fun commitDetails(
             mutation: CatalogDetailsMutation,
-        ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+        ): Outcome<StoryId, CatalogStoreFailure> {
+            detailCommits++
+            return Outcome.Success(mutation.storyId)
+        }
     }
 }

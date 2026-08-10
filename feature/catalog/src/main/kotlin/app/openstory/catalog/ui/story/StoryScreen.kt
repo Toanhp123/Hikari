@@ -39,6 +39,15 @@ fun StoryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "story-header") { StoryHeader(story) }
+        item(key = "story-refresh-action") {
+            Button(
+                onClick = onRetry,
+                enabled = !state.refreshing,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            ) {
+                Text("Refresh details")
+            }
+        }
         if (state.refreshing) {
             item(key = "story-refreshing") {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

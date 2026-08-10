@@ -29,6 +29,11 @@ data class CatalogSearchResult(
     val failures: List<CatalogSearchFailure>,
 )
 
+sealed interface CatalogSearchSelectionResult {
+    data class Success(val storyId: StoryId) : CatalogSearchSelectionResult
+    data class Failure(val code: String, val retryable: Boolean) : CatalogSearchSelectionResult
+}
+
 data class CatalogSearchRequest(
     val query: String,
     val filterValues: Map<PluginId, Map<String, List<String>>> = emptyMap(),

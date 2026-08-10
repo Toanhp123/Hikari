@@ -11,6 +11,13 @@ data class SearchUiState(
     val filterValues: Map<PluginId, Map<String, List<String>>> = emptyMap(),
     val stories: List<CatalogSearchStory> = emptyList(),
     val failures: List<CatalogSearchFailure> = emptyList(),
+    val filterFailure: SearchUiFailure? = null,
+    val operationFailure: SearchUiFailure? = null,
     val searching: Boolean = false,
     val recentQueries: List<String> = emptyList(),
-)
+) {
+    val globalFailure: SearchUiFailure?
+        get() = operationFailure ?: filterFailure
+}
+
+data class SearchUiFailure(val code: String, val retryable: Boolean)

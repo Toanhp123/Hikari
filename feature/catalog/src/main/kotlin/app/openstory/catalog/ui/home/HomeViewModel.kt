@@ -11,11 +11,13 @@ import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.id.PluginId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -25,9 +27,11 @@ class HomeViewModel @Inject constructor(
     query: CatalogHomeQuery,
     refreshService: CatalogRefreshService,
 ) : ViewModel() {
+    private val observationFailure = MutableStateFlow<HomeUiFailure?>(null)
+    private val refreshFailure = MutableStateFlow<HomeUiFailure?>(null)
     private val dependencies = HomeDependencies(
-        homes = repository.observeHomes(),
-        rankedStories = query.rankedStories,
+        homes = repository.observeHomes().preserveLatestOnFailure(HOME_OBSERVE_EXCEPTION_CODE, emptyList()),
+        rankedStories = query.rankedStories.preserveLatestOnFailure(RANKING_OBSERVE_EXCEPTION_CODE, emptyList()),
         refresh = {
             val results = refreshService.refresh()
             results.toReport(repository.observeHomes().first())
@@ -37,7 +41,7 @@ class HomeViewModel @Inject constructor(
     private val refreshing = MutableStateFlow(false)
     private val refreshReport = MutableStateFlow<HomeRefreshReport?>(null)
 
-    val state = combine(
+    private val contentState = combine(
         dependencies.homes,
         dependencies.rankedStories,
         selectedCatalogId,
@@ -51,6 +55,13 @@ class HomeViewModel @Inject constructor(
             refreshing = busy,
             refreshReport = report,
         )
+    }
+
+    val state = combine(contentState, observationFailure, refreshFailure) { content, observation, refresh ->
+        content.copy(
+            observationFailure = observation,
+            refreshFailure = refresh,
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
@@ -63,6 +74,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 refreshReport.value = dependencies.refresh()
+                refreshFailure.value = null
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                refreshFailure.value = HomeUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
             } finally {
                 refreshing.value = false
             }
@@ -83,8 +99,26 @@ class HomeViewModel @Inject constructor(
         val refresh: suspend () -> HomeRefreshReport,
     )
 
+    private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {
+        var latest = initial
+        try {
+            this@preserveLatestOnFailure.collect { value ->
+                latest = value
+                emit(value)
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            observationFailure.value = HomeUiFailure(code, retryable = true)
+            emit(latest)
+        }
+    }
+
     private companion object {
         const val STOP_TIMEOUT_MILLIS = 5_000L
+        const val HOME_OBSERVE_EXCEPTION_CODE = "catalog.home.observe_exception"
+        const val RANKING_OBSERVE_EXCEPTION_CODE = "catalog.home.ranking_exception"
+        const val REFRESH_EXCEPTION_CODE = "catalog.home.refresh_exception"
     }
 }
 

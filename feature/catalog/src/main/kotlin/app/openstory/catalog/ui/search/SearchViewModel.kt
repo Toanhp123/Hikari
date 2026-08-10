@@ -4,39 +4,56 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.openstory.catalog.search.CatalogSearchRequest
 import app.openstory.catalog.search.CatalogSearchResult
+import app.openstory.catalog.search.CatalogSearchSelectionResult
 import app.openstory.catalog.search.CatalogSearchService
+import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModel @Inject constructor(
     private val searchService: CatalogSearchService,
 ) : ViewModel() {
     private val query = MutableStateFlow("")
     private val filterValues = MutableStateFlow<Map<PluginId, Map<String, List<String>>>>(emptyMap())
     private val mutableState = MutableStateFlow(SearchUiState())
-    val state = mutableState
+    val state: StateFlow<SearchUiState> = mutableState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            mutableState.value = mutableState.value.copy(filterGroups = searchService.filters())
+            mutableState.value = try {
+                mutableState.value.copy(
+                    filterGroups = searchService.filters(),
+                    filterFailure = null,
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                mutableState.value.copy(
+                    filterFailure = SearchUiFailure(FILTERS_EXCEPTION_CODE, retryable = true),
+                )
+            }
         }
         viewModelScope.launch {
             combine(query, filterValues) { queryValue, filters ->
                 CatalogSearchRequest(queryValue.trim(), filters)
             }
-                .debounce(SEARCH_DEBOUNCE_MILLIS)
-                .mapLatest(::execute)
+                .mapLatest { request ->
+                    delay(SEARCH_DEBOUNCE_MILLIS)
+                    execute(request)
+                }
                 .collect(::publish)
         }
     }
@@ -71,15 +88,34 @@ class SearchViewModel @Inject constructor(
         mutableState.value = mutableState.value.copy(filterValues = filterValues.value)
     }
 
+    fun selectStory(story: CatalogSearchStory, onSelected: (StoryId) -> Unit) {
+        viewModelScope.launch {
+            when (val result = searchService.select(story)) {
+                is CatalogSearchSelectionResult.Success -> onSelected(result.storyId)
+                is CatalogSearchSelectionResult.Failure -> {
+                    mutableState.value = mutableState.value.copy(
+                        operationFailure = SearchUiFailure(result.code, result.retryable),
+                    )
+                }
+            }
+        }
+    }
+
     private suspend fun execute(request: CatalogSearchRequest): SearchExecution {
         if (request.query.length < MINIMUM_QUERY_LENGTH) {
-            return SearchExecution(request.query, CatalogSearchResult(emptyList(), emptyList()))
+            return SearchExecution(request.query, CatalogSearchResult(emptyList(), emptyList()), null)
         }
         mutableState.value = mutableState.value.copy(searching = true)
         return try {
-            SearchExecution(request.query, searchService.search(request))
+            SearchExecution(request.query, searchService.search(request), null)
         } catch (cancellation: CancellationException) {
             throw cancellation
+        } catch (_: Exception) {
+            SearchExecution(
+                request.query,
+                CatalogSearchResult(emptyList(), emptyList()),
+                SearchUiFailure(SEARCH_EXCEPTION_CODE, retryable = true),
+            )
         }
     }
 
@@ -96,6 +132,7 @@ class SearchViewModel @Inject constructor(
             query = query.value,
             stories = execution.result.stories,
             failures = execution.result.failures,
+            operationFailure = execution.operationFailure,
             searching = false,
             recentQueries = recent,
         )
@@ -104,11 +141,14 @@ class SearchViewModel @Inject constructor(
     private data class SearchExecution(
         val query: String,
         val result: CatalogSearchResult,
+        val operationFailure: SearchUiFailure?,
     )
 
     private companion object {
         const val MINIMUM_QUERY_LENGTH = 2
         const val SEARCH_DEBOUNCE_MILLIS = 300L
         const val MAX_RECENT_QUERIES = 8
+        const val FILTERS_EXCEPTION_CODE = "catalog.search.filters_exception"
+        const val SEARCH_EXCEPTION_CODE = "catalog.search.exception"
     }
 }

@@ -33,7 +33,11 @@ class MyAnimeListCatalogContractIntegrationTest {
             buildJsonObject {},
         )
 
-        val payload = (result as PluginCallResult.Success<*>).value as kotlinx.serialization.json.JsonElement
+        assertTrue(
+            "Bundled plugin invocation failed: ${(result as? PluginCallResult.Failure)?.code}",
+            result is PluginCallResult.Success,
+        )
+        val payload = (result as PluginCallResult.Success).value
         assertTrue(Json.decodeFromJsonElement(CatalogFiltersOutputDto.serializer(), payload).filters.isEmpty())
         val installed = runtime.enabled(app.openstory.plugins.api.manifest.PluginService.CATALOG).single()
         assertEquals(MyAnimeListBundledPlugin.VERSION, installed.version)

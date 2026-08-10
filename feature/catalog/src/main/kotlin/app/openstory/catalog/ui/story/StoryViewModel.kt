@@ -14,8 +14,10 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -33,7 +35,10 @@ class StoryViewModel @AssistedInject constructor(
     private val failure = MutableStateFlow<StoryRefreshFailure?>(null)
 
     val state = combine(
-        repository.observeStory(storyId),
+        repository.observeStory(storyId).catch {
+            failure.value = StoryRefreshFailure(OBSERVE_EXCEPTION_CODE, retryable = true)
+            emit(null)
+        },
         selectedSource,
         refreshing,
         failure,
@@ -72,6 +77,10 @@ class StoryViewModel @AssistedInject constructor(
                 } else {
                     details.load(source.pluginId, source.sourceId).failureOrNull()
                 }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                failure.value = StoryRefreshFailure(REFRESH_EXCEPTION_CODE, retryable = true)
             } finally {
                 refreshing.value = false
             }
@@ -85,6 +94,8 @@ class StoryViewModel @AssistedInject constructor(
 
     private companion object {
         const val SOURCE_UNAVAILABLE_CODE = "catalog.story.source_unavailable"
+        const val OBSERVE_EXCEPTION_CODE = "catalog.story.observe_exception"
+        const val REFRESH_EXCEPTION_CODE = "catalog.story.refresh_exception"
         val sourceOrder = compareBy<CatalogEntry> { it.pluginId.value }.thenBy { it.sourceId }
     }
 }

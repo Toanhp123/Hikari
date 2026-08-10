@@ -8,11 +8,11 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -90,7 +90,7 @@ private fun HomeDestination(
     onStorySelected: (StoryId) -> Unit,
 ) {
     val viewModel = hiltViewModel<HomeViewModel>()
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     HomeScreen(
         state = state,
         onRefresh = viewModel::refresh,
@@ -104,14 +104,14 @@ private fun HomeDestination(
 @Composable
 private fun SearchDestination(onStorySelected: (StoryId) -> Unit) {
     val viewModel = hiltViewModel<SearchViewModel>()
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     SearchScreen(
         state = state,
         onQueryChange = viewModel::updateQuery,
         onRecentSelected = viewModel::selectRecent,
         onFilterValuesChange = viewModel::setFilterValues,
         onClearFilters = viewModel::clearFilters,
-        onStorySelected = onStorySelected,
+        onStorySelected = { story -> viewModel.selectStory(story, onStorySelected) },
     )
 }
 
@@ -122,7 +122,7 @@ private fun StoryDestination(route: AppRoute.Story) {
             factory.create(StoryAssistedArgs(StoryId(route.storyId)))
         },
     )
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     StoryScreen(
         state = state,
         onRetry = viewModel::retry,

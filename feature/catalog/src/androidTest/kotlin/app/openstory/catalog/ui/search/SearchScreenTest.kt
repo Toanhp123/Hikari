@@ -46,7 +46,7 @@ class SearchScreenTest {
 
     @Test
     fun resultClickReportsCanonicalStoryIdentityOnly() {
-        var selected: StoryId? = null
+        var selected: CatalogSearchStory? = null
         compose.setContent {
             MaterialTheme {
                 SearchScreen(
@@ -63,7 +63,7 @@ class SearchScreenTest {
         compose.onNodeWithContentDescription(
             "Fixture Novel. Web novel. catalog.a score 8.4 out of 10.",
         ).performClick()
-        assertEquals(StoryId("story-1"), selected)
+        assertEquals(StoryId("story-1"), selected?.story?.id)
     }
 
     @Test

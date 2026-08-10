@@ -7,7 +7,7 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: approved Android-only, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current Gradle modules: 10 during the Baseline 2 parallel-replacement transition.
+- Current Gradle modules: 8 in the accepted Architecture Baseline 2 R4 graph.
 - Wave 01-03 implementation is present.
 - Wave 04 Tasks 01-06 implementation is present.
 - Pre-MVP Baseline 1 project-wide refactor is complete.
@@ -15,8 +15,8 @@ Purpose: single source of truth for the implemented repository boundary.
   instrumentation evidence.
 - Wave 05 Tasks 01-06 implementation is present.
 - Wave 05 Tasks 01-06 verification is accepted by the Wave 05 checkpoint.
-- Architecture Baseline 2 R3: **ACCEPTED**.
-- Current active boundary: **R4 - Presentation, Navigation, and DI**.
+- Architecture Baseline 2 R4: **ACCEPTED**.
+- Current active boundary: **R5 - Repository Cleanup**.
 - Wave 06 is frozen until Architecture Baseline 2 R6 is accepted.
 - The Wave 05 checkpoint remains historical evidence, not a compatibility requirement.
 
@@ -147,6 +147,22 @@ Baseline 2 ownership model:
 R3 acceptance evidence is recorded in
 `../internal/checkpoints/architecture-baseline-2-r3.md`.
 
+### Architecture Baseline 2 R4 boundary
+
+R4 replaces the Wave 05 presentation and composition architecture:
+
+- Home, Search, and Story presentation are owned by `:feature:catalog`;
+- Hilt constructor injection and focused app modules replace `OpenStoryAppGraph` and
+  custom ViewModel factories;
+- Navigation 3 owns route/back-stack state and NavEntry-scoped ViewModels;
+- Story routes carry canonical `StoryId` only;
+- fresh Search selections resolve and persist canonical detail state before navigation;
+- lifecycle-aware presentation preserves cached content and contains boundary failures;
+- `:feature:home`, `:feature:story`, and the structural suppression allowance are deleted.
+
+R4 acceptance evidence is recorded in
+`../internal/checkpoints/architecture-baseline-2-r4.md`.
+
 ## Verification status
 
 Implementation presence is not checkpoint acceptance. Evidence under
@@ -162,6 +178,8 @@ Wave 05 Task 05 verification is accepted in
 accepted in `../internal/checkpoints/wave-05-catalog-home-and-discovery.md`.
 Architecture Baseline 2 R3 is accepted in
 `../internal/checkpoints/architecture-baseline-2-r3.md`.
+Architecture Baseline 2 R4 is accepted in
+`../internal/checkpoints/architecture-baseline-2-r4.md`.
 
 ## Source-of-truth rule
 

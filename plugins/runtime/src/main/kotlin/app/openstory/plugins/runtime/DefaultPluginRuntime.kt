@@ -22,6 +22,15 @@ class DefaultPluginRuntime(
         pluginId: PluginId,
         operation: PluginOperation,
         input: JsonElement,
+    ): PluginCallResult<JsonElement> = when (val provisioned = bundled.ensureProvisioned()) {
+        is PluginCallResult.Failure -> provisioned
+        is PluginCallResult.Success -> invokeInstalled(pluginId, operation, input)
+    }
+
+    private suspend fun invokeInstalled(
+        pluginId: PluginId,
+        operation: PluginOperation,
+        input: JsonElement,
     ): PluginCallResult<JsonElement> = when (val stored = state.find(pluginId)) {
         null -> PluginCallResult.Failure("plugin.not_installed", false)
         else -> invokeStored(stored, operation, input)

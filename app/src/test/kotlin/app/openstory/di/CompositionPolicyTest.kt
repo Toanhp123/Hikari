@@ -40,6 +40,19 @@ class CompositionPolicyTest {
         )
     }
 
+    @Test
+    fun legacyCompositionSymbolsAreRemoved() {
+        val production = kotlinSources(File(root, "app/src/main"))
+        assertForbidden(
+            production,
+            "OpenStoryAppGraph",
+            "LambdaViewModelFactory",
+            "createHomeViewModel",
+            "createSearchViewModel",
+            "createStoryDetailViewModel",
+        )
+    }
+
     private fun assertForbidden(files: List<File>, vararg symbols: String) {
         files.forEach { file ->
             val source = file.readText()
