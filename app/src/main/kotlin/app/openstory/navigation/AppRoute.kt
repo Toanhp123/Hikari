@@ -21,11 +21,7 @@ sealed interface AppRoute : NavKey {
     data object Settings : AppRoute
 
     @Serializable
-    data class Story(
-        val storyId: String,
-        val pluginId: String,
-        val sourceId: String,
-    ) : AppRoute
+    data class Story(val storyId: String) : AppRoute
 
     @Serializable
     data class Reader(

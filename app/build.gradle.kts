@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":storage:room"))
     implementation(project(":plugins:api"))
     implementation(project(":plugins:runtime"))
+    implementation(project(":feature:catalog"))
     implementation(project(":feature:home"))
     implementation(project(":feature:story"))
     implementation(libs.kotlinx.coroutines.core)
