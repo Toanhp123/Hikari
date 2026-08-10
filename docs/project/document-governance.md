@@ -1,6 +1,6 @@
 # Documentation Governance and Precedence
 
-Date: 2026-08-07  
+Date: 2026-08-10
 Status: **CANONICAL documentation policy**
 
 ## Purpose
@@ -24,8 +24,8 @@ code exists, and code existence is not proof that a checkpoint passed.
 ### What is implemented next?
 
 Use `../implementation/current-roadmap.md`, then the active Architecture Baseline 2 plan.
-The current continuation is R0 from
-`../superpowers/plans/2026-08-09-architecture-baseline-2-refactor-roadmap.md`.
+The current continuation is R6 from
+`../superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md`.
 
 While the reset is active, the Baseline 2 design and R0-R6 plan set override earlier
 implementation-next instructions. Wave 05 checkpoints remain evidence, and Wave 06 stays
@@ -41,15 +41,16 @@ output is reviewed and recorded.
 
 ### How does a public plugin contract work?
 
-Use `../plugin-sdk/`. SDK documents must match `:core:plugin-api` and tested fixtures.
+Use `../plugin-sdk/`. SDK documents must match `:plugins:api`, the JavaScript runtime
+protocol, and tested fixtures.
 
 ## Supersession map
 
 | Historical source | Current interpretation |
 |---|---|
 | 2026-08-03 Waves 01–03 plans | Intent and coverage history; implementation is already present |
-| 2026-08-03 Wave 04 selector sketch | Replaced by the canonical typed Selector Schema 1 continuation |
-| 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/` |
+| 2026-08-03 Wave 04 selector sketch | Historical; superseded by the Baseline 2 JavaScript protocol/runtime |
+| 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/`; no active selector contract |
 | Source-local Wave 01–03 remediation specs/plans/checkpoints | Archived under `../internal/archive/pre-baseline-development/`; do not execute again |
 | Pre-baseline Room migration instructions | Historical only; current complete database is initial schema 1 |
 | Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |

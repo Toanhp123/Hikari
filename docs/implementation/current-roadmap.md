@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-09
+Date: 2026-08-10
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence while Architecture Baseline 2 resets
@@ -18,37 +18,33 @@ acceptance remain separate states.
 
 ## Current position
 
-Architecture Baseline 2 R0 is accepted. The active boundary is **R1 - Foundation and
-Module Graph**. Wave 05 remains
-accepted historical evidence, but it does not require compatibility with superseded
-development architecture. Wave 06 is frozen until Baseline 2 R6 is accepted.
+Architecture Baseline 2 R5 is accepted. The active boundary is **R6 - Architecture
+Acceptance**. Wave 01-05 checkpoints remain historical delivery evidence, but they do
+not require compatibility with superseded development architecture. Wave 06 remains
+frozen until Baseline 2 R6 is accepted.
 
-Execute R0 through R6 in the order defined by
+Complete R6 as defined by
 `../superpowers/plans/2026-08-09-architecture-baseline-2-refactor-roadmap.md`.
 
-Wave 04 provides secure selector and JavaScript execution, transactional lifecycle, safe
-updates/rollback, redacted diagnostics, and the unified host boundary now consumed by
-Wave 05 catalog persistence and bundled catalog bootstrap.
+The retained implementation uses the Baseline 2 JavaScript protocol/runtime, bounded host
+capabilities, transactional package lifecycle, catalog-owned services, Room-owned
+persistence, and feature-owned presentation. R6 verifies and freezes those boundaries.
 
 ## Current module graph
 
 ```text
 :app
 :core:common
-:core:model
-:core:database
-:core:plugin-api
-:core:network
-:core:plugin-host
-:core:matching
-:feature:home
-:feature:story
-:test:fixtures
+:catalog
+:feature:catalog
+:storage:room
+:plugins:api
+:plugins:runtime
 ```
 
 Direct dependencies are governed by
-`../../config/architecture/module-boundaries.json`. Later-wave modules are created only
-when their owning wave starts.
+`../../config/architecture/module-boundaries.json`. This seven-module graph is exact for
+the Baseline 2 acceptance checkpoint; later-wave modules require an owning-wave decision.
 
 ## Wave status
 
@@ -56,7 +52,7 @@ when their owning wave starts.
 |---|---|---|---|
 | 01 | Foundation, architecture, CI | Implementation present; historical checkpoint evidence retained | `waves/wave-01-foundation-and-architecture.md` |
 | 02 | Domain and local storage | Implementation present on Room schema 1; checkpoint acceptance remains evidence-driven | `waves/wave-02-domain-and-local-storage.md` |
-| 03 | Plugin contracts and packages | Implementation present on Selector Schema 1 | `waves/wave-03-plugin-contracts-and-packages.md` |
+| 03 | Plugin contracts and packages | Historical implementation superseded by the Baseline 2 protocol/package boundary | `waves/wave-03-plugin-contracts-and-packages.md` |
 | 04 | Plugin host and security | **Implementation present; checkpoint accepted** | `waves/wave-04-plugin-host-and-security.md` |
 | 05 | Catalog Home and discovery | **Implementation present; checkpoint accepted** | `waves/wave-05-catalog-home-and-discovery.md` |
 | 06 | Library and story matching | **Frozen until Architecture Baseline 2 R6 acceptance** | `waves/wave-06-library-and-story-matching.md` |
@@ -72,8 +68,8 @@ when their owning wave starts.
 |---|---|---|
 | 04.01 | Allowlisted HTTP gateway, shared URL policy, bounded body reader, budgets, sessions, decoding, redaction | Implementation present |
 | 04.02 | Transactional install, neutral registry port, Room adapter, rollback | Implementation present |
-| 04.03 | Selector Schema 1 document loading, typed evaluation, DTO mapping, adapters | Implementation present |
-| 04.04 | JavaScript capability sandbox | Implementation present; Android instrumentation passed |
+| 04.03 | Historical selector runtime | Superseded and removed by Architecture Baseline 2 |
+| 04.04 | JavaScript capability sandbox | Replaced by the Baseline 2 protocol/runtime boundary |
 | 04.05 | Update and capability-diff lifecycle | Implementation present |
 | 04.06 | Redacted diagnostics and unified host facade | Implementation present |
 
@@ -82,7 +78,7 @@ when their owning wave starts.
 | Task | Outcome | State |
 |---|---|---|
 | 05.01 | Source-preserving catalog ingestion and cached Home persistence | Verified by Wave 05 checkpoint |
-| 05.02 | Deterministic bundled default catalog and safe bootstrap/update boundary | Verified |
+| 05.02 | Canonical MyAnimeList reference package and safe bootstrap/update boundary | Verified |
 | 05.03 | Deterministic cross-catalog matching and aggregate ranking | Verified |
 | 05.04 | Cached Home refresh/orchestration | Verified |
 | 05.05 | Combined and catalog-specific Home UI | Verified |
@@ -96,7 +92,7 @@ architecture
     -> plugin contracts and package validation
       -> secure plugin execution
         -> catalog discovery
-             ^ Architecture Baseline 2 R0-R6 reset is active; Wave 06 is frozen
+             ^ Architecture Baseline 2 R6 acceptance is active; Wave 06 is frozen
           -> story matching
             -> chapter aggregation
               -> reader
@@ -107,8 +103,8 @@ architecture
 
 ## Execution rule
 
-1. Execute Architecture Baseline 2 R0 through R6 in order.
-2. Do not begin Wave 06 while the architecture reset is active.
+1. Complete Architecture Baseline 2 R6 acceptance and freeze.
+2. Do not begin Wave 06 until R6 is accepted.
 3. Treat Wave 05 checkpoints as historical evidence, not compatibility authority.
 4. Update current state only after each Baseline 2 checkpoint is accepted.
 

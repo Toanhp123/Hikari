@@ -108,7 +108,7 @@ green only when fast verification and both instrumentation jobs succeed.
 Run the Room storage instrumentation suite on each required API level when
 storage behavior changes:
 
-    ANDROID_SERIAL=emulator-5556 \
+    ANDROID_SERIAL=emulator-5554 \
       ./scripts/instrumentation/storage-room.sh 26
 
 Repeat with an API 37 device before architecture acceptance.

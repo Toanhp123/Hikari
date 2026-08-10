@@ -34,6 +34,9 @@ run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.storage.ro
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.execution.PluginOperationRunner' 1
+run_case 'storage/room/src/main/kotlin/F.kt' 'val runner = app.openstory.plugins.runtime.execution.PluginOperationRunner::class' 1
+run_case 'storage/room/src/main/kotlin/F.kt' $'val runner = app.openstory.plugins\n  .runtime.execution.PluginOperationRunner::class' 1
+run_case 'storage/room/src/main/kotlin/F.kt' 'val fake = app.openstory.plugins.runtime.persistenceEvil.PluginStateStore::class' 1
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.persistence.PluginStateStore' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.api.manifest.PluginService' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.catalog.repository.CatalogRepository' 0

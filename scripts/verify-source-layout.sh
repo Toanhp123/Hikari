@@ -37,7 +37,7 @@ while IFS= read -r -d '' source_file; do
     fail "Development-history test filename is forbidden: $relative_path"
   fi
 
-  line_count="$(wc -l < "$source_file")"
+  line_count="$(awk 'END { print NR }' "$source_file")"
   if [[ "$relative_path" =~ /src/main/ ]] && ((line_count > 500)); then
     fail "Production Kotlin source exceeds 500 lines: $relative_path ($line_count)"
   fi

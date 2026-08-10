@@ -35,12 +35,13 @@ for module in "${FINAL_MODULES[@]}"; do
   grep -Fq "\"$module\"" "$POLICY" || fail "Final module missing from architecture policy: $module"
 done
 
-mapfile -t declared_modules < <(
+declared_modules="$({
   grep -oE 'include\(":[a-z0-9:-]+"\)' "$SETTINGS" |
     sed -E 's/include\("([^"]+)"\)/\1/' |
     sort
-)
-[[ "${declared_modules[*]}" == "${FINAL_MODULES[*]}" ]] ||
+} || true)"
+expected_modules="$(printf '%s\n' "${FINAL_MODULES[@]}")"
+[[ "$declared_modules" == "$expected_modules" ]] ||
   fail "settings.gradle.kts must include exactly the seven Baseline 2 modules."
 
 for removed in \
@@ -55,9 +56,20 @@ for removed in \
   fi
 done
 
-mapfile -d '' schema_files < <(find "$SCHEMA_DIR" -maxdepth 1 -type f -name '*.json' -print0)
-[[ "${#schema_files[@]}" -eq 1 && "${schema_files[0]}" == "$SCHEMA_DIR/1.json" ]] ||
+schema_count=0
+for schema_file in "$SCHEMA_DIR"/*.json; do
+  [[ -f "$schema_file" ]] && schema_count=$((schema_count + 1))
+done
+[[ "$schema_count" == 1 && -f "$SCHEMA_DIR/1.json" ]] ||
   fail "Room schema directory must contain exactly 1.json."
+
+BUNDLED_ASSET_DIR="$ROOT_DIR/app/src/main/assets/plugins"
+bundled_asset_count=0
+for bundled_asset in "$BUNDLED_ASSET_DIR"/*.osp; do
+  [[ -f "$bundled_asset" ]] && bundled_asset_count=$((bundled_asset_count + 1))
+done
+[[ "$bundled_asset_count" == 1 && -f "$BUNDLED_ASSET_DIR/myanimelist-catalog.osp" ]] ||
+  fail "Production assets must contain exactly the canonical MyAnimeList plugin package."
 
 [[ ! -s "$SUPPRESSIONS" ]] || fail "Structural suppression debt must be empty."
 

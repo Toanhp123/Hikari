@@ -14,6 +14,7 @@ make_valid_fixture() {
   mkdir -p \
     "$root/config/architecture" \
     "$root/config/quality" \
+    "$root/app/src/main/assets/plugins" \
     "$root/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase" \
     "$root/bundled-plugins/myanimelist-catalog"
   cat > "$root/settings.gradle.kts" <<'SETTINGS'
@@ -26,11 +27,13 @@ include(":plugins:api")
 include(":plugins:runtime")
 SETTINGS
   cat > "$root/config/architecture/module-boundaries.json" <<'POLICY'
-{"modules":{":app":{},":core:common":{},":catalog":{},":feature:catalog":{},":storage:room":{},":plugins:api":{},":plugins:runtime":{}}}
+{"schemaVersion":2,"modules":{":app":{"path":"app","platform":"android-application","dependencyMode":"exact","productionDependencies":[],"testDependencies":[],"forbiddenProductionImports":[]},":core:common":{"path":"core/common","platform":"jvm","dependencyMode":"exact","productionDependencies":[],"testDependencies":[],"forbiddenProductionImports":[]},":catalog":{"path":"catalog","platform":"android-library","dependencyMode":"exact","productionDependencies":[],"testDependencies":[],"forbiddenProductionImports":[]},":feature:catalog":{"path":"feature/catalog","platform":"android-library","dependencyMode":"exact","productionDependencies":[],"testDependencies":[],"forbiddenProductionImports":[]},":storage:room":{"path":"storage/room","platform":"android-library","dependencyMode":"exact","productionDependencies":[],"testDependencies":[],"forbiddenProductionImports":[]},":plugins:api":{"path":"plugins/api","platform":"jvm","dependencyMode":"exact","productionDependencies":[],"testDependencies":[],"forbiddenProductionImports":[]},":plugins:runtime":{"path":"plugins/runtime","platform":"android-library","dependencyMode":"exact","productionDependencies":[],"testDependencies":[],"forbiddenProductionImports":[]}}}
 POLICY
   : > "$root/config/quality/structural-suppressions.txt"
   printf '{"formatVersion":1,"database":{"version":1}}\n' \
     > "$root/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json"
+  printf 'canonical plugin package\n' \
+    > "$root/app/src/main/assets/plugins/myanimelist-catalog.osp"
 }
 
 verify() {
@@ -47,6 +50,35 @@ expect_failure() {
 
 make_valid_fixture "$FIXTURE"
 verify
+
+if ! REPO_ROOT="$FIXTURE" bash -c 'enable -n mapfile; source "$1"' \
+  _ "$ROOT_DIR/scripts/verify-architecture-baseline-2.sh" >/dev/null 2>&1; then
+  echo 'Baseline 2 verifier must run without the Bash 4 mapfile builtin.' >&2
+  exit 1
+fi
+
+mkdir -p "$FIXTURE/bin"
+cat > "$FIXTURE/bin/find" <<'FIND'
+#!/usr/bin/env bash
+for argument in "$@"; do
+  if [[ "$argument" == '-maxdepth' ]]; then
+    echo 'find: -maxdepth is unavailable' >&2
+    exit 2
+  fi
+done
+exec /usr/bin/find "$@"
+FIND
+chmod +x "$FIXTURE/bin/find"
+if ! PATH="$FIXTURE/bin:$PATH" REPO_ROOT="$FIXTURE" \
+  bash "$ROOT_DIR/scripts/verify-architecture-baseline-2.sh" >/dev/null 2>&1; then
+  echo 'Baseline 2 verifier must not require GNU find extensions.' >&2
+  exit 1
+fi
+rm -rf "$FIXTURE/bin"
+
+touch "$FIXTURE/app/src/main/assets/plugins/unexpected.osp"
+expect_failure 'an extra production bundled plugin asset'
+rm "$FIXTURE/app/src/main/assets/plugins/unexpected.osp"
 
 mkdir -p "$FIXTURE/core/plugin-host"
 expect_failure 'a legacy module'

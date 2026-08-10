@@ -88,8 +88,9 @@ Content coverage:
 - incremental sync;
 - chapter document.
 
-The canonical complete contract fixture is
-[`../../sample-plugins/selector-fixture/selector.json`](../../sample-plugins/selector-fixture/selector.json).
+The historical selector fixture referenced by this implementation record was deleted
+during Architecture Baseline 2 R5. Current contract fixtures live with `:plugins:api` and
+describe only the JavaScript protocol/runtime.
 
 ## Checkpoint
 

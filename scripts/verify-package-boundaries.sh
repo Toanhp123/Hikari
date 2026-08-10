@@ -35,6 +35,24 @@ validate_project_imports() {
   )
 }
 
+fail_forbidden_runtime_references() {
+  local source_root="$1"
+  [[ -d "$source_root" ]] || return 0
+
+  while IFS= read -r -d '' source_file; do
+    compact_source="$(tr -d '[:space:]' < "$source_file")"
+    remainder="$(printf '%s\n' "$compact_source" | sed -E \
+      's/app\.openstory\.plugins\.runtime\.persistence(\.([A-Za-z_][A-Za-z0-9_]*|\*))+/ALLOWED/g')"
+    if [[ "$remainder" == *app.openstory.plugins.runtime* ]]; then
+      echo 'storage/room may reference only plugins.runtime.persistence SPI contracts.' >&2
+      echo "$source_file" >&2
+      return 1
+    fi
+  done < <(
+    find "$source_root" -type f -name '*.kt' -print0
+  )
+}
+
 core_root="$ROOT_DIR/core/common/src/main"
 catalog_root="$ROOT_DIR/catalog/src/main"
 feature_root="$ROOT_DIR/feature/catalog/src/main"
@@ -69,5 +87,6 @@ validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog)(\.|$
 
 validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
   'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'
+fail_forbidden_runtime_references "$storage_root"
 
 echo "Package boundary policy verified."

@@ -26,9 +26,9 @@ echo "Structural review report"
 while IFS= read -r -d '' source_file; do
   relative="$(relative_path "$source_file")"
   file_name="$(basename "$source_file")"
-  line_count="$(wc -l < "$source_file")"
+  line_count="$(awk 'END { print NR }' "$source_file")"
   import_count="$(grep -Ec '^[[:space:]]*import[[:space:]]+' "$source_file" || true)"
-  public_method_count="$(grep -Ec '^[[:space:]]*(public[[:space:]]+)?(suspend[[:space:]]+)?fun[[:space:]]+' "$source_file" || true)"
+  public_method_count="$(grep -Ec '^[[:space:]]*(public[[:space:]]+)?((override|inline|operator|infix|tailrec|external|suspend)[[:space:]]+)*fun[[:space:]]+' "$source_file" || true)"
 
   if ((line_count > 500)); then
     echo "[hard] production source exceeds 500 lines: $relative ($line_count)" >&2
@@ -56,6 +56,23 @@ while IFS= read -r -d '' source_file; do
       closed = gsub(/\}/, "}", value)
       return opened - closed
     }
+    function parameter_count(value, pos, char, angle, square, round, count) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      sub(/,[[:space:]]*$/, "", value)
+      if (value == "") return 0
+      count = 1
+      for (pos = 1; pos <= length(value); pos++) {
+        char = substr(value, pos, 1)
+        if (char == "<") angle++
+        else if (char == ">" && angle > 0) angle--
+        else if (char == "[") square++
+        else if (char == "]" && square > 0) square--
+        else if (char == "(") round++
+        else if (char == ")" && round > 0) round--
+        else if (char == "," && angle == 0 && square == 0 && round == 0) count++
+      }
+      return count
+    }
     /^[[:space:]]*(public[[:space:]]+|internal[[:space:]]+)?(data[[:space:]]+|sealed[[:space:]]+|abstract[[:space:]]+)?class[[:space:]]+/ {
       if ($0 ~ /\(/) {
         declaration = $0
@@ -63,11 +80,11 @@ while IFS= read -r -d '' source_file; do
         parameters = declaration
         sub(/^[^(]*\(/, "", parameters)
         sub(/\).*/, "", parameters)
-        count = parameters ~ /[^[:space:]]/ ? gsub(/,/, ",", parameters) + 1 : 0
+        count = parameter_count(parameters)
         if (count > 8) printf "[review][constructor-parameters] %s (%d)\n", file, count
       }
     }
-    /^[[:space:]]*(public[[:space:]]+|internal[[:space:]]+|private[[:space:]]+|protected[[:space:]]+)?(suspend[[:space:]]+)?fun[[:space:]]+/ {
+    /^[[:space:]]*(public[[:space:]]+|internal[[:space:]]+|private[[:space:]]+|protected[[:space:]]+)?((override|inline|operator|infix|tailrec|external|suspend)[[:space:]]+)*fun[[:space:]]+/ {
       active = 1
       start = NR
       depth = braces($0)
@@ -78,8 +95,8 @@ while IFS= read -r -d '' source_file; do
       depth += braces($0)
       if (index($0, "{") > 0) saw_brace = 1
       if (saw_brace && depth <= 0) {
-        length = NR - start + 1
-        if (length > 50) printf "[review][function-lines] %s:%d (%d)\n", file, start, length
+        span = NR - start + 1
+        if (span > 50) printf "[review][function-lines] %s:%d (%d)\n", file, start, span
         active = 0
       }
     }
@@ -122,6 +139,19 @@ if [[ -d "$ROOT_DIR/storage/room/src/main" ]]; then
     grep -RInE --include='*.kt' \
       '^[[:space:]]*import[[:space:]]+app\.openstory\.plugins\.runtime(\.|$)' \
       "$ROOT_DIR/storage/room/src/main" || true
+  )
+
+  while IFS= read -r -d '' source_file; do
+    compact_source="$(tr -d '[:space:]' < "$source_file")"
+    remainder="$(printf '%s\n' "$compact_source" | sed -E \
+      's/app\.openstory\.plugins\.runtime\.persistence(\.([A-Za-z_][A-Za-z0-9_]*|\*))+/ALLOWED/g')"
+    if [[ "$remainder" == *app.openstory.plugins.runtime* ]]; then
+      echo '[hard] storage/room may reference only plugins.runtime.persistence SPI contracts.' >&2
+      echo "$(relative_path "$source_file")" >&2
+      HARD_FAILURE=1
+    fi
+  done < <(
+    find "$ROOT_DIR/storage/room/src/main" -type f -name '*.kt' -print0
   )
 fi
 

@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-08
+Date: 2026-08-10
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -73,36 +73,27 @@ the repository implementation baseline, not a product-scope rewrite.
 ## 5. Architecture
 
 ```text
-Compose UI
-  -> presentation/navigation
-    -> application use cases
-      -> pure canonical domain / matching / aggregation
-        -> repositories and secure plugin host
-          -> Room / app-private files / WorkManager / bounded network / sandbox
+:app composition
+  -> Compose UI (:feature:catalog) -> services/contracts (:catalog)
+  -> Room adapters (:storage:room) -> :catalog + runtime persistence SPI
+  -> :catalog -> plugin facade (:plugins:runtime) -> wire/package contracts (:plugins:api)
 ```
 
-Current repository modules are documented in `project/current-state.md`. Future modules
-are created only when their wave starts; the full target graph is in
-`implementation/current-roadmap.md`.
+The accepted Baseline 2 production graph is exactly `:app`, `:core:common`, `:catalog`,
+`:feature:catalog`, `:storage:room`, `:plugins:api`, and `:plugins:runtime`. Exact allowed
+edges are governed by `config/architecture/module-boundaries.json`; future modules are
+created only through their owning wave.
 
-The database implements the neutral plugin registry port from `:core:plugin-host`; it
-persists activation records but never imports installer-internal package types. Network
-URL validation and bounded response reading are separate from HTTP orchestration through
-`PluginUrlPolicy` and `BoundedResponseReader`.
+Room owns private schema, DAOs, transactions, and persistence adapters. Plugin lifecycle,
+JavaScript execution, bounded host capabilities, and runtime persistence SPI belong to
+`:plugins:runtime`; `:storage:room` may depend only on that persistence SPI surface.
 
 ## 6. Plugin execution model
 
 A package may expose `CATALOG`, `CONTENT`, or both kinds, but contracts remain independent.
-
-### Declarative plugins
-
-- Selector Schema 1 is the initial canonical contract: endpoint-oriented, typed, and
-  closed over every current Catalog and Content wire DTO.
-- Request acquisition is bounded by `SelectorDocumentLoader`; the removed development
-  runtime has no compatibility role.
-- Contracts and install-time validation are Wave 03-owned and present.
-- Binding evaluation, DTO mapping, final validation, and adapters are Wave 04-owned and
-  implemented behind the shared plugin contract validators.
+The current package format contains `manifest.json`, `main.js`, and optional bounded
+assets. Plugin operations exchange validated protocol JSON; there is no declarative
+selector runtime or compatibility path.
 
 ### JavaScript plugins
 
@@ -119,13 +110,12 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 05 / Task 01 — catalog ingestion repository and canonical merge boundary.**
+**Architecture Baseline 2 R6 - Architecture Acceptance.**
 
-Wave 04 secure plugin execution, update/rollback, diagnostics, and host-facade work is
-implemented and its checkpoint is accepted. Do not recreate those boundaries in Wave 05.
+R0-R5 are accepted. Wave 06 remains frozen while R6 performs the full architecture,
+device, ownership, and documentation acceptance run.
 
-Continue from `implementation/waves/wave-05-catalog-home-and-discovery.md`, beginning
-with Task 01.
+Continue from `superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md`.
 
 ## 8. Roadmap
 
@@ -133,7 +123,7 @@ with Task 01.
 |---|---|
 | 01 | reproducible build, architecture guardrails, navigation shell, common primitives |
 | 02 | canonical domain + durable local Room state |
-| 03 | stable plugin contracts, Selector Schema 1, package/repository validation |
+| 03 | historical plugin contracts and package/repository validation, superseded by Baseline 2 |
 | 04 | secure plugin execution, update/rollback, diagnostics and host facade |
 | 05 | combined/per-catalog Home, search, filters, rankings, story metadata |
 | 06 | immediate local Library + explainable content-source matching |
@@ -147,10 +137,10 @@ Detailed lifecycle/status: `implementation/current-roadmap.md`.
 
 ## 9. Verification model
 
-The repository separates fast verification, Android instrumentation and capability
-checkpoints. `scripts/verify.sh` is the common fast gate. Reusable device runners live in
-`scripts/instrumentation/`; application, database, and plugin contract checkpoints live
-in `scripts/checkpoints/`.
+The repository separates fast verification, Android instrumentation, and acceptance
+checkpoints. `scripts/verify.sh` is the common repository gate;
+`scripts/verify-architecture-baseline-2.sh` asserts the exact retained architecture.
+Reusable device runners live in `scripts/instrumentation/`.
 
 A requirement is not considered checkpoint-proven solely because implementation exists.
 Evidence files under `internal/checkpoints/` retain `PASS`, `FAIL`, `NOT RUN`, or
@@ -163,16 +153,16 @@ Read in this order:
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`implementation/waves/wave-05-catalog-home-and-discovery.md` now).
+4. Active implementation plan (`superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md` now).
 5. `plugin-sdk/` when changing public plugin contracts/packages.
 6. `internal/checkpoints/` when deciding whether a gate is proven.
 7. `internal/archive/` only for historical provenance.
 
 `project/document-governance.md` defines precedence when documents disagree.
 
-Reusable public contract assertions and builders belong to `:core:plugin-api` test
-fixtures. Internal deterministic fake plugin implementations and data belong to
-`:test:fixtures`; neither layer calls live websites in routine tests.
+Reusable public contract fixtures belong to `:plugins:api` test resources or owning-module
+test builders. There is no cross-feature fixture module, and routine tests do not call live
+websites.
 
 ## 11. Contributor execution rules
 
@@ -186,5 +176,5 @@ fixtures. Internal deterministic fake plugin implementations and data belong to
 
 ## 12. Next action
 
-Open `implementation/waves/wave-05-catalog-home-and-discovery.md` and start with Task 01:
-the catalog ingestion repository and canonical merge boundary.
+Open `superpowers/plans/2026-08-09-ab2-r6-acceptance-and-freeze.md` and complete the R6
+acceptance tasks in order. Wave 06 begins only after that checkpoint is accepted.

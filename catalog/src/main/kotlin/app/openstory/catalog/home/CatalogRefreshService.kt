@@ -1,5 +1,6 @@
 package app.openstory.catalog.home
 
+import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
@@ -90,29 +91,7 @@ class CatalogRefreshService @Inject constructor(
         candidates: MutableList<CatalogMatchCandidate>,
     ): CatalogRefreshResult {
         val localCandidates = candidates.toMutableList()
-        val resolved = sections
-            .flatMap { it.items }
-            .distinctBy { it.sourceId }
-            .sortedBy { it.sourceId }
-            .associate { item ->
-                val incoming = item.toCandidate(source)
-                val story = when (val resolution = matcher.resolve(incoming, localCandidates)) {
-                    is StoryResolution.Existing -> localCandidates
-                        .first { it.story.id == resolution.storyId }
-                        .story
-                    is StoryResolution.Create -> resolution.story.also { created ->
-                        localCandidates += incoming.copy(story = created)
-                    }
-                }
-                item.sourceId to item.toEntry(source, story.id)
-            }
-        val catalogSections = sections.map { section ->
-            CatalogHomeSection(
-                section.sourceId,
-                section.title,
-                section.items.map { resolved.getValue(it.sourceId) },
-            )
-        }
+        val resolved = resolveEntries(source, sections, localCandidates)
         val mutation = CatalogHomeMutation(
             pluginId = source.pluginId,
             pluginVersion = source.version,
@@ -121,22 +100,10 @@ class CatalogRefreshService @Inject constructor(
                 .map { entry -> localCandidates.first { it.story.id == entry.storyId }.story }
                 .distinctBy { it.id },
             entries = resolved.values.toList(),
-            sections = catalogSections,
+            sections = sections.toCatalogSections(resolved),
             orderedSourceItemIds = sections.associate { it.sourceId to it.items.map(SourceItem::sourceId) },
         )
-        val stored = try {
-            repository.commitHomeRefresh(mutation)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (_: Exception) {
-            return CatalogRefreshResult.StoreFailure(
-                source.pluginId,
-                app.openstory.catalog.CatalogStoreFailure(
-                    "catalog.store.exception",
-                    retryable = true,
-                ),
-            )
-        }
+        val stored = commitMutation(mutation)
         return when (stored) {
             is Outcome.Success -> {
                 candidates.clear()
@@ -146,6 +113,52 @@ class CatalogRefreshService @Inject constructor(
             is Outcome.Failure -> CatalogRefreshResult.StoreFailure(source.pluginId, stored.error)
         }
     }
+
+    private fun resolveEntries(
+        source: CatalogSource,
+        sections: List<app.openstory.catalog.source.SourceSection>,
+        localCandidates: MutableList<CatalogMatchCandidate>,
+    ): Map<String, CatalogEntry> = sections
+        .flatMap { it.items }
+        .distinctBy { it.sourceId }
+        .sortedBy { it.sourceId }
+        .associate { item ->
+            val incoming = item.toCandidate(source)
+            val story = when (val resolution = matcher.resolve(incoming, localCandidates)) {
+                is StoryResolution.Existing -> localCandidates
+                    .first { it.story.id == resolution.storyId }
+                    .story
+                is StoryResolution.Create -> resolution.story.also { created ->
+                    localCandidates += incoming.copy(story = created)
+                }
+            }
+            item.sourceId to item.toEntry(source, story.id)
+        }
+
+    private suspend fun commitMutation(
+        mutation: CatalogHomeMutation,
+    ): Outcome<Unit, CatalogStoreFailure> = try {
+        repository.commitHomeRefresh(mutation)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        Outcome.Failure(
+            CatalogStoreFailure(
+                "catalog.store.exception",
+                retryable = true,
+            ),
+        )
+    }
+}
+
+private fun List<app.openstory.catalog.source.SourceSection>.toCatalogSections(
+    resolved: Map<String, CatalogEntry>,
+): List<CatalogHomeSection> = map { section ->
+    CatalogHomeSection(
+        section.sourceId,
+        section.title,
+        section.items.map { resolved.getValue(it.sourceId) },
+    )
 }
 
 private fun SourceItem.toCandidate(source: CatalogSource) = CatalogMatchCandidate(
