@@ -97,7 +97,7 @@
       "path": "storage/room",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":catalog", ":library", ":plugins:runtime"],
+      "productionDependencies": [":core:common", ":catalog", ":library", ":chapters", ":plugins:runtime"],
       "testDependencies": [],
       "forbiddenProductionImports": [
         "app.openstory.catalog.ui.",

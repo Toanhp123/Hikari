@@ -70,4 +70,89 @@ object RoomMigrations {
             )
         }
     }
+
+    val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            createCanonicalChapters(db)
+            createChapterReleases(db)
+            createChapterOverrides(db)
+            createChapterSyncStates(db)
+        }
+    }
+
+    private fun createCanonicalChapters(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `canonical_chapters` (" +
+                "`canonical_chapter_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, `volume` TEXT, `chapter` TEXT, `part` INTEGER, " +
+                "`normalized_title` TEXT, `display_label` TEXT NOT NULL, `tombstoned` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`canonical_chapter_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_canonical_chapters_story_id` " +
+                "ON `canonical_chapters` (`story_id`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_canonical_chapters_story_id_tombstoned` " +
+                "ON `canonical_chapters` (`story_id`, `tombstoned`)",
+        )
+    }
+
+    private fun createChapterReleases(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `chapter_releases` (" +
+                "`chapter_release_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, `plugin_id` TEXT NOT NULL, " +
+                "`source_story_id` TEXT NOT NULL, `source_release_id` TEXT NOT NULL, `display_label` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, `volume` TEXT, `chapter` TEXT, `part` INTEGER, `normalized_title` TEXT, " +
+                "`language_tag` TEXT NOT NULL, `published_at_epoch_millis` INTEGER, `canonical_chapter_id` TEXT, " +
+                "PRIMARY KEY(`chapter_release_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`canonical_chapter_id`) " +
+                "REFERENCES `canonical_chapters`(`canonical_chapter_id`) ON UPDATE NO ACTION ON DELETE SET NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_chapter_releases_story_id` ON `chapter_releases` (`story_id`)")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chapter_releases_canonical_chapter_id` " +
+                "ON `chapter_releases` (`canonical_chapter_id`)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_chapter_releases_plugin_id_source_story_id_source_release_id` " +
+                "ON `chapter_releases` (`plugin_id`, `source_story_id`, `source_release_id`)",
+        )
+    }
+
+    private fun createChapterOverrides(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `chapter_aggregation_overrides` (" +
+                "`story_id` TEXT NOT NULL, `chapter_release_id` TEXT NOT NULL, `canonical_chapter_id` TEXT, " +
+                "`kind` TEXT NOT NULL, PRIMARY KEY(`story_id`, `chapter_release_id`), " +
+                "FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                "FOREIGN KEY(`chapter_release_id`) REFERENCES `chapter_releases`(`chapter_release_id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`canonical_chapter_id`) " +
+                "REFERENCES `canonical_chapters`(`canonical_chapter_id`) ON UPDATE NO ACTION ON DELETE SET NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chapter_aggregation_overrides_chapter_release_id` " +
+                "ON `chapter_aggregation_overrides` (`chapter_release_id`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chapter_aggregation_overrides_canonical_chapter_id` " +
+                "ON `chapter_aggregation_overrides` (`canonical_chapter_id`)",
+        )
+    }
+
+    private fun createChapterSyncStates(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `chapter_sync_states` (" +
+                "`story_id` TEXT NOT NULL, `plugin_id` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, " +
+                "`phase` TEXT NOT NULL, `cursor` TEXT, `checkpoint` TEXT, `fingerprint` TEXT, " +
+                "`updated_at_epoch_millis` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`story_id`, `plugin_id`, `source_story_id`), " +
+                "FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_chapter_sync_states_story_id` " +
+                "ON `chapter_sync_states` (`story_id`)",
+        )
+    }
 }

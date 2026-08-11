@@ -12,6 +12,12 @@ import app.openstory.storage.room.catalog.CatalogHomeDao
 import app.openstory.storage.room.catalog.CatalogHomeSectionEntity
 import app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity
 import app.openstory.storage.room.catalog.StoryEntity
+import app.openstory.storage.room.chapters.CanonicalChapterEntity
+import app.openstory.storage.room.chapters.ChapterAggregationOverrideEntity
+import app.openstory.storage.room.chapters.ChapterDao
+import app.openstory.storage.room.chapters.ChapterReleaseEntity
+import app.openstory.storage.room.chapters.ChapterSyncStateEntity
+import app.openstory.storage.room.chapters.ChapterSyncDao
 import app.openstory.storage.room.library.ContentMappingEntity
 import app.openstory.storage.room.library.ContentMappingRejectionEntity
 import app.openstory.storage.room.library.LibraryDao
@@ -35,8 +41,12 @@ import app.openstory.storage.room.plugins.PluginVersionEntity
         LibraryEntity::class,
         ContentMappingEntity::class,
         ContentMappingRejectionEntity::class,
+        CanonicalChapterEntity::class,
+        ChapterReleaseEntity::class,
+        ChapterAggregationOverrideEntity::class,
+        ChapterSyncStateEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -46,6 +56,8 @@ abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun pluginStateDao(): PluginStateDao
     internal abstract fun pluginDiagnosticDao(): PluginDiagnosticDao
     internal abstract fun libraryDao(): LibraryDao
+    internal abstract fun chapterDao(): ChapterDao
+    internal abstract fun chapterSyncDao(): ChapterSyncDao
 
     companion object {
         private const val DATABASE_NAME = "openstory-baseline-2.db"
@@ -54,7 +66,11 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             context.applicationContext,
             OpenStoryDatabase::class.java,
             DATABASE_NAME,
-        ).addMigrations(RoomMigrations.MIGRATION_1_2, RoomMigrations.MIGRATION_2_3)
+        ).addMigrations(
+            RoomMigrations.MIGRATION_1_2,
+            RoomMigrations.MIGRATION_2_3,
+            RoomMigrations.MIGRATION_3_4,
+        )
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()
     }
