@@ -89,8 +89,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | AB2 | Architecture reset between Wave 05 and Wave 06 | **Accepted** | `../internal/checkpoints/architecture-baseline-2.md` |
 | 06 | Library and story matching | **Completed; Tasks 01-06 verified** | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | **Completed; Tasks 01-06 verified** | `waves/wave-07-chapter-sync-and-aggregation.md` |
-| 08 | Reader and progress | **Implementation present; verification open** | `waves/wave-08-reader-and-reading-progress.md` |
-| 09 | Cache, downloads, storage | Planned; post-baseline plan approved | `waves/wave-09-cache-downloads-and-storage.md` |
+| 08 | Reader and progress | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-08-reader-and-reading-progress.md` |
+| 09 | Cache, downloads, storage | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-09-cache-downloads-and-storage.md` |
 | 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
@@ -162,15 +162,16 @@ architecture
             -> chapter aggregation
                  ^ Wave 07 complete: sync, aggregation, schema 4, and presentation verified
               -> reader
-                   ^ Wave 08 implementation present; checkpoint verification open
+                   ^ Wave 08 complete: Reader, progress, schema 5, and device checkpoint verified
                 -> offline storage
+                     ^ Wave 09 complete: cache, downloads, schema 6, reconciliation, and offline UI verified
                   -> local background/auth/notifications
                     -> release hardening
 ```
 
 ## Execution rule
 
-1. Complete and review the Wave 08 checkpoint before starting Wave 09.
+1. Use the verified Wave 09 checkpoint as the entry baseline for Wave 10.
 2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
 4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.

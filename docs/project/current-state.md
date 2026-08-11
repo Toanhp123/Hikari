@@ -12,8 +12,9 @@ Purpose: single source of truth for the implemented repository boundary.
 - Architecture Baseline 2: **ACCEPTED**.
 - Wave 06 Tasks 01-06: **VERIFIED**; Wave 06 is complete.
 - Wave 07 Tasks 01-06: **VERIFIED**; Wave 07 is complete.
-- Wave 08 Tasks 01-06: **IMPLEMENTATION PRESENT**; checkpoint verification remains open.
-- Current active boundary: **Wave 08 checkpoint verification**.
+- Wave 08 Tasks 01-06: **VERIFIED**; Wave 08 is complete.
+- Wave 09 Tasks 01-06: **VERIFIED**; Wave 09 is complete.
+- Current active boundary: **Wave 10 entry baseline**.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -23,7 +24,7 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 5 current; schemas 1-4 remain frozen historical exports |
+| Room database | schema 6 current; schemas 1-5 remain frozen historical exports |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -45,6 +46,8 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
 | `:reader` | Sanitized document loading, deterministic release selection/fallback, and exact progress policy/contracts |
 | `:feature:reader` | Restorable Reader state and accessible structured-text Compose presentation |
+| `:downloads` | Explicit download state, automatic-cache quota/eviction, Reader resolution, and reconciliation policy |
+| `:storage:files` | Atomic opaque chapter-blob persistence, inventory, and low-space admission |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
@@ -107,9 +110,11 @@ runtime persistence SPI.
 
 Wave 08 adds bounded structured-document sanitization before rendering, explained stable
 release selection, store-first loading with alternate fallback, exact progress, stable-ID
-navigation, restorable state, and accessible Compose rendering. Downloads, periodic
-background sync, authentication, notifications, and release hardening remain outside the
-implemented Wave-08 boundary.
+navigation, restorable state, and accessible Compose rendering. Wave 09 adds atomic opaque
+blob storage, schema-6 cache/download metadata, bounded cache eviction, explicit downloads,
+offline-first Reader resolution, bulk controls, low-space admission, and race-safe storage
+reconciliation. Periodic background sync, authentication, notifications, and release
+hardening remain outside the implemented boundary.
 
 ## Architecture Baseline 2 status
 
@@ -160,10 +165,13 @@ Wave 06 is therefore complete. Wave 07 then introduced the ninth production modu
 navigation/launch suite, architecture/package/source gates, Detekt, lint, schema stability,
 and full `scripts/verify.sh` with `exit=0`. Deep review kept aggregation/sync policy in
 `:chapters`, transactions in `:storage:room`, WorkManager in `:app`, and lazy chapter
-presentation in `:feature:catalog`. Wave 08 implementation is now present at eleven modules
-and Room schema 5. Repository-local architecture/package/source checks pass; Gradle, lint,
-Detekt, connected instrumentation, and device checkpoints remain open because this execution
-environment could not download the pinned Gradle distribution.
+presentation in `:feature:catalog`. Wave 08 completed the eleven-module Reader baseline and
+Room schema 5. Wave 09 then expanded the production graph to thirteen modules and Room schema
+6. Full repository verification, lint, Detekt, exact architecture, schema stability, and
+structural hard policies pass. API 26 device suites pass for Catalog, Reader, Room, and app;
+Room plus the Wave 09 low-storage contract pass on API 37. Deep review verified that Downloads
+owns state/policy, Room owns metadata transactions, file storage owns bytes, Reader consumes
+only its store port, and WorkManager remains an app adapter.
 
 Evidence:
 

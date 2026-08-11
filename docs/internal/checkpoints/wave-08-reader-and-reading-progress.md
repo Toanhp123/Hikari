@@ -1,9 +1,9 @@
-<!-- DOCUMENT LIFECYCLE: EVIDENCE / CHECKPOINT OPEN -->
+<!-- DOCUMENT LIFECYCLE: EVIDENCE / CHECKPOINT VERIFIED -->
 
 # Wave 08 Reader and Reading Progress Checkpoint
 
 Date: 2026-08-11
-Status: **IMPLEMENTATION PRESENT / VERIFICATION OPEN**
+Status: **VERIFIED**
 
 ## Implemented boundary
 
