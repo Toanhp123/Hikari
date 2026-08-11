@@ -62,11 +62,16 @@ class ContentMappingSearchService(
             context.plan.quick,
             policy.quickSourceTimeoutMillis,
         )
+        val timedOutPluginIds = quick.failures
+            .filter { failure -> failure.code == SOURCE_TIMEOUT }
+            .mapNotNull(ContentMappingSearchFailure::pluginId)
+            .toSet()
+        val timedOutQuickSources = context.plan.quick.filter { source -> source.pluginId in timedOutPluginIds }
         val deferred = executor.searchStage(
             ContentMappingSearchStage.DEFERRED,
             context.canonical,
             context.queries,
-            context.plan.deferred,
+            timedOutQuickSources + context.plan.deferred,
             policy.deferredSourceTimeoutMillis,
         )
         return mergeReports(quick, deferred)
@@ -123,14 +128,17 @@ private fun CatalogStoryProjection.toFeatures() = ContentStoryFeatures(
 private fun mergeReports(
     quick: ContentMappingSearchReport,
     deferred: ContentMappingSearchReport,
-): ContentMappingSearchReport = ContentMappingSearchReport(
-    stage = ContentMappingSearchStage.ALL,
-    searchedPluginIds = (quick.searchedPluginIds + deferred.searchedPluginIds).distinct(),
-    queryVariants = quick.queryVariants,
-    candidates = (quick.candidates + deferred.candidates)
-        .distinctBy { candidate -> candidate.pluginId to candidate.sourceStoryId },
-    failures = quick.failures + deferred.failures,
-)
+): ContentMappingSearchReport {
+    val retriedPluginIds = deferred.searchedPluginIds.toSet()
+    return ContentMappingSearchReport(
+        stage = ContentMappingSearchStage.ALL,
+        searchedPluginIds = (quick.searchedPluginIds + deferred.searchedPluginIds).distinct(),
+        queryVariants = quick.queryVariants,
+        candidates = (quick.candidates + deferred.candidates)
+            .distinctBy { candidate -> candidate.pluginId to candidate.sourceStoryId },
+        failures = quick.failures.filterNot { failure -> failure.pluginId in retriedPluginIds } + deferred.failures,
+    )
+}
 
 private fun globalFailure(
     stage: ContentMappingSearchStage,
@@ -151,3 +159,4 @@ private fun httpsHost(value: String): String? = value
     ?.lowercase(Locale.ROOT)
 
 private const val MAX_URL_LENGTH = 4_096
+private const val SOURCE_TIMEOUT = "content.source_timeout"

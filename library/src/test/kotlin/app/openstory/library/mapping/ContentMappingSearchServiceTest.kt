@@ -77,6 +77,31 @@ class ContentMappingSearchServiceTest {
     }
 
     @Test
+    fun searchAllRetriesQuickTimeoutWithDeferredBudget() = runTest {
+        var attempts = 0
+        val slowFirstAttempt = source("org.example.slow-first") { _ ->
+            attempts += 1
+            delay(if (attempts == 1) 200L else 50L)
+            ContentSourceResult.Success(listOf(candidate("recovered")))
+        }
+        val service = service(
+            sources = listOf(slowFirstAttempt),
+            policy = ContentMappingSearchPolicy(
+                quickSourceCount = 1,
+                maxQueryVariants = 1,
+                quickSourceTimeoutMillis = 100L,
+                deferredSourceTimeoutMillis = 1_000L,
+            ),
+        )
+
+        val report = service.searchAll(STORY_ID)
+
+        assertEquals(2, attempts)
+        assertEquals(emptyList(), report.failures)
+        assertEquals(listOf(slowFirstAttempt.pluginId), report.candidates.map { it.pluginId })
+    }
+
+    @Test
     fun thrownPeerFailureIsIsolatedFromHealthySource() = runTest {
         val throwing = source("org.example.throwing") { _ -> error("source bug") }
         val healthy = source("org.example.healthy") { _ ->
