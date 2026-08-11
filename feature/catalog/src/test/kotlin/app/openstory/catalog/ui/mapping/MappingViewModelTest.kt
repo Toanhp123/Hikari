@@ -3,6 +3,7 @@ package app.openstory.catalog.ui.mapping
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
+import app.openstory.chapters.sync.InitialChapterSyncScheduler
 import app.openstory.common.FakeClock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -53,7 +54,8 @@ class MappingViewModelTest {
     @Test
     fun searchExposesEvidenceAndApprovalUpdatesMappingImmediately() = runTest(dispatcher.scheduler) {
         val repository = FakeMappingRepository()
-        val viewModel = viewModel(repository)
+        val scheduler = RecordingChapterSyncScheduler()
+        val viewModel = viewModel(repository, scheduler = scheduler)
         runCurrent()
 
         viewModel.search()
@@ -68,6 +70,7 @@ class MappingViewModelTest {
 
         assertTrue(viewModel.state.value.candidates.isEmpty())
         assertEquals(ContentMappingOrigin.USER_APPROVED, viewModel.state.value.mappings.single().origin)
+        assertEquals(listOf(STORY_ID), scheduler.scheduled)
     }
 
     @Test
@@ -129,6 +132,7 @@ private val PLUGIN_ID = PluginId("org.example.reader")
 private fun viewModel(
     repository: FakeMappingRepository,
     source: FakeContentSource = FakeContentSource(),
+    scheduler: InitialChapterSyncScheduler = RecordingChapterSyncScheduler(),
 ): MappingViewModel {
     val search = ContentMappingSearchService(
         projections = FakeProjectionRepository,
@@ -137,7 +141,15 @@ private fun viewModel(
         policy = ContentMappingSearchPolicy(quickSourceCount = 1, maxQueryVariants = 1),
     )
     val service = ContentMappingService(repository, search, FakeClock(100L))
-    return MappingViewModel(MappingAssistedArgs(STORY_ID), service)
+    return MappingViewModel(MappingAssistedArgs(STORY_ID), service, scheduler)
+}
+
+private class RecordingChapterSyncScheduler : InitialChapterSyncScheduler {
+    val scheduled = mutableListOf<StoryId>()
+
+    override fun schedule(storyId: StoryId) {
+        scheduled += storyId
+    }
 }
 
 private object FakeProjectionRepository : CatalogStoryProjectionRepository {

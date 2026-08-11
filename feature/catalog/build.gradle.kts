@@ -16,6 +16,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":catalog"))
     implementation(project(":library"))
+    implementation(project(":chapters"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
