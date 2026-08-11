@@ -32,6 +32,8 @@ make_fixture() {
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json"
   cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json" \
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json"
+  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/4.json" \
+    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/4.json"
   cp "$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" \
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
   printf 'canonical plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/myanimelist-catalog.osp"
@@ -72,8 +74,8 @@ expect_failure 'a production plugin asset missing from the bundled plugin regist
 make_fixture
 
 module_count="$(grep -cE '^[[:space:]]*"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$module_count" == 8 ]] || {
-  echo "Wave 06 Task 01 must introduce exactly the eighth production module." >&2
+[[ "$module_count" == 9 ]] || {
+  echo "Wave 07 Task 01 must introduce exactly the ninth production module." >&2
   exit 1
 }
 
@@ -81,7 +83,7 @@ printf '\n' >> "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenSto
 expect_failure 'a changed frozen schema 1'
 make_fixture
 
-sed -i 's/version = 3,/version = 4,/' \
+sed -i 's/version = 4,/version = 5,/' \
   "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
 expect_failure 'a database version without a contiguous exported schema'
 make_fixture
@@ -95,8 +97,8 @@ printf '\nimplementation(project(":storage:room"))\n' >> "$FIXTURE/library/build
 expect_failure 'an edge not declared by policy'
 
 # The policy is the source of truth for current edges: when the reviewed policy changes,
-# the verifier follows it rather than freezing the current Wave 06 graph in shell code.
-sed -i '/"\:library"[[:space:]]*:/,/"\:feature\:catalog"[[:space:]]*:/ s/":plugins:runtime"/":plugins:runtime", ":storage:room"/' \
+# the verifier follows it rather than freezing the current Wave 07 graph in shell code.
+sed -i '/"\:library"[[:space:]]*:/,/"\:chapters"[[:space:]]*:/ s/":plugins:runtime"/":plugins:runtime", ":storage:room"/' \
   "$FIXTURE/config/architecture/module-boundaries.json"
 verify
 

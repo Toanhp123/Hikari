@@ -43,14 +43,13 @@ class MangaDexLiveContentIntegrationTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         assumeTrue(InstrumentationRegistry.getArguments().getString(MANGADEX_LIVE_ARGUMENT) == "true")
         assumeTrue(JavaScriptSandbox.isSupported())
-        val testContext = instrumentation.context
         val appContext = instrumentation.targetContext.applicationContext
         val database = OpenStoryDatabase.open(appContext)
         try {
             val installation = ensureMangaDexBundledPluginInstalled(
                 context = appContext,
                 database = database,
-                packageBytes = mangaDexPackageBytes(testContext),
+                packageBytes = mangaDexPackageBytes(appContext),
             )
             assertTrue("MangaDex reference plugin install failed", installation is PluginCallResult.Success)
 

@@ -33,6 +33,10 @@ class DatabaseBaselineTest {
                 "library_entries",
                 "content_mappings",
                 "content_mapping_rejections",
+                "canonical_chapters",
+                "chapter_releases",
+                "chapter_aggregation_overrides",
+                "chapter_sync_states",
             ),
             names,
         )
@@ -40,8 +44,6 @@ class DatabaseBaselineTest {
             assertEquals(0, it.count)
         }
         listOf(
-            "canonical_chapters",
-            "chapter_releases",
             "reading_progress",
             "downloads",
         ).forEach { assertFalse(it in names, "Speculative table present: $it") }

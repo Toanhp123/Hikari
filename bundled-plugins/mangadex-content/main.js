@@ -1,6 +1,7 @@
 const MANGADEX_API_ORIGIN = "https://api.mangadex.org";
 const MANGADEX_ORIGIN = "https://mangadex.org";
 const PAGE_SIZE = 20;
+const CHAPTER_PAGE_SIZE = 100;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function pluginError(code, message) {
@@ -117,6 +118,56 @@ function dataItems(payload) {
   return Array.isArray(payload?.data) ? payload.data : [];
 }
 
+function chapterMode(value) {
+  return value === "RECENT" || value === "INCREMENTAL" ? value : "FULL";
+}
+
+function chapterFeedPath(input) {
+  const sourceStoryId = requireMangaId(input?.sourceStoryId);
+  const mode = chapterMode(input?.mode);
+  const offset = requestedOffset(input?.nextToken);
+  const limit = mode === "RECENT" ? PAGE_SIZE : CHAPTER_PAGE_SIZE;
+  const orderField = mode === "INCREMENTAL"
+    ? "updatedAt"
+    : mode === "RECENT" ? "readableAt" : "chapter";
+  const orderDirection = mode === "RECENT" ? "desc" : "asc";
+  let path = `/manga/${encodeURIComponent(sourceStoryId)}/feed` +
+    `?limit=${limit}&offset=${offset}` +
+    `&translatedLanguage%5B%5D=en` +
+    `&order%5B${orderField}%5D=${orderDirection}`;
+  if (mode === "INCREMENTAL" && typeof input?.checkpoint === "string" && input.checkpoint.trim()) {
+    path += `&updatedAtSince=${encodeURIComponent(input.checkpoint.trim())}`;
+  }
+  return path;
+}
+
+function chapterTimestamp(attributes) {
+  const value = attributes?.readableAt || attributes?.publishAt || attributes?.createdAt;
+  const timestamp = typeof value === "string" ? Date.parse(value) : NaN;
+  return Number.isFinite(timestamp) && timestamp >= 0 ? timestamp : null;
+}
+
+function toRelease(resource) {
+  const sourceReleaseId = requireMangaId(resource?.id);
+  const attributes = resource?.attributes || {};
+  const title = typeof attributes.title === "string" && attributes.title.trim()
+    ? attributes.title.trim()
+    : null;
+  const rawNumber = typeof attributes.chapter === "string" && attributes.chapter.trim()
+    ? attributes.chapter.trim()
+    : null;
+  const languageTag = typeof attributes.translatedLanguage === "string" && attributes.translatedLanguage.trim()
+    ? attributes.translatedLanguage.trim().toLowerCase()
+    : null;
+  return {
+    sourceReleaseId,
+    title,
+    rawNumber,
+    languageTag,
+    publishedAtEpochMillis: chapterTimestamp(attributes),
+  };
+}
+
 function mangaIdFromUrl(url) {
   const value = typeof url === "string" ? url.trim() : "";
   const match = /^https:\/\/mangadex\.org\/title\/([0-9a-f-]{36})(?:[/?#].*)?$/i.exec(value);
@@ -157,6 +208,14 @@ globalThis.openstoryPlugin = Object.freeze({
         throw pluginError("plugin.mangadex_url_invalid", "Unsupported MangaDex title URL");
       }
       return fetchManga(sourceStoryId);
+    },
+
+    chapters: async input => {
+      const payload = await getJson(chapterFeedPath(input));
+      return {
+        items: dataItems(payload).filter(item => item?.type === "chapter").map(toRelease),
+        nextToken: nextOffsetToken(payload),
+      };
     },
   }),
 });

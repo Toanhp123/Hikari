@@ -28,9 +28,22 @@ data class ContentStoryRequestDto(val sourceStoryId: String) {
 }
 
 @Serializable
-data class ContentChaptersRequestDto(val sourceStoryId: String, val nextToken: String? = null) {
+enum class ContentChapterListModeDto {
+    RECENT,
+    FULL,
+    INCREMENTAL,
+}
+
+@Serializable
+data class ContentChaptersRequestDto(
+    val sourceStoryId: String,
+    val mode: ContentChapterListModeDto = ContentChapterListModeDto.FULL,
+    val checkpoint: String? = null,
+    val nextToken: String? = null,
+) {
     init {
         requireSourceId(sourceStoryId, "sourceStoryId")
+        requireCheckpoint(checkpoint)
         requireToken(nextToken)
     }
 }
@@ -179,6 +192,12 @@ private fun requireTextList(values: List<String>, field: String) {
 private fun requireToken(value: String?) {
     require(value == null || value.isNotBlank() && value.length <= MAX_TOKEN_LENGTH) {
         "Continuation token must be null or non-blank and bounded"
+    }
+}
+
+private fun requireCheckpoint(value: String?) {
+    require(value == null || value.isNotBlank() && value.length <= MAX_TOKEN_LENGTH) {
+        "Checkpoint must be null or non-blank and bounded"
     }
 }
 

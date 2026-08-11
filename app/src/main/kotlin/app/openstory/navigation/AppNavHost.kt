@@ -19,6 +19,9 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import app.openstory.catalog.ui.home.HomeScreen
 import app.openstory.catalog.ui.home.HomeViewModel
+import app.openstory.catalog.ui.chapters.ChapterListActions
+import app.openstory.catalog.ui.chapters.ChapterListAssistedArgs
+import app.openstory.catalog.ui.chapters.ChapterListViewModel
 import app.openstory.catalog.ui.library.LibraryScreen
 import app.openstory.catalog.ui.library.LibraryViewModel
 import app.openstory.catalog.ui.mapping.MappingActions
@@ -145,8 +148,12 @@ private fun StoryDestination(route: AppRoute.Story) {
     val mappingViewModel = hiltViewModel<MappingViewModel, MappingViewModel.Factory>(
         creationCallback = { factory -> factory.create(MappingAssistedArgs(storyId)) },
     )
+    val chapterViewModel = hiltViewModel<ChapterListViewModel, ChapterListViewModel.Factory>(
+        creationCallback = { factory -> factory.create(ChapterListAssistedArgs(storyId)) },
+    )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val mappingState by mappingViewModel.state.collectAsStateWithLifecycle()
+    val chapterState by chapterViewModel.state.collectAsStateWithLifecycle()
     StoryScreen(
         state = state,
         onRetry = viewModel::retry,
@@ -158,6 +165,14 @@ private fun StoryDestination(route: AppRoute.Story) {
             onResolveUrl = mappingViewModel::resolveUrl,
             onApprove = mappingViewModel::approve,
             onReject = mappingViewModel::reject,
+        ),
+        chapterState = chapterState,
+        chapterActions = ChapterListActions(
+            onToggleExpanded = chapterViewModel::toggleExpanded,
+            onFilterSelected = chapterViewModel::selectFilter,
+            onTombstonesVisible = chapterViewModel::setTombstonesVisible,
+            onKeepGrouped = chapterViewModel::keepGrouped,
+            onSeparate = chapterViewModel::separate,
         ),
     )
 }

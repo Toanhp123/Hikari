@@ -9,6 +9,7 @@
         ":core:common",
         ":catalog",
         ":library",
+        ":chapters",
         ":storage:room",
         ":plugins:api",
         ":plugins:runtime",
@@ -64,11 +65,31 @@
         "app.openstory.plugins.runtime.update."
       ]
     },
+    ":chapters": {
+      "path": "chapters",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common", ":library", ":plugins:api", ":plugins:runtime"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.content.Context",
+        "androidx.compose.",
+        "androidx.room.",
+        "androidx.work.",
+        "app.openstory.storage.",
+        "app.openstory.catalog.ui.",
+        "app.openstory.plugins.runtime.capabilities.",
+        "app.openstory.plugins.runtime.execution.",
+        "app.openstory.plugins.runtime.install.",
+        "app.openstory.plugins.runtime.persistence.",
+        "app.openstory.plugins.runtime.update."
+      ]
+    },
     ":feature:catalog": {
       "path": "feature/catalog",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":catalog", ":library"],
+      "productionDependencies": [":core:common", ":catalog", ":library", ":chapters"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
     },
@@ -76,7 +97,7 @@
       "path": "storage/room",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":catalog", ":library", ":plugins:runtime"],
+      "productionDependencies": [":core:common", ":catalog", ":library", ":chapters", ":plugins:runtime"],
       "testDependencies": [],
       "forbiddenProductionImports": [
         "app.openstory.catalog.ui.",

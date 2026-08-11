@@ -2,6 +2,7 @@ package app.openstory.catalog.ui.mapping
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.openstory.chapters.sync.InitialChapterSyncScheduler
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.library.mapping.ContentMapping
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 class MappingViewModel @AssistedInject constructor(
     @Assisted private val assistedArgs: MappingAssistedArgs,
     private val mappings: ContentMappingService,
+    private val chapterSync: InitialChapterSyncScheduler,
 ) : ViewModel() {
     private val storyId = assistedArgs.storyId
     private val candidates = MutableStateFlow<List<PendingCandidate>>(emptyList())
@@ -79,6 +81,7 @@ class MappingViewModel @AssistedInject constructor(
                 } else {
                     mappings.approve(storyId, pending.candidate)
                 }
+                chapterSync.schedule(storyId)
                 candidates.value = candidates.value - pending
             }
         }

@@ -56,6 +56,7 @@ fail_forbidden_runtime_references() {
 core_root="$ROOT_DIR/core/common/src/main"
 catalog_root="$ROOT_DIR/catalog/src/main"
 library_root="$ROOT_DIR/library/src/main"
+chapters_root="$ROOT_DIR/chapters/src/main"
 feature_root="$ROOT_DIR/feature/catalog/src/main"
 storage_root="$ROOT_DIR/storage/room/src/main"
 plugin_api_root="$ROOT_DIR/plugins/api/src/main"
@@ -89,10 +90,16 @@ validate_project_imports "$library_root" \
   '^app\.openstory\.(common|library|plugins\.api)(\.|$)|^app\.openstory\.catalog\.model\.ContentType$|^app\.openstory\.catalog\.projection(\.|$)|^app\.openstory\.plugins\.runtime\.(InstalledPlugin|PluginCallResult|PluginRuntime)$' \
   'library may import only core common, narrow catalog projections/models, plugin wire contracts, the public runtime facade, and its own packages.'
 
-validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog|library)(\.|$)' \
-  'feature/catalog may import only core common, catalog, and Library project packages.'
+fail_matches "$chapters_root" 'android\.content\.Context(\.|$)|androidx\.(compose|room|work)(\.|$)' \
+  'chapters must remain free of Android platform, Compose, Room, and WorkManager APIs.'
+validate_project_imports "$chapters_root" \
+  '^app\.openstory\.(common|chapters|library|plugins\.api)(\.|$)|^app\.openstory\.plugins\.runtime\.(InstalledPlugin|PluginCallResult|PluginRuntime)$' \
+  'chapters may import only core common, Library, plugin wire contracts, the public runtime facade, and its own packages.'
 
-validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
+validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog|library|chapters)(\.|$)' \
+  'feature/catalog may import only core common, catalog, Library, and Chapters project packages.'
+
+validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
   'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'
 fail_forbidden_runtime_references "$storage_root"
 

@@ -2,14 +2,64 @@ package app.openstory.plugins.api.protocol
 
 import app.openstory.plugins.api.protocol.catalog.WireContentType
 import app.openstory.plugins.api.protocol.content.ContentResolveUrlRequestDto
+import app.openstory.plugins.api.protocol.content.ContentChapterListModeDto
+import app.openstory.plugins.api.protocol.content.ContentChaptersRequestDto
 import app.openstory.plugins.api.protocol.content.ContentStoryCandidateDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class PluginProtocolValidatorTest {
+    @Test
+    fun chapterRequestWithoutModeKeepsProtocolOneFullCompatibility() {
+        val request = Json.decodeFromString<ContentChaptersRequestDto>("""{"sourceStoryId":"story"}""")
+
+        assertEquals(ContentChapterListModeDto.FULL, request.mode)
+    }
+
+    @Test
+    fun chapterRequestRoundTripsEveryListMode() {
+        val modes = ContentChapterListModeDto.entries
+
+        assertEquals(
+            modes,
+            modes.map { mode ->
+                Json.decodeFromString<ContentChaptersRequestDto>(
+                    Json.encodeToString(ContentChaptersRequestDto("story", mode = mode)),
+                ).mode
+            },
+        )
+    }
+
+    @Test
+    fun chapterRequestRejectsBlankOrOversizedCheckpointAndToken() {
+        assertFailsWith<IllegalArgumentException> { ContentChaptersRequestDto("story", checkpoint = " ") }
+        assertFailsWith<IllegalArgumentException> { ContentChaptersRequestDto("story", nextToken = " ") }
+        assertFailsWith<IllegalArgumentException> {
+            ContentChaptersRequestDto("story", checkpoint = "x".repeat(4_097))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ContentChaptersRequestDto("story", nextToken = "x".repeat(4_097))
+        }
+    }
+
+    @Test
+    fun contentChaptersRejectsMalformedReleaseOutput() {
+        val payload = Json.parseToJsonElement("""{"items":[{"sourceReleaseId":"","rawNumber":"1"}]}""")
+
+        assertEquals(
+            listOf("protocol.invalid_payload"),
+            PluginProtocolValidator.validateOutput(
+                operation = PluginOperation.CONTENT_CHAPTERS,
+                payload = payload,
+                allowedNetworkHosts = emptySet(),
+            ).map(ProtocolViolation::code),
+        )
+    }
+
     @Test
     fun resolveUrlRequestRejectsNonHttpsInput() {
         assertFailsWith<IllegalArgumentException> {
