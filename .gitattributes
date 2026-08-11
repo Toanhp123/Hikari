@@ -1,3 +1,7 @@
 # Room schema exports participate in byte-level stability checks.
 # Keep their working-tree representation platform-independent.
 storage/room/schemas/**/*.json text eol=lf
+
+# Bundled plugin archives must be byte-identical across operating systems.
+bundled-plugins/**/*.js text eol=lf
+bundled-plugins/**/manifest.json text eol=lf
