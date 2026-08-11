@@ -1,0 +1,182 @@
+package app.openstory.downloads
+
+import app.openstory.common.id.ChapterReleaseId
+import app.openstory.downloads.blob.BlobChecksum
+import app.openstory.downloads.blob.ChapterBlobKey
+import app.openstory.downloads.blob.ChapterBlobNamespace
+import app.openstory.downloads.blob.ChapterBlobStore
+import app.openstory.downloads.reconcile.StorageWriteAdmission
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+
+class DownloadServiceTest {
+    @Test
+    fun `download moves queued running completed and stores verified bytes`() = runTest {
+        val repository = FakeDownloadRepository()
+        val blobs = FakeBlobStore()
+        val service = DownloadService(repository, blobs, source = {
+            DownloadFetchResult.Success("fingerprint", "chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
+        })
+        service.queue(key.releaseId, 1)
+
+        assertEquals(DownloadRunResult.COMPLETED, service.run(key.releaseId, 2))
+        assertEquals(listOf(DownloadState.QUEUED, DownloadState.RUNNING, DownloadState.COMPLETED), repository.saved.map { it.state })
+        assertEquals("chapter", blobs.read(key)!!.bytes().decodeToString())
+    }
+
+    @Test
+    fun `checksum mismatch fails and removes partial bytes`() = runTest {
+        val repository = FakeDownloadRepository()
+        val blobs = FakeBlobStore()
+        val service = DownloadService(repository, blobs, source = {
+            DownloadFetchResult.Success("fingerprint", "wrong".encodeToByteArray(), BlobChecksum.sha256("expected".encodeToByteArray()))
+        })
+        service.queue(key.releaseId, 1)
+
+        assertEquals(DownloadRunResult.FAILURE, service.run(key.releaseId, 2))
+        assertEquals(DownloadState.FAILED, repository.find(key.releaseId)!!.state)
+        assertNull(blobs.read(key))
+    }
+
+    @Test
+    fun `completed retry is idempotent`() = runTest {
+        val repository = FakeDownloadRepository()
+        val blobs = FakeBlobStore()
+        var fetches = 0
+        val service = DownloadService(repository, blobs, source = {
+            fetches += 1
+            DownloadFetchResult.Success("fingerprint", "chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
+        })
+        service.queue(key.releaseId, 1)
+        service.run(key.releaseId, 2)
+
+        assertEquals(DownloadRunResult.COMPLETED, service.run(key.releaseId, 3))
+        assertEquals(1, fetches)
+    }
+
+    @Test
+    fun `low storage refuses the blob write and leaves retryable failure`() = runTest {
+        val repository = FakeDownloadRepository()
+        val blobs = FakeBlobStore()
+        val service = DownloadService(
+            repository,
+            blobs,
+            {
+                DownloadFetchResult.Success(
+                    "fingerprint",
+                    "chapter".encodeToByteArray(),
+                    BlobChecksum.sha256("chapter".encodeToByteArray()),
+                )
+            },
+            StorageWriteAdmission { false },
+        )
+        service.queue(key.releaseId, 1)
+
+        assertEquals(DownloadRunResult.RETRY, service.run(key.releaseId, 2))
+        assertEquals("download.low_storage", repository.find(key.releaseId)?.failureReason)
+        assertNull(blobs.read(key))
+    }
+
+    @Test
+    fun `cancel during fetch cannot be overwritten by completion`() = runTest {
+        val repository = FakeDownloadRepository()
+        val blobs = FakeBlobStore()
+        val fetchStarted = CompletableDeferred<Unit>()
+        val releaseFetch = CompletableDeferred<Unit>()
+        val service = DownloadService(repository, blobs, source = {
+            fetchStarted.complete(Unit)
+            releaseFetch.await()
+            DownloadFetchResult.Success(
+                "fingerprint",
+                "chapter".encodeToByteArray(),
+                BlobChecksum.sha256("chapter".encodeToByteArray()),
+            )
+        })
+        service.queue(key.releaseId, 1)
+
+        val running = async { service.run(key.releaseId, 2) }
+        fetchStarted.await()
+        service.cancel(key.releaseId, 3)
+        releaseFetch.complete(Unit)
+
+        assertEquals(DownloadRunResult.CANCELLED, running.await())
+        assertEquals(DownloadState.CANCELLED, repository.find(key.releaseId)?.state)
+        assertNull(blobs.read(key))
+    }
+
+    @Test
+    fun `blob write failure becomes retryable failed state`() = runTest {
+        val repository = FakeDownloadRepository()
+        val blobs = FakeBlobStore(failWrites = true)
+        val service = successfulService(repository, blobs)
+        service.queue(key.releaseId, 1)
+
+        assertEquals(DownloadRunResult.RETRY, service.run(key.releaseId, 2))
+        assertEquals("download.storage_io", repository.find(key.releaseId)?.failureReason)
+        assertNull(blobs.read(key))
+    }
+
+    @Test
+    fun `completion metadata failure removes blob and becomes retryable`() = runTest {
+        val repository = FakeDownloadRepository(failCompletedSaveOnce = true)
+        val blobs = FakeBlobStore()
+        val service = successfulService(repository, blobs)
+        service.queue(key.releaseId, 1)
+
+        assertEquals(DownloadRunResult.RETRY, service.run(key.releaseId, 2))
+        assertEquals("download.storage_io", repository.find(key.releaseId)?.failureReason)
+        assertNull(blobs.read(key))
+    }
+
+    private fun successfulService(repository: DownloadRepository, blobs: ChapterBlobStore) =
+        DownloadService(repository, blobs, source = {
+            DownloadFetchResult.Success(
+                "fingerprint",
+                "chapter".encodeToByteArray(),
+                BlobChecksum.sha256("chapter".encodeToByteArray()),
+            )
+        })
+
+    private val key = ChapterBlobKey(
+        ChapterBlobNamespace.EXPLICIT_DOWNLOAD,
+        ChapterReleaseId("release:1"),
+        "fingerprint",
+    )
+}
+
+private class FakeDownloadRepository(
+    private var failCompletedSaveOnce: Boolean = false,
+) : DownloadRepository {
+    val saved = mutableListOf<DownloadRecord>()
+    override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? = saved.lastOrNull { it.key.releaseId == releaseId }
+    override fun observe(releaseId: ChapterReleaseId) = kotlinx.coroutines.flow.flowOf(saved.lastOrNull { it.key.releaseId == releaseId })
+    override suspend fun save(record: DownloadRecord) {
+        if (record.state == DownloadState.COMPLETED && failCompletedSaveOnce) {
+            failCompletedSaveOnce = false
+            error("database unavailable")
+        }
+        saved += record
+    }
+
+    override suspend fun completeUnlessCancelled(record: DownloadRecord): Boolean {
+        if (find(record.key.releaseId)?.state == DownloadState.CANCELLED) return false
+        save(record)
+        return true
+    }
+}
+
+private class FakeBlobStore(
+    private val failWrites: Boolean = false,
+) : ChapterBlobStore {
+    private val blobs = mutableMapOf<ChapterBlobKey, app.openstory.downloads.blob.ChapterBlob>()
+    override suspend fun read(key: ChapterBlobKey) = blobs[key]
+    override suspend fun write(key: ChapterBlobKey, blob: app.openstory.downloads.blob.ChapterBlob) {
+        if (failWrites) error("disk unavailable")
+        blobs[key] = blob
+    }
+    override suspend fun delete(key: ChapterBlobKey) { blobs.remove(key) }
+}

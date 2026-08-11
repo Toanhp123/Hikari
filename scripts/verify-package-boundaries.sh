@@ -104,13 +104,13 @@ validate_project_imports "$reader_root" \
   '^app\.openstory\.(common|chapters|reader|plugins\.api)(\.|$)|^app\.openstory\.plugins\.runtime\.(InstalledPlugin|PluginCallResult|PluginRuntime)$' \
   'reader may import only core common, Chapters, plugin wire contracts, the public runtime facade, and its own packages.'
 
-validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|catalog|library|chapters)(\.|$)' \
-  'feature/catalog may import only core common, catalog, Library, and Chapters project packages.'
+validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|catalog|library|chapters|downloads)(\.|$)' \
+  'feature/catalog may import only core common, catalog, Library, Chapters, and Downloads project packages.'
 
-validate_project_imports "$feature_reader_root" '^app\.openstory\.(common|chapters|reader)(\.|$)' \
-  'feature/reader may import only core common, Chapters, and Reader project packages.'
+validate_project_imports "$feature_reader_root" '^app\.openstory\.(common|chapters|reader|downloads)(\.|$)' \
+  'feature/reader may import only core common, Chapters, Reader, and Downloads project packages.'
 
-validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|reader|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
+validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|reader|downloads|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
   'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'
 fail_forbidden_runtime_references "$storage_root"
 

@@ -44,6 +44,30 @@ class ChapterListTest {
         compose.onNodeWithContentDescription("Chapter 10, 2 releases, unread").performClick()
         compose.onNodeWithText("org.mangadex.content · English").assertIsDisplayed()
     }
+    @Test
+    fun visibleFilterAndChapterRangeExposeDownloadCommands() {
+        val state = fixtureState().copy(chapters = fixtureState().chapters.map { it.copy(expanded = true) })
+        var filtered = emptyList<ChapterReleaseId>()
+        var range = emptyList<ChapterReleaseId>()
+        compose.setContent {
+            MaterialTheme {
+                ChapterList(
+                    state = state,
+                    actions = ChapterListActions(
+                        onDownloadFiltered = { filtered = it },
+                        onDownloadRange = { range = it },
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Download visible").performClick()
+        compose.onNodeWithText("Download chapter").performClick()
+
+        val expected = state.chapters.single().releases.map { it.id }
+        kotlin.test.assertEquals(expected, filtered)
+        kotlin.test.assertEquals(expected, range)
+    }
 }
 
 private fun fixtureState() = ChapterListUiState(

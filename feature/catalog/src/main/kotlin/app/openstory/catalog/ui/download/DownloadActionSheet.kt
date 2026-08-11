@@ -1,0 +1,49 @@
+package app.openstory.catalog.ui.download
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
+import app.openstory.common.id.ChapterReleaseId
+import app.openstory.downloads.DownloadState
+
+@Composable
+fun DownloadActionSheet(
+    releaseId: ChapterReleaseId,
+    state: DownloadState?,
+    pendingRemoval: Boolean,
+    actions: DownloadActions,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        when (state) {
+            DownloadState.QUEUED, DownloadState.RUNNING ->
+                TextButton(onClick = { actions.onCancel(releaseId) }) { Text("Cancel") }
+            DownloadState.FAILED, DownloadState.CANCELLED ->
+                TextButton(onClick = { actions.onRetry(releaseId) }) { Text("Retry") }
+            DownloadState.COMPLETED -> TextButton(onClick = { actions.onRemove(releaseId) }) { Text("Remove offline") }
+            null -> TextButton(onClick = { actions.onDownload(releaseId) }) { Text("Download") }
+        }
+        state?.let { Text(it.name.lowercase().replaceFirstChar(Char::uppercase)) }
+    }
+    if (pendingRemoval) {
+        AlertDialog(
+            onDismissRequest = actions.onDismissRemoval,
+            title = { Text("Remove offline chapter?") },
+            text = { Text("The chapter will need network access to open again.") },
+            confirmButton = { TextButton(onClick = actions.onConfirmRemoval) { Text("Remove") } },
+            dismissButton = { TextButton(onClick = actions.onDismissRemoval) { Text("Keep") } },
+        )
+    }
+}
+
+data class DownloadActions(
+    val onDownload: (ChapterReleaseId) -> Unit = {},
+    val onCancel: (ChapterReleaseId) -> Unit = {},
+    val onRetry: (ChapterReleaseId) -> Unit = {},
+    val onRemove: (ChapterReleaseId) -> Unit = {},
+    val onConfirmRemoval: () -> Unit = {},
+    val onDismissRemoval: () -> Unit = {},
+)

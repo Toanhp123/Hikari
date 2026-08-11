@@ -1,4 +1,4 @@
-<!-- DOCUMENT LIFECYCLE: PLANNED / REBASELINED FOR POST-BASELINE GRAPH -->
+<!-- DOCUMENT LIFECYCLE: COMPLETED / CHECKPOINT VERIFIED 2026-08-11 -->
 
 # Wave 09 - Cache, Downloads, and Storage Implementation Plan
 
@@ -29,10 +29,10 @@
 - Modify: `settings.gradle.kts`, `config/architecture/module-boundaries.json`
 - Create: `app/src/main/kotlin/app/openstory/di/DownloadModule.kt`
 
-- [ ] Write RED tests for temp-write, fsync/close, atomic rename, checksum, path confinement, interrupted write, and exact exit graph.
-- [ ] Implement `ChapterBlobStore` port in Downloads and `AtomicFileChapterBlobStore` adapter without exposing paths.
-- [ ] Run `./gradlew :downloads:test :storage:files:test :verifyArchitecture detekt --stacktrace`.
-- [ ] Commit `downloads: add atomic content storage boundary`.
+- [x] Write RED tests for temp-write, fsync/close, atomic rename, checksum, path confinement, interrupted write, and exact exit graph.
+- [x] Implement `ChapterBlobStore` port in Downloads and `AtomicFileChapterBlobStore` adapter without exposing paths.
+- [x] Run `./gradlew :downloads:test :storage:files:test :verifyArchitecture detekt --stacktrace`.
+- [x] Commit `downloads: add atomic content storage boundary`.
 
 ### Task 2: Implement cache quota and eviction policy
 
@@ -43,10 +43,10 @@
 - Modify: `storage/room/build.gradle.kts`, `storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt`, `RoomMigrations.kt`
 - Test: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/downloads/DownloadMigrationTest.kt`
 
-- [ ] Write RED tests for LRU access, quota, pinned/current/progress protection, explicit-download exclusion, and schema `5 -> 6` preservation.
-- [ ] Implement pure eviction plans and Room metadata transactions; file deletion follows committed plans with reconciliation safety.
-- [ ] Run `./gradlew :downloads:test :storage:room:connectedDebugAndroidTest --stacktrace` and `./scripts/verify-room-schema-stability.sh`.
-- [ ] Commit `downloads: add bounded chapter cache`.
+- [x] Write RED tests for LRU access, quota, pinned/current/progress protection, explicit-download exclusion, and schema `5 -> 6` preservation.
+- [x] Implement pure eviction plans and Room metadata transactions; file deletion follows committed plans with reconciliation safety.
+- [x] Run `./gradlew :downloads:test :storage:room:connectedDebugAndroidTest --stacktrace` and `./scripts/verify-room-schema-stability.sh`.
+- [x] Commit `downloads: add bounded chapter cache`.
 
 ### Task 3: Implement explicit download state machine
 
@@ -57,10 +57,10 @@
 - Test: `app/src/test/kotlin/app/openstory/work/ChapterDownloadWorkerTest.kt`
 - Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/downloads/RoomDownloadRepository.kt`
 
-- [ ] Write RED tests for queued/running/completed/failed/cancelled, idempotent retry, checksum mismatch, cancellation cleanup, and worker delegation.
-- [ ] Implement capability-owned transitions and one-ID WorkManager adapter.
-- [ ] Run `./gradlew :downloads:test :app:testDebugUnitTest :storage:room:connectedDebugAndroidTest --stacktrace`.
-- [ ] Commit `downloads: add explicit offline state machine`.
+- [x] Write RED tests for queued/running/completed/failed/cancelled, idempotent retry, checksum mismatch, cancellation cleanup, and worker delegation.
+- [x] Implement capability-owned transitions and one-ID WorkManager adapter.
+- [x] Run `./gradlew :downloads:test :app:testDebugUnitTest :storage:room:connectedDebugAndroidTest --stacktrace`.
+- [x] Commit `downloads: add explicit offline state machine`.
 
 ### Task 4: Provide download-cache-network Reader resolution
 
@@ -69,10 +69,10 @@
 - Test: `downloads/src/test/kotlin/app/openstory/downloads/reader/DownloadAwareReaderDocumentStoreTest.kt`
 - Modify: `app/src/main/kotlin/app/openstory/di/ReaderModule.kt`, `feature/reader/build.gradle.kts`
 
-- [ ] Write RED tests proving explicit download, cache, then network order; successful sanitized network reads write into automatic cache; corrupt local bytes are quarantined; fallback never marks remote failure as local success.
-- [ ] Implement the Reader port adapter without adding a Reader-to-Downloads dependency cycle.
-- [ ] Run `./gradlew :reader:test :downloads:test :feature:reader:testDebugUnitTest :app:testDebugUnitTest --stacktrace`.
-- [ ] Commit `downloads: resolve reader content offline first`.
+- [x] Write RED tests proving explicit download, cache, then network order; successful sanitized network reads write into automatic cache; corrupt local bytes are quarantined; fallback never marks remote failure as local success.
+- [x] Implement the Reader port adapter without adding a Reader-to-Downloads dependency cycle.
+- [x] Run `./gradlew :reader:test :downloads:test :feature:reader:testDebugUnitTest :app:testDebugUnitTest --stacktrace`.
+- [x] Commit `downloads: resolve reader content offline first`.
 
 ### Task 5: Add download actions and indicators
 
@@ -82,10 +82,10 @@
 - Create: `feature/reader/src/main/kotlin/app/openstory/reader/ui/DownloadIndicator.kt`
 - Test: `feature/reader/src/androidTest/kotlin/app/openstory/reader/ui/DownloadIndicatorTest.kt`
 
-- [ ] Write RED tests for one release/range/filter commands, progress/cancel/retry, offline indicator, and destructive confirmation.
-- [ ] Implement UI over download services only.
-- [ ] Run `./gradlew :feature:catalog:testDebugUnitTest :feature:reader:connectedDebugAndroidTest lintDebug --stacktrace`.
-- [ ] Commit `downloads: add offline content controls`.
+- [x] Write RED tests for one release/range/filter commands, progress/cancel/retry, offline indicator, and destructive confirmation.
+- [x] Implement UI over download services only.
+- [x] Run `./gradlew :feature:catalog:testDebugUnitTest :feature:reader:connectedDebugAndroidTest lintDebug --stacktrace`.
+- [x] Commit `downloads: add offline content controls`.
 
 ### Task 6: Reconcile database and filesystem state
 
@@ -96,16 +96,18 @@
 - Test: `storage/files/src/test/kotlin/app/openstory/storage/files/FileBlobInventoryTest.kt`
 - Test: `app/src/androidTest/kotlin/app/openstory/storage/LowStorageBehaviorTest.kt`
 
-- [ ] Write RED tests for orphan files, missing files, interrupted temp files, stale metadata, low-space refusal, and protected downloads.
-- [ ] Implement bounded recoverable reconciliation with no broad recursive deletion.
-- [ ] Run `./gradlew :downloads:test :storage:files:test :storage:room:connectedDebugAndroidTest :app:connectedDebugAndroidTest --stacktrace` and `./scripts/structural-review-report.sh`.
-- [ ] Commit `downloads: reconcile offline storage`.
+- [x] Write RED tests for orphan files, missing files, interrupted temp files, stale metadata, low-space refusal, and protected downloads.
+- [x] Implement bounded recoverable reconciliation with no broad recursive deletion.
+- [x] Run `./gradlew :downloads:test :storage:files:test :storage:room:connectedDebugAndroidTest :app:connectedDebugAndroidTest --stacktrace` and `./scripts/structural-review-report.sh`.
+- [x] Commit `downloads: reconcile offline storage`.
 
 ## Wave Checkpoint
 
-- [ ] Exact exit graph and schema 6 pass.
-- [ ] Interrupted writes never replace valid content.
-- [ ] Cache eviction cannot delete explicit downloads.
-- [ ] Reader works offline and falls back safely.
-- [ ] `./scripts/verify.sh` and device checkpoint pass.
-- [ ] Deep ownership review confirms policy, Room metadata, filesystem bytes, Reader port, UI, and workers remain separated.
+- [x] Exact exit graph and schema 6 pass.
+- [x] Interrupted writes never replace valid content.
+- [x] Cache eviction cannot delete explicit downloads.
+- [x] Reader works offline and falls back safely, including first-open completed downloads without progress metadata.
+- [x] `./scripts/verify.sh` and the Wave 09 device checkpoint pass.
+- [x] Deep ownership review confirms policy, Room metadata, filesystem bytes, Reader port, UI, and workers remain separated.
+
+Checkpoint evidence (2026-08-11): full verification, lint, Detekt, architecture, schema stability, and structural hard policies passed. Device coverage passed on API 26 for Catalog, Reader, Room, and app tests; Room and the Wave 09 low-storage app contract also passed on API 37. The unrelated API 37 JavaScript sandbox contract remains outside this wave's storage checkpoint.

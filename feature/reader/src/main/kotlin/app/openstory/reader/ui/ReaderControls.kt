@@ -20,6 +20,7 @@ fun ReaderControls(state: ReaderUiState, actions: ReaderActions) {
     TopAppBar(
         title = { Text(state.chapterLabel.ifBlank { "Reader" }) },
         actions = {
+            DownloadIndicator(state.availableOffline)
             TextButton(
                 onClick = actions.onDecreaseFont,
                 enabled = state.fontScale > MIN_FONT_SCALE,

@@ -31,6 +31,18 @@ class ReaderDocumentRepositoryTest {
     }
 
     @Test
+    fun returnsCurrentStoreEntryWithoutProgressFingerprint() = runTest {
+        val document = document("downloaded")
+        val store = FakeStore(currentReadResult = document)
+        val source = FakeSource()
+
+        val result = repository(store, source).load(request(candidate("release")))
+
+        assertEquals(true, assertIs<ReaderLoadResult.Success>(result).fromStore)
+        assertEquals(0, source.fetchCount)
+    }
+
+    @Test
     fun writesSanitizedNetworkResultAndFallsBackToAlternate() = runTest {
         val store = FakeStore()
         val source = FakeSource(
@@ -117,11 +129,13 @@ class ReaderDocumentRepositoryTest {
 
 private class FakeStore(
     private val readResult: ReaderDocument? = null,
+    private val currentReadResult: ReaderDocument? = null,
 ) : ReaderDocumentStore {
     val writes = mutableListOf<Pair<String, String>>()
     val quarantines = mutableListOf<Pair<String, String>>()
 
     override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String) = readResult
+    override suspend fun readCurrent(releaseId: ChapterReleaseId) = currentReadResult
 
     override suspend fun write(
         releaseId: ChapterReleaseId,

@@ -64,5 +64,7 @@ run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.catalog.repos
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.library.LibraryRepository' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.chapters.repository.ChapterRepository' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.reader.progress.ReadingProgressRepository' 0
+run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.downloads.cache.CacheRepository' 0
+run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.downloads.blob.ChapterBlobKey' 0
 
 echo 'verify-package-boundaries.sh contract verified.'

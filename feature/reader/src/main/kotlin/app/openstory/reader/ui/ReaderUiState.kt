@@ -15,6 +15,7 @@ data class ReaderUiState(
     val restoredBlockId: String? = null,
     val restoredCharacterOffset: Int = 0,
     val fontScale: Float = DEFAULT_FONT_SCALE,
+    val availableOffline: Boolean = false,
     val failure: String? = null,
 )
 
