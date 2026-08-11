@@ -3,8 +3,12 @@ package app.openstory.catalog.ui.chapters
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,21 +24,40 @@ fun ChapterList(
     actions: ChapterListActions,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        chapterListItems(state, actions)
+    }
+}
+
+fun LazyListScope.chapterListItems(
+    state: ChapterListUiState,
+    actions: ChapterListActions,
+) {
+    item(key = "chapter-summary") {
         Text("${state.unreadCount} unread chapters", style = MaterialTheme.typography.titleMedium)
+    }
+    item(key = "chapter-filters") {
         ChapterFiltersSheet(state, actions)
-        state.failure?.let { failure ->
+    }
+    state.failure?.let { failure ->
+        item(key = "chapter-failure") {
             Text(failure, color = MaterialTheme.colorScheme.error)
         }
-        if (state.chapters.isEmpty()) {
+    }
+    if (state.chapters.isEmpty()) {
+        item(key = "chapter-empty") {
             Text("No chapters available", style = MaterialTheme.typography.bodyMedium)
         }
-        state.chapters.forEach { chapter -> ChapterRow(chapter, actions) }
+    }
+    items(
+        items = state.chapters,
+        key = { chapter -> "chapter:${chapter.id.value}" },
+    ) { chapter ->
+        ChapterRow(chapter, actions)
     }
 }
 

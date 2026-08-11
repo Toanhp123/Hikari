@@ -18,13 +18,12 @@ acceptance remain separate states.
 
 ## Current position
 
-Architecture Baseline 2 is accepted. Wave 06 Tasks 01-06 are verified and Wave 06 is
-complete. The active boundary is **Wave 07 Task 01 - introduce `:chapters` and normalize
-release labels**. Wave 01-05 checkpoints remain historical delivery evidence and do not
-require compatibility with superseded development architecture. Wave 07 is ready to start
-from the accepted Wave-06 exit boundary.
+Architecture Baseline 2 is accepted. Wave 06 and Wave 07 Tasks 01-06 are verified and both
+waves are complete. The active boundary is **Wave 08 Task 01 - introduce `:reader` and the
+reader document contract**. Wave 01-05 checkpoints remain historical delivery evidence and
+do not require compatibility with superseded development architecture.
 
-Continue from `waves/wave-07-chapter-sync-and-aggregation.md`, beginning with Task 01.
+Continue from `waves/wave-08-reader-and-reading-progress.md`, beginning with Task 01.
 Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -52,12 +51,13 @@ entry evidence, not the number of plugins allowed after that boundary.
 :plugins:api
 :plugins:runtime
 :library
+:chapters
 ```
 
 Direct dependencies are governed by
 `../../config/architecture/module-boundaries.json`. The accepted Baseline 2 graph remains
-historical evidence at seven modules; Task 01 introduced the approved eighth module,
-`:library`. The approved post-baseline evolution is defined by
+historical evidence at seven modules; Wave 06 introduced `:library` and Wave 07 introduced
+`:chapters`, producing the current nine-module graph. The approved post-baseline evolution is defined by
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 ## Approved module evolution
@@ -85,8 +85,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 05 | Catalog Home and discovery | **Implementation present; checkpoint accepted** | `waves/wave-05-catalog-home-and-discovery.md` |
 | AB2 | Architecture reset between Wave 05 and Wave 06 | **Accepted** | `../internal/checkpoints/architecture-baseline-2.md` |
 | 06 | Library and story matching | **Completed; Tasks 01-06 verified** | `waves/wave-06-library-and-story-matching.md` |
-| 07 | Chapter sync and aggregation | **Ready to start; Task 01 next** | `waves/wave-07-chapter-sync-and-aggregation.md` |
-| 08 | Reader and progress | Planned; post-baseline plan approved | `waves/wave-08-reader-and-reading-progress.md` |
+| 07 | Chapter sync and aggregation | **Completed; Tasks 01-06 verified** | `waves/wave-07-chapter-sync-and-aggregation.md` |
+| 08 | Reader and progress | **Ready to start; Task 01 next** | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | Planned; post-baseline plan approved | `waves/wave-09-cache-downloads-and-storage.md` |
 | 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
@@ -124,6 +124,17 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 06.05 | Protected content mappings and Room schema 3 | [Verified](../internal/checkpoints/wave-06-task-05-protected-content-mappings.md) |
 | 06.06 | Mapping review and URL import UI | [Verified](../internal/checkpoints/wave-06-task-06-mapping-review-url-import.md) |
 
+## Wave 07 decomposition
+
+| Task | Outcome | State |
+|---|---|---|
+| 07.01 | `:chapters` and deterministic chapter-label normalization | Verified |
+| 07.02 | Pure deterministic release aggregation and protected overrides | Verified |
+| 07.03 | Provider-neutral chapter operations through the runtime facade | Verified |
+| 07.04 | Transactional chapter graph persistence and Room schema 4 | Verified |
+| 07.05 | Recent/full/incremental synchronization and initial worker adapter | Verified |
+| 07.06 | Canonical chapter-list presentation and correction controls | Verified |
+
 ## Critical dependency chain
 
 ```text
@@ -135,8 +146,9 @@ architecture
              ^ Wave 06 complete: Library + protected mappings + review/URL import verified
           -> story matching
             -> chapter aggregation
-                 ^ Wave 07 Task 01 is next
+                 ^ Wave 07 complete: sync, aggregation, schema 4, and presentation verified
               -> reader
+                   ^ Wave 08 Task 01 is next
                 -> offline storage
                   -> local background/auth/notifications
                     -> release hardening
@@ -144,7 +156,7 @@ architecture
 
 ## Execution rule
 
-1. Continue Wave 07 with Task 01 from its canonical wave plan.
+1. Continue Wave 08 with Task 01 from its canonical wave plan.
 2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
 4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.

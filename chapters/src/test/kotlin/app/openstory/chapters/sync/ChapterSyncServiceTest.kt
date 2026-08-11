@@ -131,6 +131,26 @@ class ChapterSyncServiceTest {
             withPeer.commits.single().syncState!!.fingerprint,
         )
     }
+
+    @Test
+    fun registryFailureBecomesTypedGlobalFailure() = runTest {
+        val service = ChapterSyncService(
+            mappings = FixedMappingRepository,
+            sources = object : ChapterSourceRegistry {
+                override suspend fun enabled(): List<ChapterSource> = error("registry unavailable")
+            },
+            chapters = RecordingChapterRepository(),
+            aggregation = ChapterAggregationEngine(),
+            parser = ChapterLabelParser(),
+            clock = FakeClock(1_000L),
+        )
+
+        val report = assertIs<ChapterSyncReport.Failure>(service.sync(STORY_ID))
+
+        assertEquals(null, report.failures.single().pluginId)
+        assertEquals("chapter.sync_failed", report.failures.single().code)
+        assertEquals(true, report.failures.single().retryable)
+    }
 }
 
 private fun service(

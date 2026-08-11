@@ -1,4 +1,4 @@
-<!-- DOCUMENT LIFECYCLE: ACTIVE / TASK 01 NEXT -->
+<!-- DOCUMENT LIFECYCLE: VERIFIED / COMPLETE -->
 
 # Wave 07 - Chapter Sync and Aggregation Implementation Plan
 
@@ -34,11 +34,11 @@
 
 **Interfaces:** `ChapterKind`, `ParsedChapterLabel(kind, volume, chapter, part, normalizedTitle)`, stable `CanonicalChapterId`, and `ChapterReleaseId` in `:core:common` only when cross-capability identity requires them.
 
-- [ ] Write RED parser tests for decimals, volume/chapter/part, prologue/epilogue/side-story/extra/special/unknown, localized prefixes, and malformed labels.
-- [ ] Write the architecture RED asserting the exact Wave 07 exit graph and allowed dependencies.
-- [ ] Implement the module, models, deterministic parser, and policy update.
-- [ ] Run `./gradlew :chapters:test :verifyArchitecture detekt --stacktrace`.
-- [ ] Commit `chapters: normalize release labels`.
+- [x] Write RED parser tests for decimals, volume/chapter/part, prologue/epilogue/side-story/extra/special/unknown, localized prefixes, and malformed labels.
+- [x] Write the architecture RED asserting the exact Wave 07 exit graph and allowed dependencies.
+- [x] Implement the module, models, deterministic parser, and policy update.
+- [x] Run `./gradlew :chapters:test :verifyArchitecture detekt --stacktrace`.
+- [x] Commit `chapters: normalize release labels`.
 
 ### Task 2: Match and aggregate releases deterministically
 
@@ -51,11 +51,11 @@
 
 **Interfaces:** engine input is existing canonical chapters, source releases, and protected overrides; output is a pure `AggregationPlan` containing creates, links, unlinks, tombstones, and review candidates.
 
-- [ ] Write RED tests for explicit-number conflicts, equivalent releases, stable input-order independence, medium-confidence separation, and override precedence.
-- [ ] Run `./gradlew :chapters:test --tests app.openstory.chapters.aggregation.ChapterAggregationEngineTest --stacktrace`; expect missing aggregation policy.
-- [ ] Implement versioned scoring and a pure mutation plan with no DAO calls.
-- [ ] Run `./gradlew :chapters:test detekt --stacktrace`.
-- [ ] Commit `chapters: aggregate source releases`.
+- [x] Write RED tests for explicit-number conflicts, equivalent releases, stable input-order independence, medium-confidence separation, and override precedence.
+- [x] Run `./gradlew :chapters:test --tests app.openstory.chapters.aggregation.ChapterAggregationEngineTest --stacktrace`; expect missing aggregation policy.
+- [x] Implement versioned scoring and a pure mutation plan with no DAO calls.
+- [x] Run `./gradlew :chapters:test detekt --stacktrace`.
+- [x] Commit `chapters: aggregate source releases`.
 
 ### Task 3: Adapt content chapter operations through the runtime facade
 
@@ -70,11 +70,11 @@
 
 **Interfaces:** Extend `ContentChaptersRequestDto` with defaulted `mode: ContentChapterListModeDto = FULL`, optional bounded `checkpoint`, and `nextToken`. `RECENT`, `FULL`, and `INCREMENTAL` all use `CONTENT_CHAPTERS`; output maps bounded protocol releases into chapter-owned candidates. Defaults preserve protocol-major-1 compatibility. One plugin failure never cancels peers.
 
-- [ ] Write RED tests for recent/full/incremental serialization, checkpoint/token bounds, default FULL compatibility, invalid output, cancellation, and failure isolation.
-- [ ] Run `./gradlew :chapters:test --tests app.openstory.chapters.source.PluginChapterSourceTest :plugins:api:test --stacktrace`; expect missing source/protocol support.
-- [ ] Implement only against `PluginRuntime.invoke` and protocol DTOs.
-- [ ] Run `./gradlew :chapters:test :plugins:api:test :plugins:runtime:testDebugUnitTest --stacktrace`.
-- [ ] Commit `chapters: adapt content release sources`.
+- [x] Write RED tests for recent/full/incremental serialization, checkpoint/token bounds, default FULL compatibility, invalid output, cancellation, and failure isolation.
+- [x] Run `./gradlew :chapters:test --tests app.openstory.chapters.source.PluginChapterSourceTest :plugins:api:test --stacktrace`; expect missing source/protocol support.
+- [x] Implement only against `PluginRuntime.invoke` and protocol DTOs.
+- [x] Run `./gradlew :chapters:test :plugins:api:test :plugins:runtime:testDebugUnitTest --stacktrace`.
+- [x] Commit `chapters: adapt content release sources`.
 
 ### Task 4: Persist chapter graphs and overrides transactionally
 
@@ -88,11 +88,11 @@
 - Test: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/chapters/ChapterMigrationTest.kt`
 - Test: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/chapters/RoomChapterRepositoryTest.kt`
 
-- [ ] Write RED tests for schema `3 -> 4`, atomic plan commits, rollback, stable ordering, tombstones, and protected overrides.
-- [ ] Run `./gradlew :storage:room:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.chapters.ChapterMigrationTest --stacktrace`; expect missing schema/repository.
-- [ ] Implement internal entities/DAOs and one transaction per semantic aggregation commit.
-- [ ] Run `./gradlew :chapters:test :storage:room:connectedDebugAndroidTest --stacktrace` and `./scripts/verify-room-schema-stability.sh`.
-- [ ] Commit `chapters: persist canonical chapter graphs`.
+- [x] Write RED tests for schema `3 -> 4`, atomic plan commits, rollback, stable ordering, tombstones, and protected overrides.
+- [x] Run `./gradlew :storage:room:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.chapters.ChapterMigrationTest --stacktrace`; expect missing schema/repository.
+- [x] Implement internal entities/DAOs and one transaction per semantic aggregation commit.
+- [x] Run `./gradlew :chapters:test :storage:room:connectedDebugAndroidTest --stacktrace` and `./scripts/verify-room-schema-stability.sh`.
+- [x] Commit `chapters: persist canonical chapter graphs`.
 
 ### Task 5: Implement recent, full, and incremental synchronization
 
@@ -103,11 +103,11 @@
 - Create: `app/src/main/kotlin/app/openstory/work/InitialChapterSyncWorker.kt`
 - Test: `app/src/test/kotlin/app/openstory/work/InitialChapterSyncWorkerTest.kt`
 
-- [ ] Write RED tests proving recent results commit first, full sync resumes from cursor/fingerprint, failed commits do not advance state, and worker code only delegates IDs/mode/retry.
-- [ ] Run `./gradlew :chapters:test --tests app.openstory.chapters.sync.ChapterSyncServiceTest :app:testDebugUnitTest --tests app.openstory.work.InitialChapterSyncWorkerTest --stacktrace`; expect missing orchestration.
-- [ ] Implement capability-owned synchronization using protected Library mappings and `supervisorScope`; enqueue initial work only after mapping approval.
-- [ ] Run `./gradlew :chapters:test :app:testDebugUnitTest :storage:room:connectedDebugAndroidTest --stacktrace`.
-- [ ] Commit `chapters: synchronize mapped sources`.
+- [x] Write RED tests proving recent results commit first, full sync resumes from cursor/fingerprint, failed commits do not advance state, and worker code only delegates IDs/mode/retry.
+- [x] Run `./gradlew :chapters:test --tests app.openstory.chapters.sync.ChapterSyncServiceTest :app:testDebugUnitTest --tests app.openstory.work.InitialChapterSyncWorkerTest --stacktrace`; expect missing orchestration.
+- [x] Implement capability-owned synchronization using protected Library mappings and `supervisorScope`; enqueue initial work only after mapping approval.
+- [x] Run `./gradlew :chapters:test :app:testDebugUnitTest :storage:room:connectedDebugAndroidTest --stacktrace`.
+- [x] Commit `chapters: synchronize mapped sources`.
 
 ### Task 6: Add canonical chapter-list presentation
 
@@ -120,18 +120,23 @@
 - Test: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/ui/chapters/ChapterListTest.kt`
 - Modify: `feature/catalog/build.gradle.kts`, `app/build.gradle.kts`, `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt`
 
-- [ ] Write RED tests for canonical unread count, release expansion, filters, tombstone visibility, correction commands, and accessibility.
-- [ ] Run `./gradlew :feature:catalog:testDebugUnitTest --tests app.openstory.catalog.ui.chapters.ChapterListViewModelTest --stacktrace`; expect missing chapter UI.
-- [ ] Implement UI over chapter-owned projections and services; no aggregation in ViewModel/Compose.
-- [ ] Run `./gradlew :feature:catalog:testDebugUnitTest :feature:catalog:connectedDebugAndroidTest :app:connectedDebugAndroidTest lintDebug --stacktrace`.
-- [ ] Commit `chapters: add canonical chapter list`.
+- [x] Write RED tests for canonical unread count, release expansion, filters, tombstone visibility, correction commands, and accessibility.
+- [x] Run `./gradlew :feature:catalog:testDebugUnitTest --tests app.openstory.catalog.ui.chapters.ChapterListViewModelTest --stacktrace`; expect missing chapter UI.
+- [x] Implement UI over chapter-owned projections and services; no aggregation in ViewModel/Compose.
+- [x] Run `./gradlew :feature:catalog:testDebugUnitTest :feature:catalog:connectedDebugAndroidTest :app:connectedDebugAndroidTest lintDebug --stacktrace`.
+- [x] Commit `chapters: add canonical chapter list`.
 
 ## Wave Checkpoint
 
-- [ ] Exact exit graph and schema 4 pass.
-- [ ] Recent results appear before full history completes.
-- [ ] Equivalent releases group deterministically; ambiguous releases remain separate.
-- [ ] User corrections survive subsequent synchronization.
-- [ ] Plugin/commit failures do not corrupt cursors or other sources.
-- [ ] `./scripts/verify.sh` and device checkpoint pass.
-- [ ] Deep ownership review confirms chapter policy, runtime execution, Room transactions, UI, and workers remain separated.
+- [x] Exact exit graph and schema 4 pass.
+- [x] Recent results appear before full history completes.
+- [x] Equivalent releases group deterministically; ambiguous releases remain separate.
+- [x] User corrections survive subsequent synchronization.
+- [x] Plugin/commit failures do not corrupt cursors or other sources.
+- [x] `./scripts/verify.sh` and device checkpoint pass.
+- [x] Deep ownership review confirms chapter policy, runtime execution, Room transactions, UI, and workers remain separated.
+
+Checkpoint verified on 2026-08-11. Repository verification reports 9 production modules,
+Room schemas 1..4, passing JVM/architecture/lint gates, 20 Room instrumentation tests,
+16 feature instrumentation tests, and the ordered app integration/launch suite on the
+configured API 26 and API 37 emulators.

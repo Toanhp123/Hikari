@@ -7,13 +7,12 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current production Gradle graph: 8 modules.
+- Current production Gradle graph: 9 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
 - Wave 06 Tasks 01-06: **VERIFIED**; Wave 06 is complete.
-- Current active boundary: **Wave 07 Task 01 - introduce `:chapters` and normalize release labels**.
-- Wave 07 is ready to start from the verified Wave-06 exit boundary; no Wave-07 production
-  implementation is present yet.
+- Wave 07 Tasks 01-06: **VERIFIED**; Wave 07 is complete.
+- Current active boundary: **Wave 08 Task 01 - introduce `:reader` and the reader document contract**.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -23,7 +22,7 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 3 current; schemas 1-2 remain frozen historical exports |
+| Room database | schema 4 current; schemas 1-3 remain frozen historical exports |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -42,6 +41,7 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
+| `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
@@ -62,9 +62,9 @@ runtime persistence SPI.
 - Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures.
-- Room schema 3 stores the Baseline-2 catalog/runtime state, metadata-only Library
-  membership, protected content mappings, and policy-versioned mapping rejections; schemas
-  1-2 remain historical exports and schema 1 remains byte-frozen. Room entities/DAOs stay
+- Room schema 4 stores the Baseline-2 catalog/runtime state, metadata-only Library
+  membership, protected content mappings, chapter graphs, aggregation overrides, and sync
+  state; schemas 1-3 remain historical exports and schema 1 remains byte-frozen. Room entities/DAOs stay
   private to `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
@@ -92,12 +92,17 @@ runtime persistence SPI.
 - Mapping review and URL import presentation live in `:feature:catalog`. The UI calls only
   Library services, surfaces evidence/failures, and routes manual URL resolution through the
   existing HTTPS/declared-host content-source boundary before a protected `USER_URL` write.
+- Chapter synchronization consumes only protected Library mappings, isolates source failures,
+  commits recent results before full history, resumes full/incremental work from persisted
+  source-scoped state, and advances cursors only with the corresponding graph transaction.
+- Canonical chapter aggregation is deterministic and provider-neutral. User force-link and
+  force-separate overrides outrank automation, missing groups become visible tombstones, and
+  Story presentation expands releases without owning aggregation or storage policy.
 - Plugin JavaScript receives only the host-controlled HTTP, HTML query, and safe-log
   capabilities with allowlists, budgets, cancellation, and managed-credential isolation.
 
-Chapter synchronization/aggregation, Reader, downloads, periodic background sync,
-authentication, notifications, and release-hardening behavior remain outside the completed
-Wave-06 boundary.
+Reader document rendering/progress, downloads, periodic background sync, authentication,
+notifications, and release-hardening behavior remain outside the completed Wave-07 boundary.
 
 ## Architecture Baseline 2 status
 
@@ -142,7 +147,13 @@ Room instrumentation tests on both API 37 and API 26. Task 06 passed focused fea
 app JVM gates and Detekt, 15/15 feature instrumentation tests on API 37 and API 26, app
 instrumentation on both API levels, and full repository verification with `exit=0`; current
 architecture verification reported 8 modules and Room schema 1..3 with stable schema export.
-Wave 06 is therefore complete, and Wave 07 Task 01 is the next implementation entry.
+Wave 06 is therefore complete. Wave 07 then introduced the ninth production module,
+`:chapters`, and Room schema 4; its six task commits passed chapters/app/feature JVM suites,
+20 Room instrumentation tests, 16 feature instrumentation tests, the ordered app contract/
+navigation/launch suite, architecture/package/source gates, Detekt, lint, schema stability,
+and full `scripts/verify.sh` with `exit=0`. Deep review kept aggregation/sync policy in
+`:chapters`, transactions in `:storage:room`, WorkManager in `:app`, and lazy chapter
+presentation in `:feature:catalog`. Wave 08 Task 01 is the next implementation entry.
 
 Evidence:
 
