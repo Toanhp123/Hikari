@@ -67,6 +67,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":catalog"))
     implementation(project(":library"))
+    implementation(project(":chapters"))
     implementation(project(":storage:room"))
     implementation(project(":plugins:api"))
     implementation(project(":plugins:runtime"))

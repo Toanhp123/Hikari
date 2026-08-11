@@ -72,8 +72,8 @@ expect_failure 'a production plugin asset missing from the bundled plugin regist
 make_fixture
 
 module_count="$(grep -cE '^[[:space:]]*"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$module_count" == 8 ]] || {
-  echo "Wave 06 Task 01 must introduce exactly the eighth production module." >&2
+[[ "$module_count" == 9 ]] || {
+  echo "Wave 07 Task 01 must introduce exactly the ninth production module." >&2
   exit 1
 }
 
@@ -96,7 +96,7 @@ expect_failure 'an edge not declared by policy'
 
 # The policy is the source of truth for current edges: when the reviewed policy changes,
 # the verifier follows it rather than freezing the current Wave 06 graph in shell code.
-sed -i '/"\:library"[[:space:]]*:/,/"\:feature\:catalog"[[:space:]]*:/ s/":plugins:runtime"/":plugins:runtime", ":storage:room"/' \
+sed -i '/"\:library"[[:space:]]*:/,/"\:chapters"[[:space:]]*:/ s/":plugins:runtime"/":plugins:runtime", ":storage:room"/' \
   "$FIXTURE/config/architecture/module-boundaries.json"
 verify
 
