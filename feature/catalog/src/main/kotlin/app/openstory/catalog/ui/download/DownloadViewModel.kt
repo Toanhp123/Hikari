@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.downloads.DownloadRecord
-import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.DownloadScheduler
 import app.openstory.downloads.DownloadService
 import app.openstory.downloads.DownloadState
@@ -19,7 +18,6 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class DownloadViewModel @Inject constructor(
-    private val repository: DownloadRepository,
     private val service: DownloadService,
     private val scheduler: DownloadScheduler,
 ) : ViewModel() {
@@ -30,7 +28,7 @@ class DownloadViewModel @Inject constructor(
     fun watch(releaseId: ChapterReleaseId) {
         if (!watched.add(releaseId)) return
         viewModelScope.launch {
-            repository.observe(releaseId).collect { record ->
+            service.observe(releaseId).collect { record ->
                 mutableState.update { it.copy(records = it.records + (releaseId to record)) }
             }
         }
@@ -45,6 +43,7 @@ class DownloadViewModel @Inject constructor(
     fun downloadFiltered(releaseIds: List<ChapterReleaseId>) = downloadRange(releaseIds)
 
     fun cancel(releaseId: ChapterReleaseId) = command(releaseId) {
+        scheduler.cancel(releaseId)
         service.cancel(releaseId, System.currentTimeMillis())
     }
 

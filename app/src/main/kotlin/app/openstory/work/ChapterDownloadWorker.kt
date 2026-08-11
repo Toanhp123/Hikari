@@ -18,6 +18,8 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 
 class WorkManagerDownloadScheduler(private val context: Context) : DownloadScheduler {
+    private fun workName(releaseId: ChapterReleaseId) = "chapter-download:${releaseId.value}"
+
     override fun schedule(releaseId: ChapterReleaseId) {
         val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
             .setConstraints(
@@ -28,10 +30,14 @@ class WorkManagerDownloadScheduler(private val context: Context) : DownloadSched
             .setInputData(workDataOf(ChapterDownloadWorker.RELEASE_ID to releaseId.value))
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
-            "chapter-download:${releaseId.value}",
+            workName(releaseId),
             ExistingWorkPolicy.KEEP,
             request,
         )
+    }
+
+    override fun cancel(releaseId: ChapterReleaseId) {
+        WorkManager.getInstance(context).cancelUniqueWork(workName(releaseId))
     }
 }
 

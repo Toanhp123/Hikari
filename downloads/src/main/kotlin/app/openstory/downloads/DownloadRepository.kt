@@ -7,4 +7,8 @@ interface DownloadRepository {
     suspend fun find(releaseId: ChapterReleaseId): DownloadRecord?
     fun observe(releaseId: ChapterReleaseId): Flow<DownloadRecord?>
     suspend fun save(record: DownloadRecord)
+    suspend fun completeUnlessCancelled(record: DownloadRecord): Boolean {
+        save(record)
+        return true
+    }
 }

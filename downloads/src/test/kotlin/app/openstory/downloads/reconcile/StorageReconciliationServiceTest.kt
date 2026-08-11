@@ -31,6 +31,28 @@ class StorageReconciliationServiceTest {
     }
 
     @Test
+    fun `artifact that gains metadata during reconciliation is not deleted`() = runTest {
+        val artifact = StorageArtifactId("new-download")
+        val key = downloadKey()
+        val repository = FakeReconciliationRepository(
+            afterCommit = listOf(metadata(key, DownloadState.COMPLETED)),
+        )
+        val inventory = FakeStorageInventory(
+            snapshots = ArrayDeque(
+                listOf(
+                    StorageInventorySnapshot(orphanArtifacts = listOf(artifact)),
+                    StorageInventorySnapshot(presentKeys = setOf(key)),
+                ),
+            ),
+        )
+
+        val report = service(repository, inventory).reconcile()
+
+        assertTrue(inventory.deleted.isEmpty())
+        assertEquals(0, report.deletedArtifactCount)
+    }
+
+    @Test
     fun `missing cache blob removes stale cache metadata`() = runTest {
         val repository = FakeReconciliationRepository(metadata(cacheKey()))
 
@@ -118,18 +140,23 @@ class StorageReconciliationServiceTest {
 
 private class FakeReconciliationRepository(
     private vararg val values: StorageMetadataEntry,
+    private val afterCommit: List<StorageMetadataEntry>? = null,
 ) : StorageReconciliationRepository {
     var committed = StorageMetadataRepairPlan()
+    private var didCommit = false
 
-    override suspend fun storageEntries(): List<StorageMetadataEntry> = values.toList()
+    override suspend fun storageEntries(): List<StorageMetadataEntry> =
+        if (didCommit) afterCommit ?: values.toList() else values.toList()
 
     override suspend fun commit(plan: StorageMetadataRepairPlan, updatedAtEpochMillis: Long) {
         committed = plan
+        didCommit = true
     }
 }
 
 private class FakeStorageInventory(
     private val snapshot: StorageInventorySnapshot = StorageInventorySnapshot(),
+    private val snapshots: ArrayDeque<StorageInventorySnapshot>? = null,
     private val canStore: Boolean = true,
 ) : StorageReconciliationInventory, StorageWriteAdmission {
     val deleted = mutableListOf<StorageArtifactId>()
@@ -137,7 +164,7 @@ private class FakeStorageInventory(
     override suspend fun scan(
         expectedKeys: Set<ChapterBlobKey>,
         staleBeforeEpochMillis: Long,
-    ): StorageInventorySnapshot = snapshot
+    ): StorageInventorySnapshot = snapshots?.removeFirst() ?: snapshot
 
     override suspend fun delete(artifacts: List<StorageArtifactId>) {
         deleted += artifacts

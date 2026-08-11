@@ -29,4 +29,5 @@ enum class DownloadRunResult { COMPLETED, RETRY, FAILURE, CANCELLED }
 
 fun interface DownloadScheduler {
     fun schedule(releaseId: ChapterReleaseId)
+    fun cancel(releaseId: ChapterReleaseId) = Unit
 }

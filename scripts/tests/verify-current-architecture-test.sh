@@ -36,6 +36,8 @@ make_fixture() {
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/4.json"
   cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/5.json" \
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/5.json"
+  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/6.json" \
+    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/6.json"
   cp "$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" \
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
   printf 'canonical plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/myanimelist-catalog.osp"
@@ -68,6 +70,18 @@ expect_failure() {
   fi
 }
 
+module_dependencies() {
+  local module="$1"
+  awk -v target="\"$module\"" '
+    index($0, target) && $0 ~ /:[[:space:]]*\{/ { in_module = 1 }
+    in_module && /"productionDependencies"[[:space:]]*:/ { in_dependencies = 1 }
+    in_dependencies { print }
+    in_dependencies && /]/ { exit }
+  ' "$FIXTURE/config/architecture/module-boundaries.json" |
+    grep -oE '":[a-z0-9:-]+"' |
+    tr -d '"'
+}
+
 make_fixture
 verify
 
@@ -88,18 +102,15 @@ actual_modules="$(grep -oE '"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTUR
   exit 1
 }
 
-jq -e '
-  .modules[":app"].productionDependencies == [
-    ":core:common", ":catalog", ":library", ":chapters", ":reader", ":downloads",
-    ":storage:room", ":storage:files", ":plugins:api", ":plugins:runtime",
-    ":feature:catalog", ":feature:reader"
-  ] and
-  .modules[":downloads"].productionDependencies == [":core:common", ":chapters", ":reader"] and
-  .modules[":storage:files"].productionDependencies == [":downloads"]
-' "$FIXTURE/config/architecture/module-boundaries.json" >/dev/null || {
+expected_app_dependencies=$':core:common\n:catalog\n:library\n:chapters\n:reader\n:downloads\n:storage:room\n:storage:files\n:plugins:api\n:plugins:runtime\n:feature:catalog\n:feature:reader'
+expected_download_dependencies=$':core:common\n:chapters\n:reader'
+expected_file_dependencies=':downloads'
+if [[ "$(module_dependencies ':app')" != "$expected_app_dependencies" ]] ||
+  [[ "$(module_dependencies ':downloads')" != "$expected_download_dependencies" ]] ||
+  [[ "$(module_dependencies ':storage:files')" != "$expected_file_dependencies" ]]; then
   echo "Wave 09 module policy must declare the approved download and file-storage edges." >&2
   exit 1
-}
+fi
 
 grep -q 'api(project(":core:common"))' "$FIXTURE/downloads/build.gradle.kts" || {
   echo "Downloads must expose :core:common because ChapterBlobKey exposes ChapterReleaseId." >&2
@@ -110,7 +121,7 @@ printf '\n' >> "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenSto
 expect_failure 'a changed frozen schema 1'
 make_fixture
 
-sed -i 's/version = 5,/version = 6,/' \
+sed -i 's/version = 6,/version = 7,/' \
   "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
 expect_failure 'a database version without a contiguous exported schema'
 make_fixture

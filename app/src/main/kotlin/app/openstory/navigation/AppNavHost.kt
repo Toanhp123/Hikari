@@ -192,6 +192,8 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
             onRead = { chapterId, releaseId ->
                 navigate(AppRoute.Reader(storyId.value, chapterId.value, releaseId.value))
             },
+            onDownloadRange = downloadViewModel::downloadRange,
+            onDownloadFiltered = downloadViewModel::downloadFiltered,
             downloadState = downloadState::status,
             pendingRemoval = downloadState.pendingRemoval,
             downloadActions = DownloadActions(

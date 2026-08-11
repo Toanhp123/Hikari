@@ -67,9 +67,28 @@ class DownloadViewModelTest {
         assertEquals(DownloadState.CANCELLED, repository.find(releaseId)?.state)
     }
 
+    @Test
+    fun `cancel stops scheduled work before recording cancelled state`() = runTest(dispatcher) {
+        val repository = FakeUiDownloadRepository()
+        val releaseId = ChapterReleaseId("release:1")
+        val cancelled = mutableListOf<ChapterReleaseId>()
+        val scheduler = object : DownloadScheduler {
+            override fun schedule(releaseId: ChapterReleaseId) = Unit
+            override fun cancel(releaseId: ChapterReleaseId) { cancelled += releaseId }
+        }
+        val viewModel = viewModel(repository, scheduler)
+        viewModel.download(releaseId)
+        runCurrent()
+
+        viewModel.cancel(releaseId)
+        runCurrent()
+
+        assertEquals(listOf(releaseId), cancelled)
+        assertEquals(DownloadState.CANCELLED, repository.find(releaseId)?.state)
+    }
+
     private fun viewModel(repository: DownloadRepository, scheduler: DownloadScheduler): DownloadViewModel =
         DownloadViewModel(
-            repository,
             DownloadService(repository, EmptyBlobStore, DownloadContentSource {
                 DownloadFetchResult.Failure("unused", false)
             }),

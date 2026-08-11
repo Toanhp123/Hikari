@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -42,6 +43,15 @@ fun LazyListScope.chapterListItems(
     }
     item(key = "chapter-filters") {
         ChapterFiltersSheet(state, actions)
+    }
+    item(key = "chapter-download-visible") {
+        val visibleReleaseIds = state.chapters.flatMap { chapter -> chapter.releases.map { it.id } }
+        TextButton(
+            enabled = visibleReleaseIds.isNotEmpty(),
+            onClick = { actions.onDownloadFiltered(visibleReleaseIds) },
+        ) {
+            Text("Download visible")
+        }
     }
     state.failure?.let { failure ->
         item(key = "chapter-failure") {
@@ -86,6 +96,9 @@ private fun ChapterRow(chapter: ChapterItemUiModel, actions: ChapterListActions)
                 )
             }
             if (chapter.expanded) {
+                TextButton(onClick = { actions.onDownloadRange(chapter.releases.map { it.id }) }) {
+                    Text("Download chapter")
+                }
                 chapter.releases.forEach { release ->
                     ChapterReleaseRow(
                         release = release,

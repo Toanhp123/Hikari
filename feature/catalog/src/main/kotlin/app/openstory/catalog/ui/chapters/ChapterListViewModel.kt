@@ -152,6 +152,8 @@ data class ChapterListActions(
     val onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit = { _, _ -> },
     val onSeparate: (ChapterReleaseId) -> Unit = {},
     val onRead: (CanonicalChapterId, ChapterReleaseId) -> Unit = { _, _ -> },
+    val onDownloadRange: (List<ChapterReleaseId>) -> Unit = {},
+    val onDownloadFiltered: (List<ChapterReleaseId>) -> Unit = {},
     val downloadState: (ChapterReleaseId) -> DownloadState? = { null },
     val pendingRemoval: ChapterReleaseId? = null,
     val downloadActions: DownloadActions = DownloadActions(),

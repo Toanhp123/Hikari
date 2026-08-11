@@ -12,6 +12,7 @@ import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.reader.RoomReadingProgressRepository
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.reader.DownloadAwareReaderDocumentStore
 import app.openstory.downloads.reconcile.StorageWriteAdmission
 import dagger.Module
@@ -29,10 +30,12 @@ object ReaderModule {
     fun provideReaderDocumentStore(
         blobs: ChapterBlobStore,
         cache: CacheRepository,
+        downloads: DownloadRepository,
         writeAdmission: StorageWriteAdmission,
     ): ReaderDocumentStore = DownloadAwareReaderDocumentStore(
         blobs,
         cache,
+        downloads,
         System::currentTimeMillis,
         writeAdmission,
     )

@@ -93,10 +93,14 @@ class ReaderDocumentRepository(
         candidate: ReleaseCandidate,
         fingerprint: String?,
     ): ReaderLoadResult.Success? {
-        val document = fingerprint?.let { readCached(candidate.release.id, it) }
+        val document = if (fingerprint == null) {
+            readCurrent(candidate.release.id)
+        } else {
+            readCached(candidate.release.id, fingerprint)
+        }
         return when {
             document == null -> null
-            document.fingerprint != fingerprint -> {
+            fingerprint != null && document.fingerprint != fingerprint -> {
                 store.quarantine(candidate.release.id, fingerprint)
                 null
             }
@@ -110,6 +114,14 @@ class ReaderDocumentRepository(
         throw cancelled
     } catch (_: Exception) {
         store.quarantine(releaseId, fingerprint)
+        null
+    }
+
+    private suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? = try {
+        store.readCurrent(releaseId)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
         null
     }
 

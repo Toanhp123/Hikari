@@ -51,11 +51,22 @@ class StorageReconciliationService(
             staleBeforeEpochMillis = currentTime - activeWriteWindowMillis,
         )
         repository.commit(plan.metadataRepairs, currentTime)
-        inventory.delete(plan.artifactsToDelete)
+        val currentMetadata = repository.storageEntries()
+        val currentExpectedKeys = currentMetadata
+            .filter(StorageMetadataEntry::representsStoredBlob)
+            .mapTo(mutableSetOf(), StorageMetadataEntry::key)
+        val revalidated = inventory.scan(
+            expectedKeys = currentExpectedKeys,
+            staleBeforeEpochMillis = currentTime - activeWriteWindowMillis,
+        )
+        val artifactsToDelete = (
+            revalidated.orphanArtifacts + revalidated.interruptedWriteArtifacts
+        ).distinct()
+        inventory.delete(artifactsToDelete)
         return StorageReconciliationReport(
             removedMetadataCount = plan.metadataRepairs.removedMetadata.size,
             failedDownloadCount = plan.metadataRepairs.failedDownloads.size,
-            deletedArtifactCount = plan.artifactsToDelete.size,
+            deletedArtifactCount = artifactsToDelete.size,
         )
     }
 

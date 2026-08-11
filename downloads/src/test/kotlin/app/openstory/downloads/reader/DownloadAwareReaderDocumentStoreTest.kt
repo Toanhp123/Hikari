@@ -20,7 +20,7 @@ class DownloadAwareReaderDocumentStoreTest {
     @Test
     fun `explicit download wins over automatic cache`() = runTest {
         val blobs = FakeBlobs()
-        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), { 10 })
+        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), FakeDownloads(), { 10 })
         blobs.write(key(ChapterBlobNamespace.AUTOMATIC_CACHE), ReaderDocumentBlobCodec.encode(document("cache")))
         blobs.write(key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD), ReaderDocumentBlobCodec.encode(document("download")))
 
@@ -30,7 +30,7 @@ class DownloadAwareReaderDocumentStoreTest {
     @Test
     fun `corrupt explicit bytes are quarantined before falling back to cache`() = runTest {
         val blobs = FakeBlobs()
-        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), { 10 })
+        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), FakeDownloads(), { 10 })
         blobs.write(key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD), ChapterBlob.fromBytes("not-json".encodeToByteArray()))
         blobs.write(key(ChapterBlobNamespace.AUTOMATIC_CACHE), ReaderDocumentBlobCodec.encode(document("cache")))
 
@@ -42,7 +42,7 @@ class DownloadAwareReaderDocumentStoreTest {
     fun `sanitized network write becomes automatic cache`() = runTest {
         val blobs = FakeBlobs()
         val repository = FakeCacheRepository()
-        val store = DownloadAwareReaderDocumentStore(blobs, repository, { 42 })
+        val store = DownloadAwareReaderDocumentStore(blobs, repository, FakeDownloads(), { 42 })
 
         store.write(releaseId, fingerprint, document("network"))
 
@@ -58,6 +58,7 @@ class DownloadAwareReaderDocumentStoreTest {
         val store = DownloadAwareReaderDocumentStore(
             blobs,
             repository,
+            FakeDownloads(),
             { 42 },
             StorageWriteAdmission { false },
         )
@@ -72,11 +73,59 @@ class DownloadAwareReaderDocumentStoreTest {
     fun `cache write failure does not fail the network reader result`() = runTest {
         val blobs = FakeBlobs(failWrites = true)
         val repository = FakeCacheRepository()
-        val store = DownloadAwareReaderDocumentStore(blobs, repository, { 42 })
+        val store = DownloadAwareReaderDocumentStore(blobs, repository, FakeDownloads(), { 42 })
 
         store.write(releaseId, fingerprint, document("network"))
 
         assertTrue(repository.entries().isEmpty())
+    }
+
+    @Test
+    fun `touch failure does not discard a valid local document`() = runTest {
+        val blobs = FakeBlobs()
+        val store = DownloadAwareReaderDocumentStore(blobs, ThrowingTouchCacheRepository(), FakeDownloads(), { 10 })
+        blobs.write(key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD), ReaderDocumentBlobCodec.encode(document("download")))
+
+        assertEquals("download", store.read(releaseId, fingerprint)?.title)
+        assertTrue(blobs.read(key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD)) != null)
+    }
+
+    @Test
+    fun `current completed download resolves without a progress fingerprint`() = runTest {
+        val blobs = FakeBlobs()
+        val downloads = FakeDownloads(completedKey = key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD))
+        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), downloads, { 10 })
+        blobs.write(key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD), ReaderDocumentBlobCodec.encode(document("download")))
+
+        assertEquals("download", store.readCurrent(releaseId)?.title)
+    }
+
+    @Test
+    fun `network cache write enforces configured quota`() = runTest {
+        val blobs = FakeBlobs()
+        val repository = FakeCacheRepository()
+        val oldKey = ChapterBlobKey(
+            ChapterBlobNamespace.AUTOMATIC_CACHE,
+            ChapterReleaseId("release:old"),
+            "old",
+        )
+        val oldBlob = ReaderDocumentBlobCodec.encode(document("old"))
+        val networkDocument = document("network")
+        val networkBlob = ReaderDocumentBlobCodec.encode(networkDocument)
+        blobs.write(oldKey, oldBlob)
+        repository.upsert(CacheEntry(oldKey, oldBlob.checksum, oldBlob.bytes().size.toLong(), 1))
+        val store = DownloadAwareReaderDocumentStore(
+            blobs,
+            repository,
+            FakeDownloads(),
+            { 42 },
+            cacheQuotaBytes = networkBlob.bytes().size.toLong(),
+        )
+
+        store.write(releaseId, fingerprint, networkDocument)
+
+        assertNull(blobs.read(oldKey))
+        assertEquals("network", store.read(releaseId, fingerprint)?.title)
     }
 
     private fun document(title: String) = ReaderDocument(title, listOf(ReaderBlock.Paragraph("p1", "Text")), fingerprint)
@@ -108,4 +157,24 @@ private class FakeCacheRepository : CacheRepository {
         values[key]?.let { values[key] = it.copy(lastAccessedAtEpochMillis = accessedAtEpochMillis) }
     }
     override suspend fun commitEviction(keys: List<ChapterBlobKey>): List<ChapterBlobKey> = keys.filter { values.remove(it) != null }
+}
+
+private class ThrowingTouchCacheRepository : CacheRepository by FakeCacheRepository() {
+    override suspend fun touch(key: ChapterBlobKey, accessedAtEpochMillis: Long) {
+        error("metadata unavailable")
+    }
+}
+
+private class FakeDownloads(
+    private val completedKey: ChapterBlobKey? = null,
+) : app.openstory.downloads.DownloadRepository {
+    override suspend fun find(releaseId: ChapterReleaseId) = completedKey?.let {
+        app.openstory.downloads.DownloadRecord(
+            key = it,
+            state = app.openstory.downloads.DownloadState.COMPLETED,
+            updatedAtEpochMillis = 1,
+        )
+    }
+    override fun observe(releaseId: ChapterReleaseId) = kotlinx.coroutines.flow.flowOf(null)
+    override suspend fun save(record: app.openstory.downloads.DownloadRecord) = Unit
 }

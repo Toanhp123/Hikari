@@ -5,6 +5,8 @@ import app.openstory.downloads.blob.ChapterBlob
 import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
+import app.openstory.downloads.DownloadRepository
+import app.openstory.downloads.DownloadState
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.cache.CacheService
 import app.openstory.downloads.reconcile.StorageWriteAdmission
@@ -20,8 +22,10 @@ import kotlinx.coroutines.CancellationException
 class DownloadAwareReaderDocumentStore(
     private val blobs: ChapterBlobStore,
     private val cacheRepository: CacheRepository,
+    private val downloads: DownloadRepository,
     private val now: () -> Long,
     private val writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
+    private val cacheQuotaBytes: Long = DEFAULT_CACHE_QUOTA_BYTES,
 ) : ReaderDocumentStore {
     private val cache = CacheService(cacheRepository, blobs)
 
@@ -30,6 +34,11 @@ class DownloadAwareReaderDocumentStore(
             readLocal(namespace, releaseId, fingerprint)?.let { return it }
         }
         return null
+    }
+
+    override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? {
+        val record = downloads.find(releaseId)?.takeIf { it.state == DownloadState.COMPLETED } ?: return null
+        return readLocal(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, releaseId, record.key.contentFingerprint)
     }
 
     private suspend fun readLocal(
@@ -47,7 +56,13 @@ class DownloadAwareReaderDocumentStore(
                 null
             }
             else -> {
-                cacheRepository.touch(key, now())
+                try {
+                    cacheRepository.touch(key, now())
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Access timestamps are best effort and must not invalidate verified content.
+                }
                 document
             }
         }
@@ -63,6 +78,7 @@ class DownloadAwareReaderDocumentStore(
                 blob,
                 now(),
             )
+            cache.enforceQuota(cacheQuotaBytes, emptySet())
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -81,6 +97,7 @@ class DownloadAwareReaderDocumentStore(
             ChapterBlobNamespace.EXPLICIT_DOWNLOAD,
             ChapterBlobNamespace.AUTOMATIC_CACHE,
         )
+        const val DEFAULT_CACHE_QUOTA_BYTES = 256L * 1024 * 1024
     }
 }
 

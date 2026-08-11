@@ -64,6 +64,18 @@ class RoomDownloadRepository internal constructor(
         }
     }
 
+    override suspend fun completeUnlessCancelled(record: DownloadRecord): Boolean =
+        database.withTransaction {
+            val current = dao.findDownload(record.key.releaseId.value)?.toDownloadRecord()
+            if (current?.state == DownloadState.CANCELLED) {
+                false
+            } else {
+                dao.deleteDownload(record.key.releaseId.value)
+                dao.upsert(record.toEntity())
+                true
+            }
+        }
+
     override suspend fun storageEntries(): List<StorageMetadataEntry> =
         dao.allEntries().map(ChapterStorageEntryEntity::toStorageMetadataEntry)
 
