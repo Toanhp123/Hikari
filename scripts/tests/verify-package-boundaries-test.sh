@@ -21,6 +21,8 @@ run_case() {
 
 run_case 'core/common/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 1
 run_case 'core/common/src/main/kotlin/F.kt' 'import app.openstory.common.id.StoryId' 0
+run_case 'core/designsystem/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 1
+run_case 'core/designsystem/src/main/kotlin/F.kt' 'import app.openstory.designsystem.state.HikariEmptyState' 0
 run_case 'plugins/api/src/main/kotlin/F.kt' 'import android.content.Context' 1
 run_case 'plugins/api/src/main/kotlin/F.kt' 'import app.openstory.common.Outcome' 1
 run_case 'plugins/api/src/main/kotlin/F.kt' 'import app.openstory.plugins.api.protocol.PluginOperation' 0
@@ -48,12 +50,14 @@ run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.chapters.model.Chap
 run_case 'reader/src/main/kotlin/F.kt' 'import androidx.compose.runtime.Composable' 1
 run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.reader.document.ReaderDocument' 0
+run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.designsystem.state.HikariErrorState' 0
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 0
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.library.LibraryStatus' 0
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.chapters.repository.ChapterRepository' 0
+run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.designsystem.state.HikariEmptyState' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.execution.PluginOperationRunner' 1
 run_case 'storage/room/src/main/kotlin/F.kt' 'val runner = app.openstory.plugins.runtime.execution.PluginOperationRunner::class' 1
 run_case 'storage/room/src/main/kotlin/F.kt' $'val runner = app.openstory.plugins\n  .runtime.execution.PluginOperationRunner::class' 1
