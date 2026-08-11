@@ -8,11 +8,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
-enum class HikariConfirmationStyle {
-    STANDARD,
-    DESTRUCTIVE,
-}
-
 @Composable
 fun HikariConfirmDialog(
     title: String,
