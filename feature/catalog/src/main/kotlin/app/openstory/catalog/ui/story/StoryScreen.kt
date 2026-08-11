@@ -20,6 +20,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.ui.chapters.ChapterList
+import app.openstory.catalog.ui.chapters.ChapterListActions
+import app.openstory.catalog.ui.chapters.ChapterListUiState
 import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingSheet
 import app.openstory.catalog.ui.mapping.MappingUiState
@@ -32,6 +35,8 @@ fun StoryScreen(
     onSourceSelected: (PluginId, String) -> Unit,
     mappingState: MappingUiState? = null,
     mappingActions: MappingActions = MappingActions(),
+    chapterState: ChapterListUiState? = null,
+    chapterActions: ChapterListActions = ChapterListActions(),
     modifier: Modifier = Modifier,
 ) {
     val story = state.story
@@ -66,6 +71,11 @@ fun StoryScreen(
         }
         storySourceItems(story.sources, state.selectedSource, onSourceSelected)
         mappingItem(mappingState, mappingActions)
+        chapterState?.let { currentState ->
+            item(key = "story-chapters") {
+                ChapterList(state = currentState, actions = chapterActions)
+            }
+        }
     }
 }
 
