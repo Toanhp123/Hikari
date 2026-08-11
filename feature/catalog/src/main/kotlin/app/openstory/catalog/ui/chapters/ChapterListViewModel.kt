@@ -149,6 +149,7 @@ data class ChapterListActions(
     val onTombstonesVisible: (Boolean) -> Unit = {},
     val onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit = { _, _ -> },
     val onSeparate: (ChapterReleaseId) -> Unit = {},
+    val onRead: (CanonicalChapterId, ChapterReleaseId) -> Unit = { _, _ -> },
 )
 
 private fun CanonicalChapterGroup.toUiModel(expanded: Boolean) = ChapterItemUiModel(
