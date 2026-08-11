@@ -161,7 +161,7 @@
       "path": "feature/reader",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":chapters", ":reader", ":downloads"],
+      "productionDependencies": [":core:common", ":core:designsystem", ":chapters", ":reader", ":downloads"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
     },

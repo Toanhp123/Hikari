@@ -2,10 +2,7 @@ package app.openstory.reader.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
@@ -13,6 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.openstory.designsystem.state.HikariErrorState
+import app.openstory.designsystem.state.HikariLoadingState
+
 @Composable
 fun ReaderScreen(
     state: ReaderUiState,
@@ -26,7 +26,9 @@ fun ReaderScreen(
         bottomBar = { ReaderChapterNavigation(state, actions) },
     ) { padding ->
         when {
-            state.loading -> Centered { CircularProgressIndicator() }
+            state.loading -> Centered {
+                HikariLoadingState(label = "Loading reader")
+            }
             state.document != null -> ReaderContent(
                 document = state.document,
                 fontScale = state.fontScale,
@@ -36,7 +38,12 @@ fun ReaderScreen(
                 onPositionChanged = actions.onPositionChanged,
             )
             else -> Centered {
-                Button(onClick = actions.onRetry) { Text("Retry reader: ${state.failure.orEmpty()}") }
+                HikariErrorState(
+                    title = "Reader unavailable",
+                    message = state.failure,
+                    actionLabel = "Retry",
+                    onAction = actions.onRetry,
+                )
             }
         }
     }

@@ -1,6 +1,5 @@
 package app.openstory.reader.ui
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,8 +14,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -27,7 +28,7 @@ class ReaderScreenTest {
     @Test
     fun rendersStructuredTextWithAccessibleControlsAndSourceSwitcher() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 ReaderScreen(
                     state = ReaderUiState(
                         loading = false,
@@ -64,7 +65,7 @@ class ReaderScreenTest {
         compose.setContent {
             var document by remember { mutableStateOf(longDocument("First")) }
             changeDocument = { document = it }
-            MaterialTheme {
+            HikariTheme {
                 ReaderContent(
                     document = document,
                     fontScale = 1f,
@@ -81,6 +82,41 @@ class ReaderScreenTest {
         compose.runOnIdle { changeDocument(longDocument("Second")) }
 
         compose.onNodeWithText("Second title").assertIsDisplayed()
+    }
+
+    @Test
+    fun loadingUsesSharedReaderState() {
+        compose.setContent {
+            HikariTheme {
+                ReaderScreen(
+                    state = ReaderUiState(loading = true),
+                    actions = ReaderActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Loading reader").assertIsDisplayed()
+    }
+
+    @Test
+    fun unavailableReaderExposesWorkingRetry() {
+        var retried = false
+        compose.setContent {
+            HikariTheme {
+                ReaderScreen(
+                    state = ReaderUiState(
+                        loading = false,
+                        failure = "Network unavailable",
+                    ),
+                    actions = ReaderActions(onRetry = { retried = true }),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Reader unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Network unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Retry").performClick()
+        assertTrue(retried)
     }
 
     private fun longDocument(prefix: String) = ReaderDocument(
