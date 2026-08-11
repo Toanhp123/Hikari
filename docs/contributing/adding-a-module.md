@@ -34,8 +34,12 @@ The same commit must include:
   only when the configuration has a reviewed architectural meaning.
 - Production source in `:plugins:api` is pure Kotlin/JVM protocol code and cannot
   import Android or host application models.
-- Production source in `:feature:catalog` may import only `:catalog` and
-  `:core:common` project packages.
+- Presentation modules may consume `:core:designsystem` for domain-neutral
+  Compose theme, tokens, and shared UX surfaces. Capability, storage, and plugin
+  runtime modules must remain independent from it unless the exact architecture
+  policy is explicitly redesigned and reviewed.
+- Production source in `:feature:catalog` may import only packages exposed by
+  its exact project dependencies.
 - Production source in `:storage:room` may import plugin runtime types only from
   `app.openstory.plugins.runtime.persistence`.
 - Reusable protocol fixtures belong to the owning module's test resources;

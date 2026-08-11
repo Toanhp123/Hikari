@@ -90,25 +90,25 @@ expect_failure 'a production plugin asset missing from the bundled plugin regist
 make_fixture
 
 module_count="$(grep -cE '^[[:space:]]*"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$module_count" == 13 ]] || {
-  echo "Wave 09 must contain exactly thirteen production modules." >&2
+[[ "$module_count" == 14 ]] || {
+  echo "UI foundation boundary must contain exactly fourteen production modules." >&2
   exit 1
 }
 
-expected_modules=$':app\n:catalog\n:chapters\n:core:common\n:downloads\n:feature:catalog\n:feature:reader\n:library\n:plugins:api\n:plugins:runtime\n:reader\n:storage:files\n:storage:room'
+expected_modules=$':app\n:catalog\n:chapters\n:core:common\n:core:designsystem\n:downloads\n:feature:catalog\n:feature:reader\n:library\n:plugins:api\n:plugins:runtime\n:reader\n:storage:files\n:storage:room'
 actual_modules="$(grep -oE '"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json" | sed -E 's/"([^\"]+)".*/\1/' | sort)"
 [[ "$actual_modules" == "$expected_modules" ]] || {
-  echo "Wave 09 module policy must declare the approved thirteen-module graph." >&2
+  echo "UI foundation policy must declare the approved fourteen-module graph." >&2
   exit 1
 }
 
-expected_app_dependencies=$':core:common\n:catalog\n:library\n:chapters\n:reader\n:downloads\n:storage:room\n:storage:files\n:plugins:api\n:plugins:runtime\n:feature:catalog\n:feature:reader'
+expected_app_dependencies=$':core:common\n:core:designsystem\n:catalog\n:library\n:chapters\n:reader\n:downloads\n:storage:room\n:storage:files\n:plugins:api\n:plugins:runtime\n:feature:catalog\n:feature:reader'
 expected_download_dependencies=$':core:common\n:chapters\n:reader'
 expected_file_dependencies=':downloads'
 if [[ "$(module_dependencies ':app')" != "$expected_app_dependencies" ]] ||
   [[ "$(module_dependencies ':downloads')" != "$expected_download_dependencies" ]] ||
   [[ "$(module_dependencies ':storage:files')" != "$expected_file_dependencies" ]]; then
-  echo "Wave 09 module policy must declare the approved download and file-storage edges." >&2
+  echo "UI foundation policy must preserve the approved app, download, and file-storage edges." >&2
   exit 1
 fi
 

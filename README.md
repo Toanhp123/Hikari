@@ -126,6 +126,7 @@ On Windows PowerShell:
 
 - `:app` — composition root, Hilt, Compose shell, navigation
 - `:core:common` — Outcome, clocks, dispatchers, and stable cross-capability identifiers
+- `:core:designsystem` — application-wide Compose theme, visual tokens, and domain-neutral shared UX presentation
 - `:plugins:api` — public plugin protocol and package schemas
 - `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
 - `:catalog` — catalog models, source seam, matching, ranking, and application services

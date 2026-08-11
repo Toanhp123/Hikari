@@ -7,6 +7,7 @@
       "dependencyMode": "exact",
       "productionDependencies": [
         ":core:common",
+        ":core:designsystem",
         ":catalog",
         ":library",
         ":chapters",
@@ -29,6 +30,25 @@
       "productionDependencies": [],
       "testDependencies": [],
       "forbiddenProductionImports": ["android.", "androidx."]
+    },
+    ":core:designsystem": {
+      "path": "core/designsystem",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "app.openstory.catalog.",
+        "app.openstory.library.",
+        "app.openstory.chapters.",
+        "app.openstory.reader.",
+        "app.openstory.downloads.",
+        "app.openstory.storage.",
+        "app.openstory.plugins.",
+        "app.openstory.navigation.",
+        "androidx.room.",
+        "androidx.work."
+      ]
     },
     ":catalog": {
       "path": "catalog",
