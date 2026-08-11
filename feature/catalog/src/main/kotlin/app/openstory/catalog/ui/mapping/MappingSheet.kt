@@ -15,6 +15,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 import java.util.Locale
@@ -28,8 +29,8 @@ fun MappingSheet(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(MaterialTheme.hikariSpacing.large),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
     ) {
         Text("Reading sources", style = MaterialTheme.typography.titleLarge)
         CurrentMappings(state.mappings)
@@ -66,7 +67,7 @@ private fun UrlImport(
     state: MappingUiState,
     actions: MappingActions,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small)) {
         OutlinedTextField(
             value = state.urlInput,
             onValueChange = actions.onUrlChange,
@@ -94,7 +95,7 @@ private fun MappingCandidateCard(
         Text("${candidate.pluginId.value} · ${candidate.decision.displayName()} · ${candidate.score.asPercent()}")
         candidate.evidenceLabels.forEach { label -> Text(label, style = MaterialTheme.typography.bodySmall) }
         candidate.sourceUrl?.let { url -> Text(url, style = MaterialTheme.typography.bodySmall) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small)) {
             Button(onClick = { actions.onApprove(candidate.pluginId, candidate.sourceStoryId) }) {
                 Text(if (candidate.fromUrl) "Use URL source" else "Approve")
             }

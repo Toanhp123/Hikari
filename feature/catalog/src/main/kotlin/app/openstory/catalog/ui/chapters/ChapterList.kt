@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.state.HikariEmptyState
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun ChapterList(
@@ -27,7 +29,7 @@ fun ChapterList(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.large),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         chapterListItems(state, actions)
@@ -60,7 +62,7 @@ fun LazyListScope.chapterListItems(
     }
     if (state.chapters.isEmpty()) {
         item(key = "chapter-empty") {
-            Text("No chapters available", style = MaterialTheme.typography.bodyMedium)
+            HikariEmptyState(title = "No chapters available")
         }
     }
     items(
@@ -78,7 +80,7 @@ private fun ChapterRow(chapter: ChapterItemUiModel, actions: ChapterListActions)
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
         ) {
             Column(
                 modifier = Modifier

@@ -2,12 +2,13 @@ package app.openstory.catalog.ui.download
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.designsystem.feedback.HikariConfirmDialog
+import app.openstory.designsystem.feedback.HikariConfirmationStyle
 import app.openstory.downloads.DownloadState
 
 @Composable
@@ -29,12 +30,14 @@ fun DownloadActionSheet(
         state?.let { Text(it.name.lowercase().replaceFirstChar(Char::uppercase)) }
     }
     if (pendingRemoval) {
-        AlertDialog(
-            onDismissRequest = actions.onDismissRemoval,
-            title = { Text("Remove offline chapter?") },
-            text = { Text("The chapter will need network access to open again.") },
-            confirmButton = { TextButton(onClick = actions.onConfirmRemoval) { Text("Remove") } },
-            dismissButton = { TextButton(onClick = actions.onDismissRemoval) { Text("Keep") } },
+        HikariConfirmDialog(
+            title = "Remove offline chapter?",
+            message = "The chapter will need network access to open again.",
+            confirmLabel = "Remove",
+            dismissLabel = "Keep",
+            onConfirm = actions.onConfirmRemoval,
+            onDismiss = actions.onDismissRemoval,
+            style = HikariConfirmationStyle.DESTRUCTIVE,
         )
     }
 }

@@ -1,15 +1,15 @@
 package app.openstory.catalog.ui.mapping
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 import kotlin.test.assertEquals
@@ -26,7 +26,7 @@ class MappingSheetTest {
         var approved: Pair<PluginId, String>? = null
         var rejected: Pair<PluginId, String>? = null
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 MappingSheet(
                     state = stateWithCandidate(),
                     actions = MappingActions(
@@ -52,7 +52,7 @@ class MappingSheetTest {
         val url = mutableStateOf("")
         var resolved = false
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 MappingSheet(
                     state = MappingUiState(urlInput = url.value),
                     actions = MappingActions(
@@ -72,7 +72,7 @@ class MappingSheetTest {
     @Test
     fun currentProtectedMappingIsRendered() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 MappingSheet(
                     state = MappingUiState(
                         mappings = listOf(
@@ -89,6 +89,21 @@ class MappingSheetTest {
         }
 
         compose.onNodeWithText("org.example.reader: chosen · Approved").assertIsDisplayed()
+    }
+    @Test
+    fun emptyMappingKeepsCopyAndActions() {
+        compose.setContent {
+            HikariTheme {
+                MappingSheet(
+                    state = MappingUiState(),
+                    actions = MappingActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("No reading source linked yet").assertIsDisplayed()
+        compose.onNodeWithText("Find reading sources").assertIsDisplayed()
+        compose.onNodeWithText("Resolve URL").assertIsDisplayed()
     }
 }
 

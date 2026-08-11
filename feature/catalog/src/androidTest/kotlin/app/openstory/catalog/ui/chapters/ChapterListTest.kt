@@ -1,6 +1,5 @@
 package app.openstory.catalog.ui.chapters
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
 import org.junit.Test
 
@@ -23,7 +23,7 @@ class ChapterListTest {
     fun canonicalRowsExpandReleasesAndExposeAccessibility() {
         var state by mutableStateOf(fixtureState())
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 ChapterList(
                     state = state,
                     actions = ChapterListActions(
@@ -50,7 +50,7 @@ class ChapterListTest {
         var filtered = emptyList<ChapterReleaseId>()
         var range = emptyList<ChapterReleaseId>()
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 ChapterList(
                     state = state,
                     actions = ChapterListActions(
@@ -67,6 +67,20 @@ class ChapterListTest {
         val expected = state.chapters.single().releases.map { it.id }
         kotlin.test.assertEquals(expected, filtered)
         kotlin.test.assertEquals(expected, range)
+    }
+
+    @Test
+    fun emptyChapterListKeepsExistingCopy() {
+        compose.setContent {
+            HikariTheme {
+                ChapterList(
+                    state = fixtureState().copy(chapters = emptyList()),
+                    actions = ChapterListActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("No chapters available").assertIsDisplayed()
     }
 }
 

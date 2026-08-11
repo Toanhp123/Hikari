@@ -18,8 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.state.HikariEmptyState
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.LibraryStatus
 
 @Composable
@@ -34,14 +35,24 @@ fun LibraryScreen(
         Text(
             text = "Library",
             style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(
+                horizontal = MaterialTheme.hikariSpacing.large,
+                vertical = MaterialTheme.hikariSpacing.medium,
+            ),
         )
         StatusFilters(state.selectedStatus, onStatusSelected)
         SortControls(state.sort, onSortSelected)
         if (state.items.isEmpty()) {
-            Text(
-                text = if (state.selectedStatus == null) "Your Library is empty." else "No stories with this status.",
-                modifier = Modifier.padding(16.dp),
+            HikariEmptyState(
+                title = if (state.selectedStatus == null) {
+                    "Your Library is empty."
+                } else {
+                    "No stories with this status."
+                },
+                modifier = Modifier.padding(
+                    horizontal = MaterialTheme.hikariSpacing.large,
+                    vertical = MaterialTheme.hikariSpacing.medium,
+                ),
             )
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -64,8 +75,8 @@ private fun StatusFilters(
     Row(
         modifier = Modifier
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = MaterialTheme.hikariSpacing.large),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
     ) {
         FilterChip(
             selected = selectedStatus == null,
@@ -90,8 +101,11 @@ private fun SortControls(
     Row(
         modifier = Modifier
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(
+                horizontal = MaterialTheme.hikariSpacing.large,
+                vertical = MaterialTheme.hikariSpacing.small,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
     ) {
         LibrarySort.entries.forEach { sort ->
             FilterChip(
@@ -115,8 +129,11 @@ private fun LibraryItem(
             .semantics(mergeDescendants = true) {
                 contentDescription = item.accessibilityDescription()
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(
+                horizontal = MaterialTheme.hikariSpacing.large,
+                vertical = MaterialTheme.hikariSpacing.medium,
+            ),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.extraSmall),
     ) {
         Text(item.title, style = MaterialTheme.typography.titleMedium)
         Text(item.status.label(), style = MaterialTheme.typography.bodyMedium)

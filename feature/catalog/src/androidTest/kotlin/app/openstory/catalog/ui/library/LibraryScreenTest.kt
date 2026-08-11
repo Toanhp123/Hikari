@@ -1,13 +1,13 @@
 package app.openstory.catalog.ui.library
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.openstory.catalog.model.ContentType
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.library.LibraryStatus
 import kotlin.test.assertEquals
 import org.junit.Rule
@@ -20,7 +20,7 @@ class LibraryScreenTest {
     @Test
     fun metadataOnlyItemUsesAccessibleNonErrorSourceState() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 LibraryScreen(
                     state = fixtureState(),
                     onStatusSelected = {},
@@ -40,7 +40,7 @@ class LibraryScreenTest {
     fun itemClickReportsCanonicalStoryIdentityOnly() {
         var selected: StoryId? = null
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 LibraryScreen(
                     state = fixtureState(),
                     onStatusSelected = {},
@@ -54,6 +54,41 @@ class LibraryScreenTest {
             "Fixture Novel. Want to read. No source linked.",
         ).performClick()
         assertEquals(StoryId("story-1"), selected)
+    }
+
+    @Test
+    fun trueEmptyKeepsLibraryCopy() {
+        compose.setContent {
+            HikariTheme {
+                LibraryScreen(
+                    state = fixtureState().copy(items = emptyList()),
+                    onStatusSelected = {},
+                    onSortSelected = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Your Library is empty.").assertIsDisplayed()
+    }
+
+    @Test
+    fun filteredEmptyKeepsStatusCopy() {
+        compose.setContent {
+            HikariTheme {
+                LibraryScreen(
+                    state = fixtureState().copy(
+                        items = emptyList(),
+                        selectedStatus = LibraryStatus.READING,
+                    ),
+                    onStatusSelected = {},
+                    onSortSelected = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("No stories with this status.").assertIsDisplayed()
     }
 }
 
