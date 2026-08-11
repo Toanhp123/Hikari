@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":catalog"))
     implementation(project(":library"))
     implementation(project(":chapters"))
+    implementation(project(":reader"))
     implementation(project(":plugins:runtime"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
