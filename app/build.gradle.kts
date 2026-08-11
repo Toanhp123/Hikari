@@ -15,6 +15,20 @@ val packageMyAnimeListPlugin by tasks.registering(Zip::class) {
     isPreserveFileTimestamps = false
 }
 
+val packageMangaDexPlugin by tasks.registering(Zip::class) {
+    from(layout.projectDirectory.dir("../bundled-plugins/mangadex-content")) {
+        include("manifest.json", "main.js")
+    }
+    destinationDirectory.set(layout.projectDirectory.dir("src/main/assets/plugins"))
+    archiveFileName.set("mangadex-content.osp")
+    isReproducibleFileOrder = true
+    isPreserveFileTimestamps = false
+}
+
+tasks.named("preBuild") {
+    dependsOn(packageMangaDexPlugin)
+}
+
 val myAnimeListClientId = providers.gradleProperty("openstory.malClientId")
     .orElse(providers.environmentVariable("OPENSTORY_MAL_CLIENT_ID"))
     .orElse("")
@@ -52,6 +66,7 @@ android {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":catalog"))
+    implementation(project(":library"))
     implementation(project(":storage:room"))
     implementation(project(":plugins:api"))
     implementation(project(":plugins:runtime"))
@@ -71,6 +86,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.work.runtime.ktx)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))

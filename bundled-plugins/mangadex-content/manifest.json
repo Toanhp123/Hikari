@@ -1,0 +1,22 @@
+{
+  "id": "org.openstory.content.mangadex",
+  "name": "MangaDex Content Reference",
+  "version": "1.0.0",
+  "protocol": 1,
+  "entry": "main.js",
+  "provides": [
+    "CONTENT"
+  ],
+  "languages": [
+    "en"
+  ],
+  "homepageUrl": "https://mangadex.org/",
+  "capabilities": {
+    "network": {
+      "hosts": [
+        "api.mangadex.org",
+        "mangadex.org"
+      ]
+    }
+  }
+}

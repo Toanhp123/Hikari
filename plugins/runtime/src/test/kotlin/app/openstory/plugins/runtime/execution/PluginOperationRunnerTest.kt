@@ -15,6 +15,7 @@ import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
@@ -58,6 +59,35 @@ class PluginOperationRunnerTest {
         )
 
         assertEquals("plugin.http_domain_denied", assertIs<PluginCallResult.Failure>(result).code)
+    }
+
+    @Test
+    fun retryableCapabilityFailureSurvivesBridge() = runTest {
+        val diagnostics = MemoryDiagnosticsSink()
+        val engine = bridgeFailureEngine(
+            "http.execute",
+            Json.encodeToJsonElement(
+                PluginHttpRequest.serializer(),
+                PluginHttpRequest("https://api.example.com/resource"),
+            ),
+        )
+        val capabilities = CapabilityDispatcher { _, _, _, _, _ ->
+            PluginCallResult.Failure("plugin.http_request_failed", retryable = true)
+        }
+        val runner = PluginOperationRunner(engine, capabilities, diagnostics)
+
+        val failure = assertIs<PluginCallResult.Failure>(
+            runner.run(
+                PluginId("org.example.plugin"),
+                manifestWithNetwork(),
+                "",
+                PluginOperation.CATALOG_HOME,
+                JsonObject(emptyMap()),
+            ),
+        )
+
+        assertEquals("plugin.http_request_failed", failure.code)
+        assertTrue(failure.retryable)
     }
 
     @Test
@@ -140,7 +170,8 @@ class PluginOperationRunnerTest {
             BridgeResponse.serializer(),
             bridge(Json.encodeToString(BridgeRequest.serializer(), request)),
         )
-        throw JavaScriptExecutionFailure(checkNotNull(response.error).code)
+        val error = checkNotNull(response.error)
+        throw JavaScriptExecutionFailure(error.code, error.retryable)
     }
 
     private fun broker(): CapabilityDispatcher =

@@ -1,6 +1,6 @@
 # Documentation Governance and Precedence
 
-Date: 2026-08-10
+Date: 2026-08-11
 Status: **CANONICAL documentation policy**
 
 ## Purpose
@@ -23,14 +23,15 @@ code exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active wave plan. The current
-continuation is Wave 06 Task 01 from
-`../implementation/waves/wave-06-library-and-story-matching.md`.
+Use `../implementation/current-roadmap.md`, then the active wave plan. Wave 06 Tasks
+01-06 are verified and Wave 06 is complete; the current continuation is Wave 07 Task 01
+from `../implementation/waves/wave-07-chapter-sync-and-aggregation.md`.
 
 Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current
 architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence.
-Wave 06 is reopened at Task 01. The post-baseline architecture design owns module
-evolution and cross-wave continuity for Wave 06-11; each active wave plan owns the
+Wave 06 was reopened at Task 01 and is now complete with Tasks 01-06 verified. The active
+boundary is Wave 07 Task 01. The post-baseline architecture design owns module evolution
+and cross-wave continuity for Wave 06-11; each active wave plan owns the
 task-level implementation inside that boundary. Its canonical path is
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
@@ -55,7 +56,7 @@ protocol, and tested fixtures.
 | 2026-08-03 Wave 04 selector sketch | Historical; superseded by the Baseline 2 JavaScript protocol/runtime |
 | 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/`; no active selector contract |
 | Source-local Wave 01–03 remediation specs/plans/checkpoints | Archived under `../internal/archive/pre-baseline-development/`; do not execute again |
-| Pre-baseline Room migration instructions | Historical only; current complete database is initial schema 1 |
+| Pre-baseline Room migration instructions | Historical only; Baseline 2 schema 1 is frozen and current schemas evolve contiguously from it |
 | Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |
 | Project-wide Baseline 1 refactor plan | Execution record for the one-time reset; not the next feature plan after completion |
 | Wave 05 checkpoint and pre-reset Wave 06 entry instruction | Historical execution evidence; Wave 06 is reopened only through the accepted Baseline 2 boundary |

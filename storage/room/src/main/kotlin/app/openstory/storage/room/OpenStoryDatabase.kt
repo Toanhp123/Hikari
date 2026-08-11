@@ -12,6 +12,10 @@ import app.openstory.storage.room.catalog.CatalogHomeDao
 import app.openstory.storage.room.catalog.CatalogHomeSectionEntity
 import app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity
 import app.openstory.storage.room.catalog.StoryEntity
+import app.openstory.storage.room.library.ContentMappingEntity
+import app.openstory.storage.room.library.ContentMappingRejectionEntity
+import app.openstory.storage.room.library.LibraryDao
+import app.openstory.storage.room.library.LibraryEntity
 import app.openstory.storage.room.plugins.PluginDiagnosticDao
 import app.openstory.storage.room.plugins.PluginDiagnosticEntity
 import app.openstory.storage.room.plugins.PluginStateDao
@@ -28,8 +32,11 @@ import app.openstory.storage.room.plugins.PluginVersionEntity
         PluginStateEntity::class,
         PluginVersionEntity::class,
         PluginDiagnosticEntity::class,
+        LibraryEntity::class,
+        ContentMappingEntity::class,
+        ContentMappingRejectionEntity::class,
     ],
-    version = 1,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -38,6 +45,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun catalogHomeDao(): CatalogHomeDao
     internal abstract fun pluginStateDao(): PluginStateDao
     internal abstract fun pluginDiagnosticDao(): PluginDiagnosticDao
+    internal abstract fun libraryDao(): LibraryDao
 
     companion object {
         private const val DATABASE_NAME = "openstory-baseline-2.db"
@@ -46,6 +54,8 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             context.applicationContext,
             OpenStoryDatabase::class.java,
             DATABASE_NAME,
-        ).setJournalMode(JournalMode.WRITE_AHEAD_LOGGING).build()
+        ).addMigrations(RoomMigrations.MIGRATION_1_2, RoomMigrations.MIGRATION_2_3)
+            .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
+            .build()
     }
 }

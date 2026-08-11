@@ -1,0 +1,3 @@
+# Room schema exports participate in byte-level stability checks.
+# Keep their working-tree representation platform-independent.
+storage/room/schemas/**/*.json text eol=lf

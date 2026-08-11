@@ -27,6 +27,10 @@ class PluginRuntimeContractTest {
             listOf(PluginId("org.example.catalog")),
             runtime.enabled(PluginService.CATALOG).map { it.pluginId },
         )
+        assertEquals(
+            setOf("api.example.com"),
+            runtime.enabled(PluginService.CATALOG).single().allowedNetworkHosts,
+        )
     }
 
     @Test
@@ -62,7 +66,7 @@ private fun stateOnlyRuntime(state: PluginStateStore): PluginRuntime = object : 
 
     override suspend fun enabled(service: PluginService): List<InstalledPlugin> =
         state.all().filter { it.enabled && service in it.services }.map {
-            InstalledPlugin(it.pluginId, it.activeVersion.version, it.services)
+            InstalledPlugin(it.pluginId, it.activeVersion.version, it.services, it.acceptedNetworkHosts)
         }.sortedBy { it.pluginId.value }
 }
 

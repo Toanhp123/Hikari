@@ -1,4 +1,4 @@
-<!-- DOCUMENT LIFECYCLE: PLANNED / REBASELINED FOR POST-BASELINE GRAPH -->
+<!-- DOCUMENT LIFECYCLE: ACTIVE / TASK 01 NEXT -->
 
 # Wave 07 - Chapter Sync and Aggregation Implementation Plan
 

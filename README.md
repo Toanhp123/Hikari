@@ -129,7 +129,8 @@ On Windows PowerShell:
 - `:plugins:api` — public plugin protocol and package schemas
 - `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
 - `:catalog` — catalog models, source seam, matching, ranking, and application services
-- `:storage:room` — fresh Room schema and durable catalog/plugin persistence
+- `:library` — metadata-only Library membership and reading status
+- `:storage:room` — Room schema, migrations, and durable capability persistence
 - `:feature:catalog` — Home, Search, and Story presentation
 
 The direct project dependency policy is stored in:

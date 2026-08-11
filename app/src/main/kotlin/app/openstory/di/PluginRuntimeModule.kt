@@ -72,7 +72,7 @@ object PluginRuntimeModule {
         val installer = PluginInstaller(PackageVerifier(), storage, state)
         val updates = PluginUpdateService(installer, state)
         val bundled = BundledPluginProvisioner(
-            source = AndroidBundledPluginSource(context, listOf(MyAnimeListBundledPlugin.descriptor)),
+            source = AndroidBundledPluginSource(context, BundledPlugins.descriptors),
             installer = installer,
             updates = updates,
             state = state,

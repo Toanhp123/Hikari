@@ -41,8 +41,17 @@ cover URL, and an optional `{value, scale}` score. Content types are `LIGHT_NOVE
 `WEB_NOVEL`, `MANGA`, or `ANIME`. Filter records use the `option`, `range`, and `text`
 serialized variants defined and tested in `:plugins:api`.
 
-The protocol also reserves `content.search`, `content.story`, `content.chapters`, and
-`content.chapter` for packages that declare the `CONTENT` service.
+Packages that declare the `CONTENT` service may implement these operations:
+
+- `content.search` receives `{query, nextToken}` and returns `{items, nextToken}`. Each item
+  has a stable `sourceStoryId`, title, optional aliases/authors/content type, and an
+  optional HTTPS `sourceUrl`. The host caps candidate counts and validates any returned
+  URL against the package's accepted network hosts.
+- `content.resolveUrl` receives `{url}` for a user-supplied HTTPS URL whose exact host is
+  already accepted by that package. It returns one content-story candidate. Packages may
+  omit this operation; unsupported URL resolution is a bounded source failure.
+- `content.story`, `content.chapters`, and `content.chapter` remain reserved for the later
+  content-reading waves.
 
 ## Host capabilities
 
@@ -71,6 +80,6 @@ Throw an `Error` with a stable `code` for an expected plugin failure. Uncoded fa
 to `plugin.execution_failed`. Host capability failures also use stable codes. Cancellation
 terminates the invocation and is not converted into a plugin result.
 
-The bundled MyAnimeList catalog is the reference fixture/package for protocol `1`; it is
-not a privileged runtime path and uses the same manifest, bridge, validation, and budgets
-as any other package.
+The bundled MyAnimeList catalog and MangaDex content packages are production fixtures for
+protocol `1`. The app may register multiple bundled packages; none has a privileged runtime path,
+and all use the same manifest, bridge, validation, capabilities, and budgets as third-party packages.

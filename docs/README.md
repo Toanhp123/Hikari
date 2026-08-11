@@ -7,8 +7,14 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[implementation/waves/wave-06-library-and-story-matching.md](implementation/waves/wave-06-library-and-story-matching.md)** - active Wave 06 plan, beginning at Task 01.
-5. **[internal/checkpoints/architecture-baseline-2.md](internal/checkpoints/architecture-baseline-2.md)** - accepted Baseline 2 evidence and Wave 06 entry boundary.
+4. **[implementation/waves/wave-07-chapter-sync-and-aggregation.md](implementation/waves/wave-07-chapter-sync-and-aggregation.md)** - active Wave 07 plan, beginning at Task 01.
+5. **[internal/checkpoints/wave-06-task-06-mapping-review-url-import.md](internal/checkpoints/wave-06-task-06-mapping-review-url-import.md)** - verified Task 06 mapping-review and URL-import evidence; Wave 06 exit boundary.
+6. **[internal/checkpoints/wave-06-task-05-protected-content-mappings.md](internal/checkpoints/wave-06-task-05-protected-content-mappings.md)** - verified Task 05 protected-mapping and Room-schema-3 evidence.
+7. **[internal/checkpoints/wave-06-task-04-content-source-search.md](internal/checkpoints/wave-06-task-04-content-source-search.md)** - verified Task 04 plugin content-search evidence.
+8. **[internal/checkpoints/wave-06-task-03-content-story-matching.md](internal/checkpoints/wave-06-task-03-content-story-matching.md)** - verified Task 03 matching evidence.
+9. **[internal/checkpoints/wave-06-task-02-library-presentation.md](internal/checkpoints/wave-06-task-02-library-presentation.md)** - verified Task 02 Library presentation evidence.
+10. **[internal/checkpoints/wave-06-task-01-metadata-only-library.md](internal/checkpoints/wave-06-task-01-metadata-only-library.md)** - verified Task 01 metadata-only membership evidence.
+11. **[internal/checkpoints/architecture-baseline-2.md](internal/checkpoints/architecture-baseline-2.md)** - accepted Baseline 2 evidence and historical Wave 06 entry boundary.
 
 ## Normative product and requirement documents
 
@@ -20,8 +26,9 @@ Use this directory instead of hunting through dated plans.
 
 ## Detailed implementation plans
 
-Wave 01-05 plans remain historical delivery records. Wave 06-11 plans are rebaselined to
-the approved post-Baseline-2 module evolution; Wave 06 Task 01 is active.
+Wave 01-06 plans are historical/accepted delivery records through the verified Wave-06
+exit. Wave 07-11 plans are rebaselined to the approved post-Baseline-2 module evolution;
+Wave 07 Task 01 is the active continuation.
 
 ## Public/plugin documentation
 

@@ -16,7 +16,7 @@ done
 
 ./scripts/verify-source-layout.sh
 ./scripts/structural-review-report.sh
-./scripts/verify-architecture-baseline-2.sh
+./scripts/verify-current-architecture.sh
 
 ROOM_SCHEMA_FINGERPRINT="$(
   ./scripts/verify-room-schema-stability.sh

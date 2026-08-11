@@ -29,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -144,14 +145,20 @@ private fun buildInvocationScript(
         (async () => {
           const port = await android.getNamedPort("$BRIDGE_PORT");
           const pending = new Map();
+          const bridgeFailureMarker = Symbol("openstory.bridgeFailure");
           let nextCallId = 0;
           port.onmessage = event => {
             const response = JSON.parse(event.data);
             const callback = pending.get(response.id);
             if (!callback) return;
             pending.delete(response.id);
-            response.error ? callback.reject(Object.assign(new Error(), response.error))
-                           : callback.resolve(response.result);
+            if (response.error) {
+              const failure = Object.assign(new Error(), response.error);
+              Object.defineProperty(failure, bridgeFailureMarker, {value: true});
+              callback.reject(failure);
+            } else {
+              callback.resolve(response.result);
+            }
           };
           const bridgeCall = (method, payload) => new Promise((resolve, reject) => {
             const id = `call-${'$'}{++nextCallId}`;
@@ -179,7 +186,9 @@ private fun buildInvocationScript(
           } catch (failure) {
             const code = failure && typeof failure.code === "string"
               ? failure.code : "plugin.execution_failed";
-            return JSON.stringify({errorCode: code});
+            const retryable = failure && failure[bridgeFailureMarker] === true
+              && failure.retryable === true;
+            return JSON.stringify({errorCode: code, retryable});
           }
         })()
     """.trimIndent()
@@ -211,10 +220,17 @@ private const val SANDBOX_UNAVAILABLE = "plugin.javascript_sandbox_unavailable"
 internal fun decodeInvocationResult(source: String): String {
     val envelope = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(source).jsonObject }
         .getOrElse { executionFailure() }
-    envelope["errorCode"]?.jsonPrimitive?.content?.let(::executionFailure)
+    envelope["errorCode"]?.jsonPrimitive?.content?.let { code ->
+        executionFailure(
+            code = code,
+            retryable = envelope["retryable"]?.jsonPrimitive?.booleanOrNull ?: false,
+        )
+    }
     return envelope["payload"]?.jsonPrimitive?.content
         ?: executionFailure()
 }
 
-private fun executionFailure(code: String = "plugin.execution_failed"): Nothing =
-    throw JavaScriptExecutionFailure(code)
+private fun executionFailure(
+    code: String = "plugin.execution_failed",
+    retryable: Boolean = false,
+): Nothing = throw JavaScriptExecutionFailure(code, retryable)

@@ -30,9 +30,20 @@ run_case 'catalog/src/main/kotlin/F.kt' 'import android.content.Context' 1
 run_case 'catalog/src/main/kotlin/F.kt' 'import androidx.compose.runtime.Composable' 1
 run_case 'catalog/src/main/kotlin/F.kt' 'import app.openstory.common.dispatchers.AppDispatchers' 1
 run_case 'catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 0
+run_case 'library/src/main/kotlin/F.kt' 'import androidx.room.Entity' 1
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 0
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.execution.PluginOperationRunner' 1
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.persistence.PluginStateStore' 1
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.plugins.api.protocol.PluginOperation' 0
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.common.id.StoryId' 0
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.ContentType' 0
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.catalog.projection.CatalogStoryProjection' 0
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.catalog.repository.CatalogRepository' 1
+run_case 'library/src/main/kotlin/F.kt' 'import app.openstory.catalog.matching.StoryMatcher' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 0
+run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.library.LibraryStatus' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.execution.PluginOperationRunner' 1
 run_case 'storage/room/src/main/kotlin/F.kt' 'val runner = app.openstory.plugins.runtime.execution.PluginOperationRunner::class' 1
 run_case 'storage/room/src/main/kotlin/F.kt' $'val runner = app.openstory.plugins\n  .runtime.execution.PluginOperationRunner::class' 1
@@ -40,5 +51,6 @@ run_case 'storage/room/src/main/kotlin/F.kt' 'val fake = app.openstory.plugins.r
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.persistence.PluginStateStore' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.api.manifest.PluginService' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.catalog.repository.CatalogRepository' 0
+run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.library.LibraryRepository' 0
 
 echo 'verify-package-boundaries.sh contract verified.'

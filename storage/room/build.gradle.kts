@@ -21,6 +21,7 @@ android {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":catalog"))
+    implementation(project(":library"))
     implementation(project(":plugins:runtime"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)

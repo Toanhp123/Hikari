@@ -1,5 +1,7 @@
 package app.openstory.plugins.api.protocol.content
 
+import app.openstory.plugins.api.protocol.catalog.WireContentType
+import java.net.URI
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -8,6 +10,13 @@ data class ContentSearchRequestDto(val query: String, val nextToken: String? = n
     init {
         require(query.isNotBlank() && query.length <= MAX_QUERY_LENGTH) { "Search query must be non-blank and bounded" }
         requireToken(nextToken)
+    }
+}
+
+@Serializable
+data class ContentResolveUrlRequestDto(val url: String) {
+    init {
+        requireHttpsUrl(url)
     }
 }
 
@@ -38,12 +47,16 @@ data class ContentStoryCandidateDto(
     val sourceStoryId: String,
     val title: String,
     val authors: List<String> = emptyList(),
+    val aliases: List<String> = emptyList(),
+    val contentType: WireContentType? = null,
+    val sourceUrl: String? = null,
 ) {
     init {
         requireSourceId(sourceStoryId, "sourceStoryId")
         requireText(title, "title")
-        require(authors.size <= MAX_LIST_ITEMS) { "Too many authors" }
-        authors.forEach { requireText(it, "author") }
+        requireTextList(aliases, "aliases")
+        requireTextList(authors, "authors")
+        requireHttpsUrl(sourceUrl)
     }
 }
 
@@ -137,6 +150,7 @@ data class NoteBlockDto(val text: String) : ChapterBlockDto {
 
 private const val MAX_ID_LENGTH = 1024
 private const val MAX_QUERY_LENGTH = 1024
+private const val MAX_URL_LENGTH = 4096
 private const val MAX_TOKEN_LENGTH = 4096
 private const val MAX_TEXT_LENGTH = 4096
 private const val MAX_BLOCK_TEXT_LENGTH = 100_000
@@ -173,4 +187,14 @@ private fun requireBlockText(value: String) {
         value.isNotBlank() && value.length <= MAX_BLOCK_TEXT_LENGTH,
     ) { "Chapter block text must be non-blank and bounded" }
     require(value.none(Char::isISOControl)) { "Chapter block text must not contain control characters" }
+}
+
+private fun requireHttpsUrl(value: String?) {
+    if (value == null) return
+    require(value.length <= MAX_URL_LENGTH) { "URL is too long" }
+    require(value.none(Char::isISOControl)) { "URL must not contain control characters" }
+    val uri = runCatching { URI(value) }.getOrNull()
+    require(
+        uri != null && uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.userInfo == null,
+    ) { "URL must be HTTPS with a host and no user info" }
 }

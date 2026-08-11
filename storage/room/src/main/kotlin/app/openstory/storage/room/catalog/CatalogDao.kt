@@ -10,6 +10,9 @@ internal interface CatalogDao {
     @Query("SELECT * FROM stories ORDER BY story_id")
     suspend fun stories(): List<StoryEntity>
 
+    @Query("SELECT * FROM stories ORDER BY story_id")
+    fun observeStories(): Flow<List<StoryEntity>>
+
     @Query("SELECT * FROM catalog_entries ORDER BY plugin_id, source_id")
     suspend fun entries(): List<CatalogEntryEntity>
 

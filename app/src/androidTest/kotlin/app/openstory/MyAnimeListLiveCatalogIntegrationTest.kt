@@ -4,7 +4,6 @@ import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.openstory.common.id.PluginId
-import app.openstory.di.MyAnimeListBundledPlugin
 import app.openstory.di.PluginRuntimeEntryPoint
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.catalog.CatalogSearchOutputDto
@@ -31,7 +30,7 @@ class MyAnimeListLiveCatalogIntegrationTest {
         val runtime = EntryPointAccessors.fromApplication(context, PluginRuntimeEntryPoint::class.java).runtime()
 
         val result = runtime.invoke(
-            PluginId(MyAnimeListBundledPlugin.PLUGIN_ID),
+            PluginId(MYANIMELIST_PLUGIN_ID),
             PluginOperation.CATALOG_SEARCH,
             Json.encodeToJsonElement(CatalogSearchRequestDto(query = "One Piece")),
         )
@@ -44,6 +43,8 @@ class MyAnimeListLiveCatalogIntegrationTest {
         assertEquals("MANGA", output.items.first { it.sourceId == ONE_PIECE_MAL_ID }.contentType.name)
     }
 }
+
+private const val MYANIMELIST_PLUGIN_ID = "org.openstory.catalog.myanimelist"
 
 private const val LIVE_ARGUMENT = "openstoryLiveCatalog"
 private const val ONE_PIECE_MAL_ID = "13"

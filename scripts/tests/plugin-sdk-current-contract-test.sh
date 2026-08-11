@@ -5,7 +5,7 @@ SDK="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/docs/plug
 
 grep -Rqs 'protocol' "$SDK"
 grep -Rqs 'main.js' "$SDK"
-for op in catalog.home catalog.search catalog.details catalog.filters; do
+for op in catalog.home catalog.search catalog.details catalog.filters content.search content.resolveUrl; do
   grep -Rqs "$op" "$SDK"
 done
 grep -Rqs 'sha256' "$SDK"

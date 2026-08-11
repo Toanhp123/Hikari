@@ -52,6 +52,7 @@ jobs:
             core/common/build/reports
             storage/room/build/reports
             catalog/build/reports
+            library/build/reports
             plugins/api/build/reports
             plugins/runtime/build/reports
             catalog/build/reports

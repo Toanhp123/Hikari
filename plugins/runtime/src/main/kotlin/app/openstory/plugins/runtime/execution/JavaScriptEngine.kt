@@ -13,4 +13,7 @@ fun interface JavaScriptEngine {
     ): String
 }
 
-class JavaScriptExecutionFailure(val code: String) : RuntimeException(code)
+class JavaScriptExecutionFailure(
+    val code: String,
+    val retryable: Boolean = false,
+) : RuntimeException(code)

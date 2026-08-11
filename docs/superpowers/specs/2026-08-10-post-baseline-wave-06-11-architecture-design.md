@@ -96,6 +96,11 @@ capability, authentication-session, and security boundary. Later capabilities
 call its public facade or wrap it in capability-owned adapters; no host-side
 `CatalogPlugin`/`ContentPlugin` interface returns.
 
+The runtime is provider-neutral and supports multiple installed packages for each service.
+`:app`, as the distribution composition root, owns the production bundled descriptor list and
+may ship multiple catalog/content packages. A provider-specific credential adapter may remain in
+`:app`, but bundled package selection must not be encoded as a single-provider runtime invariant.
+
 ## Dependency Direction
 
 The approved capability direction is:
