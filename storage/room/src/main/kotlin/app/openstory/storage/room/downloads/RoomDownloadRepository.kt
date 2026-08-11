@@ -5,6 +5,9 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.downloads.blob.BlobChecksum
 import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
+import app.openstory.downloads.DownloadRecord
+import app.openstory.downloads.DownloadRepository
+import app.openstory.downloads.DownloadState
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.storage.room.OpenStoryDatabase
@@ -12,7 +15,7 @@ import app.openstory.storage.room.OpenStoryDatabase
 class RoomDownloadRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: DownloadDao,
-) : CacheRepository {
+) : CacheRepository, DownloadRepository {
     constructor(database: OpenStoryDatabase) : this(database, database.downloadDao())
 
     override suspend fun entries(): List<CacheEntry> = dao.storedEntries().map { it.toCacheEntry() }
@@ -41,6 +44,13 @@ class RoomDownloadRepository internal constructor(
                 key
             }
         }
+
+    override suspend fun find(key: ChapterBlobKey): DownloadRecord? =
+        dao.find(key.namespace.name, key.releaseId.value, key.contentFingerprint)?.toDownloadRecord()
+
+    override suspend fun save(record: DownloadRecord) {
+        dao.upsert(record.toEntity())
+    }
 }
 
 private fun CacheEntry.toEntity() = ChapterStorageEntryEntity(
@@ -70,3 +80,31 @@ private fun ChapterStorageEntryEntity.toCacheEntry() = CacheEntry(
     pinned = pinned,
     current = current,
 )
+
+private fun DownloadRecord.toEntity() = ChapterStorageEntryEntity(
+    namespace = key.namespace.name,
+    chapterReleaseId = key.releaseId.value,
+    contentFingerprint = key.contentFingerprint,
+    checksum = checksum?.value,
+    sizeBytes = sizeBytes,
+    lastAccessedAtEpochMillis = updatedAtEpochMillis,
+    pinned = state == DownloadState.COMPLETED,
+    current = false,
+    downloadState = state.name,
+    failureReason = failureReason,
+    attempt = attempt,
+    updatedAtEpochMillis = updatedAtEpochMillis,
+)
+
+private fun ChapterStorageEntryEntity.toDownloadRecord(): DownloadRecord? {
+    val state = downloadState?.let(DownloadState::valueOf) ?: return null
+    return DownloadRecord(
+        key = ChapterBlobKey(ChapterBlobNamespace.valueOf(namespace), ChapterReleaseId(chapterReleaseId), contentFingerprint),
+        state = state,
+        checksum = checksum?.let(::BlobChecksum),
+        sizeBytes = sizeBytes,
+        failureReason = failureReason,
+        attempt = attempt,
+        updatedAtEpochMillis = updatedAtEpochMillis,
+    )
+}
