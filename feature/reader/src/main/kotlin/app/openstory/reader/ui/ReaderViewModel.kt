@@ -138,6 +138,7 @@ class ReaderViewModel @AssistedInject constructor(
             nextChapterId = groups.getOrNull(index + 1)?.chapter?.id,
             restoredBlockId = restored?.takeIf { it.releaseId == releaseId }?.position?.blockId,
             restoredCharacterOffset = restored?.takeIf { it.releaseId == releaseId }?.position?.characterOffset ?: 0,
+            availableOffline = result.fromStore,
             failure = null,
         )
     }

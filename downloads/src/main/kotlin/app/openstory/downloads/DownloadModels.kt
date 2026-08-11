@@ -2,6 +2,7 @@ package app.openstory.downloads
 
 import app.openstory.downloads.blob.BlobChecksum
 import app.openstory.downloads.blob.ChapterBlobKey
+import app.openstory.common.id.ChapterReleaseId
 
 enum class DownloadState { QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED }
 
@@ -16,16 +17,16 @@ data class DownloadRecord(
 )
 
 sealed interface DownloadFetchResult {
-    data class Success(val bytes: ByteArray, val checksum: BlobChecksum) : DownloadFetchResult
+    data class Success(val fingerprint: String, val bytes: ByteArray, val checksum: BlobChecksum) : DownloadFetchResult
     data class Failure(val code: String, val retryable: Boolean) : DownloadFetchResult
 }
 
 fun interface DownloadContentSource {
-    suspend fun fetch(key: ChapterBlobKey): DownloadFetchResult
+    suspend fun fetch(releaseId: ChapterReleaseId): DownloadFetchResult
 }
 
 enum class DownloadRunResult { COMPLETED, RETRY, FAILURE, CANCELLED }
 
 fun interface DownloadScheduler {
-    fun schedule(key: ChapterBlobKey)
+    fun schedule(releaseId: ChapterReleaseId)
 }

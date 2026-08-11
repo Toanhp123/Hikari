@@ -10,6 +10,8 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.downloads.DownloadState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -150,6 +152,9 @@ data class ChapterListActions(
     val onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit = { _, _ -> },
     val onSeparate: (ChapterReleaseId) -> Unit = {},
     val onRead: (CanonicalChapterId, ChapterReleaseId) -> Unit = { _, _ -> },
+    val downloadState: (ChapterReleaseId) -> DownloadState? = { null },
+    val pendingRemoval: ChapterReleaseId? = null,
+    val downloadActions: DownloadActions = DownloadActions(),
 )
 
 private fun CanonicalChapterGroup.toUiModel(expanded: Boolean) = ChapterItemUiModel(

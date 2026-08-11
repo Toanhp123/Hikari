@@ -3,7 +3,8 @@ package app.openstory.downloads.reader
 import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.downloads.DownloadContentSource
 import app.openstory.downloads.DownloadFetchResult
-import app.openstory.downloads.blob.ChapterBlobKey
+import app.openstory.common.id.ChapterReleaseId
+import app.openstory.chapters.model.ChapterRelease
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderSourceResult
@@ -13,20 +14,23 @@ class ReaderDownloadContentSource(
     private val chapters: ChapterReleaseLookup,
     private val sources: ReaderDocumentSourceRegistry,
 ) : DownloadContentSource {
-    override suspend fun fetch(key: ChapterBlobKey): DownloadFetchResult {
-        val release = chapters.findRelease(key.releaseId)
-            ?: return DownloadFetchResult.Failure("download.release_missing", false)
+    override suspend fun fetch(releaseId: ChapterReleaseId): DownloadFetchResult {
+        val release = chapters.findRelease(releaseId)
+        return if (release == null) {
+            DownloadFetchResult.Failure("download.release_missing", false)
+        } else {
+            fetch(release)
+        }
+    }
+
+    private suspend fun fetch(release: ChapterRelease): DownloadFetchResult {
         val source = sources.enabled().firstOrNull { it.pluginId == release.pluginId }
             ?: return DownloadFetchResult.Failure("download.source_unavailable", false)
         return try {
             when (val result = source.fetch(release)) {
                 is ReaderSourceResult.Success -> {
-                    if (result.document.fingerprint != key.contentFingerprint) {
-                        DownloadFetchResult.Failure("download.fingerprint_changed", false)
-                    } else {
-                        val blob = ReaderDocumentBlobCodec.encode(result.document)
-                        DownloadFetchResult.Success(blob.bytes(), blob.checksum)
-                    }
+                    val blob = ReaderDocumentBlobCodec.encode(result.document)
+                    DownloadFetchResult.Success(result.document.fingerprint, blob.bytes(), blob.checksum)
                 }
                 is ReaderSourceResult.Failure -> DownloadFetchResult.Failure(result.code, result.retryable)
             }

@@ -93,6 +93,9 @@ private fun ChapterRow(chapter: ChapterItemUiModel, actions: ChapterListActions)
                         onKeepGrouped = actions.onKeepGrouped,
                         onSeparate = actions.onSeparate,
                         onRead = actions.onRead,
+                        downloadState = actions.downloadState(release.id),
+                        pendingRemoval = actions.pendingRemoval == release.id,
+                        downloadActions = actions.downloadActions,
                     )
                 }
             }

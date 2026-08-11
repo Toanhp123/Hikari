@@ -104,8 +104,8 @@ validate_project_imports "$reader_root" \
   '^app\.openstory\.(common|chapters|reader|plugins\.api)(\.|$)|^app\.openstory\.plugins\.runtime\.(InstalledPlugin|PluginCallResult|PluginRuntime)$' \
   'reader may import only core common, Chapters, plugin wire contracts, the public runtime facade, and its own packages.'
 
-validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|catalog|library|chapters)(\.|$)' \
-  'feature/catalog may import only core common, catalog, Library, and Chapters project packages.'
+validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|catalog|library|chapters|downloads)(\.|$)' \
+  'feature/catalog may import only core common, catalog, Library, Chapters, and Downloads project packages.'
 
 validate_project_imports "$feature_reader_root" '^app\.openstory\.(common|chapters|reader|downloads)(\.|$)' \
   'feature/reader may import only core common, Chapters, Reader, and Downloads project packages.'

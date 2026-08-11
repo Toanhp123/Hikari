@@ -23,18 +23,31 @@ class DownloadAwareReaderDocumentStore(
     private val cache = CacheService(cacheRepository, blobs)
 
     override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? {
-        for (namespace in listOf(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, ChapterBlobNamespace.AUTOMATIC_CACHE)) {
-            val key = ChapterBlobKey(namespace, releaseId, fingerprint)
-            val blob = blobs.read(key) ?: continue
-            val document = ReaderDocumentBlobCodec.decode(blob)
-            if (document == null || document.fingerprint != fingerprint) {
-                blobs.delete(key)
-                continue
-            }
-            cacheRepository.touch(key, now())
-            return document
+        for (namespace in LOCAL_READ_ORDER) {
+            readLocal(namespace, releaseId, fingerprint)?.let { return it }
         }
         return null
+    }
+
+    private suspend fun readLocal(
+        namespace: ChapterBlobNamespace,
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+    ): ReaderDocument? {
+        val key = ChapterBlobKey(namespace, releaseId, fingerprint)
+        val blob = blobs.read(key)
+        val document = blob?.let(ReaderDocumentBlobCodec::decode)
+        return when {
+            blob == null -> null
+            document == null || document.fingerprint != fingerprint -> {
+                blobs.delete(key)
+                null
+            }
+            else -> {
+                cacheRepository.touch(key, now())
+                document
+            }
+        }
     }
 
     override suspend fun write(releaseId: ChapterReleaseId, fingerprint: String, document: ReaderDocument) {
@@ -50,6 +63,13 @@ class DownloadAwareReaderDocumentStore(
         ChapterBlobNamespace.entries.forEach { namespace ->
             blobs.delete(ChapterBlobKey(namespace, releaseId, fingerprint))
         }
+    }
+
+    private companion object {
+        val LOCAL_READ_ORDER = listOf(
+            ChapterBlobNamespace.EXPLICIT_DOWNLOAD,
+            ChapterBlobNamespace.AUTOMATIC_CACHE,
+        )
     }
 }
 
@@ -78,27 +98,62 @@ internal object ReaderDocumentBlobCodec {
 
     private fun DataOutputStream.writeBlock(block: ReaderBlock) {
         when (block) {
-            is ReaderBlock.Paragraph -> { writeByte(1); writeString(block.id); writeString(block.text) }
-            is ReaderBlock.Heading -> { writeByte(2); writeString(block.id); writeInt(block.level); writeString(block.text) }
-            is ReaderBlock.Divider -> { writeByte(3); writeString(block.id) }
-            is ReaderBlock.Note -> { writeByte(4); writeString(block.id); writeString(block.text) }
+            is ReaderBlock.Paragraph -> {
+                writeByte(PARAGRAPH_TAG)
+                writeString(block.id)
+                writeString(block.text)
+            }
+            is ReaderBlock.Heading -> {
+                writeByte(HEADING_TAG)
+                writeString(block.id)
+                writeInt(block.level)
+                writeString(block.text)
+            }
+            is ReaderBlock.Divider -> {
+                writeByte(DIVIDER_TAG)
+                writeString(block.id)
+            }
+            is ReaderBlock.Note -> {
+                writeByte(NOTE_TAG)
+                writeString(block.id)
+                writeString(block.text)
+            }
         }
     }
 
     private fun DataInputStream.readBlock(): ReaderBlock = when (readByte().toInt()) {
-        1 -> ReaderBlock.Paragraph(readString(), readString())
-        2 -> ReaderBlock.Heading(readString(), readInt(), readString())
-        3 -> ReaderBlock.Divider(readString())
-        4 -> ReaderBlock.Note(readString(), readString())
+        PARAGRAPH_TAG -> ReaderBlock.Paragraph(readString(), readString())
+        HEADING_TAG -> ReaderBlock.Heading(readString(), readInt(), readString())
+        DIVIDER_TAG -> ReaderBlock.Divider(readString())
+        NOTE_TAG -> ReaderBlock.Note(readString(), readString())
         else -> error("Unknown reader block type.")
     }
 
-    private fun DataOutputStream.writeNullableString(value: String?) { writeBoolean(value != null); if (value != null) writeString(value) }
-    private fun DataInputStream.readNullableString(): String? = if (readBoolean()) readString() else null
-    private fun DataOutputStream.writeString(value: String) { val bytes = value.encodeToByteArray(); writeInt(bytes.size); write(bytes) }
-    private fun DataInputStream.readString(): String { val size = readInt(); require(size in 0..MAX_STRING_BYTES); return ByteArray(size).also(::readFully).decodeToString() }
+    private fun DataOutputStream.writeNullableString(value: String?) {
+        writeBoolean(value != null)
+        if (value != null) writeString(value)
+    }
+
+    private fun DataInputStream.readNullableString(): String? =
+        if (readBoolean()) readString() else null
+
+    private fun DataOutputStream.writeString(value: String) {
+        val bytes = value.encodeToByteArray()
+        writeInt(bytes.size)
+        write(bytes)
+    }
+
+    private fun DataInputStream.readString(): String {
+        val size = readInt()
+        require(size in 0..MAX_STRING_BYTES)
+        return ByteArray(size).also(::readFully).decodeToString()
+    }
 
     private const val FORMAT_VERSION = 1
+    private const val PARAGRAPH_TAG = 1
+    private const val HEADING_TAG = 2
+    private const val DIVIDER_TAG = 3
+    private const val NOTE_TAG = 4
     private const val MAX_BLOCKS = 100_000
     private const val MAX_STRING_BYTES = 16 * 1024 * 1024
 }

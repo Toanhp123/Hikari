@@ -16,11 +16,11 @@ class DownloadServiceTest {
         val repository = FakeDownloadRepository()
         val blobs = FakeBlobStore()
         val service = DownloadService(repository, blobs) {
-            DownloadFetchResult.Success("chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
+            DownloadFetchResult.Success("fingerprint", "chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
         }
-        service.queue(key, 1)
+        service.queue(key.releaseId, 1)
 
-        assertEquals(DownloadRunResult.COMPLETED, service.run(key, 2))
+        assertEquals(DownloadRunResult.COMPLETED, service.run(key.releaseId, 2))
         assertEquals(listOf(DownloadState.QUEUED, DownloadState.RUNNING, DownloadState.COMPLETED), repository.saved.map { it.state })
         assertEquals("chapter", blobs.read(key)!!.bytes().decodeToString())
     }
@@ -30,12 +30,12 @@ class DownloadServiceTest {
         val repository = FakeDownloadRepository()
         val blobs = FakeBlobStore()
         val service = DownloadService(repository, blobs) {
-            DownloadFetchResult.Success("wrong".encodeToByteArray(), BlobChecksum.sha256("expected".encodeToByteArray()))
+            DownloadFetchResult.Success("fingerprint", "wrong".encodeToByteArray(), BlobChecksum.sha256("expected".encodeToByteArray()))
         }
-        service.queue(key, 1)
+        service.queue(key.releaseId, 1)
 
-        assertEquals(DownloadRunResult.FAILURE, service.run(key, 2))
-        assertEquals(DownloadState.FAILED, repository.find(key)!!.state)
+        assertEquals(DownloadRunResult.FAILURE, service.run(key.releaseId, 2))
+        assertEquals(DownloadState.FAILED, repository.find(key.releaseId)!!.state)
         assertNull(blobs.read(key))
     }
 
@@ -46,12 +46,12 @@ class DownloadServiceTest {
         var fetches = 0
         val service = DownloadService(repository, blobs) {
             fetches += 1
-            DownloadFetchResult.Success("chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
+            DownloadFetchResult.Success("fingerprint", "chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
         }
-        service.queue(key, 1)
-        service.run(key, 2)
+        service.queue(key.releaseId, 1)
+        service.run(key.releaseId, 2)
 
-        assertEquals(DownloadRunResult.COMPLETED, service.run(key, 3))
+        assertEquals(DownloadRunResult.COMPLETED, service.run(key.releaseId, 3))
         assertEquals(1, fetches)
     }
 
@@ -64,7 +64,8 @@ class DownloadServiceTest {
 
 private class FakeDownloadRepository : DownloadRepository {
     val saved = mutableListOf<DownloadRecord>()
-    override suspend fun find(key: ChapterBlobKey): DownloadRecord? = saved.lastOrNull { it.key == key }
+    override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? = saved.lastOrNull { it.key.releaseId == releaseId }
+    override fun observe(releaseId: ChapterReleaseId) = kotlinx.coroutines.flow.flowOf(saved.lastOrNull { it.key.releaseId == releaseId })
     override suspend fun save(record: DownloadRecord) { saved += record }
 }
 

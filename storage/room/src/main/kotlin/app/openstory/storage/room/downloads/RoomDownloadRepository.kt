@@ -11,6 +11,8 @@ import app.openstory.downloads.DownloadState
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.storage.room.OpenStoryDatabase
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class RoomDownloadRepository internal constructor(
     private val database: OpenStoryDatabase,
@@ -45,11 +47,17 @@ class RoomDownloadRepository internal constructor(
             }
         }
 
-    override suspend fun find(key: ChapterBlobKey): DownloadRecord? =
-        dao.find(key.namespace.name, key.releaseId.value, key.contentFingerprint)?.toDownloadRecord()
+    override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? =
+        dao.findDownload(releaseId.value)?.toDownloadRecord()
+
+    override fun observe(releaseId: ChapterReleaseId): Flow<DownloadRecord?> =
+        dao.observeDownload(releaseId.value).map { it?.toDownloadRecord() }
 
     override suspend fun save(record: DownloadRecord) {
-        dao.upsert(record.toEntity())
+        database.withTransaction {
+            dao.deleteDownload(record.key.releaseId.value)
+            dao.upsert(record.toEntity())
+        }
     }
 }
 
@@ -99,7 +107,11 @@ private fun DownloadRecord.toEntity() = ChapterStorageEntryEntity(
 private fun ChapterStorageEntryEntity.toDownloadRecord(): DownloadRecord? {
     val state = downloadState?.let(DownloadState::valueOf) ?: return null
     return DownloadRecord(
-        key = ChapterBlobKey(ChapterBlobNamespace.valueOf(namespace), ChapterReleaseId(chapterReleaseId), contentFingerprint),
+        key = ChapterBlobKey(
+            ChapterBlobNamespace.valueOf(namespace),
+            ChapterReleaseId(chapterReleaseId),
+            contentFingerprint,
+        ),
         state = state,
         checksum = checksum?.let(::BlobChecksum),
         sizeBytes = sizeBytes,

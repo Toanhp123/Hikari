@@ -9,6 +9,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -32,6 +33,8 @@ import app.openstory.catalog.ui.search.SearchViewModel
 import app.openstory.catalog.ui.story.StoryAssistedArgs
 import app.openstory.catalog.ui.story.StoryScreen
 import app.openstory.catalog.ui.story.StoryViewModel
+import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.catalog.ui.download.DownloadViewModel
 import app.openstory.common.id.StoryId
 import app.openstory.reader.ui.ReaderActions
 import app.openstory.reader.ui.ReaderAssistedArgs
@@ -159,9 +162,14 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
     val chapterViewModel = hiltViewModel<ChapterListViewModel, ChapterListViewModel.Factory>(
         creationCallback = { factory -> factory.create(ChapterListAssistedArgs(storyId)) },
     )
+    val downloadViewModel = hiltViewModel<DownloadViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val mappingState by mappingViewModel.state.collectAsStateWithLifecycle()
     val chapterState by chapterViewModel.state.collectAsStateWithLifecycle()
+    val downloadState by downloadViewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(chapterState.chapters) {
+        chapterState.chapters.flatMap { it.releases }.forEach { downloadViewModel.watch(it.id) }
+    }
     StoryScreen(
         state = state,
         onRetry = viewModel::retry,
@@ -184,6 +192,16 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
             onRead = { chapterId, releaseId ->
                 navigate(AppRoute.Reader(storyId.value, chapterId.value, releaseId.value))
             },
+            downloadState = downloadState::status,
+            pendingRemoval = downloadState.pendingRemoval,
+            downloadActions = DownloadActions(
+                onDownload = downloadViewModel::download,
+                onCancel = downloadViewModel::cancel,
+                onRetry = downloadViewModel::retry,
+                onRemove = downloadViewModel::requestRemoval,
+                onConfirmRemoval = downloadViewModel::confirmRemoval,
+                onDismissRemoval = downloadViewModel::dismissRemoval,
+            ),
         ),
     )
 }

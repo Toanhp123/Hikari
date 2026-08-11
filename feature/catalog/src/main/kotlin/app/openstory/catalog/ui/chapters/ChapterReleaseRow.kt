@@ -11,6 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.catalog.ui.download.DownloadActionSheet
+import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.downloads.DownloadState
 
 @Composable
 fun ChapterReleaseRow(
@@ -19,6 +22,9 @@ fun ChapterReleaseRow(
     onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit,
     onSeparate: (ChapterReleaseId) -> Unit,
     onRead: (CanonicalChapterId, ChapterReleaseId) -> Unit,
+    downloadState: DownloadState?,
+    pendingRemoval: Boolean,
+    downloadActions: DownloadActions,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -34,5 +40,6 @@ fun ChapterReleaseRow(
                 Text("Read")
             }
         }
+        DownloadActionSheet(release.id, downloadState, pendingRemoval, downloadActions)
     }
 }
