@@ -25,6 +25,7 @@ sealed interface AppRoute : NavKey {
 
     @Serializable
     data class Reader(
+        val storyId: String,
         val chapterId: String,
         val releaseId: String?,
     ) : AppRoute
