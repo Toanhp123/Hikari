@@ -7,12 +7,13 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current production Gradle graph: 9 modules.
+- Current production Gradle graph: 11 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
 - Wave 06 Tasks 01-06: **VERIFIED**; Wave 06 is complete.
 - Wave 07 Tasks 01-06: **VERIFIED**; Wave 07 is complete.
-- Current active boundary: **Wave 08 Task 01 - introduce `:reader` and the reader document contract**.
+- Wave 08 Tasks 01-06: **IMPLEMENTATION PRESENT**; checkpoint verification remains open.
+- Current active boundary: **Wave 08 checkpoint verification**.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -22,7 +23,7 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 4 current; schemas 1-3 remain frozen historical exports |
+| Room database | schema 5 current; schemas 1-4 remain frozen historical exports |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -42,6 +43,8 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
+| `:reader` | Sanitized document loading, deterministic release selection/fallback, and exact progress policy/contracts |
+| `:feature:reader` | Restorable Reader state and accessible structured-text Compose presentation |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
@@ -62,9 +65,10 @@ runtime persistence SPI.
 - Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures.
-- Room schema 4 stores the Baseline-2 catalog/runtime state, metadata-only Library
+- Room schema 5 stores the Baseline-2 catalog/runtime state, metadata-only Library
   membership, protected content mappings, chapter graphs, aggregation overrides, and sync
-  state; schemas 1-3 remain historical exports and schema 1 remains byte-frozen. Room entities/DAOs stay
+  state, and canonical plus exact-release reading progress; schemas 1-4 remain historical
+  exports and schema 1 remains byte-frozen. Room entities/DAOs stay
   private to `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
@@ -101,8 +105,11 @@ runtime persistence SPI.
 - Plugin JavaScript receives only the host-controlled HTTP, HTML query, and safe-log
   capabilities with allowlists, budgets, cancellation, and managed-credential isolation.
 
-Reader document rendering/progress, downloads, periodic background sync, authentication,
-notifications, and release-hardening behavior remain outside the completed Wave-07 boundary.
+Wave 08 adds bounded structured-document sanitization before rendering, explained stable
+release selection, store-first loading with alternate fallback, exact progress, stable-ID
+navigation, restorable state, and accessible Compose rendering. Downloads, periodic
+background sync, authentication, notifications, and release hardening remain outside the
+implemented Wave-08 boundary.
 
 ## Architecture Baseline 2 status
 
@@ -153,7 +160,10 @@ Wave 06 is therefore complete. Wave 07 then introduced the ninth production modu
 navigation/launch suite, architecture/package/source gates, Detekt, lint, schema stability,
 and full `scripts/verify.sh` with `exit=0`. Deep review kept aggregation/sync policy in
 `:chapters`, transactions in `:storage:room`, WorkManager in `:app`, and lazy chapter
-presentation in `:feature:catalog`. Wave 08 Task 01 is the next implementation entry.
+presentation in `:feature:catalog`. Wave 08 implementation is now present at eleven modules
+and Room schema 5. Repository-local architecture/package/source checks pass; Gradle, lint,
+Detekt, connected instrumentation, and device checkpoints remain open because this execution
+environment could not download the pinned Gradle distribution.
 
 Evidence:
 
@@ -163,6 +173,7 @@ Evidence:
 - `../internal/checkpoints/wave-06-task-04-content-source-search.md`
 - `../internal/checkpoints/wave-06-task-05-protected-content-mappings.md`
 - `../internal/checkpoints/wave-06-task-06-mapping-review-url-import.md`
+- `../internal/checkpoints/wave-08-reader-and-reading-progress.md`
 
 ## Source-of-truth rule
 

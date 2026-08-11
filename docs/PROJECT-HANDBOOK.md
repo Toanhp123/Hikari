@@ -74,7 +74,8 @@ the repository implementation baseline, not a product-scope rewrite.
 
 ```text
 :app composition
-  -> Compose UI (:feature:catalog) -> services/contracts (:catalog)
+  -> Compose UI (:feature:catalog, :feature:reader)
+  -> services/contracts (:catalog, :chapters, :reader)
   -> Library membership/status (:library) -> :core:common
   -> Room adapters (:storage:room) -> :catalog + :library + runtime persistence SPI
   -> :catalog -> plugin facade (:plugins:runtime) -> wire/package contracts (:plugins:api)
@@ -82,7 +83,8 @@ the repository implementation baseline, not a product-scope rewrite.
 
 The accepted Baseline 2 production graph is the historical seven-module boundary:
 `:app`, `:core:common`, `:catalog`, `:feature:catalog`, `:storage:room`, `:plugins:api`,
-and `:plugins:runtime`. Wave 06 Task 01 added the approved eighth module, `:library`.
+and `:plugins:runtime`. Wave 06 added `:library`, Wave 07 added `:chapters`, and Wave 08
+adds `:reader` plus `:feature:reader`, producing the current eleven-module graph.
 Exact current edges are governed by `config/architecture/module-boundaries.json`; later
 modules are created only through their owning wave.
 
@@ -113,7 +115,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 07 / Task 01 - introduce `:chapters` and normalize release labels.**
+**Wave 08 implementation present; checkpoint verification open.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification.
@@ -121,8 +123,10 @@ Room, Compose, and final ownership verification.
 Wave 06 Tasks 01-06 are verified and Wave 06 is complete: metadata-only Library membership,
 Library presentation, pure explainable content-story matching, bounded quick/deferred plugin
 content search, protected Room-backed mappings/rejections, and mapping review/URL import.
-Continue from `implementation/waves/wave-07-chapter-sync-and-aggregation.md`, beginning with
-Task 01.
+Wave 07 is verified and complete. Wave 08 now contains structured-document sanitization,
+deterministic release selection/fallback, Room schema 5 exact progress, restorable Reader
+state/navigation, and accessible Compose rendering. Continue with the Wave 08 checkpoint;
+do not begin Wave 09 until its required Gradle and device gates are reviewed.
 
 ## 8. Roadmap
 
@@ -165,7 +169,7 @@ Read in this order:
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`implementation/waves/wave-07-chapter-sync-and-aggregation.md` now).
+4. Active implementation plan (`implementation/waves/wave-08-reader-and-reading-progress.md` now).
 5. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
 6. `plugin-sdk/` when changing public plugin contracts/packages.
 7. `internal/checkpoints/` when deciding whether a gate is proven.
@@ -189,5 +193,5 @@ websites.
 
 ## 12. Next action
 
-Open `implementation/waves/wave-07-chapter-sync-and-aggregation.md` and begin Task 01 on
-the verified eight-module, Room-schema-3 Wave-06 exit boundary.
+Run and review the remaining commands in the Wave 08 checkpoint on the eleven-module,
+Room-schema-5 implementation boundary.

@@ -7,8 +7,8 @@ Use this directory instead of hunting through dated plans.
 1. **[PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md)** — complete project orientation and rules.
 2. **[project/current-state.md](project/current-state.md)** — exact implementation position for this snapshot.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — wave sequence and current execution path.
-4. **[implementation/waves/wave-07-chapter-sync-and-aggregation.md](implementation/waves/wave-07-chapter-sync-and-aggregation.md)** - active Wave 07 plan, beginning at Task 01.
-5. **[internal/checkpoints/wave-06-task-06-mapping-review-url-import.md](internal/checkpoints/wave-06-task-06-mapping-review-url-import.md)** - verified Task 06 mapping-review and URL-import evidence; Wave 06 exit boundary.
+4. **[implementation/waves/wave-08-reader-and-reading-progress.md](implementation/waves/wave-08-reader-and-reading-progress.md)** - active Wave 08 plan; implementation is present and checkpoint verification is open.
+5. **[internal/checkpoints/wave-08-reader-and-reading-progress.md](internal/checkpoints/wave-08-reader-and-reading-progress.md)** - Wave 08 implementation and verification evidence.
 6. **[internal/checkpoints/wave-06-task-05-protected-content-mappings.md](internal/checkpoints/wave-06-task-05-protected-content-mappings.md)** - verified Task 05 protected-mapping and Room-schema-3 evidence.
 7. **[internal/checkpoints/wave-06-task-04-content-source-search.md](internal/checkpoints/wave-06-task-04-content-source-search.md)** - verified Task 04 plugin content-search evidence.
 8. **[internal/checkpoints/wave-06-task-03-content-story-matching.md](internal/checkpoints/wave-06-task-03-content-story-matching.md)** - verified Task 03 matching evidence.
@@ -26,9 +26,9 @@ Use this directory instead of hunting through dated plans.
 
 ## Detailed implementation plans
 
-Wave 01-06 plans are historical/accepted delivery records through the verified Wave-06
-exit. Wave 07-11 plans are rebaselined to the approved post-Baseline-2 module evolution;
-Wave 07 Task 01 is the active continuation.
+Wave 01-07 plans are historical delivery records through the verified Wave-07 exit.
+Wave 08-11 plans follow the approved post-Baseline-2 module evolution; Wave 08 has an
+implemented boundary with checkpoint verification still open.
 
 ## Public/plugin documentation
 

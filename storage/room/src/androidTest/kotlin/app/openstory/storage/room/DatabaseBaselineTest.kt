@@ -37,16 +37,14 @@ class DatabaseBaselineTest {
                 "chapter_releases",
                 "chapter_aggregation_overrides",
                 "chapter_sync_states",
+                "reading_progress",
             ),
             names,
         )
         database.openHelper.readableDatabase.query("PRAGMA foreign_key_check").use {
             assertEquals(0, it.count)
         }
-        listOf(
-            "reading_progress",
-            "downloads",
-        ).forEach { assertFalse(it in names, "Speculative table present: $it") }
+        listOf("downloads").forEach { assertFalse(it in names, "Speculative table present: $it") }
     }
 
     @Test

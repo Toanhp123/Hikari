@@ -18,6 +18,7 @@ fun ChapterReleaseRow(
     chapterId: CanonicalChapterId,
     onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit,
     onSeparate: (ChapterReleaseId) -> Unit,
+    onRead: (CanonicalChapterId, ChapterReleaseId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -28,6 +29,9 @@ fun ChapterReleaseRow(
             }
             TextButton(onClick = { onSeparate(release.id) }) {
                 Text("Separate")
+            }
+            TextButton(onClick = { onRead(chapterId, release.id) }) {
+                Text("Read")
             }
         }
     }

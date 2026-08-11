@@ -33,6 +33,10 @@ import app.openstory.catalog.ui.story.StoryAssistedArgs
 import app.openstory.catalog.ui.story.StoryScreen
 import app.openstory.catalog.ui.story.StoryViewModel
 import app.openstory.common.id.StoryId
+import app.openstory.reader.ui.ReaderActions
+import app.openstory.reader.ui.ReaderAssistedArgs
+import app.openstory.reader.ui.ReaderScreen
+import app.openstory.reader.ui.ReaderViewModel
 
 @Composable
 fun AppNavHost(
@@ -41,7 +45,11 @@ fun AppNavHost(
 ) {
     Scaffold(
         modifier = modifier,
-        bottomBar = { AppBottomBar(navigator.currentRoute, navigator::selectTopLevel) },
+        bottomBar = {
+            if (navigator.currentRoute !is AppRoute.Reader) {
+                AppBottomBar(navigator.currentRoute, navigator::selectTopLevel)
+            }
+        },
     ) { contentPadding ->
         NavDisplay(
             modifier = Modifier.padding(contentPadding),
@@ -72,8 +80,8 @@ fun AppNavHost(
                 }
                 entry<AppRoute.Plugins> { PlaceholderDestination("Plugins") }
                 entry<AppRoute.Settings> { PlaceholderDestination("Settings") }
-                entry<AppRoute.Story> { route -> StoryDestination(route) }
-                entry<AppRoute.Reader> { PlaceholderDestination("Reader") }
+                entry<AppRoute.Story> { route -> StoryDestination(route, navigator::navigate) }
+                entry<AppRoute.Reader> { route -> ReaderDestination(route, navigator::navigate) }
             },
         )
     }
@@ -140,7 +148,7 @@ private fun LibraryDestination(onStorySelected: (StoryId) -> Unit) {
 }
 
 @Composable
-private fun StoryDestination(route: AppRoute.Story) {
+private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit) {
     val storyId = StoryId(route.storyId)
     val viewModel = hiltViewModel<StoryViewModel, StoryViewModel.Factory>(
         creationCallback = { factory -> factory.create(StoryAssistedArgs(storyId)) },
@@ -173,6 +181,36 @@ private fun StoryDestination(route: AppRoute.Story) {
             onTombstonesVisible = chapterViewModel::setTombstonesVisible,
             onKeepGrouped = chapterViewModel::keepGrouped,
             onSeparate = chapterViewModel::separate,
+            onRead = { chapterId, releaseId ->
+                navigate(AppRoute.Reader(storyId.value, chapterId.value, releaseId.value))
+            },
+        ),
+    )
+}
+
+@Composable
+private fun ReaderDestination(route: AppRoute.Reader, navigate: (AppRoute) -> Unit) {
+    val viewModel = hiltViewModel<ReaderViewModel, ReaderViewModel.Factory>(
+        creationCallback = { factory ->
+            factory.create(ReaderAssistedArgs(route.storyId, route.chapterId, route.releaseId))
+        },
+    )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    ReaderScreen(
+        state,
+        ReaderActions(
+            onRetry = viewModel::retry,
+            onReleaseSelected = viewModel::selectRelease,
+            onPreviousChapter = { chapterId ->
+                navigate(AppRoute.Reader(route.storyId, chapterId.value, null))
+            },
+            onNextChapter = { chapterId ->
+                navigate(AppRoute.Reader(route.storyId, chapterId.value, null))
+            },
+            onIncreaseFont = viewModel::increaseFont,
+            onDecreaseFont = viewModel::decreaseFont,
+            onPositionChanged = viewModel::updatePosition,
+            onFlushProgress = viewModel::flushProgress,
         ),
     )
 }

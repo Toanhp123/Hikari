@@ -92,6 +92,7 @@ private fun ChapterRow(chapter: ChapterItemUiModel, actions: ChapterListActions)
                         chapterId = chapter.id,
                         onKeepGrouped = actions.onKeepGrouped,
                         onSeparate = actions.onSeparate,
+                        onRead = actions.onRead,
                     )
                 }
             }

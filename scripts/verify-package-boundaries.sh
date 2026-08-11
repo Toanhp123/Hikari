@@ -57,7 +57,9 @@ core_root="$ROOT_DIR/core/common/src/main"
 catalog_root="$ROOT_DIR/catalog/src/main"
 library_root="$ROOT_DIR/library/src/main"
 chapters_root="$ROOT_DIR/chapters/src/main"
-feature_root="$ROOT_DIR/feature/catalog/src/main"
+reader_root="$ROOT_DIR/reader/src/main"
+feature_catalog_root="$ROOT_DIR/feature/catalog/src/main"
+feature_reader_root="$ROOT_DIR/feature/reader/src/main"
 storage_root="$ROOT_DIR/storage/room/src/main"
 plugin_api_root="$ROOT_DIR/plugins/api/src/main"
 plugin_runtime_root="$ROOT_DIR/plugins/runtime/src/main"
@@ -96,10 +98,19 @@ validate_project_imports "$chapters_root" \
   '^app\.openstory\.(common|chapters|library|plugins\.api)(\.|$)|^app\.openstory\.plugins\.runtime\.(InstalledPlugin|PluginCallResult|PluginRuntime)$' \
   'chapters may import only core common, Library, plugin wire contracts, the public runtime facade, and its own packages.'
 
-validate_project_imports "$feature_root" '^app\.openstory\.(common|catalog|library|chapters)(\.|$)' \
+fail_matches "$reader_root" 'android\.content\.Context(\.|$)|androidx\.(compose|room|work)(\.|$)' \
+  'reader must remain free of Android platform, Compose, Room, and WorkManager APIs.'
+validate_project_imports "$reader_root" \
+  '^app\.openstory\.(common|chapters|reader|plugins\.api)(\.|$)|^app\.openstory\.plugins\.runtime\.(InstalledPlugin|PluginCallResult|PluginRuntime)$' \
+  'reader may import only core common, Chapters, plugin wire contracts, the public runtime facade, and its own packages.'
+
+validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|catalog|library|chapters)(\.|$)' \
   'feature/catalog may import only core common, catalog, Library, and Chapters project packages.'
 
-validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
+validate_project_imports "$feature_reader_root" '^app\.openstory\.(common|chapters|reader)(\.|$)' \
+  'feature/reader may import only core common, Chapters, and Reader project packages.'
+
+validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|reader|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
   'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'
 fail_forbidden_runtime_references "$storage_root"
 

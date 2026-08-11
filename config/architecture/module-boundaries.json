@@ -10,10 +10,12 @@
         ":catalog",
         ":library",
         ":chapters",
+        ":reader",
         ":storage:room",
         ":plugins:api",
         ":plugins:runtime",
-        ":feature:catalog"
+        ":feature:catalog",
+        ":feature:reader"
       ],
       "testDependencies": [],
       "forbiddenProductionImports": []
@@ -85,6 +87,26 @@
         "app.openstory.plugins.runtime.update."
       ]
     },
+    ":reader": {
+      "path": "reader",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common", ":chapters", ":plugins:api", ":plugins:runtime"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.content.Context",
+        "androidx.compose.",
+        "androidx.room.",
+        "androidx.work.",
+        "app.openstory.storage.",
+        "app.openstory.catalog.ui.",
+        "app.openstory.plugins.runtime.capabilities.",
+        "app.openstory.plugins.runtime.execution.",
+        "app.openstory.plugins.runtime.install.",
+        "app.openstory.plugins.runtime.persistence.",
+        "app.openstory.plugins.runtime.update."
+      ]
+    },
     ":feature:catalog": {
       "path": "feature/catalog",
       "platform": "android-library",
@@ -93,11 +115,19 @@
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
     },
+    ":feature:reader": {
+      "path": "feature/reader",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common", ":chapters", ":reader"],
+      "testDependencies": [],
+      "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
+    },
     ":storage:room": {
       "path": "storage/room",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":catalog", ":library", ":chapters", ":plugins:runtime"],
+      "productionDependencies": [":core:common", ":catalog", ":library", ":chapters", ":reader", ":plugins:runtime"],
       "testDependencies": [],
       "forbiddenProductionImports": [
         "app.openstory.catalog.ui.",

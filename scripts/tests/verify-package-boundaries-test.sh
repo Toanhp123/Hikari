@@ -44,6 +44,11 @@ run_case 'chapters/src/main/kotlin/F.kt' 'import androidx.room.Entity' 1
 run_case 'chapters/src/main/kotlin/F.kt' 'import app.openstory.library.mapping.ContentMapping' 0
 run_case 'chapters/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 0
 run_case 'chapters/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
+run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.chapters.model.ChapterRelease' 0
+run_case 'reader/src/main/kotlin/F.kt' 'import androidx.compose.runtime.Composable' 1
+run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
+run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.reader.document.ReaderDocument' 0
+run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 1
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 0
@@ -58,5 +63,6 @@ run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.api.m
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.catalog.repository.CatalogRepository' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.library.LibraryRepository' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.chapters.repository.ChapterRepository' 0
+run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.reader.progress.ReadingProgressRepository' 0
 
 echo 'verify-package-boundaries.sh contract verified.'
