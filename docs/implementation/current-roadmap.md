@@ -36,8 +36,10 @@ Wave-06 task evidence is recorded in:
 
 The retained implementation uses the Baseline 2 JavaScript protocol/runtime, bounded host
 capabilities, transactional package lifecycle, catalog-owned services, Room-owned
-persistence, and feature-owned presentation. The accepted Baseline 2 checkpoint freezes
-those boundaries for the Wave 06 entry.
+persistence, and feature-owned presentation. MyAnimeList and MangaDex are the current
+production-bundled packages, while the runtime and app-owned bundled descriptor registry support
+multiple catalog/content packages. The accepted Baseline 2 checkpoint freezes its historical
+entry evidence, not the number of plugins allowed after that boundary.
 
 ## Current module graph
 

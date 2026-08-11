@@ -50,8 +50,12 @@ runtime persistence SPI.
 
 ## Implemented product boundary
 
-- Bundled MyAnimeList catalog package uses protocol `1` and the same runtime path as any
-  third-party package.
+- The production distribution bundles MyAnimeList (`CATALOG`) and MangaDex (`CONTENT`) through
+  one app-owned descriptor registry. Both use protocol `1` and the same package, installation,
+  capability, and execution path as third-party packages; neither has a privileged runtime path.
+- The bundled registry is an extensible distribution list, not a single-provider architecture
+  invariant. Current architecture verification requires every production `.osp` asset to have a
+  matching descriptor and rejects undeclared assets.
 - Catalog Home, Search, and Story details are source-preserving, cache-first, and exposed
   through catalog-owned repository/services.
 - Matching and aggregate ranking are deterministic and preserve source scores/scales.

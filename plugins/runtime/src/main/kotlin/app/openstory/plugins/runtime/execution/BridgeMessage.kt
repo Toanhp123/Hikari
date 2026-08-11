@@ -28,11 +28,17 @@ data class BridgeResponse(
 }
 
 @Serializable
-data class BridgeError(val code: String)
+data class BridgeError(
+    val code: String,
+    val retryable: Boolean = false,
+)
 
 internal fun PluginCallResult<JsonElement>.toBridgeResponse(id: String): BridgeResponse = when (this) {
     is PluginCallResult.Success -> BridgeResponse(id = id, result = value)
-    is PluginCallResult.Failure -> BridgeResponse(id = id, error = BridgeError(code))
+    is PluginCallResult.Failure -> BridgeResponse(
+        id = id,
+        error = BridgeError(code = code, retryable = retryable),
+    )
 }
 
 private val SAFE_CALL_ID = Regex("call-[1-9][0-9]{0,8}")

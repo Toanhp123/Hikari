@@ -80,6 +80,6 @@ Throw an `Error` with a stable `code` for an expected plugin failure. Uncoded fa
 to `plugin.execution_failed`. Host capability failures also use stable codes. Cancellation
 terminates the invocation and is not converted into a plugin result.
 
-The bundled MyAnimeList catalog is the reference fixture/package for protocol `1`; it is
-not a privileged runtime path and uses the same manifest, bridge, validation, and budgets
-as any other package.
+The bundled MyAnimeList catalog and MangaDex content packages are production fixtures for
+protocol `1`. The app may register multiple bundled packages; none has a privileged runtime path,
+and all use the same manifest, bridge, validation, capabilities, and budgets as third-party packages.

@@ -22,10 +22,8 @@ class DefaultPluginRuntime(
         pluginId: PluginId,
         operation: PluginOperation,
         input: JsonElement,
-    ): PluginCallResult<JsonElement> = when (val provisioned = bundled.ensureProvisioned()) {
-        is PluginCallResult.Failure -> provisioned
-        is PluginCallResult.Success -> invokeInstalled(pluginId, operation, input)
-    }
+    ): PluginCallResult<JsonElement> =
+        bundled.ensureProvisioned()[pluginId] ?: invokeInstalled(pluginId, operation, input)
 
     private suspend fun invokeInstalled(
         pluginId: PluginId,
@@ -37,7 +35,7 @@ class DefaultPluginRuntime(
     }
 
     override suspend fun enabled(service: PluginService): List<InstalledPlugin> {
-        if (bundled.ensureProvisioned() is PluginCallResult.Failure) return emptyList()
+        bundled.ensureProvisioned()
         return state.all().filter { it.enabled && service in it.services }.map {
             InstalledPlugin(it.pluginId, it.activeVersion.version, it.services, it.acceptedNetworkHosts)
         }.sortedBy { it.pluginId.value }

@@ -24,7 +24,8 @@ make_fixture() {
   mkdir -p \
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase" \
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room" \
-    "$FIXTURE/app/src/main/assets/plugins"
+    "$FIXTURE/app/src/main/assets/plugins" \
+    "$FIXTURE/app/src/main/kotlin/app/openstory/di"
   cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json" \
     "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json"
   cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json" \
@@ -34,6 +35,21 @@ make_fixture() {
   cp "$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" \
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
   printf 'canonical plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/myanimelist-catalog.osp"
+  printf 'official content plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/mangadex-content.osp"
+  cat > "$FIXTURE/app/src/main/kotlin/app/openstory/di/BundledPlugins.kt" <<'KOTLIN'
+package app.openstory.di
+
+internal object BundledPlugins {
+    val descriptors = listOf(
+        BundledPluginDescriptor(
+            assetPath = "plugins/myanimelist-catalog.osp",
+        ),
+        BundledPluginDescriptor(
+            assetPath = "plugins/mangadex-content.osp",
+        ),
+    )
+}
+KOTLIN
 }
 
 verify() {
@@ -50,6 +66,10 @@ expect_failure() {
 
 make_fixture
 verify
+
+printf 'unregistered plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/unregistered.osp"
+expect_failure 'a production plugin asset missing from the bundled plugin registry'
+make_fixture
 
 module_count="$(grep -cE '^[[:space:]]*"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json")"
 [[ "$module_count" == 8 ]] || {

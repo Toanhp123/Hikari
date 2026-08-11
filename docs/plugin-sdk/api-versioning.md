@@ -32,6 +32,6 @@ Before publishing a protocol change:
 
 1. Classify the wire change as compatible or incompatible.
 2. Update the serializers and validation tests in `:plugins:api`.
-3. Update the MyAnimeList reference manifest and package when the contract changes.
+3. Update every affected bundled/reference manifest and package when the contract changes.
 4. Run `./gradlew :plugins:api:test :plugins:runtime:testDebugUnitTest --stacktrace`.
 5. Update these SDK pages from the tested wire contract.

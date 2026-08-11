@@ -60,7 +60,7 @@ class PluginOperationRunner(
             throw failure
         }
     } catch (failure: JavaScriptExecutionFailure) {
-        fail(pluginId, operation, failure.code)
+        fail(pluginId, operation, failure.code, failure.retryable)
     } catch (_: RuntimeException) {
         fail(pluginId, operation, "plugin.execution_failed")
     }

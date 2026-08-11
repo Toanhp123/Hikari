@@ -12,12 +12,13 @@ class AndroidBundledPluginSource(
     private val assets = context.applicationContext.assets
 
     override suspend fun packages(): List<BundledPluginPackage> = withContext(Dispatchers.IO) {
-        descriptors.map { descriptor ->
-            require(descriptor.assetPath.isNotBlank() && !descriptor.assetPath.contains("..")) {
-                "Bundled asset path is invalid"
+        descriptors.mapNotNull { descriptor ->
+            if (descriptor.assetPath.isBlank() || descriptor.assetPath.contains("..")) {
+                return@mapNotNull null
             }
-            val bytes = assets.open(descriptor.assetPath).use { it.readBytes() }
-            require(sha256(bytes) == descriptor.sha256) { "Bundled package checksum mismatch" }
+            val bytes = runCatching {
+                assets.open(descriptor.assetPath).use { it.readBytes() }
+            }.getOrNull() ?: return@mapNotNull null
             BundledPluginPackage(
                 bytes,
                 PluginArtifact(

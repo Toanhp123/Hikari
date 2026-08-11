@@ -20,14 +20,15 @@ class MyAnimeListCatalogPackageTest {
     @Test
     fun bundledMyAnimeListAssetPassesVnextPackageValidation() {
         val packageBytes = Files.readAllBytes(repositoryFile(ASSET_RELATIVE_PATH))
+        val descriptor = BundledPlugins.descriptors.single { it.pluginId == MYANIMELIST_PLUGIN_ID }
         val actualSha256 = packageBytes.sha256()
 
-        assertEquals(MyAnimeListBundledPlugin.PACKAGE_SHA_256, actualSha256)
+        assertEquals(descriptor.sha256, actualSha256)
         val result = PackageVerifier().verify(
             bytes = packageBytes,
             artifactProvenance = PluginArtifact(
-                pluginId = MyAnimeListBundledPlugin.PLUGIN_ID,
-                version = MyAnimeListBundledPlugin.VERSION,
+                pluginId = descriptor.pluginId,
+                version = descriptor.version,
                 downloadUrl = "https://bundled.openstory.app/myanimelist-catalog.osp",
                 sha256 = actualSha256,
             ),
@@ -44,8 +45,8 @@ class MyAnimeListCatalogPackageTest {
         val manifest = Json.decodeFromString<PluginManifest>(manifestSource)
 
         assertEquals(setOf("manifest.json", "main.js"), entries.keys)
-        assertEquals(MyAnimeListBundledPlugin.PLUGIN_ID, manifest.id)
-        assertEquals(MyAnimeListBundledPlugin.VERSION, manifest.version)
+        assertEquals(MYANIMELIST_PLUGIN_ID, manifest.id)
+        assertEquals(MYANIMELIST_PLUGIN_VERSION, manifest.version)
         assertEquals(setOf(PluginService.CATALOG), manifest.provides)
         assertEquals(
             setOf("api.myanimelist.net", "cdn.myanimelist.net", "myanimelist.net"),
@@ -100,3 +101,5 @@ private fun String.normalizedLineEndings(): String = replace("\r\n", "\n").repla
 private const val ASSET_RELATIVE_PATH = "app/src/main/assets/plugins/myanimelist-catalog.osp"
 private const val MANIFEST_RELATIVE_PATH = "bundled-plugins/myanimelist-catalog/manifest.json"
 private const val MAIN_JS_RELATIVE_PATH = "bundled-plugins/myanimelist-catalog/main.js"
+private const val MYANIMELIST_PLUGIN_ID = "org.openstory.catalog.myanimelist"
+private const val MYANIMELIST_PLUGIN_VERSION = "2.0.0"

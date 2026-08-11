@@ -15,6 +15,20 @@ val packageMyAnimeListPlugin by tasks.registering(Zip::class) {
     isPreserveFileTimestamps = false
 }
 
+val packageMangaDexPlugin by tasks.registering(Zip::class) {
+    from(layout.projectDirectory.dir("../bundled-plugins/mangadex-content")) {
+        include("manifest.json", "main.js")
+    }
+    destinationDirectory.set(layout.projectDirectory.dir("src/main/assets/plugins"))
+    archiveFileName.set("mangadex-content.osp")
+    isReproducibleFileOrder = true
+    isPreserveFileTimestamps = false
+}
+
+tasks.named("preBuild") {
+    dependsOn(packageMangaDexPlugin)
+}
+
 val myAnimeListClientId = providers.gradleProperty("openstory.malClientId")
     .orElse(providers.environmentVariable("OPENSTORY_MAL_CLIENT_ID"))
     .orElse("")

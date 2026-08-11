@@ -4,7 +4,6 @@ import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.openstory.common.id.PluginId
-import app.openstory.di.MyAnimeListBundledPlugin
 import app.openstory.di.PluginRuntimeEntryPoint
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.catalog.CatalogFiltersOutputDto
@@ -28,7 +27,7 @@ class MyAnimeListCatalogContractIntegrationTest {
         val runtime = EntryPointAccessors.fromApplication(context, PluginRuntimeEntryPoint::class.java).runtime()
 
         val result = runtime.invoke(
-            PluginId(MyAnimeListBundledPlugin.PLUGIN_ID),
+            PluginId(MYANIMELIST_PLUGIN_ID),
             PluginOperation.CATALOG_FILTERS,
             buildJsonObject {},
         )
@@ -40,6 +39,9 @@ class MyAnimeListCatalogContractIntegrationTest {
         val payload = (result as PluginCallResult.Success).value
         assertTrue(Json.decodeFromJsonElement(CatalogFiltersOutputDto.serializer(), payload).filters.isEmpty())
         val installed = runtime.enabled(app.openstory.plugins.api.manifest.PluginService.CATALOG).single()
-        assertEquals(MyAnimeListBundledPlugin.VERSION, installed.version)
+        assertEquals(MYANIMELIST_PLUGIN_VERSION, installed.version)
     }
 }
+
+private const val MYANIMELIST_PLUGIN_ID = "org.openstory.catalog.myanimelist"
+private const val MYANIMELIST_PLUGIN_VERSION = "2.0.0"

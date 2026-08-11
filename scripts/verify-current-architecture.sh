@@ -7,6 +7,7 @@ POLICY="$ROOT_DIR/config/architecture/module-boundaries.json"
 SUPPRESSIONS="$ROOT_DIR/config/quality/structural-suppressions.txt"
 SCHEMA_DIR="$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase"
 DATABASE_SOURCE="$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
+BUNDLED_DESCRIPTOR_SOURCE="$ROOT_DIR/app/src/main/kotlin/app/openstory/di/BundledPlugins.kt"
 BASELINE_SCHEMA_ONE_SHA256="adbd52a78feebd2eee197ccb58f0c209852ca059abd9fe1327bbfa962ba2011a"
 
 fail() {
@@ -151,12 +152,20 @@ database_version="$(
   fail "Latest Room schema ($latest_schema) must match OpenStoryDatabase version ($database_version)."
 
 BUNDLED_ASSET_DIR="$ROOT_DIR/app/src/main/assets/plugins"
-bundled_asset_count=0
-for bundled_asset in "$BUNDLED_ASSET_DIR"/*.osp; do
-  [[ -f "$bundled_asset" ]] && bundled_asset_count=$((bundled_asset_count + 1))
-done
-[[ "$bundled_asset_count" == 1 && -f "$BUNDLED_ASSET_DIR/myanimelist-catalog.osp" ]] ||
-  fail "Production assets must contain exactly the canonical MyAnimeList plugin package."
+[[ -f "$BUNDLED_DESCRIPTOR_SOURCE" ]] || fail "Missing production bundled plugin registry."
+
+declared_bundled_assets="$(
+  sed -nE 's/^[[:space:]]*assetPath[[:space:]]*=[[:space:]]*"plugins\/([^"/]+\.osp)".*/\1/p' \
+    "$BUNDLED_DESCRIPTOR_SOURCE" | sorted_unique
+)"
+actual_bundled_assets="$({
+  for bundled_asset in "$BUNDLED_ASSET_DIR"/*.osp; do
+    [[ -f "$bundled_asset" ]] && basename "$bundled_asset"
+  done | sorted_unique
+} || true)"
+[[ -n "$declared_bundled_assets" ]] || fail "Production bundled plugin registry contains no packages."
+[[ "$actual_bundled_assets" == "$declared_bundled_assets" ]] ||
+  fail "Production plugin assets must match the bundled plugin registry exactly."
 
 [[ ! -s "$SUPPRESSIONS" ]] || fail "Structural suppression debt must be empty."
 
