@@ -59,7 +59,7 @@ class MangaDexContentPackageTest {
     }
 
     @Test
-    fun manifestAndScriptExposeOnlyWave06ContentOperations() {
+    fun manifestAndScriptExposeChapterListsWithoutReaderBodies() {
         val manifestSource = Files.readString(mangaDexRepositoryFile(MANGADEX_MANIFEST_RELATIVE_PATH))
         val mainSource = Files.readString(mangaDexRepositoryFile(MANGADEX_MAIN_JS_RELATIVE_PATH))
         val manifest = Json.decodeFromString<PluginManifest>(manifestSource)
@@ -72,7 +72,7 @@ class MangaDexContentPackageTest {
         assertTrue(mainSource.contains("search: async"))
         assertTrue(mainSource.contains("resolveUrl: async"))
         assertTrue(mainSource.contains("https://api.mangadex.org"))
-        assertFalse(mainSource.contains("chapters: async"))
+        assertTrue(mainSource.contains("chapters: async"))
         assertFalse(mainSource.contains("chapter: async"))
         assertFalse(mainSource.contains("Authorization"))
         assertFalse(mainSource.contains("Cookie"))
@@ -110,7 +110,7 @@ private fun ByteArray.mangaDexSha256(): String = MessageDigest.getInstance("SHA-
     .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
 private const val MANGADEX_PACKAGE_PLUGIN_ID = "org.openstory.content.mangadex"
-private const val MANGADEX_PACKAGE_VERSION = "1.0.0"
+private const val MANGADEX_PACKAGE_VERSION = "1.1.0"
 private const val MANGADEX_ASSET_PATH = "plugins/mangadex-content.osp"
 private const val MANGADEX_ASSET_RELATIVE_PATH = "app/src/main/assets/plugins/mangadex-content.osp"
 private const val MANGADEX_MANIFEST_RELATIVE_PATH = "bundled-plugins/mangadex-content/manifest.json"

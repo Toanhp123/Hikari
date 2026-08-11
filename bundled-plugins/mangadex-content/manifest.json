@@ -1,7 +1,7 @@
 {
   "id": "org.openstory.content.mangadex",
-  "name": "MangaDex Content Reference",
-  "version": "1.0.0",
+  "name": "MangaDex Content",
+  "version": "1.1.0",
   "protocol": 1,
   "entry": "main.js",
   "provides": [
