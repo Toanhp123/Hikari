@@ -18,6 +18,8 @@ import app.openstory.storage.room.chapters.ChapterDao
 import app.openstory.storage.room.chapters.ChapterReleaseEntity
 import app.openstory.storage.room.chapters.ChapterSyncStateEntity
 import app.openstory.storage.room.chapters.ChapterSyncDao
+import app.openstory.storage.room.downloads.ChapterStorageEntryEntity
+import app.openstory.storage.room.downloads.DownloadDao
 import app.openstory.storage.room.library.ContentMappingEntity
 import app.openstory.storage.room.library.ContentMappingRejectionEntity
 import app.openstory.storage.room.library.LibraryDao
@@ -48,8 +50,9 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         ChapterAggregationOverrideEntity::class,
         ChapterSyncStateEntity::class,
         ReadingProgressEntity::class,
+        ChapterStorageEntryEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -62,6 +65,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun chapterDao(): ChapterDao
     internal abstract fun chapterSyncDao(): ChapterSyncDao
     internal abstract fun readingProgressDao(): ReadingProgressDao
+    internal abstract fun downloadDao(): DownloadDao
 
     companion object {
         private const val DATABASE_NAME = "openstory-baseline-2.db"
@@ -75,6 +79,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             RoomMigrations.MIGRATION_2_3,
             RoomMigrations.MIGRATION_3_4,
             RoomMigrations.MIGRATION_4_5,
+            RoomMigrations.MIGRATION_5_6,
         )
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()

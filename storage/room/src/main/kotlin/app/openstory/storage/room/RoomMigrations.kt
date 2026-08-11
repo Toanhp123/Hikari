@@ -105,6 +105,33 @@ object RoomMigrations {
         }
     }
 
+    val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `chapter_storage_entries` (" +
+                    "`namespace` TEXT NOT NULL, `chapter_release_id` TEXT NOT NULL, " +
+                    "`content_fingerprint` TEXT NOT NULL, `checksum` TEXT, " +
+                    "`size_bytes` INTEGER NOT NULL, `last_accessed_at_epoch_millis` INTEGER NOT NULL, " +
+                    "`pinned` INTEGER NOT NULL, `current` INTEGER NOT NULL, " +
+                    "`download_state` TEXT, `failure_reason` TEXT, `attempt` INTEGER NOT NULL, " +
+                    "`updated_at_epoch_millis` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`namespace`, `chapter_release_id`, `content_fingerprint`))",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_chapter_storage_entries_chapter_release_id` " +
+                    "ON `chapter_storage_entries` (`chapter_release_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_chapter_storage_entries_last_accessed_at_epoch_millis` " +
+                    "ON `chapter_storage_entries` (`last_accessed_at_epoch_millis`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_chapter_storage_entries_download_state` " +
+                    "ON `chapter_storage_entries` (`download_state`)",
+            )
+        }
+    }
+
     private fun createCanonicalChapters(db: SupportSQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE IF NOT EXISTS `canonical_chapters` (" +
