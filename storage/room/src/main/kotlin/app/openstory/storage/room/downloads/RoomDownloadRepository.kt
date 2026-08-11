@@ -10,6 +10,10 @@ import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.DownloadState
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.reconcile.StorageDownloadFailure
+import app.openstory.downloads.reconcile.StorageMetadataEntry
+import app.openstory.downloads.reconcile.StorageMetadataRepairPlan
+import app.openstory.downloads.reconcile.StorageReconciliationRepository
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -17,7 +21,7 @@ import kotlinx.coroutines.flow.map
 class RoomDownloadRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: DownloadDao,
-) : CacheRepository, DownloadRepository {
+) : CacheRepository, DownloadRepository, StorageReconciliationRepository {
     constructor(database: OpenStoryDatabase) : this(database, database.downloadDao())
 
     override suspend fun entries(): List<CacheEntry> = dao.storedEntries().map { it.toCacheEntry() }
@@ -58,6 +62,50 @@ class RoomDownloadRepository internal constructor(
             dao.deleteDownload(record.key.releaseId.value)
             dao.upsert(record.toEntity())
         }
+    }
+
+    override suspend fun storageEntries(): List<StorageMetadataEntry> =
+        dao.allEntries().map(ChapterStorageEntryEntity::toStorageMetadataEntry)
+
+    override suspend fun commit(
+        plan: StorageMetadataRepairPlan,
+        updatedAtEpochMillis: Long,
+    ) {
+        database.withTransaction {
+            plan.removedMetadata.forEach { key -> removeAutomaticMetadata(key) }
+            plan.failedDownloads.forEach { failure ->
+                failExplicitDownload(failure, updatedAtEpochMillis)
+            }
+        }
+    }
+
+    private suspend fun removeAutomaticMetadata(key: ChapterBlobKey) {
+        if (key.namespace != ChapterBlobNamespace.AUTOMATIC_CACHE) return
+        dao.find(key.namespace.name, key.releaseId.value, key.contentFingerprint)
+            ?.takeIf { it.namespace == ChapterBlobNamespace.AUTOMATIC_CACHE.name }
+            ?.let { dao.delete(it) }
+    }
+
+    private suspend fun failExplicitDownload(
+        failure: StorageDownloadFailure,
+        updatedAtEpochMillis: Long,
+    ) {
+        if (failure.key.namespace != ChapterBlobNamespace.EXPLICIT_DOWNLOAD) return
+        val entity = dao.find(
+            failure.key.namespace.name,
+            failure.key.releaseId.value,
+            failure.key.contentFingerprint,
+        ) ?: return
+        dao.upsert(
+            entity.copy(
+                checksum = null,
+                sizeBytes = 0,
+                pinned = false,
+                downloadState = DownloadState.FAILED.name,
+                failureReason = failure.reason,
+                updatedAtEpochMillis = updatedAtEpochMillis,
+            ),
+        )
     }
 }
 
@@ -120,3 +168,13 @@ private fun ChapterStorageEntryEntity.toDownloadRecord(): DownloadRecord? {
         updatedAtEpochMillis = updatedAtEpochMillis,
     )
 }
+
+private fun ChapterStorageEntryEntity.toStorageMetadataEntry() = StorageMetadataEntry(
+    key = ChapterBlobKey(
+        ChapterBlobNamespace.valueOf(namespace),
+        ChapterReleaseId(chapterReleaseId),
+        contentFingerprint,
+    ),
+    downloadState = downloadState?.let(DownloadState::valueOf),
+    updatedAtEpochMillis = updatedAtEpochMillis,
+)

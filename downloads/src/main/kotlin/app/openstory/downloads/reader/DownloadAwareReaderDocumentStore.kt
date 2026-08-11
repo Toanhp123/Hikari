@@ -7,6 +7,7 @@ import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.cache.CacheService
+import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
@@ -14,11 +15,13 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import kotlinx.coroutines.CancellationException
 
 class DownloadAwareReaderDocumentStore(
     private val blobs: ChapterBlobStore,
     private val cacheRepository: CacheRepository,
     private val now: () -> Long,
+    private val writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
 ) : ReaderDocumentStore {
     private val cache = CacheService(cacheRepository, blobs)
 
@@ -52,11 +55,19 @@ class DownloadAwareReaderDocumentStore(
 
     override suspend fun write(releaseId: ChapterReleaseId, fingerprint: String, document: ReaderDocument) {
         require(document.fingerprint == fingerprint)
-        cache.store(
-            ChapterBlobKey(ChapterBlobNamespace.AUTOMATIC_CACHE, releaseId, fingerprint),
-            ReaderDocumentBlobCodec.encode(document),
-            now(),
-        )
+        val blob = ReaderDocumentBlobCodec.encode(document)
+        if (!writeAdmission.canStore(blob.bytes().size.toLong())) return
+        try {
+            cache.store(
+                ChapterBlobKey(ChapterBlobNamespace.AUTOMATIC_CACHE, releaseId, fingerprint),
+                blob,
+                now(),
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Cache persistence is best effort; reconciliation cleans partial metadata or blobs.
+        }
     }
 
     override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) {

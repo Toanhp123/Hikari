@@ -9,12 +9,16 @@ import app.openstory.downloads.blob.BlobChecksum
 import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.cache.CacheEntry
+import app.openstory.downloads.DownloadState
+import app.openstory.downloads.reconcile.StorageDownloadFailure
+import app.openstory.downloads.reconcile.StorageMetadataRepairPlan
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.junit.runner.RunWith
 
@@ -70,6 +74,51 @@ class RoomDownloadRepositoryTest {
                 explicit.contentFingerprint,
             ),
         )
+    }
+
+    @Test
+    fun reconciliationAtomicallyRemovesMissingCacheAndFailsMissingDownload() = runTest {
+        val automatic = key(ChapterBlobNamespace.AUTOMATIC_CACHE, "automatic-reconcile")
+        val explicit = key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, "explicit-reconcile")
+        repository.upsert(entry(automatic))
+        database.downloadDao().upsert(
+            ChapterStorageEntryEntity(
+                namespace = explicit.namespace.name,
+                chapterReleaseId = explicit.releaseId.value,
+                contentFingerprint = explicit.contentFingerprint,
+                checksum = BlobChecksum.sha256("explicit".encodeToByteArray()).value,
+                sizeBytes = 8,
+                lastAccessedAtEpochMillis = 1,
+                pinned = true,
+                current = false,
+                downloadState = DownloadState.COMPLETED.name,
+                failureReason = null,
+                attempt = 1,
+                updatedAtEpochMillis = 1,
+            ),
+        )
+
+        repository.commit(
+            StorageMetadataRepairPlan(
+                removedMetadata = listOf(automatic),
+                failedDownloads = listOf(
+                    StorageDownloadFailure(explicit, "download.integrity_missing"),
+                ),
+            ),
+            updatedAtEpochMillis = 10,
+        )
+
+        assertNull(
+            database.downloadDao().find(
+                automatic.namespace.name,
+                automatic.releaseId.value,
+                automatic.contentFingerprint,
+            ),
+        )
+        val failed = repository.find(explicit.releaseId)
+        assertEquals(DownloadState.FAILED, failed?.state)
+        assertEquals("download.integrity_missing", failed?.failureReason)
+        assertNull(failed?.checksum)
     }
 
     private fun key(namespace: ChapterBlobNamespace, id: String) = ChapterBlobKey(

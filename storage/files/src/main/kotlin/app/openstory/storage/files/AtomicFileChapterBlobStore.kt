@@ -4,7 +4,6 @@ import android.content.Context
 import app.openstory.downloads.blob.BlobChecksum
 import app.openstory.downloads.blob.ChapterBlob
 import app.openstory.downloads.blob.ChapterBlobKey
-import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
 import java.io.Closeable
 import java.io.File
@@ -13,22 +12,19 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
-import java.security.MessageDigest
 
 /** Android app-private [ChapterBlobStore] implementation with staged atomic writes. */
 class AtomicFileChapterBlobStore internal constructor(
     private val rootDirectory: File,
     private val files: BlobFileOperations,
 ) : ChapterBlobStore {
-    private val operationLock = Any()
-
     constructor(context: Context) : this(
-        rootDirectory = File(context.filesDir, ROOT_DIRECTORY_NAME),
+        rootDirectory = ChapterBlobFileLayout.root(context),
         files = PlatformBlobFileOperations,
     )
 
     override suspend fun read(key: ChapterBlobKey): ChapterBlob? {
-        return synchronized(operationLock) {
+        return synchronized(ChapterBlobFileLayout.operationLock) {
             val target = blobFile(key)
             val encoded = files.readBytes(target) ?: return@synchronized null
             val blob = decode(encoded)
@@ -39,7 +35,8 @@ class AtomicFileChapterBlobStore internal constructor(
         }
     }
 
-    override suspend fun write(key: ChapterBlobKey, blob: ChapterBlob) = synchronized(operationLock) {
+    override suspend fun write(key: ChapterBlobKey, blob: ChapterBlob) =
+        synchronized(ChapterBlobFileLayout.operationLock) {
         val target = blobFile(key)
         val temporary = files.createTempFile(target.parentFile ?: error("Blob file has no parent."))
         try {
@@ -55,21 +52,11 @@ class AtomicFileChapterBlobStore internal constructor(
         }
     }
 
-    override suspend fun delete(key: ChapterBlobKey) = synchronized(operationLock) {
+    override suspend fun delete(key: ChapterBlobKey) = synchronized(ChapterBlobFileLayout.operationLock) {
         files.delete(blobFile(key))
     }
 
-    private fun blobFile(key: ChapterBlobKey): File {
-        val namespaceDirectory = File(rootDirectory, key.namespace.directoryName)
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest("${key.releaseId.value}\u0000${key.contentFingerprint}".encodeToByteArray())
-            .joinToString(separator = "") { byte -> "%02x".format(byte) }
-        val target = File(namespaceDirectory, "$digest.blob")
-        check(target.toPath().normalize().startsWith(rootDirectory.toPath().normalize())) {
-            "Blob path escaped its app-private root."
-        }
-        return target
-    }
+    private fun blobFile(key: ChapterBlobKey): File = ChapterBlobFileLayout.blobFile(rootDirectory, key)
 
     private fun encode(blob: ChapterBlob): ByteArray =
         blob.checksum.value.encodeToByteArray() + byteArrayOf(NEWLINE) + blob.bytes()
@@ -87,14 +74,7 @@ class AtomicFileChapterBlobStore internal constructor(
         null
     }
 
-    private val ChapterBlobNamespace.directoryName: String
-        get() = when (this) {
-            ChapterBlobNamespace.AUTOMATIC_CACHE -> "cache"
-            ChapterBlobNamespace.EXPLICIT_DOWNLOAD -> "downloads"
-        }
-
     private companion object {
-        const val ROOT_DIRECTORY_NAME = "chapter-blobs"
         const val CHECKSUM_LENGTH = 64
         const val NEWLINE: Byte = '\n'.code.toByte()
     }
@@ -120,7 +100,7 @@ internal interface BlobFileOutput : Closeable {
     fun sync()
 }
 
-private object PlatformBlobFileOperations : BlobFileOperations {
+internal object PlatformBlobFileOperations : BlobFileOperations {
     override fun createTempFile(parent: File): File {
         if (!parent.exists() && !parent.mkdirs()) {
             throw IOException("Could not create app-private blob directory.")

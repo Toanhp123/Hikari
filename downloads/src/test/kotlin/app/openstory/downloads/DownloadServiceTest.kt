@@ -5,6 +5,7 @@ import app.openstory.downloads.blob.BlobChecksum
 import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
+import app.openstory.downloads.reconcile.StorageWriteAdmission
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -15,9 +16,9 @@ class DownloadServiceTest {
     fun `download moves queued running completed and stores verified bytes`() = runTest {
         val repository = FakeDownloadRepository()
         val blobs = FakeBlobStore()
-        val service = DownloadService(repository, blobs) {
+        val service = DownloadService(repository, blobs, source = {
             DownloadFetchResult.Success("fingerprint", "chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
-        }
+        })
         service.queue(key.releaseId, 1)
 
         assertEquals(DownloadRunResult.COMPLETED, service.run(key.releaseId, 2))
@@ -29,9 +30,9 @@ class DownloadServiceTest {
     fun `checksum mismatch fails and removes partial bytes`() = runTest {
         val repository = FakeDownloadRepository()
         val blobs = FakeBlobStore()
-        val service = DownloadService(repository, blobs) {
+        val service = DownloadService(repository, blobs, source = {
             DownloadFetchResult.Success("fingerprint", "wrong".encodeToByteArray(), BlobChecksum.sha256("expected".encodeToByteArray()))
-        }
+        })
         service.queue(key.releaseId, 1)
 
         assertEquals(DownloadRunResult.FAILURE, service.run(key.releaseId, 2))
@@ -44,15 +45,38 @@ class DownloadServiceTest {
         val repository = FakeDownloadRepository()
         val blobs = FakeBlobStore()
         var fetches = 0
-        val service = DownloadService(repository, blobs) {
+        val service = DownloadService(repository, blobs, source = {
             fetches += 1
             DownloadFetchResult.Success("fingerprint", "chapter".encodeToByteArray(), BlobChecksum.sha256("chapter".encodeToByteArray()))
-        }
+        })
         service.queue(key.releaseId, 1)
         service.run(key.releaseId, 2)
 
         assertEquals(DownloadRunResult.COMPLETED, service.run(key.releaseId, 3))
         assertEquals(1, fetches)
+    }
+
+    @Test
+    fun `low storage refuses the blob write and leaves retryable failure`() = runTest {
+        val repository = FakeDownloadRepository()
+        val blobs = FakeBlobStore()
+        val service = DownloadService(
+            repository,
+            blobs,
+            {
+                DownloadFetchResult.Success(
+                    "fingerprint",
+                    "chapter".encodeToByteArray(),
+                    BlobChecksum.sha256("chapter".encodeToByteArray()),
+                )
+            },
+            StorageWriteAdmission { false },
+        )
+        service.queue(key.releaseId, 1)
+
+        assertEquals(DownloadRunResult.RETRY, service.run(key.releaseId, 2))
+        assertEquals("download.low_storage", repository.find(key.releaseId)?.failureReason)
+        assertNull(blobs.read(key))
     }
 
     private val key = ChapterBlobKey(

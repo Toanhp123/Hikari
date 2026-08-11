@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 internal interface DownloadDao {
+    @Query("SELECT * FROM chapter_storage_entries")
+    suspend fun allEntries(): List<ChapterStorageEntryEntity>
+
     @Query("SELECT * FROM chapter_storage_entries WHERE checksum IS NOT NULL")
     suspend fun storedEntries(): List<ChapterStorageEntryEntity>
 

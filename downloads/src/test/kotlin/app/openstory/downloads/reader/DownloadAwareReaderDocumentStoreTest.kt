@@ -7,11 +7,13 @@ import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
 class DownloadAwareReaderDocumentStoreTest {
@@ -49,6 +51,34 @@ class DownloadAwareReaderDocumentStoreTest {
         assertEquals(42, repository.entries().single().lastAccessedAtEpochMillis)
     }
 
+    @Test
+    fun `low storage skips automatic cache without failing the reader write`() = runTest {
+        val blobs = FakeBlobs()
+        val repository = FakeCacheRepository()
+        val store = DownloadAwareReaderDocumentStore(
+            blobs,
+            repository,
+            { 42 },
+            StorageWriteAdmission { false },
+        )
+
+        store.write(releaseId, fingerprint, document("network"))
+
+        assertTrue(repository.entries().isEmpty())
+        assertNull(blobs.read(key(ChapterBlobNamespace.AUTOMATIC_CACHE)))
+    }
+
+    @Test
+    fun `cache write failure does not fail the network reader result`() = runTest {
+        val blobs = FakeBlobs(failWrites = true)
+        val repository = FakeCacheRepository()
+        val store = DownloadAwareReaderDocumentStore(blobs, repository, { 42 })
+
+        store.write(releaseId, fingerprint, document("network"))
+
+        assertTrue(repository.entries().isEmpty())
+    }
+
     private fun document(title: String) = ReaderDocument(title, listOf(ReaderBlock.Paragraph("p1", "Text")), fingerprint)
     private fun key(namespace: ChapterBlobNamespace) = ChapterBlobKey(namespace, releaseId, fingerprint)
 
@@ -58,10 +88,15 @@ class DownloadAwareReaderDocumentStoreTest {
     }
 }
 
-private class FakeBlobs : ChapterBlobStore {
+private class FakeBlobs(
+    private val failWrites: Boolean = false,
+) : ChapterBlobStore {
     private val values = mutableMapOf<ChapterBlobKey, ChapterBlob>()
     override suspend fun read(key: ChapterBlobKey) = values[key]
-    override suspend fun write(key: ChapterBlobKey, blob: ChapterBlob) { values[key] = blob }
+    override suspend fun write(key: ChapterBlobKey, blob: ChapterBlob) {
+        if (failWrites) error("disk full")
+        values[key] = blob
+    }
     override suspend fun delete(key: ChapterBlobKey) { values.remove(key) }
 }
 

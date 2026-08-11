@@ -5,6 +5,7 @@ import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.downloads.reconcile.StorageWriteAdmission
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -13,6 +14,7 @@ class DownloadService(
     private val repository: DownloadRepository,
     private val blobs: ChapterBlobStore,
     private val source: DownloadContentSource,
+    private val writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
 ) {
     suspend fun queue(releaseId: ChapterReleaseId, now: Long) {
         val existing = repository.find(releaseId)
@@ -86,6 +88,15 @@ class DownloadService(
         now: Long,
         attempt: Int,
     ): DownloadRunResult {
+        if (!writeAdmission.canStore(fetched.bytes.size.toLong())) {
+            return fail(
+                releaseId = releaseId,
+                code = LOW_STORAGE_REASON,
+                retryable = true,
+                now = now,
+                attempt = attempt,
+            )
+        }
         val key = ChapterBlobKey(
             ChapterBlobNamespace.EXPLICIT_DOWNLOAD,
             releaseId,
@@ -142,5 +153,8 @@ class DownloadService(
     private fun pendingKey(releaseId: ChapterReleaseId) =
         ChapterBlobKey(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, releaseId, PENDING_FINGERPRINT)
 
-    private companion object { const val PENDING_FINGERPRINT = "pending" }
+    private companion object {
+        const val PENDING_FINGERPRINT = "pending"
+        const val LOW_STORAGE_REASON = "download.low_storage"
+    }
 }
