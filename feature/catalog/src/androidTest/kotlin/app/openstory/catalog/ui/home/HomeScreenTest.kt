@@ -1,8 +1,7 @@
 package app.openstory.catalog.ui.home
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -17,6 +16,7 @@ import app.openstory.catalog.ranking.CatalogRankContribution
 import app.openstory.catalog.ranking.RankedCatalogStory
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.theme.HikariTheme
 import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -28,7 +28,7 @@ class HomeScreenTest {
     @Test
     fun cachedContentAndPartialFailureRemainVisibleWhileRefreshing() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 HomeScreen(
                     state = fixtureState(refreshing = true, failed = true),
                     onRefresh = {},
@@ -50,7 +50,7 @@ class HomeScreenTest {
     @Test
     fun cardSemanticsExposeStorySectionScoreAndContentType() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 HomeScreen(
                     state = fixtureState(selected = true),
                     onRefresh = {},
@@ -71,7 +71,7 @@ class HomeScreenTest {
     fun cardClickReportsCanonicalStoryIdentityOnly() {
         var selected: StoryId? = null
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 HomeScreen(
                     state = fixtureState(),
                     onRefresh = {},

@@ -17,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.ui.chapters.ChapterListActions
@@ -27,6 +26,9 @@ import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingSheet
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.state.HikariErrorState
+import app.openstory.designsystem.state.HikariLoadingState
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun StoryScreen(
@@ -47,14 +49,14 @@ fun StoryScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
     ) {
         item(key = "story-header") { StoryHeader(story) }
         item(key = "story-refresh-action") {
             Button(
                 onClick = onRetry,
                 enabled = !state.refreshing,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
             ) {
                 Text("Refresh details")
             }
@@ -105,22 +107,33 @@ private fun LazyListScope.mappingItem(
 
 @Composable
 private fun EmptyStory(state: StoryUiState, onRetry: () -> Unit, modifier: Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(if (state.refreshing) "Loading story..." else "Story unavailable")
-        state.failure?.let { StoryFailure(it, onRetry) }
+    if (state.refreshing) {
+        HikariLoadingState(
+            label = "Loading story",
+            modifier = modifier.fillMaxSize(),
+        )
+    } else {
+        val retryableFailure = state.failure?.takeIf { it.retryable }
+        HikariErrorState(
+            title = "Story unavailable",
+            message = state.failure?.let {
+                "Source detail refresh failed: ${it.code}"
+            },
+            actionLabel = retryableFailure?.let { "Retry" },
+            onAction = retryableFailure?.let { onRetry },
+            modifier = modifier.fillMaxSize(),
+        )
     }
 }
 
 @Composable
 private fun StoryHeader(story: StoryUiModel) {
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.padding(
+            horizontal = MaterialTheme.hikariSpacing.large,
+            vertical = MaterialTheme.hikariSpacing.small,
+        ),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.extraSmall),
     ) {
         Text(story.preferredTitle, style = MaterialTheme.typography.headlineSmall)
         Text(story.contentType.displayName(), style = MaterialTheme.typography.bodyMedium)
@@ -133,8 +146,8 @@ private fun StoryHeader(story: StoryUiModel) {
 @Composable
 private fun StoryFailure(failure: StoryRefreshFailure, onRetry: () -> Unit) {
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
     ) {
         Text(
             text = "Source detail refresh failed: ${failure.code}",
@@ -152,8 +165,11 @@ private fun StorySourceCard(source: CatalogEntry, selected: Boolean, onSelected:
             .semantics(mergeDescendants = true) {
                 contentDescription = source.accessibilityDescription()
             }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(
+                horizontal = MaterialTheme.hikariSpacing.large,
+                vertical = MaterialTheme.hikariSpacing.small,
+            ),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.extraSmall),
     ) {
         FilterChip(
             selected = selected,

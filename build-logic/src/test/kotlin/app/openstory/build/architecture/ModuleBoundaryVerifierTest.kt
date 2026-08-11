@@ -7,6 +7,17 @@ import kotlin.test.assertTrue
 
 class ModuleBoundaryVerifierTest {
     @Test
+    fun catalogPresentationMayConsumeTheDesignSystem() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        assertTrue(
+            ":core:designsystem" in
+                policy.modules.getValue(":feature:catalog").productionDependencies,
+        )
+    }
+
+    @Test
     fun designSystemIsAProjectIndependentAndroidUiFoundation() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),

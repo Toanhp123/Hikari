@@ -18,12 +18,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.ranking.RankedCatalogStory
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun HomeScreen(
@@ -38,8 +38,8 @@ fun HomeScreen(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.large),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
     ) {
         item(key = "home-header") {
             HomeHeader(state.refreshing, onRefresh, onSearch)
@@ -65,7 +65,7 @@ fun HomeScreen(
             item(key = "home-global-failure") {
                 Text(
                     text = failure.code,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
                     color = MaterialTheme.colorScheme.error,
                 )
             }
@@ -74,7 +74,7 @@ fun HomeScreen(
             item(key = "home-failure-${pluginId.value}") {
                 Text(
                     text = "${pluginId.value} refresh failed; cached content is still available.",
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
                     color = MaterialTheme.colorScheme.error,
                 )
             }
@@ -93,7 +93,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.combinedContent(
     item(key = "combined-title") {
         Text(
             text = "Across catalogs",
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
             style = MaterialTheme.typography.headlineSmall,
         )
     }
@@ -112,7 +112,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.catalogContent(
         item(key = "catalog-section-title-${catalog.pluginId.value}-${section.sourceId}") {
             Text(
                 text = section.title,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
                 style = MaterialTheme.typography.titleLarge,
             )
         }
@@ -132,13 +132,13 @@ private fun HomeRow(
     if (entries.isEmpty()) {
         Text(
             text = "No cached catalog stories yet.",
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
         )
         return
     }
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.large),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
     ) {
         items(
             items = entries,
@@ -158,11 +158,11 @@ private fun HomeHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = MaterialTheme.hikariSpacing.large),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text("Home", style = MaterialTheme.typography.headlineMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small)) {
             Button(onClick = onSearch) { Text("Search") }
             Button(onClick = onRefresh, enabled = !refreshing) { Text("Refresh") }
         }
@@ -177,8 +177,8 @@ private fun CatalogSwitcher(
     onCombinedSelected: () -> Unit,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.large),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
     ) {
         item(key = "combined") {
             FilterChip(

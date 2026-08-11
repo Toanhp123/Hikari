@@ -16,9 +16,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun SearchScreen(
@@ -32,14 +32,14 @@ fun SearchScreen(
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
     ) {
         OutlinedTextField(
             value = state.query,
             onValueChange = onQueryChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = MaterialTheme.hikariSpacing.large),
             label = { Text("Search catalogs") },
             singleLine = true,
         )
@@ -58,15 +58,15 @@ fun SearchScreen(
 private fun RecentSearches(queries: List<String>, onSelected: (String) -> Unit) {
     if (queries.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.extraSmall)) {
         Text(
             text = "Recent searches",
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
             style = MaterialTheme.typography.labelLarge,
         )
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.large),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
         ) {
             items(queries.take(MAX_VISIBLE_RECENT), key = { it }) { query ->
                 AssistChip(onClick = { onSelected(query) }, label = { Text(query) })
@@ -79,8 +79,8 @@ private fun RecentSearches(queries: List<String>, onSelected: (String) -> Unit) 
 private fun SearchResults(state: SearchUiState, onStorySelected: (CatalogSearchStory) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.large),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
     ) {
         if (state.searching) {
             item(key = "search-progress") {
@@ -91,7 +91,7 @@ private fun SearchResults(state: SearchUiState, onStorySelected: (CatalogSearchS
             item(key = "search-global-failure") {
                 Text(
                     text = failure.code,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
                     color = MaterialTheme.colorScheme.error,
                 )
             }
@@ -100,7 +100,7 @@ private fun SearchResults(state: SearchUiState, onStorySelected: (CatalogSearchS
             item(key = "search-failure-${failure.pluginId.value}") {
                 Text(
                     text = "${failure.pluginId.value}: ${failure.code}",
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
                     color = MaterialTheme.colorScheme.error,
                 )
             }
@@ -109,7 +109,7 @@ private fun SearchResults(state: SearchUiState, onStorySelected: (CatalogSearchS
             SearchResultCard(
                 result = result,
                 onClick = { onStorySelected(result) },
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
             )
         }
     }

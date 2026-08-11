@@ -1,8 +1,7 @@
 package app.openstory.catalog.ui.search
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -17,6 +16,7 @@ import app.openstory.catalog.source.SourceFilterOption
 import app.openstory.catalog.source.SourceOptionFilter
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.theme.HikariTheme
 import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -28,7 +28,7 @@ class SearchScreenTest {
     @Test
     fun successfulResultsRemainVisibleBesideSourceFailures() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 SearchScreen(
                     state = fixtureState(failed = true),
                     onQueryChange = {},
@@ -48,7 +48,7 @@ class SearchScreenTest {
     fun resultClickReportsCanonicalStoryIdentityOnly() {
         var selected: CatalogSearchStory? = null
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 SearchScreen(
                     state = fixtureState(),
                     onQueryChange = {},
@@ -70,7 +70,7 @@ class SearchScreenTest {
     fun filterSelectionKeepsSourceIdentity() {
         var selection: Triple<PluginId, String, List<String>>? = null
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 SearchScreen(
                     state = fixtureState(),
                     onQueryChange = {},

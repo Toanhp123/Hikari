@@ -1,8 +1,7 @@
 package app.openstory.catalog.ui.story
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -12,6 +11,7 @@ import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.theme.HikariTheme
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Rule
@@ -24,7 +24,7 @@ class StoryScreenTest {
     @Test
     fun cachedStoryAndSourceFailureRenderTogether() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 StoryScreen(
                     state = fixtureState(failed = true),
                     onRetry = {},
@@ -41,7 +41,7 @@ class StoryScreenTest {
     fun cachedStoryCanRequestDetailRefreshWithoutPriorFailure() {
         var refreshed = false
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 StoryScreen(
                     state = fixtureState(),
                     onRetry = { refreshed = true },
@@ -60,7 +60,7 @@ class StoryScreenTest {
         var retried = false
         var selected: Pair<PluginId, String>? = null
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 StoryScreen(
                     state = fixtureState(failed = true),
                     onRetry = { retried = true },
@@ -77,9 +77,41 @@ class StoryScreenTest {
     }
 
     @Test
+    fun noContentLoadingUsesSharedLoadingState() {
+        compose.setContent {
+            HikariTheme {
+                StoryScreen(
+                    state = fixtureState().copy(story = null, refreshing = true),
+                    onRetry = {},
+                    onSourceSelected = { _, _ -> },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Loading story").assertIsDisplayed()
+    }
+
+    @Test
+    fun noContentRetryableFailureKeepsRetryAction() {
+        var retried = false
+        compose.setContent {
+            HikariTheme {
+                StoryScreen(
+                    state = fixtureState(failed = true).copy(story = null),
+                    onRetry = { retried = true },
+                    onSourceSelected = { _, _ -> },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Retry").performClick()
+        assertTrue(retried)
+    }
+
+    @Test
     fun sourceSemanticsExposeCatalogMetadata() {
         compose.setContent {
-            MaterialTheme {
+            HikariTheme {
                 StoryScreen(
                     state = fixtureState(),
                     onRetry = {},
