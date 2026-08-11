@@ -76,8 +76,33 @@ expect_failure 'a production plugin asset missing from the bundled plugin regist
 make_fixture
 
 module_count="$(grep -cE '^[[:space:]]*"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$module_count" == 11 ]] || {
-  echo "Wave 08 must retain exactly eleven production modules." >&2
+[[ "$module_count" == 13 ]] || {
+  echo "Wave 09 must contain exactly thirteen production modules." >&2
+  exit 1
+}
+
+expected_modules=$':app\n:catalog\n:chapters\n:core:common\n:downloads\n:feature:catalog\n:feature:reader\n:library\n:plugins:api\n:plugins:runtime\n:reader\n:storage:files\n:storage:room'
+actual_modules="$(grep -oE '"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json" | sed -E 's/"([^\"]+)".*/\1/' | sort)"
+[[ "$actual_modules" == "$expected_modules" ]] || {
+  echo "Wave 09 module policy must declare the approved thirteen-module graph." >&2
+  exit 1
+}
+
+jq -e '
+  .modules[":app"].productionDependencies == [
+    ":core:common", ":catalog", ":library", ":chapters", ":reader", ":downloads",
+    ":storage:room", ":storage:files", ":plugins:api", ":plugins:runtime",
+    ":feature:catalog", ":feature:reader"
+  ] and
+  .modules[":downloads"].productionDependencies == [":core:common", ":chapters", ":reader"] and
+  .modules[":storage:files"].productionDependencies == [":downloads"]
+' "$FIXTURE/config/architecture/module-boundaries.json" >/dev/null || {
+  echo "Wave 09 module policy must declare the approved download and file-storage edges." >&2
+  exit 1
+}
+
+grep -q 'api(project(":core:common"))' "$FIXTURE/downloads/build.gradle.kts" || {
+  echo "Downloads must expose :core:common because ChapterBlobKey exposes ChapterReleaseId." >&2
   exit 1
 }
 

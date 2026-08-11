@@ -24,6 +24,7 @@ dependencies {
     implementation(project(":library"))
     implementation(project(":chapters"))
     implementation(project(":reader"))
+    implementation(project(":downloads"))
     implementation(project(":plugins:runtime"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)

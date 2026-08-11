@@ -110,7 +110,7 @@ validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|catal
 validate_project_imports "$feature_reader_root" '^app\.openstory\.(common|chapters|reader)(\.|$)' \
   'feature/reader may import only core common, Chapters, and Reader project packages.'
 
-validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|reader|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
+validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|reader|downloads|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
   'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'
 fail_forbidden_runtime_references "$storage_root"
 
