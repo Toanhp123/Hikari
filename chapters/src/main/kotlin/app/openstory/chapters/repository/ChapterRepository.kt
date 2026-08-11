@@ -4,6 +4,7 @@ import app.openstory.chapters.model.CanonicalChapter
 import app.openstory.chapters.model.ChapterAggregationOverride
 import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.PluginId
+import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.flow.Flow
 
@@ -45,4 +46,8 @@ interface ChapterRepository {
     suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride)
 
     suspend fun syncState(storyId: StoryId, pluginId: PluginId, sourceStoryId: String): ChapterSyncState?
+}
+
+fun interface ChapterReleaseLookup {
+    suspend fun findRelease(releaseId: ChapterReleaseId): ChapterRelease?
 }

@@ -1,7 +1,6 @@
 package app.openstory.di
 
 import app.openstory.plugins.runtime.PluginRuntime
-import app.openstory.reader.content.NoOpReaderDocumentStore
 import app.openstory.reader.content.PluginReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentRepository
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
@@ -11,6 +10,9 @@ import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.selection.ReleaseSelector
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.reader.RoomReadingProgressRepository
+import app.openstory.downloads.blob.ChapterBlobStore
+import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.reader.DownloadAwareReaderDocumentStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,7 +25,10 @@ import kotlinx.serialization.json.Json
 object ReaderModule {
     @Provides
     @Singleton
-    fun provideReaderDocumentStore(): ReaderDocumentStore = NoOpReaderDocumentStore
+    fun provideReaderDocumentStore(
+        blobs: ChapterBlobStore,
+        cache: CacheRepository,
+    ): ReaderDocumentStore = DownloadAwareReaderDocumentStore(blobs, cache, System::currentTimeMillis)
 
     @Provides
     @Singleton

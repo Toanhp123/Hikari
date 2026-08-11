@@ -4,6 +4,7 @@ import android.content.Context
 import app.openstory.chapters.aggregation.ChapterAggregationEngine
 import app.openstory.chapters.normalization.ChapterLabelParser
 import app.openstory.chapters.repository.ChapterRepository
+import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.chapters.source.ChapterSourceRegistry
 import app.openstory.chapters.source.PluginChapterSourceRegistry
 import app.openstory.chapters.sync.ChapterSyncService
@@ -28,6 +29,11 @@ object ChapterModule {
     @Provides
     @Singleton
     fun provideChapterRepository(database: OpenStoryDatabase): ChapterRepository =
+        RoomChapterRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideChapterReleaseLookup(database: OpenStoryDatabase): ChapterReleaseLookup =
         RoomChapterRepository(database)
 
     @Provides

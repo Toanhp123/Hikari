@@ -12,6 +12,7 @@ import app.openstory.chapters.repository.ChapterCommitResult
 import app.openstory.chapters.repository.ChapterGraphSnapshot
 import app.openstory.chapters.repository.ChapterMutation
 import app.openstory.chapters.repository.ChapterRepository
+import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.chapters.repository.ChapterSyncPhase
 import app.openstory.chapters.repository.ChapterSyncState
 import app.openstory.common.id.CanonicalChapterId
@@ -28,7 +29,7 @@ class RoomChapterRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: ChapterDao,
     private val syncDao: ChapterSyncDao,
-) : ChapterRepository {
+) : ChapterRepository, ChapterReleaseLookup {
     constructor(database: OpenStoryDatabase) : this(
         database,
         database.chapterDao(),
@@ -47,6 +48,9 @@ class RoomChapterRepository internal constructor(
                 .sortedBy { it.releaseId.value },
         )
     }
+
+    override suspend fun findRelease(releaseId: ChapterReleaseId): ChapterRelease? =
+        dao.findRelease(releaseId.value)?.toModel()
 
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult = try {
         database.withTransaction {

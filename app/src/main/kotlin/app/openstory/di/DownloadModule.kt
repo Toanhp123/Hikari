@@ -3,11 +3,13 @@ package app.openstory.di
 import android.content.Context
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.DownloadContentSource
-import app.openstory.downloads.DownloadFetchResult
 import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.DownloadScheduler
 import app.openstory.downloads.DownloadService
 import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.reader.ReaderDownloadContentSource
+import app.openstory.chapters.repository.ChapterReleaseLookup
+import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.storage.files.AtomicFileChapterBlobStore
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.downloads.RoomDownloadRepository
@@ -34,9 +36,10 @@ object DownloadModule {
     @Provides fun provideDownloadRepository(repository: RoomDownloadRepository): DownloadRepository = repository
 
     @Provides
-    fun provideDownloadContentSource(): DownloadContentSource = DownloadContentSource {
-        DownloadFetchResult.Failure("download.source_unavailable", retryable = false)
-    }
+    fun provideDownloadContentSource(
+        chapters: ChapterReleaseLookup,
+        sources: ReaderDocumentSourceRegistry,
+    ): DownloadContentSource = ReaderDownloadContentSource(chapters, sources)
 
     @Provides @Singleton
     fun provideDownloadService(repository: DownloadRepository, store: ChapterBlobStore, source: DownloadContentSource) =
