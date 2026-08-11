@@ -19,11 +19,11 @@ acceptance remain separate states.
 ## Current position
 
 Architecture Baseline 2 is accepted. Wave 06 and Wave 07 Tasks 01-06 are verified and both
-waves are complete. The active boundary is **Wave 08 Task 01 - introduce `:reader` and the
-reader document contract**. Wave 01-05 checkpoints remain historical delivery evidence and
+waves are complete. Wave 08 Tasks 01-06 have implementation present; the active boundary is
+**Wave 08 checkpoint verification**. Wave 01-05 checkpoints remain historical delivery evidence and
 do not require compatibility with superseded development architecture.
 
-Continue from `waves/wave-08-reader-and-reading-progress.md`, beginning with Task 01.
+Continue from the checkpoint section of `waves/wave-08-reader-and-reading-progress.md`.
 Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -52,12 +52,15 @@ entry evidence, not the number of plugins allowed after that boundary.
 :plugins:runtime
 :library
 :chapters
+:reader
+:feature:reader
 ```
 
 Direct dependencies are governed by
 `../../config/architecture/module-boundaries.json`. The accepted Baseline 2 graph remains
 historical evidence at seven modules; Wave 06 introduced `:library` and Wave 07 introduced
-`:chapters`, producing the current nine-module graph. The approved post-baseline evolution is defined by
+`:chapters`; Wave 08 added `:reader` and `:feature:reader`, producing the current
+eleven-module graph. The approved post-baseline evolution is defined by
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 ## Approved module evolution
@@ -86,7 +89,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | AB2 | Architecture reset between Wave 05 and Wave 06 | **Accepted** | `../internal/checkpoints/architecture-baseline-2.md` |
 | 06 | Library and story matching | **Completed; Tasks 01-06 verified** | `waves/wave-06-library-and-story-matching.md` |
 | 07 | Chapter sync and aggregation | **Completed; Tasks 01-06 verified** | `waves/wave-07-chapter-sync-and-aggregation.md` |
-| 08 | Reader and progress | **Ready to start; Task 01 next** | `waves/wave-08-reader-and-reading-progress.md` |
+| 08 | Reader and progress | **Implementation present; verification open** | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | Planned; post-baseline plan approved | `waves/wave-09-cache-downloads-and-storage.md` |
 | 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
@@ -135,6 +138,17 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 07.05 | Recent/full/incremental synchronization and initial worker adapter | Verified |
 | 07.06 | Canonical chapter-list presentation and correction controls | Verified |
 
+## Wave 08 decomposition
+
+| Task | Outcome | State |
+|---|---|---|
+| 08.01 | Reader modules and bounded structured-document validation | Implementation present |
+| 08.02 | Pure deterministic release selection | Implementation present |
+| 08.03 | Store-first sanitized content loading and fallback | Implementation present |
+| 08.04 | Debounced exact progress and Room schema 5 | Implementation present |
+| 08.05 | Stable-ID navigation and process-restorable Reader state | Implementation present |
+| 08.06 | Accessible structured-text Compose Reader UI | Implementation present |
+
 ## Critical dependency chain
 
 ```text
@@ -148,7 +162,7 @@ architecture
             -> chapter aggregation
                  ^ Wave 07 complete: sync, aggregation, schema 4, and presentation verified
               -> reader
-                   ^ Wave 08 Task 01 is next
+                   ^ Wave 08 implementation present; checkpoint verification open
                 -> offline storage
                   -> local background/auth/notifications
                     -> release hardening
@@ -156,7 +170,7 @@ architecture
 
 ## Execution rule
 
-1. Continue Wave 08 with Task 01 from its canonical wave plan.
+1. Complete and review the Wave 08 checkpoint before starting Wave 09.
 2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
 4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.

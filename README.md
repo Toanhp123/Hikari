@@ -130,8 +130,11 @@ On Windows PowerShell:
 - `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
 - `:catalog` — catalog models, source seam, matching, ranking, and application services
 - `:library` — metadata-only Library membership and reading status
+- `:chapters` — chapter synchronization, canonical grouping, and release contracts
+- `:reader` — document validation/loading, release selection, and reading-progress policy
 - `:storage:room` — Room schema, migrations, and durable capability persistence
 - `:feature:catalog` — Home, Search, and Story presentation
+- `:feature:reader` — accessible structured-text Reader presentation
 
 The direct project dependency policy is stored in:
 
