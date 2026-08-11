@@ -6,7 +6,7 @@
 
 **Goal:** Complete plugin management, security, performance, accessibility, documentation, and reproducible release acceptance without changing capability ownership.
 
-**Architecture:** Follows `../../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. Introduces `:feature:plugins` for independent plugin-management presentation. All domain/security/storage/platform responsibilities remain in their established owners.
+**Architecture:** Follows `../../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. Introduces only `:feature:plugins` for independent plugin-management presentation, consuming the existing `:core:designsystem` foundation. All domain/security/storage/platform responsibilities remain in their established owners.
 
 ## Global Constraints
 

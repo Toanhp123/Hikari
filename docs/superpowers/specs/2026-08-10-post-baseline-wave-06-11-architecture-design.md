@@ -24,11 +24,13 @@ The approved evolution is:
 | Wave 07 | `:chapters` |
 | Wave 08 | `:reader`, `:feature:reader` |
 | Wave 09 | `:downloads`, `:storage:files` |
+| UI foundation | `:core:designsystem` |
 | Wave 10 | `:settings`, `:feature:settings` |
 | Wave 11 | `:feature:plugins` |
 
-No other production module is introduced by these waves without a dedicated
-architecture decision and matching policy update.
+The UI foundation is an approved dedicated between-wave decision. No other
+production module is introduced without a dedicated architecture decision and
+matching policy update.
 
 ## Ownership
 
@@ -65,6 +67,12 @@ Owns cache/download state machines, quotas, retention/eviction decisions,
 integrity metadata, reconciliation plans, and content-resolution ordering. It
 uses a file-storage port implemented by `:storage:files`.
 
+### `:core:designsystem`
+
+Owns the application Compose theme, visual tokens, and domain-neutral shared UX
+presentation. It has no project dependencies. Only `:app` and presentation
+modules consume it; capability, storage, and plugin modules remain independent.
+
 ### `:settings`
 
 Owns typed user policies for language order, synchronization, notifications,
@@ -79,6 +87,8 @@ chapter-list presentation because those surfaces share the canonical story flow.
 `:feature:reader` owns the immersive reader lifecycle and controls.
 `:feature:settings` owns settings/storage/synchronization controls.
 `:feature:plugins` begins only when full plugin-management UI starts in Wave 11.
+All presentation modules consume `:core:designsystem` for application theme,
+tokens, and domain-neutral shared states while retaining feature semantics.
 
 ### Adapters
 
@@ -107,6 +117,7 @@ The approved capability direction is:
 
 ```text
 :core:common
+:core:designsystem
 
 :plugins:api <- :plugins:runtime
 
@@ -120,12 +131,12 @@ The approved capability direction is:
 :storage:room --> capability persistence ports
 :storage:files -> :downloads file-storage port
 
-:feature:catalog  -> :catalog + :library + :chapters
-:feature:reader   -> :reader + :chapters + :downloads + :settings
-:feature:settings -> :settings + :downloads
-:feature:plugins  -> :plugins:api + the public :plugins:runtime management facade
+:feature:catalog  -> :core:designsystem + :catalog + :library + :chapters
+:feature:reader   -> :core:designsystem + :reader + :chapters + :downloads + :settings
+:feature:settings -> :core:designsystem + :settings + :downloads
+:feature:plugins  -> :core:designsystem + :plugins:api + the public :plugins:runtime management facade
 
-:app -> every production module needed for composition
+:app -> :core:designsystem + every production module needed for composition
 ```
 
 Feature modules never import Room, filesystem adapters, plugin execution
@@ -176,9 +187,10 @@ Each wave plan must declare:
 
 Wave 07 consumes protected Library mappings from Wave 06. Wave 08 consumes the
 canonical chapter/release graph from Wave 07. Wave 09 consumes reader document
-loading and progress contracts from Wave 08. Wave 10 schedules the same pure
-engines and consumes download/settings state. Wave 11 hardens the complete graph
-without changing capability ownership.
+loading and progress contracts from Wave 08. The approved UI foundation then
+adds `:core:designsystem` without changing capability ownership. Wave 10
+schedules the same pure engines and consumes download/settings state. Wave 11
+hardens the complete graph without changing capability ownership.
 
 ## Rejected Alternatives
 

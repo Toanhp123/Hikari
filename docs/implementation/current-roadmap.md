@@ -45,22 +45,27 @@ entry evidence, not the number of plugins allowed after that boundary.
 ```text
 :app
 :core:common
+:core:designsystem
 :catalog
-:feature:catalog
-:storage:room
-:plugins:api
-:plugins:runtime
 :library
 :chapters
 :reader
+:downloads
+:feature:catalog
 :feature:reader
+:storage:room
+:storage:files
+:plugins:api
+:plugins:runtime
 ```
 
 Direct dependencies are governed by
 `../../config/architecture/module-boundaries.json`. The accepted Baseline 2 graph remains
-historical evidence at seven modules; Wave 06 introduced `:library` and Wave 07 introduced
-`:chapters`; Wave 08 added `:reader` and `:feature:reader`, producing the current
-eleven-module graph. The approved post-baseline evolution is defined by
+historical evidence at seven modules; Wave 06 introduced `:library`, Wave 07 introduced
+`:chapters`, Wave 08 added `:reader` and `:feature:reader`, and Wave 09 added
+`:downloads` and `:storage:files`, producing the thirteen-module capability graph.
+The approved between-wave UI foundation adds `:core:designsystem`, producing the
+current fourteen-module graph. The approved post-baseline evolution is defined by
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 ## Approved module evolution
@@ -71,6 +76,7 @@ eleven-module graph. The approved post-baseline evolution is defined by
 | 07 | `:chapters` | Release synchronization and canonical aggregation |
 | 08 | `:reader`, `:feature:reader` | Reader policy and independent immersive presentation |
 | 09 | `:downloads`, `:storage:files` | Offline/cache policy and atomic file adapter |
+| 09 -> 10 foundation | `:core:designsystem` | Application theme, visual tokens, and domain-neutral shared UX |
 | 10 | `:settings`, `:feature:settings` | Typed policies and independent settings presentation |
 | 11 | `:feature:plugins` | Full plugin-management presentation |
 
@@ -91,6 +97,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 07 | Chapter sync and aggregation | **Completed; Tasks 01-06 verified** | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-09-cache-downloads-and-storage.md` |
+| UIF | Between-wave design-system foundation | Implementation in progress; Wave 10 not started | `../ui/design-system.md` |
 | 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
@@ -165,13 +172,14 @@ architecture
                    ^ Wave 08 complete: Reader, progress, schema 5, and device checkpoint verified
                 -> offline storage
                      ^ Wave 09 complete: cache, downloads, schema 6, reconciliation, and offline UI verified
-                  -> local background/auth/notifications
+                  -> UI foundation
+                    -> local background/auth/notifications
                     -> release hardening
 ```
 
 ## Execution rule
 
-1. Use the verified Wave 09 checkpoint as the entry baseline for Wave 10.
+1. Use the verified Wave 09 checkpoint plus the approved `:core:designsystem` foundation as the entry baseline for Wave 10.
 2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
 4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.

@@ -77,5 +77,9 @@ done
 
 grep -q '| 06 | `:library`' "$ROOT_DIR/docs/implementation/current-roadmap.md"
 grep -q '| 11 | `:feature:plugins`' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+grep -q ':core:designsystem' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+grep -q '| UI foundation | `:core:designsystem` |' "$DESIGN"
+grep -q 'Wave 09 verified exit graph plus the approved `:core:designsystem` UI-foundation boundary.' "${WAVES[4]}"
+grep -q 'Exit module graph: entry graph plus `:feature:plugins`.' "${WAVES[5]}"
 
 echo 'Post-Baseline Wave 06-11 roadmap contract verified.'

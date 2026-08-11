@@ -74,19 +74,22 @@ the repository implementation baseline, not a product-scope rewrite.
 
 ```text
 :app composition
-  -> Compose UI (:feature:catalog, :feature:reader)
-  -> services/contracts (:catalog, :chapters, :reader)
+  -> Compose UI (:feature:catalog, :feature:reader) -> :core:designsystem
+  -> services/contracts (:catalog, :library, :chapters, :reader, :downloads)
   -> Library membership/status (:library) -> :core:common
-  -> Room adapters (:storage:room) -> :catalog + :library + runtime persistence SPI
+  -> storage adapters (:storage:room, :storage:files) -> capability ports
   -> :catalog -> plugin facade (:plugins:runtime) -> wire/package contracts (:plugins:api)
 ```
 
 The accepted Baseline 2 production graph is the historical seven-module boundary:
 `:app`, `:core:common`, `:catalog`, `:feature:catalog`, `:storage:room`, `:plugins:api`,
-and `:plugins:runtime`. Wave 06 added `:library`, Wave 07 added `:chapters`, and Wave 08
-adds `:reader` plus `:feature:reader`, producing the current eleven-module graph.
-Exact current edges are governed by `config/architecture/module-boundaries.json`; later
-modules are created only through their owning wave.
+and `:plugins:runtime`. Wave 06 added `:library`, Wave 07 added `:chapters`, Wave 08
+added `:reader` plus `:feature:reader`, and Wave 09 added `:downloads` plus
+`:storage:files`, producing the thirteen-module capability graph. The approved
+between-wave foundation adds `:core:designsystem`, producing the current
+fourteen-module graph. Exact current edges are governed by
+`config/architecture/module-boundaries.json`; later modules are created only
+through their owning wave or a dedicated approved architecture decision.
 
 Room owns private schema, DAOs, transactions, and persistence adapters. Plugin lifecycle,
 JavaScript execution, bounded host capabilities, and runtime persistence SPI belong to
@@ -115,7 +118,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 08 implementation present; checkpoint verification open.**
+**Wave 09 complete; approved UI-foundation implementation in progress.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification.
@@ -123,10 +126,10 @@ Room, Compose, and final ownership verification.
 Wave 06 Tasks 01-06 are verified and Wave 06 is complete: metadata-only Library membership,
 Library presentation, pure explainable content-story matching, bounded quick/deferred plugin
 content search, protected Room-backed mappings/rejections, and mapping review/URL import.
-Wave 07 is verified and complete. Wave 08 now contains structured-document sanitization,
-deterministic release selection/fallback, Room schema 5 exact progress, restorable Reader
-state/navigation, and accessible Compose rendering. Continue with the Wave 08 checkpoint;
-do not begin Wave 09 until its required Gradle and device gates are reviewed.
+Wave 07 and Wave 08 are verified and complete. Wave 09 completed cache/download
+namespaces, quotas, integrity, reconciliation, offline reading, Room schema 6,
+and its checkpoint. The approved between-wave design-system foundation is the
+current work; Wave 10 remains next and has not started.
 
 ## 8. Roadmap
 

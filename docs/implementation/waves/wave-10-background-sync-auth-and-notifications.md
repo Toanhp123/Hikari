@@ -6,11 +6,11 @@
 
 **Goal:** Add typed policies, idempotent local scheduling, plugin-scoped authentication, and deduplicated local notifications over existing capability engines.
 
-**Architecture:** Follows `../../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. Introduces `:settings` and `:feature:settings`. Pure mapping/chapter/download engines remain in their owners; WorkManager and notification delivery remain in `:app`; sessions remain in `:plugins:runtime`.
+**Architecture:** Follows `../../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. Introduces `:settings` and `:feature:settings`; `:feature:settings` consumes the existing `:core:designsystem` presentation foundation. Pure mapping/chapter/download engines remain in their owners; WorkManager and notification delivery remain in `:app`; sessions remain in `:plugins:runtime`.
 
 ## Global Constraints
 
-- Entry module graph: Wave 09 exit graph.
+- Entry module graph: Wave 09 verified exit graph plus the approved `:core:designsystem` UI-foundation boundary.
 - Exit module graph: entry graph plus `:settings` and `:feature:settings`.
 - Introduces `:settings` and `:feature:settings` in Task 1.
 - Consumes from Wave 09: mapping/chapter/download commands, reconciliation, Reader preferences port, and quota state.

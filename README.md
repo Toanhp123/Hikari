@@ -133,7 +133,9 @@ On Windows PowerShell:
 - `:library` — metadata-only Library membership and reading status
 - `:chapters` — chapter synchronization, canonical grouping, and release contracts
 - `:reader` — document validation/loading, release selection, and reading-progress policy
+- `:downloads` — offline/cache state, quotas, integrity, and content-resolution policy
 - `:storage:room` — Room schema, migrations, and durable capability persistence
+- `:storage:files` — atomic app-private chapter blob storage
 - `:feature:catalog` — Home, Search, and Story presentation
 - `:feature:reader` — accessible structured-text Reader presentation
 
@@ -147,6 +149,7 @@ remains independent from Android and filesystem APIs. Test fixtures cannot leak
 into production dependencies.
 
 See `docs/contributing/adding-a-module.md` before adding a module.
+See `docs/ui/design-system.md` for theme, token, shared-state, feedback, and confirmation rules.
 
 ## Dependency updates
 
