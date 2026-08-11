@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -36,6 +38,7 @@ import app.openstory.catalog.ui.story.StoryViewModel
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.catalog.ui.download.DownloadViewModel
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.feedback.HikariSnackbarHost
 import app.openstory.reader.ui.ReaderActions
 import app.openstory.reader.ui.ReaderAssistedArgs
 import app.openstory.reader.ui.ReaderScreen
@@ -46,8 +49,12 @@ fun AppNavHost(
     navigator: AppNavigator,
     modifier: Modifier = Modifier,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
         modifier = modifier,
+        snackbarHost = {
+            HikariSnackbarHost(hostState = snackbarHostState)
+        },
         bottomBar = {
             if (navigator.currentRoute !is AppRoute.Reader) {
                 AppBottomBar(navigator.currentRoute, navigator::selectTopLevel)

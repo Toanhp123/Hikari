@@ -9,6 +9,19 @@ class ArchitectureSmokeTest {
     private val root = File("..").canonicalFile
 
     @Test
+    fun applicationRootUsesHikariTheme() {
+        val appRoot = File(
+            root,
+            "app/src/main/kotlin/app/openstory/ui/OpenStoryApp.kt",
+        ).readText()
+
+        assertTrue(
+            "HikariTheme" in appRoot,
+            "Application root must use the shared Hikari theme",
+        )
+    }
+
+    @Test
     fun legacyCoreModulesAreDeletedAfterCatalogCutover() {
         listOf("core/model", "core/matching", "core/database").forEach { module ->
             assertFalse(File(root, module).exists(), "Legacy module must be deleted: $module")
