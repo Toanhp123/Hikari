@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-10
+Date: 2026-08-12
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -65,6 +65,9 @@ Coroutines              1.11.0
 kotlinx.serialization   1.11.0
 Hilt                    2.60.1
 JavaScript sandbox      AndroidX JavaScriptEngine 1.1.0
+Artwork loading         Coil 3.5.0
+Backdrop effect         Backdrop 2.0.0
+Screenshot testing      Roborazzi 1.70.0 + Robolectric 4.16.1
 ```
 
 Where an approved product document uses broader component terminology, these pins describe
@@ -118,7 +121,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 09 complete; approved UI-foundation implementation in progress.**
+**Wave 09 and Design System Foundation complete; approved Product UI implementation is active.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification.
@@ -128,8 +131,9 @@ Library presentation, pure explainable content-story matching, bounded quick/def
 content search, protected Room-backed mappings/rejections, and mapping review/URL import.
 Wave 07 and Wave 08 are verified and complete. Wave 09 completed cache/download
 namespaces, quotas, integrity, reconciliation, offline reading, Room schema 6,
-and its checkpoint. The approved between-wave design-system foundation is the
-current work; Wave 10 remains next and has not started.
+and its checkpoint. The between-wave Design System Foundation was accepted on
+2026-08-12. The approved ReDantotsu-inspired Product UI redesign is now the active
+presentation checkpoint; Wave 10 remains the next capability wave and has not started.
 
 ## 8. Roadmap
 
@@ -172,11 +176,12 @@ Read in this order:
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`implementation/waves/wave-08-reader-and-reading-progress.md` now).
-5. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
-6. `plugin-sdk/` when changing public plugin contracts/packages.
-7. `internal/checkpoints/` when deciding whether a gate is proven.
-8. `internal/archive/` only for historical provenance.
+4. `superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md` — active Product UI execution plan.
+5. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — approved Product UI behavior and visual scope.
+6. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
+7. `plugin-sdk/` when changing public plugin contracts/packages.
+8. `internal/checkpoints/` when deciding whether a gate is proven.
+9. `internal/archive/` only for historical provenance.
 
 `project/document-governance.md` defines precedence when documents disagree.
 
@@ -196,5 +201,7 @@ websites.
 
 ## 12. Next action
 
-Run and review the remaining commands in the Wave 08 checkpoint on the eleven-module,
-Room-schema-5 implementation boundary.
+Complete Product UI Task 1 by generating/reviewing strict dependency-verification metadata
+and running its GREEN verification on the current fourteen-module, Room-schema-6 boundary.
+After Task 1 is accepted, continue with Task 2 of
+`superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.

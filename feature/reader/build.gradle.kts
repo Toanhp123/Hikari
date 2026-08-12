@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.roborazzi)
     id("openstory.android.library")
     id("openstory.compose")
     id("openstory.hilt")
@@ -9,6 +10,10 @@ android {
 
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -27,6 +32,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.roborazzi.core)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.robolectric)
     testImplementation(kotlin("test-junit"))
 
     androidTestImplementation(platform(libs.androidx.compose.bom))

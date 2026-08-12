@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the current 14-module capability graph intact during the redesign checkpoint. `:app` composes routes and the adaptive shell, `:core:designsystem` owns domain-neutral artwork/glass/adaptive primitives, `:feature:catalog` owns story-aware product presentation and projections, and `:feature:reader` owns immersive reading. Wave 10 and Wave 11 remain the owners of full Settings and Plugin-management presentation; this plan defines their visual/navigation handoff without pulling those modules forward.
 
-**Tech Stack:** Kotlin 2.4.10, Android Gradle Plugin 9.3.0, Jetpack Compose/Material 3 BOM 2026.06.00, Navigation 3, Hilt, Coroutines/Flow, Room 2.8.4, Coil 3.5.0, Backdrop 2.0.0, Roborazzi 1.71.0, Robolectric 4.16.1, Edge headless, PowerShell.
+**Tech Stack:** Kotlin 2.4.10, Android Gradle Plugin 9.3.0, Jetpack Compose/Material 3 BOM 2026.06.00, Navigation 3, Hilt, Coroutines/Flow, Room 2.8.4, Coil 3.5.0, Backdrop 2.0.0, Roborazzi 1.70.0, Robolectric 4.16.1, Edge headless, PowerShell.
 
 ## Global Constraints
 
@@ -211,7 +211,7 @@ Add assertions to `RepositoryHygieneTest` that the version catalog contains exac
 ```kotlin
 assertTrue(catalog.contains("coil = \"3.5.0\""))
 assertTrue(catalog.contains("backdrop = \"2.0.0\""))
-assertTrue(catalog.contains("roborazzi = \"1.71.0\""))
+assertTrue(catalog.contains("roborazzi = \"1.70.0\""))
 assertTrue(catalog.contains("robolectric = \"4.16.1\""))
 ```
 
@@ -229,7 +229,7 @@ Expected: FAIL because the aliases are absent.
 [versions]
 coil = "3.5.0"
 backdrop = "2.0.0"
-roborazzi = "1.71.0"
+roborazzi = "1.70.0"
 robolectric = "4.16.1"
 
 [libraries]

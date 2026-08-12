@@ -1,20 +1,22 @@
 # Repository Current State
 
-Date: 2026-08-11
+Date: 2026-08-12
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current production Gradle graph: 11 modules.
+- Current production Gradle graph: 14 modules.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
 - Wave 06 Tasks 01-06: **VERIFIED**; Wave 06 is complete.
 - Wave 07 Tasks 01-06: **VERIFIED**; Wave 07 is complete.
 - Wave 08 Tasks 01-06: **VERIFIED**; Wave 08 is complete.
 - Wave 09 Tasks 01-06: **VERIFIED**; Wave 09 is complete.
-- Current active boundary: **Wave 10 entry baseline**.
+- Design System Foundation: **ACCEPTED** on 2026-08-12.
+- ReDantotsu-inspired Product UI redesign: **APPROVED FOR IMPLEMENTATION**; the active
+  execution boundary is its task-by-task implementation before Wave 10 capability work.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -37,6 +39,7 @@ These versions are independent. A change in one does not imply a change in anoth
 |---|---|
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
+| `:core:designsystem` | Domain-neutral theme, shared UX states, and the Product UI artwork/screenshot rendering dependency boundary; artwork/glass/adaptive primitives arrive in later Product UI tasks |
 | `:catalog` | Story/catalog models, repository/source contracts, matching, ranking, refresh/search/details |
 | `:feature:catalog` | Home, Search, Story, Library, and mapping-review Compose presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
@@ -68,11 +71,11 @@ runtime persistence SPI.
 - Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures.
-- Room schema 5 stores the Baseline-2 catalog/runtime state, metadata-only Library
-  membership, protected content mappings, chapter graphs, aggregation overrides, and sync
-  state, and canonical plus exact-release reading progress; schemas 1-4 remain historical
-  exports and schema 1 remains byte-frozen. Room entities/DAOs stay
-  private to `:storage:room`.
+- Room schema 6 is current. It retains the Baseline-2 catalog/runtime state, metadata-only
+  Library membership, protected content mappings, chapter graphs, aggregation overrides,
+  synchronization state, canonical plus exact-release reading progress, and Wave 09
+  cache/download metadata. Schemas 1-5 remain historical exports and schema 1 remains
+  byte-frozen. Room entities/DAOs stay private to `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
   does not roll back the committed membership.
@@ -115,6 +118,12 @@ blob storage, schema-6 cache/download metadata, bounded cache eviction, explicit
 offline-first Reader resolution, bulk controls, low-space admission, and race-safe storage
 reconciliation. Periodic background sync, authentication, notifications, and release
 hardening remain outside the implemented boundary.
+
+The accepted Design System Foundation adds `:core:designsystem` without changing Room or
+capability ownership. The approved Product UI redesign is now the active between-wave
+presentation checkpoint. Task 1 pins the rendering/screenshot toolchain (Coil 3.5.0,
+Backdrop 2.0.0, Roborazzi 1.70.0, Robolectric 4.16.1); artwork primitives and screen
+redesigns remain owned by later Product UI tasks. Wave 10 capability work has not started.
 
 ## Architecture Baseline 2 status
 

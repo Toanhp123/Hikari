@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-11
+Date: 2026-08-12
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -18,12 +18,15 @@ acceptance remain separate states.
 
 ## Current position
 
-Architecture Baseline 2 is accepted. Wave 06 and Wave 07 Tasks 01-06 are verified and both
-waves are complete. Wave 08 Tasks 01-06 have implementation present; the active boundary is
-**Wave 08 checkpoint verification**. Wave 01-05 checkpoints remain historical delivery evidence and
-do not require compatibility with superseded development architecture.
+Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The
+between-wave Design System Foundation is accepted, preserving the 14-module graph and Room
+schemas 1 through 6. The active boundary is the approved **ReDantotsu-inspired Product UI
+implementation checkpoint**; Wave 10 capability work has not started. Wave 01-05 checkpoints
+remain historical delivery evidence and do not require compatibility with superseded
+development architecture.
 
-Continue from the checkpoint section of `waves/wave-08-reader-and-reading-progress.md`.
+Continue from Task 1 of
+`../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.
 Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -97,7 +100,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 07 | Chapter sync and aggregation | **Completed; Tasks 01-06 verified** | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-09-cache-downloads-and-storage.md` |
-| UIF | Between-wave design-system foundation | Implementation in progress; Wave 10 not started | `../ui/design-system.md` |
+| UIF | Between-wave design-system foundation | **Completed; checkpoint accepted 2026-08-12** | `../internal/checkpoints/design-system-foundation.md` |
+| PUI | ReDantotsu-inspired Product UI redesign | **Approved; implementation active** | `../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md` |
 | 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
@@ -173,17 +177,20 @@ architecture
                 -> offline storage
                      ^ Wave 09 complete: cache, downloads, schema 6, reconciliation, and offline UI verified
                   -> UI foundation
-                    -> local background/auth/notifications
-                    -> release hardening
+                    -> Product UI redesign
+                      -> local background/auth/notifications
+                      -> release hardening
 ```
 
 ## Execution rule
 
-1. Use the verified Wave 09 checkpoint plus the approved `:core:designsystem` foundation as the entry baseline for Wave 10.
-2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
-3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
-4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.
-5. Update current state only after actual task/checkpoint evidence is reviewed.
+1. Use the verified Wave 09 checkpoint plus the accepted `:core:designsystem` foundation as the entry baseline for the Product UI redesign.
+2. Execute the approved Product UI plan task-by-task without changing the 14-module capability graph or Room schemas 1 through 6.
+3. Wave 10 remains the next capability wave after the between-wave Product UI checkpoint.
+4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
+5. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
+6. Require every wave to consume the prior wave's named contracts and contiguous Room schema.
+7. Update current state only after actual task/checkpoint evidence is reviewed.
 
 ## Verification principle
 
