@@ -133,7 +133,9 @@ Wave 07 and Wave 08 are verified and complete. Wave 09 completed cache/download
 namespaces, quotas, integrity, reconciliation, offline reading, Room schema 6,
 and its checkpoint. The between-wave Design System Foundation was accepted on
 2026-08-12. The approved ReDantotsu-inspired Product UI redesign is now the active
-presentation checkpoint; Wave 10 remains the next capability wave and has not started.
+presentation checkpoint. Product UI Task 1 (rendering/screenshot toolchain) is verified;
+Task 2 (reproducible target-pack rendering pipeline) is next. Wave 10 remains the next
+capability wave and has not started.
 
 ## 8. Roadmap
 
@@ -160,10 +162,16 @@ synchronization layers.
 
 ## 9. Verification model
 
-The repository separates fast verification, Android instrumentation, and acceptance
-checkpoints. `scripts/verify.sh` is the common repository gate;
-`scripts/verify-architecture-baseline-2.sh` asserts the exact retained architecture.
-Reusable device runners live in `scripts/instrumentation/`.
+The repository separates development feedback, full host verification, Android
+instrumentation, and acceptance checkpoints. `scripts/verify-fast.sh` is the local
+development loop: repository/static gates, architecture verification, local tests,
+Detekt, and Room schema stability. `scripts/verify.sh` remains the canonical full host
+gate and additionally runs Android lint plus app debug assembly. Both paths keep strict
+dependency verification; full verification owns `verifyArchitecture` in the same Gradle
+invocation to avoid a redundant Gradle startup. Local Gradle build caching and daemon
+reuse are enabled for repeated runs. `scripts/verify-architecture-baseline-2.sh` asserts
+the exact retained architecture. Reusable device runners live in
+`scripts/instrumentation/`.
 
 A requirement is not considered checkpoint-proven solely because implementation exists.
 Evidence files under `internal/checkpoints/` retain `PASS`, `FAIL`, `NOT RUN`, or
@@ -201,7 +209,8 @@ websites.
 
 ## 12. Next action
 
-Complete Product UI Task 1 by generating/reviewing strict dependency-verification metadata
-and running its GREEN verification on the current fourteen-module, Room-schema-6 boundary.
-After Task 1 is accepted, continue with Task 2 of
+Continue with Product UI Task 2, the reproducible target-pack rendering pipeline, from
 `superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.
+Task 1 is verified in `internal/checkpoints/product-ui-task-01-toolchain.md`. During
+implementation use `./scripts/verify-fast.sh` for iteration and run `./scripts/verify.sh`
+once as the full host gate before closing the task.

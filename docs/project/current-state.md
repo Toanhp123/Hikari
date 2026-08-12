@@ -15,8 +15,9 @@ Purpose: single source of truth for the implemented repository boundary.
 - Wave 08 Tasks 01-06: **VERIFIED**; Wave 08 is complete.
 - Wave 09 Tasks 01-06: **VERIFIED**; Wave 09 is complete.
 - Design System Foundation: **ACCEPTED** on 2026-08-12.
-- ReDantotsu-inspired Product UI redesign: **APPROVED FOR IMPLEMENTATION**; the active
-  execution boundary is its task-by-task implementation before Wave 10 capability work.
+- ReDantotsu-inspired Product UI redesign: **IN PROGRESS**; Task 1 rendering/screenshot
+  toolchain is **VERIFIED**, and Task 2 target-pack rendering pipeline is next before
+  Wave 10 capability work.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -121,9 +122,10 @@ hardening remain outside the implemented boundary.
 
 The accepted Design System Foundation adds `:core:designsystem` without changing Room or
 capability ownership. The approved Product UI redesign is now the active between-wave
-presentation checkpoint. Task 1 pins the rendering/screenshot toolchain (Coil 3.5.0,
-Backdrop 2.0.0, Roborazzi 1.70.0, Robolectric 4.16.1); artwork primitives and screen
-redesigns remain owned by later Product UI tasks. Wave 10 capability work has not started.
+presentation checkpoint. Task 1 has verified the rendering/screenshot toolchain (Coil
+3.5.0, Backdrop 2.0.0, Roborazzi 1.70.0, Robolectric 4.16.1) plus strict dependency
+metadata; Task 2 is the next boundary. Artwork primitives and screen redesigns remain
+owned by later Product UI tasks. Wave 10 capability work has not started.
 
 ## Architecture Baseline 2 status
 
@@ -182,6 +184,13 @@ Room plus the Wave 09 low-storage contract pass on API 37. Deep review verified 
 owns state/policy, Room owns metadata transactions, file storage owns bytes, Reader consumes
 only its store port, and WorkManager remains an app adapter.
 
+Product UI Task 1 then passed strict dependency-metadata bootstrap, the focused build-logic
+and screenshot-owner JVM suites, exact 14-module/current-architecture gates, the full
+repository Gradle gate, and Room schema stability. Evidence is recorded in
+`../internal/checkpoints/product-ui-task-01-toolchain.md`. The repository now also exposes
+`./scripts/verify-fast.sh` for development feedback while `./scripts/verify.sh` remains the
+full acceptance gate; both preserve strict dependency verification.
+
 Evidence:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -191,6 +200,7 @@ Evidence:
 - `../internal/checkpoints/wave-06-task-05-protected-content-mappings.md`
 - `../internal/checkpoints/wave-06-task-06-mapping-review-url-import.md`
 - `../internal/checkpoints/wave-08-reader-and-reading-progress.md`
+- `../internal/checkpoints/product-ui-task-01-toolchain.md`
 
 ## Source-of-truth rule
 

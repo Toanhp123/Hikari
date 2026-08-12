@@ -22,9 +22,7 @@ ROOM_SCHEMA_FINGERPRINT="$(
   :build-logic:test \
   test \
   testDebugUnitTest \
-  lintDebug \
   detekt \
-  :app:assembleDebug \
   --stacktrace
 
 ./scripts/verify-room-schema-stability.sh \

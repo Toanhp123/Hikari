@@ -58,6 +58,8 @@ class ArchitectureSmokeTest {
             "scripts/structural-review-report.sh",
             "scripts/verify-source-layout.sh",
             "scripts/verify.sh",
+            "scripts/verify-fast.sh",
+            "scripts/verification-common.sh",
             "scripts/instrumentation/android.sh",
             "scripts/instrumentation/storage-room.sh",
             "scripts/checkpoints/app-shell.sh",
@@ -129,7 +131,9 @@ class ArchitectureSmokeTest {
             root,
             "scripts/check-module-dependencies.sh",
         ).readText()
+        val commonScript = File(root, "scripts/verification-common.sh").readText()
         val verifyScript = File(root, "scripts/verify.sh").readText()
+        val fastVerifyScript = File(root, "scripts/verify-fast.sh").readText()
 
         assertTrue(
             "verifyArchitecture" in boundaryScript,
@@ -143,13 +147,29 @@ class ArchitectureSmokeTest {
             "--dependency-verification strict" in boundaryScript,
             "Architecture gate must use strict dependency verification",
         )
-        assertTrue(
-            "for test_script in ./scripts/tests/*.sh" in verifyScript,
-            "Fast verification must run every shell contract test",
+        assertFalse(
+            "--no-daemon" in boundaryScript,
+            "Architecture gate must allow Gradle daemon reuse",
         )
         assertTrue(
+            "for test_script in ./scripts/tests/*.sh" in commonScript,
+            "Shared repository verification must run every shell contract test",
+        )
+        assertTrue(
+            "verifyArchitecture" in verifyScript,
+            "Shared full verification must include architecture verification in the same Gradle invocation",
+        )
+        assertFalse(
             "./scripts/check-module-dependencies.sh" in verifyScript,
-            "Fast verification must invoke the architecture gate",
+            "Shared full verification must not spawn a second Gradle build for architecture",
+        )
+        assertFalse(
+            "--no-daemon" in verifyScript,
+            "Shared full verification must allow Gradle daemon reuse",
+        )
+        assertFalse(
+            "--no-daemon" in fastVerifyScript,
+            "Shared fast verification must allow Gradle daemon reuse",
         )
 
         val configuredTasks = verifyScript
@@ -160,6 +180,7 @@ class ArchitectureSmokeTest {
             .toSet()
 
         listOf(
+            "verifyArchitecture",
             ":build-logic:test",
             "test",
             "testDebugUnitTest",
@@ -181,21 +202,43 @@ class ArchitectureSmokeTest {
             ":app:lintDebug" in configuredTasks,
             "Verification must cover every Android module's lint task",
         )
+
+        listOf(
+            "verifyArchitecture",
+            ":build-logic:test",
+            "test",
+            "testDebugUnitTest",
+            "detekt",
+        ).forEach { expected ->
+            assertTrue(
+                expected in fastVerifyScript,
+                "Fast verification is missing task: $expected",
+            )
+        }
+        assertFalse("lintDebug" in fastVerifyScript)
+        assertFalse(":app:assembleDebug" in fastVerifyScript)
     }
 
     @Test
     fun sharedVerificationRunsRepositoryGatesBeforeGradleWork() {
+        val commonScript = File(root, "scripts/verification-common.sh").readText()
         val verifyScript = File(root, "scripts/verify.sh").readText()
+        val fastVerifyScript = File(root, "scripts/verify-fast.sh").readText()
 
         listOf(
             "./scripts/verify-source-layout.sh",
             "./scripts/structural-review-report.sh",
             "./scripts/verify-current-architecture.sh",
         ).forEach { gate ->
-            assertTrue(gate in verifyScript, "Fast verification must invoke $gate")
+            assertTrue(gate in commonScript, "Shared repository verification must invoke $gate")
+        }
+
+        listOf(verifyScript, fastVerifyScript).forEach { entryPoint ->
+            assertTrue("run_repository_static_gates" in entryPoint)
             assertTrue(
-                verifyScript.indexOf(gate) < verifyScript.indexOf("ROOM_SCHEMA_FINGERPRINT"),
-                "$gate must run before Room fingerprinting",
+                entryPoint.indexOf("run_repository_static_gates") <
+                    entryPoint.indexOf("ROOM_SCHEMA_FINGERPRINT"),
+                "Repository/static gates must run before Room fingerprinting",
             )
         }
     }
@@ -212,6 +255,7 @@ class ArchitectureSmokeTest {
             "build-tools;36.0.0",
             "local.properties",
             "sdk.dir=",
+            "./scripts/verify-fast.sh",
             "./scripts/verify.sh",
             "./scripts/checkpoints/app-shell.sh",
             "API 26",

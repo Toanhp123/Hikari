@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 GRADLEW="${GRADLEW:-./gradlew}"
 
-"$GRADLEW" --no-daemon \
+"$GRADLEW" \
   --dependency-verification strict \
   verifyArchitecture \
   --stacktrace

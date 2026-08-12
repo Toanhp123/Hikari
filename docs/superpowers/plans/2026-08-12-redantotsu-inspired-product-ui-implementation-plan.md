@@ -190,6 +190,8 @@ Generated files live under `tools/ui-target/build/` and remain ignored. The pack
 
 ### Task 1: Pin visual, artwork, and screenshot dependencies
 
+**Status: VERIFIED — 2026-08-12.** Evidence: `../../internal/checkpoints/product-ui-task-01-toolchain.md`. Integration commit remains the final administrative step.
+
 **Files:**
 - Modify: `gradle/libs.versions.toml`
 - Modify: `gradle/verification-metadata.xml`
@@ -204,7 +206,7 @@ Generated files live under `tools/ui-target/build/` and remain ignored. The pack
 - Produces library aliases `coil-compose`, `coil-network-okhttp`, `backdrop`, `roborazzi-core`, `roborazzi-compose`, `robolectric`, and plugin alias `roborazzi`.
 - Does not add a project dependency to `:core:designsystem`.
 
-- [ ] **Step 1: Add a RED dependency-contract test**
+- [x] **Step 1: Add a RED dependency-contract test**
 
 Add assertions to `RepositoryHygieneTest` that the version catalog contains exact pinned versions:
 
@@ -215,7 +217,7 @@ assertTrue(catalog.contains("roborazzi = \"1.70.0\""))
 assertTrue(catalog.contains("robolectric = \"4.16.1\""))
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 ./gradlew :build-logic:test --tests app.openstory.build.RepositoryHygieneTest --stacktrace
@@ -223,7 +225,7 @@ assertTrue(catalog.contains("robolectric = \"4.16.1\""))
 
 Expected: FAIL because the aliases are absent.
 
-- [ ] **Step 3: Add exact catalog aliases**
+- [x] **Step 3: Add exact catalog aliases**
 
 ```toml
 [versions]
@@ -246,7 +248,7 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 ```
 
-- [ ] **Step 4: Wire module dependencies**
+- [x] **Step 4: Wire module dependencies**
 
 Apply `alias(libs.plugins.roborazzi)` to `:core:designsystem`, `:feature:catalog`, `:feature:reader`, and `:app`. Add Coil and Backdrop only to `:core:designsystem`; add Roborazzi/Robolectric and Compose UI test artifacts as test dependencies to all four screenshot-owning modules.
 
@@ -258,7 +260,7 @@ android {
 }
 ```
 
-- [ ] **Step 5: Write strict dependency metadata**
+- [x] **Step 5: Write strict dependency metadata**
 
 ```bash
 ./gradlew --write-verification-metadata sha256 \
@@ -270,7 +272,7 @@ android {
 
 Review `gradle/verification-metadata.xml`; retain existing components and add only resolved artifacts.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 ```bash
 ./gradlew :build-logic:test :core:designsystem:testDebugUnitTest --stacktrace
@@ -288,6 +290,8 @@ git commit -m "build: add product ui rendering toolchain"
 ---
 
 ### Task 2: Create a reproducible target-pack rendering pipeline
+
+**Status: NEXT.**
 
 **Files:**
 - Create: `tools/ui-target/src/index.html`
