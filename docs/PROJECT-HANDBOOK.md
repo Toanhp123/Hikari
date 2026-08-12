@@ -133,9 +133,9 @@ Wave 07 and Wave 08 are verified and complete. Wave 09 completed cache/download
 namespaces, quotas, integrity, reconciliation, offline reading, Room schema 6,
 and its checkpoint. The between-wave Design System Foundation was accepted on
 2026-08-12. The approved ReDantotsu-inspired Product UI redesign is now the active
-presentation checkpoint. Product UI Task 1 (rendering/screenshot toolchain) is verified;
-Task 2 (reproducible target-pack rendering pipeline) is next. Wave 10 remains the next
-capability wave and has not started.
+presentation checkpoint. Product UI Task 1 (rendering/screenshot toolchain) and Task 2
+(reproducible target-pack rendering pipeline) are verified. Task 3 (shared artwork state
+and stable fallbacks) is next. Wave 10 remains the next capability wave and has not started.
 
 ## 8. Roadmap
 
@@ -209,8 +209,9 @@ websites.
 
 ## 12. Next action
 
-Continue with Product UI Task 2, the reproducible target-pack rendering pipeline, from
+Continue with Product UI Task 3, shared artwork state and stable fallbacks, from
 `superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.
-Task 1 is verified in `internal/checkpoints/product-ui-task-01-toolchain.md`. During
-implementation use `./scripts/verify-fast.sh` for iteration and run `./scripts/verify.sh`
-once as the full host gate before closing the task.
+Tasks 1-2 are verified in `internal/checkpoints/product-ui-task-01-toolchain.md` and
+`internal/checkpoints/product-ui-task-02-target-pack.md`. During implementation use
+`./scripts/verify-fast.sh` for iteration and run `./scripts/verify.sh` once as the full host
+gate before closing the next checkpoint boundary.

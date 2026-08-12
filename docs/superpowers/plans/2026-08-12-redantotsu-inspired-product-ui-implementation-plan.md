@@ -291,7 +291,7 @@ git commit -m "build: add product ui rendering toolchain"
 
 ### Task 2: Create a reproducible target-pack rendering pipeline
 
-**Status: NEXT.**
+**Status: VERIFIED — 2026-08-12.** Evidence: `../../internal/checkpoints/product-ui-task-02-target-pack.md`. Integration commit remains the final administrative step.
 
 **Files:**
 - Create: `tools/ui-target/src/index.html`
@@ -307,7 +307,7 @@ git commit -m "build: add product ui rendering toolchain"
 - Consumes no production code.
 - Produces deterministic 2x PNG files and the target ZIP.
 
-- [ ] **Step 1: Write a RED pack-contract test**
+- [x] **Step 1: Write a RED pack-contract test**
 
 The PowerShell test must call the renderer into a temporary directory and assert these exact files:
 
@@ -350,9 +350,10 @@ $required = @(
 )
 ```
 
-Also assert each PNG is exactly double the dp dimensions encoded by its folder.
+Also assert each PNG is exactly double the dp dimensions encoded by its folder and reject
+uniform/blank captures so a CSS-only background cannot satisfy the pack contract.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/tests/ui-target-pack-test.ps1
@@ -360,7 +361,7 @@ powershell -ExecutionPolicy Bypass -File scripts/tests/ui-target-pack-test.ps1
 
 Expected: FAIL because the renderer does not exist.
 
-- [ ] **Step 3: Implement one query-driven HTML renderer**
+- [x] **Step 3: Implement one query-driven HTML renderer**
 
 `app.js` reads `screen`, `theme`, `width`, and `height` from `URLSearchParams`, selects data from `mock-data.js`, and renders only approved real flows. Use deterministic inline SVG artwork generated from story IDs; do not embed ReDantotsu screenshots or remote URLs.
 
@@ -389,7 +390,7 @@ const renderers = {
 }
 ```
 
-- [ ] **Step 4: Implement Edge-headless capture**
+- [x] **Step 4: Implement Edge-headless capture**
 
 `render-ui-target.ps1` resolves Edge from:
 
@@ -400,9 +401,9 @@ $edgeCandidates = @(
 )
 ```
 
-For a `360x800dp` target, invoke Edge with `--window-size=360,800`, `--force-device-scale-factor=2`, `--hide-scrollbars`, and `--virtual-time-budget=1500`. The renderer asserts `window.innerWidth === 360` and `window.innerHeight === 800`; the pack test asserts the resulting PNG is `720x1600`. Repeat for every matrix entry.
+For a `360x800dp` target, invoke Edge with `--window-size=360,800`, `--force-device-scale-factor=2`, `--hide-scrollbars`, and `--virtual-time-budget=1500`. Do **not** assert that Edge's `window.innerWidth`/`window.innerHeight` exactly equal the requested `--window-size`: headless Edge may reserve browser/chrome geometry and report a different CSS viewport. Instead, `app.js` creates a fixed canvas from the query `width`/`height`, responsive rules key from that target width, and the pack test asserts the resulting PNG is exactly `720x1600`. Repeat for every matrix entry.
 
-- [ ] **Step 5: Implement ZIP packaging**
+- [x] **Step 5: Implement ZIP packaging**
 
 `package-ui-target.ps1` runs the renderer, writes a UTF-8 `README.md` with the approved implementation rules, and uses `Compress-Archive` to produce the caller-provided output:
 
@@ -410,7 +411,7 @@ For a `360x800dp` target, invoke Edge with `--window-size=360,800`, `--force-dev
 param([string]$Output = 'E:\Downloads\Hikari-UI-Target-Pack.zip')
 ```
 
-- [ ] **Step 6: Ignore generated output only**
+- [x] **Step 6: Ignore generated output only**
 
 Add:
 
@@ -420,7 +421,7 @@ Add:
 
 Do not ignore `tools/ui-target/src` or scripts.
 
-- [ ] **Step 7: Run GREEN and inspect the overview**
+- [x] **Step 7: Run GREEN and inspect the overview**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/tests/ui-target-pack-test.ps1
@@ -428,7 +429,7 @@ powershell -ExecutionPolicy Bypass -File tools/ui-target/package-ui-target.ps1 `
   -Output "$env:TEMP\Hikari-UI-Target-Pack.zip"
 ```
 
-Open the generated overview plus one dark and one light reference. Confirm they use Discover/Home/Library, artwork-first composition, dense shelves, floating glass navigation, and no unsupported social/marketplace content. Plugin Manager and Settings are explicitly annotated as Wave 11 and Wave 10 visual targets rather than current clickable routes.
+Open the generated overview plus one dark and one light reference. Confirm they use Discover/Home/Library, artwork-first composition, dense shelves, floating glass navigation, and no unsupported social/marketplace content. Plugin Manager and Settings are explicitly annotated as Wave 11 and Wave 10 visual targets rather than current clickable routes. The final Windows rerun must also prove captures are non-uniform after the Edge viewport/canvas regression fix; low-color but valid screens such as light Settings must not be rejected merely for having a small palette.
 
 - [ ] **Step 8: Commit**
 
@@ -440,6 +441,8 @@ git commit -m "design: add reproducible ui target pack"
 ---
 
 ### Task 3: Implement shared artwork state and stable fallbacks
+
+**Status: NEXT.**
 
 **Files:**
 - Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/artwork/HikariArtwork.kt`

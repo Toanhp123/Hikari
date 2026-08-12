@@ -23,16 +23,17 @@ code exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active wave plan. Waves 06 and 07
-are verified and complete. Wave 08 implementation is present and its checkpoint remains
-open at `../implementation/waves/wave-08-reader-and-reading-progress.md`.
+Use `../implementation/current-roadmap.md`, then the active Product UI plan. Waves 06-09
+are verified and complete, the between-wave Design System Foundation is accepted, and
+Product UI Tasks 1-2 are verified. The active implementation boundary is Product UI Task 3
+(shared artwork state and stable fallbacks) in
+`../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.
 
 Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current
-architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence.
-Wave 06 was reopened at Task 01 and is now complete with Tasks 01-06 verified. Wave 07 is
-also complete. The active boundary is the Wave 08 checkpoint. The post-baseline architecture design owns module evolution
-and cross-wave continuity for Wave 06-11; each active wave plan owns the
-task-level implementation inside that boundary. Its canonical path is
+architecture, while Wave 01-05 plans/checkpoints remain historical delivery evidence. The
+post-baseline architecture design owns module evolution and cross-wave continuity for Waves
+06-11; the active Product UI plan owns the between-wave presentation work without pulling
+Wave 10/11 capability ownership forward. Its canonical architecture path is
 `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
