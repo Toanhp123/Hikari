@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - Work from the approved spec: `docs/superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md`.
+- Use the approved Hikari visual references under `docs/ui/references/product-ui/` for composition, density, hierarchy, artwork treatment, glass boundaries, and navigation placement; written spec requirements remain authoritative for behavior and scope.
 - Android `minSdk` remains 26; `targetSdk` remains 37; builds use JDK 17.
 - The current redesign checkpoint keeps exactly 14 production modules and adds no new production module.
 - Room schema history 1 through 6 remains byte-stable; read-only DAO queries do not require a migration.
@@ -26,6 +27,20 @@
 - Motion is limited to navigation selection, hero/content transitions, sheets, and reader chrome; `LocalHikariMotionPolicy` reduces these to fades or no motion when reduction is enabled.
 - Every screen preserves TalkBack labels, keyboard/D-pad focus order, font scaling, and minimum 48x48dp interactive targets.
 - Every task uses RED/GREEN tests and ends with a focused commit.
+
+---
+
+## Approved Visual References
+
+![Approved Discover, Home, and Library navigation](../../ui/references/product-ui/approved-navigation.png)
+
+![Approved artwork-first visual system](../../ui/references/product-ui/approved-visual-system.png)
+
+![Approved product flow and scope](../../ui/references/product-ui/approved-product-flow.png)
+
+UI tasks must review their output against these images before recording Roborazzi
+baselines. Do not copy the abstract cards literally when real plugin artwork exists, and
+do not add controls shown only as future scope in the product-flow reference.
 
 ---
 
@@ -1269,7 +1284,9 @@ git commit -m "feat: redesign immersive reader controls"
 ./gradlew compareRoborazziDebug --stacktrace
 ```
 
-Review every diff; do not record over a regression without tracing it to the approved spec.
+Review every diff against the approved spec and the three images under
+`docs/ui/references/product-ui/`; do not record over a regression without tracing it to
+an approved requirement.
 
 - [ ] **Step 2: Update target HTML to match final component geometry**
 

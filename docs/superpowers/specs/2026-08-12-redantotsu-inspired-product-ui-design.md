@@ -20,6 +20,24 @@ The target pack and implementation must describe the same product. The target pa
 not advertise unavailable flows, and the implementation must not silently reduce the
 approved visual hierarchy back to the pre-redesign layouts.
 
+## Approved Visual References
+
+The following Hikari-owned mockups are approved implementation references. They contain
+only abstract artwork and Hikari product concepts; no ReDantotsu screenshot or asset is
+tracked in the repository.
+
+![Approved Discover, Home, and Library navigation](../../ui/references/product-ui/approved-navigation.png)
+
+![Approved artwork-first visual system](../../ui/references/product-ui/approved-visual-system.png)
+
+![Approved product flow and scope](../../ui/references/product-ui/approved-product-flow.png)
+
+These images are normative for composition, content density, hierarchy, artwork usage,
+glass boundaries, and top-level navigation. The written requirements in this spec remain
+authoritative for behavior, data ownership, accessibility, responsive reflow, exact copy,
+and capability scope. When an image and a written requirement appear to conflict, follow
+the written requirement and preserve the image's visual intent without inventing a flow.
+
 ## Reference Use
 
 ReDantotsu is a product and visual reference, not a code or asset source.
