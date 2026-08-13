@@ -13,15 +13,18 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.catalog.ui.download.DownloadActionSheet
 import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.common.id.StoryId
 import app.openstory.downloads.DownloadState
 
 @Composable
 fun ChapterReleaseRow(
     release: ChapterReleaseUiModel,
     chapterId: CanonicalChapterId,
+    storyId: StoryId,
     onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit,
     onSeparate: (ChapterReleaseId) -> Unit,
-    onRead: (CanonicalChapterId, ChapterReleaseId) -> Unit,
+    onRead: (ReaderTarget) -> Unit,
     downloadState: DownloadState?,
     pendingRemoval: Boolean,
     downloadActions: DownloadActions,
@@ -36,7 +39,7 @@ fun ChapterReleaseRow(
             TextButton(onClick = { onSeparate(release.id) }) {
                 Text("Separate")
             }
-            TextButton(onClick = { onRead(chapterId, release.id) }) {
+            TextButton(onClick = { onRead(ReaderTarget(storyId, chapterId, release.id)) }) {
                 Text("Read")
             }
         }

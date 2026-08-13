@@ -23,6 +23,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import app.openstory.catalog.ui.discover.DiscoverScreen
 import app.openstory.catalog.ui.discover.DiscoverViewModel
+import app.openstory.catalog.ui.dashboard.HomeDashboardScreen
+import app.openstory.catalog.ui.dashboard.HomeDashboardViewModel
 import app.openstory.catalog.ui.chapters.ChapterListActions
 import app.openstory.catalog.ui.chapters.ChapterListAssistedArgs
 import app.openstory.catalog.ui.chapters.ChapterListViewModel
@@ -91,16 +93,20 @@ fun AppNavHost(
                     )
                 }
                 entry<AppRoute.Home> {
-                    DiscoverDestination(
-                        onSearch = { navigator.navigate(AppRoute.Search) },
+                    HomeDestination(
+                        onDiscover = { navigator.selectTopLevel(TopLevelDestination.Discover) },
                         onStorySelected = { storyId ->
                             navigator.navigate(AppRoute.Story(storyId.value))
                         },
-                        searchFocusRequester = discoverSearchFocus,
-                        searchNextFocusRequester = utilityFocus,
-                        categoryFocusRequester = discoverCategoryFocus,
-                        categoryNextFocusRequester = discoverCatalogFocus,
-                        catalogFocusRequester = discoverCatalogFocus,
+                        onResume = { target ->
+                            navigator.navigate(
+                                AppRoute.Reader(
+                                    target.storyId.value,
+                                    target.chapterId.value,
+                                    target.releaseId.value,
+                                ),
+                            )
+                        },
                     )
                 }
                 entry<AppRoute.Search> {
@@ -136,6 +142,23 @@ fun AppNavHost(
             onDismiss = { showUtilitySheet = false },
         )
     }
+}
+
+@Composable
+private fun HomeDestination(
+    onDiscover: () -> Unit,
+    onStorySelected: (StoryId) -> Unit,
+    onResume: (app.openstory.catalog.ui.components.ReaderTarget) -> Unit,
+) {
+    val viewModel = hiltViewModel<HomeDashboardViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    HomeDashboardScreen(
+        state = state,
+        onDiscover = onDiscover,
+        onStorySelected = onStorySelected,
+        onResume = onResume,
+        modifier = Modifier.hikariTopLevelContentPadding(),
+    )
 }
 
 @Composable
@@ -233,8 +256,14 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
             onTombstonesVisible = chapterViewModel::setTombstonesVisible,
             onKeepGrouped = chapterViewModel::keepGrouped,
             onSeparate = chapterViewModel::separate,
-            onRead = { chapterId, releaseId ->
-                navigate(AppRoute.Reader(storyId.value, chapterId.value, releaseId.value))
+            onRead = { target ->
+                navigate(
+                    AppRoute.Reader(
+                        target.storyId.value,
+                        target.chapterId.value,
+                        target.releaseId.value,
+                    ),
+                )
             },
             onDownloadRange = downloadViewModel::downloadRange,
             onDownloadFiltered = downloadViewModel::downloadFiltered,

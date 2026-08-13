@@ -11,6 +11,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.downloads.DownloadState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -52,6 +53,7 @@ class ChapterListViewModel @AssistedInject constructor(
             .filter { group -> selectedFilter.accepts(group) }
             .map { group -> group.toUiModel(group.chapter.id in expandedIds) }
         ChapterListUiState(
+            storyId = storyId,
             chapters = visible,
             unreadCount = activeGroups.size,
             selectedFilter = selectedFilter,
@@ -122,6 +124,7 @@ enum class ChapterListFilter {
 }
 
 data class ChapterListUiState(
+    val storyId: StoryId? = null,
     val chapters: List<ChapterItemUiModel> = emptyList(),
     val unreadCount: Int = 0,
     val selectedFilter: ChapterListFilter = ChapterListFilter.ALL,
@@ -151,7 +154,7 @@ data class ChapterListActions(
     val onTombstonesVisible: (Boolean) -> Unit = {},
     val onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit = { _, _ -> },
     val onSeparate: (ChapterReleaseId) -> Unit = {},
-    val onRead: (CanonicalChapterId, ChapterReleaseId) -> Unit = { _, _ -> },
+    val onRead: (ReaderTarget) -> Unit = {},
     val onDownloadRange: (List<ChapterReleaseId>) -> Unit = {},
     val onDownloadFiltered: (List<ChapterReleaseId>) -> Unit = {},
     val downloadState: (ChapterReleaseId) -> DownloadState? = { null },

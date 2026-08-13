@@ -69,12 +69,16 @@ fun LazyListScope.chapterListItems(
         items = state.chapters,
         key = { chapter -> "chapter:${chapter.id.value}" },
     ) { chapter ->
-        ChapterRow(chapter, actions)
+        ChapterRow(chapter, requireNotNull(state.storyId), actions)
     }
 }
 
 @Composable
-private fun ChapterRow(chapter: ChapterItemUiModel, actions: ChapterListActions) {
+private fun ChapterRow(
+    chapter: ChapterItemUiModel,
+    storyId: app.openstory.common.id.StoryId,
+    actions: ChapterListActions,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -105,6 +109,7 @@ private fun ChapterRow(chapter: ChapterItemUiModel, actions: ChapterListActions)
                     ChapterReleaseRow(
                         release = release,
                         chapterId = chapter.id,
+                        storyId = storyId,
                         onKeepGrouped = actions.onKeepGrouped,
                         onSeparate = actions.onSeparate,
                         onRead = actions.onRead,

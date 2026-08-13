@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":catalog"))
     implementation(project(":library"))
     implementation(project(":chapters"))
+    implementation(project(":reader"))
     implementation(project(":downloads"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.lifecycle.viewmodel)

@@ -1,0 +1,232 @@
+package app.openstory.catalog.ui.dashboard
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.common.id.StoryId
+import app.openstory.designsystem.artwork.HikariArtwork
+import app.openstory.designsystem.artwork.HikariArtworkModel
+import app.openstory.designsystem.artwork.rememberHikariArtwork
+import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.state.HikariEmptyState
+import app.openstory.designsystem.state.HikariLoadingState
+import app.openstory.designsystem.theme.hikariSpacing
+
+@Composable
+fun HomeDashboardScreen(
+    state: HomeDashboardUiState,
+    onDiscover: () -> Unit,
+    onStorySelected: (StoryId) -> Unit,
+    onResume: (ReaderTarget) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val continueFocus = remember { FocusRequester() }
+    val readingFocus = remember { FocusRequester() }
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+        Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            when {
+                state.loading -> HikariLoadingState("Loading your reading home")
+                state.isEmpty -> Box(Modifier.fillMaxSize()) {
+                    HikariEmptyState(
+                        title = "Your reading home is ready to grow.",
+                        message = "Find a story and add it to your Library to begin.",
+                        actionLabel = "Discover stories",
+                        onAction = onDiscover,
+                    )
+                    state.failure?.let { failure ->
+                        ObservationFailure(failure, Modifier.align(Alignment.TopCenter))
+                    }
+                }
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.extraLarge),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
+                ) {
+            item("home-summary") { HomeSummary(state.summary) }
+            state.failure?.let { failure ->
+                item("home-failure") {
+                    ObservationFailure(failure, Modifier.padding(horizontal = 20.dp))
+                }
+            }
+            if (state.continueReading.isNotEmpty()) {
+                item("home-continue") {
+                    HomeSection("Continue Reading") {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(state.continueReading, key = { it.storyId.value }) { item ->
+                                ContinueReadingCard(
+                                    item = item,
+                                    onResume = onResume,
+                                    focusRequester = continueFocus.takeIf { item == state.continueReading.first() },
+                                    downFocusRequester = readingFocus.takeIf { state.reading.isNotEmpty() },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            itemShelf("Reading", state.reading, onStorySelected, readingFocus)
+            itemShelf("Planned", state.planned, onStorySelected)
+            itemShelf("Paused", state.paused, onStorySelected)
+            itemShelf("Completed", state.completed, onStorySelected)
+            if (state.latestUpdates.isNotEmpty()) {
+                item("home-updates") {
+                    HomeSection("Latest Updates") {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(state.latestUpdates, key = { it.releaseId.value }) { update ->
+                                UpdateCard(update, onResume)
+                            }
+                        }
+                    }
+                }
+            }
+                }
+            }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.itemShelf(
+    title: String,
+    entries: List<HomeDashboardItem>,
+    onStorySelected: (StoryId) -> Unit,
+    firstFocusRequester: FocusRequester? = null,
+) {
+    if (entries.isEmpty()) return
+    item("home-shelf-$title") {
+        HomeSection(title) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(entries, key = { it.storyId.value }) { item ->
+                    DashboardStoryCard(
+                        item,
+                        title,
+                        onStorySelected,
+                        Modifier.then(
+                            if (item == entries.first() && firstFocusRequester != null) {
+                                Modifier.focusRequester(firstFocusRequester)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeSummary(summary: HomeReadingSummary) {
+    Box(
+        Modifier.fillMaxWidth().height(214.dp).background(
+            Brush.linearGradient(
+                listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface, Color.Transparent),
+            ),
+        ).padding(20.dp),
+    ) {
+        Column(Modifier.align(Alignment.BottomStart), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Welcome back", style = MaterialTheme.typography.headlineMedium)
+            Text("Your library, progress and newest chapters in one place.", style = MaterialTheme.typography.bodyLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                SummaryMetric(summary.libraryCount, "Library")
+                SummaryMetric(summary.readingCount, "Reading")
+                SummaryMetric(summary.completedCount, "Completed")
+                SummaryMetric(summary.downloadedCount, "Offline")
+            }
+        }
+    }
+}
+
+@Composable private fun SummaryMetric(value: Int, label: String) {
+    Column { Text(value.toString(), style = MaterialTheme.typography.titleLarge); Text(label, style = MaterialTheme.typography.labelMedium) }
+}
+
+@Composable
+private fun HomeSection(title: String, content: @Composable () -> Unit) {
+    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        HikariSectionHeader(title, Modifier.semantics { heading() })
+        content()
+    }
+}
+
+@Composable
+private fun DashboardStoryCard(
+    item: HomeDashboardItem,
+    section: String,
+    onSelected: (StoryId) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = { onSelected(item.storyId) },
+        modifier = modifier.width(168.dp).semantics(mergeDescendants = true) {
+            contentDescription = "${item.title}. Section $section"
+            traversalIndex = 2f
+        },
+    ) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            val artwork = rememberHikariArtwork(HikariArtworkModel(item.coverUrl, item.storyId.value, item.title))
+            HikariArtwork(artwork, "${item.title} cover", Modifier.fillMaxWidth().height(210.dp))
+            Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun ObservationFailure(failure: HomeDashboardFailure, modifier: Modifier = Modifier) {
+    Text(
+        text = "Some reading data could not be refreshed (${failure.code}).",
+        color = MaterialTheme.colorScheme.error,
+        modifier = modifier.padding(20.dp),
+    )
+}
+
+@Composable
+private fun UpdateCard(item: HomeUpdateItem, onResume: (ReaderTarget) -> Unit) {
+    Card(
+        onClick = { onResume(item.readerTarget) },
+        modifier = Modifier.width(220.dp).heightIn(min = 88.dp).semantics(mergeDescendants = true) {
+            contentDescription = "Read ${item.title}, ${item.chapterLabel}. Section Latest Updates"
+            traversalIndex = 3f
+        },
+    ) {
+        Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            val artwork = rememberHikariArtwork(HikariArtworkModel(item.coverUrl, item.storyId.value, item.title))
+            HikariArtwork(artwork, "${item.title} cover", Modifier.width(54.dp).height(76.dp))
+            Column {
+                Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(item.chapterLabel, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}

@@ -129,6 +129,26 @@ class ModuleBoundaryVerifierTest {
     }
 
     @Test
+    fun catalogPresentationMayConsumeReadingProgress() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+
+        assertEquals(
+            setOf(
+                ":core:common",
+                ":core:designsystem",
+                ":catalog",
+                ":library",
+                ":chapters",
+                ":reader",
+                ":downloads",
+            ),
+            policy.modules.getValue(":feature:catalog").productionDependencies,
+        )
+    }
+
+    @Test
     fun designSystemIsAProjectIndependentAndroidUiFoundation() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),

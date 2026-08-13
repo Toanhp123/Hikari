@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
 import org.junit.Test
@@ -85,6 +86,7 @@ class ChapterListTest {
 }
 
 private fun fixtureState() = ChapterListUiState(
+    storyId = StoryId("story:chapter-list-test"),
     unreadCount = 2,
     chapters = listOf(
         ChapterItemUiModel(
