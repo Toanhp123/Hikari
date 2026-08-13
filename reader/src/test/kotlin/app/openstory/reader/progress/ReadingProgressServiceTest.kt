@@ -45,12 +45,15 @@ class ReadingProgressServiceTest {
 
 private class FakeProgressRepository : ReadingProgressRepository {
     val value = MutableStateFlow<ReadingProgress?>(null)
+    private val all = MutableStateFlow<List<ReadingProgress>>(emptyList())
     var saveCount = 0
 
+    override fun observeAll(): Flow<List<ReadingProgress>> = all
     override fun observe(storyId: StoryId, chapterId: CanonicalChapterId): Flow<ReadingProgress?> = value
     override suspend fun find(storyId: StoryId, chapterId: CanonicalChapterId) = value.value
     override suspend fun save(progress: ReadingProgress) {
         saveCount += 1
         value.value = progress
+        all.value = listOf(progress)
     }
 }

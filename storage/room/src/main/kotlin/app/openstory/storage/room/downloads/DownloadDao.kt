@@ -8,6 +8,13 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 internal interface DownloadDao {
+    @Query(
+        "SELECT * FROM chapter_storage_entries " +
+            "WHERE namespace = 'EXPLICIT_DOWNLOAD' AND download_state IS NOT NULL " +
+            "ORDER BY updated_at_epoch_millis DESC, chapter_release_id ASC",
+    )
+    fun observeAllDownloads(): Flow<List<ChapterStorageEntryEntity>>
+
     @Query("SELECT * FROM chapter_storage_entries")
     suspend fun allEntries(): List<ChapterStorageEntryEntity>
 

@@ -10,6 +10,7 @@ import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.DownloadState
+import app.openstory.downloads.DownloadRecord
 import app.openstory.downloads.reconcile.StorageDownloadFailure
 import app.openstory.downloads.reconcile.StorageMetadataRepairPlan
 import app.openstory.storage.room.OpenStoryDatabase
@@ -20,6 +21,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.first
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -121,6 +123,21 @@ class RoomDownloadRepositoryTest {
         assertNull(failed?.checksum)
     }
 
+    @Test
+    fun observeAllOrdersDownloadsByUpdateDescendingThenReleaseIdentity() = runTest {
+        repository.save(download("release-z", updatedAt = 200))
+        repository.save(download("release-a", updatedAt = 200))
+        repository.save(download("release-old", updatedAt = 100))
+        repository.upsert(entry(key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-only")))
+
+        val observed = repository.observeAll().first()
+
+        assertEquals(
+            listOf("release-a", "release-z", "release-old"),
+            observed.map { it.key.releaseId.value },
+        )
+    }
+
     private fun key(namespace: ChapterBlobNamespace, id: String) = ChapterBlobKey(
         namespace,
         ChapterReleaseId(id),
@@ -132,5 +149,11 @@ class RoomDownloadRepositoryTest {
         checksum = BlobChecksum.sha256(key.releaseId.value.encodeToByteArray()),
         sizeBytes = 8,
         lastAccessedAtEpochMillis = 1,
+    )
+
+    private fun download(id: String, updatedAt: Long) = DownloadRecord(
+        key = key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, id),
+        state = DownloadState.QUEUED,
+        updatedAtEpochMillis = updatedAt,
     )
 }

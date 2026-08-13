@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 internal interface ChapterDao {
     @Transaction
+    @Query("SELECT * FROM canonical_chapters ORDER BY story_id ASC, canonical_chapter_id ASC")
+    fun observeAllGroups(): Flow<List<CanonicalChapterWithReleases>>
+
+    @Transaction
     @Query("SELECT * FROM canonical_chapters WHERE story_id = :storyId")
     fun observeGroups(storyId: String): Flow<List<CanonicalChapterWithReleases>>
 

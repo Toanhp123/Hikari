@@ -101,6 +101,7 @@ private class FakeChapterRepository(initial: List<CanonicalChapterGroup>) : Chap
     private val groups = MutableStateFlow(initial)
     val savedOverrides = mutableListOf<ChapterAggregationOverride>()
 
+    override fun observeAll(): Flow<List<CanonicalChapterGroup>> = groups
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = groups
     override suspend fun snapshot(storyId: StoryId) = ChapterGraphSnapshot(emptyList(), emptyList(), emptyList())
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult = ChapterCommitResult.Success

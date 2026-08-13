@@ -30,6 +30,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 
@@ -197,10 +198,12 @@ private class RecordingChapterRepository(
     initialReleases: List<ChapterRelease> = emptyList(),
 ) : ChapterRepository {
     val commits = mutableListOf<ChapterMutation>()
+    private val groups = MutableStateFlow<List<CanonicalChapterGroup>>(emptyList())
     private var state = initialState
     private val releases = initialReleases.associateByTo(linkedMapOf()) { release -> release.id.value }
 
-    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = flowOf(emptyList())
+    override fun observeAll(): Flow<List<CanonicalChapterGroup>> = groups
+    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = groups
 
     override suspend fun snapshot(storyId: StoryId) = ChapterGraphSnapshot(
         chapters = emptyList(),

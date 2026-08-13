@@ -37,6 +37,8 @@ data class ChapterSyncState(
 )
 
 interface ChapterRepository {
+    fun observeAll(): Flow<List<CanonicalChapterGroup>>
+
     fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>>
 
     suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot

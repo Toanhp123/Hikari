@@ -16,6 +16,9 @@ class RoomReadingProgressRepository internal constructor(
 ) : ReadingProgressRepository {
     constructor(database: OpenStoryDatabase) : this(database, database.readingProgressDao())
 
+    override fun observeAll(): Flow<List<ReadingProgress>> =
+        dao.observeAll().map { progress -> progress.map(ReadingProgressEntity::toModel) }
+
     override fun observe(
         storyId: StoryId,
         chapterId: CanonicalChapterId,

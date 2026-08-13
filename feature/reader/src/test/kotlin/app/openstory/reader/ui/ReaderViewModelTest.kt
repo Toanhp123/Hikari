@@ -144,6 +144,8 @@ class ReaderViewModelTest {
 private class FakeReaderChapterRepository(
     private val graph: ChapterGraphSnapshot,
 ) : ChapterRepository {
+    private val all = MutableStateFlow<List<CanonicalChapterGroup>>(emptyList())
+    override fun observeAll(): Flow<List<CanonicalChapterGroup>> = all
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
         error("Not used")
     override suspend fun snapshot(storyId: StoryId) = graph
@@ -158,10 +160,13 @@ private class FakeReaderChapterRepository(
 
 private class FakeReaderProgressRepository(initial: ReadingProgress?) : ReadingProgressRepository {
     private val value = MutableStateFlow(initial)
+    private val all = MutableStateFlow(initial?.let(::listOf).orEmpty())
+    override fun observeAll(): Flow<List<ReadingProgress>> = all
     override fun observe(storyId: StoryId, chapterId: CanonicalChapterId): Flow<ReadingProgress?> = value
     override suspend fun find(storyId: StoryId, chapterId: CanonicalChapterId) = value.value
     override suspend fun save(progress: ReadingProgress) {
         value.value = progress
+        all.value = listOf(progress)
     }
 }
 

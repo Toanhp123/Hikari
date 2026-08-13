@@ -98,11 +98,14 @@ class DownloadViewModelTest {
 
 private class FakeUiDownloadRepository : DownloadRepository {
     private val flows = mutableMapOf<ChapterReleaseId, MutableStateFlow<DownloadRecord?>>()
+    private val all = MutableStateFlow<List<DownloadRecord>>(emptyList())
+    override fun observeAll(): Flow<List<DownloadRecord>> = all
     override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? = flows[releaseId]?.value
     override fun observe(releaseId: ChapterReleaseId): Flow<DownloadRecord?> =
         flows.getOrPut(releaseId) { MutableStateFlow(null) }
     override suspend fun save(record: DownloadRecord) {
         flows.getOrPut(record.key.releaseId) { MutableStateFlow(null) }.value = record
+        all.value = all.value.filterNot { it.key.releaseId == record.key.releaseId } + record
     }
 }
 

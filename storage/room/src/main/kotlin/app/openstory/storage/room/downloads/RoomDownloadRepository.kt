@@ -24,6 +24,9 @@ class RoomDownloadRepository internal constructor(
 ) : CacheRepository, DownloadRepository, StorageReconciliationRepository {
     constructor(database: OpenStoryDatabase) : this(database, database.downloadDao())
 
+    override fun observeAll(): Flow<List<DownloadRecord>> =
+        dao.observeAllDownloads().map { entries -> entries.mapNotNull(ChapterStorageEntryEntity::toDownloadRecord) }
+
     override suspend fun entries(): List<CacheEntry> = dao.storedEntries().map { it.toCacheEntry() }
 
     override suspend fun upsert(entry: CacheEntry) {

@@ -36,6 +36,9 @@ class RoomChapterRepository internal constructor(
         database.chapterSyncDao(),
     )
 
+    override fun observeAll(): Flow<List<CanonicalChapterGroup>> =
+        dao.observeAllGroups().map(List<CanonicalChapterWithReleases>::toModelsByIdentity)
+
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
         dao.observeGroups(storyId.value).map(List<CanonicalChapterWithReleases>::toModels)
 
@@ -96,6 +99,12 @@ private fun List<CanonicalChapterWithReleases>.toModels(): List<CanonicalChapter
     val releases = group.releases.map(ChapterReleaseEntity::toModel).sortedWith(releaseComparator)
     CanonicalChapterGroup(group.chapter.toModel(releases.mapTo(linkedSetOf()) { it.id }), releases)
 }.sortedWith(groupComparator)
+
+private fun List<CanonicalChapterWithReleases>.toModelsByIdentity(): List<CanonicalChapterGroup> =
+    map { group ->
+        val releases = group.releases.map(ChapterReleaseEntity::toModel).sortedWith(releaseComparator)
+        CanonicalChapterGroup(group.chapter.toModel(releases.mapTo(linkedSetOf()) { it.id }), releases)
+    }
 
 private val groupComparator = compareBy<CanonicalChapterGroup> { it.chapter.parsedLabel.volume == null }
     .thenBy { it.chapter.parsedLabel.volume }

@@ -106,6 +106,30 @@ class RoomChapterRepositoryTest {
         }
     }
 
+    @Test
+    fun observeAllOrdersGroupsByStoryThenCanonicalChapterIdentity() = runTest {
+        withRepository { database, repository ->
+            database.openHelper.writableDatabase.apply {
+                execSQL("INSERT INTO stories (story_id, content_type) VALUES ('story:a', 'MANGA')")
+                execSQL("INSERT INTO stories (story_id, content_type) VALUES ('story:b', 'MANGA')")
+                execSQL(
+                    "INSERT INTO canonical_chapters " +
+                        "(canonical_chapter_id, story_id, kind, display_label, tombstoned) VALUES " +
+                        "('chapter:z', 'story:a', 'NUMBERED', 'Z', 0), " +
+                        "('chapter:b', 'story:b', 'NUMBERED', 'B', 0), " +
+                        "('chapter:a', 'story:a', 'NUMBERED', 'A', 0)",
+                )
+            }
+
+            val groups = repository.observeAll().first()
+
+            assertEquals(
+                listOf("story:a/chapter:a", "story:a/chapter:z", "story:b/chapter:b"),
+                groups.map { "${it.chapter.storyId.value}/${it.chapter.id.value}" },
+            )
+        }
+    }
+
     private suspend fun withRepository(
         block: suspend (OpenStoryDatabase, RoomChapterRepository) -> Unit,
     ) {
