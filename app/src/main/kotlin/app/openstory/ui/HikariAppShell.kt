@@ -17,9 +17,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.glass.HikariBackdropHost
 import app.openstory.designsystem.glass.HikariGlassSurface
@@ -35,6 +39,8 @@ fun HikariAppShell(
     currentRoute: AppRoute?,
     onTopLevelSelected: (TopLevelDestination) -> Unit,
     onUtilityRequested: () -> Unit,
+    utilityFocusRequester: FocusRequester? = null,
+    utilityNextFocusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -52,8 +58,20 @@ fun HikariAppShell(
                         .statusBarsPadding()
                         .padding(16.dp)
                         .size(48.dp)
+                        .then(utilityFocusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
+                        .then(
+                            utilityNextFocusRequester?.let { nextRequester ->
+                                Modifier.focusProperties {
+                                    next = nextRequester
+                                    down = nextRequester
+                                }
+                            } ?: Modifier,
+                        )
                         .clickable(role = Role.Button, onClick = onUtilityRequested)
-                        .semantics { contentDescription = "Open quick access" },
+                        .semantics {
+                            contentDescription = "Open quick access"
+                            traversalIndex = 1f
+                        },
                     shape = CircleShape,
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

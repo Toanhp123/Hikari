@@ -1,4 +1,4 @@
-package app.openstory.catalog.ui.home
+package app.openstory.catalog.ui.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,14 +22,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
+class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
     query: CatalogHomeQuery,
     refreshService: CatalogRefreshService,
 ) : ViewModel() {
-    private val observationFailure = MutableStateFlow<HomeUiFailure?>(null)
-    private val refreshFailure = MutableStateFlow<HomeUiFailure?>(null)
-    private val dependencies = HomeDependencies(
+    private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
+    private val refreshFailure = MutableStateFlow<DiscoverUiFailure?>(null)
+    private val dependencies = DiscoverDependencies(
         homes = repository.observeHomes().preserveLatestOnFailure(HOME_OBSERVE_EXCEPTION_CODE, emptyList()),
         rankedStories = query.rankedStories.preserveLatestOnFailure(RANKING_OBSERVE_EXCEPTION_CODE, emptyList()),
         refresh = {
@@ -38,20 +38,29 @@ class HomeViewModel @Inject constructor(
         },
     )
     private val selectedCatalogId = MutableStateFlow<PluginId?>(null)
+    private val selectedSourceId = MutableStateFlow<String?>(null)
     private val refreshing = MutableStateFlow(false)
-    private val refreshReport = MutableStateFlow<HomeRefreshReport?>(null)
+    private val refreshReport = MutableStateFlow<DiscoverRefreshReport?>(null)
+
+    private val selectionState = combine(
+        selectedCatalogId,
+        selectedSourceId,
+    ) { pluginId, sourceId ->
+        DiscoverSelection(pluginId, sourceId)
+    }
 
     private val contentState = combine(
         dependencies.homes,
         dependencies.rankedStories,
-        selectedCatalogId,
+        selectionState,
         refreshing,
         refreshReport,
-    ) { homes, ranked, selectedId, busy, report ->
-        HomeUiState(
-            catalogs = homes.sortedBy { it.pluginId.value },
+    ) { homes, ranked, selection, busy, report ->
+        projectDiscoverState(
+            catalogs = homes,
             rankedStories = ranked,
-            selectedCatalogId = selectedId,
+            selectedCatalogId = selection.pluginId,
+            selectedSourceId = selection.sourceId,
             refreshing = busy,
             refreshReport = report,
         )
@@ -65,7 +74,7 @@ class HomeViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
-        initialValue = HomeUiState(),
+        initialValue = DiscoverUiState(),
     )
 
     fun refresh() {
@@ -78,7 +87,7 @@ class HomeViewModel @Inject constructor(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
-                refreshFailure.value = HomeUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
+                refreshFailure.value = DiscoverUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
             } finally {
                 refreshing.value = false
             }
@@ -87,16 +96,28 @@ class HomeViewModel @Inject constructor(
 
     fun selectCatalog(pluginId: PluginId) {
         selectedCatalogId.value = pluginId
+        selectedSourceId.value = null
+    }
+
+    fun selectCategory(category: DiscoverQuickCategory) {
+        selectedCatalogId.value = category.pluginId
+        selectedSourceId.value = category.sourceId
     }
 
     fun selectCombined() {
         selectedCatalogId.value = null
+        selectedSourceId.value = null
     }
 
-    private data class HomeDependencies(
+    private data class DiscoverDependencies(
         val homes: Flow<List<CatalogHomeSnapshot>>,
         val rankedStories: Flow<List<RankedCatalogStory>>,
-        val refresh: suspend () -> HomeRefreshReport,
+        val refresh: suspend () -> DiscoverRefreshReport,
+    )
+
+    private data class DiscoverSelection(
+        val pluginId: PluginId?,
+        val sourceId: String?,
     )
 
     private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {
@@ -109,7 +130,7 @@ class HomeViewModel @Inject constructor(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
-            observationFailure.value = HomeUiFailure(code, retryable = true)
+            observationFailure.value = DiscoverUiFailure(code, retryable = true)
             emit(latest)
         }
     }
@@ -124,9 +145,9 @@ class HomeViewModel @Inject constructor(
 
 private fun List<CatalogRefreshResult>.toReport(
     homes: List<CatalogHomeSnapshot>,
-): HomeRefreshReport {
+): DiscoverRefreshReport {
     val refreshedAt = homes.associate { it.pluginId to it.refreshedAtEpochMillis }
-    return fold(HomeRefreshReport(refreshedAtEpochMillis = refreshedAt)) { report, result ->
+    return fold(DiscoverRefreshReport(refreshedAtEpochMillis = refreshedAt)) { report, result ->
         when (result) {
             is CatalogRefreshResult.Success -> report.copy(
                 succeeded = report.succeeded + result.pluginId,

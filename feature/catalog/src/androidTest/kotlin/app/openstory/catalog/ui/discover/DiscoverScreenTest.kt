@@ -1,4 +1,4 @@
-package app.openstory.catalog.ui.home
+package app.openstory.catalog.ui.discover
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -21,7 +21,7 @@ import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
-class HomeScreenTest {
+class DiscoverScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
@@ -29,7 +29,7 @@ class HomeScreenTest {
     fun cachedContentAndPartialFailureRemainVisibleWhileRefreshing() {
         compose.setContent {
             HikariTheme {
-                HomeScreen(
+                DiscoverScreen(
                     state = fixtureState(refreshing = true, failed = true),
                     onRefresh = {},
                     onSearch = {},
@@ -42,7 +42,7 @@ class HomeScreenTest {
 
         compose.onAllNodesWithText("Across catalogs").onFirst().assertIsDisplayed()
         compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Refreshing catalog Home").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Refreshing Discover").assertIsDisplayed()
         compose.onNodeWithText("catalog.b refresh failed; cached content is still available.")
             .assertIsDisplayed()
     }
@@ -51,7 +51,7 @@ class HomeScreenTest {
     fun cardSemanticsExposeStorySectionScoreAndContentType() {
         compose.setContent {
             HikariTheme {
-                HomeScreen(
+                DiscoverScreen(
                     state = fixtureState(selected = true),
                     onRefresh = {},
                     onSearch = {},
@@ -72,7 +72,7 @@ class HomeScreenTest {
         var selected: StoryId? = null
         compose.setContent {
             HikariTheme {
-                HomeScreen(
+                DiscoverScreen(
                     state = fixtureState(),
                     onRefresh = {},
                     onSearch = {},
@@ -94,10 +94,10 @@ private fun fixtureState(
     refreshing: Boolean = false,
     failed: Boolean = false,
     selected: Boolean = false,
-): HomeUiState {
+): DiscoverUiState {
     val entry = fixtureEntry()
     val pluginId = entry.pluginId
-    return HomeUiState(
+    return projectDiscoverState(
         catalogs = listOf(
             CatalogHomeSnapshot(
                 pluginId,
@@ -116,7 +116,7 @@ private fun fixtureState(
         selectedCatalogId = pluginId.takeIf { selected },
         refreshing = refreshing,
         refreshReport = if (failed) {
-            HomeRefreshReport(failed = mapOf(PluginId("catalog.b") to "catalog.offline"))
+            DiscoverRefreshReport(failed = mapOf(PluginId("catalog.b") to "catalog.offline"))
         } else {
             null
         },

@@ -14,14 +14,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.focus.FocusRequester
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import app.openstory.catalog.ui.home.HomeScreen
-import app.openstory.catalog.ui.home.HomeViewModel
+import app.openstory.catalog.ui.discover.DiscoverScreen
+import app.openstory.catalog.ui.discover.DiscoverViewModel
 import app.openstory.catalog.ui.chapters.ChapterListActions
 import app.openstory.catalog.ui.chapters.ChapterListAssistedArgs
 import app.openstory.catalog.ui.chapters.ChapterListViewModel
@@ -53,11 +54,17 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val discoverSearchFocus = remember { FocusRequester() }
+    val utilityFocus = remember { FocusRequester() }
+    val discoverCategoryFocus = remember { FocusRequester() }
+    val discoverCatalogFocus = remember { FocusRequester() }
     var showUtilitySheet by remember { mutableStateOf(false) }
     HikariAppShell(
         currentRoute = navigator.currentRoute,
         onTopLevelSelected = navigator::selectTopLevel,
         onUtilityRequested = { showUtilitySheet = true },
+        utilityFocusRequester = utilityFocus,
+        utilityNextFocusRequester = discoverCategoryFocus,
         modifier = modifier,
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -71,19 +78,29 @@ fun AppNavHost(
                 onBack = navigator::back,
                 entryProvider = entryProvider {
                 entry<AppRoute.Discover> {
-                    HomeDestination(
+                    DiscoverDestination(
                         onSearch = { navigator.navigate(AppRoute.Search) },
                         onStorySelected = { storyId ->
                             navigator.navigate(AppRoute.Story(storyId.value))
                         },
+                        searchFocusRequester = discoverSearchFocus,
+                        searchNextFocusRequester = utilityFocus,
+                        categoryFocusRequester = discoverCategoryFocus,
+                        categoryNextFocusRequester = discoverCatalogFocus,
+                        catalogFocusRequester = discoverCatalogFocus,
                     )
                 }
                 entry<AppRoute.Home> {
-                    HomeDestination(
+                    DiscoverDestination(
                         onSearch = { navigator.navigate(AppRoute.Search) },
                         onStorySelected = { storyId ->
                             navigator.navigate(AppRoute.Story(storyId.value))
                         },
+                        searchFocusRequester = discoverSearchFocus,
+                        searchNextFocusRequester = utilityFocus,
+                        categoryFocusRequester = discoverCategoryFocus,
+                        categoryNextFocusRequester = discoverCatalogFocus,
+                        catalogFocusRequester = discoverCatalogFocus,
                     )
                 }
                 entry<AppRoute.Search> {
@@ -122,19 +139,30 @@ fun AppNavHost(
 }
 
 @Composable
-private fun HomeDestination(
+private fun DiscoverDestination(
     onSearch: () -> Unit,
     onStorySelected: (StoryId) -> Unit,
+    searchFocusRequester: FocusRequester? = null,
+    searchNextFocusRequester: FocusRequester? = null,
+    categoryFocusRequester: FocusRequester? = null,
+    categoryNextFocusRequester: FocusRequester? = null,
+    catalogFocusRequester: FocusRequester? = null,
 ) {
-    val viewModel = hiltViewModel<HomeViewModel>()
+    val viewModel = hiltViewModel<DiscoverViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    HomeScreen(
+    DiscoverScreen(
         state = state,
         onRefresh = viewModel::refresh,
         onSearch = onSearch,
         onStorySelected = onStorySelected,
         onCatalogSelected = viewModel::selectCatalog,
+        onCategorySelected = viewModel::selectCategory,
         onCombinedSelected = viewModel::selectCombined,
+        searchFocusRequester = searchFocusRequester,
+        searchNextFocusRequester = searchNextFocusRequester,
+        categoryFocusRequester = categoryFocusRequester,
+        categoryNextFocusRequester = categoryNextFocusRequester,
+        catalogFocusRequester = catalogFocusRequester,
         modifier = Modifier.hikariTopLevelContentPadding(),
     )
 }

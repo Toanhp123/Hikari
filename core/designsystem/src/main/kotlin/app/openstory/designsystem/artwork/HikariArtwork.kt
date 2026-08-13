@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import app.openstory.designsystem.motion.LocalHikariMotionPolicy
 import coil3.ImageLoader
 import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
@@ -55,18 +56,19 @@ internal fun rememberHikariArtwork(
     imageLoader: ImageLoader,
 ): HikariArtworkState {
     val context = LocalPlatformContext.current
+    val reduceMotion = LocalHikariMotionPolicy.current.reduceMotion
     val fallback = remember(model.stableKey, model.title) {
         fallbackFor(model.stableKey, model.title)
     }
     val cacheKey = remember(model.stableKey, model.url) {
         "hikari-artwork:${model.stableKey}:${model.url.orEmpty()}"
     }
-    val request = remember(context, model.url, cacheKey) {
+    val request = remember(context, model.url, cacheKey, reduceMotion) {
         ImageRequest.Builder(context)
             .data(model.url)
             .memoryCacheKey(cacheKey)
             .diskCacheKey(cacheKey)
-            .crossfade(true)
+            .crossfade(!reduceMotion)
             .build()
     }
     val painter = rememberAsyncImagePainter(

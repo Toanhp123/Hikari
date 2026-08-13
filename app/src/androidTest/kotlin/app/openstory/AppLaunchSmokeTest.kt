@@ -18,8 +18,10 @@ class AppLaunchSmokeTest {
 
     @Test
     fun launchesHomeAndNavigatesTopLevelDestinations() {
-        composeRule.onAllNodesWithText("Home")
-            .assertCountEquals(2)
+        composeRule.onNodeWithText("Home")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Search all stories")
+            .assertIsDisplayed()
 
         composeRule.onNodeWithText("Discover")
             .performClick()
@@ -33,10 +35,10 @@ class AppLaunchSmokeTest {
     }
 
     @Test
-    fun wave05HomeOpensCatalogSearch() {
+    fun transitionalHomeOpensCatalogSearchUntilDashboardTask() {
         composeRule.onNodeWithText("Refresh")
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Search")
+        composeRule.onNodeWithText("Search all stories")
             .performClick()
         composeRule.onNodeWithText("Search catalogs")
             .assertIsDisplayed()

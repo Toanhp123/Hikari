@@ -1,4 +1,4 @@
-package app.openstory.catalog.ui.home
+package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.home.CatalogHomeQuery
@@ -50,7 +50,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HomeViewModelTest {
+class DiscoverViewModelTest {
     private val dispatcher = StandardTestDispatcher()
 
     @BeforeTest
@@ -124,6 +124,41 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun repositoryPluginOrderIsPreservedInDiscoverProjection() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(
+            listOf(
+                cachedHome(pluginId = "catalog.b").single(),
+                cachedHome(pluginId = "catalog.a").single(),
+            ),
+        )
+        val viewModel = viewModel(repository, FakeSource())
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertEquals(
+            listOf(PluginId("catalog.b"), PluginId("catalog.a")),
+            viewModel.state.value.catalogs.map(CatalogHomeSnapshot::pluginId),
+        )
+    }
+
+    @Test
+    fun categorySelectionKeepsPluginAndSourceIdentity() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val viewModel = viewModel(repository, FakeSource())
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        viewModel.selectCategory(
+            DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending"),
+        )
+        runCurrent()
+
+        assertEquals(PluginId("catalog.a"), viewModel.state.value.selectedCatalogId)
+        assertEquals("trending", viewModel.state.value.selectedSourceId)
+        assertEquals(listOf("catalog.a:trending"), viewModel.state.value.shelves.map(DiscoverShelf::key))
+    }
+
+    @Test
     fun refreshActionInvokesCatalogRefreshServiceExactlyOnce() = runTest(dispatcher.scheduler) {
         val repository = FakeRepository(cachedHome())
         val source = FakeSource()
@@ -185,7 +220,7 @@ class HomeViewModelTest {
         assertEquals(null, viewModel.state.value.refreshFailure)
     }
 
-    private fun viewModel(repository: FakeRepository, source: FakeSource) = HomeViewModel(
+    private fun viewModel(repository: FakeRepository, source: FakeSource) = DiscoverViewModel(
         repository,
         CatalogHomeQuery(repository),
         CatalogRefreshService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
@@ -247,8 +282,8 @@ private class FakeRepository(
     ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
 }
 
-private fun cachedHome(): List<CatalogHomeSnapshot> {
-    val pluginId = PluginId("catalog.a")
+private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot> {
+    val pluginId = PluginId(pluginId)
     val storyId = StoryId("story-1")
     val entry = CatalogEntry(
         storyId = storyId,
