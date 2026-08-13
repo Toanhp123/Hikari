@@ -259,6 +259,18 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
         state = state,
         onRetry = viewModel::retry,
         onSourceSelected = viewModel::selectSource,
+        onSectionSelected = viewModel::selectSection,
+        onLibraryStatusSelected = viewModel::changeLibraryStatus,
+        onRead = { target ->
+            navigate(
+                AppRoute.Reader(
+                    target.storyId.value,
+                    target.chapterId.value,
+                    target.releaseId.value,
+                ),
+            )
+        },
+        onDownload = downloadViewModel::download,
         mappingState = mappingState,
         mappingActions = MappingActions(
             onSearch = mappingViewModel::search,

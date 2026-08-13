@@ -1,40 +1,55 @@
 package app.openstory.catalog.ui.story
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.semantics.semantics
-import app.openstory.catalog.model.CatalogEntry
-import app.openstory.catalog.model.ContentType
+import androidx.compose.ui.unit.dp
+import app.openstory.catalog.ui.chapters.ChapterList
 import app.openstory.catalog.ui.chapters.ChapterListActions
 import app.openstory.catalog.ui.chapters.ChapterListUiState
-import app.openstory.catalog.ui.chapters.chapterListItems
+import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingSheet
 import app.openstory.catalog.ui.mapping.MappingUiState
+import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.layout.HikariResponsiveContent
+import app.openstory.designsystem.layout.HikariWindowClass
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
-import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.library.LibraryStatus
 
 @Composable
 fun StoryScreen(
     state: StoryUiState,
     onRetry: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onSectionSelected: (StorySection) -> Unit = {},
+    onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
+    onRead: (ReaderTarget) -> Unit = {},
+    onDownload: (ChapterReleaseId) -> Unit = {},
     mappingState: MappingUiState? = null,
     mappingActions: MappingActions = MappingActions(),
     chapterState: ChapterListUiState? = null,
@@ -46,61 +61,134 @@ fun StoryScreen(
         EmptyStory(state, onRetry, modifier)
         return
     }
-
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
-    ) {
-        item(key = "story-header") { StoryHeader(story) }
-        item(key = "story-refresh-action") {
-            Button(
-                onClick = onRetry,
-                enabled = !state.refreshing,
-                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
-            ) {
-                Text("Refresh details")
+    val readableTargets = chapterState?.readableTargets.orEmpty()
+    val validatedResumeTarget = state.resumeTarget?.takeIf { target ->
+        readableTargets.any { it.chapterId == target.chapterId && it.releaseId == target.releaseId }
+    }
+    val firstReadableTarget = readableTargets.firstOrNull()
+    val readerTarget = validatedResumeTarget ?: firstReadableTarget
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+        HikariResponsiveContent(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            if (windowClass == HikariWindowClass.MEDIUM) {
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier.weight(0.44f).fillMaxSize().testTag("story-summary-pane").semantics {
+                        isTraversalGroup = true
+                        traversalIndex = 0f
+                    },
+                ) {
+                    StoryHero(
+                        story, state.libraryStatus, readerTarget,
+                        validatedResumeTarget != null,
+                        firstReadableTarget?.releaseId,
+                        onLibraryStatusSelected, onRead, onDownload,
+                        narrow = true,
+                    )
+                    StoryOverview(story, compact = true, modifier = Modifier.weight(1f))
+                }
+                Column(
+                    Modifier.weight(0.56f).fillMaxSize().testTag("story-content-pane").semantics {
+                        isTraversalGroup = true
+                        traversalIndex = 1f
+                    },
+                ) {
+                    StorySectionTabs(state.selectedSection, onSectionSelected)
+                    if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    state.failure?.let { StoryFailureBanner(it, state.refreshing, onRetry) }
+                    StorySectionContent(
+                        state, onRetry, onSourceSelected, mappingState, mappingActions,
+                        chapterState, chapterActions, Modifier.weight(1f),
+                    )
+                }
+            }
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                StoryHero(
+                    story, state.libraryStatus, readerTarget,
+                    validatedResumeTarget != null,
+                    firstReadableTarget?.releaseId,
+                    onLibraryStatusSelected, onRead, onDownload,
+                )
+                if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                StorySectionTabs(state.selectedSection, onSectionSelected)
+                state.failure?.let { StoryFailureBanner(it, state.refreshing, onRetry) }
+                StorySectionContent(
+                    state, onRetry, onSourceSelected, mappingState, mappingActions,
+                    chapterState, chapterActions, Modifier.weight(1f),
+                )
+                }
             }
         }
-        if (state.refreshing) {
-            item(key = "story-refreshing") {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-        }
-        state.failure?.let { currentFailure ->
-            item(key = "story-failure") {
-                StoryFailure(currentFailure, onRetry)
-            }
-        }
-        storySourceItems(story.sources, state.selectedSource, onSourceSelected)
-        mappingItem(mappingState, mappingActions)
-        chapterState?.let { currentState -> chapterListItems(currentState, chapterActions) }
     }
 }
 
-private fun LazyListScope.storySourceItems(
-    sources: List<CatalogEntry>,
-    selectedSource: StorySourceIdentity?,
+@Composable
+private fun StorySectionTabs(selectedSection: StorySection, onSelected: (StorySection) -> Unit) {
+    PrimaryTabRow(selectedTabIndex = selectedSection.ordinal) {
+        StorySection.entries.forEach { section ->
+            val selected = section == selectedSection
+            Tab(
+                selected = selected,
+                onClick = { onSelected(section) },
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("story-tab-${section.name.lowercase()}")
+                    .semantics {
+                        role = Role.Tab
+                        this.selected = selected
+                        stateDescription = if (selected) "Active section" else "Inactive section"
+                    },
+                text = { Text(section.label()) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun StorySectionContent(
+    state: StoryUiState,
+    onRetry: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    mappingState: MappingUiState?,
+    mappingActions: MappingActions,
+    chapterState: ChapterListUiState?,
+    chapterActions: ChapterListActions,
+    modifier: Modifier,
 ) {
-    items(
-        items = sources,
-        key = { source -> "${source.pluginId.value}:${source.sourceId}" },
-    ) { source ->
-        StorySourceCard(
-            source = source,
-            selected = selectedSource?.matches(source) == true,
-            onSelected = { onSourceSelected(source.pluginId, source.sourceId) },
+    when (state.selectedSection) {
+        StorySection.OVERVIEW -> StoryOverview(requireNotNull(state.story), modifier = modifier)
+        StorySection.CHAPTERS -> ChapterList(chapterState ?: ChapterListUiState(state.storyId), chapterActions, modifier)
+        StorySection.SOURCES -> StorySources(
+            story = requireNotNull(state.story),
+            selectedSource = state.selectedSource,
+            refreshing = state.refreshing,
+            failure = null,
+            onRetry = onRetry,
+            onSourceSelected = onSourceSelected,
+            mappingState = mappingState,
+            mappingActions = mappingActions,
+            modifier = modifier,
         )
     }
 }
 
-private fun LazyListScope.mappingItem(
-    state: MappingUiState?,
-    actions: MappingActions,
-) {
-    state?.let { currentState ->
-        item(key = "story-content-mapping") {
-            MappingSheet(state = currentState, actions = actions)
+@Composable
+private fun StoryFailureBanner(failure: StoryRefreshFailure, refreshing: Boolean, onRetry: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            "Source detail refresh failed: ${failure.code}",
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.weight(1f),
+        )
+        if (failure.retryable) {
+            TextButton(
+                onClick = onRetry,
+                enabled = !refreshing,
+                modifier = Modifier.heightIn(min = 48.dp).testTag("story-retry"),
+            ) { Text("Retry") }
         }
     }
 }
@@ -108,101 +196,21 @@ private fun LazyListScope.mappingItem(
 @Composable
 private fun EmptyStory(state: StoryUiState, onRetry: () -> Unit, modifier: Modifier) {
     if (state.refreshing) {
-        HikariLoadingState(
-            label = "Loading story",
-            modifier = modifier.fillMaxSize(),
-        )
+        HikariLoadingState("Loading story", modifier.fillMaxSize())
     } else {
-        val retryableFailure = state.failure?.takeIf { it.retryable }
+        val retryable = state.failure?.retryable == true
         HikariErrorState(
             title = "Story unavailable",
-            message = state.failure?.let {
-                "Source detail refresh failed: ${it.code}"
-            },
-            actionLabel = retryableFailure?.let { "Retry" },
-            onAction = retryableFailure?.let { onRetry },
+            message = state.failure?.let { "Source detail refresh failed: ${it.code}" },
+            actionLabel = if (retryable) "Retry" else null,
+            onAction = if (retryable) onRetry else null,
             modifier = modifier.fillMaxSize(),
         )
     }
 }
 
-@Composable
-private fun StoryHeader(story: StoryUiModel) {
-    Column(
-        modifier = Modifier.padding(
-            horizontal = MaterialTheme.hikariSpacing.large,
-            vertical = MaterialTheme.hikariSpacing.small,
-        ),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.extraSmall),
-    ) {
-        Text(story.preferredTitle, style = MaterialTheme.typography.headlineSmall)
-        Text(story.contentType.displayName(), style = MaterialTheme.typography.bodyMedium)
-        if (story.aliases.isNotEmpty()) {
-            Text("Aliases: ${story.aliases.sorted().joinToString()}")
-        }
-    }
-}
-
-@Composable
-private fun StoryFailure(failure: StoryRefreshFailure, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
-    ) {
-        Text(
-            text = "Source detail refresh failed: ${failure.code}",
-            color = MaterialTheme.colorScheme.error,
-        )
-        Button(onClick = onRetry, enabled = failure.retryable) { Text("Retry") }
-    }
-}
-
-@Composable
-private fun StorySourceCard(source: CatalogEntry, selected: Boolean, onSelected: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription = source.accessibilityDescription()
-            }
-            .padding(
-                horizontal = MaterialTheme.hikariSpacing.large,
-                vertical = MaterialTheme.hikariSpacing.small,
-            ),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.extraSmall),
-    ) {
-        FilterChip(
-            selected = selected,
-            onClick = onSelected,
-            label = { Text(source.pluginId.value) },
-        )
-        Text(source.title, style = MaterialTheme.typography.titleMedium)
-        source.description?.let { Text(it) }
-        if (source.authors.isNotEmpty()) Text("Authors: ${source.authors.sorted().joinToString()}")
-        if (source.genres.isNotEmpty()) Text("Genres: ${source.genres.sorted().joinToString()}")
-        source.sourceUrl?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        Text(source.scoreLabel(), style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-private fun StorySourceIdentity.matches(entry: CatalogEntry): Boolean =
-    pluginId == entry.pluginId && sourceId == entry.sourceId
-
-private fun CatalogEntry.scoreLabel(): String = score?.let { value ->
-    "Score ${formatScore(value.value)} / ${formatScore(value.scale)}"
-} ?: "Score unavailable"
-
-private fun CatalogEntry.accessibilityDescription(): String =
-    "$title, source ${pluginId.value}, ${scoreLabel()}"
-
-private fun ContentType.displayName(): String = when (this) {
-    ContentType.LIGHT_NOVEL -> "Light novel"
-    ContentType.WEB_NOVEL -> "Web novel"
-    ContentType.MANGA -> "Manga"
-    ContentType.ANIME -> "Anime"
-}
-
-private fun formatScore(value: Double): String {
-    val whole = value.toLong()
-    return if (value == whole.toDouble()) whole.toString() else value.toString()
+private fun StorySection.label() = when (this) {
+    StorySection.OVERVIEW -> "Overview"
+    StorySection.CHAPTERS -> "Chapters"
+    StorySection.SOURCES -> "Sources"
 }

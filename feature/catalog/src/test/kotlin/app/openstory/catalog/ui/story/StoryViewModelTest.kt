@@ -27,7 +27,17 @@ import app.openstory.catalog.source.SourceSection
 import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
+import app.openstory.common.id.CanonicalChapterId
+import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
+import app.openstory.library.LibraryEntry
+import app.openstory.library.LibraryMappingScheduler
+import app.openstory.library.LibraryRepository
+import app.openstory.library.LibraryService
+import app.openstory.library.LibraryStatus
+import app.openstory.reader.progress.ReadingPosition
+import app.openstory.reader.progress.ReadingProgress
+import app.openstory.reader.progress.ReadingProgressRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +53,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoryViewModelTest {
@@ -127,10 +138,97 @@ class StoryViewModelTest {
         assertFalse(dependencyNames.any { "room" in it.lowercase() })
     }
 
+    @Test
+    fun heroPrefersSelectedSourceThenDeterministicBestArtwork() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(
+            fixtureSnapshot(includeSecondSource = true).copy(
+                entries = listOf(
+                    fixtureEntry(StoryId("story-1"), "catalog.b", "source-b", "B").copy(
+                        coverUrl = "best.jpg", score = app.openstory.catalog.model.Score(9.0, 10.0),
+                    ),
+                    fixtureEntry(StoryId("story-1"), "catalog.a", "source-a", "A").copy(
+                        coverUrl = "selected.jpg", score = app.openstory.catalog.model.Score(7.0, 10.0),
+                    ),
+                ),
+            ),
+        )
+        val viewModel = viewModel(repository, DetailsSource("catalog.a"), DetailsSource("catalog.b"))
+        runCurrent()
+        assertEquals("selected.jpg", viewModel.state.value.story?.coverUrl)
+
+        viewModel.selectSource(PluginId("catalog.b"), "source-b")
+        runCurrent()
+        assertEquals("best.jpg", viewModel.state.value.story?.coverUrl)
+    }
+
+    @Test
+    fun overviewAggregatesAuthorsGenresAliasesWithoutDuplicates() = runTest(dispatcher.scheduler) {
+        val storyId = StoryId("story-1")
+        val entries = listOf(
+            fixtureEntry(storyId, "catalog.a", "a", "Title").copy(
+                aliases = setOf("Alias", "Shared"), authors = setOf("One"), genres = setOf("Fantasy"),
+            ),
+            fixtureEntry(storyId, "catalog.b", "b", "Title").copy(
+                aliases = setOf("Shared", "Other"), authors = setOf("One", "Two"), genres = setOf("Fantasy", "Drama"),
+            ),
+        )
+        val viewModel = viewModel(StoryRepository(StoryCatalogSnapshot(Story(storyId, ContentType.WEB_NOVEL), entries)))
+        runCurrent()
+
+        val story = assertNotNull(viewModel.state.value.story)
+        assertEquals(setOf("Alias", "Shared", "Other"), story.aliases)
+        assertEquals(setOf("One", "Two"), story.authors)
+        assertEquals(setOf("Fantasy", "Drama"), story.genres)
+    }
+
+    @Test
+    fun sourceSelectionDoesNotChangeConfirmedMapping() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(fixtureSnapshot(includeSecondSource = true))
+        val viewModel = viewModel(repository)
+        runCurrent()
+
+        viewModel.selectSource(PluginId("catalog.b"), "source-b")
+        runCurrent()
+
+        assertEquals(StorySourceIdentity(PluginId("catalog.b"), "source-b"), viewModel.state.value.selectedSource)
+        assertFalse(StoryViewModel::class.java.declaredConstructors.flatMap { it.parameterTypes.asList() }
+            .any { it.name.contains("ContentMappingRepository") })
+    }
+
+    @Test
+    fun libraryStatusChangeUsesLibraryService() = runTest(dispatcher.scheduler) {
+        val library = FakeLibraryRepository()
+        val viewModel = viewModel(StoryRepository(fixtureSnapshot()), libraryRepository = library)
+        runCurrent()
+
+        viewModel.changeLibraryStatus(LibraryStatus.READING)
+        runCurrent()
+
+        assertEquals(LibraryStatus.READING, library.entries.value.single().status)
+        assertEquals(LibraryStatus.READING, viewModel.state.value.libraryStatus)
+    }
+
+    @Test
+    fun latestIncompleteProgressProducesResumeAction() = runTest(dispatcher.scheduler) {
+        val progress = MutableStateFlow(
+            listOf(
+                readingProgress(10L, completed = false),
+                readingProgress(30L, completed = true),
+                readingProgress(20L, completed = false),
+            ),
+        )
+        val viewModel = viewModel(StoryRepository(fixtureSnapshot()), progress = progress)
+        runCurrent()
+
+        assertEquals(ChapterReleaseId("release-20"), viewModel.state.value.resumeTarget?.releaseId)
+    }
+
     private fun viewModel(
         repository: StoryRepository,
         vararg sources: DetailsSource,
         storyId: StoryId = StoryId("story-1"),
+        libraryRepository: FakeLibraryRepository = FakeLibraryRepository(),
+        progress: Flow<List<ReadingProgress>> = MutableStateFlow(emptyList()),
     ): StoryViewModel {
         val details = CatalogDetailsService(
             DetailsRegistry(sources.toList()),
@@ -138,9 +236,40 @@ class StoryViewModelTest {
             StoryMatcher(),
             Clock { 100L },
         )
-        return StoryViewModel(StoryAssistedArgs(storyId), repository, details)
+        return StoryViewModel(
+            StoryAssistedArgs(storyId), repository, details,
+            LibraryService(libraryRepository, Clock { 100L }, NoOpMappingScheduler),
+            FakeProgressRepository(progress),
+        )
     }
 }
+
+private class FakeLibraryRepository : LibraryRepository {
+    val entries = MutableStateFlow<List<LibraryEntry>>(emptyList())
+    override fun observe(): Flow<List<LibraryEntry>> = entries
+    override suspend fun add(storyId: StoryId, status: LibraryStatus, addedAt: Long): LibraryEntry =
+        LibraryEntry(storyId, status, addedAt, addedAt).also { entries.value = listOf(it) }
+    override suspend fun remove(storyId: StoryId) { entries.value = entries.value.filterNot { it.storyId == storyId } }
+    override suspend fun changeStatus(storyId: StoryId, status: LibraryStatus, updatedAt: Long): LibraryEntry? =
+        entries.value.firstOrNull { it.storyId == storyId }?.copy(status = status, updatedAt = updatedAt)
+            ?.also { entries.value = listOf(it) }
+}
+
+private class FakeProgressRepository(private val records: Flow<List<ReadingProgress>>) : ReadingProgressRepository {
+    override fun observeAll() = records
+    override fun observe(storyId: StoryId, chapterId: CanonicalChapterId): Flow<ReadingProgress?> = error("unused")
+    override suspend fun find(storyId: StoryId, chapterId: CanonicalChapterId): ReadingProgress? = error("unused")
+    override suspend fun save(progress: ReadingProgress) = Unit
+}
+
+private object NoOpMappingScheduler : LibraryMappingScheduler {
+    override fun schedule(storyId: StoryId) = Unit
+}
+
+private fun readingProgress(updatedAt: Long, completed: Boolean) = ReadingProgress(
+    StoryId("story-1"), CanonicalChapterId("chapter-$updatedAt"), ChapterReleaseId("release-$updatedAt"),
+    "fingerprint-$updatedAt", ReadingPosition("block", 0, 0.5f), updatedAt.takeIf { completed }, updatedAt,
+)
 
 private class DetailsRegistry(private val sources: List<CatalogSource>) : CatalogSourceRegistry {
     override suspend fun enabled() = sources

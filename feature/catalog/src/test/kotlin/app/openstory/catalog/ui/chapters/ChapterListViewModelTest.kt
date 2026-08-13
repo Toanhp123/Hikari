@@ -59,6 +59,23 @@ class ChapterListViewModelTest {
         assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.chapters.map { it.id })
         assertEquals(2, viewModel.state.value.chapters.single().releases.size)
         assertTrue(viewModel.state.value.chapters.single().expanded)
+        assertEquals(3, viewModel.state.value.readableTargets.size)
+    }
+
+    @Test
+    fun readableTargetsRemainStableAcrossPresentationFilters() = runTest(dispatcher.scheduler) {
+        val viewModel = ChapterListViewModel(
+            ChapterListAssistedArgs(STORY_ID),
+            FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2"))),
+        )
+        runCurrent()
+        val targets = viewModel.state.value.readableTargets
+
+        viewModel.selectFilter(ChapterListFilter.MULTI_RELEASE)
+        runCurrent()
+
+        assertEquals(targets, viewModel.state.value.readableTargets)
+        assertEquals(3, viewModel.state.value.readableTargets.size)
     }
 
     @Test

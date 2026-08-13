@@ -55,6 +55,9 @@ class ChapterListViewModel @AssistedInject constructor(
         ChapterListUiState(
             storyId = storyId,
             chapters = visible,
+            readableTargets = activeGroups.flatMap { group ->
+                group.releases.map { release -> ReaderTarget(storyId, group.chapter.id, release.id) }
+            },
             unreadCount = activeGroups.size,
             selectedFilter = selectedFilter,
             showTombstones = showTombstones,
@@ -126,6 +129,7 @@ enum class ChapterListFilter {
 data class ChapterListUiState(
     val storyId: StoryId? = null,
     val chapters: List<ChapterItemUiModel> = emptyList(),
+    val readableTargets: List<ReaderTarget> = emptyList(),
     val unreadCount: Int = 0,
     val selectedFilter: ChapterListFilter = ChapterListFilter.ALL,
     val showTombstones: Boolean = false,
