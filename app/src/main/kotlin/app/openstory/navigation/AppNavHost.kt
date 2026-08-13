@@ -40,6 +40,10 @@ import app.openstory.catalog.ui.story.StoryScreen
 import app.openstory.catalog.ui.story.StoryViewModel
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.catalog.ui.download.DownloadViewModel
+import app.openstory.catalog.ui.downloads.DownloadsScreen
+import app.openstory.catalog.ui.downloads.DownloadsViewModel
+import app.openstory.catalog.ui.updates.UpdatesScreen
+import app.openstory.catalog.ui.updates.UpdatesViewModel
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.feedback.HikariSnackbarHost
 import app.openstory.ui.HikariAppShell
@@ -127,6 +131,19 @@ fun AppNavHost(
                         navigator.navigate(AppRoute.Story(storyId.value))
                     }
                 }
+                entry<AppRoute.Downloads> {
+                    DownloadsDestination(
+                        onStorySelected = { navigator.navigate(AppRoute.Story(it.value)) },
+                    )
+                }
+                entry<AppRoute.Updates> {
+                    UpdatesDestination(
+                        onStorySelected = { navigator.navigate(AppRoute.Story(it.value)) },
+                        onRead = { target ->
+                            navigator.navigate(AppRoute.Reader(target.storyId.value, target.chapterId.value, target.releaseId.value))
+                        },
+                    )
+                }
                 entry<AppRoute.Story> { route -> StoryDestination(route, navigator::navigate) }
                 entry<AppRoute.Reader> { route -> ReaderDestination(route, navigator::navigate) }
                 },
@@ -148,8 +165,37 @@ fun AppNavHost(
     if (showUtilitySheet) {
         HikariUtilitySheet(
             onDismiss = { showUtilitySheet = false },
+            onDestinationSelected = { route ->
+                showUtilitySheet = false
+                navigator.navigate(route)
+            },
         )
     }
+}
+
+@Composable
+private fun DownloadsDestination(onStorySelected: (StoryId) -> Unit) {
+    val viewModel = hiltViewModel<DownloadsViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    DownloadsScreen(
+        state = state,
+        onStorySelected = onStorySelected,
+        onRetry = viewModel::retry,
+        onCancel = viewModel::cancel,
+        onRemove = viewModel::requestRemoval,
+        onConfirmRemoval = viewModel::confirmRemoval,
+        onDismissRemoval = viewModel::dismissRemoval,
+    )
+}
+
+@Composable
+private fun UpdatesDestination(
+    onStorySelected: (StoryId) -> Unit,
+    onRead: (app.openstory.catalog.ui.components.ReaderTarget) -> Unit,
+) {
+    val viewModel = hiltViewModel<UpdatesViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    UpdatesScreen(state, onStorySelected, onRead)
 }
 
 @Composable

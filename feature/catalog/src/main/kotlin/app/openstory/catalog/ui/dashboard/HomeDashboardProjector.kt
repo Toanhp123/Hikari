@@ -2,7 +2,7 @@ package app.openstory.catalog.ui.dashboard
 
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.ui.components.ReaderTarget
-import app.openstory.chapters.model.ChapterRelease
+import app.openstory.catalog.ui.activity.LibraryActivityProjector
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.downloads.DownloadRecord
 import app.openstory.downloads.DownloadState
@@ -20,7 +20,9 @@ data class HomeDashboardInput(
     val downloads: List<DownloadRecord>,
 )
 
-class HomeDashboardProjector {
+class HomeDashboardProjector(
+    private val activityProjector: LibraryActivityProjector = LibraryActivityProjector(),
+) {
     fun project(input: HomeDashboardInput): HomeDashboardUiState {
         val catalog = input.catalog.associateBy(CatalogStoryProjection::storyId)
         val library = input.library.sortedWith(
@@ -59,33 +61,20 @@ class HomeDashboardProjector {
                 .thenBy { it.storyId.value },
         )
 
-        val mappedKeys = input.mappings.mapTo(hashSetOf()) {
-            Triple(it.storyId, it.pluginId, it.sourceStoryId)
-        }
-        val updates = input.chapters
-            .flatMap { group -> group.releases.map { group.chapter.id to it } }
-            .filter { (_, release) -> Triple(release.storyId, release.pluginId, release.sourceStoryId) in mappedKeys }
-            .filter { (_, release) -> input.library.any { it.storyId == release.storyId } }
-            .groupBy { (_, release) -> release.storyId }
-            .mapNotNull { (storyId, releases) ->
-                releases.maxWithOrNull(releaseOrder)?.let { (chapterId, release) ->
-                    val projection = catalog[storyId]
-                    HomeUpdateItem(
-                        storyId = storyId,
-                        title = projection?.title ?: storyId.value,
-                        coverUrl = projection?.coverUrl,
-                        chapterId = chapterId,
-                        releaseId = release.id,
-                        chapterLabel = release.displayLabel,
-                        publishedAtEpochMillis = release.publishedAtEpochMillis,
-                        readerTarget = ReaderTarget(storyId, chapterId, release.id),
-                    )
-                }
+        val updates = activityProjector.project(input.library, input.catalog, input.chapters, input.mappings)
+            .distinctBy { it.storyId }
+            .map { activity ->
+                HomeUpdateItem(
+                    storyId = activity.storyId,
+                    title = activity.title,
+                    coverUrl = activity.coverUrl,
+                    chapterId = activity.chapterId,
+                    releaseId = activity.releaseId,
+                    chapterLabel = activity.chapterLabel,
+                    publishedAtEpochMillis = activity.publishedAtEpochMillis,
+                    readerTarget = activity.readerTarget,
+                )
             }
-            .sortedWith(
-                compareByDescending<HomeUpdateItem> { it.publishedAtEpochMillis ?: Long.MIN_VALUE }
-                    .thenBy { it.releaseId.value },
-            )
 
         return HomeDashboardUiState(
             summary = HomeReadingSummary(
@@ -104,7 +93,3 @@ class HomeDashboardProjector {
         )
     }
 }
-
-private val releaseOrder = compareBy<Pair<app.openstory.common.id.CanonicalChapterId, ChapterRelease>> {
-    it.second.publishedAtEpochMillis ?: Long.MIN_VALUE
-}.thenBy { it.second.id.value }

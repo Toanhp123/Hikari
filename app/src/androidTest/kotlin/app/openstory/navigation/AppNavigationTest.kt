@@ -11,6 +11,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertCountEquals
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.ui.HikariAppShell
+import app.openstory.ui.HikariUtilitySheet
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 
 class AppNavigationTest {
     @get:Rule
@@ -38,6 +41,32 @@ class AppNavigationTest {
         navigator.selectTopLevel(TopLevelDestination.Library)
 
         assertEquals(listOf(AppRoute.Library), backStack.toList())
+    }
+
+    @Test
+    fun utilityDestinationPreservesOriginForBackNavigation() {
+        val backStack = NavBackStack<NavKey>(AppRoute.Library)
+        val navigator = AppNavigator(backStack)
+        var sheetOpen = true
+        composeRule.setContent {
+            HikariTheme {
+                HikariUtilitySheet(
+                    onDismiss = { sheetOpen = false },
+                    onDestinationSelected = { route ->
+                        sheetOpen = false
+                        navigator.navigate(route)
+                    },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Downloads").performClick()
+        composeRule.runOnIdle {
+            assertEquals(false, sheetOpen)
+            assertEquals(AppRoute.Downloads, navigator.currentRoute)
+            navigator.back()
+            assertEquals(AppRoute.Library, navigator.currentRoute)
+        }
     }
 
     @Test

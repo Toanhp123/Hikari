@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
@@ -30,6 +31,7 @@ val utilityDestinations = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 fun HikariUtilitySheet(
     onDismiss: () -> Unit,
+    onDestinationSelected: (AppRoute) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     ModalBottomSheet(
@@ -44,14 +46,12 @@ fun HikariUtilitySheet(
         ) {
             Text("Quick access", style = MaterialTheme.typography.titleLarge)
             utilityDestinations.forEach { destination ->
-                Text(
-                    text = destination.label,
+                TextButton(
+                    onClick = { onDestinationSelected(destination.route) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .padding(horizontal = 12.dp, vertical = 14.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                        .heightIn(min = 48.dp),
+                ) { Text(destination.label, style = MaterialTheme.typography.titleMedium) }
             }
         }
     }
