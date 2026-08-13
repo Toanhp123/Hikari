@@ -21,14 +21,14 @@ class AppLaunchSmokeTest {
         composeRule.onAllNodesWithText("Home")
             .assertCountEquals(2)
 
+        composeRule.onNodeWithText("Discover")
+            .performClick()
+        composeRule.onNodeWithText("Discover")
+            .assertIsDisplayed()
+
         composeRule.onNodeWithText("Library")
             .performClick()
         composeRule.onAllNodesWithText("Library")
-            .assertCountEquals(2)
-
-        composeRule.onNodeWithText("Plugins")
-            .performClick()
-        composeRule.onAllNodesWithText("Plugins")
             .assertCountEquals(2)
     }
 

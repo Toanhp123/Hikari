@@ -5,8 +5,17 @@ import androidx.navigation3.runtime.NavKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Rule
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
+import app.openstory.designsystem.theme.HikariTheme
+import app.openstory.ui.HikariAppShell
 
 class AppNavigationTest {
+    @get:Rule
+    val composeRule = createComposeRule()
+
     @Test
     fun storyNavigationCarriesCanonicalIdentityOnly() {
         val backStack = NavBackStack<NavKey>(AppRoute.Home)
@@ -29,5 +38,28 @@ class AppNavigationTest {
         navigator.selectTopLevel(TopLevelDestination.Library)
 
         assertEquals(listOf(AppRoute.Library), backStack.toList())
+    }
+
+    @Test
+    fun storyRouteNeverExposesFloatingNavigation() {
+        assertFocusedRouteHasNoFloatingNavigation(AppRoute.Story("story-123"))
+    }
+
+    @Test
+    fun readerRouteNeverExposesFloatingNavigation() {
+        assertFocusedRouteHasNoFloatingNavigation(
+            AppRoute.Reader("story-123", "chapter-1", null),
+        )
+    }
+
+    private fun assertFocusedRouteHasNoFloatingNavigation(route: AppRoute) {
+        composeRule.setContent {
+            HikariTheme {
+                HikariAppShell(route, {}, {}) { }
+            }
+        }
+        composeRule.onAllNodesWithText("Discover").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Home").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Library").assertCountEquals(0)
     }
 }

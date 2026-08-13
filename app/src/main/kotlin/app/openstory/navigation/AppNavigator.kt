@@ -6,6 +6,8 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 
+internal val APP_START_ROUTE: AppRoute = AppRoute.Home
+
 class AppNavigator(
     internal val backStack: NavBackStack<NavKey>,
 ) {
@@ -29,6 +31,6 @@ class AppNavigator(
 
 @Composable
 fun rememberAppNavigator(): AppNavigator {
-    val backStack = rememberNavBackStack(AppRoute.Home)
+    val backStack = rememberNavBackStack(APP_START_ROUTE)
     return remember(backStack) { AppNavigator(backStack) }
 }

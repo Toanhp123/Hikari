@@ -2,18 +2,18 @@ package app.openstory.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -39,6 +39,9 @@ import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.catalog.ui.download.DownloadViewModel
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.feedback.HikariSnackbarHost
+import app.openstory.ui.HikariAppShell
+import app.openstory.ui.HikariUtilitySheet
+import app.openstory.ui.hikariTopLevelContentPadding
 import app.openstory.reader.ui.ReaderActions
 import app.openstory.reader.ui.ReaderAssistedArgs
 import app.openstory.reader.ui.ReaderScreen
@@ -50,26 +53,31 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    Scaffold(
+    var showUtilitySheet by remember { mutableStateOf(false) }
+    HikariAppShell(
+        currentRoute = navigator.currentRoute,
+        onTopLevelSelected = navigator::selectTopLevel,
+        onUtilityRequested = { showUtilitySheet = true },
         modifier = modifier,
-        snackbarHost = {
-            HikariSnackbarHost(hostState = snackbarHostState)
-        },
-        bottomBar = {
-            if (navigator.currentRoute !is AppRoute.Reader) {
-                AppBottomBar(navigator.currentRoute, navigator::selectTopLevel)
-            }
-        },
-    ) { contentPadding ->
-        NavDisplay(
-            modifier = Modifier.padding(contentPadding),
-            backStack = navigator.backStack,
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-            onBack = navigator::back,
-            entryProvider = entryProvider {
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            NavDisplay(
+                modifier = Modifier.fillMaxSize(),
+                backStack = navigator.backStack,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+                onBack = navigator::back,
+                entryProvider = entryProvider {
+                entry<AppRoute.Discover> {
+                    HomeDestination(
+                        onSearch = { navigator.navigate(AppRoute.Search) },
+                        onStorySelected = { storyId ->
+                            navigator.navigate(AppRoute.Story(storyId.value))
+                        },
+                    )
+                }
                 entry<AppRoute.Home> {
                     HomeDestination(
                         onSearch = { navigator.navigate(AppRoute.Search) },
@@ -88,29 +96,28 @@ fun AppNavHost(
                         navigator.navigate(AppRoute.Story(storyId.value))
                     }
                 }
-                entry<AppRoute.Plugins> { PlaceholderDestination("Plugins") }
-                entry<AppRoute.Settings> { PlaceholderDestination("Settings") }
                 entry<AppRoute.Story> { route -> StoryDestination(route, navigator::navigate) }
                 entry<AppRoute.Reader> { route -> ReaderDestination(route, navigator::navigate) }
-            },
-        )
-    }
-}
-
-@Composable
-private fun AppBottomBar(
-    currentRoute: AppRoute?,
-    onSelected: (TopLevelDestination) -> Unit,
-) {
-    NavigationBar {
-        topLevelDestinations.forEach { destination ->
-            NavigationBarItem(
-                selected = currentRoute == destination.route,
-                onClick = { onSelected(destination) },
-                icon = { Text(destination.label.take(1)) },
-                label = { Text(destination.label) },
+                },
+            )
+            HikariSnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .then(
+                        if (shouldShowFloatingNavigation(navigator.currentRoute)) {
+                            Modifier.navigationBarsPadding().padding(bottom = 92.dp)
+                        } else {
+                            Modifier
+                        },
+                    ),
             )
         }
+    }
+    if (showUtilitySheet) {
+        HikariUtilitySheet(
+            onDismiss = { showUtilitySheet = false },
+        )
     }
 }
 
@@ -128,6 +135,7 @@ private fun HomeDestination(
         onStorySelected = onStorySelected,
         onCatalogSelected = viewModel::selectCatalog,
         onCombinedSelected = viewModel::selectCombined,
+        modifier = Modifier.hikariTopLevelContentPadding(),
     )
 }
 
@@ -154,6 +162,7 @@ private fun LibraryDestination(onStorySelected: (StoryId) -> Unit) {
         onStatusSelected = viewModel::selectStatus,
         onSortSelected = viewModel::selectSort,
         onStorySelected = onStorySelected,
+        modifier = Modifier.hikariTopLevelContentPadding(),
     )
 }
 
@@ -242,12 +251,3 @@ private fun ReaderDestination(route: AppRoute.Reader, navigate: (AppRoute) -> Un
     )
 }
 
-@Composable
-private fun PlaceholderDestination(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(title)
-    }
-}
