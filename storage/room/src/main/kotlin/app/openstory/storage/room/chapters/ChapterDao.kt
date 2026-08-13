@@ -50,13 +50,13 @@ internal interface ChapterDao {
     @Query("UPDATE canonical_chapters SET tombstoned = 0 WHERE canonical_chapter_id = :chapterId")
     suspend fun restore(chapterId: String)
 
-    @Upsert
-    suspend fun upsertOverride(override: ChapterAggregationOverrideEntity)
-
 }
 
 @Dao
 internal interface ChapterSyncDao {
+    @Upsert
+    suspend fun upsertOverride(override: ChapterAggregationOverrideEntity)
+
     @Upsert
     suspend fun upsert(state: ChapterSyncStateEntity)
 

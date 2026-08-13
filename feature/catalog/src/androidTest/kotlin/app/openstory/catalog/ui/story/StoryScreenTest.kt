@@ -1,7 +1,10 @@
 package app.openstory.catalog.ui.story
 
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -123,6 +126,26 @@ class StoryScreenTest {
         assertTrue(retried)
     }
 
+    @Test
+    fun mediumOverviewRendersDescriptionOnlyOnce() {
+        setStoryContent(modifier = Modifier.requiredWidth(700.dp))
+
+        compose.onAllNodesWithText("A quiet fantasy about an impossible archive.")
+            .assertCountEquals(1)
+    }
+
+    @Test
+    fun mediumSourcesRemainInContentPane() {
+        setStoryContent(
+            state = fixtureState().copy(selectedSection = StorySection.SOURCES),
+            modifier = Modifier.requiredWidth(700.dp),
+        )
+
+        compose.onNodeWithTag("story-summary-pane").assertIsDisplayed()
+        compose.onNodeWithTag("story-content-pane").assertIsDisplayed()
+        compose.onNodeWithTag("story-source-catalog.a-source-a").assertIsDisplayed()
+    }
+
     private fun setStoryContent(
         state: StoryUiState = fixtureState(),
         onRetry: () -> Unit = {},
@@ -131,6 +154,7 @@ class StoryScreenTest {
         onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
         onRead: (ReaderTarget) -> Unit = {},
         chapterState: ChapterListUiState? = null,
+        modifier: Modifier = Modifier,
     ) {
         compose.setContent {
             HikariTheme {
@@ -142,6 +166,7 @@ class StoryScreenTest {
                     onLibraryStatusSelected = onLibraryStatusSelected,
                     onRead = onRead,
                     chapterState = chapterState,
+                    modifier = modifier,
                 )
             }
         }

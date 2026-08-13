@@ -57,6 +57,7 @@ run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.plugins.ru
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.catalog.model.Story' 0
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.library.LibraryStatus' 0
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.chapters.repository.ChapterRepository' 0
+run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.reader.progress.ReadingProgress' 0
 run_case 'feature/catalog/src/main/kotlin/F.kt' 'import app.openstory.designsystem.state.HikariEmptyState' 0
 run_case 'storage/room/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.execution.PluginOperationRunner' 1
 run_case 'storage/room/src/main/kotlin/F.kt' 'val runner = app.openstory.plugins.runtime.execution.PluginOperationRunner::class' 1

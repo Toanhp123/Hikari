@@ -45,7 +45,10 @@ fun ReaderSettingsSheet(
                         .heightIn(min = 48.dp)
                         .semantics { contentDescription = "Decrease reader text size" },
                 ) { Text("A-") }
-                Text("${(state.fontScale * 100).toInt()}%", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "${(state.fontScale * PERCENT_MULTIPLIER).toInt()}%",
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 TextButton(
                     onClick = actions.onIncreaseFont,
                     enabled = state.fontScale < MAX_FONT_SCALE,
@@ -69,3 +72,5 @@ fun ReaderSettingsSheet(
         }
     }
 }
+
+private const val PERCENT_MULTIPLIER = 100

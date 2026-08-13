@@ -85,7 +85,7 @@ class RoomChapterRepository internal constructor(
     }
 
     override suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride) {
-        dao.upsertOverride(override.toEntity(storyId))
+        syncDao.upsertOverride(override.toEntity(storyId))
     }
 
     override suspend fun syncState(

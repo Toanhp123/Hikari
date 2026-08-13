@@ -34,7 +34,7 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
                     "${it.value.toAccessibleNumber()} out of ${it.scale.toAccessibleNumber()}"
                 } ?: "unavailable"
                 contentDescription = "Featured ${entry.title}. Score $score from ${entry.pluginId.value}."
-                traversalIndex = 4f
+                traversalIndex = FEATURED_TRAVERSAL_INDEX
             },
     ) {
         HikariArtworkBackdrop(artwork, Modifier.matchParentSize())
@@ -43,9 +43,17 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            HikariArtwork(artwork, "${entry.title} featured cover", Modifier.height(168.dp).fillMaxWidth(0.34f))
+            HikariArtwork(
+                artwork,
+                "${entry.title} featured cover",
+                Modifier.height(168.dp).fillMaxWidth(FEATURED_COVER_WIDTH_FRACTION),
+            )
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(entry.title, style = MaterialTheme.typography.headlineSmall, color = androidx.compose.ui.graphics.Color.White)
+                Text(
+                    entry.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = androidx.compose.ui.graphics.Color.White,
+                )
                 Text(entry.pluginId.value, color = androidx.compose.ui.graphics.Color.White)
             }
         }
@@ -53,3 +61,6 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
 }
 
 private fun Double.toAccessibleNumber(): String = if (this % 1.0 == 0.0) toLong().toString() else toString()
+
+private const val FEATURED_TRAVERSAL_INDEX = 4f
+private const val FEATURED_COVER_WIDTH_FRACTION = 0.34f

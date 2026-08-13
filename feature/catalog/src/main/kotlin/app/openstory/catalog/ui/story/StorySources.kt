@@ -53,7 +53,12 @@ internal fun StorySources(
                     Text("Refresh details")
                 }
                 if (refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
-                failure?.let { Text("Source detail refresh failed: ${it.code}", color = MaterialTheme.colorScheme.error) }
+                failure?.let {
+                    Text(
+                        "Source detail refresh failed: ${it.code}",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
         items(story.sources, key = { "${it.pluginId.value}:${it.sourceId}" }) { source ->
@@ -75,7 +80,9 @@ private fun SourceCard(source: CatalogEntry, selected: Boolean, onSelected: () -
     ) {
         FilterChip(
             selected, onSelected, { Text(source.pluginId.value) },
-            modifier = Modifier.heightIn(min = 48.dp).testTag("story-source-${source.pluginId.value}-${source.sourceId}"),
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .testTag("story-source-${source.pluginId.value}-${source.sourceId}"),
         )
         Text(source.title, style = MaterialTheme.typography.titleMedium)
         source.description?.let { Text(it, maxLines = 4) }

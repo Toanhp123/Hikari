@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.openstory.designsystem.glass.HikariBackdropHost
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
+import app.openstory.reader.progress.ReadingPosition
 
 @Composable
 fun ReaderScreen(
@@ -44,61 +45,98 @@ fun ReaderScreen(
     HikariBackdropHost(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         background = {
-            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-                when {
-                    state.loading -> Centered { HikariLoadingState(label = "Loading reader") }
-                    state.document != null -> ReaderContent(
-                        document = state.document,
-                        fontScale = state.fontScale,
-                        restoredBlockId = state.restoredBlockId,
-                        restoredCharacterOffset = state.restoredCharacterOffset,
-                        contentPadding = if (chromeVisible) {
-                            PaddingValues(top = 104.dp, bottom = 96.dp)
-                        } else {
-                            PaddingValues.Zero
-                        },
-                        onPositionChanged = { position, reachedEnd ->
-                            progress = position.fraction
-                            actions.onPositionChanged(position, reachedEnd)
-                        },
-                        modifier = Modifier.testTag("reader-content"),
-                        onToggleChrome = { chromeVisible = !chromeVisible },
-                    )
-                    else -> Centered {
-                        HikariErrorState(
-                            title = "Reader unavailable",
-                            message = state.failure,
-                            actionLabel = "Retry",
-                            onAction = actions.onRetry,
-                        )
-                    }
-                }
-            }
+            ReaderBackground(
+                state = state,
+                chromeVisible = chromeVisible,
+                onToggleChrome = { chromeVisible = !chromeVisible },
+                onPositionChanged = { position, reachedEnd ->
+                    progress = position.fraction
+                    actions.onPositionChanged(position, reachedEnd)
+                },
+                onRetry = actions.onRetry,
+            )
         },
     ) {
         val backdropScope = this@HikariBackdropHost
-        Box(Modifier.fillMaxSize()) {
-            if (chromeVisible && !settingsVisible && !state.loading && state.document != null) {
-                ReaderControls(
-                    state = state,
-                    backdropScope = backdropScope,
-                    onBack = closeReader,
-                    onSettings = { settingsVisible = true },
-                    modifier = Modifier.align(Alignment.TopCenter).testTag("reader-top-chrome"),
-                )
-                ReaderChapterNavigation(
-                    state = state,
-                    progress = progress,
-                    backdropScope = backdropScope,
-                    actions = actions,
-                    modifier = Modifier.align(Alignment.BottomCenter).testTag("reader-bottom-chrome"),
-                )
-            }
-            if (settingsVisible) {
-                ReaderSettingsSheet(
-                    state = state,
-                    actions = actions,
-                    onDismiss = { settingsVisible = false },
+        ReaderOverlay(
+            state,
+            actions,
+            progress,
+            chromeVisible,
+            settingsVisible,
+            backdropScope,
+            closeReader,
+            { settingsVisible = true },
+            { settingsVisible = false },
+        )
+    }
+}
+
+@Composable
+private fun ReaderOverlay(
+    state: ReaderUiState,
+    actions: ReaderActions,
+    progress: Float,
+    chromeVisible: Boolean,
+    settingsVisible: Boolean,
+    backdropScope: app.openstory.designsystem.glass.HikariBackdropScope,
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onDismissSettings: () -> Unit,
+) {
+    Box(Modifier.fillMaxSize()) {
+        val canShowControls = !settingsVisible && !state.loading && state.document != null
+        if (chromeVisible && canShowControls) {
+            ReaderControls(
+                state,
+                backdropScope,
+                onBack,
+                onOpenSettings,
+                Modifier.align(Alignment.TopCenter).testTag("reader-top-chrome"),
+            )
+            ReaderChapterNavigation(
+                state,
+                progress,
+                backdropScope,
+                actions,
+                Modifier.align(Alignment.BottomCenter).testTag("reader-bottom-chrome"),
+            )
+        }
+        if (settingsVisible) ReaderSettingsSheet(state, actions, onDismissSettings)
+    }
+}
+
+@Composable
+private fun ReaderBackground(
+    state: ReaderUiState,
+    chromeVisible: Boolean,
+    onToggleChrome: () -> Unit,
+    onPositionChanged: (ReadingPosition, Boolean) -> Unit,
+    onRetry: () -> Unit,
+) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+        when {
+            state.loading -> Centered { HikariLoadingState(label = "Loading reader") }
+            state.document != null -> ReaderContent(
+                document = state.document,
+                fontScale = state.fontScale,
+                restoredBlockId = state.restoredBlockId,
+                restoredCharacterOffset = state.restoredCharacterOffset,
+                contentPadding = if (chromeVisible) {
+                    PaddingValues(top = 104.dp, bottom = 96.dp)
+                } else {
+                    PaddingValues.Zero
+                },
+                onPositionChanged = onPositionChanged,
+                modifier = Modifier.testTag("reader-content"),
+                onToggleChrome = onToggleChrome,
+            )
+            else -> Centered {
+                HikariErrorState(
+                    title = "Reader unavailable",
+                    message = state.failure,
+                    actionLabel = "Retry",
+                    onAction = onRetry,
                 )
             }
         }

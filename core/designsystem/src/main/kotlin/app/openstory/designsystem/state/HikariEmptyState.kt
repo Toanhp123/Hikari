@@ -12,6 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -22,6 +24,7 @@ fun HikariEmptyState(
     message: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    actionFocusRequester: FocusRequester? = null,
 ) {
     HikariStateContent(
         title = title,
@@ -29,6 +32,7 @@ fun HikariEmptyState(
         message = message,
         actionLabel = actionLabel,
         onAction = onAction,
+        actionFocusRequester = actionFocusRequester,
         titleColor = MaterialTheme.colorScheme.onSurface,
     )
 }
@@ -40,6 +44,7 @@ internal fun HikariStateContent(
     message: String?,
     actionLabel: String?,
     onAction: (() -> Unit)?,
+    actionFocusRequester: FocusRequester? = null,
     titleColor: Color,
 ) {
     Column(
@@ -63,7 +68,10 @@ internal fun HikariStateContent(
         }
         if (actionLabel != null && onAction != null) {
             Spacer(modifier = Modifier.height(MaterialTheme.hikariSpacing.large))
-            Button(onClick = onAction) {
+            Button(
+                onClick = onAction,
+                modifier = actionFocusRequester?.let { Modifier.focusRequester(it) } ?: Modifier,
+            ) {
                 Text(text = actionLabel)
             }
         }

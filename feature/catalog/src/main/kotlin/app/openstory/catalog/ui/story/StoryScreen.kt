@@ -3,6 +3,7 @@ package app.openstory.catalog.ui.story
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -70,57 +71,116 @@ fun StoryScreen(
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         HikariResponsiveContent(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             if (windowClass == HikariWindowClass.MEDIUM) {
-            Row(Modifier.fillMaxSize()) {
-                Column(
-                    Modifier.weight(0.44f).fillMaxSize().testTag("story-summary-pane").semantics {
-                        isTraversalGroup = true
-                        traversalIndex = 0f
-                    },
-                ) {
-                    StoryHero(
-                        story, state.libraryStatus, readerTarget,
-                        validatedResumeTarget != null,
-                        firstReadableTarget?.releaseId,
-                        onLibraryStatusSelected, onRead, onDownload,
-                        narrow = true,
-                    )
-                    StoryOverview(story, compact = true, modifier = Modifier.weight(1f))
-                }
-                Column(
-                    Modifier.weight(0.56f).fillMaxSize().testTag("story-content-pane").semantics {
-                        isTraversalGroup = true
-                        traversalIndex = 1f
-                    },
-                ) {
-                    StorySectionTabs(state.selectedSection, onSectionSelected)
-                    if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    state.failure?.let { StoryFailureBanner(it, state.refreshing, onRetry) }
-                    StorySectionContent(
-                        state, onRetry, onSourceSelected, mappingState, mappingActions,
-                        chapterState, chapterActions, Modifier.weight(1f),
-                    )
-                }
-            }
+                MediumStoryLayout(
+                    state, story, readerTarget, validatedResumeTarget != null,
+                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
+                    chapterState, chapterActions,
+                )
             } else {
-                Column(Modifier.fillMaxSize()) {
-                StoryHero(
-                    story, state.libraryStatus, readerTarget,
-                    validatedResumeTarget != null,
-                    firstReadableTarget?.releaseId,
-                    onLibraryStatusSelected, onRead, onDownload,
+                CompactStoryLayout(
+                    state, story, readerTarget, validatedResumeTarget != null,
+                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
+                    chapterState, chapterActions,
                 )
-                if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
-                StorySectionTabs(state.selectedSection, onSectionSelected)
-                state.failure?.let { StoryFailureBanner(it, state.refreshing, onRetry) }
-                StorySectionContent(
-                    state, onRetry, onSourceSelected, mappingState, mappingActions,
-                    chapterState, chapterActions, Modifier.weight(1f),
-                )
-                }
             }
         }
     }
 }
+
+@Composable
+private fun MediumStoryLayout(
+    state: StoryUiState,
+    story: StoryUiModel,
+    readerTarget: ReaderTarget?,
+    isResume: Boolean,
+    downloadableReleaseId: ChapterReleaseId?,
+    onRetry: () -> Unit,
+    onSourceSelected: (PluginId, String) -> Unit,
+    onSectionSelected: (StorySection) -> Unit,
+    onLibraryStatusSelected: (LibraryStatus?) -> Unit,
+    onRead: (ReaderTarget) -> Unit,
+    onDownload: (ChapterReleaseId) -> Unit,
+    mappingState: MappingUiState?,
+    mappingActions: MappingActions,
+    chapterState: ChapterListUiState?,
+    chapterActions: ChapterListActions,
+) {
+    Row(Modifier.fillMaxSize()) {
+        Column(storyPane(SUMMARY_PANE_WEIGHT, "story-summary-pane", 0f)) {
+            StoryHero(
+                story, state.libraryStatus, readerTarget, isResume, downloadableReleaseId,
+                onLibraryStatusSelected, onRead, onDownload, narrow = true,
+            )
+            if (state.selectedSection != StorySection.OVERVIEW) {
+                StoryOverview(story, compact = true, modifier = Modifier.weight(1f))
+            }
+        }
+        Column(storyPane(CONTENT_PANE_WEIGHT, "story-content-pane", 1f)) {
+            StoryBody(
+                state, onRetry, onSourceSelected, onSectionSelected, mappingState,
+                mappingActions, chapterState, chapterActions,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactStoryLayout(
+    state: StoryUiState,
+    story: StoryUiModel,
+    readerTarget: ReaderTarget?,
+    isResume: Boolean,
+    downloadableReleaseId: ChapterReleaseId?,
+    onRetry: () -> Unit,
+    onSourceSelected: (PluginId, String) -> Unit,
+    onSectionSelected: (StorySection) -> Unit,
+    onLibraryStatusSelected: (LibraryStatus?) -> Unit,
+    onRead: (ReaderTarget) -> Unit,
+    onDownload: (ChapterReleaseId) -> Unit,
+    mappingState: MappingUiState?,
+    mappingActions: MappingActions,
+    chapterState: ChapterListUiState?,
+    chapterActions: ChapterListActions,
+) {
+    Column(Modifier.fillMaxSize()) {
+        StoryHero(
+            story, state.libraryStatus, readerTarget, isResume, downloadableReleaseId,
+            onLibraryStatusSelected, onRead, onDownload,
+        )
+        StoryBody(
+            state, onRetry, onSourceSelected, onSectionSelected, mappingState,
+            mappingActions, chapterState, chapterActions,
+        )
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.StoryBody(
+    state: StoryUiState,
+    onRetry: () -> Unit,
+    onSourceSelected: (PluginId, String) -> Unit,
+    onSectionSelected: (StorySection) -> Unit,
+    mappingState: MappingUiState?,
+    mappingActions: MappingActions,
+    chapterState: ChapterListUiState?,
+    chapterActions: ChapterListActions,
+) {
+    if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+    StorySectionTabs(state.selectedSection, onSectionSelected)
+    state.failure?.let { StoryFailureBanner(it, state.refreshing, onRetry) }
+    StorySectionContent(
+        state, onRetry, onSourceSelected, mappingState, mappingActions,
+        chapterState, chapterActions, Modifier.weight(1f),
+    )
+}
+
+private fun RowScope.storyPane(weight: Float, tag: String, traversal: Float): Modifier =
+    Modifier.weight(weight).fillMaxSize().testTag(tag).semantics {
+        isTraversalGroup = true
+        traversalIndex = traversal
+    }
 
 @Composable
 private fun StorySectionTabs(selectedSection: StorySection, onSelected: (StorySection) -> Unit) {
@@ -157,7 +217,11 @@ private fun StorySectionContent(
 ) {
     when (state.selectedSection) {
         StorySection.OVERVIEW -> StoryOverview(requireNotNull(state.story), modifier = modifier)
-        StorySection.CHAPTERS -> ChapterList(chapterState ?: ChapterListUiState(state.storyId), chapterActions, modifier)
+        StorySection.CHAPTERS -> ChapterList(
+            chapterState ?: ChapterListUiState(state.storyId),
+            chapterActions,
+            modifier,
+        )
         StorySection.SOURCES -> StorySources(
             story = requireNotNull(state.story),
             selectedSource = state.selectedSource,
@@ -171,6 +235,9 @@ private fun StorySectionContent(
         )
     }
 }
+
+private const val SUMMARY_PANE_WEIGHT = 0.44f
+private const val CONTENT_PANE_WEIGHT = 0.56f
 
 @Composable
 private fun StoryFailureBanner(failure: StoryRefreshFailure, refreshing: Boolean, onRetry: () -> Unit) {

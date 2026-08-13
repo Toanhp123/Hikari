@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertCountEquals
 import app.openstory.common.id.ChapterReleaseId
@@ -30,7 +31,7 @@ class DownloadsScreenTest {
         compose.onNodeWithContentDescription(
             "A Garden Made of Glass, Chapter 4, failed download",
         ).assertIsDisplayed()
-        compose.onNodeWithText("Retry").performClick()
+        compose.onNodeWithText("Retry").performScrollTo().performClick()
 
         assertEquals(ChapterReleaseId("failed"), retried)
     }

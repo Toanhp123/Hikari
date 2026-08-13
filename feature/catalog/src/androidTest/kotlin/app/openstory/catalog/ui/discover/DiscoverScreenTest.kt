@@ -41,7 +41,7 @@ class DiscoverScreenTest {
         }
 
         compose.onAllNodesWithText("Across catalogs").onFirst().assertIsDisplayed()
-        compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
+        compose.onAllNodesWithText("Fixture Novel").onFirst().assertIsDisplayed()
         compose.onNodeWithContentDescription("Refreshing Discover").assertIsDisplayed()
         compose.onNodeWithText("catalog.b refresh failed; cached content is still available.")
             .assertIsDisplayed()

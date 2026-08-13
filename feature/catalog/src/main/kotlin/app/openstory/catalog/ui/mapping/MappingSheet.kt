@@ -66,7 +66,11 @@ private fun CurrentMappings(mappings: List<MappingItemUiModel>) {
     mappings.forEach { mapping ->
         HikariGlassSurface(null, Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), PaddingValues(14.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(mapping.pluginId.value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    mapping.pluginId.value,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     HikariMetadataBadge(mapping.origin.displayName())
                     HikariMetadataBadge(mapping.sourceStoryId)
@@ -106,7 +110,11 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
                 HikariMetadataBadge(candidate.score.asPercent())
             }
             candidate.evidenceLabels.forEach { label ->
-                Text("- $label", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "- $label",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             candidate.sourceUrl?.let { url ->
                 Text(

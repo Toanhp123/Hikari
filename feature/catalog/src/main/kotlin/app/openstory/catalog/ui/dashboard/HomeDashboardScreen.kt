@@ -50,6 +50,7 @@ fun HomeDashboardScreen(
     onDiscover: () -> Unit,
     onStorySelected: (StoryId) -> Unit,
     onResume: (ReaderTarget) -> Unit,
+    firstContentFocusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
 ) {
     val continueFocus = remember { FocusRequester() }
@@ -58,59 +59,140 @@ fun HomeDashboardScreen(
         Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             when {
                 state.loading -> HikariLoadingState("Loading your reading home")
-                state.isEmpty -> Box(Modifier.fillMaxSize()) {
-                    HikariEmptyState(
-                        title = "Your reading home is ready to grow.",
-                        message = "Find a story and add it to your Library to begin.",
-                        actionLabel = "Discover stories",
-                        onAction = onDiscover,
+                state.isEmpty -> EmptyHome(state.failure, onDiscover, firstContentFocusRequester)
+                else -> HomeContent(
+                    state, onStorySelected, onResume, continueFocus, readingFocus,
+                    firstContentFocusRequester,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyHome(
+    failure: HomeDashboardFailure?,
+    onDiscover: () -> Unit,
+    firstContentFocusRequester: FocusRequester?,
+) {
+    Box(Modifier.fillMaxSize()) {
+        HikariEmptyState(
+            title = "Your reading home is ready to grow.",
+            message = "Find a story and add it to your Library to begin.",
+            actionLabel = "Discover stories",
+            onAction = onDiscover,
+            actionFocusRequester = firstContentFocusRequester,
+        )
+        failure?.let { ObservationFailure(it, Modifier.align(Alignment.TopCenter)) }
+    }
+}
+
+@Composable
+private fun HomeContent(
+    state: HomeDashboardUiState,
+    onStorySelected: (StoryId) -> Unit,
+    onResume: (ReaderTarget) -> Unit,
+    continueFocus: FocusRequester,
+    readingFocus: FocusRequester,
+    firstContentFocusRequester: FocusRequester?,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.extraLarge),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
+    ) {
+        item("home-summary") { HomeSummary(state.summary) }
+        state.failure?.let { failure ->
+            item("home-failure") {
+                ObservationFailure(failure, Modifier.padding(horizontal = 20.dp))
+            }
+        }
+        continueReadingShelf(
+            state,
+            onResume,
+            firstContentFocusRequester ?: continueFocus,
+            readingFocus,
+        )
+        itemShelf(
+            "Reading",
+            state.reading,
+            onStorySelected,
+            firstContentFocusRequester.takeIf { state.continueReading.isEmpty() } ?: readingFocus,
+        )
+        itemShelf(
+            "Planned", state.planned, onStorySelected,
+            firstContentFocusRequester.takeIf {
+                state.continueReading.isEmpty() && state.reading.isEmpty()
+            },
+        )
+        itemShelf(
+            "Paused", state.paused, onStorySelected,
+            firstContentFocusRequester.takeIf {
+                state.continueReading.isEmpty() && state.reading.isEmpty() && state.planned.isEmpty()
+            },
+        )
+        itemShelf(
+            "Completed", state.completed, onStorySelected,
+            firstContentFocusRequester.takeIf {
+                state.continueReading.isEmpty() && state.reading.isEmpty() && state.planned.isEmpty() &&
+                    state.paused.isEmpty()
+            },
+        )
+        latestUpdatesShelf(
+            state.latestUpdates,
+            onResume,
+            firstContentFocusRequester.takeIf {
+                state.continueReading.isEmpty() && state.reading.isEmpty() && state.planned.isEmpty() &&
+                    state.paused.isEmpty() && state.completed.isEmpty()
+            },
+        )
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.continueReadingShelf(
+    state: HomeDashboardUiState,
+    onResume: (ReaderTarget) -> Unit,
+    continueFocus: FocusRequester,
+    readingFocus: FocusRequester,
+) {
+    if (state.continueReading.isEmpty()) return
+    item("home-continue") {
+        HomeSection("Continue Reading") {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(state.continueReading, key = { it.storyId.value }) { item ->
+                    ContinueReadingCard(
+                        item = item,
+                        onResume = onResume,
+                        focusRequester = continueFocus.takeIf { item == state.continueReading.first() },
+                        downFocusRequester = readingFocus.takeIf { state.reading.isNotEmpty() },
                     )
-                    state.failure?.let { failure ->
-                        ObservationFailure(failure, Modifier.align(Alignment.TopCenter))
-                    }
-                }
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.extraLarge),
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
-                ) {
-            item("home-summary") { HomeSummary(state.summary) }
-            state.failure?.let { failure ->
-                item("home-failure") {
-                    ObservationFailure(failure, Modifier.padding(horizontal = 20.dp))
                 }
             }
-            if (state.continueReading.isNotEmpty()) {
-                item("home-continue") {
-                    HomeSection("Continue Reading") {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(state.continueReading, key = { it.storyId.value }) { item ->
-                                ContinueReadingCard(
-                                    item = item,
-                                    onResume = onResume,
-                                    focusRequester = continueFocus.takeIf { item == state.continueReading.first() },
-                                    downFocusRequester = readingFocus.takeIf { state.reading.isNotEmpty() },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            itemShelf("Reading", state.reading, onStorySelected, readingFocus)
-            itemShelf("Planned", state.planned, onStorySelected)
-            itemShelf("Paused", state.paused, onStorySelected)
-            itemShelf("Completed", state.completed, onStorySelected)
-            if (state.latestUpdates.isNotEmpty()) {
-                item("home-updates") {
-                    HomeSection("Latest Updates") {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(state.latestUpdates, key = { it.releaseId.value }) { update ->
-                                UpdateCard(update, onResume)
-                            }
-                        }
-                    }
-                }
-            }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.latestUpdatesShelf(
+    updates: List<HomeUpdateItem>,
+    onResume: (ReaderTarget) -> Unit,
+    firstFocusRequester: FocusRequester?,
+) {
+    if (updates.isEmpty()) return
+    item("home-updates") {
+        HomeSection("Latest Updates") {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(updates, key = { it.releaseId.value }) { update ->
+                    UpdateCard(
+                        update,
+                        onResume,
+                        Modifier.then(
+                            if (update == updates.first() && firstFocusRequester != null) {
+                                Modifier.focusRequester(firstFocusRequester)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                    )
                 }
             }
         }
@@ -151,7 +233,11 @@ private fun HomeSummary(summary: HomeReadingSummary) {
     Box(
         Modifier.fillMaxWidth().height(214.dp).background(
             Brush.linearGradient(
-                listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface, Color.Transparent),
+                listOf(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.surface,
+                    Color.Transparent,
+                ),
             ),
         ).padding(20.dp),
     ) {
@@ -168,8 +254,12 @@ private fun HomeSummary(summary: HomeReadingSummary) {
     }
 }
 
-@Composable private fun SummaryMetric(value: Int, label: String) {
-    Column { Text(value.toString(), style = MaterialTheme.typography.titleLarge); Text(label, style = MaterialTheme.typography.labelMedium) }
+@Composable
+private fun SummaryMetric(value: Int, label: String) {
+    Column {
+        Text(value.toString(), style = MaterialTheme.typography.titleLarge)
+        Text(label, style = MaterialTheme.typography.labelMedium)
+    }
 }
 
 @Composable
@@ -195,9 +285,16 @@ private fun DashboardStoryCard(
         },
     ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            val artwork = rememberHikariArtwork(HikariArtworkModel(item.coverUrl, item.storyId.value, item.title))
+            val artwork = rememberHikariArtwork(
+                HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
+            )
             HikariArtwork(artwork, "${item.title} cover", Modifier.fillMaxWidth().height(210.dp))
-            Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                item.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -212,21 +309,38 @@ private fun ObservationFailure(failure: HomeDashboardFailure, modifier: Modifier
 }
 
 @Composable
-private fun UpdateCard(item: HomeUpdateItem, onResume: (ReaderTarget) -> Unit) {
+private fun UpdateCard(
+    item: HomeUpdateItem,
+    onResume: (ReaderTarget) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Card(
         onClick = { onResume(item.readerTarget) },
-        modifier = Modifier.width(220.dp).heightIn(min = 88.dp).semantics(mergeDescendants = true) {
+        modifier = modifier.width(220.dp).heightIn(min = 88.dp).semantics(mergeDescendants = true) {
             contentDescription = "Read ${item.title}, ${item.chapterLabel}. Section Latest Updates"
-            traversalIndex = 3f
+            traversalIndex = UPDATE_CARD_TRAVERSAL_INDEX
         },
     ) {
-        Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            val artwork = rememberHikariArtwork(HikariArtworkModel(item.coverUrl, item.storyId.value, item.title))
+        Row(
+            Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val artwork = rememberHikariArtwork(
+                HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
+            )
             HikariArtwork(artwork, "${item.title} cover", Modifier.width(54.dp).height(76.dp))
             Column {
-                Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(item.chapterLabel, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
 }
+
+private const val UPDATE_CARD_TRAVERSAL_INDEX = 3f

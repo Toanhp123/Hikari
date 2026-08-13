@@ -11,16 +11,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.openstory.navigation.AppRoute
-
-@Immutable
-data class HikariUtilityDestination(
-    val route: AppRoute,
-    val label: String,
-)
 
 val utilityDestinations = listOf(
     HikariUtilityDestination(AppRoute.Downloads, "Downloads"),

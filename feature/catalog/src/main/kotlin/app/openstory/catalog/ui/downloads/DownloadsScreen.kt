@@ -30,38 +30,80 @@ import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.downloads.DownloadState
+import app.openstory.common.id.ChapterReleaseId
+import app.openstory.common.id.StoryId
 
 @Composable
 fun DownloadsScreen(
     state: DownloadsUiState,
-    onStorySelected: (app.openstory.common.id.StoryId) -> Unit,
-    onRetry: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onCancel: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onRemove: (app.openstory.common.id.ChapterReleaseId) -> Unit,
+    onStorySelected: (StoryId) -> Unit,
+    onRetry: (ChapterReleaseId) -> Unit,
+    onCancel: (ChapterReleaseId) -> Unit,
+    onRemove: (ChapterReleaseId) -> Unit,
     onConfirmRemoval: () -> Unit,
     onDismissRemoval: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().navigationBarsPadding()) {
-        Text(
-            "Downloads",
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp).semantics { heading() },
-        )
-        when {
-            state.loading -> HikariLoadingState("Loading downloads")
-            state.isEmpty -> HikariEmptyState("No downloads yet", message = "Downloaded chapters will appear here.")
-            else -> LazyColumn(
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                downloadSection("Active", state.active, state, onStorySelected, onRetry, onCancel, onRemove, onConfirmRemoval, onDismissRemoval)
-                downloadSection("Completed", state.completed, state, onStorySelected, onRetry, onCancel, onRemove, onConfirmRemoval, onDismissRemoval)
-                downloadSection("Failed", state.failed, state, onStorySelected, onRetry, onCancel, onRemove, onConfirmRemoval, onDismissRemoval)
+        Column(
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            Text(
+                "Downloads",
+                style = MaterialTheme.typography.headlineLarge,
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .semantics { heading() },
+            )
+            when {
+                state.loading -> HikariLoadingState("Loading downloads")
+                state.isEmpty -> HikariEmptyState(
+                    "No downloads yet",
+                    message = "Downloaded chapters will appear here.",
+                )
+                else -> DownloadsList(
+                    state,
+                    onStorySelected,
+                    onRetry,
+                    onCancel,
+                    onRemove,
+                    onConfirmRemoval,
+                    onDismissRemoval,
+                )
             }
         }
     }
+}
+
+@Composable
+private fun DownloadsList(
+    state: DownloadsUiState,
+    onStorySelected: (StoryId) -> Unit,
+    onRetry: (ChapterReleaseId) -> Unit,
+    onCancel: (ChapterReleaseId) -> Unit,
+    onRemove: (ChapterReleaseId) -> Unit,
+    onConfirmRemoval: () -> Unit,
+    onDismissRemoval: () -> Unit,
+) {
+    LazyColumn(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        val actions = DownloadListActions(
+            onStorySelected,
+            onRetry,
+            onCancel,
+            onRemove,
+            onConfirmRemoval,
+            onDismissRemoval,
+        )
+        downloadSection("Active", state.active, state, actions)
+        downloadSection("Completed", state.completed, state, actions)
+        downloadSection("Failed", state.failed, state, actions)
     }
 }
 
@@ -69,19 +111,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.downloadSection(
     title: String,
     records: List<DownloadItemUiModel>,
     state: DownloadsUiState,
-    onStorySelected: (app.openstory.common.id.StoryId) -> Unit,
-    onRetry: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onCancel: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onRemove: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onConfirmRemoval: () -> Unit,
-    onDismissRemoval: () -> Unit,
+    actions: DownloadListActions,
 ) {
     if (records.isEmpty()) return
     item(key = "heading-$title") {
-        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp).semantics { heading() })
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+        )
     }
     items(records, key = { it.releaseId.value }) { item ->
-        DownloadCard(item, state.pendingRemoval == item.releaseId, onStorySelected, onRetry, onCancel, onRemove, onConfirmRemoval, onDismissRemoval)
+        DownloadCard(item, state.pendingRemoval == item.releaseId, actions)
     }
 }
 
@@ -89,18 +130,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.downloadSection(
 private fun DownloadCard(
     item: DownloadItemUiModel,
     pendingRemoval: Boolean,
-    onStorySelected: (app.openstory.common.id.StoryId) -> Unit,
-    onRetry: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onCancel: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onRemove: (app.openstory.common.id.ChapterReleaseId) -> Unit,
-    onConfirmRemoval: () -> Unit,
-    onDismissRemoval: () -> Unit,
+    actions: DownloadListActions,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
             contentDescription = "${item.storyTitle}, ${item.chapterLabel}, ${item.state.name.lowercase()} download"
         },
-        onClick = { item.storyId?.let(onStorySelected) },
+        onClick = { item.storyId?.let(actions.onStorySelected) },
         enabled = item.storyId != null,
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -111,17 +147,23 @@ private fun DownloadCard(
                 HikariMetadataBadge(item.state.name.lowercase().replaceFirstChar(Char::uppercase))
                 item.sizeBytes.takeIf { it > 0L }?.let { HikariMetadataBadge(it.byteLabel()) }
             }
-            item.failureReason?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            item.failureReason?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             DownloadActionSheet(
                 releaseId = item.releaseId,
                 state = item.state,
                 pendingRemoval = pendingRemoval,
                 actions = DownloadActions(
-                    onCancel = onCancel,
-                    onRetry = onRetry,
-                    onRemove = onRemove,
-                    onConfirmRemoval = onConfirmRemoval,
-                    onDismissRemoval = onDismissRemoval,
+                    onCancel = actions.onCancel,
+                    onRetry = actions.onRetry,
+                    onRemove = actions.onRemove,
+                    onConfirmRemoval = actions.onConfirmRemoval,
+                    onDismissRemoval = actions.onDismissRemoval,
                 ),
             )
         }
@@ -129,7 +171,19 @@ private fun DownloadCard(
 }
 
 private fun Long.byteLabel(): String = when {
-    this >= 1024L * 1024L -> "${this / (1024L * 1024L)} MB"
-    this >= 1024L -> "${this / 1024L} KB"
+    this >= BYTES_PER_MEGABYTE -> "${this / BYTES_PER_MEGABYTE} MB"
+    this >= BYTES_PER_KILOBYTE -> "${this / BYTES_PER_KILOBYTE} KB"
     else -> "$this B"
 }
+
+private data class DownloadListActions(
+    val onStorySelected: (StoryId) -> Unit,
+    val onRetry: (ChapterReleaseId) -> Unit,
+    val onCancel: (ChapterReleaseId) -> Unit,
+    val onRemove: (ChapterReleaseId) -> Unit,
+    val onConfirmRemoval: () -> Unit,
+    val onDismissRemoval: () -> Unit,
+)
+
+private const val BYTES_PER_KILOBYTE = 1L shl 10
+private const val BYTES_PER_MEGABYTE = 1L shl 20

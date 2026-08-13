@@ -14,15 +14,18 @@ import androidx.compose.ui.unit.dp
 fun HikariMetadataBadge(
     label: String,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = BADGE_ALPHA),
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     Text(
         text = label,
         modifier = modifier
-            .background(containerColor, RoundedCornerShape(50))
+            .background(containerColor, RoundedCornerShape(percent = BADGE_CORNER_PERCENT))
             .padding(horizontal = 10.dp, vertical = 5.dp),
         color = contentColor,
         style = MaterialTheme.typography.labelMedium,
     )
 }
+
+private const val BADGE_ALPHA = 0.72f
+private const val BADGE_CORNER_PERCENT = 50

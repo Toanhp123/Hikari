@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
@@ -31,62 +32,48 @@ import java.math.BigDecimal
 import kotlin.math.round
 import kotlin.math.roundToInt
 
-@Composable
-fun SearchFilters(
+internal fun LazyListScope.searchFilterItems(
     groups: List<CatalogSearchFilterGroup>,
     selectedValues: Map<PluginId, Map<String, List<String>>>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
     onClear: (PluginId) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val visibleGroups = groups.filter { it.definitions.isNotEmpty() }
-    if (visibleGroups.isEmpty()) return
-
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        visibleGroups.forEach { group ->
-            FilterGroup(
-                group = group,
-                selectedValues = selectedValues[group.pluginId].orEmpty(),
-                onValuesChange = onValuesChange,
-                onClear = onClear,
-            )
+    visibleGroups.forEach { group ->
+        val groupValues = selectedValues[group.pluginId].orEmpty()
+        item(key = "search-filter-header-${group.pluginId.value}") {
+            FilterGroupHeader(group.pluginId, groupValues, onClear)
+        }
+        group.definitions.forEach { definition ->
+            item(key = "search-filter-${group.pluginId.value}-${definition.id}") {
+                FilterControl(
+                    pluginId = group.pluginId,
+                    definition = definition,
+                    selected = groupValues[definition.id].orEmpty(),
+                    onValuesChange = onValuesChange,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun FilterGroup(
-    group: CatalogSearchFilterGroup,
+private fun FilterGroupHeader(
+    pluginId: PluginId,
     selectedValues: Map<String, List<String>>,
-    onValuesChange: (PluginId, String, List<String>) -> Unit,
     onClear: (PluginId) -> Unit,
 ) {
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(group.pluginId.value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            if (selectedValues.isNotEmpty()) {
-                OutlinedButton(
-                    onClick = { onClear(group.pluginId) },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Clear") }
-            }
-        }
-        group.definitions.forEach { definition ->
-            FilterControl(
-                pluginId = group.pluginId,
-                definition = definition,
-                selected = selectedValues[definition.id].orEmpty(),
-                onValuesChange = onValuesChange,
-            )
+        Text(pluginId.value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        if (selectedValues.isNotEmpty()) {
+            OutlinedButton(
+                onClick = { onClear(pluginId) },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Clear") }
         }
     }
 }
@@ -97,11 +84,14 @@ private fun FilterControl(
     definition: SourceFilter,
     selected: List<String>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    when (definition) {
-        is SourceOptionFilter -> OptionFilter(pluginId, definition, selected, onValuesChange)
-        is SourceRangeFilter -> RangeFilter(pluginId, definition, selected, onValuesChange)
-        is SourceTextFilter -> TextFilter(pluginId, definition, selected, onValuesChange)
+    Column(modifier) {
+        when (definition) {
+            is SourceOptionFilter -> OptionFilter(pluginId, definition, selected, onValuesChange)
+            is SourceRangeFilter -> RangeFilter(pluginId, definition, selected, onValuesChange)
+            is SourceTextFilter -> TextFilter(pluginId, definition, selected, onValuesChange)
+        }
     }
 }
 

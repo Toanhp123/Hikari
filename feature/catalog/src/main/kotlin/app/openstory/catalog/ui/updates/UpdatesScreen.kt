@@ -46,47 +46,85 @@ fun UpdatesScreen(
     modifier: Modifier = Modifier,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().navigationBarsPadding()) {
-        Text(
-            "Updates",
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp).semantics { heading() },
-        )
-        when {
-            state.loading -> HikariLoadingState("Loading updates")
-            state.isEmpty -> HikariEmptyState(
-                "No reading updates",
-                message = "New mapped releases for stories in your Library will appear here.",
+        Column(
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            Text(
+                "Updates",
+                style = MaterialTheme.typography.headlineLarge,
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .semantics { heading() },
             )
-            else -> LazyColumn(
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                state.groups.forEach { group ->
-                    item(key = "heading-${group.label}") {
-                        Text(group.label, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp).semantics { heading() })
-                    }
-                    items(group.items, key = { it.releaseId.value }) { item -> UpdateCard(item, onStorySelected, onRead) }
-                }
+            when {
+                state.loading -> HikariLoadingState("Loading updates")
+                state.isEmpty -> HikariEmptyState(
+                    "No reading updates",
+                    message = "New mapped releases for stories in your Library will appear here.",
+                )
+                else -> UpdateGroups(state.groups, onStorySelected, onRead)
             }
         }
-    }
     }
 }
 
 @Composable
-private fun UpdateCard(item: LibraryActivityItem, onStorySelected: (StoryId) -> Unit, onRead: (ReaderTarget) -> Unit) {
+private fun UpdateGroups(
+    groups: List<UpdatesGroupUiModel>,
+    onStorySelected: (StoryId) -> Unit,
+    onRead: (ReaderTarget) -> Unit,
+) {
+    LazyColumn(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        groups.forEach { group ->
+            item(key = "heading-${group.label}") {
+                Text(
+                    group.label,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+                )
+            }
+            items(group.items, key = { it.releaseId.value }) { item ->
+                UpdateCard(item, onStorySelected, onRead)
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateCard(
+    item: LibraryActivityItem,
+    onStorySelected: (StoryId) -> Unit,
+    onRead: (ReaderTarget) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth().heightIn(min = 112.dp).semantics(mergeDescendants = true) {
             contentDescription = "${item.title}, ${item.chapterLabel}, ${item.sourceLabel}, ${item.languageTag}"
         },
         onClick = { onStorySelected(item.storyId) },
     ) {
-        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            val artwork = rememberHikariArtwork(HikariArtworkModel(item.coverUrl, item.storyId.value, item.title))
+        Row(
+            Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val artwork = rememberHikariArtwork(
+                HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
+            )
             HikariArtwork(artwork, "${item.title} cover", Modifier.width(58.dp).height(82.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    item.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(item.chapterLabel, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     "${item.sourceLabel}  •  ${item.languageTag}",
@@ -96,7 +134,10 @@ private fun UpdateCard(item: LibraryActivityItem, onStorySelected: (StoryId) -> 
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            TextButton(onClick = { onRead(item.readerTarget) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Read") }
+            TextButton(
+                onClick = { onRead(item.readerTarget) },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Read") }
         }
     }
 }

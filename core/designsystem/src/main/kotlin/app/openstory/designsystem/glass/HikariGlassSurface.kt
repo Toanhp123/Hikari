@@ -18,15 +18,9 @@ import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 
-enum class HikariGlassRenderingMode { TRANSLUCENT, BLUR }
-
-fun glassRenderingMode(sdkInt: Int): HikariGlassRenderingMode =
-    if (sdkInt >= Build.VERSION_CODES.S) HikariGlassRenderingMode.BLUR
-    else HikariGlassRenderingMode.TRANSLUCENT
-
 @Composable
 internal fun hikariGlassSurfaceColor() =
-    MaterialTheme.colorScheme.surface.copy(alpha = GlassSurfaceAlpha)
+    MaterialTheme.colorScheme.surface.copy(alpha = GLASS_SURFACE_ALPHA)
 
 @Composable
 internal fun hikariGlassContentColor() = MaterialTheme.colorScheme.onSurface
@@ -41,7 +35,7 @@ fun HikariGlassSurface(
 ) {
     val surfaceColor = hikariGlassSurfaceColor()
     val contentColor = hikariGlassContentColor()
-    val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
+    val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = GLASS_BORDER_ALPHA)
     val mode = glassRenderingMode(Build.VERSION.SDK_INT)
     val glassModifier = if (mode == HikariGlassRenderingMode.BLUR && backdropScope != null) {
         modifier.drawBackdrop(
@@ -69,4 +63,5 @@ fun HikariGlassSurface(
     }
 }
 
-private const val GlassSurfaceAlpha = 0xD9 / 255f
+private const val GLASS_SURFACE_ALPHA = 0xD9 / 255f
+private const val GLASS_BORDER_ALPHA = 0.72f

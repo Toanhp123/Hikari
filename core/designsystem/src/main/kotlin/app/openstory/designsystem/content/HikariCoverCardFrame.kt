@@ -15,10 +15,10 @@ fun HikariCoverCardFrame(
 ) {
     Box(
         modifier = modifier
-            .aspectRatio(CoverAspectRatio)
+            .aspectRatio(COVER_ASPECT_RATIO)
             .clip(RoundedCornerShape(percent = 10)),
         content = content,
     )
 }
 
-private const val CoverAspectRatio = 2f / 3f
+private const val COVER_ASPECT_RATIO = 2f / 3f

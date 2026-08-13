@@ -1,12 +1,17 @@
 package app.openstory.catalog.ui.dashboard
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.CanonicalChapterId
@@ -34,7 +39,13 @@ class HomeDashboardScreenTest {
 
     @Test
     fun dPadFocusMovesInVisualOrder() {
-        compose.setContent { HikariTheme { HomeDashboardScreen(fixture(), {}, {}, {}) } }
+        lateinit var inputModeManager: InputModeManager
+        compose.setContent {
+            HikariTheme {
+                inputModeManager = LocalInputModeManager.current
+                HomeDashboardScreen(fixture(), {}, {}, {})
+            }
+        }
         val continueCard = compose.onNodeWithContentDescription(
             "Resume The Fox of the Moonlit Archive, Chapter 12, 64 percent read",
         )
@@ -42,7 +53,8 @@ class HomeDashboardScreenTest {
             "The Fox of the Moonlit Archive. Section Reading",
         )
 
-        continueCard.performKeyInput { pressKey(Key.Tab) }
+        compose.runOnIdle { inputModeManager.requestInputMode(InputMode.Keyboard) }
+        continueCard.performSemanticsAction(SemanticsActions.RequestFocus)
         continueCard.assertIsFocused()
         continueCard.performKeyInput { pressKey(Key.DirectionDown) }
         readingCard.assertIsFocused()

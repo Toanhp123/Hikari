@@ -64,41 +64,65 @@ fun AppNavHost(
     val utilityFocus = remember { FocusRequester() }
     val discoverCategoryFocus = remember { FocusRequester() }
     val discoverCatalogFocus = remember { FocusRequester() }
+    val homeContentFocus = remember { FocusRequester() }
     val libraryFilterFocus = remember { FocusRequester() }
     var showUtilitySheet by remember { mutableStateOf(false) }
+    val focus = AppNavFocus(
+        discoverSearchFocus,
+        utilityFocus,
+        discoverCategoryFocus,
+        discoverCatalogFocus,
+        homeContentFocus,
+        libraryFilterFocus,
+    )
     HikariAppShell(
         currentRoute = navigator.currentRoute,
         onTopLevelSelected = navigator::selectTopLevel,
         onUtilityRequested = { showUtilitySheet = true },
         utilityFocusRequester = utilityFocus,
-        utilityNextFocusRequester = if (navigator.currentRoute == AppRoute.Library) {
-            libraryFilterFocus
-        } else {
-            discoverCategoryFocus
-        },
+        utilityNextFocusRequester = focus.utilityNext(navigator.currentRoute),
         modifier = modifier,
     ) {
-        Box(Modifier.fillMaxSize()) {
-            NavDisplay(
-                modifier = Modifier.fillMaxSize(),
-                backStack = navigator.backStack,
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
-                ),
-                onBack = navigator::back,
-                entryProvider = entryProvider {
+        AppNavigationContent(navigator, focus, snackbarHostState)
+    }
+    if (showUtilitySheet) {
+        HikariUtilitySheet(
+            onDismiss = { showUtilitySheet = false },
+            onDestinationSelected = { route ->
+                showUtilitySheet = false
+                navigator.navigate(route)
+            },
+        )
+    }
+}
+
+@Composable
+private fun AppNavigationContent(
+    navigator: AppNavigator,
+    focus: AppNavFocus,
+    snackbarHostState: SnackbarHostState,
+) {
+    Box(Modifier.fillMaxSize()) {
+        NavDisplay(
+            modifier = Modifier.fillMaxSize(),
+            backStack = navigator.backStack,
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
+            onBack = navigator::back,
+            entryProvider = entryProvider {
                 entry<AppRoute.Discover> {
                     DiscoverDestination(
                         onSearch = { navigator.navigate(AppRoute.Search) },
                         onStorySelected = { storyId ->
                             navigator.navigate(AppRoute.Story(storyId.value))
                         },
-                        searchFocusRequester = discoverSearchFocus,
-                        searchNextFocusRequester = utilityFocus,
-                        categoryFocusRequester = discoverCategoryFocus,
-                        categoryNextFocusRequester = discoverCatalogFocus,
-                        catalogFocusRequester = discoverCatalogFocus,
+                        searchFocusRequester = focus.discoverSearch,
+                        searchNextFocusRequester = focus.utility,
+                        categoryFocusRequester = focus.discoverCategory,
+                        categoryNextFocusRequester = focus.discoverCatalog,
+                        catalogFocusRequester = focus.discoverCatalog,
                     )
                 }
                 entry<AppRoute.Home> {
@@ -116,6 +140,7 @@ fun AppNavHost(
                                 ),
                             )
                         },
+                        firstContentFocusRequester = focus.homeContent,
                     )
                 }
                 entry<AppRoute.Search> {
@@ -126,7 +151,7 @@ fun AppNavHost(
                 entry<AppRoute.Library> {
                     LibraryDestination(
                         onDiscover = { navigator.selectTopLevel(TopLevelDestination.Discover) },
-                        firstFilterFocusRequester = libraryFilterFocus,
+                        firstFilterFocusRequester = focus.libraryFilter,
                     ) { storyId ->
                         navigator.navigate(AppRoute.Story(storyId.value))
                     }
@@ -140,7 +165,13 @@ fun AppNavHost(
                     UpdatesDestination(
                         onStorySelected = { navigator.navigate(AppRoute.Story(it.value)) },
                         onRead = { target ->
-                            navigator.navigate(AppRoute.Reader(target.storyId.value, target.chapterId.value, target.releaseId.value))
+                            navigator.navigate(
+                                AppRoute.Reader(
+                                    target.storyId.value,
+                                    target.chapterId.value,
+                                    target.releaseId.value,
+                                ),
+                            )
                         },
                     )
                 }
@@ -148,30 +179,35 @@ fun AppNavHost(
                 entry<AppRoute.Reader> { route ->
                     ReaderDestination(route, navigator::navigate, navigator::back)
                 }
-                },
-            )
-            HikariSnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .then(
-                        if (shouldShowFloatingNavigation(navigator.currentRoute)) {
-                            Modifier.navigationBarsPadding().padding(bottom = 92.dp)
-                        } else {
-                            Modifier
-                        },
-                    ),
-            )
-        }
-    }
-    if (showUtilitySheet) {
-        HikariUtilitySheet(
-            onDismiss = { showUtilitySheet = false },
-            onDestinationSelected = { route ->
-                showUtilitySheet = false
-                navigator.navigate(route)
             },
         )
+        HikariSnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .then(
+                    if (shouldShowFloatingNavigation(navigator.currentRoute)) {
+                        Modifier.navigationBarsPadding().padding(bottom = 92.dp)
+                    } else {
+                        Modifier
+                    },
+                ),
+        )
+    }
+}
+
+private data class AppNavFocus(
+    val discoverSearch: FocusRequester,
+    val utility: FocusRequester,
+    val discoverCategory: FocusRequester,
+    val discoverCatalog: FocusRequester,
+    val homeContent: FocusRequester,
+    val libraryFilter: FocusRequester,
+) {
+    fun utilityNext(route: AppRoute?): FocusRequester = when (route) {
+        AppRoute.Home -> homeContent
+        AppRoute.Library -> libraryFilter
+        else -> discoverCategory
     }
 }
 
@@ -205,6 +241,7 @@ private fun HomeDestination(
     onDiscover: () -> Unit,
     onStorySelected: (StoryId) -> Unit,
     onResume: (app.openstory.catalog.ui.components.ReaderTarget) -> Unit,
+    firstContentFocusRequester: FocusRequester,
 ) {
     val viewModel = hiltViewModel<HomeDashboardViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -213,6 +250,7 @@ private fun HomeDestination(
         onDiscover = onDiscover,
         onStorySelected = onStorySelected,
         onResume = onResume,
+        firstContentFocusRequester = firstContentFocusRequester,
         modifier = Modifier.hikariTopLevelContentPadding(),
     )
 }
@@ -303,30 +341,19 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
     LaunchedEffect(chapterState.chapters) {
         chapterState.chapters.flatMap { it.releases }.forEach { downloadViewModel.watch(it.id) }
     }
+    val navigateToReader: (app.openstory.catalog.ui.components.ReaderTarget) -> Unit = { target ->
+        navigate(target.readerRoute())
+    }
     StoryScreen(
         state = state,
         onRetry = viewModel::retry,
         onSourceSelected = viewModel::selectSource,
         onSectionSelected = viewModel::selectSection,
         onLibraryStatusSelected = viewModel::changeLibraryStatus,
-        onRead = { target ->
-            navigate(
-                AppRoute.Reader(
-                    target.storyId.value,
-                    target.chapterId.value,
-                    target.releaseId.value,
-                ),
-            )
-        },
+        onRead = navigateToReader,
         onDownload = downloadViewModel::download,
         mappingState = mappingState,
-        mappingActions = MappingActions(
-            onSearch = mappingViewModel::search,
-            onUrlChange = mappingViewModel::updateUrl,
-            onResolveUrl = mappingViewModel::resolveUrl,
-            onApprove = mappingViewModel::approve,
-            onReject = mappingViewModel::reject,
-        ),
+        mappingActions = mappingViewModel.actions(),
         chapterState = chapterState,
         chapterActions = ChapterListActions(
             onToggleExpanded = chapterViewModel::toggleExpanded,
@@ -334,15 +361,7 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
             onTombstonesVisible = chapterViewModel::setTombstonesVisible,
             onKeepGrouped = chapterViewModel::keepGrouped,
             onSeparate = chapterViewModel::separate,
-            onRead = { target ->
-                navigate(
-                    AppRoute.Reader(
-                        target.storyId.value,
-                        target.chapterId.value,
-                        target.releaseId.value,
-                    ),
-                )
-            },
+            onRead = navigateToReader,
             onDownloadRange = downloadViewModel::downloadRange,
             onDownloadFiltered = downloadViewModel::downloadFiltered,
             downloadState = downloadState::status,
@@ -390,4 +409,18 @@ private fun ReaderDestination(
         onBack = onBack,
     )
 }
+
+private fun MappingViewModel.actions() = MappingActions(
+    onSearch = ::search,
+    onUrlChange = ::updateUrl,
+    onResolveUrl = ::resolveUrl,
+    onApprove = ::approve,
+    onReject = ::reject,
+)
+
+private fun app.openstory.catalog.ui.components.ReaderTarget.readerRoute() = AppRoute.Reader(
+    storyId.value,
+    chapterId.value,
+    releaseId.value,
+)
 

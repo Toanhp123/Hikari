@@ -45,7 +45,7 @@ fun ContinueReadingCard(
             )
             .semantics(mergeDescendants = true) {
             val chapter = item.chapterLabel ?: "saved chapter"
-            val percent = ((item.progressFraction ?: 0f) * 100).toInt()
+            val percent = ((item.progressFraction ?: 0f) * PERCENT_MULTIPLIER).toInt()
             contentDescription = "Resume ${item.title}, $chapter, $percent percent read"
             traversalIndex = 1f
         },
@@ -54,9 +54,16 @@ fun ContinueReadingCard(
             modifier = Modifier.padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val artwork = rememberHikariArtwork(HikariArtworkModel(item.coverUrl, item.storyId.value, item.title))
+            val artwork = rememberHikariArtwork(
+                HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
+            )
             HikariArtwork(artwork, "${item.title} cover", Modifier.fillMaxWidth().height(224.dp))
-            Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(item.chapterLabel ?: "Continue reading", style = MaterialTheme.typography.bodySmall)
             LinearProgressIndicator(
                 progress = { item.progressFraction ?: 0f },
@@ -65,3 +72,5 @@ fun ContinueReadingCard(
         }
     }
 }
+
+private const val PERCENT_MULTIPLIER = 100

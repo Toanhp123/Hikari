@@ -60,8 +60,14 @@ fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterLi
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         ) { Text("Download visible") }
     }
-    state.failure?.let { failure -> item(key = "chapter-failure") { Text(failure, color = MaterialTheme.colorScheme.error) } }
-    if (state.chapters.isEmpty()) item(key = "chapter-empty") { HikariEmptyState(title = "No chapters available") }
+    state.failure?.let { failure ->
+        item(key = "chapter-failure") {
+            Text(failure, color = MaterialTheme.colorScheme.error)
+        }
+    }
+    if (state.chapters.isEmpty()) {
+        item(key = "chapter-empty") { HikariEmptyState(title = "No chapters available") }
+    }
     items(state.chapters, key = { "chapter:${it.id.value}" }) { chapter ->
         ChapterRow(chapter, requireNotNull(state.storyId), actions)
     }
@@ -89,10 +95,14 @@ private fun ChapterRow(
                     Text(
                         if (chapter.tombstoned) "Unavailable" else "Unread",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (chapter.tombstoned) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        color = if (chapter.tombstoned) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                     )
                 }
-                HikariMetadataBadge("${chapter.releases.size} ${if (chapter.releases.size == 1) "source" else "sources"}")
+                HikariMetadataBadge(chapter.releaseCountLabel())
             }
             if (chapter.expanded) {
                 TextButton(
@@ -101,14 +111,24 @@ private fun ChapterRow(
                 ) { Text("Download chapter") }
                 chapter.releases.forEach { release ->
                     ChapterReleaseRow(
-                        release, chapter.id, storyId, actions.onKeepGrouped, actions.onSeparate, actions.onRead,
-                        actions.downloadState(release.id), actions.pendingRemoval == release.id, actions.downloadActions,
+                        release = release,
+                        chapterId = chapter.id,
+                        storyId = storyId,
+                        onKeepGrouped = actions.onKeepGrouped,
+                        onSeparate = actions.onSeparate,
+                        onRead = actions.onRead,
+                        downloadState = actions.downloadState(release.id),
+                        pendingRemoval = actions.pendingRemoval == release.id,
+                        downloadActions = actions.downloadActions,
                     )
                 }
             }
         }
     }
 }
+
+private fun ChapterItemUiModel.releaseCountLabel(): String =
+    "${releases.size} ${if (releases.size == 1) "source" else "sources"}"
 
 private fun ChapterItemUiModel.accessibilityDescription(): String = buildString {
     append(label)

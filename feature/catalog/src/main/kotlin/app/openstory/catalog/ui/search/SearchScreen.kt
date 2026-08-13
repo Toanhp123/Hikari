@@ -23,12 +23,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.glass.HikariGlassSurface
+import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -43,7 +45,7 @@ fun SearchScreen(
 ) {
     val focusManager = LocalFocusManager.current
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().testTag("search-content"),
         contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.large),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
     ) {
@@ -52,9 +54,7 @@ fun SearchScreen(
             item(key = "search-recents") { RecentSearches(state.recentQueries, onRecentSelected) }
         }
         if (state.filterGroups.any { it.definitions.isNotEmpty() }) {
-            item(key = "search-filters") {
-                SearchFilters(state.filterGroups, state.filterValues, onFilterValuesChange, onClearFilters)
-            }
+            searchFilterItems(state.filterGroups, state.filterValues, onFilterValuesChange, onClearFilters)
         }
         searchResultItems(state, onStorySelected)
     }
@@ -115,7 +115,11 @@ private fun LazyListScope.searchResultItems(
     if (state.searching) item(key = "search-progress") { LinearProgressIndicator(Modifier.fillMaxWidth()) }
     state.globalFailure?.let { failure ->
         item(key = "search-global-failure") {
-            FailureBanner("Search unavailable", failure.code, Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large))
+            FailureBanner(
+                "Search unavailable",
+                failure.code,
+                Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
+            )
         }
     }
     state.failures.forEach { failure ->
@@ -127,6 +131,14 @@ private fun LazyListScope.searchResultItems(
             )
         }
     }
+    if (state.shouldShowEmptyState) {
+        item(key = "search-empty") {
+            HikariEmptyState(
+                title = "No matches found",
+                message = "Try another title, author, or alias.",
+            )
+        }
+    }
     items(state.stories, key = { it.story.id.value }) { result ->
         SearchResultCard(
             result,
@@ -135,6 +147,16 @@ private fun LazyListScope.searchResultItems(
         )
     }
 }
+
+private val SearchUiState.shouldShowEmptyState: Boolean
+    get() = when {
+        query.isBlank() -> false
+        searching -> false
+        stories.isNotEmpty() -> false
+        failures.isNotEmpty() -> false
+        globalFailure != null -> false
+        else -> true
+    }
 
 @Composable
 private fun FailureBanner(title: String, code: String, modifier: Modifier = Modifier) {

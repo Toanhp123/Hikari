@@ -21,7 +21,13 @@ internal fun StoryOverview(story: StoryUiModel, compact: Boolean = false, modifi
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         story.description?.takeIf(String::isNotBlank)?.let { description ->
-            item { Text(description, style = MaterialTheme.typography.bodyLarge, maxLines = if (compact) 7 else Int.MAX_VALUE) }
+            item {
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = if (compact) COMPACT_DESCRIPTION_LINES else Int.MAX_VALUE,
+                )
+            }
         }
         item { MetadataGroup("Authors", story.authors) }
         item { MetadataGroup("Genres", story.genres) }
@@ -29,6 +35,8 @@ internal fun StoryOverview(story: StoryUiModel, compact: Boolean = false, modifi
         item { MetadataGroup("Also known as", story.aliases) }
     }
 }
+
+private const val COMPACT_DESCRIPTION_LINES = 7
 
 @Composable
 private fun MetadataGroup(title: String, values: Set<String>) {

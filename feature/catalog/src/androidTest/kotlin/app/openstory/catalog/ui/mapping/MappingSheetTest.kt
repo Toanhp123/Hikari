@@ -1,6 +1,7 @@
 package app.openstory.catalog.ui.mapping
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -32,20 +33,24 @@ class MappingSheetTest {
         var rejected: Pair<PluginId, String>? = null
         compose.setContent {
             HikariTheme {
-                MappingSheet(
-                    state = stateWithCandidate(),
-                    actions = MappingActions(
-                        onApprove = { pluginId, sourceStoryId -> approved = pluginId to sourceStoryId },
-                        onReject = { pluginId, sourceStoryId -> rejected = pluginId to sourceStoryId },
-                    ),
-                )
+                LazyColumn {
+                    item {
+                        MappingSheet(
+                            state = stateWithCandidate(),
+                            actions = MappingActions(
+                                onApprove = { pluginId, sourceStoryId -> approved = pluginId to sourceStoryId },
+                                onReject = { pluginId, sourceStoryId -> rejected = pluginId to sourceStoryId },
+                            ),
+                        )
+                    }
+                }
             }
         }
 
         compose.onAllNodesWithText("- Title 100%").assertCountEquals(1)
         compose.onAllNodesWithText("- Content type match").assertCountEquals(1)
-        compose.onNodeWithText("Approve").performClick()
-        compose.onNodeWithText("Reject").performClick()
+        compose.onNodeWithText("Approve").performScrollTo().performClick()
+        compose.onNodeWithText("Reject").performScrollTo().performClick()
 
         val expected = PluginId("org.example.reader") to "source-1"
         assertEquals(expected, approved)

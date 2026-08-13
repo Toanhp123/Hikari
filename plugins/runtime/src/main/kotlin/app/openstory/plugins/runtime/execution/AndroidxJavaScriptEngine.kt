@@ -141,11 +141,13 @@ private fun buildInvocationScript(
     input: JsonElement,
 ): String {
     val segments = operation.wireName.split('.').joinToString(separator = ",") { JsonPrimitive(it).toString() }
-    return """
+    return invocationScript(source, input, segments)
+}
+
+private fun invocationScript(source: String, input: JsonElement, segments: String): String = """
         (async () => {
           const port = await android.getNamedPort("$BRIDGE_PORT");
-          const pending = new Map();
-          const bridgeFailureMarker = Symbol("openstory.bridgeFailure");
+          const pending = new Map(), bridgeFailureMarker = Symbol("openstory.bridgeFailure");
           let nextCallId = 0;
           port.onmessage = event => {
             const response = JSON.parse(event.data);
@@ -192,7 +194,6 @@ private fun buildInvocationScript(
           }
         })()
     """.trimIndent()
-}
 
 private suspend fun <T> ListenableFuture<T>.await(): T = suspendCancellableCoroutine { continuation ->
     addListener(

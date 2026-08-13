@@ -2,6 +2,7 @@ package app.openstory.catalog.ui.library
 
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -37,7 +38,9 @@ class LibraryScreenTest {
         ).assertIsDisplayed()
         compose.onNodeWithText("Want to read").assertIsDisplayed()
         compose.onNodeWithText("64% read").assertIsDisplayed()
-        compose.onNodeWithText("No source linked").assertIsDisplayed()
+        compose.onNodeWithContentDescription(
+            "Fixture Novel. Want to read. 64% read. No source linked.",
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -50,7 +53,7 @@ class LibraryScreenTest {
             inputModeManager.requestInputMode(InputMode.Keyboard)
             firstFilterFocus.requestFocus()
         }
-        compose.onNodeWithTag("library-query").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithTag("library-query").assertIsFocused().performKeyInput { pressKey(Key.Tab) }
         compose.onNodeWithTag("library-status-all").assertHeightIsAtLeast(48.dp).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
         compose.onNodeWithTag("library-source-all").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
@@ -80,11 +83,18 @@ class LibraryScreenTest {
 
     @Test
     fun trueAndFilteredEmptyStatesRemainDistinct() {
-        show(fixtureState().copy(items = emptyList(), totalCount = 0))
+        val state = mutableStateOf(fixtureState().copy(items = emptyList(), totalCount = 0))
+        compose.setContent {
+            HikariTheme {
+                LibraryScreen(state.value, {}, {}, {}, {}, {}, {}, {}, {})
+            }
+        }
         compose.onNodeWithText("Your Library is empty").assertIsDisplayed()
         compose.onNodeWithText("Discover stories").assertIsDisplayed()
 
-        show(fixtureState().copy(items = emptyList(), totalCount = 4, query = "missing"))
+        compose.runOnIdle {
+            state.value = fixtureState().copy(items = emptyList(), totalCount = 4, query = "missing")
+        }
         compose.onNodeWithText("No stories match these filters").assertIsDisplayed()
         compose.onNodeWithText("Clear filters").assertIsDisplayed()
     }
@@ -102,7 +112,7 @@ class LibraryScreenTest {
             inputModeManager.requestInputMode(InputMode.Keyboard)
             firstFilterFocus.requestFocus()
         }
-        compose.onNodeWithTag("library-query").performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithTag("library-query").performKeyInput { pressKey(Key.Tab) }
         compose.onNodeWithTag("library-status-all").performKeyInput { pressKey(Key.DirectionDown) }
         compose.onNodeWithTag("library-source-all").performKeyInput { pressKey(Key.DirectionDown) }
         compose.onNodeWithTag("library-sort-last_activity").performKeyInput { pressKey(Key.DirectionDown) }

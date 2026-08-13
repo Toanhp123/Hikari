@@ -2,6 +2,7 @@ package app.openstory.catalog.ui.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,28 +73,41 @@ fun LibraryScreen(
                 displayFocusRequester = displayFocus,
                 contentFocusRequester = contentFocus,
             )
-            when {
-                state.loading -> HikariLoadingState(
-                    label = "Loading your Library",
-                    modifier = Modifier.focusRequester(contentFocus),
-                )
-                state.totalCount == 0 -> LibraryEmptyState(
-                    title = "Your Library is empty",
-                    message = "Save stories to build a personal reading collection.",
-                    actionLabel = "Discover stories",
-                    onAction = onDiscover,
-                    focusRequester = contentFocus,
-                )
-                state.items.isEmpty() -> LibraryEmptyState(
-                    title = "No stories match these filters",
-                    message = "Try a different status, source state, or search.",
-                    actionLabel = "Clear filters",
-                    onAction = onClearFilters,
-                    focusRequester = contentFocus,
-                )
-                else -> LibraryCollection(state, contentFocus, onStorySelected)
+            Box(Modifier.weight(1f)) {
+                LibraryContent(state, contentFocus, onClearFilters, onDiscover, onStorySelected)
             }
         }
+    }
+}
+
+@Composable
+private fun LibraryContent(
+    state: LibraryUiState,
+    focusRequester: FocusRequester,
+    onClearFilters: () -> Unit,
+    onDiscover: () -> Unit,
+    onStorySelected: (StoryId) -> Unit,
+) {
+    when {
+        state.loading -> HikariLoadingState(
+            label = "Loading your Library",
+            modifier = Modifier.focusRequester(focusRequester),
+        )
+        state.totalCount == 0 -> LibraryEmptyState(
+            "Your Library is empty",
+            "Save stories to build a personal reading collection.",
+            "Discover stories",
+            onDiscover,
+            focusRequester,
+        )
+        state.items.isEmpty() -> LibraryEmptyState(
+            "No stories match these filters",
+            "Try a different status, source state, or search.",
+            "Clear filters",
+            onClearFilters,
+            focusRequester,
+        )
+        else -> LibraryCollection(state, focusRequester, onStorySelected)
     }
 }
 

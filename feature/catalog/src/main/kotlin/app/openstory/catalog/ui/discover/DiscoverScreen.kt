@@ -55,118 +55,179 @@ fun DiscoverScreen(
             contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.extraLarge),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
         ) {
-        item("discover-search") {
-            Box(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .optionalFocusRequester(searchFocusRequester)
-                    .optionalNextFocus(searchNextFocusRequester)
-                    .clickable(role = Role.Button, onClick = onSearch)
-                    .semantics {
-                        contentDescription = "Search all stories"
-                        traversalIndex = 0f
-                    }
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-            ) { Text("Search all stories", style = MaterialTheme.typography.titleMedium) }
-        }
-        state.featured?.let { featured ->
-            item("discover-featured") { DiscoverHero(featured, onStorySelected) }
-        }
-        if (state.quickCategories.isNotEmpty()) {
-            item("discover-categories") {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(state.quickCategories, key = DiscoverQuickCategory::key) { category ->
-                        val isFirstCategory = category == state.quickCategories.first()
-                        FilterChip(
-                            selected = state.selectedCatalogId == category.pluginId &&
-                                state.selectedSourceId == category.sourceId,
-                            onClick = { onCategorySelected(category) },
-                            label = { Text(category.label) },
-                            modifier = Modifier.heightIn(min = 48.dp)
-                                .then(
-                                    if (isFirstCategory) {
-                                        Modifier.optionalFocusRequester(categoryFocusRequester)
-                                            .optionalNextFocus(categoryNextFocusRequester)
-                                    } else {
-                                        Modifier
-                                    },
-                                ).semantics {
-                                contentDescription = "Category ${category.label} from ${category.pluginId.value}"
-                                traversalIndex = 2f
-                            },
-                        )
-                    }
-                }
+            item("discover-search") {
+                DiscoverSearch(onSearch, searchFocusRequester, searchNextFocusRequester)
             }
-        }
-        item("discover-sources") {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item("combined") {
-                    FilterChip(
-                        state.selectedCatalogId == null,
-                        onCombinedSelected,
-                        { Text("Across catalogs") },
-                        Modifier
-                            .then(
-                                if (state.quickCategories.isEmpty()) {
-                                    Modifier.optionalFocusRequester(categoryFocusRequester)
-                                } else {
-                                    Modifier
-                                },
-                            )
-                            .optionalFocusRequester(catalogFocusRequester)
-                            .semantics { traversalIndex = 3f },
-                    )
-                }
-                items(state.catalogs, key = { it.pluginId.value }) { catalog ->
-                    FilterChip(
-                        selected = state.selectedCatalogId == catalog.pluginId,
-                        onClick = { onCatalogSelected(catalog.pluginId) },
-                        label = { Text(catalog.pluginId.value) },
-                        modifier = Modifier.semantics { traversalIndex = 3f },
+            state.featured?.let { featured ->
+                item("discover-featured") { DiscoverHero(featured, onStorySelected) }
+            }
+            quickCategoryItem(
+                state,
+                onCategorySelected,
+                categoryFocusRequester,
+                categoryNextFocusRequester,
+            )
+            sourceFilterItem(
+                state,
+                onCatalogSelected,
+                onCombinedSelected,
+                categoryFocusRequester,
+                catalogFocusRequester,
+            )
+            discoverFeedbackItems(state)
+            state.shelves.forEach { shelf ->
+                item("discover-shelf-${shelf.key}") {
+                    StoryShelf(
+                        title = shelf.title,
+                        entries = shelf.entries,
+                        onSelected = onStorySelected,
+                        modifier = Modifier.padding(horizontal = 20.dp),
                     )
                 }
             }
+            item("discover-refresh-action") { RefreshAction(state.refreshing, onRefresh) }
         }
-        if (state.refreshing) {
-            item("discover-refreshing") {
-                LinearProgressIndicator(
-                    Modifier.fillMaxWidth().semantics { contentDescription = "Refreshing Discover" },
+    }
+}
+
+@Composable
+private fun DiscoverSearch(
+    onSearch: () -> Unit,
+    focusRequester: FocusRequester?,
+    nextFocusRequester: FocusRequester?,
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .optionalFocusRequester(focusRequester)
+            .optionalNextFocus(nextFocusRequester)
+            .clickable(role = Role.Button, onClick = onSearch)
+            .semantics {
+                contentDescription = "Search all stories"
+                traversalIndex = 0f
+            }
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+    ) { Text("Search all stories", style = MaterialTheme.typography.titleMedium) }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.quickCategoryItem(
+    state: DiscoverUiState,
+    onSelected: (DiscoverQuickCategory) -> Unit,
+    focusRequester: FocusRequester?,
+    nextFocusRequester: FocusRequester?,
+) {
+    if (state.quickCategories.isEmpty()) return
+    item("discover-categories") {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(state.quickCategories, key = DiscoverQuickCategory::key) { category ->
+                val focusModifier = if (category == state.quickCategories.first()) {
+                    Modifier.optionalFocusRequester(focusRequester)
+                        .optionalNextFocus(nextFocusRequester)
+                } else {
+                    Modifier
+                }
+                FilterChip(
+                    selected = state.selectedCatalogId == category.pluginId &&
+                        state.selectedSourceId == category.sourceId,
+                    onClick = { onSelected(category) },
+                    label = { Text(category.label) },
+                    modifier = focusModifier.heightIn(min = 48.dp).semantics {
+                        contentDescription =
+                            "Category ${category.label} from ${category.pluginId.value}"
+                        traversalIndex = CATEGORY_TRAVERSAL_INDEX
+                    },
                 )
             }
         }
-        state.globalFailure?.let { failure ->
-            item("discover-global-failure") { Text(failure.code, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp)) }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.sourceFilterItem(
+    state: DiscoverUiState,
+    onCatalogSelected: (PluginId) -> Unit,
+    onCombinedSelected: () -> Unit,
+    categoryFocusRequester: FocusRequester?,
+    catalogFocusRequester: FocusRequester?,
+) = item("discover-sources") {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item("combined") {
+            FilterChip(
+                state.selectedCatalogId == null,
+                onCombinedSelected,
+                { Text("Across catalogs") },
+                Modifier
+                    .then(
+                        if (state.quickCategories.isEmpty()) {
+                            Modifier.optionalFocusRequester(categoryFocusRequester)
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .optionalFocusRequester(catalogFocusRequester)
+                    .semantics { traversalIndex = CATALOG_TRAVERSAL_INDEX },
+            )
         }
-        state.refreshReport?.failed?.keys?.sortedBy { it.value }?.forEach { pluginId ->
-            item("discover-failure-${pluginId.value}") {
-                Text("${pluginId.value} refresh failed; cached content is still available.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp))
-            }
+        items(state.catalogs, key = { it.pluginId.value }) { catalog ->
+            FilterChip(
+                selected = state.selectedCatalogId == catalog.pluginId,
+                onClick = { onCatalogSelected(catalog.pluginId) },
+                label = { Text(catalog.pluginId.value) },
+                modifier = Modifier.semantics { traversalIndex = CATALOG_TRAVERSAL_INDEX },
+            )
         }
-        state.shelves.forEach { shelf ->
-            item("discover-shelf-${shelf.key}") {
-                StoryShelf(
-                    title = shelf.title,
-                    entries = shelf.entries,
-                    onSelected = onStorySelected,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
-            }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.discoverFeedbackItems(
+    state: DiscoverUiState,
+) {
+    if (state.refreshing) {
+        item("discover-refreshing") {
+            LinearProgressIndicator(
+                Modifier.fillMaxWidth().semantics { contentDescription = "Refreshing Discover" },
+            )
         }
-        item("discover-refresh-action") {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End) {
-                Text(
-                    "Refresh",
-                    modifier = Modifier.heightIn(min = 48.dp).clickable(enabled = !state.refreshing, onClick = onRefresh).padding(14.dp),
-                )
-            }
+    }
+    state.globalFailure?.let { failure ->
+        item("discover-global-failure") {
+            Text(
+                failure.code,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
         }
+    }
+    state.refreshReport?.failed?.keys?.sortedBy { it.value }?.forEach { pluginId ->
+        item("discover-failure-${pluginId.value}") {
+            Text(
+                "${pluginId.value} refresh failed; cached content is still available.",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
         }
+    }
+}
+
+@Composable
+private fun RefreshAction(refreshing: Boolean, onRefresh: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Text(
+            "Refresh",
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clickable(enabled = !refreshing, onClick = onRefresh)
+                .padding(14.dp),
+        )
     }
 }
 
@@ -180,3 +241,6 @@ private fun Modifier.optionalNextFocus(requester: FocusRequester?): Modifier =
             down = nextRequester
         }
     } ?: this
+
+private const val CATEGORY_TRAVERSAL_INDEX = 2f
+private const val CATALOG_TRAVERSAL_INDEX = 3f

@@ -33,8 +33,14 @@ fun DownloadActionSheet(
                 TextButton(onClick = { actions.onCancel(releaseId) }, modifier = actionModifier) { Text("Cancel") }
             DownloadState.FAILED, DownloadState.CANCELLED ->
                 TextButton(onClick = { actions.onRetry(releaseId) }, modifier = actionModifier) { Text("Retry") }
-            DownloadState.COMPLETED -> TextButton(onClick = { actions.onRemove(releaseId) }, modifier = actionModifier) { Text("Remove offline") }
-            null -> TextButton(onClick = { actions.onDownload(releaseId) }, modifier = actionModifier) { Text("Download") }
+            DownloadState.COMPLETED -> TextButton(
+                onClick = { actions.onRemove(releaseId) },
+                modifier = actionModifier,
+            ) { Text("Remove offline") }
+            null -> TextButton(
+                onClick = { actions.onDownload(releaseId) },
+                modifier = actionModifier,
+            ) { Text("Download") }
         }
     }
     if (pendingRemoval) {

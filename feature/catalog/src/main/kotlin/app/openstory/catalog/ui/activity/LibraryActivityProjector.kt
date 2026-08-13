@@ -39,7 +39,9 @@ open class LibraryActivityProjector @Inject constructor() {
             .flatMap { group -> group.releases.map { release -> group.chapter.id to release } }
             .asSequence()
             .filter { (_, release) -> release.storyId in libraryStories }
-            .filter { (_, release) -> Triple(release.storyId, release.pluginId, release.sourceStoryId) in mappedSources }
+            .filter { (_, release) ->
+                Triple(release.storyId, release.pluginId, release.sourceStoryId) in mappedSources
+            }
             .distinctBy { (_, release) -> release.id }
             .map { (chapterId, release) ->
                 val projection = catalogByStory[release.storyId]

@@ -4,10 +4,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasImeAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.text.input.ImeAction
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
@@ -140,8 +142,30 @@ class SearchScreenTest {
             }
         }
 
-        compose.onNodeWithText("Runtime filter 8").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Fixture Novel").performScrollTo().assertIsDisplayed()
+        val content = compose.onNodeWithTag("search-content")
+        content.performScrollToKey("search-filter-catalog.long-filter-8")
+        compose.onNodeWithText("Runtime filter 8").assertIsDisplayed()
+        content.performScrollToKey("story-1")
+        compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
+    }
+
+    @Test
+    fun completedSearchWithoutResultsShowsDistinctEmptyState() {
+        compose.setContent {
+            HikariTheme {
+                SearchScreen(
+                    state = SearchUiState(query = "missing title"),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("No matches found").assertIsDisplayed()
+        compose.onNodeWithText("Try another title, author, or alias.").assertIsDisplayed()
     }
 }
 

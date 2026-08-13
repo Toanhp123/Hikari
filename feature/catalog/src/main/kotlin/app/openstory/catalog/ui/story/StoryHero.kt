@@ -58,11 +58,34 @@ internal fun StoryHero(
                 onLibraryStatusSelected, onRead, onDownload,
                 Modifier.align(Alignment.BottomStart),
             )
-        } else Row(
-                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(20.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
+        } else {
+            WideHeroContent(
+                story, artwork, libraryStatus, readerTarget, isResume, downloadableReleaseId,
+                onLibraryStatusSelected, onRead, onDownload,
+                Modifier.align(Alignment.BottomStart),
+            )
+        }
+    }
+}
+
+@Composable
+private fun WideHeroContent(
+    story: StoryUiModel,
+    artwork: app.openstory.designsystem.artwork.HikariArtworkState,
+    libraryStatus: LibraryStatus?,
+    readerTarget: ReaderTarget?,
+    isResume: Boolean,
+    downloadableReleaseId: ChapterReleaseId?,
+    onLibraryStatusSelected: (LibraryStatus?) -> Unit,
+    onRead: (ReaderTarget) -> Unit,
+    onDownload: (ChapterReleaseId) -> Unit,
+    modifier: Modifier,
+) {
+    Row(
+        modifier.fillMaxWidth().padding(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
             HikariArtwork(
                 artwork,
                 "${story.preferredTitle} cover",
@@ -77,7 +100,7 @@ internal fun StoryHero(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    listOfNotNull(story.contentType.label(), story.score?.let { "${it.value}/${it.scale}" }).joinToString(" · "),
+                    story.metadataLabel(),
                     color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -98,7 +121,6 @@ internal fun StoryHero(
                 }
                 LibraryStatusMenu(libraryStatus, onLibraryStatusSelected)
             }
-        }
     }
 }
 
@@ -122,9 +144,14 @@ private fun NarrowHeroContent(
                 Modifier.size(width = 88.dp, height = 128.dp).clip(MaterialTheme.shapes.medium),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(story.preferredTitle, style = MaterialTheme.typography.titleLarge, color = androidx.compose.ui.graphics.Color.White, maxLines = 3)
                 Text(
-                    listOfNotNull(story.contentType.label(), story.score?.let { "${it.value}/${it.scale}" }).joinToString(" · "),
+                    story.preferredTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    maxLines = 3,
+                )
+                Text(
+                    story.metadataLabel(),
                     color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f),
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -166,7 +193,10 @@ private fun LibraryStatusMenu(status: LibraryStatus?, onSelected: (LibraryStatus
                 )
             }
             if (status != null) {
-                DropdownMenuItem(text = { Text("Remove from Library") }, onClick = { expanded = false; onSelected(null) })
+                DropdownMenuItem(
+                    text = { Text("Remove from Library") },
+                    onClick = { expanded = false; onSelected(null) },
+                )
             }
         }
     }
@@ -175,3 +205,6 @@ private fun LibraryStatusMenu(status: LibraryStatus?, onSelected: (LibraryStatus
 private fun LibraryStatus.label() = name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
 
 private fun ContentType.label() = name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+
+private fun StoryUiModel.metadataLabel(): String =
+    listOfNotNull(contentType.label(), score?.let { "${it.value}/${it.scale}" }).joinToString(" · ")

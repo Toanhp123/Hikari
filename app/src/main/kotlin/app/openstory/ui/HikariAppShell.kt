@@ -13,10 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -51,37 +47,13 @@ fun HikariAppShell(
         if (shouldShowFloatingNavigation(currentRoute)) {
             val selectedRoute = requireNotNull(currentRoute)
             Box(Modifier.fillMaxSize()) {
-                HikariGlassSurface(
-                    backdropScope = this@HikariBackdropHost,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .statusBarsPadding()
-                        .padding(16.dp)
-                        .size(48.dp)
-                        .then(utilityFocusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
-                        .then(
-                            utilityNextFocusRequester?.let { nextRequester ->
-                                Modifier.focusProperties {
-                                    next = nextRequester
-                                    down = nextRequester
-                                }
-                            } ?: Modifier,
-                        )
-                        .clickable(role = Role.Button, onClick = onUtilityRequested)
-                        .semantics {
-                            contentDescription = "Open quick access"
-                            traversalIndex = 1f
-                        },
-                    shape = CircleShape,
-                ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "HK",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                }
+                UtilityButton(
+                    this@HikariBackdropHost,
+                    onUtilityRequested,
+                    utilityFocusRequester,
+                    utilityNextFocusRequester,
+                    Modifier.align(Alignment.TopEnd),
+                )
                 HikariFloatingNavigation(
                     items = navigationItems,
                     selectedKey = selectedRoute.key,
@@ -96,6 +68,39 @@ fun HikariAppShell(
                     backdropScope = this@HikariBackdropHost,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun UtilityButton(
+    backdropScope: app.openstory.designsystem.glass.HikariBackdropScope,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester?,
+    nextFocusRequester: FocusRequester?,
+    modifier: Modifier,
+) {
+    HikariGlassSurface(
+        backdropScope = backdropScope,
+        modifier = modifier
+            .statusBarsPadding()
+            .padding(16.dp)
+            .size(48.dp)
+            .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
+            .then(
+                nextFocusRequester?.let { nextRequester ->
+                    Modifier.focusProperties { next = nextRequester; down = nextRequester }
+                } ?: Modifier,
+            )
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics {
+                contentDescription = "Open quick access"
+                traversalIndex = 1f
+            },
+        shape = CircleShape,
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("HK", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -117,35 +122,6 @@ private val navigationItems = topLevelDestinations.map { destination ->
     HikariNavigationItem(
         key = destination.route.key,
         label = destination.label,
-        icon = navigationIcon(destination),
+        icon = destination.navigationIcon,
     )
 }
-
-private fun navigationIcon(destination: TopLevelDestination): ImageVector = ImageVector.Builder(
-    name = destination.label,
-    defaultWidth = 24.dp,
-    defaultHeight = 24.dp,
-    viewportWidth = 24f,
-    viewportHeight = 24f,
-).apply {
-    path(fill = SolidColor(Color.White)) {
-        when (destination) {
-            TopLevelDestination.Discover -> {
-                moveTo(12f, 2f); lineTo(15f, 9f); lineTo(22f, 12f)
-                lineTo(15f, 15f); lineTo(12f, 22f); lineTo(9f, 15f)
-                lineTo(2f, 12f); lineTo(9f, 9f); close()
-            }
-            TopLevelDestination.Home -> {
-                moveTo(3f, 11f); lineTo(12f, 3f); lineTo(21f, 11f)
-                lineTo(19f, 11f); lineTo(19f, 21f); lineTo(5f, 21f)
-                lineTo(5f, 11f); close()
-            }
-            TopLevelDestination.Library -> {
-                moveTo(3f, 4f); lineTo(10f, 4f); lineTo(12f, 6f)
-                lineTo(14f, 4f); lineTo(21f, 4f); lineTo(21f, 20f)
-                lineTo(14f, 20f); lineTo(12f, 18f); lineTo(10f, 20f)
-                lineTo(3f, 20f); close()
-            }
-        }
-    }
-}.build()

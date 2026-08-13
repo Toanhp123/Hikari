@@ -65,4 +65,6 @@ class UpdatesViewModel @Inject constructor(
 }
 
 private val updateDateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy").withZone(ZoneOffset.UTC)
-private fun Long?.dateLabel(): String = this?.let { updateDateFormatter.format(Instant.ofEpochMilli(it)) } ?: "Unknown date"
+private fun Long?.dateLabel(): String = this
+    ?.let { updateDateFormatter.format(Instant.ofEpochMilli(it)) }
+    ?: "Unknown date"

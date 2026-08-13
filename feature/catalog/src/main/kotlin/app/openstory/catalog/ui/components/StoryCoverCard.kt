@@ -34,7 +34,7 @@ fun StoryCoverCard(
         onClick = { onSelected(entry.storyId) },
         modifier = modifier.width(168.dp).semantics(mergeDescendants = true) {
             contentDescription = entry.accessibilityDescription(sectionTitle)
-            traversalIndex = 4f
+            traversalIndex = STORY_CARD_TRAVERSAL_INDEX
         },
     ) {
         Column(
@@ -49,7 +49,12 @@ fun StoryCoverCard(
                 contentDescription = "${entry.title} cover",
                 modifier = Modifier.fillMaxWidth().height(210.dp),
             )
-            Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = entry.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(entry.contentType.displayName(), style = MaterialTheme.typography.labelMedium)
         }
     }
@@ -66,3 +71,5 @@ private fun CatalogEntry.accessibilityDescription(sectionTitle: String): String 
 private fun ContentType.displayName(): String = name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase)
 
 private fun Double.toAccessibleNumber(): String = if (this % 1.0 == 0.0) toLong().toString() else toString()
+
+private const val STORY_CARD_TRAVERSAL_INDEX = 4f

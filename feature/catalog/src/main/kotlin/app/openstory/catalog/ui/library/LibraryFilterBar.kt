@@ -37,88 +37,142 @@ internal fun LibraryFilterBar(
     contentFocusRequester: FocusRequester,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = onQueryChange,
-            label = { Text("Search your Library") },
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .heightIn(min = 48.dp)
-                .focusRequester(firstFilterFocusRequester)
-                .focusProperties { down = statusFocusRequester }
-                .testTag("library-query"),
+        LibraryQuery(
+            state.query,
+            onQueryChange,
+            firstFilterFocusRequester,
+            statusFocusRequester,
         )
-        FilterRow {
-            LibraryChip(
-                selected = state.selectedStatus == null,
-                label = "All ${state.totalCount}",
-                tag = "library-status-all",
-                onClick = { onStatusSelected(null) },
-                modifier = Modifier.focusRequester(statusFocusRequester).focusProperties { down = sourceFocusRequester },
-            )
-            LibraryStatus.entries.forEach { status ->
-                LibraryChip(
-                    selected = state.selectedStatus == status,
-                    label = "${status.label()} ${state.statusCounts[status] ?: 0}",
-                    tag = "library-status-${status.name.lowercase()}",
-                    onClick = { onStatusSelected(status) },
-                    modifier = Modifier.focusProperties { down = sourceFocusRequester },
-                )
-            }
-        }
-        FilterRow {
-            LibraryChip(
-                selected = state.sourceFilter == null,
-                label = "All sources",
-                tag = "library-source-all",
-                onClick = { onSourceFilterSelected(null) },
-                modifier = Modifier.focusRequester(sourceFocusRequester).focusProperties { down = sortFocusRequester },
-            )
-            listOf(LibrarySourceState.LINKED, LibrarySourceState.NO_MAPPING).forEach { source ->
-                LibraryChip(
-                    selected = state.sourceFilter == source,
-                    label = source.label(),
-                    tag = "library-source-${source.name.lowercase()}",
-                    onClick = { onSourceFilterSelected(source) },
-                    modifier = Modifier.focusProperties { down = sortFocusRequester },
-                )
-            }
-        }
-        FilterRow {
-            LibrarySort.entries.forEachIndexed { index, sort ->
-                LibraryChip(
-                    selected = state.sort == sort,
-                    label = sort.label(),
-                    tag = "library-sort-${sort.name.lowercase()}",
-                    onClick = { onSortSelected(sort) },
-                    modifier = Modifier
-                        .then(if (index == 0) Modifier.focusRequester(sortFocusRequester) else Modifier)
-                        .focusProperties { down = displayFocusRequester },
-                )
-            }
-        }
-        FilterRow {
-            LibraryDisplayMode.entries.forEachIndexed { index, mode ->
-                LibraryChip(
-                    selected = state.displayMode == mode,
-                    label = mode.label(),
-                    tag = "library-display-${mode.name.lowercase()}",
-                    onClick = { onDisplayModeSelected(mode) },
-                    modifier = Modifier
-                        .then(if (index == 0) Modifier.focusRequester(displayFocusRequester) else Modifier)
-                        .focusProperties { down = contentFocusRequester },
-                )
-            }
-        }
+        StatusFilters(state, onStatusSelected, statusFocusRequester, sourceFocusRequester)
+        SourceFilters(state, onSourceFilterSelected, sourceFocusRequester, sortFocusRequester)
+        SortFilters(state, onSortSelected, sortFocusRequester, displayFocusRequester)
+        DisplayFilters(state, onDisplayModeSelected, displayFocusRequester, contentFocusRequester)
+    }
+}
+
+@Composable
+private fun LibraryQuery(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    focusRequester: FocusRequester,
+    downFocusRequester: FocusRequester,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        label = { Text("Search your Library") },
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .heightIn(min = 48.dp)
+            .focusRequester(focusRequester)
+            .focusProperties { down = downFocusRequester }
+            .testTag("library-query"),
+    )
+}
+
+@Composable
+private fun StatusFilters(
+    state: LibraryUiState,
+    onSelected: (LibraryStatus?) -> Unit,
+    focusRequester: FocusRequester,
+    downFocusRequester: FocusRequester,
+) = FilterRow {
+    LibraryChip(
+        selected = state.selectedStatus == null,
+        label = "All ${state.totalCount}",
+        tag = "library-status-all",
+        onClick = { onSelected(null) },
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusProperties { down = downFocusRequester },
+    )
+    LibraryStatus.entries.forEach { status ->
+        LibraryChip(
+            selected = state.selectedStatus == status,
+            label = "${status.label()} ${state.statusCounts[status] ?: 0}",
+            tag = "library-status-${status.name.lowercase()}",
+            onClick = { onSelected(status) },
+            modifier = Modifier.focusProperties { down = downFocusRequester },
+        )
+    }
+}
+
+@Composable
+private fun SourceFilters(
+    state: LibraryUiState,
+    onSelected: (LibrarySourceState?) -> Unit,
+    focusRequester: FocusRequester,
+    downFocusRequester: FocusRequester,
+) = FilterRow {
+    LibraryChip(
+        selected = state.sourceFilter == null,
+        label = "All sources",
+        tag = "library-source-all",
+        onClick = { onSelected(null) },
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusProperties { down = downFocusRequester },
+    )
+    listOf(LibrarySourceState.LINKED, LibrarySourceState.NO_MAPPING).forEach { source ->
+        LibraryChip(
+            selected = state.sourceFilter == source,
+            label = source.label(),
+            tag = "library-source-${source.name.lowercase()}",
+            onClick = { onSelected(source) },
+            modifier = Modifier.focusProperties { down = downFocusRequester },
+        )
+    }
+}
+
+@Composable
+private fun SortFilters(
+    state: LibraryUiState,
+    onSelected: (LibrarySort) -> Unit,
+    focusRequester: FocusRequester,
+    downFocusRequester: FocusRequester,
+) = FilterRow {
+    LibrarySort.entries.forEachIndexed { index, sort ->
+        LibraryChip(
+            selected = state.sort == sort,
+            label = sort.label(),
+            tag = "library-sort-${sort.name.lowercase()}",
+            onClick = { onSelected(sort) },
+            modifier = Modifier
+                .then(if (index == 0) Modifier.focusRequester(focusRequester) else Modifier)
+                .focusProperties { down = downFocusRequester },
+        )
+    }
+}
+
+@Composable
+private fun DisplayFilters(
+    state: LibraryUiState,
+    onSelected: (LibraryDisplayMode) -> Unit,
+    focusRequester: FocusRequester,
+    downFocusRequester: FocusRequester,
+) = FilterRow {
+    LibraryDisplayMode.entries.forEachIndexed { index, mode ->
+        LibraryChip(
+            selected = state.displayMode == mode,
+            label = mode.label(),
+            tag = "library-display-${mode.name.lowercase()}",
+            onClick = { onSelected(mode) },
+            modifier = Modifier
+                .then(if (index == 0) Modifier.focusRequester(focusRequester) else Modifier)
+                .focusProperties { down = downFocusRequester },
+        )
     }
 }
 
 @Composable
 private fun FilterRow(content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )

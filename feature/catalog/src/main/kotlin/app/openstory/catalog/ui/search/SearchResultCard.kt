@@ -38,7 +38,9 @@ fun SearchResultCard(
 ) {
     val primary = result.sources.firstOrNull()
     val title = primary?.title ?: "Untitled story"
-    val artwork = rememberHikariArtwork(HikariArtworkModel(primary?.coverUrl, result.story.id.value, title))
+    val artwork = rememberHikariArtwork(
+        HikariArtworkModel(primary?.coverUrl, result.story.id.value, title),
+    )
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -57,40 +59,49 @@ fun SearchResultCard(
             HikariCoverCardFrame(Modifier.width(68.dp)) {
                 HikariArtwork(artwork, "$title cover", Modifier.matchParentSize())
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
+            SearchResultMetadata(result, primary, title, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun SearchResultMetadata(
+    result: CatalogSearchStory,
+    primary: CatalogSearchSourceCard?,
+    title: String,
+    modifier: Modifier,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            HikariMetadataBadge(result.story.contentType.displayName())
+            primary?.score?.let {
+                HikariMetadataBadge("${formatScore(it.value)}/${formatScore(it.scale)}")
+            }
+        }
+        primary?.authors?.takeIf(Set<String>::isNotEmpty)?.let { authors ->
+            Text(
+                authors.sorted().joinToString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            result.sources.take(MAX_VISIBLE_SOURCES).forEachIndexed { index, source ->
+                if (index > 0) Spacer(Modifier.size(6.dp))
                 Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    source.displayLabel(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HikariMetadataBadge(result.story.contentType.displayName())
-                    primary?.score?.let { HikariMetadataBadge("${formatScore(it.value)}/${formatScore(it.scale)}") }
-                }
-                primary?.authors?.takeIf(Set<String>::isNotEmpty)?.let { authors ->
-                    Text(
-                        authors.sorted().joinToString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    result.sources.take(3).forEachIndexed { index, source ->
-                        if (index > 0) Spacer(Modifier.size(6.dp))
-                        Text(
-                            source.displayLabel(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
             }
         }
     }
@@ -120,3 +131,5 @@ private fun formatScore(value: Double): String {
     val whole = value.toLong()
     return if (value == whole.toDouble()) whole.toString() else value.toString()
 }
+
+private const val MAX_VISIBLE_SOURCES = 3

@@ -64,15 +64,26 @@ internal fun LibraryStoryCard(
 
 @Composable
 private fun Artwork(item: LibraryItemUiModel, modifier: Modifier) {
-    val artwork = rememberHikariArtwork(HikariArtworkModel(item.coverUrl, item.storyId.value, item.title))
+    val artwork = rememberHikariArtwork(
+        HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
+    )
     HikariArtwork(artwork, null, modifier)
 }
 
 @Composable
 private fun StoryMetadata(item: LibraryItemUiModel, progress: Float?, modifier: Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(item.status.label(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(
+            item.title,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            item.status.label(),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
         if (progress != null) {
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
             Text(progress.label(), style = MaterialTheme.typography.labelMedium)
@@ -91,4 +102,6 @@ private fun LibraryItemUiModel.accessibilityDescription(): String = buildString 
     append('.')
 }
 
-private fun Float.label(): String = "${(this * 100).roundToInt()}% read"
+private fun Float.label(): String = "${(this * PERCENT_MULTIPLIER).roundToInt()}% read"
+
+private const val PERCENT_MULTIPLIER = 100
