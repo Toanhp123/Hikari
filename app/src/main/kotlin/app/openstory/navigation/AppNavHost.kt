@@ -60,13 +60,18 @@ fun AppNavHost(
     val utilityFocus = remember { FocusRequester() }
     val discoverCategoryFocus = remember { FocusRequester() }
     val discoverCatalogFocus = remember { FocusRequester() }
+    val libraryFilterFocus = remember { FocusRequester() }
     var showUtilitySheet by remember { mutableStateOf(false) }
     HikariAppShell(
         currentRoute = navigator.currentRoute,
         onTopLevelSelected = navigator::selectTopLevel,
         onUtilityRequested = { showUtilitySheet = true },
         utilityFocusRequester = utilityFocus,
-        utilityNextFocusRequester = discoverCategoryFocus,
+        utilityNextFocusRequester = if (navigator.currentRoute == AppRoute.Library) {
+            libraryFilterFocus
+        } else {
+            discoverCategoryFocus
+        },
         modifier = modifier,
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -115,7 +120,10 @@ fun AppNavHost(
                     }
                 }
                 entry<AppRoute.Library> {
-                    LibraryDestination { storyId ->
+                    LibraryDestination(
+                        onDiscover = { navigator.selectTopLevel(TopLevelDestination.Discover) },
+                        firstFilterFocusRequester = libraryFilterFocus,
+                    ) { storyId ->
                         navigator.navigate(AppRoute.Story(storyId.value))
                     }
                 }
@@ -205,14 +213,24 @@ private fun SearchDestination(onStorySelected: (StoryId) -> Unit) {
 }
 
 @Composable
-private fun LibraryDestination(onStorySelected: (StoryId) -> Unit) {
+private fun LibraryDestination(
+    onDiscover: () -> Unit,
+    firstFilterFocusRequester: FocusRequester,
+    onStorySelected: (StoryId) -> Unit,
+) {
     val viewModel = hiltViewModel<LibraryViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     LibraryScreen(
         state = state,
+        onQueryChange = viewModel::updateQuery,
         onStatusSelected = viewModel::selectStatus,
+        onSourceFilterSelected = viewModel::selectSourceFilter,
         onSortSelected = viewModel::selectSort,
+        onDisplayModeSelected = viewModel::selectDisplayMode,
+        onClearFilters = viewModel::clearFilters,
+        onDiscover = onDiscover,
         onStorySelected = onStorySelected,
+        firstFilterFocusRequester = firstFilterFocusRequester,
         modifier = Modifier.hikariTopLevelContentPadding(),
     )
 }
