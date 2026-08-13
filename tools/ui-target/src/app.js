@@ -250,7 +250,35 @@
       <nav class="detail-tabs">${['Overview', 'Chapters', 'Sources'].map((tab) => `<span class="${tab.toLowerCase() === activeTab ? 'active' : ''}">${tab}</span>`).join('')}</nav>`;
   }
 
+  function mediumStoryLayout() {
+    return `
+      <div class="medium-story-layout">
+        <section class="medium-story-pane">
+          <div class="medium-story-identity">
+            ${cover(story, { hideMeta: true, progress: false, tall: true })}
+            <div><h1>${escapeHtml(story.title)}</h1><p>${escapeHtml(story.type)} · ${escapeHtml(story.score)}/5</p></div>
+          </div>
+          <div class="medium-story-actions"><button class="primary-button">Resume</button><button class="secondary-button">Download</button><button class="secondary-button status-button">Reading</button></div>
+          <p class="medium-story-synopsis">When an apprentice archivist finds a moonlit index that rewrites itself, every borrowed story begins to leave a trail back to its reader.</p>
+          <div class="medium-story-metadata"><strong>Authors</strong>${chip(story.author)}<strong>Genres</strong><div class="badge-row">${story.genres.map((genre) => chip(genre)).join('')}</div><strong>Languages</strong><div class="badge-row">${chip('en')}${chip('ja')}</div><strong>Also known as</strong>${chip(story.shortTitle)}</div>
+        </section>
+        <section class="medium-story-pane medium-chapter-pane">
+          <nav class="detail-tabs">${['Overview', 'Chapters', 'Sources'].map((tab) => `<span class="${tab === 'Chapters' ? 'active' : ''}">${tab}</span>`).join('')}</nav>
+          <div class="medium-chapter-content">
+            <h2>Chapters</h2><p>2 unread chapters</p>
+            <div class="medium-chapter-filters"><div class="filter-scroll">${chip('All', true)}${chip('Multi-source')}${chip('Unavailable')}</div><button class="secondary-button">Download visible</button></div>
+            <article class="medium-release-card glass"><div><strong>Chapter 42 · Lanterns Beyond the Index</strong><small>Unread</small></div>${chip('1 source')}<section><strong>MangaDex</strong><div class="badge-row">${chip('English')}${chip('2h ago')}</div><div class="release-actions"><span>Read</span><span>Download chapter</span><span>Keep grouped</span><span>Separate</span></div></section></article>
+            <article class="medium-release-card glass"><div><strong>Chapter 41 · The Door That Remembers</strong><small>Unread</small></div>${chip('0 sources')}</article>
+          </div>
+        </section>
+      </div>`;
+  }
+
   function renderStoryOverview() {
+    if (targetWidth >= 520) {
+      page(mediumStoryLayout(), { backdrop: story, className: 'focused-screen story-screen medium-story-screen' });
+      return;
+    }
     page(`
       ${storyHeader('overview')}
       <div class="detail-body">
@@ -323,16 +351,16 @@
   function renderReader() {
     page(`
       <div class="reader-backdrop"></div>
-      <header class="reader-top glass"><button class="icon-button">←</button><div><span class="eyebrow">${escapeHtml(story.shortTitle)}</span><strong>Chapter 28 · The Glass Orchard</strong></div><button class="icon-button">⋮</button></header>
+      <header class="reader-top"><button class="icon-button glass" aria-label="Back">&lt;</button><div class="reader-context glass"><strong>Chapter 42 · Lanterns Beyond the Index</strong><span>MangaDex · English</span></div><button class="icon-button glass reader-settings-action" aria-label="Reader settings">Aa</button></header>
       <article class="reader-page">
-        <span class="reader-kicker">CHAPTER TWENTY-EIGHT</span>
-        <h1>The Glass Orchard</h1>
-        <p>The archive opened only after midnight, when the lamps had forgotten which shelves they were meant to guard.</p>
-        <p>Ren traced a fingertip along the silver index. A new line appeared beneath the fox seal, written in a hand that looked almost like her own.</p>
-        <p>Outside, the rain moved over the tiled roof in patient waves. Somewhere between one page and the next, a bell rang from a room that did not exist yesterday.</p>
-        <p>She closed the book. The words remained luminous on the inside of her eyelids.</p>
+        <h1>${escapeHtml(story.title)}</h1>
+        <h2>The room behind the stars</h2>
+        <p>Mira opened the archive after midnight, when every brass index reflected a different sky.</p>
+        <p>A fox waited between the shelves. Its coat held the pale blue of a winter moon, and its shadow pointed toward a door that had not existed yesterday.</p>
+        <p class="reader-note">Translator note: the original phrase can also mean a memory deliberately left unfinished.</p>
+        <p>She followed without a lamp. The books whispered dates instead of titles, and each date belonged to a future no one had survived.</p>
       </article>
-      <footer class="reader-controls glass"><button class="icon-button">‹</button><div class="reader-progress"><div><span style="width:68%"></span></div><small>68% · 18 min left</small></div><button class="secondary-button">MangaDex · EN⌄</button><button class="icon-button">Aa</button><button class="icon-button">›</button></footer>
+      <footer class="reader-controls glass"><div class="reader-navigation"><button>Previous</button><strong>68%</strong><button>Next</button></div><div class="reader-progress"><span style="width:68%"></span></div></footer>
     `, { className: 'reader-screen focused-screen' });
   }
 
