@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -13,11 +14,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import app.openstory.catalog.search.CatalogSearchFilterGroup
 import app.openstory.catalog.source.SourceFilter
 import app.openstory.catalog.source.SourceOptionFilter
@@ -41,7 +44,7 @@ fun SearchFilters(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         visibleGroups.forEach { group ->
             FilterGroup(
@@ -63,15 +66,18 @@ private fun FilterGroup(
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(group.pluginId.value)
+            Text(group.pluginId.value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             if (selectedValues.isNotEmpty()) {
-                OutlinedButton(onClick = { onClear(group.pluginId) }) { Text("Clear") }
+                OutlinedButton(
+                    onClick = { onClear(group.pluginId) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("Clear") }
             }
         }
         group.definitions.forEach { definition ->
@@ -122,6 +128,7 @@ private fun OptionFilter(
                             nextOptionValues(definition.multiple, selected, option.value),
                         )
                     },
+                    modifier = Modifier.heightIn(min = 48.dp),
                     label = { Text(option.label) },
                 )
             }

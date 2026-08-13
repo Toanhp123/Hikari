@@ -3,11 +3,16 @@ package app.openstory.catalog.ui.mapping
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.library.mapping.ContentMappingOrigin
@@ -37,14 +42,16 @@ class MappingSheetTest {
             }
         }
 
-        compose.onNodeWithText("Title 100%").assertIsDisplayed()
-        compose.onNodeWithText("Content type match").assertIsDisplayed()
+        compose.onAllNodesWithText("- Title 100%").assertCountEquals(1)
+        compose.onAllNodesWithText("- Content type match").assertCountEquals(1)
         compose.onNodeWithText("Approve").performClick()
         compose.onNodeWithText("Reject").performClick()
 
         val expected = PluginId("org.example.reader") to "source-1"
         assertEquals(expected, approved)
         assertEquals(expected, rejected)
+        compose.onNodeWithText("Approve").assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithText("Reject").assertHeightIsAtLeast(48.dp)
     }
 
     @Test
@@ -88,7 +95,9 @@ class MappingSheetTest {
             }
         }
 
-        compose.onNodeWithText("org.example.reader: chosen · Approved").assertIsDisplayed()
+        compose.onNodeWithText("org.example.reader").assertIsDisplayed()
+        compose.onNodeWithText("chosen").assertIsDisplayed()
+        compose.onNodeWithText("Approved").assertIsDisplayed()
     }
     @Test
     fun emptyMappingKeepsCopyAndActions() {

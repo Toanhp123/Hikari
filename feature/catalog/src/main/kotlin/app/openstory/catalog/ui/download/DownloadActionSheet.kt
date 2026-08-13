@@ -2,6 +2,10 @@ package app.openstory.catalog.ui.download
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -17,17 +21,21 @@ fun DownloadActionSheet(
     state: DownloadState?,
     pendingRemoval: Boolean,
     actions: DownloadActions,
+    modifier: Modifier = Modifier,
+    actionTag: String? = null,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    val actionModifier = Modifier.heightIn(min = 48.dp).then(
+        if (actionTag == null) Modifier else Modifier.testTag(actionTag),
+    )
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         when (state) {
             DownloadState.QUEUED, DownloadState.RUNNING ->
-                TextButton(onClick = { actions.onCancel(releaseId) }) { Text("Cancel") }
+                TextButton(onClick = { actions.onCancel(releaseId) }, modifier = actionModifier) { Text("Cancel") }
             DownloadState.FAILED, DownloadState.CANCELLED ->
-                TextButton(onClick = { actions.onRetry(releaseId) }) { Text("Retry") }
-            DownloadState.COMPLETED -> TextButton(onClick = { actions.onRemove(releaseId) }) { Text("Remove offline") }
-            null -> TextButton(onClick = { actions.onDownload(releaseId) }) { Text("Download") }
+                TextButton(onClick = { actions.onRetry(releaseId) }, modifier = actionModifier) { Text("Retry") }
+            DownloadState.COMPLETED -> TextButton(onClick = { actions.onRemove(releaseId) }, modifier = actionModifier) { Text("Remove offline") }
+            null -> TextButton(onClick = { actions.onDownload(releaseId) }, modifier = actionModifier) { Text("Download") }
         }
-        state?.let { Text(it.name.lowercase().replaceFirstChar(Char::uppercase)) }
     }
     if (pendingRemoval) {
         HikariConfirmDialog(

@@ -1,10 +1,14 @@
 package app.openstory.catalog.ui.search
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasImeAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.input.ImeAction
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
@@ -14,6 +18,7 @@ import app.openstory.catalog.search.CatalogSearchSourceCard
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.catalog.source.SourceFilterOption
 import app.openstory.catalog.source.SourceOptionFilter
+import app.openstory.catalog.source.SourceTextFilter
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
@@ -41,7 +46,7 @@ class SearchScreenTest {
         }
 
         compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
-        compose.onNodeWithText("catalog.b: catalog.offline").assertIsDisplayed()
+        compose.onNodeWithText("catalog.offline").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -68,7 +73,7 @@ class SearchScreenTest {
 
     @Test
     fun filterSelectionKeepsSourceIdentity() {
-        var selection: Triple<PluginId, String, List<String>>? = null
+        val selections = mutableListOf<Triple<PluginId, String, List<String>>>()
         compose.setContent {
             HikariTheme {
                 SearchScreen(
@@ -76,7 +81,7 @@ class SearchScreenTest {
                     onQueryChange = {},
                     onRecentSelected = {},
                     onFilterValuesChange = { pluginId, filterId, values ->
-                        selection = Triple(pluginId, filterId, values)
+                        selections += Triple(pluginId, filterId, values)
                     },
                     onClearFilters = {},
                     onStorySelected = {},
@@ -84,11 +89,59 @@ class SearchScreenTest {
             }
         }
 
+        compose.onNodeWithText("MangaDex").performClick()
+        compose.onNodeWithText("Manga").performClick()
+        compose.onNodeWithText("English").performClick()
         compose.onNodeWithText("Fantasy").performClick()
         assertEquals(
-            Triple(PluginId("catalog.a"), "genre", listOf("fantasy")),
-            selection,
+            listOf(
+                Triple(PluginId("catalog.a"), "source", listOf("mangadex")),
+                Triple(PluginId("catalog.a"), "content-type", listOf("manga")),
+                Triple(PluginId("catalog.a"), "language", listOf("en")),
+                Triple(PluginId("catalog.a"), "genre", listOf("fantasy")),
+            ),
+            selections,
         )
+    }
+
+    @Test
+    fun searchFieldExposesKeyboardSubmission() {
+        compose.setContent {
+            HikariTheme {
+                SearchScreen(
+                    state = fixtureState(),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNode(hasImeAction(ImeAction.Search)).performImeAction()
+        compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
+    }
+
+    @Test
+    fun longRuntimeFilterContentCanScrollToResults() {
+        val pluginId = PluginId("catalog.long")
+        val state = fixtureState().copy(
+            filterGroups = listOf(
+                CatalogSearchFilterGroup(
+                    pluginId,
+                    (1..8).map { index -> SourceTextFilter("filter-$index", "Runtime filter $index") },
+                ),
+            ),
+        )
+        compose.setContent {
+            HikariTheme {
+                SearchScreen(state, {}, {}, { _, _, _ -> }, {}, {})
+            }
+        }
+
+        compose.onNodeWithText("Runtime filter 8").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Fixture Novel").performScrollTo().assertIsDisplayed()
     }
 }
 
@@ -100,6 +153,24 @@ private fun fixtureState(failed: Boolean = false): SearchUiState {
             CatalogSearchFilterGroup(
                 pluginId,
                 listOf(
+                    SourceOptionFilter(
+                        id = "source",
+                        label = "Source",
+                        multiple = false,
+                        options = listOf(SourceFilterOption("mangadex", "MangaDex")),
+                    ),
+                    SourceOptionFilter(
+                        id = "content-type",
+                        label = "Content type",
+                        multiple = false,
+                        options = listOf(SourceFilterOption("manga", "Manga")),
+                    ),
+                    SourceOptionFilter(
+                        id = "language",
+                        label = "Language",
+                        multiple = true,
+                        options = listOf(SourceFilterOption("en", "English")),
+                    ),
                     SourceOptionFilter(
                         id = "genre",
                         label = "Genre",
