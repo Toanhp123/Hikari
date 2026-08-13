@@ -26,6 +26,7 @@ import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
+import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.selection.ReleaseSelector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -121,6 +122,25 @@ class ReaderViewModelTest {
         assertEquals("release-b", viewModel.state.value.selectedReleaseId?.value)
     }
 
+    @Test
+    fun flushStartsPersistenceBeforeNavigationCanClearTheViewModel() = runTest(dispatcher.scheduler) {
+        val repository = FakeReaderProgressRepository(null)
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter", "release-a"),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graphForSingleChapter()),
+            documents(),
+            repository,
+            FakeClock(100),
+        )
+        runCurrent()
+        viewModel.updatePosition(ReadingPosition("block", 4, 0.4f), completed = false)
+
+        viewModel.flushProgress()
+
+        assertEquals(ReadingPosition("block", 4, 0.4f), repository.current()?.position)
+    }
+
     private fun documents() = ReaderDocumentRepository(
         NoOpReaderDocumentStore,
         object : ReaderDocumentSourceRegistry {
@@ -168,6 +188,7 @@ private class FakeReaderProgressRepository(initial: ReadingProgress?) : ReadingP
         value.value = progress
         all.value = listOf(progress)
     }
+    fun current(): ReadingProgress? = value.value
 }
 
 private fun graph(): ChapterGraphSnapshot {
@@ -178,6 +199,11 @@ private fun graph(): ChapterGraphSnapshot {
         listOf(first.second, second.second),
         emptyList(),
     )
+}
+
+private fun graphForSingleChapter(): ChapterGraphSnapshot {
+    val chapter = chapter("chapter", "release-a")
+    return ChapterGraphSnapshot(listOf(chapter.first), listOf(chapter.second), emptyList())
 }
 
 private fun chapter(chapterId: String, releaseId: String): Pair<CanonicalChapter, ChapterRelease> {

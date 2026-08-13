@@ -29,6 +29,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 @HiltViewModel(assistedFactory = ReaderViewModel.Factory::class)
 class ReaderViewModel @AssistedInject constructor(
@@ -73,7 +76,9 @@ class ReaderViewModel @AssistedInject constructor(
     }
 
     fun flushProgress() {
-        viewModelScope.launch { progressService.flush() }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            withContext(NonCancellable) { progressService.flush() }
+        }
     }
 
     private fun load(explicitReleaseId: ChapterReleaseId?, flushProgress: Boolean = false) {

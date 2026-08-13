@@ -145,7 +145,9 @@ fun AppNavHost(
                     )
                 }
                 entry<AppRoute.Story> { route -> StoryDestination(route, navigator::navigate) }
-                entry<AppRoute.Reader> { route -> ReaderDestination(route, navigator::navigate) }
+                entry<AppRoute.Reader> { route ->
+                    ReaderDestination(route, navigator::navigate, navigator::back)
+                }
                 },
             )
             HikariSnackbarHost(
@@ -358,7 +360,11 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
 }
 
 @Composable
-private fun ReaderDestination(route: AppRoute.Reader, navigate: (AppRoute) -> Unit) {
+private fun ReaderDestination(
+    route: AppRoute.Reader,
+    navigate: (AppRoute) -> Unit,
+    onBack: () -> Unit,
+) {
     val viewModel = hiltViewModel<ReaderViewModel, ReaderViewModel.Factory>(
         creationCallback = { factory ->
             factory.create(ReaderAssistedArgs(route.storyId, route.chapterId, route.releaseId))
@@ -381,6 +387,7 @@ private fun ReaderDestination(route: AppRoute.Reader, navigate: (AppRoute) -> Un
             onPositionChanged = viewModel::updatePosition,
             onFlushProgress = viewModel::flushProgress,
         ),
+        onBack = onBack,
     )
 }
 

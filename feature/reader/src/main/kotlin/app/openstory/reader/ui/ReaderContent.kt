@@ -3,6 +3,7 @@ package app.openstory.reader.ui
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.HorizontalDivider
@@ -13,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -34,6 +36,7 @@ fun ReaderContent(
     contentPadding: PaddingValues,
     onPositionChanged: (ReadingPosition, Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    onToggleChrome: () -> Unit = {},
 ) {
     val titleOffset = if (document.title == null) 0 else 1
     val listState = rememberRestoredReaderState(
@@ -45,7 +48,9 @@ fun ReaderContent(
     TrackReaderProgress(document, titleOffset, listState, onPositionChanged)
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(onToggleChrome) { detectTapGestures(onTap = { onToggleChrome() }) },
         contentPadding = contentPadding,
     ) {
         document.title?.let { title ->
