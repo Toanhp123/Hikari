@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-12
+Date: 2026-08-13
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -20,16 +20,17 @@ acceptance remain separate states.
 
 Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The
 between-wave Design System Foundation is accepted, preserving the 14-module graph and Room
-schemas 1 through 6. Product UI Tasks 1-2 are verified and the active boundary is now
-**Task 3: shared artwork state and stable fallbacks**; Wave 10 capability work has not started.
+schemas 1 through 6. Product UI Tasks 1-3 are verified and the active boundary is now
+**Task 4: glass, responsive, and shared content primitives**; Wave 10 capability work has not started.
 Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility with superseded
 development architecture.
 
-Continue from Task 3 of
+Continue from Task 4 of
 `../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.
 Task 1 acceptance evidence is recorded in
 `../internal/checkpoints/product-ui-task-01-toolchain.md`; Task 2 acceptance evidence is
-recorded in `../internal/checkpoints/product-ui-task-02-target-pack.md`.
+recorded in `../internal/checkpoints/product-ui-task-02-target-pack.md`; Task 3 acceptance
+evidence is recorded in `../internal/checkpoints/product-ui-task-03-artwork.md`.
 Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -104,7 +105,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 08 | Reader and progress | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-09-cache-downloads-and-storage.md` |
 | UIF | Between-wave design-system foundation | **Completed; checkpoint accepted 2026-08-12** | `../internal/checkpoints/design-system-foundation.md` |
-| PUI | ReDantotsu-inspired Product UI redesign | **In progress; Tasks 1-2 verified, Task 3 next** | `../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md` |
+| PUI | ReDantotsu-inspired Product UI redesign | **In progress; Tasks 1-3 verified, Task 4 next** | `../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md` |
 | 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
@@ -188,7 +189,7 @@ architecture
 ## Execution rule
 
 1. Use the verified Wave 09 checkpoint plus the accepted `:core:designsystem` foundation as the entry baseline for the Product UI redesign.
-2. Continue from Product UI Task 3; Tasks 1-2 are verified. Execute later Product UI tasks
+2. Continue from Product UI Task 4; Tasks 1-3 are verified. Execute later Product UI tasks
    in order without changing the 14-module capability graph or Room schemas 1 through 6.
 3. Wave 10 remains the next capability wave after the between-wave Product UI checkpoint.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.

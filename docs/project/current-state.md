@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-12
+Date: 2026-08-13
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -15,9 +15,10 @@ Purpose: single source of truth for the implemented repository boundary.
 - Wave 08 Tasks 01-06: **VERIFIED**; Wave 08 is complete.
 - Wave 09 Tasks 01-06: **VERIFIED**; Wave 09 is complete.
 - Design System Foundation: **ACCEPTED** on 2026-08-12.
-- ReDantotsu-inspired Product UI redesign: **IN PROGRESS**; Tasks 1-2 are **VERIFIED**.
-  Task 2 provides the reproducible 34-image 2x target-pack pipeline; Task 3 shared artwork
-  state and stable fallbacks is next before Wave 10 capability work.
+- ReDantotsu-inspired Product UI redesign: **IN PROGRESS**; Tasks 1-3 are **VERIFIED**.
+  Task 3 adds shared artwork state, one Coil request/cache identity for cover and backdrop,
+  deterministic stable fallbacks, and Roborazzi geometry coverage. Task 4 shared glass,
+  responsive, and content primitives is next before Wave 10 capability work.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -40,7 +41,7 @@ These versions are independent. A change in one does not imply a change in anoth
 |---|---|
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
-| `:core:designsystem` | Domain-neutral theme, shared UX states, and the Product UI artwork/screenshot rendering dependency boundary; artwork/glass/adaptive primitives arrive in later Product UI tasks |
+| `:core:designsystem` | Domain-neutral theme, shared UX states, Product UI artwork state/fallback primitives, and the screenshot rendering dependency boundary; glass/adaptive/content primitives arrive in later Product UI tasks |
 | `:catalog` | Story/catalog models, repository/source contracts, matching, ranking, refresh/search/details |
 | `:feature:catalog` | Home, Search, Story, Library, and mapping-review Compose presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
@@ -128,8 +129,13 @@ Task 2 now verifies a production-code-independent, query-driven Edge-headless re
 produces 34 deterministic 2x PNG targets across compact, large-phone, medium, UX-state,
 dark, and light matrices, plus ZIP packaging. The renderer uses a fixed target canvas
 rather than assuming Edge's `window.innerWidth`/`window.innerHeight` exactly match
-`--window-size`, and the pack gate rejects uniform/blank captures. Task 3 shared artwork
-state and stable fallbacks is the next boundary. Wave 10 capability work has not started.
+`--window-size`, and the pack gate rejects uniform/blank captures. Task 3 now verifies shared
+artwork state/fallback primitives in `:core:designsystem`: cover and backdrop reuse one remembered
+Coil request/cache identity, stable keys produce deterministic SHA-256 palette fallbacks, and
+Roborazzi covers loaded/loading/fallback geometry. The screenshot suite is pinned to Robolectric
+SDK 35 because the pinned Robolectric 4.16.1 cannot select the app's target SDK 37. Task 4 shared
+glass, responsive, and content primitives is the next boundary. Wave 10 capability work has not
+started.
 
 ## Architecture Baseline 2 status
 
@@ -195,7 +201,13 @@ repository Gradle gate, and Room schema stability. Evidence is recorded in
 Windows PowerShell target-pack gate after correcting the Edge viewport/canvas mismatch and
 a too-strict blank-image heuristic; the final gate renders all 34 required PNGs at exact 2x
 dimensions and rejects truly uniform captures. Evidence is recorded in
-`../internal/checkpoints/product-ui-task-02-target-pack.md`. The repository now also exposes
+`../internal/checkpoints/product-ui-task-02-target-pack.md`. Product UI Task 3 then passed the
+focused `:core:designsystem:testDebugUnitTest recordRoborazziDebug` gate and the canonical full
+`./scripts/verify.sh` gate after two acceptance corrections: pinning Robolectric to SDK 35 for
+the screenshot class and replacing an unsigned-byte `0xFF` literal with a named constant for
+Detekt. The full gate completed `BUILD SUCCESSFUL` with 623 actionable tasks and stable Room
+schema exports. Evidence is recorded in
+`../internal/checkpoints/product-ui-task-03-artwork.md`. The repository also exposes
 `./scripts/verify-fast.sh` for development feedback while `./scripts/verify.sh` remains the
 full acceptance gate; both preserve strict dependency verification.
 
@@ -210,6 +222,7 @@ Evidence:
 - `../internal/checkpoints/wave-08-reader-and-reading-progress.md`
 - `../internal/checkpoints/product-ui-task-01-toolchain.md`
 - `../internal/checkpoints/product-ui-task-02-target-pack.md`
+- `../internal/checkpoints/product-ui-task-03-artwork.md`
 
 ## Source-of-truth rule
 

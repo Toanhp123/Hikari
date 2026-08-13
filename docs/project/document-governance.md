@@ -1,6 +1,6 @@
 # Documentation Governance and Precedence
 
-Date: 2026-08-11
+Date: 2026-08-13
 Status: **CANONICAL documentation policy**
 
 ## Purpose
@@ -25,8 +25,8 @@ code exists, and code existence is not proof that a checkpoint passed.
 
 Use `../implementation/current-roadmap.md`, then the active Product UI plan. Waves 06-09
 are verified and complete, the between-wave Design System Foundation is accepted, and
-Product UI Tasks 1-2 are verified. The active implementation boundary is Product UI Task 3
-(shared artwork state and stable fallbacks) in
+Product UI Tasks 1-3 are verified. The active implementation boundary is Product UI Task 4
+(shared glass, responsive, and content primitives) in
 `../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.
 
 Architecture Baseline 2 is accepted. Its design and acceptance checkpoint own the current

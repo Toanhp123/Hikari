@@ -442,7 +442,7 @@ git commit -m "design: add reproducible ui target pack"
 
 ### Task 3: Implement shared artwork state and stable fallbacks
 
-**Status: NEXT.**
+**Status: VERIFIED — 2026-08-13.** Evidence: `../../internal/checkpoints/product-ui-task-03-artwork.md`. The exact RED Gradle command was not host-evidenced during sandbox implementation; focused and full acceptance gates passed on the Windows development host. Integration commit remains the final administrative step.
 
 **Files:**
 - Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/artwork/HikariArtwork.kt`
@@ -453,7 +453,7 @@ git commit -m "design: add reproducible ui target pack"
 **Interfaces:**
 - Produces `HikariArtworkModel`, `HikariArtworkState`, `rememberHikariArtwork`, `HikariArtwork`, and `HikariArtworkBackdrop` exactly as declared in the file map.
 
-- [ ] **Step 1: Write RED fallback tests**
+- [x] **Step 1: Write RED fallback tests**
 
 ```kotlin
 @Test
@@ -478,7 +478,7 @@ fun fallbackMonogramUsesFirstLetterOrQuestionMark() {
   --tests app.openstory.designsystem.artwork.HikariArtworkFallbackTest --stacktrace
 ```
 
-- [ ] **Step 3: Implement deterministic fallback and one request identity**
+- [x] **Step 3: Implement deterministic fallback and one request identity**
 
 Use SHA-256 of `stableKey` to select two colors from a fixed Hikari palette. Build the Coil request once in `rememberHikariArtwork`:
 
@@ -497,11 +497,11 @@ val painter = rememberAsyncImagePainter(request)
 
 Both cover and backdrop receive the same remembered `HikariArtworkState`; neither builds another request.
 
-- [ ] **Step 4: Add screenshot tests for loaded/loading/fallback geometry**
+- [x] **Step 4: Add screenshot tests for loaded/loading/fallback geometry**
 
 Use an injected/fake Coil `ImageLoader` and `captureRoboImage` to prove all states retain the same bounds and monogram semantics.
 
-- [ ] **Step 5: Run GREEN**
+- [x] **Step 5: Run GREEN**
 
 ```bash
 ./gradlew :core:designsystem:testDebugUnitTest recordRoborazziDebug --stacktrace
@@ -517,6 +517,8 @@ git commit -m "feat: add shared artwork presentation"
 ---
 
 ### Task 4: Implement glass, responsive, and shared content primitives
+
+**Status: NEXT.**
 
 **Files:**
 - Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/glass/HikariBackdropHost.kt`
