@@ -82,4 +82,18 @@ grep -q '| UI foundation | `:core:designsystem` |' "$DESIGN"
 grep -q 'Wave 09 verified exit graph plus the approved `:core:designsystem` UI-foundation boundary.' "${WAVES[4]}"
 grep -q 'Exit module graph: entry graph plus `:feature:plugins`.' "${WAVES[5]}"
 
+# Preserve the approved product-navigation handoff into the future capability waves.
+grep -q 'Wave 10 Settings enters through the avatar utility sheet and never top-level navigation.' "${WAVES[4]}"
+grep -q 'Wave 11 Plugin Management enters through the avatar utility sheet and never top-level navigation.' "${WAVES[5]}"
+grep -q 'Discover / Home / Library remains the final top-level model.' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+grep -q 'Discover / Home / Library remains the final top-level model.' "$DESIGN"
+
+# Future screens must compose through their owning feature and the existing app shell.
+grep -q 'AppRoute.Settings' "${WAVES[4]}"
+grep -q 'HikariUtilitySheet' "${WAVES[4]}"
+grep -q 'TopLevelDestination' "${WAVES[4]}"
+grep -q 'HikariUtilitySheet' "${WAVES[5]}"
+grep -q 'installed/detail/install/update/rollback' "${WAVES[5]}"
+grep -q 'approved Plugin target screen' "${WAVES[5]}"
+
 echo 'Post-Baseline Wave 06-11 roadmap contract verified.'

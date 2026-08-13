@@ -18,6 +18,8 @@
 - Room schema 6 enters; schema 7 stores durable notification delivery state.
 - Android background work is local, unique, bounded, battery-aware, and idempotent.
 - No cloud service, push backend, unrestricted WebView, or plaintext credentials.
+- Wave 10 Settings enters through the avatar utility sheet and never top-level navigation.
+- Discover / Home / Library remains the final top-level model; Settings must not be added to `TopLevelDestination`.
 
 ### Task 1: Introduce typed settings and DataStore persistence
 
@@ -109,10 +111,13 @@
 - Create: `feature/settings/src/main/kotlin/app/openstory/settings/ui/SettingsViewModel.kt`, `SettingsScreen.kt`, `SyncSettings.kt`, `NotificationSettings.kt`, `StorageSettings.kt`
 - Test: `feature/settings/src/test/kotlin/app/openstory/settings/ui/SettingsViewModelTest.kt`
 - Test: `feature/settings/src/androidTest/kotlin/app/openstory/settings/ui/SettingsScreenTest.kt`
-- Modify: `app/src/main/kotlin/app/openstory/navigation/AppRoute.kt`, `AppNavHost.kt`
+- Create: `feature/settings/src/test/kotlin/app/openstory/settings/ui/SettingsScreenshotTest.kt`
+- Modify: `app/src/main/kotlin/app/openstory/navigation/AppRoute.kt`, `AppNavHost.kt`, and the app-shell owner of `HikariUtilitySheet`
 
-- [ ] Write RED tests for policy persistence, rescheduling once through `SettingsWorkSchedulePort`, permission-request state, storage summary, accessibility, and process restoration. Session management UI remains Wave 11 ownership.
-- [ ] Implement feature-owned UI over `:settings` and `:downloads` services only; app supplies permission and scheduling port adapters through DI.
+- [ ] Write RED tests for policy persistence, rescheduling once through `SettingsWorkSchedulePort`, permission-request state, storage summary, accessibility, process restoration, `AppRoute.Settings` composition, Settings utility-row navigation, and the unchanged `TopLevelDestination` set. Session management UI remains Wave 11 ownership.
+- [ ] Implement feature-owned UI over `:settings` and `:downloads` services only; typed settings and mutation ownership remain in `:settings`, while app supplies permission and scheduling port adapters through DI.
+- [ ] Build the screen from `:core:designsystem` Hikari artwork, glass, and content-state primitives, matching the approved Settings target without copying policy into Compose state.
+- [ ] Add `AppRoute.Settings` to `AppNavHost` and a Settings row to `HikariUtilitySheet`; close the sheet before navigation and return to the originating top-level destination on back. Do not add Settings to `TopLevelDestination` or the floating navigation.
 - [ ] Run `./gradlew :feature:settings:testDebugUnitTest :feature:settings:connectedDebugAndroidTest :app:connectedDebugAndroidTest lintDebug detekt --stacktrace`.
 - [ ] Commit `settings: add background and notification controls`.
 
