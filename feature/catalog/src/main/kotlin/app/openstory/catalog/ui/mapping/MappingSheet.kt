@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.content.HikariSectionTitle
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.mapping.ContentMappingOrigin
@@ -32,7 +33,7 @@ fun MappingSheet(state: MappingUiState, actions: MappingActions, modifier: Modif
         modifier = modifier.fillMaxWidth().padding(MaterialTheme.hikariSpacing.space16),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
-        Text("Reading sources", style = MaterialTheme.hikariTypography.sectionTitle)
+        HikariSectionTitle("Reading sources")
         Text(
             "Linked sources stay protected until you explicitly approve a replacement.",
             style = MaterialTheme.typography.bodyMedium,

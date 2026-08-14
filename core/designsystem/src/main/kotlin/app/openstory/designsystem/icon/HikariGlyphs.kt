@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import app.openstory.designsystem.theme.hikariDimensions
@@ -65,6 +66,37 @@ fun HikariSearchGlyph(modifier: Modifier = Modifier) {
                 size.width * geometry.handleEnd,
                 size.height * geometry.handleEnd,
             ),
+            strokeWidth = strokePx,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+@Composable
+fun HikariChevronGlyph(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+) {
+    val stroke = MaterialTheme.hikariDimensions.glyphStroke
+    val geometry = MaterialTheme.hikariGlyphGeometry.back
+    Canvas(modifier) {
+        val strokePx = stroke.toPx()
+        val turn = Offset(
+            size.width * (1f - geometry.innerX),
+            size.height * geometry.centerY,
+        )
+        val outerX = size.width * (1f - geometry.outerX)
+        drawLine(
+            color = color,
+            start = Offset(outerX, size.height * geometry.upperY),
+            end = turn,
+            strokeWidth = strokePx,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = color,
+            start = turn,
+            end = Offset(outerX, size.height * geometry.lowerY),
             strokeWidth = strokePx,
             cap = StrokeCap.Round,
         )

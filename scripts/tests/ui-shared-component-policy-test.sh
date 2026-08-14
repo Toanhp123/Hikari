@@ -41,6 +41,36 @@ assert_absent 'import androidx\.compose\.material3\.FilterChip' \
 assert_absent 'private fun UpdateCard\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui' \
   'catalog update cards must use the shared StoryUpdateCard component'
+assert_absent 'ImageVector[.]Builder|PathParser' \
+  'app/src/main/kotlin' \
+  'app code must consume design-system glyphs instead of owning vector geometry'
+assert_absent 'ImageVector[.]Builder|PathParser' \
+  'feature' \
+  'feature code must consume design-system glyphs instead of owning vector geometry'
+assert_absent 'Text\(">"' \
+  'feature' \
+  'features must use a shared glyph instead of font text for chevron geometry'
+assert_absent 'GridCells[.]Fixed\([0-9]+' \
+  'feature' \
+  'feature grid column counts must come from semantic layout policy tokens'
+assert_absent '[/][[:space:]]*[0-9]+([^0-9]|$)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover' \
+  'Discover content geometry must not divide by a feature-local numeric column count'
+assert_absent 'CompositionLocalProvider\(LocalContentColor provides MaterialTheme[.]colorScheme[.]onBackground\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardScreen.kt' \
+  'Home must let HikariDestinationScaffold own destination content color'
+assert_absent 'CompositionLocalProvider\(LocalContentColor provides MaterialTheme[.]colorScheme[.]onBackground\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryScreen.kt' \
+  'Library must let HikariDestinationScaffold own destination content color'
+assert_absent 'CompositionLocalProvider\(LocalContentColor provides MaterialTheme[.]colorScheme[.]onBackground\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
+  'Downloads must let HikariDestinationScaffold own destination content color'
+assert_absent 'CompositionLocalProvider\(LocalContentColor provides MaterialTheme[.]colorScheme[.]onBackground\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/updates/UpdatesScreen.kt' \
+  'Updates must let HikariDestinationScaffold own destination content color'
+assert_absent 'CompositionLocalProvider\(LocalContentColor provides MaterialTheme[.]colorScheme[.]onBackground\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'Story must let HikariDestinationScaffold own destination content color'
 
 assert_contains 'HikariSearchBar(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
@@ -90,6 +120,24 @@ assert_contains '.semantics { heading() }' \
 assert_contains 'fun HikariSheetContent(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariSheetContent.kt' \
   'design system must own repeated bottom-sheet content chrome'
+assert_contains 'modifier = Modifier.semantics { heading() }' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariSheetContent.kt' \
+  'HikariSheetContent title must expose heading semantics'
+assert_contains 'fun HikariSectionTitle(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionTitle.kt' \
+  'design system must own standalone section-title presentation and heading semantics'
+assert_contains 'modifier = modifier.semantics { heading() }' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionTitle.kt' \
+  'HikariSectionTitle must own heading semantics'
+assert_contains 'object HikariNavigationGlyphs' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariNavigationGlyphs.kt' \
+  'design system must own top-level navigation vector geometry'
+assert_contains 'fun HikariChevronGlyph(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariGlyphs.kt' \
+  'design system must own chevron geometry used by feature navigation affordances'
+assert_contains 'HikariCoverCardVariant.POSTER' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/components/StoryCoverCard.kt' \
+  'story poster artwork framing must consume a design-system cover-frame variant'
 assert_contains 'HikariMetadataBadge(' \
   'feature/reader/src/main/kotlin/app/openstory/reader/ui/DownloadIndicator.kt' \
   'reader offline status must use the shared metadata/status badge presentation'

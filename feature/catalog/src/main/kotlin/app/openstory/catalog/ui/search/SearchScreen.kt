@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.content.HikariSectionTitle
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariFocusedHeader
 import app.openstory.designsystem.layout.HikariSearchBar
@@ -33,7 +34,6 @@ import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun SearchScreen(
@@ -76,7 +76,7 @@ private fun SearchHeader(query: String, onQueryChange: (String) -> Unit, focusMa
         ),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
     ) {
-        Text("Find your next story", style = MaterialTheme.hikariTypography.sectionTitle)
+        HikariSectionTitle("Find your next story")
         Text(
             "Results stay grouped across sources, even when one catalog is unavailable.",
             style = MaterialTheme.typography.bodyMedium,

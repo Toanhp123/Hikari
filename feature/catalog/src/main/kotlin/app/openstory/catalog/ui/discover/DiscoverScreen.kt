@@ -48,7 +48,9 @@ import app.openstory.designsystem.theme.hikariShapes
 import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.icon.HikariChevronGlyph
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
+import app.openstory.designsystem.theme.hikariLayoutPolicy
 
 @Composable
 fun DiscoverScreen(
@@ -151,9 +153,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.quickCategoryItem(
     if (state.quickCategories.isEmpty()) return
     item("discover-categories") {
         BoxWithConstraints {
+            val columnCount = MaterialTheme.hikariLayoutPolicy.compactGridColumns
             val totalSpacing =
-                MaterialTheme.hikariSpacing.space20 * 2 + MaterialTheme.hikariSpacing.space12
-            val cardWidth = (maxWidth - totalSpacing) / 2
+                MaterialTheme.hikariSpacing.space20 * columnCount +
+                    MaterialTheme.hikariSpacing.space12 * (columnCount - 1)
+            val cardWidth = (maxWidth - totalSpacing) / columnCount
             LazyRow(
                 contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space20),
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
@@ -237,7 +241,9 @@ private fun DiscoverCategoryCard(
                     maxLines = 1,
                 )
             }
-            Text(">", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
+            HikariChevronGlyph(
+                modifier = Modifier.size(MaterialTheme.hikariDimensions.iconStandard),
+            )
         }
     }
 }

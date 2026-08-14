@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.content.HikariSectionTitle
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
@@ -43,7 +44,7 @@ fun ChapterList(state: ChapterListUiState, actions: ChapterListActions, modifier
 fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterListActions) {
     item(key = "chapter-summary") {
         Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
-            Text("Chapters", style = MaterialTheme.hikariTypography.sectionTitle)
+            HikariSectionTitle("Chapters")
             Text(
                 "${state.unreadCount} unread chapters",
                 style = MaterialTheme.typography.bodyMedium,

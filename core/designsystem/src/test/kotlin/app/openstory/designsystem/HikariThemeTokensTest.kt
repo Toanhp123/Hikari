@@ -12,6 +12,7 @@ import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.designsystem.theme.hikariBreakpoints
 import app.openstory.designsystem.theme.hikariColors
 import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariLayoutPolicy
 import app.openstory.designsystem.theme.hikariTypography
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -30,6 +31,7 @@ class HikariThemeTokensTest {
     fun themeExposesApprovedProductTokens() {
         var minimumTouchTarget: Dp = Dp.Unspecified
         var expandedContent: Dp = Dp.Unspecified
+        var compactGridColumns = -1
         var readerBodySize: TextUnit = TextUnit.Unspecified
         var onArtwork: Color = Color.Unspecified
 
@@ -37,6 +39,7 @@ class HikariThemeTokensTest {
             HikariTheme(darkTheme = true) {
                 minimumTouchTarget = MaterialTheme.hikariDimensions.minimumTouchTarget
                 expandedContent = MaterialTheme.hikariBreakpoints.expandedContent
+                compactGridColumns = MaterialTheme.hikariLayoutPolicy.compactGridColumns
                 readerBodySize = MaterialTheme.hikariTypography.readerBody.fontSize
                 onArtwork = MaterialTheme.hikariColors.onArtwork
                 SideEffect { }
@@ -46,6 +49,7 @@ class HikariThemeTokensTest {
         compose.runOnIdle {
             assertEquals(48.dp, minimumTouchTarget)
             assertEquals(520.dp, expandedContent)
+            assertEquals(2, compactGridColumns)
             assertEquals(18.sp, readerBodySize)
             assertEquals(Color.White, onArtwork)
         }

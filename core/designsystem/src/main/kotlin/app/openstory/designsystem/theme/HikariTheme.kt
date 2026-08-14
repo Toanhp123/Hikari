@@ -18,6 +18,7 @@ fun HikariTheme(
         LocalHikariDimensions provides HikariDimensions(),
         LocalHikariBreakpoints provides HikariBreakpoints(),
         LocalHikariLayoutRatios provides HikariLayoutRatios(),
+        LocalHikariLayoutPolicy provides HikariLayoutPolicy(),
         LocalHikariGlyphGeometry provides HikariGlyphGeometry(),
         LocalHikariSemanticShapes provides HikariSemanticShapes(),
         LocalHikariSemanticColors provides HikariSemanticColors(),

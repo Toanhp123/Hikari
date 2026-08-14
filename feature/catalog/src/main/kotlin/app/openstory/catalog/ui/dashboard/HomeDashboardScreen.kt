@@ -15,10 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,41 +56,39 @@ fun HomeDashboardScreen(
     val continueFocus = remember { FocusRequester() }
     val readingFocus = remember { FocusRequester() }
     val background = MaterialTheme.hikariAtmosphereBrush
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        HikariDestinationScaffold(modifier) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(background)
-                    .testTag("home-atmosphere"),
-            ) {
-                when {
-                    state.loading -> Column(Modifier.fillMaxSize().padding(contentPadding)) {
-                        HikariTopLevelHeader(
-                            title = "Home",
-                            onAction = onUtilityRequested,
-                            focusRequester = utilityFocusRequester,
-                            nextFocusRequester = utilityNextFocusRequester,
-                        )
-                        HikariLoadingState("Loading your reading home", Modifier.weight(1f))
-                    }
-                    state.isEmpty -> Column(Modifier.fillMaxSize().padding(contentPadding)) {
-                        HikariTopLevelHeader(
-                            title = "Home",
-                            onAction = onUtilityRequested,
-                            focusRequester = utilityFocusRequester,
-                            nextFocusRequester = utilityNextFocusRequester,
-                        )
-                        Box(Modifier.weight(1f)) {
-                            EmptyHome(state.failure, onDiscover, firstContentFocusRequester)
-                        }
-                    }
-                    else -> HomeContent(
-                        state, onStorySelected, onResume, continueFocus, readingFocus,
-                        firstContentFocusRequester, contentPadding, onUtilityRequested,
-                        utilityFocusRequester, utilityNextFocusRequester,
+    HikariDestinationScaffold(modifier) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(background)
+                .testTag("home-atmosphere"),
+        ) {
+            when {
+                state.loading -> Column(Modifier.fillMaxSize().padding(contentPadding)) {
+                    HikariTopLevelHeader(
+                        title = "Home",
+                        onAction = onUtilityRequested,
+                        focusRequester = utilityFocusRequester,
+                        nextFocusRequester = utilityNextFocusRequester,
                     )
+                    HikariLoadingState("Loading your reading home", Modifier.weight(1f))
                 }
+                state.isEmpty -> Column(Modifier.fillMaxSize().padding(contentPadding)) {
+                    HikariTopLevelHeader(
+                        title = "Home",
+                        onAction = onUtilityRequested,
+                        focusRequester = utilityFocusRequester,
+                        nextFocusRequester = utilityNextFocusRequester,
+                    )
+                    Box(Modifier.weight(1f)) {
+                        EmptyHome(state.failure, onDiscover, firstContentFocusRequester)
+                    }
+                }
+                else -> HomeContent(
+                    state, onStorySelected, onResume, continueFocus, readingFocus,
+                    firstContentFocusRequester, contentPadding, onUtilityRequested,
+                    utilityFocusRequester, utilityNextFocusRequester,
+                )
             }
         }
     }

@@ -13,9 +13,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +31,7 @@ import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.LibraryStatus
 import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariLayoutPolicy
 
 @Composable
 fun LibraryScreen(
@@ -85,18 +84,16 @@ fun LibraryScreen(
             )
         }
     }
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        HikariDestinationScaffold(modifier) {
-            LibraryContent(
-                state = state,
-                focusRequester = contentFocus,
-                onClearFilters = onClearFilters,
-                onDiscover = onDiscover,
-                onStorySelected = onStorySelected,
-                chrome = chrome,
-                modifier = Modifier.fillMaxSize().padding(contentPadding),
-            )
-        }
+    HikariDestinationScaffold(modifier) {
+        LibraryContent(
+            state = state,
+            focusRequester = contentFocus,
+            onClearFilters = onClearFilters,
+            onDiscover = onDiscover,
+            onStorySelected = onStorySelected,
+            chrome = chrome,
+            modifier = Modifier.fillMaxSize().padding(contentPadding),
+        )
     }
     if (showFilters) {
         LibraryFilterSheet(
@@ -191,7 +188,7 @@ private fun LibraryCollection(
             val columns = if (windowClass == HikariWindowClass.MEDIUM) {
                 GridCells.Adaptive(MaterialTheme.hikariDimensions.adaptiveGridMinCell)
             } else {
-                GridCells.Fixed(2)
+                GridCells.Fixed(MaterialTheme.hikariLayoutPolicy.compactGridColumns)
             }
             LazyVerticalGrid(
                 columns = columns,

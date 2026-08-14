@@ -4,14 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -24,9 +22,9 @@ import app.openstory.common.id.StoryId
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.rememberHikariArtwork
+import app.openstory.designsystem.content.HikariCoverCardFrame
+import app.openstory.designsystem.content.HikariCoverCardVariant
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.theme.hikariLayoutRatios
-import app.openstory.designsystem.theme.hikariShapes
 import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
@@ -72,15 +70,16 @@ fun StoryPosterCard(
         val artwork = rememberHikariArtwork(
             HikariArtworkModel(coverUrl, storyId.value, title),
         )
-        HikariArtwork(
-            state = artwork,
-            contentDescription = "$title cover",
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(MaterialTheme.hikariLayoutRatios.posterCardAspectRatio)
-                .clip(MaterialTheme.hikariShapes.compactCard)
-                .testTag("story-poster-card"),
-        )
+        HikariCoverCardFrame(
+            modifier = Modifier.fillMaxWidth().testTag("story-poster-card"),
+            variant = HikariCoverCardVariant.POSTER,
+        ) {
+            HikariArtwork(
+                state = artwork,
+                contentDescription = "$title cover",
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Text(
             text = title,
             style = MaterialTheme.hikariTypography.posterTitle,

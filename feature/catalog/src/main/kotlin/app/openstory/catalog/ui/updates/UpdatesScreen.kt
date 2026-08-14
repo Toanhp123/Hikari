@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.StoryUpdateCard
@@ -33,18 +31,16 @@ fun UpdatesScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        HikariDestinationScaffold(modifier) {
-            Column(Modifier.fillMaxSize().padding(contentPadding)) {
-                HikariTopLevelHeader(title = "Updates")
-                when {
-                    state.loading -> HikariLoadingState("Loading updates")
-                    state.isEmpty -> HikariEmptyState(
-                        "No reading updates",
-                        message = "New mapped releases for stories in your Library will appear here.",
-                    )
-                    else -> UpdateGroups(state.groups, onStorySelected, onRead)
-                }
+    HikariDestinationScaffold(modifier) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
+            HikariTopLevelHeader(title = "Updates")
+            when {
+                state.loading -> HikariLoadingState("Loading updates")
+                state.isEmpty -> HikariEmptyState(
+                    "No reading updates",
+                    message = "New mapped releases for stories in your Library will appear here.",
+                )
+                else -> UpdateGroups(state.groups, onStorySelected, onRead)
             }
         }
     }

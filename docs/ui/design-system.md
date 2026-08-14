@@ -18,15 +18,18 @@ on it. The exact allowed edges live in
 
 Application Compose roots use `HikariTheme`. Production presentation code treats the
 Hikari theme as the single source of truth for visual values. Spacing, dimensions,
-responsive breakpoints, layout ratios, semantic shapes, opacity, artwork colors, and
-semantic typography come from the `MaterialTheme.hikari*` token families. Feature and
-app code must not introduce local `dp`/`sp` literals, ad-hoc rounded/circle shapes,
-palette colors, literal alpha values, or local font family/weight overrides.
+responsive breakpoints, layout ratios, semantic layout policy, semantic shapes, opacity,
+artwork colors, and semantic typography come from the `MaterialTheme.hikari*` token
+families. Feature and app code must not introduce local `dp`/`sp` literals, ad-hoc
+rounded/circle shapes, palette colors, literal alpha values, local font family/weight
+overrides, or feature-local numeric grid geometry.
 
 Content geometry is semantic but is not exempt from tokenization. Poster sizes, hero
 heights, reader insets, grid minimums, and similar measurements belong in named design
 system dimension tokens rather than feature-local constants. Responsive decisions use
 `MaterialTheme.hikariBreakpoints`; a feature must not invent its own viewport threshold.
+Discrete layout decisions such as the compact two-column policy use
+`MaterialTheme.hikariLayoutPolicy` rather than numeric counts at the screen call site.
 
 `scripts/verify-ui-tokens.sh` enforces this policy over production Compose sources and is
 part of both repository verification entry points through `verification-common.sh`. It also
@@ -47,6 +50,9 @@ touch size, heading semantics, or failure chrome locally.
 
 `scripts/tests/ui-shared-component-policy-test.sh` guards the high-value ownership boundaries
 that previously drifted so the repository static gates reject those feature-local forks.
+The guard also rejects app/feature-owned vector path geometry, font-text chevrons, raw fixed
+grid counts, redundant destination content-color wrappers, and heading-semantic forks that
+bypass the shared design-system owner.
 
 ## When to use Material directly
 

@@ -13,12 +13,21 @@ import app.openstory.designsystem.theme.hikariShapes
 @Composable
 fun HikariCoverCardFrame(
     modifier: Modifier = Modifier,
+    variant: HikariCoverCardVariant = HikariCoverCardVariant.STANDARD,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val aspectRatio = when (variant) {
+        HikariCoverCardVariant.STANDARD -> MaterialTheme.hikariLayoutRatios.coverFrameAspectRatio
+        HikariCoverCardVariant.POSTER -> MaterialTheme.hikariLayoutRatios.posterCardAspectRatio
+    }
+    val shape = when (variant) {
+        HikariCoverCardVariant.STANDARD -> MaterialTheme.hikariShapes.cover
+        HikariCoverCardVariant.POSTER -> MaterialTheme.hikariShapes.compactCard
+    }
     Box(
         modifier = modifier
-            .aspectRatio(MaterialTheme.hikariLayoutRatios.coverFrameAspectRatio)
-            .clip(MaterialTheme.hikariShapes.cover),
+            .aspectRatio(aspectRatio)
+            .clip(shape),
         content = content,
     )
 }

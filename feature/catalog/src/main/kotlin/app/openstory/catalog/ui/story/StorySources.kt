@@ -23,6 +23,7 @@ import app.openstory.catalog.ui.mapping.MappingSheet
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
@@ -49,7 +50,7 @@ internal fun StorySources(
                 modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             ) {
-                Text("Catalog sources", style = MaterialTheme.typography.titleLarge)
+                HikariSectionHeader("Catalog sources")
                 Button(
                     onClick = onRetry,
                     enabled = !refreshing,

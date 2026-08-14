@@ -11,10 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -43,26 +41,24 @@ fun DownloadsScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        HikariDestinationScaffold(modifier) {
-            Column(Modifier.fillMaxSize().padding(contentPadding)) {
-                HikariTopLevelHeader(title = "Downloads")
-                when {
-                    state.loading -> HikariLoadingState("Loading downloads")
-                    state.isEmpty -> HikariEmptyState(
-                        "No downloads yet",
-                        message = "Downloaded chapters will appear here.",
-                    )
-                    else -> DownloadsList(
-                        state,
-                        onStorySelected,
-                        onRetry,
-                        onCancel,
-                        onRemove,
-                        onConfirmRemoval,
-                        onDismissRemoval,
-                    )
-                }
+    HikariDestinationScaffold(modifier) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
+            HikariTopLevelHeader(title = "Downloads")
+            when {
+                state.loading -> HikariLoadingState("Loading downloads")
+                state.isEmpty -> HikariEmptyState(
+                    "No downloads yet",
+                    message = "Downloaded chapters will appear here.",
+                )
+                else -> DownloadsList(
+                    state,
+                    onStorySelected,
+                    onRetry,
+                    onCancel,
+                    onRemove,
+                    onConfirmRemoval,
+                    onDismissRemoval,
+                )
             }
         }
     }

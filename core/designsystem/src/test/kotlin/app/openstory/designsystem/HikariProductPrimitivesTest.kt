@@ -17,22 +17,28 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.content.HikariSectionTitle
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.glass.HikariGlassRenderingMode
 import app.openstory.designsystem.glass.hikariGlassSurfaceColor
 import app.openstory.designsystem.glass.hikariGlassContentColor
 import app.openstory.designsystem.glass.glassRenderingMode
 import app.openstory.designsystem.layout.HikariWindowClass
+import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.layout.classifyWindow
 import app.openstory.designsystem.motion.HikariMotionPolicy
 import app.openstory.designsystem.motion.LocalHikariMotionPolicy
 import app.openstory.designsystem.navigation.HikariFloatingNavigation
 import app.openstory.designsystem.navigation.HikariNavigationItem
 import app.openstory.designsystem.navigation.validateNavigationSelection
+import app.openstory.designsystem.icon.HikariNavigationGlyphs
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -168,6 +174,29 @@ class HikariProductPrimitivesTest {
                 "discover",
             )
         }
+    }
+
+    @Test
+    fun navigationGlyphsAreOwnedByTheDesignSystem() {
+        assertEquals(24.dp, HikariNavigationGlyphs.discover.defaultWidth)
+        assertEquals(24.dp, HikariNavigationGlyphs.home.defaultWidth)
+        assertEquals(24.dp, HikariNavigationGlyphs.library.defaultWidth)
+    }
+
+    @Test
+    fun sharedSectionAndSheetTitlesExposeHeadingSemantics() {
+        compose.setContent {
+            HikariTheme {
+                androidx.compose.foundation.layout.Column {
+                    HikariSectionTitle("Section title")
+                    HikariSheetContent("Sheet title") {}
+                }
+            }
+        }
+
+        val isHeading = SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
+        compose.onNodeWithText("Section title").assert(isHeading)
+        compose.onNodeWithText("Sheet title").assert(isHeading)
     }
 
     @Test

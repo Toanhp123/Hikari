@@ -9,13 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -74,24 +72,22 @@ fun StoryScreen(
     }
     val firstReadableTarget = readableTargets.firstOrNull()
     val readerTarget = validatedResumeTarget ?: firstReadableTarget
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        HikariDestinationScaffold(modifier) {
-            HikariResponsiveContent(Modifier.fillMaxSize().padding(contentPadding)) {
-                if (windowClass == HikariWindowClass.MEDIUM) {
-                    MediumStoryLayout(
-                        state, story, readerTarget, validatedResumeTarget != null,
-                        firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
-                        onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
-                        chapterState, chapterActions,
-                    )
-                } else {
-                    CompactStoryLayout(
-                        state, story, readerTarget, validatedResumeTarget != null,
-                        firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
-                        onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
-                        chapterState, chapterActions,
-                    )
-                }
+    HikariDestinationScaffold(modifier) {
+        HikariResponsiveContent(Modifier.fillMaxSize().padding(contentPadding)) {
+            if (windowClass == HikariWindowClass.MEDIUM) {
+                MediumStoryLayout(
+                    state, story, readerTarget, validatedResumeTarget != null,
+                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
+                    chapterState, chapterActions,
+                )
+            } else {
+                CompactStoryLayout(
+                    state, story, readerTarget, validatedResumeTarget != null,
+                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
+                    chapterState, chapterActions,
+                )
             }
         }
     }

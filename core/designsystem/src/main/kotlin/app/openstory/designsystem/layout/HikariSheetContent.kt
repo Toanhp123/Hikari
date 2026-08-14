@@ -9,6 +9,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -26,7 +28,11 @@ fun HikariSheetContent(
             ),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
     ) {
-        Text(title, style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = title,
+            modifier = Modifier.semantics { heading() },
+            style = MaterialTheme.typography.titleLarge,
+        )
         content()
     }
 }
