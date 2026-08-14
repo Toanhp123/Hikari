@@ -63,6 +63,7 @@ class HikariArtworkScreenshotTest {
         }
 
         compose.waitUntil { requestCount == 1 && !loading }
+        compose.waitForIdle()
         assertFalse(loading)
         assertCoverGeometryAndCapture()
     }

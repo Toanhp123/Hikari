@@ -84,7 +84,7 @@ class AppNavigationTest {
     private fun assertFocusedRouteHasNoFloatingNavigation(route: AppRoute) {
         composeRule.setContent {
             HikariTheme {
-                HikariAppShell(route, {}, {}) { }
+                HikariAppShell(route, {}, {}) { _ -> }
             }
         }
         composeRule.onAllNodesWithText("Discover").assertCountEquals(0)

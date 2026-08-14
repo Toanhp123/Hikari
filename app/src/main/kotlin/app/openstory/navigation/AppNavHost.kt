@@ -1,6 +1,7 @@
 package app.openstory.navigation
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -13,7 +14,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,8 +47,9 @@ import app.openstory.catalog.ui.updates.UpdatesViewModel
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.feedback.HikariSnackbarHost
 import app.openstory.ui.HikariAppShell
+import app.openstory.ui.HikariAppShellDefaults
+import app.openstory.ui.HikariAppShellScope
 import app.openstory.ui.HikariUtilitySheet
-import app.openstory.ui.hikariTopLevelContentPadding
 import app.openstory.reader.ui.ReaderActions
 import app.openstory.reader.ui.ReaderAssistedArgs
 import app.openstory.reader.ui.ReaderScreen
@@ -82,8 +83,8 @@ fun AppNavHost(
         utilityFocusRequester = utilityFocus,
         utilityNextFocusRequester = focus.utilityNext(navigator.currentRoute),
         modifier = modifier,
-    ) {
-        AppNavigationContent(navigator, focus, snackbarHostState)
+    ) { contentPadding ->
+        AppNavigationContent(navigator, focus, snackbarHostState, contentPadding, this)
     }
     if (showUtilitySheet) {
         HikariUtilitySheet(
@@ -101,6 +102,8 @@ private fun AppNavigationContent(
     navigator: AppNavigator,
     focus: AppNavFocus,
     snackbarHostState: SnackbarHostState,
+    contentPadding: PaddingValues,
+    shellScope: HikariAppShellScope,
 ) {
     Box(Modifier.fillMaxSize()) {
         NavDisplay(
@@ -114,6 +117,7 @@ private fun AppNavigationContent(
             entryProvider = entryProvider {
                 entry<AppRoute.Discover> {
                     DiscoverDestination(
+                        contentPadding = contentPadding,
                         onSearch = { navigator.navigate(AppRoute.Search) },
                         onStorySelected = { storyId ->
                             navigator.navigate(AppRoute.Story(storyId.value))
@@ -123,10 +127,12 @@ private fun AppNavigationContent(
                         categoryFocusRequester = focus.discoverCategory,
                         categoryNextFocusRequester = focus.discoverCatalog,
                         catalogFocusRequester = focus.discoverCatalog,
+                        shellScope = shellScope,
                     )
                 }
                 entry<AppRoute.Home> {
                     HomeDestination(
+                        contentPadding = contentPadding,
                         onDiscover = { navigator.selectTopLevel(TopLevelDestination.Discover) },
                         onStorySelected = { storyId ->
                             navigator.navigate(AppRoute.Story(storyId.value))
@@ -141,28 +147,33 @@ private fun AppNavigationContent(
                             )
                         },
                         firstContentFocusRequester = focus.homeContent,
+                        shellScope = shellScope,
                     )
                 }
                 entry<AppRoute.Search> {
-                    SearchDestination { storyId ->
+                    SearchDestination(contentPadding, navigator::back) { storyId ->
                         navigator.navigate(AppRoute.Story(storyId.value))
                     }
                 }
                 entry<AppRoute.Library> {
                     LibraryDestination(
+                        contentPadding = contentPadding,
                         onDiscover = { navigator.selectTopLevel(TopLevelDestination.Discover) },
                         firstFilterFocusRequester = focus.libraryFilter,
+                        shellScope = shellScope,
                     ) { storyId ->
                         navigator.navigate(AppRoute.Story(storyId.value))
                     }
                 }
                 entry<AppRoute.Downloads> {
                     DownloadsDestination(
+                        contentPadding = contentPadding,
                         onStorySelected = { navigator.navigate(AppRoute.Story(it.value)) },
                     )
                 }
                 entry<AppRoute.Updates> {
                     UpdatesDestination(
+                        contentPadding = contentPadding,
                         onStorySelected = { navigator.navigate(AppRoute.Story(it.value)) },
                         onRead = { target ->
                             navigator.navigate(
@@ -175,7 +186,9 @@ private fun AppNavigationContent(
                         },
                     )
                 }
-                entry<AppRoute.Story> { route -> StoryDestination(route, navigator::navigate) }
+                entry<AppRoute.Story> { route ->
+                    StoryDestination(route, navigator::navigate, contentPadding)
+                }
                 entry<AppRoute.Reader> { route ->
                     ReaderDestination(route, navigator::navigate, navigator::back)
                 }
@@ -187,7 +200,9 @@ private fun AppNavigationContent(
                 .align(Alignment.BottomCenter)
                 .then(
                     if (shouldShowFloatingNavigation(navigator.currentRoute)) {
-                        Modifier.navigationBarsPadding().padding(bottom = 92.dp)
+                        Modifier.navigationBarsPadding().padding(
+                            bottom = HikariAppShellDefaults.floatingNavigationClearance,
+                        )
                     } else {
                         Modifier
                     },
@@ -212,7 +227,10 @@ private data class AppNavFocus(
 }
 
 @Composable
-private fun DownloadsDestination(onStorySelected: (StoryId) -> Unit) {
+private fun DownloadsDestination(
+    contentPadding: PaddingValues,
+    onStorySelected: (StoryId) -> Unit,
+) {
     val viewModel = hiltViewModel<DownloadsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     DownloadsScreen(
@@ -223,25 +241,29 @@ private fun DownloadsDestination(onStorySelected: (StoryId) -> Unit) {
         onRemove = viewModel::requestRemoval,
         onConfirmRemoval = viewModel::confirmRemoval,
         onDismissRemoval = viewModel::dismissRemoval,
+        contentPadding = contentPadding,
     )
 }
 
 @Composable
 private fun UpdatesDestination(
+    contentPadding: PaddingValues,
     onStorySelected: (StoryId) -> Unit,
     onRead: (app.openstory.catalog.ui.components.ReaderTarget) -> Unit,
 ) {
     val viewModel = hiltViewModel<UpdatesViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    UpdatesScreen(state, onStorySelected, onRead)
+    UpdatesScreen(state, onStorySelected, onRead, contentPadding = contentPadding)
 }
 
 @Composable
 private fun HomeDestination(
+    contentPadding: PaddingValues,
     onDiscover: () -> Unit,
     onStorySelected: (StoryId) -> Unit,
     onResume: (app.openstory.catalog.ui.components.ReaderTarget) -> Unit,
     firstContentFocusRequester: FocusRequester,
+    shellScope: HikariAppShellScope,
 ) {
     val viewModel = hiltViewModel<HomeDashboardViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -251,12 +273,16 @@ private fun HomeDestination(
         onStorySelected = onStorySelected,
         onResume = onResume,
         firstContentFocusRequester = firstContentFocusRequester,
-        modifier = Modifier.hikariTopLevelContentPadding(),
+        onUtilityRequested = shellScope.onUtilityRequested,
+        utilityFocusRequester = shellScope.utilityFocusRequester,
+        utilityNextFocusRequester = shellScope.utilityNextFocusRequester,
+        contentPadding = contentPadding,
     )
 }
 
 @Composable
 private fun DiscoverDestination(
+    contentPadding: PaddingValues,
     onSearch: () -> Unit,
     onStorySelected: (StoryId) -> Unit,
     searchFocusRequester: FocusRequester? = null,
@@ -264,6 +290,7 @@ private fun DiscoverDestination(
     categoryFocusRequester: FocusRequester? = null,
     categoryNextFocusRequester: FocusRequester? = null,
     catalogFocusRequester: FocusRequester? = null,
+    shellScope: HikariAppShellScope,
 ) {
     val viewModel = hiltViewModel<DiscoverViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -280,12 +307,19 @@ private fun DiscoverDestination(
         categoryFocusRequester = categoryFocusRequester,
         categoryNextFocusRequester = categoryNextFocusRequester,
         catalogFocusRequester = catalogFocusRequester,
-        modifier = Modifier.hikariTopLevelContentPadding(),
+        onUtilityRequested = shellScope.onUtilityRequested,
+        utilityFocusRequester = shellScope.utilityFocusRequester,
+        utilityNextFocusRequester = shellScope.utilityNextFocusRequester,
+        contentPadding = contentPadding,
     )
 }
 
 @Composable
-private fun SearchDestination(onStorySelected: (StoryId) -> Unit) {
+private fun SearchDestination(
+    contentPadding: PaddingValues,
+    onBack: () -> Unit,
+    onStorySelected: (StoryId) -> Unit,
+) {
     val viewModel = hiltViewModel<SearchViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     SearchScreen(
@@ -295,13 +329,17 @@ private fun SearchDestination(onStorySelected: (StoryId) -> Unit) {
         onFilterValuesChange = viewModel::setFilterValues,
         onClearFilters = viewModel::clearFilters,
         onStorySelected = { story -> viewModel.selectStory(story, onStorySelected) },
+        onBack = onBack,
+        contentPadding = contentPadding,
     )
 }
 
 @Composable
 private fun LibraryDestination(
+    contentPadding: PaddingValues,
     onDiscover: () -> Unit,
     firstFilterFocusRequester: FocusRequester,
+    shellScope: HikariAppShellScope,
     onStorySelected: (StoryId) -> Unit,
 ) {
     val viewModel = hiltViewModel<LibraryViewModel>()
@@ -314,15 +352,23 @@ private fun LibraryDestination(
         onSortSelected = viewModel::selectSort,
         onDisplayModeSelected = viewModel::selectDisplayMode,
         onClearFilters = viewModel::clearFilters,
+        onResetFilters = viewModel::resetFilterSelections,
         onDiscover = onDiscover,
         onStorySelected = onStorySelected,
         firstFilterFocusRequester = firstFilterFocusRequester,
-        modifier = Modifier.hikariTopLevelContentPadding(),
+        onUtilityRequested = shellScope.onUtilityRequested,
+        utilityFocusRequester = shellScope.utilityFocusRequester,
+        utilityNextFocusRequester = shellScope.utilityNextFocusRequester,
+        contentPadding = contentPadding,
     )
 }
 
 @Composable
-private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit) {
+private fun StoryDestination(
+    route: AppRoute.Story,
+    navigate: (AppRoute) -> Unit,
+    contentPadding: PaddingValues,
+) {
     val storyId = StoryId(route.storyId)
     val viewModel = hiltViewModel<StoryViewModel, StoryViewModel.Factory>(
         creationCallback = { factory -> factory.create(StoryAssistedArgs(storyId)) },
@@ -375,6 +421,7 @@ private fun StoryDestination(route: AppRoute.Story, navigate: (AppRoute) -> Unit
                 onDismissRemoval = downloadViewModel::dismissRemoval,
             ),
         ),
+        contentPadding = contentPadding,
     )
 }
 

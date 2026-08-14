@@ -96,17 +96,59 @@ class DiscoverScreenshotTest {
     }
 
     private fun fixture(): DiscoverUiState {
-        val entry = CatalogEntry(
-            storyId = StoryId("moonlit_archive"), pluginId = PluginId("catalog.a"),
-            sourceId = "trending", title = "The Fox of the Moonlit Archive",
-            genres = setOf("Fantasy"), contentType = ContentType.LIGHT_NOVEL,
-            languageTags = setOf("en"), coverUrl = "https://example.test/moonlit-archive.png",
-            score = Score(8.8, 10.0),
+        val mangaDex = PluginId("org.openstory.catalog.mangadex")
+        val mal = PluginId("org.openstory.catalog.myanimelist")
+        fun entry(
+            id: String,
+            pluginId: PluginId,
+            title: String,
+            contentType: ContentType,
+            score: Double,
+            cover: Boolean = false,
+        ) = CatalogEntry(
+            storyId = StoryId(id),
+            pluginId = pluginId,
+            sourceId = id,
+            title = title,
+            genres = setOf("Fantasy", "Mystery"),
+            contentType = contentType,
+            languageTags = setOf("en"),
+            coverUrl = if (cover) "https://example.test/$id.png" else null,
+            score = Score(score, 10.0),
+        )
+        val entries = listOf(
+            entry("moonlit_archive", mangaDex, "The Fox of the Moonlit Archive", ContentType.LIGHT_NOVEL, 8.8, cover = true),
+            entry("asterism_protocol", mangaDex, "Asterism Protocol", ContentType.WEB_NOVEL, 8.5),
+            entry("quiet_sword", mangaDex, "Quiet Sword Saint", ContentType.LIGHT_NOVEL, 8.3),
+            entry("cinder_library", mangaDex, "Cinder Library", ContentType.WEB_NOVEL, 8.1),
+            entry("salt_clock", mal, "The Salt Clock", ContentType.LIGHT_NOVEL, 8.0),
+            entry("orchid_engine", mal, "Orchid Engine", ContentType.WEB_NOVEL, 7.9),
+            entry("glass_harbor", mal, "Glass Harbor", ContentType.LIGHT_NOVEL, 7.8),
+            entry("paper_crown", mal, "The Paper Crown", ContentType.WEB_NOVEL, 7.7),
         )
         return projectDiscoverState(
-            catalogs = listOf(CatalogHomeSnapshot(PluginId("catalog.a"), "1", 1L, listOf(CatalogHomeSection("trending", "Trending stories", listOf(entry))))),
-            rankedStories = listOf(RankedCatalogStory(entry.storyId, 0.88, listOf(CatalogRankContribution(entry, 0.88, 1.0)))),
-            refreshReport = DiscoverRefreshReport(failed = mapOf(PluginId("catalog.b") to "offline")),
+            catalogs = listOf(
+                CatalogHomeSnapshot(
+                    mangaDex,
+                    "1",
+                    1L,
+                    listOf(CatalogHomeSection("trending", "Trending stories", entries.take(4))),
+                ),
+                CatalogHomeSnapshot(
+                    mal,
+                    "1",
+                    1L,
+                    listOf(CatalogHomeSection("fresh", "Fresh from your sources", entries.drop(4))),
+                ),
+            ),
+            rankedStories = entries.mapIndexed { index, catalogEntry ->
+                val score = 0.88 - index * 0.02
+                RankedCatalogStory(
+                    catalogEntry.storyId,
+                    score,
+                    listOf(CatalogRankContribution(catalogEntry, score, 1.0)),
+                )
+            },
         )
     }
 

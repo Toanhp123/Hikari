@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
@@ -25,12 +26,38 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w360dp-h800dp")
 class DiscoverSemanticsTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun flexibleHeaderPrioritizesSearchBesideUtilityAction() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                    onUtilityRequested = {},
+                )
+            }
+        }
+
+        val searchBounds = compose.onNodeWithContentDescription("Search all stories")
+            .fetchSemanticsNode().boundsInRoot
+        val utilityBounds = compose.onNodeWithContentDescription("Open quick access")
+            .fetchSemanticsNode().boundsInRoot
+
+        compose.onNodeWithText("Discover").assertDoesNotExist()
+        assertTrue(searchBounds.top < utilityBounds.bottom && utilityBounds.top < searchBounds.bottom)
+    }
 
     @Test
     fun featuredSemanticsExposeTitleScoreAndSource() {
@@ -48,8 +75,37 @@ class DiscoverSemanticsTest {
         }
 
         compose.onNodeWithContentDescription(
-            "Featured Fixture Novel. Score 8.4 out of 10 from catalog.a.",
+            "Featured Fixture Novel. Score 8.4 out of 10 from Catalog A.",
         ).assertIsDisplayed()
+    }
+
+    @Test
+    fun catalogSelectorUsesFriendlyPluginNameInsteadOfRawId() {
+        val pluginId = PluginId("org.openstory.catalog.mangadex")
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(
+                        catalogs = listOf(
+                            app.openstory.catalog.model.CatalogHomeSnapshot(
+                                pluginId = pluginId,
+                                pluginVersion = "1",
+                                refreshedAtEpochMillis = 1L,
+                                sections = emptyList(),
+                            ),
+                        ),
+                    ),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("MangaDex").assertIsDisplayed()
+        compose.onNodeWithText(pluginId.value).assertDoesNotExist()
     }
 
     @Test
@@ -75,6 +131,7 @@ class DiscoverSemanticsTest {
         compose.onAllNodesWithText("Across catalogs", useUnmergedTree = true)
             .onFirst()
             .assertIsDisplayed()
+        compose.onNodeWithTag("story-poster-card", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -97,8 +154,8 @@ class DiscoverSemanticsTest {
             }
         }
 
-        compose.onNodeWithContentDescription("Category Trending from catalog.a")
-            .assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithContentDescription("Category Trending from Catalog A")
+            .assertHeightIsAtLeast(56.dp)
             .performClick()
         kotlin.test.assertEquals(category, selected)
     }
@@ -123,7 +180,7 @@ class DiscoverSemanticsTest {
             }
         }
 
-        compose.onNodeWithContentDescription("Category Trending from catalog.a")
+        compose.onNodeWithContentDescription("Category Trending from Catalog A")
             .assertIsSelected()
     }
 
@@ -155,10 +212,13 @@ class DiscoverSemanticsTest {
         search.performKeyInput { pressKey(Key.Tab) }
         search.assertIsFocused()
         search.performKeyInput { pressKey(Key.Tab) }
-        compose.onNodeWithContentDescription("Category Trending from catalog.a").assertIsFocused()
-        compose.onNodeWithContentDescription("Category Trending from catalog.a")
+        compose.onNodeWithContentDescription("Open quick access").assertIsFocused()
+        compose.onNodeWithContentDescription("Open quick access")
             .performKeyInput { pressKey(Key.Tab) }
-        compose.onNodeWithText("Across catalogs").assertIsFocused()
+        compose.onNodeWithContentDescription("Category Trending from Catalog A").assertIsFocused()
+        compose.onNodeWithContentDescription("Category Trending from Catalog A")
+            .performKeyInput { pressKey(Key.Tab) }
+        compose.onNodeWithText("All sources").assertIsFocused()
     }
 }
 

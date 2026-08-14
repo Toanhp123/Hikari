@@ -1,6 +1,7 @@
 package app.openstory.catalog.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,7 @@ import app.openstory.catalog.model.CatalogEntry
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.theme.hikariSpacing
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun StoryShelf(
@@ -21,17 +23,24 @@ fun StoryShelf(
     onSelected: (StoryId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.foundation.layout.Column(modifier) {
-        HikariSectionHeader(
-            title = title,
-            modifier = Modifier.semantics { heading() },
-        )
-        LazyRow(
-            contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.small),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
-        ) {
-            items(entries, key = { "${it.pluginId.value}:${it.sourceId}" }) { entry ->
-                StoryCoverCard(entry, title, onSelected)
+    BoxWithConstraints(modifier) {
+        val cardWidth = when {
+            maxWidth < 380.dp -> 76.dp
+            maxWidth < 520.dp -> 88.dp
+            else -> 104.dp
+        }
+        androidx.compose.foundation.layout.Column {
+            HikariSectionHeader(
+                title = title,
+                modifier = Modifier.semantics { heading() },
+            )
+            LazyRow(
+                contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.small),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
+            ) {
+                items(entries, key = { "${it.pluginId.value}:${it.sourceId}" }) { entry ->
+                    StoryCoverCard(entry, title, onSelected, cardWidth)
+                }
             }
         }
     }

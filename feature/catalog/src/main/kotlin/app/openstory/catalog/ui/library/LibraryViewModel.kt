@@ -104,6 +104,12 @@ class LibraryViewModel @Inject constructor(
         selectSourceFilter(null)
     }
 
+    fun resetFilterSelections() {
+        selectStatus(null)
+        selectSourceFilter(null)
+        selectSort(LibrarySort.LAST_ACTIVITY)
+    }
+
     private companion object {
         const val QUERY_KEY = "library.query"
         const val STATUS_KEY = "library.status"

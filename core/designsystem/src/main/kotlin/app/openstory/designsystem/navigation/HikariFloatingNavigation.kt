@@ -57,7 +57,9 @@ private fun androidx.compose.foundation.layout.RowScope.NavigationItem(
     selected: Boolean,
     onSelected: (String) -> Unit,
 ) {
-    val color = if (selected) MaterialTheme.colorScheme.primary
+    val selectedColor = MaterialTheme.colorScheme.secondary
+    val selectedContainer = MaterialTheme.colorScheme.secondaryContainer
+    val color = if (selected) selectedColor
     else MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier = Modifier.weight(1f).heightIn(min = 56.dp)
@@ -69,7 +71,7 @@ private fun androidx.compose.foundation.layout.RowScope.NavigationItem(
             .semantics { this.selected = selected }
             .padding(4.dp)
             .background(
-                if (selected) MaterialTheme.colorScheme.secondaryContainer
+                if (selected) selectedContainer
                 else androidx.compose.ui.graphics.Color.Transparent,
                 RoundedCornerShape(28.dp),
             )

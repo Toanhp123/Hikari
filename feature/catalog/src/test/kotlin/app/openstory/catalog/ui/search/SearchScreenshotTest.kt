@@ -2,6 +2,10 @@ package app.openstory.catalog.ui.search
 
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
@@ -22,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -36,6 +41,30 @@ class SearchScreenshotTest {
         fixture().copy(failures = listOf(CatalogSearchFailure(PluginId("catalog.b"), "catalog.offline", true))),
         "partial-source-failure.png",
     )
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun focusedHeaderRespectsProvidedSafeInsetAndNavigatesBack() {
+        var backRequested = false
+        compose.setContent {
+            HikariTheme(darkTheme = true) {
+                SearchScreen(
+                    state = fixture(),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                    onBack = { backRequested = true },
+                    contentPadding = PaddingValues(top = 40.dp),
+                )
+            }
+        }
+
+        val back = compose.onNodeWithContentDescription("Back")
+        assertTrue(back.fetchSemanticsNode().boundsInRoot.top >= 40f)
+        back.performClick()
+        assertTrue(backRequested)
+    }
 
     private fun capture(state: SearchUiState, fileName: String) {
         compose.setContent {

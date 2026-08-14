@@ -1,7 +1,7 @@
 package app.openstory.catalog.ui.updates
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,6 +35,7 @@ import app.openstory.designsystem.artwork.rememberHikariArtwork
 import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
+import app.openstory.designsystem.layout.HikariDestinationScaffold
 
 @Composable
 fun UpdatesScreen(
@@ -44,29 +43,26 @@ fun UpdatesScreen(
     onStorySelected: (StoryId) -> Unit,
     onRead: (ReaderTarget) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        Column(
-            modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-        ) {
-            Text(
-                "Updates",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .semantics { heading() },
-            )
-            when {
-                state.loading -> HikariLoadingState("Loading updates")
-                state.isEmpty -> HikariEmptyState(
-                    "No reading updates",
-                    message = "New mapped releases for stories in your Library will appear here.",
+        HikariDestinationScaffold(modifier) {
+            Column(Modifier.fillMaxSize().padding(contentPadding)) {
+                Text(
+                    "Updates",
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .semantics { heading() },
                 )
-                else -> UpdateGroups(state.groups, onStorySelected, onRead)
+                when {
+                    state.loading -> HikariLoadingState("Loading updates")
+                    state.isEmpty -> HikariEmptyState(
+                        "No reading updates",
+                        message = "New mapped releases for stories in your Library will appear here.",
+                    )
+                    else -> UpdateGroups(state.groups, onStorySelected, onRead)
+                }
             }
         }
     }

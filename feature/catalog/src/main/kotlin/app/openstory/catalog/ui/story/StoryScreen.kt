@@ -1,7 +1,7 @@
 package app.openstory.catalog.ui.story
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +37,7 @@ import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.layout.HikariResponsiveContent
+import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariWindowClass
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
@@ -56,10 +57,13 @@ fun StoryScreen(
     chapterState: ChapterListUiState? = null,
     chapterActions: ChapterListActions = ChapterListActions(),
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
     val story = state.story
     if (story == null) {
-        EmptyStory(state, onRetry, modifier)
+        HikariDestinationScaffold(modifier) {
+            EmptyStory(state, onRetry, Modifier.fillMaxSize().padding(contentPadding))
+        }
         return
     }
     val readableTargets = chapterState?.readableTargets.orEmpty()
@@ -69,21 +73,23 @@ fun StoryScreen(
     val firstReadableTarget = readableTargets.firstOrNull()
     val readerTarget = validatedResumeTarget ?: firstReadableTarget
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        HikariResponsiveContent(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            if (windowClass == HikariWindowClass.MEDIUM) {
-                MediumStoryLayout(
-                    state, story, readerTarget, validatedResumeTarget != null,
-                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
-                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
-                    chapterState, chapterActions,
-                )
-            } else {
-                CompactStoryLayout(
-                    state, story, readerTarget, validatedResumeTarget != null,
-                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
-                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
-                    chapterState, chapterActions,
-                )
+        HikariDestinationScaffold(modifier) {
+            HikariResponsiveContent(Modifier.fillMaxSize().padding(contentPadding)) {
+                if (windowClass == HikariWindowClass.MEDIUM) {
+                    MediumStoryLayout(
+                        state, story, readerTarget, validatedResumeTarget != null,
+                        firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                        onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
+                        chapterState, chapterActions,
+                    )
+                } else {
+                    CompactStoryLayout(
+                        state, story, readerTarget, validatedResumeTarget != null,
+                        firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                        onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
+                        chapterState, chapterActions,
+                    )
+                }
             }
         }
     }

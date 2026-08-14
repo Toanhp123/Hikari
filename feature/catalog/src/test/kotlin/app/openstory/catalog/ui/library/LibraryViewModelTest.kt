@@ -146,6 +146,32 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun resetFilterSelectionsPreservesQueryAndDisplayMode() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        val viewModel = fixtures.viewModel(
+            SavedStateHandle(
+                mapOf(
+                    "library.query" to "moon",
+                    "library.status" to LibraryStatus.READING.name,
+                    "library.sort" to LibrarySort.TITLE.name,
+                    "library.display-mode" to LibraryDisplayMode.LIST.name,
+                    "library.source-filter" to LibrarySourceState.NO_MAPPING.name,
+                ),
+            ),
+        )
+        runCurrent()
+
+        viewModel.resetFilterSelections()
+        runCurrent()
+
+        assertEquals("moon", viewModel.state.value.query)
+        assertEquals(null, viewModel.state.value.selectedStatus)
+        assertEquals(LibrarySort.LAST_ACTIVITY, viewModel.state.value.sort)
+        assertEquals(LibraryDisplayMode.LIST, viewModel.state.value.displayMode)
+        assertEquals(null, viewModel.state.value.sourceFilter)
+    }
+
+    @Test
     fun missingEnrichmentNeverRemovesLibraryMembership() = runTest(dispatcher.scheduler) {
         val fixtures = Fixtures()
         fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))

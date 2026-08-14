@@ -12,6 +12,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.SemanticsMatcher
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -27,10 +29,15 @@ import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.catalog.ui.discover.DiscoverQuickCategory
 import app.openstory.catalog.ui.discover.DiscoverScreen
 import app.openstory.catalog.ui.discover.DiscoverUiState
+import app.openstory.catalog.ui.search.SearchScreen
+import app.openstory.catalog.ui.search.SearchUiState
+import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.Score
 import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import app.openstory.ui.HikariAppShell
 import app.openstory.ui.HikariUtilitySheet
-import app.openstory.ui.hikariTopLevelContentPadding
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -38,6 +45,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w360dp-h800dp")
@@ -50,11 +58,59 @@ class AppShellScreenshotTest {
     fun homeSelectedDark() = captureShell(AppRoute.Home, darkTheme = true, "home-dark.png")
 
     @Test
-    fun discoverSelectedLight() = captureShell(
-        AppRoute.Discover,
-        darkTheme = false,
-        "discover-light.png",
-    )
+    fun discoverSelectedLight() {
+        val pluginId = PluginId("org.openstory.catalog.mangadex")
+        compose.setContent {
+            HikariTheme(darkTheme = false) {
+                HikariAppShell(AppRoute.Discover, {}, {}) { contentPadding ->
+                    DiscoverScreen(
+                        state = DiscoverUiState(
+                            featured = CatalogEntry(
+                                storyId = StoryId("moonlit-archive"),
+                                pluginId = pluginId,
+                                sourceId = "moonlit-archive",
+                                title = "The Fox of the Moonlit Archive",
+                                genres = setOf("Fantasy", "Mystery"),
+                                contentType = ContentType.LIGHT_NOVEL,
+                                languageTags = setOf("en"),
+                                score = Score(8.8, 10.0),
+                            ),
+                            quickCategories = listOf(
+                                DiscoverQuickCategory(pluginId, "trending", "Trending stories"),
+                            ),
+                        ),
+                        onRefresh = {},
+                        onSearch = {},
+                        onStorySelected = {},
+                        onCatalogSelected = {},
+                        onCombinedSelected = {},
+                        contentPadding = contentPadding,
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/snapshots/app-shell/discover-light.png")
+    }
+
+    @Test
+    fun focusedSearchLight() {
+        compose.setContent {
+            HikariTheme(darkTheme = false) {
+                HikariAppShell(AppRoute.Search, {}, {}) { contentPadding ->
+                    SearchScreen(
+                        state = SearchUiState(query = "moonlit archive"),
+                        onQueryChange = {},
+                        onRecentSelected = {},
+                        onFilterValuesChange = { _, _, _ -> },
+                        onClearFilters = {},
+                        onStorySelected = {},
+                        contentPadding = contentPadding,
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/snapshots/app-shell/search-focused-light.png")
+    }
 
     @Test
     fun downloadsAndUpdatesUtilitySheet() {
@@ -73,7 +129,7 @@ class AppShellScreenshotTest {
         val category = DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending")
         compose.setContent {
             HikariTheme {
-                HikariAppShell(AppRoute.Discover, {}, {}) {
+                HikariAppShell(AppRoute.Discover, {}, {}) { contentPadding ->
                     DiscoverScreen(
                         state = DiscoverUiState(quickCategories = listOf(category)),
                         onRefresh = {},
@@ -81,6 +137,7 @@ class AppShellScreenshotTest {
                         onStorySelected = {},
                         onCatalogSelected = {},
                         onCombinedSelected = {},
+                        contentPadding = contentPadding,
                     )
                 }
             }
@@ -88,7 +145,56 @@ class AppShellScreenshotTest {
 
         compose.onNodeWithContentDescription("Search all stories").assertTraversalIndex(0f)
         compose.onNodeWithContentDescription("Open quick access").assertTraversalIndex(1f)
-        compose.onNodeWithContentDescription("Category Trending from catalog.a").assertTraversalIndex(2f)
+        compose.onNodeWithContentDescription("Category Trending from Catalog A").assertTraversalIndex(2f)
+    }
+
+    @Test
+    fun discoverSearchAndUtilityShareTopBand() {
+        compose.setContent {
+            HikariTheme {
+                HikariAppShell(AppRoute.Discover, {}, {}) { contentPadding ->
+                    DiscoverScreen(
+                        state = DiscoverUiState(),
+                        onRefresh = {},
+                        onSearch = {},
+                        onStorySelected = {},
+                        onCatalogSelected = {},
+                        onCombinedSelected = {},
+                        contentPadding = contentPadding,
+                    )
+                }
+            }
+        }
+
+        val searchBounds = compose.onNodeWithContentDescription("Search all stories")
+            .fetchSemanticsNode().boundsInRoot
+        val utilityBounds = compose.onNodeWithContentDescription("Open quick access")
+            .fetchSemanticsNode().boundsInRoot
+
+        assertTrue(
+            searchBounds.top < utilityBounds.bottom && utilityBounds.top < searchBounds.bottom,
+            "Search and utility controls should occupy the same top band",
+        )
+    }
+
+    @Test
+    fun shellLeavesTopLevelHeaderInsideContentFlow() {
+        compose.setContent {
+            HikariTheme {
+                HikariAppShell(AppRoute.Home, {}, {}) { contentPadding ->
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(contentPadding)
+                            .testTag("shell-content-bounds"),
+                    )
+                }
+            }
+        }
+
+        val bounds = compose.onNodeWithTag("shell-content-bounds").fetchSemanticsNode().boundsInRoot
+        assertTrue(bounds.top < 72f, "Shell must not reserve fixed top-level chrome")
+        assertTrue(bounds.bottom <= 708f, "Shell must reserve its floating navigation chrome")
     }
 
     @Test
@@ -108,7 +214,7 @@ class AppShellScreenshotTest {
                     onUtilityRequested = {},
                     utilityFocusRequester = utilityFocus,
                     utilityNextFocusRequester = categoryFocus,
-                ) {
+                ) { contentPadding ->
                     DiscoverScreen(
                         state = DiscoverUiState(quickCategories = listOf(category)),
                         onRefresh = {},
@@ -121,6 +227,10 @@ class AppShellScreenshotTest {
                         categoryFocusRequester = categoryFocus,
                         categoryNextFocusRequester = catalogFocus,
                         catalogFocusRequester = catalogFocus,
+                        onUtilityRequested = {},
+                        utilityFocusRequester = utilityFocus,
+                        utilityNextFocusRequester = categoryFocus,
+                        contentPadding = contentPadding,
                     )
                 }
             }
@@ -128,8 +238,8 @@ class AppShellScreenshotTest {
 
         val search = compose.onNodeWithContentDescription("Search all stories")
         val utility = compose.onNodeWithContentDescription("Open quick access")
-        val quickCategory = compose.onNodeWithContentDescription("Category Trending from catalog.a")
-        val combinedCatalog = compose.onNodeWithText("Across catalogs")
+        val quickCategory = compose.onNodeWithContentDescription("Category Trending from Catalog A")
+        val combinedCatalog = compose.onNodeWithText("All sources")
 
         compose.runOnIdle {
             inputModeManager.requestInputMode(InputMode.Keyboard)
@@ -160,7 +270,7 @@ class AppShellScreenshotTest {
                     onUtilityRequested = {},
                     utilityFocusRequester = utilityFocus,
                     utilityNextFocusRequester = categoryFocus,
-                ) {
+                ) { contentPadding ->
                     DiscoverScreen(
                         state = DiscoverUiState(),
                         onRefresh = {},
@@ -173,6 +283,10 @@ class AppShellScreenshotTest {
                         categoryFocusRequester = categoryFocus,
                         categoryNextFocusRequester = catalogFocus,
                         catalogFocusRequester = catalogFocus,
+                        onUtilityRequested = {},
+                        utilityFocusRequester = utilityFocus,
+                        utilityNextFocusRequester = catalogFocus,
+                        contentPadding = contentPadding,
                     )
                 }
             }
@@ -180,7 +294,7 @@ class AppShellScreenshotTest {
 
         val search = compose.onNodeWithContentDescription("Search all stories")
         val utility = compose.onNodeWithContentDescription("Open quick access")
-        val combinedCatalog = compose.onNodeWithText("Across catalogs")
+        val combinedCatalog = compose.onNodeWithText("All sources")
 
         compose.runOnIdle {
             inputModeManager.requestInputMode(InputMode.Keyboard)
@@ -200,14 +314,9 @@ class AppShellScreenshotTest {
                     currentRoute = route,
                     onTopLevelSelected = {},
                     onUtilityRequested = {},
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFF315F74))
-                            .hikariTopLevelContentPadding(),
-                    ) {
-                        Text(route.toString())
+                ) { contentPadding ->
+                    Box(Modifier.fillMaxSize().background(Color(0xFF315F74))) {
+                        Text(route.toString(), Modifier.padding(contentPadding))
                     }
                 }
             }

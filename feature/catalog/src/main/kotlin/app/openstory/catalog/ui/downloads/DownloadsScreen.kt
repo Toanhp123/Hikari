@@ -1,15 +1,13 @@
 package app.openstory.catalog.ui.downloads
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
@@ -29,6 +27,7 @@ import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
+import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.downloads.DownloadState
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
@@ -43,37 +42,34 @@ fun DownloadsScreen(
     onConfirmRemoval: () -> Unit,
     onDismissRemoval: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        Column(
-            modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-        ) {
-            Text(
-                "Downloads",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .semantics { heading() },
-            )
-            when {
-                state.loading -> HikariLoadingState("Loading downloads")
-                state.isEmpty -> HikariEmptyState(
-                    "No downloads yet",
-                    message = "Downloaded chapters will appear here.",
+        HikariDestinationScaffold(modifier) {
+            Column(Modifier.fillMaxSize().padding(contentPadding)) {
+                Text(
+                    "Downloads",
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .semantics { heading() },
                 )
-                else -> DownloadsList(
-                    state,
-                    onStorySelected,
-                    onRetry,
-                    onCancel,
-                    onRemove,
-                    onConfirmRemoval,
-                    onDismissRemoval,
-                )
+                when {
+                    state.loading -> HikariLoadingState("Loading downloads")
+                    state.isEmpty -> HikariEmptyState(
+                        "No downloads yet",
+                        message = "Downloaded chapters will appear here.",
+                    )
+                    else -> DownloadsList(
+                        state,
+                        onStorySelected,
+                        onRetry,
+                        onCancel,
+                        onRemove,
+                        onConfirmRemoval,
+                        onDismissRemoval,
+                    )
+                }
             }
         }
     }

@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.components.StoryPosterCard
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
@@ -43,6 +44,9 @@ import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.layout.HikariTopLevelHeader
+import app.openstory.designsystem.layout.plus
 
 @Composable
 fun HomeDashboardScreen(
@@ -51,19 +55,56 @@ fun HomeDashboardScreen(
     onStorySelected: (StoryId) -> Unit,
     onResume: (ReaderTarget) -> Unit,
     firstContentFocusRequester: FocusRequester? = null,
+    onUtilityRequested: () -> Unit = {},
+    utilityFocusRequester: FocusRequester? = null,
+    utilityNextFocusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
     val continueFocus = remember { FocusRequester() }
     val readingFocus = remember { FocusRequester() }
+    val background = Brush.verticalGradient(
+        listOf(
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+            MaterialTheme.colorScheme.background.copy(alpha = 0.94f),
+            MaterialTheme.colorScheme.background,
+        ),
+    )
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            when {
-                state.loading -> HikariLoadingState("Loading your reading home")
-                state.isEmpty -> EmptyHome(state.failure, onDiscover, firstContentFocusRequester)
-                else -> HomeContent(
-                    state, onStorySelected, onResume, continueFocus, readingFocus,
-                    firstContentFocusRequester,
-                )
+        HikariDestinationScaffold(modifier) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(background)
+                    .testTag("home-atmosphere"),
+            ) {
+                when {
+                    state.loading -> Column(Modifier.fillMaxSize().padding(contentPadding)) {
+                        HikariTopLevelHeader(
+                            title = "Home",
+                            onAction = onUtilityRequested,
+                            focusRequester = utilityFocusRequester,
+                            nextFocusRequester = utilityNextFocusRequester,
+                        )
+                        HikariLoadingState("Loading your reading home", Modifier.weight(1f))
+                    }
+                    state.isEmpty -> Column(Modifier.fillMaxSize().padding(contentPadding)) {
+                        HikariTopLevelHeader(
+                            title = "Home",
+                            onAction = onUtilityRequested,
+                            focusRequester = utilityFocusRequester,
+                            nextFocusRequester = utilityNextFocusRequester,
+                        )
+                        Box(Modifier.weight(1f)) {
+                            EmptyHome(state.failure, onDiscover, firstContentFocusRequester)
+                        }
+                    }
+                    else -> HomeContent(
+                        state, onStorySelected, onResume, continueFocus, readingFocus,
+                        firstContentFocusRequester, contentPadding, onUtilityRequested,
+                        utilityFocusRequester, utilityNextFocusRequester,
+                    )
+                }
             }
         }
     }
@@ -95,12 +136,24 @@ private fun HomeContent(
     continueFocus: FocusRequester,
     readingFocus: FocusRequester,
     firstContentFocusRequester: FocusRequester?,
+    contentPadding: PaddingValues,
+    onUtilityRequested: () -> Unit,
+    utilityFocusRequester: FocusRequester?,
+    utilityNextFocusRequester: FocusRequester?,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.extraLarge),
+        contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.extraLarge),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
     ) {
+        item("home-header") {
+            HikariTopLevelHeader(
+                title = "Home",
+                onAction = onUtilityRequested,
+                focusRequester = utilityFocusRequester,
+                nextFocusRequester = utilityNextFocusRequester,
+            )
+        }
         item("home-summary") { HomeSummary(state.summary) }
         state.failure?.let { failure ->
             item("home-failure") {
@@ -231,15 +284,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemShelf(
 @Composable
 private fun HomeSummary(summary: HomeReadingSummary) {
     Box(
-        Modifier.fillMaxWidth().height(214.dp).background(
-            Brush.linearGradient(
-                listOf(
-                    MaterialTheme.colorScheme.primaryContainer,
-                    MaterialTheme.colorScheme.surface,
-                    Color.Transparent,
-                ),
-            ),
-        ).padding(20.dp),
+        Modifier.fillMaxWidth().height(214.dp).padding(20.dp),
     ) {
         Column(Modifier.align(Alignment.BottomStart), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Welcome back", style = MaterialTheme.typography.headlineMedium)
@@ -277,26 +322,15 @@ private fun DashboardStoryCard(
     onSelected: (StoryId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        onClick = { onSelected(item.storyId) },
-        modifier = modifier.width(168.dp).semantics(mergeDescendants = true) {
-            contentDescription = "${item.title}. Section $section"
-            traversalIndex = 2f
-        },
-    ) {
-        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            val artwork = rememberHikariArtwork(
-                HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
-            )
-            HikariArtwork(artwork, "${item.title} cover", Modifier.fillMaxWidth().height(210.dp))
-            Text(
-                item.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
+    StoryPosterCard(
+        storyId = item.storyId,
+        title = item.title,
+        coverUrl = item.coverUrl,
+        contentDescription = "${item.title}. Section $section",
+        onSelected = { onSelected(item.storyId) },
+        traversalIndex = 2f,
+        modifier = modifier.width(104.dp),
+    )
 }
 
 @Composable

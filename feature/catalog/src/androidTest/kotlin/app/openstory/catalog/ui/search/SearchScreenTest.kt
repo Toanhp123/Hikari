@@ -10,7 +10,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToKey
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
@@ -25,6 +27,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -166,6 +169,31 @@ class SearchScreenTest {
 
         compose.onNodeWithText("No matches found").assertIsDisplayed()
         compose.onNodeWithText("Try another title, author, or alias.").assertIsDisplayed()
+    }
+
+    @Test
+    fun focusedHeaderRespectsShellPaddingAndNavigatesBack() {
+        var backRequested = false
+        compose.setContent {
+            HikariTheme {
+                SearchScreen(
+                    state = fixtureState(),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                    onBack = { backRequested = true },
+                    contentPadding = PaddingValues(top = 40.dp),
+                )
+            }
+        }
+
+        val back = compose.onNodeWithContentDescription("Back")
+        val bounds = back.fetchSemanticsNode().boundsInRoot
+        assertTrue(bounds.top >= 40f, "Focused header must begin below shell-provided top padding")
+        back.performClick()
+        assertTrue(backRequested)
     }
 }
 

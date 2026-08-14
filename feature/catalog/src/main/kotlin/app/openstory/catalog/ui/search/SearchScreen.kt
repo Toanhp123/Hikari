@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.glass.HikariGlassSurface
+import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.layout.HikariFocusedHeader
+import app.openstory.designsystem.layout.plus
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -42,21 +45,26 @@ fun SearchScreen(
     onClearFilters: (PluginId) -> Unit,
     onStorySelected: (CatalogSearchStory) -> Unit,
     modifier: Modifier = Modifier,
+    onBack: () -> Unit = {},
+    contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
     val focusManager = LocalFocusManager.current
-    LazyColumn(
-        modifier = modifier.fillMaxSize().testTag("search-content"),
-        contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.large),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
-    ) {
-        item(key = "search-header") { SearchHeader(state.query, onQueryChange, focusManager) }
-        if (state.recentQueries.isNotEmpty()) {
-            item(key = "search-recents") { RecentSearches(state.recentQueries, onRecentSelected) }
+    HikariDestinationScaffold(modifier) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().testTag("search-content"),
+            contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.large),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
+        ) {
+            item(key = "search-navigation") { HikariFocusedHeader("Search", onBack) }
+            item(key = "search-header") { SearchHeader(state.query, onQueryChange, focusManager) }
+            if (state.recentQueries.isNotEmpty()) {
+                item(key = "search-recents") { RecentSearches(state.recentQueries, onRecentSelected) }
+            }
+            if (state.filterGroups.any { it.definitions.isNotEmpty() }) {
+                searchFilterItems(state.filterGroups, state.filterValues, onFilterValuesChange, onClearFilters)
+            }
+            searchResultItems(state, onStorySelected)
         }
-        if (state.filterGroups.any { it.definitions.isNotEmpty() }) {
-            searchFilterItems(state.filterGroups, state.filterValues, onFilterValuesChange, onClearFilters)
-        }
-        searchResultItems(state, onStorySelected)
     }
 }
 
@@ -66,7 +74,7 @@ private fun SearchHeader(query: String, onQueryChange: (String) -> Unit, focusMa
         Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large, vertical = MaterialTheme.hikariSpacing.small),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Search every catalog", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Find your next story", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(
             "Results stay grouped across sources, even when one catalog is unavailable.",
             style = MaterialTheme.typography.bodyMedium,

@@ -1,7 +1,9 @@
 package app.openstory.catalog.ui.library
 
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import app.openstory.catalog.model.ContentType
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.motion.HikariMotionPolicy
@@ -34,6 +36,18 @@ class LibraryScreenshotTest {
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun filteredEmptyDark() = capture(fixture().copy(items = emptyList(), query = "missing"), true, "filtered-empty-dark.png")
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun filterSheetDark() {
+        compose.setContent {
+            HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
+                LibraryScreen(fixture(), {}, {}, {}, {}, {}, {}, {}, {})
+            }
+        }
+        compose.onNodeWithContentDescription("Open Library filters").performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/snapshots/library/filter-sheet-dark.png")
+    }
 
     private fun capture(state: LibraryUiState, dark: Boolean, fileName: String) {
         compose.setContent {
