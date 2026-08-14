@@ -3,10 +3,12 @@ package app.openstory.designsystem.content
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import app.openstory.designsystem.theme.hikariLayoutRatios
+import app.openstory.designsystem.theme.hikariShapes
 
 @Composable
 fun HikariCoverCardFrame(
@@ -15,10 +17,8 @@ fun HikariCoverCardFrame(
 ) {
     Box(
         modifier = modifier
-            .aspectRatio(COVER_ASPECT_RATIO)
-            .clip(RoundedCornerShape(percent = 10)),
+            .aspectRatio(MaterialTheme.hikariLayoutRatios.coverFrameAspectRatio)
+            .clip(MaterialTheme.hikariShapes.cover),
         content = content,
     )
 }
-
-private const val COVER_ASPECT_RATIO = 2f / 3f

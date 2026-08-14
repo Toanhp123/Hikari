@@ -25,7 +25,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.activity.LibraryActivityItem
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.StoryId
@@ -36,6 +35,8 @@ import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 fun UpdatesScreen(
@@ -52,7 +53,10 @@ fun UpdatesScreen(
                     "Updates",
                     style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .padding(
+                            horizontal = MaterialTheme.hikariSpacing.space20,
+                            vertical = MaterialTheme.hikariSpacing.space12,
+                        )
                         .semantics { heading() },
                 )
                 when {
@@ -75,15 +79,15 @@ private fun UpdateGroups(
     onRead: (ReaderTarget) -> Unit,
 ) {
     LazyColumn(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(MaterialTheme.hikariSpacing.space16),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         groups.forEach { group ->
             item(key = "heading-${group.label}") {
                 Text(
                     group.label,
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+                    modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8).semantics { heading() },
                 )
             }
             items(group.items, key = { it.releaseId.value }) { item ->
@@ -100,21 +104,33 @@ private fun UpdateCard(
     onRead: (ReaderTarget) -> Unit,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 112.dp).semantics(mergeDescendants = true) {
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = MaterialTheme.hikariDimensions.updateRowMinHeight)
+            .semantics(mergeDescendants = true) {
             contentDescription = "${item.title}, ${item.chapterLabel}, ${item.sourceLabel}, ${item.languageTag}"
         },
         onClick = { onStorySelected(item.storyId) },
     ) {
         Row(
-            Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.padding(MaterialTheme.hikariSpacing.space12),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val artwork = rememberHikariArtwork(
                 HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
             )
-            HikariArtwork(artwork, "${item.title} cover", Modifier.width(58.dp).height(82.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            HikariArtwork(
+                state = artwork,
+                contentDescription = "${item.title} cover",
+                modifier = Modifier
+                    .width(MaterialTheme.hikariDimensions.posterUpdate.width)
+                    .height(MaterialTheme.hikariDimensions.posterUpdate.height),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+            ) {
                 Text(
                     item.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -132,7 +148,7 @@ private fun UpdateCard(
             }
             TextButton(
                 onClick = { onRead(item.readerTarget) },
-                modifier = Modifier.heightIn(min = 48.dp),
+                modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
             ) { Text("Read") }
         }
     }

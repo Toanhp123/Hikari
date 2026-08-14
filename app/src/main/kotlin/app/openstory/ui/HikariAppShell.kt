@@ -16,11 +16,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalLayoutDirection
 import app.openstory.designsystem.glass.HikariBackdropHost
 import app.openstory.designsystem.navigation.HikariFloatingNavigation
 import app.openstory.designsystem.navigation.HikariNavigationItem
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.navigation.AppRoute
 import app.openstory.navigation.TopLevelDestination
 import app.openstory.navigation.shouldShowFloatingNavigation
@@ -60,7 +61,10 @@ fun HikariAppShell(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                            .padding(
+                                horizontal = MaterialTheme.hikariSpacing.space20,
+                                vertical = MaterialTheme.hikariSpacing.space12,
+                            ),
                         backdropScope = this@HikariBackdropHost,
                     )
                 }
@@ -75,18 +79,14 @@ class HikariAppShellScope internal constructor(
     val utilityNextFocusRequester: FocusRequester?,
 )
 
-object HikariAppShellDefaults {
-    val floatingNavigationClearance = 92.dp
-}
-
 @Composable
 private fun hikariAppContentPadding(route: AppRoute?): PaddingValues {
     val safeDrawing = WindowInsets.safeDrawing.asPaddingValues()
     val layoutDirection = LocalLayoutDirection.current
     val bottomChrome = if (shouldShowFloatingNavigation(route)) {
-        HikariAppShellDefaults.floatingNavigationClearance
+        MaterialTheme.hikariDimensions.floatingNavigationClearance
     } else {
-        0.dp
+        MaterialTheme.hikariDimensions.zero
     }
     return PaddingValues(
         start = safeDrawing.calculateStartPadding(layoutDirection),

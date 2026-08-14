@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -14,8 +13,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.download.DownloadActionSheet
 import app.openstory.catalog.ui.download.DownloadActions
@@ -23,10 +20,15 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.downloads.DownloadState
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariOpacity
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun ChapterReleaseRow(
@@ -43,20 +45,29 @@ fun ChapterReleaseRow(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
+        shape = MaterialTheme.hikariShapes.compactCard,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = MaterialTheme.hikariOpacity.subtleSurface),
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(release.sourceName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space12),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
+            Text(release.sourceName, style = MaterialTheme.hikariTypography.emphasizedTitleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
                 HikariMetadataBadge(release.languageLabel)
                 release.publishedAtEpochMillis?.let { HikariMetadataBadge(it.freshnessLabel()) }
                 downloadState?.let { HikariMetadataBadge(it.name.lowercase().replaceFirstChar(Char::uppercase)) }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
+            ) {
                 TextButton(
                     onClick = { onRead(ReaderTarget(storyId, chapterId, release.id)) },
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("chapter-read-${release.id.value}"),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+                        .testTag("chapter-read-${release.id.value}"),
                 ) { Text("Read") }
                 DownloadActionSheet(
                     release.id,
@@ -70,11 +81,11 @@ fun ChapterReleaseRow(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(
                     onClick = { onKeepGrouped(release.id, chapterId) },
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text("Keep grouped") }
                 TextButton(
                     onClick = { onSeparate(release.id) },
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text("Separate") }
             }
         }

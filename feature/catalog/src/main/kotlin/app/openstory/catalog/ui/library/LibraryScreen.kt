@@ -25,14 +25,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.unit.dp
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.layout.HikariResponsiveContent
 import app.openstory.designsystem.layout.HikariWindowClass
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.LibraryStatus
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 fun LibraryScreen(
@@ -61,9 +62,9 @@ fun LibraryScreen(
     var showFilters by remember { mutableStateOf(false) }
     val embeddedGridPadding = if (
         state.displayMode == LibraryDisplayMode.GRID && state.items.isNotEmpty()
-    ) 0.dp else 16.dp
+    ) MaterialTheme.hikariDimensions.zero else MaterialTheme.hikariSpacing.space16
     val chrome: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
             HikariTopLevelHeader(
                 title = "Library",
                 horizontalPadding = embeddedGridPadding,
@@ -165,15 +166,19 @@ private fun LibraryEmptyState(
     focusRequester: FocusRequester,
 ) {
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().padding(MaterialTheme.hikariSpacing.space24),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8),
+        )
         Button(
             onClick = onAction,
-            modifier = Modifier.padding(top = 16.dp).focusRequester(focusRequester),
+            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space16).focusRequester(focusRequester),
         ) { Text(actionLabel) }
     }
 }
@@ -187,15 +192,19 @@ private fun LibraryCollection(
     modifier: Modifier,
 ) {
     HikariResponsiveContent(modifier) {
-        val collectionPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)
+        val collectionPadding = PaddingValues(
+            start = MaterialTheme.hikariSpacing.space16,
+            end = MaterialTheme.hikariSpacing.space16,
+            bottom = MaterialTheme.hikariSpacing.space24,
+        )
         if (state.displayMode == LibraryDisplayMode.LIST) {
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.space24),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
             ) {
                 item("library-chrome") { chrome() }
                 items(state.items, key = { it.storyId.value }) { item ->
-                    Box(Modifier.padding(horizontal = 16.dp)) {
+                    Box(Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16)) {
                         LibraryStoryCard(
                             item = item,
                             displayMode = LibraryDisplayMode.LIST,
@@ -207,15 +216,15 @@ private fun LibraryCollection(
             }
         } else {
             val columns = if (windowClass == HikariWindowClass.MEDIUM) {
-                GridCells.Adaptive(144.dp)
+                GridCells.Adaptive(MaterialTheme.hikariDimensions.adaptiveGridMinCell)
             } else {
                 GridCells.Fixed(2)
             }
             LazyVerticalGrid(
                 columns = columns,
                 contentPadding = collectionPadding,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
             ) {
                 item(key = "library-chrome", span = { GridItemSpan(maxLineSpan) }) { chrome() }
                 items(state.items, key = { it.storyId.value }) { item ->

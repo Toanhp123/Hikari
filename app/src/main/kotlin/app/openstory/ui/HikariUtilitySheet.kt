@@ -12,8 +12,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import app.openstory.navigation.AppRoute
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariSpacing
 
 val utilityDestinations = listOf(
     HikariUtilityDestination(AppRoute.Downloads, "Downloads"),
@@ -34,8 +35,11 @@ fun HikariUtilitySheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(
+                    horizontal = MaterialTheme.hikariSpacing.space20,
+                    vertical = MaterialTheme.hikariSpacing.space12,
+                ),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             Text("Quick access", style = MaterialTheme.typography.titleLarge)
             utilityDestinations.forEach { destination ->
@@ -43,7 +47,7 @@ fun HikariUtilitySheet(
                     onClick = { onDestinationSelected(destination.route) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp),
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text(destination.label, style = MaterialTheme.typography.titleMedium) }
             }
         }

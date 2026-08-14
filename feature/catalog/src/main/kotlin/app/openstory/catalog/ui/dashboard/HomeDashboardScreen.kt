@@ -26,14 +26,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.StoryPosterCard
 import app.openstory.common.id.StoryId
@@ -47,6 +45,9 @@ import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.theme.hikariAtmosphereBrush
 
 @Composable
 fun HomeDashboardScreen(
@@ -63,13 +64,7 @@ fun HomeDashboardScreen(
 ) {
     val continueFocus = remember { FocusRequester() }
     val readingFocus = remember { FocusRequester() }
-    val background = Brush.verticalGradient(
-        listOf(
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
-            MaterialTheme.colorScheme.background.copy(alpha = 0.94f),
-            MaterialTheme.colorScheme.background,
-        ),
-    )
+    val background = MaterialTheme.hikariAtmosphereBrush
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         HikariDestinationScaffold(modifier) {
             Box(
@@ -143,8 +138,8 @@ private fun HomeContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.extraLarge),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
+        contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
     ) {
         item("home-header") {
             HikariTopLevelHeader(
@@ -157,7 +152,7 @@ private fun HomeContent(
         item("home-summary") { HomeSummary(state.summary) }
         state.failure?.let { failure ->
             item("home-failure") {
-                ObservationFailure(failure, Modifier.padding(horizontal = 20.dp))
+                ObservationFailure(failure, Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20))
             }
         }
         continueReadingShelf(
@@ -211,7 +206,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.continueReadingShelf(
     if (state.continueReading.isEmpty()) return
     item("home-continue") {
         HomeSection("Continue Reading") {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(state.continueReading, key = { it.storyId.value }) { item ->
                     ContinueReadingCard(
                         item = item,
@@ -233,7 +228,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.latestUpdatesShelf(
     if (updates.isEmpty()) return
     item("home-updates") {
         HomeSection("Latest Updates") {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(updates, key = { it.releaseId.value }) { update ->
                     UpdateCard(
                         update,
@@ -261,7 +256,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemShelf(
     if (entries.isEmpty()) return
     item("home-shelf-$title") {
         HomeSection(title) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(entries, key = { it.storyId.value }) { item ->
                     DashboardStoryCard(
                         item,
@@ -284,12 +279,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemShelf(
 @Composable
 private fun HomeSummary(summary: HomeReadingSummary) {
     Box(
-        Modifier.fillMaxWidth().height(214.dp).padding(20.dp),
+        Modifier
+            .fillMaxWidth()
+            .height(MaterialTheme.hikariDimensions.dashboardFeatureHeight)
+            .padding(MaterialTheme.hikariSpacing.space20),
     ) {
-        Column(Modifier.align(Alignment.BottomStart), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.align(Alignment.BottomStart),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
             Text("Welcome back", style = MaterialTheme.typography.headlineMedium)
             Text("Your library, progress and newest chapters in one place.", style = MaterialTheme.typography.bodyLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16)) {
                 SummaryMetric(summary.libraryCount, "Library")
                 SummaryMetric(summary.readingCount, "Reading")
                 SummaryMetric(summary.completedCount, "Completed")
@@ -309,7 +310,10 @@ private fun SummaryMetric(value: Int, label: String) {
 
 @Composable
 private fun HomeSection(title: String, content: @Composable () -> Unit) {
-    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+    ) {
         HikariSectionHeader(title, Modifier.semantics { heading() })
         content()
     }
@@ -329,16 +333,15 @@ private fun DashboardStoryCard(
         contentDescription = "${item.title}. Section $section",
         onSelected = { onSelected(item.storyId) },
         traversalIndex = 2f,
-        modifier = modifier.width(104.dp),
+        modifier = modifier.width(MaterialTheme.hikariDimensions.posterShelfWideWidth),
     )
 }
 
 @Composable
 private fun ObservationFailure(failure: HomeDashboardFailure, modifier: Modifier = Modifier) {
-    Text(
-        text = "Some reading data could not be refreshed (${failure.code}).",
-        color = MaterialTheme.colorScheme.error,
-        modifier = modifier.padding(20.dp),
+    HikariInlineFeedback(
+        message = "Some reading data could not be refreshed (${failure.code}).",
+        modifier = modifier,
     )
 }
 
@@ -350,20 +353,29 @@ private fun UpdateCard(
 ) {
     Card(
         onClick = { onResume(item.readerTarget) },
-        modifier = modifier.width(220.dp).heightIn(min = 88.dp).semantics(mergeDescendants = true) {
+        modifier = modifier
+            .width(MaterialTheme.hikariDimensions.dashboardCardWidth)
+            .heightIn(min = MaterialTheme.hikariDimensions.summaryCardMinHeight)
+            .semantics(mergeDescendants = true) {
             contentDescription = "Read ${item.title}, ${item.chapterLabel}. Section Latest Updates"
             traversalIndex = UPDATE_CARD_TRAVERSAL_INDEX
         },
     ) {
         Row(
-            Modifier.padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.padding(MaterialTheme.hikariSpacing.space10),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val artwork = rememberHikariArtwork(
                 HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
             )
-            HikariArtwork(artwork, "${item.title} cover", Modifier.width(54.dp).height(76.dp))
+            HikariArtwork(
+                state = artwork,
+                contentDescription = "${item.title} cover",
+                modifier = Modifier
+                    .width(MaterialTheme.hikariDimensions.posterActivity.width)
+                    .height(MaterialTheme.hikariDimensions.posterActivity.height),
+            )
             Column {
                 Text(
                     item.title,

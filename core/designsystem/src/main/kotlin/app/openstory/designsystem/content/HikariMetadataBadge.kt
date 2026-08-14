@@ -2,30 +2,33 @@ package app.openstory.designsystem.content
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.theme.hikariOpacity
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun HikariMetadataBadge(
     label: String,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = BADGE_ALPHA),
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(
+        alpha = MaterialTheme.hikariOpacity.metadataBadge,
+    ),
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     Text(
         text = label,
         modifier = modifier
-            .background(containerColor, RoundedCornerShape(percent = BADGE_CORNER_PERCENT))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .background(containerColor, MaterialTheme.hikariShapes.pill)
+            .padding(
+                horizontal = MaterialTheme.hikariSpacing.space10,
+                vertical = MaterialTheme.hikariSpacing.space5,
+            ),
         color = contentColor,
         style = MaterialTheme.typography.labelMedium,
     )
 }
-
-private const val BADGE_ALPHA = 0.72f
-private const val BADGE_CORNER_PERCENT = 50

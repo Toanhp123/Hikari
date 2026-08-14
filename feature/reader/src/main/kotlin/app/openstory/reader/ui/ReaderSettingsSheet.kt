@@ -16,7 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,8 +29,11 @@ fun ReaderSettingsSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, modifier = modifier) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth().padding(
+                horizontal = MaterialTheme.hikariSpacing.space20,
+                vertical = MaterialTheme.hikariSpacing.space12,
+            ),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
         ) {
             Text("Reading settings", style = MaterialTheme.typography.headlineSmall)
             Text("Text size", style = MaterialTheme.typography.titleMedium)
@@ -42,7 +46,7 @@ fun ReaderSettingsSheet(
                     onClick = actions.onDecreaseFont,
                     enabled = state.fontScale > MIN_FONT_SCALE,
                     modifier = Modifier
-                        .heightIn(min = 48.dp)
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                         .semantics { contentDescription = "Decrease reader text size" },
                 ) { Text("A-") }
                 Text(
@@ -53,7 +57,7 @@ fun ReaderSettingsSheet(
                     onClick = actions.onIncreaseFont,
                     enabled = state.fontScale < MAX_FONT_SCALE,
                     modifier = Modifier
-                        .heightIn(min = 48.dp)
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                         .semantics { contentDescription = "Increase reader text size" },
                 ) { Text("A+") }
             }

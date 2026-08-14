@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -26,7 +25,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.chapters.ChapterList
 import app.openstory.catalog.ui.chapters.ChapterListActions
 import app.openstory.catalog.ui.chapters.ChapterListUiState
@@ -41,7 +39,11 @@ import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariWindowClass
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.LibraryStatus
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.theme.hikariLayoutRatios
 
 @Composable
 fun StoryScreen(
@@ -114,7 +116,7 @@ private fun MediumStoryLayout(
     chapterActions: ChapterListActions,
 ) {
     Row(Modifier.fillMaxSize()) {
-        Column(storyPane(SUMMARY_PANE_WEIGHT, "story-summary-pane", 0f)) {
+        Column(storyPane(MaterialTheme.hikariLayoutRatios.detailSummaryPaneWeight, "story-summary-pane", 0f)) {
             StoryHero(
                 story, state.libraryStatus, readerTarget, isResume, downloadableReleaseId,
                 onLibraryStatusSelected, onRead, onDownload, narrow = true,
@@ -123,7 +125,7 @@ private fun MediumStoryLayout(
                 StoryOverview(story, compact = true, modifier = Modifier.weight(1f))
             }
         }
-        Column(storyPane(CONTENT_PANE_WEIGHT, "story-content-pane", 1f)) {
+        Column(storyPane(MaterialTheme.hikariLayoutRatios.detailContentPaneWeight, "story-content-pane", 1f)) {
             StoryBody(
                 state, onRetry, onSourceSelected, onSectionSelected, mappingState,
                 mappingActions, chapterState, chapterActions,
@@ -197,7 +199,7 @@ private fun StorySectionTabs(selectedSection: StorySection, onSelected: (StorySe
                 selected = selected,
                 onClick = { onSelected(section) },
                 modifier = Modifier
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                     .testTag("story-tab-${section.name.lowercase()}")
                     .semantics {
                         role = Role.Tab
@@ -242,28 +244,16 @@ private fun StorySectionContent(
     }
 }
 
-private const val SUMMARY_PANE_WEIGHT = 0.44f
-private const val CONTENT_PANE_WEIGHT = 0.56f
 
 @Composable
 private fun StoryFailureBanner(failure: StoryRefreshFailure, refreshing: Boolean, onRetry: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-    ) {
-        Text(
-            "Source detail refresh failed: ${failure.code}",
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.weight(1f),
-        )
-        if (failure.retryable) {
-            TextButton(
-                onClick = onRetry,
-                enabled = !refreshing,
-                modifier = Modifier.heightIn(min = 48.dp).testTag("story-retry"),
-            ) { Text("Retry") }
-        }
-    }
+    HikariInlineFeedback(
+        message = "Source detail refresh failed: ${failure.code}",
+        actionLabel = if (failure.retryable) "Retry" else null,
+        actionEnabled = !refreshing,
+        onAction = if (failure.retryable) onRetry else null,
+        actionModifier = Modifier.testTag("story-retry"),
+    )
 }
 
 @Composable

@@ -17,9 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.openstory.reader.document.ReaderBlock
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.progress.ReadingPosition
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -57,7 +57,10 @@ fun ReaderContent(
             item(key = "reader-title") {
                 Text(
                     title,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp).semantics { heading() },
+                    modifier = Modifier.padding(
+                        horizontal = MaterialTheme.hikariSpacing.space20,
+                        vertical = MaterialTheme.hikariSpacing.space16,
+                    ).semantics { heading() },
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontSize = MaterialTheme.typography.headlineMedium.fontSize * fontScale,
                     ),
@@ -127,22 +130,44 @@ private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
     when (block) {
         is ReaderBlock.Paragraph -> Text(
             block.text,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-            fontSize = 18.sp * fontScale,
-            lineHeight = 29.sp * fontScale,
+            modifier = Modifier.padding(
+                horizontal = MaterialTheme.hikariSpacing.space20,
+                vertical = MaterialTheme.hikariSpacing.space10,
+            ),
+            style = MaterialTheme.hikariTypography.readerBody.let { style ->
+                style.copy(
+                    fontSize = style.fontSize * fontScale,
+                    lineHeight = style.lineHeight * fontScale,
+                )
+            },
         )
         is ReaderBlock.Heading -> Text(
             block.text,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp).semantics { heading() },
+            modifier = Modifier.padding(
+                horizontal = MaterialTheme.hikariSpacing.space20,
+                vertical = MaterialTheme.hikariSpacing.space14,
+            ).semantics { heading() },
             style = headingStyle(block.level, fontScale),
         )
-        is ReaderBlock.Divider -> HorizontalDivider(Modifier.padding(horizontal = 32.dp, vertical = 16.dp))
+        is ReaderBlock.Divider -> HorizontalDivider(
+            Modifier.padding(
+                horizontal = MaterialTheme.hikariSpacing.space32,
+                vertical = MaterialTheme.hikariSpacing.space16,
+            ),
+        )
         is ReaderBlock.Note -> Text(
             block.text,
-            modifier = Modifier.padding(horizontal = 28.dp, vertical = 10.dp),
+            modifier = Modifier.padding(
+                horizontal = MaterialTheme.hikariSpacing.space28,
+                vertical = MaterialTheme.hikariSpacing.space10,
+            ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 16.sp * fontScale,
-            lineHeight = 24.sp * fontScale,
+            style = MaterialTheme.hikariTypography.readerNote.let { style ->
+                style.copy(
+                    fontSize = style.fontSize * fontScale,
+                    lineHeight = style.lineHeight * fontScale,
+                )
+            },
         )
     }
 }

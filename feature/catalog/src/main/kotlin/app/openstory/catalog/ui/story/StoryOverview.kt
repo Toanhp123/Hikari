@@ -11,14 +11,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 internal fun StoryOverview(story: StoryUiModel, compact: Boolean = false, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(MaterialTheme.hikariSpacing.space20),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
     ) {
         story.description?.takeIf(String::isNotBlank)?.let { description ->
             item {
@@ -41,16 +41,22 @@ private const val COMPACT_DESCRIPTION_LINES = 7
 @Composable
 private fun MetadataGroup(title: String, values: Set<String>) {
     if (values.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
         Text(title, style = MaterialTheme.typography.titleMedium)
         values.sorted().forEach { value ->
             Surface(
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 shape = MaterialTheme.shapes.extraLarge,
-                modifier = Modifier.padding(end = 6.dp),
+                modifier = Modifier.padding(end = MaterialTheme.hikariSpacing.space6),
             ) {
-                Text(value, Modifier.padding(horizontal = 12.dp, vertical = 7.dp))
+                Text(
+                    value,
+                    Modifier.padding(
+                        horizontal = MaterialTheme.hikariSpacing.space12,
+                        vertical = MaterialTheme.hikariSpacing.space7,
+                    ),
+                )
             }
         }
     }

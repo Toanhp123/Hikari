@@ -15,6 +15,14 @@ fun HikariTheme(
 ) {
     CompositionLocalProvider(
         LocalHikariSpacing provides HikariSpacing(),
+        LocalHikariDimensions provides HikariDimensions(),
+        LocalHikariBreakpoints provides HikariBreakpoints(),
+        LocalHikariLayoutRatios provides HikariLayoutRatios(),
+        LocalHikariGlyphGeometry provides HikariGlyphGeometry(),
+        LocalHikariSemanticShapes provides HikariSemanticShapes(),
+        LocalHikariSemanticColors provides HikariSemanticColors(),
+        LocalHikariOpacity provides HikariOpacity(),
+        LocalHikariSemanticTypography provides HikariSemanticTypography(),
         LocalHikariMotionPolicy provides motionPolicy,
     ) {
         MaterialTheme(

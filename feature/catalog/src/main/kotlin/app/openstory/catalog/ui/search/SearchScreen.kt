@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AssistChip
@@ -24,9 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.glass.HikariGlassSurface
@@ -35,6 +32,11 @@ import app.openstory.designsystem.layout.HikariFocusedHeader
 import app.openstory.designsystem.layout.plus
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.glass.HikariGlassPanel
+import app.openstory.designsystem.glass.HikariGlassPanelStyle
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun SearchScreen(
@@ -52,8 +54,8 @@ fun SearchScreen(
     HikariDestinationScaffold(modifier) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().testTag("search-content"),
-            contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.large),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
+            contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             item(key = "search-navigation") { HikariFocusedHeader("Search", onBack) }
             item(key = "search-header") { SearchHeader(state.query, onQueryChange, focusManager) }
@@ -71,10 +73,13 @@ fun SearchScreen(
 @Composable
 private fun SearchHeader(query: String, onQueryChange: (String) -> Unit, focusManager: FocusManager) {
     Column(
-        Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large, vertical = MaterialTheme.hikariSpacing.small),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        Modifier.padding(
+            horizontal = MaterialTheme.hikariSpacing.space16,
+            vertical = MaterialTheme.hikariSpacing.space8,
+        ),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
     ) {
-        Text("Find your next story", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Find your next story", style = MaterialTheme.hikariTypography.sectionTitle)
         Text(
             "Results stay grouped across sources, even when one catalog is unavailable.",
             style = MaterialTheme.typography.bodyMedium,
@@ -83,7 +88,7 @@ private fun SearchHeader(query: String, onQueryChange: (String) -> Unit, focusMa
         HikariGlassSurface(
             backdropScope = null,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
+            shape = MaterialTheme.hikariShapes.sheetCard,
         ) {
             OutlinedTextField(
                 value = query,
@@ -102,14 +107,20 @@ private fun SearchHeader(query: String, onQueryChange: (String) -> Unit, focusMa
 private fun RecentSearches(queries: List<String>, onSelected: (String) -> Unit) {
     if (queries.isEmpty()) return
     LazyRow(
-        contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.large),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small),
+        contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space16),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
-        item { Text("Recent", Modifier.padding(top = 12.dp), style = MaterialTheme.typography.labelLarge) }
+        item {
+            Text(
+                text = "Recent",
+                modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space12),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
         items(queries.take(MAX_VISIBLE_RECENT), key = { it }) { query ->
             AssistChip(
                 onClick = { onSelected(query) },
-                modifier = Modifier.heightIn(min = 48.dp),
+                modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 label = { Text(query) },
             )
         }
@@ -126,7 +137,7 @@ private fun LazyListScope.searchResultItems(
             FailureBanner(
                 "Search unavailable",
                 failure.code,
-                Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
+                Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
             )
         }
     }
@@ -135,7 +146,7 @@ private fun LazyListScope.searchResultItems(
             FailureBanner(
                 "${failure.pluginId.value} unavailable",
                 failure.code,
-                Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
+                Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
             )
         }
     }
@@ -151,7 +162,7 @@ private fun LazyListScope.searchResultItems(
         SearchResultCard(
             result,
             { onStorySelected(result) },
-            Modifier.padding(horizontal = MaterialTheme.hikariSpacing.large),
+            Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
         )
     }
 }
@@ -168,8 +179,8 @@ private val SearchUiState.shouldShowEmptyState: Boolean
 
 @Composable
 private fun FailureBanner(title: String, code: String, modifier: Modifier = Modifier) {
-    HikariGlassSurface(null, modifier.fillMaxWidth(), RoundedCornerShape(18.dp), PaddingValues(12.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    HikariGlassPanel(null, modifier.fillMaxWidth(), HikariGlassPanelStyle.COMPACT) {
+        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space2)) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
             Text(code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

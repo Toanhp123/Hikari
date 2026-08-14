@@ -165,8 +165,8 @@ synchronization layers.
 
 The repository separates development feedback, full host verification, Android
 instrumentation, and acceptance checkpoints. `scripts/verify-fast.sh` is the local
-development loop: repository/static gates, architecture verification, local tests,
-Detekt, and Room schema stability. `scripts/verify.sh` remains the canonical full host
+development loop: repository/static gates (including `verify-ui-tokens.sh`), architecture
+verification, local tests, Detekt, and Room schema stability. `scripts/verify.sh` remains the canonical full host
 gate and additionally runs Android lint plus app debug assembly. Both paths keep strict
 dependency verification; full verification owns `verifyArchitecture` in the same Gradle
 invocation to avoid a redundant Gradle startup. Local Gradle build caching and daemon

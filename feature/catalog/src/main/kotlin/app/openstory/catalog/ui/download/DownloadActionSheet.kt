@@ -9,11 +9,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.designsystem.feedback.HikariConfirmDialog
 import app.openstory.designsystem.feedback.HikariConfirmationStyle
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.downloads.DownloadState
+import app.openstory.designsystem.theme.hikariDimensions
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun DownloadActionSheet(
@@ -24,10 +26,10 @@ fun DownloadActionSheet(
     modifier: Modifier = Modifier,
     actionTag: String? = null,
 ) {
-    val actionModifier = Modifier.heightIn(min = 48.dp).then(
+    val actionModifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget).then(
         if (actionTag == null) Modifier else Modifier.testTag(actionTag),
     )
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         when (state) {
             DownloadState.QUEUED, DownloadState.RUNNING ->
                 TextButton(onClick = { actions.onCancel(releaseId) }, modifier = actionModifier) { Text("Cancel") }

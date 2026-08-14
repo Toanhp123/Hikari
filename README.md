@@ -75,9 +75,10 @@ Windows PowerShell with Git Bash installed:
 
     & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify-fast.sh
 
-The fast gate runs repository/static contracts, application identity and module
-architecture verification, build-logic tests, JVM/local Android unit tests, Detekt,
-strict dependency verification, and Room schema stability. It intentionally skips
+The fast gate runs repository/static contracts (including the fail-closed UI token
+policy), application identity and module architecture verification, build-logic tests,
+JVM/local Android unit tests, Detekt, strict dependency verification, and Room schema
+stability. It intentionally skips
 Android Lint and debug APK assembly to shorten the edit/verify loop.
 
 Before closing a task or checkpoint, run the canonical full host gate:

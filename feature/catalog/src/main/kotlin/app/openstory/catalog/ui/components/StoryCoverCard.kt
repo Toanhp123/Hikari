@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,23 +16,25 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.rememberHikariArtwork
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariLayoutRatios
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun StoryCoverCard(
     entry: CatalogEntry,
     sectionTitle: String,
     onSelected: (StoryId) -> Unit,
-    width: Dp = 88.dp,
+    width: Dp,
     modifier: Modifier = Modifier,
 ) {
     StoryPosterCard(
@@ -66,7 +67,7 @@ fun StoryPosterCard(
                 this.contentDescription = contentDescription
                 this.traversalIndex = traversalIndex
             },
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
     ) {
         val artwork = rememberHikariArtwork(
             HikariArtworkModel(coverUrl, storyId.value, title),
@@ -76,14 +77,13 @@ fun StoryPosterCard(
             contentDescription = "$title cover",
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(COVER_ASPECT_RATIO)
-                .clip(RoundedCornerShape(18.dp))
+                .aspectRatio(MaterialTheme.hikariLayoutRatios.posterCardAspectRatio)
+                .clip(MaterialTheme.hikariShapes.compactCard)
                 .testTag("story-poster-card"),
         )
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.hikariTypography.posterTitle,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -122,5 +122,4 @@ private fun ContentType.displayName(): String =
 private fun Double.toAccessibleNumber(): String =
     if (this % 1.0 == 0.0) toLong().toString() else toString()
 
-private const val COVER_ASPECT_RATIO = 0.68f
 private const val STORY_CARD_TRAVERSAL_INDEX = 4f

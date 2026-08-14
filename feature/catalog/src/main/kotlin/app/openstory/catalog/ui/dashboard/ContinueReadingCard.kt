@@ -10,9 +10,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.StoryPosterCard
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 fun ContinueReadingCard(
@@ -32,7 +33,7 @@ fun ContinueReadingCard(
         contentDescription = "Resume ${item.title}, $chapter, $percent percent read",
         onSelected = { onResume(target) },
         traversalIndex = 1f,
-        modifier = modifier.width(104.dp)
+        modifier = modifier.width(MaterialTheme.hikariDimensions.posterShelfWideWidth)
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .then(
                 downFocusRequester?.let { target ->

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,15 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.common.id.StoryId
@@ -38,6 +33,15 @@ import app.openstory.designsystem.artwork.HikariArtworkBackdrop
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.rememberHikariArtwork
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariBreakpoints
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariColors
+import app.openstory.designsystem.theme.hikariOpacity
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariTypography
+import app.openstory.designsystem.theme.hikariHeroHorizontalScrim
+import app.openstory.designsystem.theme.hikariHeroVerticalScrim
 
 @Composable
 fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: Modifier = Modifier) {
@@ -54,10 +58,18 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
             traversalIndex = FEATURED_TRAVERSAL_INDEX
         },
     ) {
-        val medium = maxWidth >= 520.dp
-        val heroHeight = if (medium) 246.dp else 176.dp
-        val coverWidth = if (medium) 156.dp else 96.dp
-        val shape = RoundedCornerShape(28.dp)
+        val medium = maxWidth >= MaterialTheme.hikariBreakpoints.expandedContent
+        val heroHeight = if (medium) {
+            MaterialTheme.hikariDimensions.discoverHeroExpandedHeight
+        } else {
+            MaterialTheme.hikariDimensions.discoverHeroCompactHeight
+        }
+        val coverWidth = if (medium) {
+            MaterialTheme.hikariDimensions.discoverHeroExpandedPosterWidth
+        } else {
+            MaterialTheme.hikariDimensions.discoverHeroCompactPosterWidth
+        }
+        val shape = MaterialTheme.hikariShapes.hero
         Box(
             Modifier
                 .fillMaxWidth()
@@ -68,24 +80,18 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
             HikariArtworkBackdrop(
                 state = artwork,
                 modifier = Modifier.fillMaxSize(),
-                scrim = Brush.horizontalGradient(
-                    listOf(
-                        Color.Black.copy(alpha = 0.18f),
-                        Color.Black.copy(alpha = 0.68f),
-                        Color.Black.copy(alpha = 0.92f),
-                    ),
-                ),
+                scrim = MaterialTheme.hikariHeroHorizontalScrim,
             )
             Box(
                 Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.3f)),
-                    ),
+                    MaterialTheme.hikariHeroVerticalScrim,
                 ),
             )
             Row(
-                modifier = Modifier.fillMaxSize().padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(if (medium) 20.dp else 12.dp),
+                modifier = Modifier.fillMaxSize().padding(MaterialTheme.hikariSpacing.space8),
+                horizontalArrangement = Arrangement.spacedBy(
+                    if (medium) MaterialTheme.hikariSpacing.space20 else MaterialTheme.hikariSpacing.space12,
+                ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 HikariArtwork(
@@ -94,7 +100,7 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
                     modifier = Modifier
                         .width(coverWidth)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(20.dp)),
+                        .clip(MaterialTheme.hikariShapes.contentCard),
                 )
                 HeroDetails(entry, medium, onSelected, Modifier.weight(1f))
             }
@@ -111,20 +117,23 @@ private fun HeroDetails(
 ) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(if (medium) 6.dp else 4.dp),
+        verticalArrangement = Arrangement.spacedBy(
+            if (medium) MaterialTheme.hikariSpacing.space6 else MaterialTheme.hikariSpacing.space4,
+        ),
     ) {
         Text(
             "FEATURED STORY",
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Black,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.hikariTypography.heroEyebrow,
         )
         Text(
             entry.title,
-            color = Color.White,
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.Black,
-            style = if (medium) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.hikariColors.onArtwork,
+            style = if (medium) {
+                MaterialTheme.hikariTypography.heroTitleExpanded
+            } else {
+                MaterialTheme.hikariTypography.heroTitleCompact
+            },
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -132,28 +141,31 @@ private fun HeroDetails(
             Text(
                 "${score.value.toAccessibleNumber()} / ${score.scale.toAccessibleNumber()}",
                 color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.hikariTypography.heroScore,
             )
         }
         Text(
             entry.heroMetadata(),
-            color = Color.White.copy(alpha = 0.78f),
+            color = MaterialTheme.hikariColors.onArtwork.copy(alpha = MaterialTheme.hikariOpacity.onArtworkSecondary),
             style = MaterialTheme.typography.bodyMedium,
             maxLines = if (medium) 2 else 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
             HikariMetadataBadge(
                 entry.pluginId.discoverDisplayName(),
-                containerColor = Color.White.copy(alpha = 0.13f),
-                contentColor = Color.White,
+                containerColor = MaterialTheme.hikariColors.onArtwork.copy(
+                    alpha = MaterialTheme.hikariOpacity.onArtworkBadge,
+                ),
+                contentColor = MaterialTheme.hikariColors.onArtwork,
             )
             entry.languageTags.firstOrNull()?.takeIf { medium }?.let { language ->
                 HikariMetadataBadge(
                     language.uppercase(),
-                    containerColor = Color.White.copy(alpha = 0.13f),
-                    contentColor = Color.White,
+                    containerColor = MaterialTheme.hikariColors.onArtwork.copy(
+                    alpha = MaterialTheme.hikariOpacity.onArtworkBadge,
+                ),
+                    contentColor = MaterialTheme.hikariColors.onArtwork,
                 )
             }
         }
@@ -161,13 +173,16 @@ private fun HeroDetails(
             Surface(
                 onClick = { onSelected(entry.storyId) },
                 color = MaterialTheme.colorScheme.primary,
-                contentColor = Color.Black,
-                shape = RoundedCornerShape(18.dp),
+                contentColor = MaterialTheme.hikariColors.onArtworkInverse,
+                shape = MaterialTheme.hikariShapes.compactCard,
             ) {
                 Text(
                     "Open story",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(
+                        horizontal = MaterialTheme.hikariSpacing.space20,
+                        vertical = MaterialTheme.hikariSpacing.space12,
+                    ),
+                    style = MaterialTheme.hikariTypography.heroAction,
                 )
             }
         }

@@ -18,12 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingSheet
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 internal fun StorySources(
@@ -39,16 +40,21 @@ internal fun StorySources(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space16),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         item {
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            ) {
                 Text("Catalog sources", style = MaterialTheme.typography.titleLarge)
                 Button(
                     onClick = onRetry,
                     enabled = !refreshing,
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("story-source-refresh"),
+                    modifier = Modifier
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+                        .testTag("story-source-refresh"),
                 ) {
                     Text("Refresh details")
                 }
@@ -75,13 +81,13 @@ private fun SourceCard(source: CatalogEntry, selected: Boolean, onSelected: () -
     Column(
         Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
             contentDescription = "${source.title}, source ${source.pluginId.value}"
-        }.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        }.padding(horizontal = MaterialTheme.hikariSpacing.space16, vertical = MaterialTheme.hikariSpacing.space8),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
     ) {
         FilterChip(
             selected, onSelected, { Text(source.pluginId.value) },
             modifier = Modifier
-                .heightIn(min = 48.dp)
+                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                 .testTag("story-source-${source.pluginId.value}-${source.sourceId}"),
         )
         Text(source.title, style = MaterialTheme.typography.titleMedium)

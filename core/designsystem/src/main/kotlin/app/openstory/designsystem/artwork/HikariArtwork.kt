@@ -14,11 +14,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.openstory.designsystem.motion.LocalHikariMotionPolicy
+import app.openstory.designsystem.theme.hikariColors
+import app.openstory.designsystem.theme.hikariOpacity
 import coil3.ImageLoader
 import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
@@ -130,13 +131,17 @@ fun HikariArtworkBackdrop(
 object HikariBackdropDefaults {
     val scrim: Brush
         @Composable
-        get() = Brush.verticalGradient(
-            colors = listOf(
-                Color.Transparent,
-                Color.Black.copy(alpha = 0.54f),
-                Color.Black.copy(alpha = 0.88f),
-            ),
-        )
+        get() {
+            val colors = MaterialTheme.hikariColors
+            val opacity = MaterialTheme.hikariOpacity
+            return Brush.verticalGradient(
+                colors = listOf(
+                    colors.transparent,
+                    colors.artworkScrim.copy(alpha = opacity.artworkBackdropMid),
+                    colors.artworkScrim.copy(alpha = opacity.artworkBackdropStrong),
+                ),
+            )
+        }
 }
 
 @Composable
@@ -159,7 +164,7 @@ private fun ArtworkLayer(
     ) {
         Text(
             text = state.fallback.monogram,
-            color = Color.White.copy(alpha = 0.92f),
+            color = MaterialTheme.hikariColors.onArtwork.copy(alpha = MaterialTheme.hikariOpacity.artworkMonogram),
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.clearAndSetSemantics {},
         )

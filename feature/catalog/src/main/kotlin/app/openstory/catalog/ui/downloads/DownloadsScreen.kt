@@ -14,20 +14,19 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.download.DownloadActionSheet
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.downloads.DownloadState
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
@@ -51,7 +50,10 @@ fun DownloadsScreen(
                     "Downloads",
                     style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .padding(
+                            horizontal = MaterialTheme.hikariSpacing.space20,
+                            vertical = MaterialTheme.hikariSpacing.space12,
+                        )
                         .semantics { heading() },
                 )
                 when {
@@ -86,8 +88,8 @@ private fun DownloadsList(
     onDismissRemoval: () -> Unit,
 ) {
     LazyColumn(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(MaterialTheme.hikariSpacing.space16),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         val actions = DownloadListActions(
             onStorySelected,
@@ -114,7 +116,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.downloadSection(
         Text(
             title,
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8).semantics { heading() },
         )
     }
     items(records, key = { it.releaseId.value }) { item ->
@@ -135,10 +137,13 @@ private fun DownloadCard(
         onClick = { item.storyId?.let(actions.onStorySelected) },
         enabled = item.storyId != null,
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
             Text(item.storyTitle, style = MaterialTheme.typography.titleMedium)
             Text(item.chapterLabel, style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
                 item.sourceLabel?.let { HikariMetadataBadge(it) }
                 HikariMetadataBadge(item.state.name.lowercase().replaceFirstChar(Char::uppercase))
                 item.sizeBytes.takeIf { it > 0L }?.let { HikariMetadataBadge(it.byteLabel()) }

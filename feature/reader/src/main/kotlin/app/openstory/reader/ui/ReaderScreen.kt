@@ -17,13 +17,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.openstory.designsystem.glass.HikariBackdropHost
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
+import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.reader.progress.ReadingPosition
 
 @Composable
@@ -123,7 +123,10 @@ private fun ReaderBackground(
                 restoredBlockId = state.restoredBlockId,
                 restoredCharacterOffset = state.restoredCharacterOffset,
                 contentPadding = if (chromeVisible) {
-                    PaddingValues(top = 104.dp, bottom = 96.dp)
+                    PaddingValues(
+                        top = MaterialTheme.hikariDimensions.readerTopInset,
+                        bottom = MaterialTheme.hikariDimensions.readerBottomInset,
+                    )
                 } else {
                     PaddingValues.Zero
                 },

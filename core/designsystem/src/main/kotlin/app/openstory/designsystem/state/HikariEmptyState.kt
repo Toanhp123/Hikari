@@ -50,7 +50,7 @@ internal fun HikariStateContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(MaterialTheme.hikariSpacing.large),
+            .padding(MaterialTheme.hikariSpacing.space16),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -60,14 +60,14 @@ internal fun HikariStateContent(
             style = MaterialTheme.typography.titleMedium,
         )
         if (message != null) {
-            Spacer(modifier = Modifier.height(MaterialTheme.hikariSpacing.small))
+            Spacer(modifier = Modifier.height(MaterialTheme.hikariSpacing.space8))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
         if (actionLabel != null && onAction != null) {
-            Spacer(modifier = Modifier.height(MaterialTheme.hikariSpacing.large))
+            Spacer(modifier = Modifier.height(MaterialTheme.hikariSpacing.space16))
             Button(
                 onClick = onAction,
                 modifier = actionFocusRequester?.let { Modifier.focusRequester(it) } ?: Modifier,

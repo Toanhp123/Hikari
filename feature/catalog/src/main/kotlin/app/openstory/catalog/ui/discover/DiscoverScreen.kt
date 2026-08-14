@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
@@ -32,15 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import app.openstory.catalog.ui.components.StoryShelf
@@ -50,6 +45,12 @@ import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.HikariSearchBar
 import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariOpacity
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariTypography
+import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.theme.hikariAtmosphereBrush
 
 @Composable
 fun DiscoverScreen(
@@ -71,18 +72,12 @@ fun DiscoverScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
-    val background = Brush.verticalGradient(
-        listOf(
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
-            MaterialTheme.colorScheme.background.copy(alpha = 0.94f),
-            MaterialTheme.colorScheme.background,
-        ),
-    )
+    val background = MaterialTheme.hikariAtmosphereBrush
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         LazyColumn(
             modifier = modifier.fillMaxSize().background(background),
-            contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.extraLarge),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.large),
+            contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
         ) {
             item("discover-search") {
                 HikariTopLevelHeader(
@@ -106,11 +101,9 @@ fun DiscoverScreen(
             item("discover-brand") {
                 Text(
                     text = "HIKARI",
-                    modifier = Modifier.padding(horizontal = 20.dp),
+                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 2.2.sp,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.hikariTypography.brandLabel,
                 )
             }
             state.featured?.let { featured ->
@@ -118,7 +111,7 @@ fun DiscoverScreen(
                     DiscoverHero(
                         entry = featured,
                         onSelected = onStorySelected,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
                     )
                 }
             }
@@ -142,7 +135,7 @@ fun DiscoverScreen(
                         title = shelf.title,
                         entries = shelf.entries,
                         onSelected = onStorySelected,
-                        modifier = Modifier.padding(horizontal = 20.dp),
+                        modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
                     )
                 }
             }
@@ -160,10 +153,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.quickCategoryItem(
     if (state.quickCategories.isEmpty()) return
     item("discover-categories") {
         BoxWithConstraints {
-            val cardWidth = (maxWidth - 52.dp) / 2
+            val totalSpacing =
+                MaterialTheme.hikariSpacing.space20 * 2 + MaterialTheme.hikariSpacing.space12
+            val cardWidth = (maxWidth - totalSpacing) / 2
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space20),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
             ) {
                 items(state.quickCategories, key = DiscoverQuickCategory::key) { category ->
                     val selected = state.selectedCatalogId == category.pluginId &&
@@ -189,15 +184,27 @@ private fun DiscoverCategoryCard(
     width: Dp,
     modifier: Modifier,
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = MaterialTheme.hikariShapes.prominentCard
     Surface(
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surface,
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(
+                alpha = MaterialTheme.hikariOpacity.selectedSubtle,
+            )
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = shape,
         modifier = modifier
             .width(width)
-            .heightIn(min = 64.dp)
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f), shape)
+            .heightIn(min = MaterialTheme.hikariDimensions.topBarMinHeight)
+            .border(
+                MaterialTheme.hikariDimensions.borderThin,
+                MaterialTheme.colorScheme.primary.copy(
+                    alpha = MaterialTheme.hikariOpacity.accentBorder,
+                ),
+                shape,
+            )
             .clickable { onSelected(category) }
             .semantics {
                 contentDescription =
@@ -207,15 +214,21 @@ private fun DiscoverCategoryCard(
             },
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = MaterialTheme.hikariSpacing.space18,
+                    vertical = MaterialTheme.hikariSpacing.space14,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space2),
+            ) {
                 Text(
                     category.presentationLabel().uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Black,
+                    style = MaterialTheme.hikariTypography.categoryLabel,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -239,8 +252,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.sourceFilterItem(
     catalogFocusRequester: FocusRequester?,
 ) = item("discover-sources") {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space20),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         item("combined") {
             FilterChip(
@@ -283,19 +296,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.discoverFeedbackItems
     }
     state.globalFailure?.let { failure ->
         item("discover-global-failure") {
-            Text(
-                failure.code,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 20.dp),
+            HikariInlineFeedback(
+                message = failure.code,
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
             )
         }
     }
     state.refreshReport?.failed?.keys?.sortedBy { it.value }?.forEach { pluginId ->
         item("discover-failure-${pluginId.value}") {
-            Text(
-                "${pluginId.discoverDisplayName()} refresh failed; cached content is still available.",
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 20.dp),
+            HikariInlineFeedback(
+                message = "${pluginId.discoverDisplayName()} refresh failed; cached content is still available.",
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
             )
         }
     }
@@ -304,17 +315,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.discoverFeedbackItems
 @Composable
 private fun RefreshAction(refreshing: Boolean, onRefresh: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.hikariSpacing.space20),
         horizontalArrangement = Arrangement.End,
     ) {
         Text(
             "Refresh sources",
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.hikariTypography.refreshAction,
             modifier = Modifier
-                .heightIn(min = 48.dp)
+                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                 .clickable(enabled = !refreshing, onClick = onRefresh)
-                .padding(14.dp),
+                .padding(MaterialTheme.hikariSpacing.space14),
         )
     }
 }

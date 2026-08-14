@@ -1,19 +1,13 @@
 package app.openstory.reader.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,13 +15,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.glass.HikariBackdropScope
-import app.openstory.designsystem.glass.HikariGlassSurface
+import app.openstory.designsystem.icon.HikariBackGlyph
+import app.openstory.designsystem.glass.HikariGlassPanel
+import app.openstory.designsystem.glass.HikariGlassPanelStyle
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun ReaderControls(
@@ -41,16 +36,22 @@ fun ReaderControls(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(
+                horizontal = MaterialTheme.hikariSpacing.space16,
+                vertical = MaterialTheme.hikariSpacing.space12,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ReaderRoundAction("<", "Back", backdropScope, onBack)
-        HikariGlassSurface(
+        HikariIconAction(
+            onClick = onBack,
+            contentDescription = "Back",
+            backdropScope = backdropScope,
+        ) { HikariBackGlyph() }
+        HikariGlassPanel(
             backdropScope = backdropScope,
             modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(24.dp),
-            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+            style = HikariGlassPanelStyle.TOOLBAR,
         ) {
             Column {
                 Text(
@@ -68,7 +69,11 @@ fun ReaderControls(
                 )
             }
         }
-        ReaderRoundAction("Aa", "Open reader settings", backdropScope, onSettings)
+        HikariIconAction(
+            onClick = onSettings,
+            contentDescription = "Open reader settings",
+            backdropScope = backdropScope,
+        ) { Text("Aa", style = MaterialTheme.typography.titleMedium) }
     }
 }
 
@@ -80,16 +85,18 @@ fun ReaderChapterNavigation(
     actions: ReaderActions,
     modifier: Modifier = Modifier,
 ) {
-    HikariGlassSurface(
+    HikariGlassPanel(
         backdropScope = backdropScope,
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        shape = RoundedCornerShape(28.dp),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            .padding(
+                horizontal = MaterialTheme.hikariSpacing.space16,
+                vertical = MaterialTheme.hikariSpacing.space12,
+            ),
+        style = HikariGlassPanelStyle.FLOATING,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -98,7 +105,7 @@ fun ReaderChapterNavigation(
                 TextButton(
                     onClick = { state.previousChapterId?.let(actions.onPreviousChapter) },
                     enabled = state.previousChapterId != null,
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text("Previous") }
                 Text(
                     text = "${(progress.coerceIn(0f, 1f) * 100).toInt()}%",
@@ -107,34 +114,13 @@ fun ReaderChapterNavigation(
                 TextButton(
                     onClick = { state.nextChapterId?.let(actions.onNextChapter) },
                     enabled = state.nextChapterId != null,
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text("Next") }
             }
             LinearProgressIndicator(
                 progress = { progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
-    }
-}
-
-@Composable
-private fun ReaderRoundAction(
-    label: String,
-    description: String,
-    backdropScope: HikariBackdropScope,
-    onClick: () -> Unit,
-) {
-    HikariGlassSurface(
-        backdropScope = backdropScope,
-        modifier = Modifier
-            .size(48.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description },
-        shape = CircleShape,
-    ) {
-        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.titleMedium)
         }
     }
 }

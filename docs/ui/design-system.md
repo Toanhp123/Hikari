@@ -16,17 +16,38 @@ on it. The exact allowed edges live in
 
 ## Theme and token usage
 
-Application Compose roots use `HikariTheme`. Use `MaterialTheme.hikariSpacing`
-for repeated application spacing rules: 4, 8, 12, 16, 24, and 32 dp. Keep
-feature-specific measurements local when they encode content geometry rather
-than a global spacing rule.
+Application Compose roots use `HikariTheme`. Production presentation code treats the
+Hikari theme as the single source of truth for visual values. Spacing, dimensions,
+responsive breakpoints, layout ratios, semantic shapes, opacity, artwork colors, and
+semantic typography come from the `MaterialTheme.hikari*` token families. Feature and
+app code must not introduce local `dp`/`sp` literals, ad-hoc rounded/circle shapes,
+palette colors, literal alpha values, or local font family/weight overrides.
+
+Content geometry is semantic but is not exempt from tokenization. Poster sizes, hero
+heights, reader insets, grid minimums, and similar measurements belong in named design
+system dimension tokens rather than feature-local constants. Responsive decisions use
+`MaterialTheme.hikariBreakpoints`; a feature must not invent its own viewport threshold.
+
+`scripts/verify-ui-tokens.sh` enforces this policy over production Compose sources and is
+part of both repository verification entry points through `verification-common.sh`.
+Token definition files under `core/designsystem/.../theme/` are the only visual-literal
+allowlist.
+
+## Shared component rule
+
+A repeated visual pattern has one owner. Domain-neutral patterns such as glass panels,
+round icon actions, glyphs, search chrome, metadata badges, feedback, and application
+navigation live in `:core:designsystem`. Domain-aware repeated story/catalog patterns
+live in the owning presentation feature. Screens compose those contracts and map state;
+they do not fork a component to change padding, radius, border, alpha, icon geometry, or
+touch size locally.
 
 ## When to use Material directly
 
-Use Material 3 directly for standard controls and layout primitives when Hikari
-does not add an application-wide rule. Do not wrap every Material component.
-Add a design-system primitive only when an existing cross-feature need proves a
-stable domain-neutral contract.
+Use Material 3 directly for standard controls and layout primitives when Hikari adds no
+visual rule beyond the theme. Do not wrap every Material component. Once a visual rule
+is Hikari-specific or repeats across screens, expose a shared component or semantic
+token instead of customizing each call site.
 
 ## Loading
 
@@ -97,9 +118,9 @@ use explicit caller-provided labels, preserve minimum Material touch targets,
 and keep error or destructive meaning available through text rather than color
 alone.
 
-## What this foundation does not standardize
+## What the design system does not own
 
-This foundation does not redesign screens, define brand artwork, own domain
-copy, replace feature state machines, select navigation, introduce global
-feedback buses, or normalize feature-specific content geometry. Screen-level
-visual design remains later roadmap work.
+The design system does not own domain copy, feature state machines, navigation policy,
+retry consequences, storage/capability behavior, or plugin semantics. Those remain with
+their existing owners. It does own the visual vocabulary used to present them, including
+semantic content geometry that must remain consistent across the product.

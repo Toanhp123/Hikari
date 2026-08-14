@@ -21,12 +21,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.rememberHikariArtwork
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.catalog.ui.components.StoryPosterCard
 import kotlin.math.roundToInt
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 internal fun LibraryStoryCard(
@@ -57,17 +58,22 @@ internal fun LibraryStoryCard(
         onClick = onSelected,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .testTag("library-story-${item.storyId.value}")
             .semantics(mergeDescendants = true) { contentDescription = item.accessibilityDescription() },
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space10),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Artwork(item, Modifier.width(72.dp).height(104.dp))
+            Artwork(
+                item,
+                Modifier
+                    .width(MaterialTheme.hikariDimensions.posterList.width)
+                    .height(MaterialTheme.hikariDimensions.posterList.height),
+            )
             StoryMetadata(item, progress, Modifier.weight(1f))
         }
     }
@@ -83,7 +89,7 @@ private fun Artwork(item: LibraryItemUiModel, modifier: Modifier) {
 
 @Composable
 private fun StoryMetadata(item: LibraryItemUiModel, progress: Float?, modifier: Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text(
             item.title,
             style = MaterialTheme.typography.titleMedium,

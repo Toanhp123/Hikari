@@ -2,6 +2,7 @@ package app.openstory.designsystem.artwork
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import app.openstory.designsystem.theme.HikariArtworkFallbackPalette
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
@@ -14,32 +15,21 @@ data class HikariArtworkFallback(
 
 private const val UNSIGNED_BYTE_MASK = 0xFF
 
-private val HikariArtworkPalette = listOf(
-    Color(0xFF425B76),
-    Color(0xFF6B536F),
-    Color(0xFF386A73),
-    Color(0xFF765A45),
-    Color(0xFF59664A),
-    Color(0xFF73515A),
-    Color(0xFF4F5E87),
-    Color(0xFF7A6040),
-)
-
 fun fallbackFor(stableKey: String, title: String): HikariArtworkFallback {
     val digest = MessageDigest.getInstance("SHA-256")
         .digest(stableKey.toByteArray(StandardCharsets.UTF_8))
-    val startIndex = digest[0].toUnsignedInt() % HikariArtworkPalette.size
-    val rawEndIndex = digest[1].toUnsignedInt() % HikariArtworkPalette.size
+    val startIndex = digest[0].toUnsignedInt() % HikariArtworkFallbackPalette.size
+    val rawEndIndex = digest[1].toUnsignedInt() % HikariArtworkFallbackPalette.size
     val endIndex = if (rawEndIndex == startIndex) {
-        (rawEndIndex + 1 + (digest[2].toUnsignedInt() % (HikariArtworkPalette.size - 1))) %
-            HikariArtworkPalette.size
+        (rawEndIndex + 1 + (digest[2].toUnsignedInt() % (HikariArtworkFallbackPalette.size - 1))) %
+            HikariArtworkFallbackPalette.size
     } else {
         rawEndIndex
     }
 
     return HikariArtworkFallback(
-        startColor = HikariArtworkPalette[startIndex],
-        endColor = HikariArtworkPalette[endIndex],
+        startColor = HikariArtworkFallbackPalette[startIndex],
+        endColor = HikariArtworkFallbackPalette[endIndex],
         monogram = title.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
     )
 }

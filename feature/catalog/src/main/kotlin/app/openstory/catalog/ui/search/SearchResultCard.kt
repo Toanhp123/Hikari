@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -18,9 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.search.CatalogSearchSourceCard
 import app.openstory.catalog.search.CatalogSearchStory
@@ -29,6 +26,10 @@ import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.rememberHikariArtwork
 import app.openstory.designsystem.content.HikariCoverCardFrame
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun SearchResultCard(
@@ -45,18 +46,18 @@ fun SearchResultCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 120.dp)
+            .heightIn(min = MaterialTheme.hikariDimensions.searchResultMinHeight)
             .semantics(mergeDescendants = true) { contentDescription = result.accessibilityDescription() },
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.hikariShapes.sheetCard,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 2.dp,
+        tonalElevation = MaterialTheme.hikariDimensions.surfaceTonalElevation,
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space12),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            HikariCoverCardFrame(Modifier.width(68.dp)) {
+            HikariCoverCardFrame(Modifier.width(MaterialTheme.hikariDimensions.posterSearchWidth)) {
                 HikariArtwork(artwork, "$title cover", Modifier.matchParentSize())
             }
             SearchResultMetadata(result, primary, title, Modifier.weight(1f))
@@ -71,15 +72,14 @@ private fun SearchResultMetadata(
     title: String,
     modifier: Modifier,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space7)) {
         Text(
             title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.hikariTypography.emphasizedTitleMedium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
             HikariMetadataBadge(result.story.contentType.displayName())
             primary?.score?.let {
                 HikariMetadataBadge("${formatScore(it.value)}/${formatScore(it.scale)}")
@@ -96,7 +96,7 @@ private fun SearchResultMetadata(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             result.sources.take(MAX_VISIBLE_SOURCES).forEachIndexed { index, source ->
-                if (index > 0) Spacer(Modifier.size(6.dp))
+                if (index > 0) Spacer(Modifier.size(MaterialTheme.hikariSpacing.space6))
                 Text(
                     source.displayLabel(),
                     style = MaterialTheme.typography.labelSmall,

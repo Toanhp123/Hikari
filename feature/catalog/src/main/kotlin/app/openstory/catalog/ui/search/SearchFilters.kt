@@ -20,8 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
 import app.openstory.catalog.search.CatalogSearchFilterGroup
 import app.openstory.catalog.source.SourceFilter
 import app.openstory.catalog.source.SourceOptionFilter
@@ -31,6 +29,9 @@ import app.openstory.common.id.PluginId
 import java.math.BigDecimal
 import kotlin.math.round
 import kotlin.math.roundToInt
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariTypography
 
 internal fun LazyListScope.searchFilterItems(
     groups: List<CatalogSearchFilterGroup>,
@@ -51,7 +52,7 @@ internal fun LazyListScope.searchFilterItems(
                     definition = definition,
                     selected = groupValues[definition.id].orEmpty(),
                     onValuesChange = onValuesChange,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
                 )
             }
         }
@@ -65,14 +66,14 @@ private fun FilterGroupHeader(
     onClear: (PluginId) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.hikariSpacing.space16),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(pluginId.value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(pluginId.value, style = MaterialTheme.hikariTypography.emphasizedTitleSmall)
         if (selectedValues.isNotEmpty()) {
             OutlinedButton(
                 onClick = { onClear(pluginId) },
-                modifier = Modifier.heightIn(min = 48.dp),
+                modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
             ) { Text("Clear") }
         }
     }
@@ -102,11 +103,11 @@ private fun OptionFilter(
     selected: List<String>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text(definition.label)
         LazyRow(
-            contentPadding = PaddingValues(end = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(end = MaterialTheme.hikariSpacing.space16),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             items(definition.options, key = { it.value }) { option ->
                 FilterChip(
@@ -118,7 +119,7 @@ private fun OptionFilter(
                             nextOptionValues(definition.multiple, selected, option.value),
                         )
                     },
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                     label = { Text(option.label) },
                 )
             }
@@ -164,7 +165,7 @@ private fun RangeFilter(
     val (minimum, maximum, step) = bounds
     val current = selected.firstOrNull()?.toDoubleOrNull()?.coerceIn(minimum, maximum) ?: minimum
     val steps = ((maximum - minimum) / step).roundToInt().minus(1).coerceAtLeast(0)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text("${definition.label}: ${formatRangeValue(current)}")
         Slider(
             value = current.toFloat(),

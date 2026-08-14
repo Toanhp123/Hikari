@@ -46,14 +46,15 @@ import app.openstory.catalog.ui.updates.UpdatesScreen
 import app.openstory.catalog.ui.updates.UpdatesViewModel
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.feedback.HikariSnackbarHost
+import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.ui.HikariAppShell
-import app.openstory.ui.HikariAppShellDefaults
 import app.openstory.ui.HikariAppShellScope
 import app.openstory.ui.HikariUtilitySheet
 import app.openstory.reader.ui.ReaderActions
 import app.openstory.reader.ui.ReaderAssistedArgs
 import app.openstory.reader.ui.ReaderScreen
 import app.openstory.reader.ui.ReaderViewModel
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun AppNavHost(
@@ -201,7 +202,7 @@ private fun AppNavigationContent(
                 .then(
                     if (shouldShowFloatingNavigation(navigator.currentRoute)) {
                         Modifier.navigationBarsPadding().padding(
-                            bottom = HikariAppShellDefaults.floatingNavigationClearance,
+                            bottom = MaterialTheme.hikariDimensions.floatingNavigationClearance,
                         )
                     } else {
                         Modifier

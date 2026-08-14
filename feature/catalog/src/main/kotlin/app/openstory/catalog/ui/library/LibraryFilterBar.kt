@@ -17,8 +17,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import app.openstory.library.LibraryStatus
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,13 +38,13 @@ internal fun LibraryFilterSheet(
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = MaterialTheme.hikariSpacing.space20),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
         ) {
             Text(
                 text = "Library filters",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
             )
             FilterSection("Status") {
                 LibraryChip(
@@ -89,7 +90,10 @@ internal fun LibraryFilterSheet(
             }
             TextButton(
                 onClick = onResetFilters,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+                    .padding(horizontal = MaterialTheme.hikariSpacing.space12),
             ) {
                 Text("Clear filters", style = MaterialTheme.typography.titleMedium)
             }
@@ -102,18 +106,18 @@ private fun FilterSection(
     title: String,
     content: @Composable FlowRowScope.() -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 20.dp),
+            modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
         )
         FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = MaterialTheme.hikariSpacing.space20),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             content = content,
         )
     }
@@ -130,7 +134,7 @@ private fun LibraryChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        modifier = Modifier.heightIn(min = 48.dp).testTag(tag),
+        modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget).testTag(tag),
     )
 }
 

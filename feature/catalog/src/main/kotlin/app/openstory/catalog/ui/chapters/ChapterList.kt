@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,30 +19,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariMetadataBadge
-import app.openstory.designsystem.glass.HikariGlassSurface
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.glass.HikariGlassPanel
+import app.openstory.designsystem.glass.HikariGlassPanelStyle
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun ChapterList(state: ChapterListUiState, actions: ChapterListActions, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
-            start = MaterialTheme.hikariSpacing.large,
-            end = MaterialTheme.hikariSpacing.large,
-            bottom = MaterialTheme.hikariSpacing.large,
+            start = MaterialTheme.hikariSpacing.space16,
+            end = MaterialTheme.hikariSpacing.space16,
+            bottom = MaterialTheme.hikariSpacing.space16,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
     ) { chapterListItems(state, actions) }
 }
 
 fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterListActions) {
     item(key = "chapter-summary") {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Chapters", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
+            Text("Chapters", style = MaterialTheme.hikariTypography.sectionTitle)
             Text(
                 "${state.unreadCount} unread chapters",
                 style = MaterialTheme.typography.bodyMedium,
@@ -57,7 +57,7 @@ fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterLi
         TextButton(
             enabled = visibleReleaseIds.isNotEmpty(),
             onClick = { actions.onDownloadFiltered(visibleReleaseIds) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
         ) { Text("Download visible") }
     }
     state.failure?.let { failure ->
@@ -79,19 +79,22 @@ private fun ChapterRow(
     storyId: app.openstory.common.id.StoryId,
     actions: ChapterListActions,
 ) {
-    HikariGlassSurface(null, Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), PaddingValues(14.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small)) {
+    HikariGlassPanel(null, Modifier.fillMaxWidth(), HikariGlassPanelStyle.PROMINENT) {
+        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                     .semantics(mergeDescendants = true) { contentDescription = chapter.accessibilityDescription() }
                     .clickable { actions.onToggleExpanded(chapter.id) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(chapter.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space3),
+                ) {
+                    Text(chapter.label, style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
                     Text(
                         if (chapter.tombstoned) "Unavailable" else "Unread",
                         style = MaterialTheme.typography.bodySmall,
@@ -107,7 +110,9 @@ private fun ChapterRow(
             if (chapter.expanded) {
                 TextButton(
                     onClick = { actions.onDownloadRange(chapter.releases.map { it.id }) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text("Download chapter") }
                 chapter.releases.forEach { release ->
                     ChapterReleaseRow(

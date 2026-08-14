@@ -6,14 +6,15 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 fun ReleaseSwitcher(
@@ -27,7 +28,7 @@ fun ReleaseSwitcher(
     TextButton(
         onClick = { expanded = true },
         enabled = releases.size > 1,
-        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
     ) {
         Text(selected?.source ?: "Source")
     }

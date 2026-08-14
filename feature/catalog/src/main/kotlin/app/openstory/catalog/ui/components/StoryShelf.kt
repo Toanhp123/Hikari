@@ -14,7 +14,8 @@ import app.openstory.catalog.model.CatalogEntry
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.theme.hikariSpacing
-import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.theme.hikariBreakpoints
+import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
 fun StoryShelf(
@@ -25,9 +26,11 @@ fun StoryShelf(
 ) {
     BoxWithConstraints(modifier) {
         val cardWidth = when {
-            maxWidth < 380.dp -> 76.dp
-            maxWidth < 520.dp -> 88.dp
-            else -> 104.dp
+            maxWidth < MaterialTheme.hikariBreakpoints.narrowContent ->
+                MaterialTheme.hikariDimensions.posterShelfNarrowWidth
+            maxWidth < MaterialTheme.hikariBreakpoints.expandedContent ->
+                MaterialTheme.hikariDimensions.posterShelfWidth
+            else -> MaterialTheme.hikariDimensions.posterShelfWideWidth
         }
         androidx.compose.foundation.layout.Column {
             HikariSectionHeader(
@@ -35,8 +38,8 @@ fun StoryShelf(
                 modifier = Modifier.semantics { heading() },
             )
             LazyRow(
-                contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.small),
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
+                contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space8),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
             ) {
                 items(entries, key = { "${it.pluginId.value}:${it.sourceId}" }) { entry ->
                     StoryCoverCard(entry, title, onSelected, cardWidth)
