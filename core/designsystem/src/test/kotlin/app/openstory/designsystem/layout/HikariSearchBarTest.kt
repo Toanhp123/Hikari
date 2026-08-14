@@ -3,7 +3,11 @@ package app.openstory.designsystem.layout
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
 import org.junit.Test
@@ -35,6 +39,28 @@ class HikariSearchBarTest {
         compose.onNodeWithContentDescription("Search your Library").performTextInput("moon")
 
         assertEquals("moon", query)
+    }
+
+
+    @Test
+    fun editableSearchForwardsImeSearchAction() {
+        var submitted = false
+        compose.setContent {
+            HikariTheme {
+                HikariSearchBar(
+                    value = "moon",
+                    onValueChange = {},
+                    placeholder = "Search",
+                    contentDescription = "Search",
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { submitted = true }),
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Search").performImeAction()
+
+        compose.runOnIdle { assertEquals(true, submitted) }
     }
 
     @Test

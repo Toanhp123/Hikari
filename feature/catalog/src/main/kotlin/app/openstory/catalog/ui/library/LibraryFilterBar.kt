@@ -6,9 +6,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -18,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import app.openstory.library.LibraryStatus
+import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
 
@@ -37,15 +37,7 @@ internal fun LibraryFilterSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = MaterialTheme.hikariSpacing.space20),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
-        ) {
-            Text(
-                text = "Library filters",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
-            )
+        HikariSheetContent(title = "Library filters") {
             FilterSection("Status") {
                 LibraryChip(
                     selected = state.selectedStatus == null,
@@ -92,8 +84,7 @@ internal fun LibraryFilterSheet(
                 onClick = onResetFilters,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
-                    .padding(horizontal = MaterialTheme.hikariSpacing.space12),
+                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
             ) {
                 Text("Clear filters", style = MaterialTheme.typography.titleMedium)
             }
@@ -110,12 +101,10 @@ private fun FilterSection(
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
+            modifier = Modifier,
         )
         FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = MaterialTheme.hikariSpacing.space20),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             content = content,
@@ -130,11 +119,11 @@ private fun LibraryChip(
     tag: String,
     onClick: () -> Unit,
 ) {
-    FilterChip(
+    HikariFilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget).testTag(tag),
+        modifier = Modifier.testTag(tag),
     )
 }
 

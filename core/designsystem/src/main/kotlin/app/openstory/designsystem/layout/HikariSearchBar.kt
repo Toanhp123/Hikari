@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +46,8 @@ fun HikariSearchBar(
     onClick: (() -> Unit)? = null,
     focusRequester: FocusRequester? = null,
     nextFocusRequester: FocusRequester? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     val shape = MaterialTheme.hikariShapes.pill
     val dimensions = MaterialTheme.hikariDimensions
@@ -83,6 +87,8 @@ fun HikariSearchBar(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
             textStyle = MaterialTheme.hikariTypography.searchText.copy(
                 color = MaterialTheme.colorScheme.onSurface,
             ),

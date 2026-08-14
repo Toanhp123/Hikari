@@ -27,6 +27,7 @@ data class HikariSemanticShapes(
     val sheetCard: Shape = RoundedCornerShape(24.dp),
     val hero: Shape = RoundedCornerShape(28.dp),
     val floatingNavigation: Shape = RoundedCornerShape(36.dp),
+    val navigationSelection: Shape = RoundedCornerShape(28.dp),
     val pill: Shape = RoundedCornerShape(percent = 50),
     val cover: Shape = RoundedCornerShape(percent = 10),
     val circle: Shape = CircleShape,

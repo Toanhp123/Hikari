@@ -8,6 +8,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 
 @Composable
 fun HikariSectionHeader(
@@ -16,7 +18,7 @@ fun HikariSectionHeader(
     action: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().semantics { heading() },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

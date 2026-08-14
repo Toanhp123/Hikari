@@ -35,6 +35,7 @@ while IFS= read -r file; do
   check_file "$relative" '(^|[^[:alnum:]_])([0-9]+([.][0-9]+)?)[.]dp([^[:alnum:]_]|$)' 'dp literal'
   check_file "$relative" '(^|[^[:alnum:]_])([0-9]+([.][0-9]+)?)[.]sp([^[:alnum:]_]|$)' 'sp literal'
   check_file "$relative" 'RoundedCornerShape[[:space:]]*\(' 'local rounded shape'
+  check_file "$relative" 'MaterialTheme[.]shapes[.]' 'raw Material shape token'
   check_file "$relative" '(^|[^[:alnum:]_])CircleShape([^[:alnum:]_]|$)' 'local circle shape'
   check_file "$relative" 'Color[.](White|Black|Red|Green|Blue|Gray|Transparent)' 'direct palette color'
   check_file "$relative" 'Color[[:space:]]*\(0x' 'direct hex color'

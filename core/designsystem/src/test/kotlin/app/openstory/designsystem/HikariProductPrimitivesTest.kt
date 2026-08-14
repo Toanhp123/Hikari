@@ -21,6 +21,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.glass.HikariGlassRenderingMode
 import app.openstory.designsystem.glass.hikariGlassSurfaceColor
 import app.openstory.designsystem.glass.hikariGlassContentColor
@@ -109,6 +110,24 @@ class HikariProductPrimitivesTest {
             assertTrue(lightColor != Color.Unspecified)
             assertTrue(darkColor != Color.Unspecified)
         }
+    }
+
+
+    @Test
+    fun filterChipOwnsMinimumTouchTarget() {
+        compose.setContent {
+            HikariTheme {
+                HikariFilterChip(
+                    selected = false,
+                    onClick = {},
+                    label = { androidx.compose.material3.Text("Downloaded") },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Downloaded")
+            .assertWidthIsAtLeast(48.dp)
+            .assertHeightIsAtLeast(48.dp)
     }
 
     @Test

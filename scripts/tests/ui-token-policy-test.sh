@@ -76,6 +76,7 @@ assert_rejected() {
 assert_rejected "dp literal" $'package app.example\nimport androidx.compose.ui.unit.dp\nval Bad = 16.dp'
 assert_rejected "sp literal" $'package app.example\nimport androidx.compose.ui.unit.sp\nval Bad = 16.sp'
 assert_rejected "custom rounded shape" $'package app.example\nimport androidx.compose.foundation.shape.RoundedCornerShape\nval Bad = RoundedCornerShape(percent = 20)'
+assert_rejected "raw Material shape token" $'package app.example\nimport androidx.compose.material3.MaterialTheme\nval Bad = MaterialTheme.shapes.large'
 assert_rejected "direct palette color" $'package app.example\nimport androidx.compose.ui.graphics.Color\nval Bad = Color.White'
 assert_rejected "literal alpha" $'package app.example\nfun bad(color: androidx.compose.ui.graphics.Color) = color.copy(alpha = 0.72f)'
 assert_rejected "feature font weight" $'package app.example\nimport androidx.compose.ui.text.font.FontWeight\nval Bad = FontWeight.Bold'

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -29,6 +28,7 @@ import app.openstory.common.id.PluginId
 import java.math.BigDecimal
 import kotlin.math.round
 import kotlin.math.roundToInt
+import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariTypography
@@ -110,7 +110,7 @@ private fun OptionFilter(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             items(definition.options, key = { it.value }) { option ->
-                FilterChip(
+                HikariFilterChip(
                     selected = option.value in selected,
                     onClick = {
                         onValuesChange(
@@ -119,7 +119,6 @@ private fun OptionFilter(
                             nextOptionValues(definition.multiple, selected, option.value),
                         )
                     },
-                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                     label = { Text(option.label) },
                 )
             }

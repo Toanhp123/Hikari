@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.Text
-import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -28,6 +26,7 @@ import androidx.compose.ui.focus.focusRequester
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.layout.HikariResponsiveContent
 import app.openstory.designsystem.layout.HikariWindowClass
+import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
@@ -132,54 +131,28 @@ private fun LibraryContent(
         state.totalCount == 0 -> Column(modifier) {
             chrome()
             Box(Modifier.weight(1f)) {
-                LibraryEmptyState(
-                    "Your Library is empty",
-                    "Save stories to build a personal reading collection.",
-                    "Discover stories",
-                    onDiscover,
-                    focusRequester,
+                HikariEmptyState(
+                    title = "Your Library is empty",
+                    message = "Save stories to build a personal reading collection.",
+                    actionLabel = "Discover stories",
+                    onAction = onDiscover,
+                    actionFocusRequester = focusRequester,
                 )
             }
         }
         state.items.isEmpty() -> Column(modifier) {
             chrome()
             Box(Modifier.weight(1f)) {
-                LibraryEmptyState(
-                    "No stories match these filters",
-                    "Try a different status, source state, or search.",
-                    "Clear filters",
-                    onClearFilters,
-                    focusRequester,
+                HikariEmptyState(
+                    title = "No stories match these filters",
+                    message = "Try a different status, source state, or search.",
+                    actionLabel = "Clear filters",
+                    onAction = onClearFilters,
+                    actionFocusRequester = focusRequester,
                 )
             }
         }
         else -> LibraryCollection(state, focusRequester, onStorySelected, chrome, modifier)
-    }
-}
-
-@Composable
-private fun LibraryEmptyState(
-    title: String,
-    message: String,
-    actionLabel: String,
-    onAction: () -> Unit,
-    focusRequester: FocusRequester,
-) {
-    Column(
-        Modifier.fillMaxSize().padding(MaterialTheme.hikariSpacing.space24),
-        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8),
-        )
-        Button(
-            onClick = onAction,
-            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space16).focusRequester(focusRequester),
-        ) { Text(actionLabel) }
     }
 }
 

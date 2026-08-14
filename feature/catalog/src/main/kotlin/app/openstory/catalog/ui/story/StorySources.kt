@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,6 +22,8 @@ import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingSheet
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
 
@@ -60,9 +61,8 @@ internal fun StorySources(
                 }
                 if (refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
                 failure?.let {
-                    Text(
-                        "Source detail refresh failed: ${it.code}",
-                        color = MaterialTheme.colorScheme.error,
+                    HikariInlineFeedback(
+                        message = "Source detail refresh failed: ${it.code}",
                     )
                 }
             }
@@ -84,11 +84,11 @@ private fun SourceCard(source: CatalogEntry, selected: Boolean, onSelected: () -
         }.padding(horizontal = MaterialTheme.hikariSpacing.space16, vertical = MaterialTheme.hikariSpacing.space8),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
     ) {
-        FilterChip(
-            selected, onSelected, { Text(source.pluginId.value) },
-            modifier = Modifier
-                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
-                .testTag("story-source-${source.pluginId.value}-${source.sourceId}"),
+        HikariFilterChip(
+            selected = selected,
+            onClick = onSelected,
+            label = { Text(source.pluginId.value) },
+            modifier = Modifier.testTag("story-source-${source.pluginId.value}-${source.sourceId}"),
         )
         Text(source.title, style = MaterialTheme.typography.titleMedium)
         source.description?.let { Text(it, maxLines = 4) }

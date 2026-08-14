@@ -29,25 +29,33 @@ system dimension tokens rather than feature-local constants. Responsive decision
 `MaterialTheme.hikariBreakpoints`; a feature must not invent its own viewport threshold.
 
 `scripts/verify-ui-tokens.sh` enforces this policy over production Compose sources and is
-part of both repository verification entry points through `verification-common.sh`.
-Token definition files under `core/designsystem/.../theme/` are the only visual-literal
-allowlist.
+part of both repository verification entry points through `verification-common.sh`. It also
+rejects direct `MaterialTheme.shapes.*` consumption outside token-definition files so semantic
+Hikari shapes remain the application-facing contract. Token definition files under
+`core/designsystem/.../theme/` are the only visual-literal allowlist.
 
 ## Shared component rule
 
 A repeated visual pattern has one owner. Domain-neutral patterns such as glass panels,
-round icon actions, glyphs, search chrome, metadata badges, feedback, and application
-navigation live in `:core:designsystem`. Domain-aware repeated story/catalog patterns
-live in the owning presentation feature. Screens compose those contracts and map state;
-they do not fork a component to change padding, radius, border, alpha, icon geometry, or
-touch size locally.
+round icon actions, glyphs, search chrome, filter chips, metadata groups/badges, inline
+feedback, section/destination headers, bottom-sheet content chrome, and application
+navigation live in `:core:designsystem`. Domain-aware repeated story/catalog patterns live
+in the owning presentation feature; for example update cards shared by Home and Updates
+live under `feature/catalog/.../ui/components`. Screens compose those contracts and map
+state; they do not fork a component to change padding, radius, border, alpha, icon geometry,
+touch size, heading semantics, or failure chrome locally.
+
+`scripts/tests/ui-shared-component-policy-test.sh` guards the high-value ownership boundaries
+that previously drifted so the repository static gates reject those feature-local forks.
 
 ## When to use Material directly
 
 Use Material 3 directly for standard controls and layout primitives when Hikari adds no
 visual rule beyond the theme. Do not wrap every Material component. Once a visual rule
-is Hikari-specific or repeats across screens, expose a shared component or semantic
-token instead of customizing each call site.
+is Hikari-specific or repeats across screens, expose a shared component or semantic token
+instead of customizing each call site. `FilterChip` is intentionally wrapped by
+`HikariFilterChip` because Hikari owns its minimum interactive target; interactive one-off
+Material controls may still be used directly when no Hikari-specific presentation exists.
 
 ## Loading
 

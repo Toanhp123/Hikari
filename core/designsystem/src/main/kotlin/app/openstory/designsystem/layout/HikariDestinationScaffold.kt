@@ -71,7 +71,7 @@ fun HikariTopLevelHeader(
     horizontalPadding: Dp? = null,
     focusRequester: FocusRequester? = null,
     nextFocusRequester: FocusRequester? = null,
-    onAction: () -> Unit = {},
+    onAction: (() -> Unit)? = null,
     content: (@Composable () -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
 ) {
@@ -96,19 +96,21 @@ fun HikariTopLevelHeader(
                 )
             }
         }
-        Box(Modifier.padding(start = spacing.space12)) {
-            action?.invoke() ?: HikariIconAction(
-                onClick = onAction,
-                contentDescription = "Open quick access",
-                focusRequester = focusRequester,
-                nextFocusRequester = nextFocusRequester,
-                traversalIndex = 1f,
-            ) {
-                Text(
-                    text = "HK",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelLarge,
-                )
+        if (action != null || onAction != null) {
+            Box(Modifier.padding(start = spacing.space12)) {
+                action?.invoke() ?: HikariIconAction(
+                    onClick = requireNotNull(onAction),
+                    contentDescription = "Open quick access",
+                    focusRequester = focusRequester,
+                    nextFocusRequester = nextFocusRequester,
+                    traversalIndex = 1f,
+                ) {
+                    Text(
+                        text = "HK",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
             }
         }
     }

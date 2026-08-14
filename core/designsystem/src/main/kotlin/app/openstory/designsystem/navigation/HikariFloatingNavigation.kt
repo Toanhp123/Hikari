@@ -75,7 +75,7 @@ private fun androidx.compose.foundation.layout.RowScope.NavigationItem(
             .padding(MaterialTheme.hikariSpacing.space4)
             .background(
                 if (selected) selectedContainer else MaterialTheme.hikariColors.transparent,
-                MaterialTheme.shapes.large,
+                MaterialTheme.hikariShapes.navigationSelection,
             )
             .padding(
                 horizontal = MaterialTheme.hikariSpacing.space4,

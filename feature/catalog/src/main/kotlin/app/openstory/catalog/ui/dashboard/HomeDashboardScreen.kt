@@ -9,13 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
@@ -27,17 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.StoryPosterCard
+import app.openstory.catalog.ui.components.StoryUpdateCard
+import app.openstory.catalog.ui.components.StoryUpdateCardContent
+import app.openstory.catalog.ui.components.StoryUpdateCardVariant
 import app.openstory.common.id.StoryId
-import app.openstory.designsystem.artwork.HikariArtwork
-import app.openstory.designsystem.artwork.HikariArtworkModel
-import app.openstory.designsystem.artwork.rememberHikariArtwork
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
@@ -230,10 +223,19 @@ private fun androidx.compose.foundation.lazy.LazyListScope.latestUpdatesShelf(
         HomeSection("Latest Updates") {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(updates, key = { it.releaseId.value }) { update ->
-                    UpdateCard(
-                        update,
-                        onResume,
-                        Modifier.then(
+                    StoryUpdateCard(
+                        content = StoryUpdateCardContent(
+                            storyId = update.storyId,
+                            title = update.title,
+                            coverUrl = update.coverUrl,
+                            chapterLabel = update.chapterLabel,
+                            contentDescription =
+                                "Read ${update.title}, ${update.chapterLabel}. Section Latest Updates",
+                        ),
+                        onClick = { onResume(update.readerTarget) },
+                        variant = StoryUpdateCardVariant.SHELF,
+                        traversalIndex = UPDATE_CARD_TRAVERSAL_INDEX,
+                        modifier = Modifier.then(
                             if (update == updates.first() && firstFocusRequester != null) {
                                 Modifier.focusRequester(firstFocusRequester)
                             } else {
@@ -314,7 +316,7 @@ private fun HomeSection(title: String, content: @Composable () -> Unit) {
         modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
-        HikariSectionHeader(title, Modifier.semantics { heading() })
+        HikariSectionHeader(title)
         content()
     }
 }
@@ -343,50 +345,6 @@ private fun ObservationFailure(failure: HomeDashboardFailure, modifier: Modifier
         message = "Some reading data could not be refreshed (${failure.code}).",
         modifier = modifier,
     )
-}
-
-@Composable
-private fun UpdateCard(
-    item: HomeUpdateItem,
-    onResume: (ReaderTarget) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        onClick = { onResume(item.readerTarget) },
-        modifier = modifier
-            .width(MaterialTheme.hikariDimensions.dashboardCardWidth)
-            .heightIn(min = MaterialTheme.hikariDimensions.summaryCardMinHeight)
-            .semantics(mergeDescendants = true) {
-            contentDescription = "Read ${item.title}, ${item.chapterLabel}. Section Latest Updates"
-            traversalIndex = UPDATE_CARD_TRAVERSAL_INDEX
-        },
-    ) {
-        Row(
-            Modifier.padding(MaterialTheme.hikariSpacing.space10),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val artwork = rememberHikariArtwork(
-                HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
-            )
-            HikariArtwork(
-                state = artwork,
-                contentDescription = "${item.title} cover",
-                modifier = Modifier
-                    .width(MaterialTheme.hikariDimensions.posterActivity.width)
-                    .height(MaterialTheme.hikariDimensions.posterActivity.height),
-            )
-            Column {
-                Text(
-                    item.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(item.chapterLabel, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
 }
 
 private const val UPDATE_CARD_TRAVERSAL_INDEX = 3f

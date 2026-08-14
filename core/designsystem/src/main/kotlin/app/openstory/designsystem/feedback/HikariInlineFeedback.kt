@@ -1,5 +1,7 @@
 package app.openstory.designsystem.feedback
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -18,6 +20,7 @@ fun HikariInlineFeedback(
     message: String,
     modifier: Modifier = Modifier,
     actionModifier: Modifier = Modifier,
+    supportingText: String? = null,
     actionLabel: String? = null,
     actionEnabled: Boolean = true,
     onAction: (() -> Unit)? = null,
@@ -31,11 +34,29 @@ fun HikariInlineFeedback(
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.weight(1f),
-        )
+        if (supportingText == null) {
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space2),
+            ) {
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    text = supportingText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
         if (actionLabel != null && onAction != null) {
             TextButton(
                 onClick = onAction,

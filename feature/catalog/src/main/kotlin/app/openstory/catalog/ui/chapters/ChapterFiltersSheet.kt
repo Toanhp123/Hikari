@@ -4,11 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.theme.hikariSpacing
 import androidx.compose.material3.MaterialTheme
 
@@ -23,12 +23,12 @@ fun ChapterFiltersSheet(
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FilterChip(
+        HikariFilterChip(
             selected = state.selectedFilter == ChapterListFilter.ALL,
             onClick = { actions.onFilterSelected(ChapterListFilter.ALL) },
             label = { Text("All") },
         )
-        FilterChip(
+        HikariFilterChip(
             selected = state.selectedFilter == ChapterListFilter.MULTI_RELEASE,
             onClick = { actions.onFilterSelected(ChapterListFilter.MULTI_RELEASE) },
             label = { Text("Multi-source") },

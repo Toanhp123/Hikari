@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -20,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.glass.HikariGlassPanel
@@ -62,7 +62,7 @@ fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterLi
     }
     state.failure?.let { failure ->
         item(key = "chapter-failure") {
-            Text(failure, color = MaterialTheme.colorScheme.error)
+            HikariInlineFeedback(message = failure)
         }
     }
     if (state.chapters.isEmpty()) {

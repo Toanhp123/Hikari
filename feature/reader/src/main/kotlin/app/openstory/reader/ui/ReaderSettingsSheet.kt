@@ -1,11 +1,9 @@
 package app.openstory.reader.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -16,8 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,14 +26,7 @@ fun ReaderSettingsSheet(
     modifier: Modifier = Modifier,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, modifier = modifier) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(
-                horizontal = MaterialTheme.hikariSpacing.space20,
-                vertical = MaterialTheme.hikariSpacing.space12,
-            ),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
-        ) {
-            Text("Reading settings", style = MaterialTheme.typography.headlineSmall)
+        HikariSheetContent(title = "Reading settings") {
             Text("Text size", style = MaterialTheme.typography.titleMedium)
             Row(
                 modifier = Modifier.fillMaxWidth(),

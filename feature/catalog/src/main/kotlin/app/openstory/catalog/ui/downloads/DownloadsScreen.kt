@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,16 +17,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import app.openstory.catalog.ui.download.DownloadActionSheet
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.downloads.DownloadState
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 
@@ -46,16 +46,7 @@ fun DownloadsScreen(
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         HikariDestinationScaffold(modifier) {
             Column(Modifier.fillMaxSize().padding(contentPadding)) {
-                Text(
-                    "Downloads",
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier
-                        .padding(
-                            horizontal = MaterialTheme.hikariSpacing.space20,
-                            vertical = MaterialTheme.hikariSpacing.space12,
-                        )
-                        .semantics { heading() },
-                )
+                HikariTopLevelHeader(title = "Downloads")
                 when {
                     state.loading -> HikariLoadingState("Loading downloads")
                     state.isEmpty -> HikariEmptyState(
@@ -113,10 +104,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.downloadSection(
 ) {
     if (records.isEmpty()) return
     item(key = "heading-$title") {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8).semantics { heading() },
+        HikariSectionHeader(
+            title = title,
+            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8),
         )
     }
     items(records, key = { it.releaseId.value }) { item ->
@@ -148,12 +138,8 @@ private fun DownloadCard(
                 HikariMetadataBadge(item.state.name.lowercase().replaceFirstChar(Char::uppercase))
                 item.sizeBytes.takeIf { it > 0L }?.let { HikariMetadataBadge(it.byteLabel()) }
             }
-            item.failureReason?.let {
-                Text(
-                    it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+            item.failureReason?.let { failure ->
+                HikariInlineFeedback(message = failure)
             }
             DownloadActionSheet(
                 releaseId = item.releaseId,

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +35,6 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.sp
 import app.openstory.catalog.ui.components.StoryShelf
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -49,6 +46,7 @@ import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariOpacity
 import app.openstory.designsystem.theme.hikariShapes
 import app.openstory.designsystem.theme.hikariTypography
+import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
 
@@ -256,11 +254,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.sourceFilterItem(
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         item("combined") {
-            FilterChip(
-                state.selectedCatalogId == null,
-                onCombinedSelected,
-                { Text("All sources") },
-                Modifier
+            HikariFilterChip(
+                selected = state.selectedCatalogId == null,
+                onClick = onCombinedSelected,
+                label = { Text("All sources") },
+                modifier = Modifier
                     .then(
                         if (state.quickCategories.isEmpty()) {
                             Modifier.optionalFocusRequester(categoryFocusRequester)
@@ -273,7 +271,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.sourceFilterItem(
             )
         }
         items(state.catalogs, key = { it.pluginId.value }) { catalog ->
-            FilterChip(
+            HikariFilterChip(
                 selected = state.selectedCatalogId == catalog.pluginId,
                 onClick = { onCatalogSelected(catalog.pluginId) },
                 label = { Text(catalog.pluginId.discoverDisplayName()) },

@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
@@ -45,7 +46,7 @@ fun MappingSheet(state: MappingUiState, actions: MappingActions, modifier: Modif
         ) { Text("Find reading sources") }
         UrlImport(state, actions)
         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        state.failures.forEach { failure -> FailureCard(failure) }
+        state.failures.forEach { failure -> HikariInlineFeedback(message = "Mapping issue: $failure") }
         if (state.candidates.isNotEmpty()) {
             Text("Candidates", style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
         }
@@ -137,13 +138,6 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
                 ) { Text("Reject") }
             }
         }
-    }
-}
-
-@Composable
-private fun FailureCard(failure: String) {
-    HikariGlassPanel(null, Modifier.fillMaxWidth(), HikariGlassPanelStyle.COMPACT) {
-        Text("Mapping issue: $failure", color = MaterialTheme.colorScheme.error)
     }
 }
 

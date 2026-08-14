@@ -16,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -26,16 +25,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
-import app.openstory.designsystem.glass.HikariGlassSurface
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariFocusedHeader
+import app.openstory.designsystem.layout.HikariSearchBar
 import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.glass.HikariGlassPanel
-import app.openstory.designsystem.glass.HikariGlassPanelStyle
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariShapes
 import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
@@ -85,21 +82,14 @@ private fun SearchHeader(query: String, onQueryChange: (String) -> Unit, focusMa
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        HikariGlassSurface(
-            backdropScope = null,
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.hikariShapes.sheetCard,
-        ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Title, author, or alias") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-            )
-        }
+        HikariSearchBar(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = "Title, author, or alias",
+            contentDescription = "Search stories",
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+        )
     }
 }
 
@@ -134,19 +124,19 @@ private fun LazyListScope.searchResultItems(
     if (state.searching) item(key = "search-progress") { LinearProgressIndicator(Modifier.fillMaxWidth()) }
     state.globalFailure?.let { failure ->
         item(key = "search-global-failure") {
-            FailureBanner(
-                "Search unavailable",
-                failure.code,
-                Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
+            HikariInlineFeedback(
+                message = "Search unavailable",
+                supportingText = failure.code,
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
             )
         }
     }
     state.failures.forEach { failure ->
         item(key = "search-failure-${failure.pluginId.value}") {
-            FailureBanner(
-                "${failure.pluginId.value} unavailable",
-                failure.code,
-                Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
+            HikariInlineFeedback(
+                message = "${failure.pluginId.value} unavailable",
+                supportingText = failure.code,
+                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
             )
         }
     }
@@ -176,15 +166,5 @@ private val SearchUiState.shouldShowEmptyState: Boolean
         globalFailure != null -> false
         else -> true
     }
-
-@Composable
-private fun FailureBanner(title: String, code: String, modifier: Modifier = Modifier) {
-    HikariGlassPanel(null, modifier.fillMaxWidth(), HikariGlassPanelStyle.COMPACT) {
-        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space2)) {
-            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
-            Text(code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
 
 private const val MAX_VISIBLE_RECENT = 4
