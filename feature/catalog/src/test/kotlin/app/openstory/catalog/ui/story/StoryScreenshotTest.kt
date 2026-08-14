@@ -3,7 +3,14 @@ package app.openstory.catalog.ui.story
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
@@ -38,6 +45,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -63,10 +72,115 @@ class StoryScreenshotTest {
     fun missingArtworkFallback() = capture(fixture().withoutArtwork(), "missing-artwork.png", loadArtwork = false)
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun overviewExposesPullRefreshAction() {
+        var refreshCalls = 0
+        setStoryContent(
+            state = fixture().withoutArtwork(),
+            onRefresh = { refreshCalls += 1 },
+        )
+
+        val refreshAction = compose.onNodeWithTag("story-overview-pull-refresh")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+
+        compose.runOnIdle {
+            assertTrue(refreshAction.action())
+            assertEquals(1, refreshCalls)
+        }
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun sourcesExposePullRefreshWithoutManualRefreshIcon() {
+        var refreshCalls = 0
+        setStoryContent(
+            state = fixture(StorySection.SOURCES).withoutArtwork(),
+            onRefresh = { refreshCalls += 1 },
+        )
+
+        val refreshAction = compose.onNodeWithTag("story-sources-pull-refresh")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+
+        compose.runOnIdle {
+            assertTrue(refreshAction.action())
+            assertEquals(1, refreshCalls)
+        }
+        compose.onAllNodesWithTag("story-source-refresh").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun chaptersDoNotExposePullRefresh() {
+        setStoryContent(state = fixture(StorySection.CHAPTERS).withoutArtwork())
+
+        compose.onAllNodesWithTag("story-overview-pull-refresh").assertCountEquals(0)
+        compose.onAllNodesWithTag("story-sources-pull-refresh").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w700dp-h800dp")
+    fun mediumSourcesExposeOnlyContentPaneRefresh() {
+        setStoryContent(state = fixture(StorySection.SOURCES).withoutArtwork())
+
+        compose.onAllNodesWithTag("story-overview-pull-refresh").assertCountEquals(0)
+        compose.onAllNodesWithTag("story-sources-pull-refresh").assertCountEquals(1)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun initialNoContentLoadingDoesNotExposePullRefresh() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(
+                story = null,
+                refreshing = true,
+                failure = null,
+            ),
+        )
+
+        compose.onNodeWithText("Loading story").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-empty-pull-refresh").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun retryableEmptyErrorRemainsVisibleWhileRefreshing() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(
+                story = null,
+                refreshing = true,
+                failure = StoryRefreshFailure("catalog.offline", retryable = true),
+            ),
+        )
+
+        compose.onNodeWithTag("story-empty-pull-refresh").assertIsDisplayed()
+        compose.onNodeWithTag("story-empty-pull-refresh").assert(
+            androidx.compose.ui.test.SemanticsMatcher.expectValue(
+                androidx.compose.ui.semantics.SemanticsProperties.StateDescription,
+                "Refreshing",
+            ),
+        )
+        compose.onNodeWithText("Story unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Retry").assertIsDisplayed()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun cachedError() = capture(
         fixture(StorySection.SOURCES).copy(failure = StoryRefreshFailure("catalog.offline", true)),
         "cached-error.png",
     )
+
+    private fun setStoryContent(
+        state: StoryUiState,
+        onRefresh: () -> Unit = {},
+    ) {
+        compose.setContent {
+            HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
+                StoryScreen(
+                    state = state,
+                    onRefresh = onRefresh,
+                    onSourceSelected = { _, _ -> },
+                    mappingState = mappingFixture(),
+                    chapterState = chapterFixture(),
+                )
+            }
+        }
+    }
 
     @OptIn(DelicateCoilApi::class)
     private fun capture(state: StoryUiState, fileName: String, loadArtwork: Boolean = true) {
@@ -90,7 +204,7 @@ class StoryScreenshotTest {
                 HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
                     StoryScreen(
                         state = state,
-                        onRetry = {},
+                        onRefresh = {},
                         onSourceSelected = { _, _ -> },
                         mappingState = mappingFixture(),
                         chapterState = chapterFixture(),

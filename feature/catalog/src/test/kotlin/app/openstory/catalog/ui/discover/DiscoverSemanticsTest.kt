@@ -1,9 +1,11 @@
 package app.openstory.catalog.ui.discover
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -26,6 +28,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
@@ -57,6 +60,84 @@ class DiscoverSemanticsTest {
 
         compose.onNodeWithText("Discover").assertDoesNotExist()
         assertTrue(searchBounds.top < utilityBounds.bottom && utilityBounds.top < searchBounds.bottom)
+    }
+
+    @Test
+    fun pullRefreshReplacesManualRefreshAction() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(),
+                    onRefresh = { refreshCalls += 1 },
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                )
+            }
+        }
+
+        val refreshAction = compose.onNodeWithTag("discover-pull-refresh")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+
+        compose.runOnIdle {
+            assertTrue(refreshAction.action())
+            assertEquals(1, refreshCalls)
+        }
+        compose.onNodeWithText("Refresh sources").assertDoesNotExist()
+    }
+
+    @Test
+    fun partialRefreshFailureKeepsVisibleRetryAction() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(
+                        refreshReport = DiscoverRefreshReport(
+                            failed = mapOf(
+                                PluginId("catalog.a") to "catalog.offline",
+                                PluginId("catalog.b") to "catalog.timeout",
+                            ),
+                        ),
+                    ),
+                    onRefresh = { refreshCalls += 1 },
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                )
+            }
+        }
+
+        compose.onAllNodesWithText("Retry").assertCountEquals(1)
+        compose.onNodeWithText("Retry").performClick()
+
+        assertEquals(1, refreshCalls)
+    }
+
+    @Test
+    fun retryableGlobalFailureKeepsVisibleRetryAction() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(
+                        refreshFailure = DiscoverUiFailure("catalog.offline", retryable = true),
+                    ),
+                    onRefresh = { refreshCalls += 1 },
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Retry").performClick()
+        assertEquals(1, refreshCalls)
     }
 
     @Test

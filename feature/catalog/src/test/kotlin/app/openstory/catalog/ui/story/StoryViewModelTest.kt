@@ -53,7 +53,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoryViewModelTest {
@@ -81,7 +80,7 @@ class StoryViewModelTest {
     }
 
     @Test
-    fun retryRefreshesExactAvailableSourceSelectedByCatalogState() = runTest(dispatcher.scheduler) {
+    fun refreshUsesExactAvailableSourceSelectedByCatalogState() = runTest(dispatcher.scheduler) {
         val repository = StoryRepository(fixtureSnapshot(includeSecondSource = true))
         val sourceA = DetailsSource("catalog.a")
         val sourceB = DetailsSource("catalog.b")
@@ -89,7 +88,7 @@ class StoryViewModelTest {
         runCurrent()
 
         viewModel.selectSource(PluginId("catalog.b"), "source-b")
-        viewModel.retry()
+        viewModel.refresh()
         runCurrent()
 
         assertEquals(0, sourceA.detailsCalls)
@@ -107,7 +106,7 @@ class StoryViewModelTest {
         val viewModel = viewModel(repository, source, storyId = canonicalId)
         runCurrent()
 
-        viewModel.retry()
+        viewModel.refresh()
         runCurrent()
 
         assertEquals(canonicalId, viewModel.state.value.storyId)
@@ -121,7 +120,7 @@ class StoryViewModelTest {
         val viewModel = viewModel(repository, DetailsSource("catalog.a"))
         runCurrent()
 
-        viewModel.retry()
+        viewModel.refresh()
         runCurrent()
 
         assertEquals("catalog.story.refresh_exception", viewModel.state.value.failure?.code)

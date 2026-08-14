@@ -73,10 +73,17 @@ compact toolbar and utility text actions use `HikariUtilityAction`, while icon-o
 separate contracts rather than being flattened into the content-action style.
 
 Story Overview, Chapters, and Sources use the same `HikariSectionHeader` mini-header contract
-with aligned outer spacing. The header supports an optional subtitle and trailing utility action;
-Sources keeps refresh on the title row as a tonal icon action. The three tab bodies use the same
-outer content inset and let nested content inherit that inset instead of stacking feature-local
-padding.
+with aligned outer spacing. The header supports an optional subtitle and trailing utility action.
+The three tab bodies use the same outer content inset and let nested content inherit that inset
+instead of stacking feature-local padding.
+
+Cross-screen manual refresh uses `HikariPullToRefresh`. The design system owns the Material 3
+pull gesture, theme-driven indicator, busy-state semantics, and the accessibility `Refresh`
+action; features only provide their real refresh callback and scrollable content. A pull gesture
+is enabled only where the feature has a matching refresh pipeline. Visible Retry actions remain
+for retryable failures, and feature code must not reintroduce manual refresh buttons or duplicate
+refresh progress chrome for the same operation. Story Overview and Sources are refreshable;
+Story Chapters is intentionally not refreshable until chapter synchronization has its own pipeline.
 
 ## When to use Material directly
 
@@ -92,7 +99,7 @@ Material controls may still be used directly when no Hikari-specific presentatio
 | Situation | Presentation |
 |---|---|
 | Initial content unavailable | `HikariLoadingState` |
-| Refresh with existing content | Keep content and show local progress |
+| Refresh with existing content | Keep content; `HikariPullToRefresh` owns refresh progress where pull refresh applies |
 | Pagination | Feature-owned local footer or progress |
 | Action-local operation | Feature-owned local progress |
 | Background work | Do not block the screen |

@@ -393,7 +393,7 @@ private fun StoryDestination(
     }
     StoryScreen(
         state = state,
-        onRetry = viewModel::retry,
+        onRefresh = viewModel::refresh,
         onSourceSelected = viewModel::selectSource,
         onSectionSelected = viewModel::selectSection,
         onLibraryStatusSelected = viewModel::changeLibraryStatus,

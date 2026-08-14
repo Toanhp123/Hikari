@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.traversalIndex
@@ -38,20 +38,20 @@ import androidx.compose.ui.unit.Dp
 import app.openstory.catalog.ui.components.StoryShelf
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
-import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.layout.HikariTopLevelHeader
-import app.openstory.designsystem.layout.HikariSearchBar
-import app.openstory.designsystem.layout.plus
-import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariOpacity
-import app.openstory.designsystem.theme.hikariShapes
-import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.designsystem.control.HikariFilterChip
-import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.icon.HikariChevronGlyph
+import app.openstory.designsystem.layout.HikariSearchBar
+import app.openstory.designsystem.layout.HikariTopLevelHeader
+import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
+import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariLayoutPolicy
+import app.openstory.designsystem.theme.hikariOpacity
+import app.openstory.designsystem.theme.hikariShapes
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun DiscoverScreen(
@@ -75,72 +75,80 @@ fun DiscoverScreen(
 ) {
     val background = MaterialTheme.hikariAtmosphereBrush
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        LazyColumn(
-            modifier = modifier.fillMaxSize().background(background),
-            contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
+        HikariPullToRefresh(
+            refreshing = state.refreshing,
+            onRefresh = onRefresh,
+            modifier = modifier
+                .fillMaxSize()
+                .background(background)
+                .testTag("discover-pull-refresh"),
         ) {
-            item("discover-search") {
-                HikariTopLevelHeader(
-                    onAction = onUtilityRequested,
-                    focusRequester = utilityFocusRequester,
-                    nextFocusRequester = utilityNextFocusRequester,
-                    content = {
-                        HikariSearchBar(
-                            value = "",
-                            onValueChange = {},
-                            placeholder = "Search all stories",
-                            contentDescription = "Search all stories",
-                            readOnly = true,
-                            onClick = onSearch,
-                            focusRequester = searchFocusRequester,
-                            nextFocusRequester = searchNextFocusRequester,
-                        )
-                    },
-                )
-            }
-            item("discover-brand") {
-                Text(
-                    text = "HIKARI",
-                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.hikariTypography.brandLabel,
-                )
-            }
-            state.featured?.let { featured ->
-                item("discover-featured") {
-                    DiscoverHero(
-                        entry = featured,
-                        onSelected = onStorySelected,
-                        modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
+            ) {
+                item("discover-search") {
+                    HikariTopLevelHeader(
+                        onAction = onUtilityRequested,
+                        focusRequester = utilityFocusRequester,
+                        nextFocusRequester = utilityNextFocusRequester,
+                        content = {
+                            HikariSearchBar(
+                                value = "",
+                                onValueChange = {},
+                                placeholder = "Search all stories",
+                                contentDescription = "Search all stories",
+                                readOnly = true,
+                                onClick = onSearch,
+                                focusRequester = searchFocusRequester,
+                                nextFocusRequester = searchNextFocusRequester,
+                            )
+                        },
                     )
                 }
-            }
-            quickCategoryItem(
-                state,
-                onCategorySelected,
-                categoryFocusRequester,
-                categoryNextFocusRequester,
-            )
-            sourceFilterItem(
-                state,
-                onCatalogSelected,
-                onCombinedSelected,
-                categoryFocusRequester,
-                catalogFocusRequester,
-            )
-            discoverFeedbackItems(state)
-            state.shelves.forEach { shelf ->
-                item("discover-shelf-${shelf.key}") {
-                    StoryShelf(
-                        title = shelf.title,
-                        entries = shelf.entries,
-                        onSelected = onStorySelected,
+                item("discover-brand") {
+                    Text(
+                        text = "HIKARI",
                         modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.hikariTypography.brandLabel,
                     )
                 }
+                state.featured?.let { featured ->
+                    item("discover-featured") {
+                        DiscoverHero(
+                            entry = featured,
+                            onSelected = onStorySelected,
+                            modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
+                        )
+                    }
+                }
+                quickCategoryItem(
+                    state,
+                    onCategorySelected,
+                    categoryFocusRequester,
+                    categoryNextFocusRequester,
+                )
+                sourceFilterItem(
+                    state,
+                    onCatalogSelected,
+                    onCombinedSelected,
+                    categoryFocusRequester,
+                    catalogFocusRequester,
+                )
+                discoverFeedbackItems(state, onRefresh)
+                state.shelves.forEach { shelf ->
+                    item("discover-shelf-${shelf.key}") {
+                        StoryShelf(
+                            title = shelf.title,
+                            entries = shelf.entries,
+                            onSelected = onStorySelected,
+                            modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
+                        )
+                    }
+                }
             }
-            item("discover-refresh-action") { RefreshAction(state.refreshing, onRefresh) }
         }
     }
 }
@@ -290,44 +298,30 @@ private fun androidx.compose.foundation.lazy.LazyListScope.sourceFilterItem(
 
 private fun androidx.compose.foundation.lazy.LazyListScope.discoverFeedbackItems(
     state: DiscoverUiState,
+    onRefresh: () -> Unit,
 ) {
-    if (state.refreshing) {
-        item("discover-refreshing") {
-            LinearProgressIndicator(
-                Modifier.fillMaxWidth().semantics { contentDescription = "Refreshing Discover" },
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-    }
+    val globalRetryVisible = state.globalFailure?.retryable == true
     state.globalFailure?.let { failure ->
         item("discover-global-failure") {
             HikariInlineFeedback(
                 message = failure.code,
                 modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
+                actionLabel = if (failure.retryable) "Retry" else null,
+                actionEnabled = !state.refreshing,
+                onAction = if (failure.retryable) onRefresh else null,
             )
         }
     }
-    state.refreshReport?.failed?.keys?.sortedBy { it.value }?.forEach { pluginId ->
+    state.refreshReport?.failed?.keys?.sortedBy { it.value }?.forEachIndexed { index, pluginId ->
+        val showRetry = !globalRetryVisible && index == 0
         item("discover-failure-${pluginId.value}") {
             HikariInlineFeedback(
                 message = "${pluginId.discoverDisplayName()} refresh failed; cached content is still available.",
                 modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
+                actionLabel = if (showRetry) "Retry" else null,
+                actionEnabled = !state.refreshing,
+                onAction = if (showRetry) onRefresh else null,
             )
-        }
-    }
-}
-
-@Composable
-private fun RefreshAction(refreshing: Boolean, onRefresh: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.hikariSpacing.space20),
-        horizontalArrangement = Arrangement.End,
-    ) {
-        HikariUtilityAction(
-            onClick = onRefresh,
-            enabled = !refreshing,
-        ) {
-            Text("Refresh sources")
         }
     }
 }

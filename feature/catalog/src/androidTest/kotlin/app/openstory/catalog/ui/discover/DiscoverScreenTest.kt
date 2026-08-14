@@ -1,12 +1,18 @@
 package app.openstory.catalog.ui.discover
 
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSection
 import app.openstory.catalog.model.CatalogHomeSnapshot
@@ -18,6 +24,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -42,9 +49,35 @@ class DiscoverScreenTest {
 
         compose.onAllNodesWithText("Across catalogs").onFirst().assertIsDisplayed()
         compose.onAllNodesWithText("Fixture Novel").onFirst().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Refreshing Discover").assertIsDisplayed()
+        compose.onNodeWithTag("discover-pull-refresh").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Refreshing"),
+        )
         compose.onNodeWithText("Catalog B refresh failed; cached content is still available.")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun pullRefreshReplacesManualDiscoverRefreshAction() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = fixtureState(),
+                    onRefresh = { refreshCalls += 1 },
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                )
+            }
+        }
+
+        val refreshAction = compose.onNodeWithTag("discover-pull-refresh")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+        assertTrue(refreshAction.action())
+        assertEquals(1, refreshCalls)
+        compose.onAllNodesWithText("Refresh sources").assertCountEquals(0)
     }
 
     @Test

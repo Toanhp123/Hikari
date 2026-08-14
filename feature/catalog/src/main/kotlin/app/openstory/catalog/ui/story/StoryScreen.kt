@@ -1,14 +1,14 @@
 package app.openstory.catalog.ui.story
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
@@ -17,36 +17,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.isTraversalGroup
-import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.traversalIndex
 import app.openstory.catalog.ui.chapters.ChapterList
 import app.openstory.catalog.ui.chapters.ChapterListActions
 import app.openstory.catalog.ui.chapters.ChapterListUiState
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.mapping.MappingActions
-import app.openstory.catalog.ui.mapping.MappingSheet
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
-import app.openstory.designsystem.layout.HikariResponsiveContent
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.layout.HikariResponsiveContent
 import app.openstory.designsystem.layout.HikariWindowClass
+import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
-import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.library.LibraryStatus
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariLayoutRatios
+import app.openstory.library.LibraryStatus
 
 @Composable
 fun StoryScreen(
     state: StoryUiState,
-    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     onSectionSelected: (StorySection) -> Unit = {},
     onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
@@ -62,7 +61,26 @@ fun StoryScreen(
     val story = state.story
     if (story == null) {
         HikariDestinationScaffold(modifier) {
-            EmptyStory(state, onRetry, Modifier.fillMaxSize().padding(contentPadding))
+            if (state.refreshing && state.failure == null) {
+                HikariLoadingState("Loading story", Modifier.fillMaxSize().padding(contentPadding))
+            } else {
+                HikariPullToRefresh(
+                    refreshing = state.refreshing,
+                    onRefresh = onRefresh,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        .testTag("story-empty-pull-refresh"),
+                ) {
+                    LazyColumn(Modifier.fillMaxSize()) {
+                        item {
+                            Box(Modifier.fillParentMaxSize()) {
+                                EmptyStory(state, onRefresh, Modifier.fillMaxSize())
+                            }
+                        }
+                    }
+                }
+            }
         }
         return
     }
@@ -77,14 +95,14 @@ fun StoryScreen(
             if (windowClass == HikariWindowClass.MEDIUM) {
                 MediumStoryLayout(
                     state, story, readerTarget, validatedResumeTarget != null,
-                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                    firstReadableTarget?.releaseId, onRefresh, onSourceSelected, onSectionSelected,
                     onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
                     chapterState, chapterActions,
                 )
             } else {
                 CompactStoryLayout(
                     state, story, readerTarget, validatedResumeTarget != null,
-                    firstReadableTarget?.releaseId, onRetry, onSourceSelected, onSectionSelected,
+                    firstReadableTarget?.releaseId, onRefresh, onSourceSelected, onSectionSelected,
                     onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
                     chapterState, chapterActions,
                 )
@@ -100,7 +118,7 @@ private fun MediumStoryLayout(
     readerTarget: ReaderTarget?,
     isResume: Boolean,
     downloadableReleaseId: ChapterReleaseId?,
-    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     onSectionSelected: (StorySection) -> Unit,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
@@ -123,7 +141,7 @@ private fun MediumStoryLayout(
         }
         Column(storyPane(MaterialTheme.hikariLayoutRatios.detailContentPaneWeight, "story-content-pane", 1f)) {
             StoryBody(
-                state, onRetry, onSourceSelected, onSectionSelected, mappingState,
+                state, onRefresh, onSourceSelected, onSectionSelected, mappingState,
                 mappingActions, chapterState, chapterActions,
             )
         }
@@ -137,7 +155,7 @@ private fun CompactStoryLayout(
     readerTarget: ReaderTarget?,
     isResume: Boolean,
     downloadableReleaseId: ChapterReleaseId?,
-    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     onSectionSelected: (StorySection) -> Unit,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
@@ -154,7 +172,7 @@ private fun CompactStoryLayout(
             onLibraryStatusSelected, onRead, onDownload,
         )
         StoryBody(
-            state, onRetry, onSourceSelected, onSectionSelected, mappingState,
+            state, onRefresh, onSourceSelected, onSectionSelected, mappingState,
             mappingActions, chapterState, chapterActions,
         )
     }
@@ -163,7 +181,7 @@ private fun CompactStoryLayout(
 @Composable
 private fun androidx.compose.foundation.layout.ColumnScope.StoryBody(
     state: StoryUiState,
-    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     onSectionSelected: (StorySection) -> Unit,
     mappingState: MappingUiState?,
@@ -171,11 +189,10 @@ private fun androidx.compose.foundation.layout.ColumnScope.StoryBody(
     chapterState: ChapterListUiState?,
     chapterActions: ChapterListActions,
 ) {
-    if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
     StorySectionTabs(state.selectedSection, onSectionSelected)
-    state.failure?.let { StoryFailureBanner(it, state.refreshing, onRetry) }
+    state.failure?.let { StoryFailureBanner(it, state.refreshing, onRefresh) }
     StorySectionContent(
-        state, onRetry, onSourceSelected, mappingState, mappingActions,
+        state, onRefresh, onSourceSelected, mappingState, mappingActions,
         chapterState, chapterActions, Modifier.weight(1f),
     )
 }
@@ -211,7 +228,7 @@ private fun StorySectionTabs(selectedSection: StorySection, onSelected: (StorySe
 @Composable
 private fun StorySectionContent(
     state: StoryUiState,
-    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     mappingState: MappingUiState?,
     mappingActions: MappingActions,
@@ -220,7 +237,12 @@ private fun StorySectionContent(
     modifier: Modifier,
 ) {
     when (state.selectedSection) {
-        StorySection.OVERVIEW -> StoryOverview(requireNotNull(state.story), modifier = modifier)
+        StorySection.OVERVIEW -> StoryOverview(
+            story = requireNotNull(state.story),
+            modifier = modifier,
+            refreshing = state.refreshing,
+            onRefresh = onRefresh,
+        )
         StorySection.CHAPTERS -> ChapterList(
             chapterState ?: ChapterListUiState(state.storyId),
             chapterActions,
@@ -230,7 +252,7 @@ private fun StorySectionContent(
             story = requireNotNull(state.story),
             selectedSource = state.selectedSource,
             refreshing = state.refreshing,
-            onRetry = onRetry,
+            onRefresh = onRefresh,
             onSourceSelected = onSourceSelected,
             mappingState = mappingState,
             mappingActions = mappingActions,
@@ -239,32 +261,27 @@ private fun StorySectionContent(
     }
 }
 
-
 @Composable
-private fun StoryFailureBanner(failure: StoryRefreshFailure, refreshing: Boolean, onRetry: () -> Unit) {
+private fun StoryFailureBanner(failure: StoryRefreshFailure, refreshing: Boolean, onRefresh: () -> Unit) {
     HikariInlineFeedback(
         message = "Source detail refresh failed: ${failure.code}",
         actionLabel = if (failure.retryable) "Retry" else null,
         actionEnabled = !refreshing,
-        onAction = if (failure.retryable) onRetry else null,
+        onAction = if (failure.retryable) onRefresh else null,
         actionModifier = Modifier.testTag("story-retry"),
     )
 }
 
 @Composable
-private fun EmptyStory(state: StoryUiState, onRetry: () -> Unit, modifier: Modifier) {
-    if (state.refreshing) {
-        HikariLoadingState("Loading story", modifier.fillMaxSize())
-    } else {
-        val retryable = state.failure?.retryable == true
-        HikariErrorState(
-            title = "Story unavailable",
-            message = state.failure?.let { "Source detail refresh failed: ${it.code}" },
-            actionLabel = if (retryable) "Retry" else null,
-            onAction = if (retryable) onRetry else null,
-            modifier = modifier.fillMaxSize(),
-        )
-    }
+private fun EmptyStory(state: StoryUiState, onRefresh: () -> Unit, modifier: Modifier) {
+    val retryable = state.failure?.retryable == true
+    HikariErrorState(
+        title = "Story unavailable",
+        message = state.failure?.let { "Source detail refresh failed: ${it.code}" },
+        actionLabel = if (retryable) "Retry" else null,
+        onAction = if (retryable) onRefresh else null,
+        modifier = modifier.fillMaxSize(),
+    )
 }
 
 private fun StorySection.label() = when (this) {

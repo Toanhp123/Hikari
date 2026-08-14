@@ -283,11 +283,45 @@ assert_contains 'HikariSectionHeader(' \
 assert_contains 'title = "Sources"' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
   'Story Sources must use the normalized Sources mini-header title'
-assert_contains 'HikariRefreshGlyph(' \
+# Pull-to-refresh UX system contracts.
+assert_contains 'fun HikariPullToRefresh(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
+  'design system must own pull-to-refresh gesture, indicator, and accessibility semantics'
+assert_contains 'PullToRefreshBox(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
+  'Hikari pull-to-refresh must delegate gesture mechanics to Material 3'
+assert_contains 'CustomAccessibilityAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
+  'pull-to-refresh must expose an equivalent accessibility action'
+assert_absent 'PullToRefreshBox\(|[.]pullToRefresh\(' \
+  'feature' \
+  'features must consume HikariPullToRefresh instead of owning pull-to-refresh mechanics'
+assert_absent 'PullToRefreshBox\(|[.]pullToRefresh\(' \
+  'app/src/main/kotlin' \
+  'app code must consume HikariPullToRefresh instead of owning pull-to-refresh mechanics'
+assert_contains 'HikariPullToRefresh(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
+  'Discover must expose shared pull-to-refresh'
+assert_contains 'HikariPullToRefresh(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
+  'Story Overview must expose shared pull-to-refresh'
+assert_contains 'HikariPullToRefresh(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
-  'Story Sources refresh must use the shared refresh glyph'
-assert_absent 'Text\("Refresh details"\)|Button\(' \
+  'Story Sources must expose shared pull-to-refresh'
+assert_absent 'HikariPullToRefresh\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters' \
+  'Story Chapters must not expose pull-to-refresh before a chapter-sync pipeline exists'
+assert_absent 'Refresh sources' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover' \
+  'Discover must not keep a space-consuming manual refresh button'
+assert_absent 'LinearProgressIndicator\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
+  'Discover must not duplicate pull-to-refresh feedback with a linear progress row'
+assert_absent 'story-source-refresh|HikariRefreshGlyph\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
-  'Story Sources refresh must be a compact tonal icon action instead of a text button'
+  'Story Sources must not keep a manual refresh icon after pull-to-refresh migration'
+assert_absent 'LinearProgressIndicator\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'Story must not duplicate pull-to-refresh feedback with a global linear progress bar'
 
 echo "UI shared-component policy contract verified."

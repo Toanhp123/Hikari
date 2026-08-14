@@ -26,6 +26,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
@@ -48,6 +49,7 @@ import app.openstory.designsystem.motion.LocalHikariMotionPolicy
 import app.openstory.designsystem.navigation.HikariFloatingNavigation
 import app.openstory.designsystem.navigation.HikariNavigationItem
 import app.openstory.designsystem.navigation.validateNavigationSelection
+import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.icon.HikariNavigationGlyphs
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Assert.assertEquals
@@ -199,6 +201,47 @@ class HikariProductPrimitivesTest {
         compose.onNodeWithContentDescription("Refresh source details")
             .assertWidthIsAtLeast(48.dp)
             .assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun pullToRefreshExposesGuardedRefreshAccessibilityAction() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                Column {
+                    HikariPullToRefresh(
+                        refreshing = false,
+                        onRefresh = { refreshCalls += 1 },
+                        modifier = Modifier.size(120.dp).testTag("refresh-idle"),
+                    ) {
+                        Box(Modifier.size(120.dp))
+                    }
+                    HikariPullToRefresh(
+                        refreshing = true,
+                        onRefresh = { refreshCalls += 1 },
+                        modifier = Modifier.size(120.dp).testTag("refresh-busy"),
+                    ) {
+                        Box(Modifier.size(120.dp))
+                    }
+                }
+            }
+        }
+
+        val idleRefresh = compose.onNodeWithTag("refresh-idle")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+        val busyRefresh = compose.onNodeWithTag("refresh-busy")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+
+        compose.runOnIdle {
+            assertTrue(idleRefresh.action())
+            assertFalse(busyRefresh.action())
+            assertEquals(1, refreshCalls)
+        }
+        compose.onNodeWithTag("refresh-busy").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Refreshing"),
+        )
     }
 
     @Test

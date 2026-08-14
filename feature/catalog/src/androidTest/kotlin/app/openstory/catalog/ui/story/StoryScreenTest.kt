@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -44,6 +45,44 @@ class StoryScreenTest {
         compose.onNodeWithTag("story-tab-sources").performClick()
 
         assertEquals(StorySection.SOURCES, selected)
+    }
+
+    @Test
+    fun overviewExposesPullRefreshAction() {
+        var refreshCalls = 0
+        setStoryContent(onRefresh = { refreshCalls += 1 })
+
+        val refreshAction = compose.onNodeWithTag("story-overview-pull-refresh")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+
+        assertTrue(refreshAction.action())
+        assertEquals(1, refreshCalls)
+    }
+
+    @Test
+    fun sourcesExposePullRefreshAndNoManualRefreshIcon() {
+        var refreshCalls = 0
+        setStoryContent(
+            state = fixtureState().copy(selectedSection = StorySection.SOURCES),
+            onRefresh = { refreshCalls += 1 },
+        )
+
+        val refreshAction = compose.onNodeWithTag("story-sources-pull-refresh")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Refresh" }
+
+        assertTrue(refreshAction.action())
+        assertEquals(1, refreshCalls)
+        compose.onAllNodesWithTag("story-source-refresh").assertCountEquals(0)
+    }
+
+    @Test
+    fun chaptersDoNotExposePullRefresh() {
+        setStoryContent(state = fixtureState().copy(selectedSection = StorySection.CHAPTERS))
+
+        compose.onAllNodesWithTag("story-overview-pull-refresh").assertCountEquals(0)
+        compose.onAllNodesWithTag("story-sources-pull-refresh").assertCountEquals(0)
     }
 
     @Test
@@ -119,7 +158,7 @@ class StoryScreenTest {
         var retried = false
         setStoryContent(
             state = fixtureState(failed = true).copy(story = null),
-            onRetry = { retried = true },
+            onRefresh = { retried = true },
         )
 
         compose.onNodeWithText("Retry").performClick()
@@ -148,7 +187,7 @@ class StoryScreenTest {
 
     private fun setStoryContent(
         state: StoryUiState = fixtureState(),
-        onRetry: () -> Unit = {},
+        onRefresh: () -> Unit = {},
         onSourceSelected: (PluginId, String) -> Unit = { _, _ -> },
         onSectionSelected: (StorySection) -> Unit = {},
         onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
@@ -160,7 +199,7 @@ class StoryScreenTest {
             HikariTheme {
                 StoryScreen(
                     state = state,
-                    onRetry = onRetry,
+                    onRefresh = onRefresh,
                     onSourceSelected = onSourceSelected,
                     onSectionSelected = onSectionSelected,
                     onLibraryStatusSelected = onLibraryStatusSelected,

@@ -101,7 +101,7 @@ class StoryViewModel @AssistedInject constructor(
         }
     }
 
-    fun retry() {
+    fun refresh() {
         if (refreshing.value) return
         refreshing.value = true
         viewModelScope.launch {

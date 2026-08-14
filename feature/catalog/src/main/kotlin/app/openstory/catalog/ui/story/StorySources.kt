@@ -3,6 +3,7 @@ package app.openstory.catalog.ui.story
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,9 +22,7 @@ import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.control.HikariFilterChip
-import app.openstory.designsystem.control.HikariIconAction
-import app.openstory.designsystem.control.HikariIconActionStyle
-import app.openstory.designsystem.icon.HikariRefreshGlyph
+import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -31,42 +30,37 @@ internal fun StorySources(
     story: StoryUiModel,
     selectedSource: StorySourceIdentity?,
     refreshing: Boolean,
-    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     mappingState: MappingUiState?,
     mappingActions: MappingActions,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space16),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+    HikariPullToRefresh(
+        refreshing = refreshing,
+        onRefresh = onRefresh,
+        modifier = modifier.fillMaxWidth().testTag("story-sources-pull-refresh"),
     ) {
-        item(key = "story-sources-header") {
-            Column(
-                modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
-            ) {
-                HikariSectionHeader(
-                    title = "Sources",
-                    action = {
-                        HikariIconAction(
-                            onClick = onRetry,
-                            enabled = !refreshing,
-                            contentDescription = "Refresh source details",
-                            style = HikariIconActionStyle.TONAL,
-                            modifier = Modifier.testTag("story-source-refresh"),
-                        ) { HikariRefreshGlyph() }
-                    },
-                )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        ) {
+            item(key = "story-sources-header") {
+                Column(
+                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+                ) {
+                    HikariSectionHeader(title = "Sources")
+                }
             }
-        }
-        items(story.sources, key = { "${it.pluginId.value}:${it.sourceId}" }) { source ->
-            SourceCard(source, selectedSource?.matches(source) == true) {
-                onSourceSelected(source.pluginId, source.sourceId)
+            items(story.sources, key = { "${it.pluginId.value}:${it.sourceId}" }) { source ->
+                SourceCard(source, selectedSource?.matches(source) == true) {
+                    onSourceSelected(source.pluginId, source.sourceId)
+                }
             }
+            mappingState?.let { item { MappingSheet(it, mappingActions) } }
         }
-        mappingState?.let { item { MappingSheet(it, mappingActions) } }
     }
 }
 
