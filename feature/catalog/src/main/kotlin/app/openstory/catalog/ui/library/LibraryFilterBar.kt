@@ -10,12 +10,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import app.openstory.library.LibraryStatus
+import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.theme.hikariSpacing
@@ -80,7 +80,7 @@ internal fun LibraryFilterSheet(
                     )
                 }
             }
-            TextButton(
+            HikariContentAction(
                 onClick = onResetFilters,
                 modifier = Modifier
                     .fillMaxWidth()

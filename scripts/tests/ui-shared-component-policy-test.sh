@@ -148,4 +148,146 @@ assert_contains 'StoryUpdateCard(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/updates/UpdatesScreen.kt' \
   'Updates destination must consume StoryUpdateCard'
 
+assert_contains 'fun HikariMetadataBadgeGroup(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariMetadataBadgeGroup.kt' \
+  'design system must own wrapping metadata badge collections'
+assert_contains 'FlowRow(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariMetadataBadgeGroup.kt' \
+  'metadata badge collections must lay out horizontally and wrap on width exhaustion'
+assert_contains 'HikariMetadataBadgeGroup(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariMetadataGroup.kt' \
+  'titled metadata groups must reuse the wrapping badge collection'
+assert_contains 'HikariMetadataBadgeGroup(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchResultCard.kt' \
+  'search result metadata badges must use the shared wrapping collection'
+assert_contains 'HikariMetadataBadgeGroup(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
+  'download metadata badges must use the shared wrapping collection'
+assert_contains 'HikariMetadataBadgeGroup(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterReleaseRow.kt' \
+  'chapter release metadata badges must use the shared wrapping collection'
+assert_contains 'HikariMetadataBadgeGroup(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
+  'mapping metadata badges must use the shared wrapping collection'
+assert_contains 'surfaceBright =' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariColorScheme.kt' \
+  'Hikari theme must explicitly own Material bright-surface role'
+assert_contains 'surfaceDim =' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariColorScheme.kt' \
+  'Hikari theme must explicitly own Material dim-surface role'
+assert_contains 'surfaceContainerLowest =' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariColorScheme.kt' \
+  'Hikari theme must explicitly own Material surface-container roles'
+assert_contains 'surfaceContainerHighest =' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariColorScheme.kt' \
+  'Hikari theme must explicitly own the full Material surface-container range'
+
+assert_contains 'fun HikariContentCard(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
+  'design system must own content/list card surface treatment'
+assert_contains 'contentCardShadowElevation' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariDimensions.kt' \
+  'content/list card shadow must come from a semantic dimension token'
+assert_contains 'shadowElevation = dimensions.contentCardShadowElevation' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
+  'content cards must use the semantic light shadow token'
+assert_absent '[.]border\(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
+  'content cards must be shadow-only and must not add an outline border'
+assert_contains 'tonalElevation = dimensions.zero' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
+  'content cards must not add tonal elevation on top of the shadow treatment'
+assert_absent 'import androidx\.compose\.material3\.(Card|ElevatedCard|OutlinedCard)' \
+  'feature' \
+  'feature content/list cards must use HikariContentCard instead of direct Material card forks'
+assert_absent 'import androidx\.compose\.material3\.(Card|ElevatedCard|OutlinedCard)' \
+  'app/src/main/kotlin' \
+  'app content/list cards must use HikariContentCard instead of direct Material card forks'
+assert_absent 'HikariGlassPanel\(null' \
+  'feature' \
+  'features must not use a null-backdrop glass panel as content-card chrome'
+assert_absent 'HikariGlassPanel\(null' \
+  'app/src/main/kotlin' \
+  'app code must not use a null-backdrop glass panel as content-card chrome'
+assert_absent 'import androidx\.compose\.material3\.Surface|Surface\(|HikariContentCard\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterReleaseRow.kt' \
+  'chapter release content must remain flat inside its parent card instead of creating a nested surface'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter list rows must use the shared content-card treatment'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
+  'mapping list items must use the shared content-card treatment'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchResultCard.kt' \
+  'search results must use the shared content-card treatment'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
+  'download rows must use the shared content-card treatment'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryStoryCard.kt' \
+  'library list rows must use the shared content-card treatment'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/components/StoryUpdateCard.kt' \
+  'update/activity rows must use the shared content-card treatment'
+
+# Story/list UI consistency contracts.
+assert_contains 'fun HikariListArtworkFrame(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/artwork/HikariListArtworkFrame.kt' \
+  'design system must own rounded list-artwork framing'
+assert_contains '.clip(MaterialTheme.hikariShapes.cover)' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/artwork/HikariListArtworkFrame.kt' \
+  'shared list-artwork framing must use the semantic cover shape'
+assert_contains 'HikariListArtworkFrame(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryStoryCard.kt' \
+  'library list artwork must use the shared rounded frame'
+assert_contains 'HikariListArtworkFrame(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/components/StoryUpdateCard.kt' \
+  'update/activity artwork must use the shared rounded list frame'
+assert_contains 'fun HikariContentAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentAction.kt' \
+  'design system must own outlined content/list actions'
+assert_contains 'OutlinedButton(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentAction.kt' \
+  'content/list secondary actions must expose visible outlined chrome'
+assert_contains 'BorderStroke(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentAction.kt' \
+  'content/list secondary actions must own their outline treatment'
+assert_contains 'fun HikariUtilityAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariUtilityAction.kt' \
+  'design system must own tonal text utility actions'
+assert_contains 'FilledTonalButton(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariUtilityAction.kt' \
+  'toolbar and utility text actions must use visible tonal chrome'
+assert_contains 'TONAL' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariIconActionStyle.kt' \
+  'icon actions must expose a tonal utility treatment'
+assert_contains 'fun HikariRefreshGlyph(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariGlyphs.kt' \
+  'design system must own refresh icon geometry'
+assert_absent 'import androidx\.compose\.material3\.TextButton|TextButton\(' \
+  'feature/catalog/src/main/kotlin' \
+  'catalog actions must not bypass shared Hikari action treatments with bare TextButton chrome'
+assert_absent 'import androidx\.compose\.material3\.TextButton|TextButton\(' \
+  'feature/reader/src/main/kotlin' \
+  'reader actions must use outlined or tonal shared Hikari action treatments'
+assert_absent 'import androidx\.compose\.material3\.TextButton|TextButton\(' \
+  'app/src/main/kotlin' \
+  'app actions must use shared Hikari action treatments'
+assert_contains 'HikariSectionHeader(title = "Details")' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
+  'Story Overview must use the shared Details mini-header'
+assert_contains 'HikariSectionHeader(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'Story Chapters must use the shared mini-header contract'
+assert_contains 'title = "Sources"' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
+  'Story Sources must use the normalized Sources mini-header title'
+assert_contains 'HikariRefreshGlyph(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
+  'Story Sources refresh must use the shared refresh glyph'
+assert_absent 'Text\("Refresh details"\)|Button\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
+  'Story Sources refresh must be a compact tonal icon action instead of a text button'
+
 echo "UI shared-component policy contract verified."

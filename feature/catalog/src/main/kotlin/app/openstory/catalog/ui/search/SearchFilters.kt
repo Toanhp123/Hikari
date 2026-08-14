@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import app.openstory.common.id.PluginId
 import java.math.BigDecimal
 import kotlin.math.round
 import kotlin.math.roundToInt
+import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
@@ -71,7 +71,7 @@ private fun FilterGroupHeader(
     ) {
         Text(pluginId.value, style = MaterialTheme.hikariTypography.emphasizedTitleSmall)
         if (selectedValues.isNotEmpty()) {
-            OutlinedButton(
+            HikariContentAction(
                 onClick = { onClear(pluginId) },
                 modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
             ) { Text("Clear") }

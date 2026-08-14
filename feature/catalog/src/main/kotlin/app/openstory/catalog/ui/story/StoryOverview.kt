@@ -9,15 +9,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import app.openstory.designsystem.content.HikariMetadataGroup
+import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 internal fun StoryOverview(story: StoryUiModel, compact: Boolean = false, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(MaterialTheme.hikariSpacing.space20),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
+        contentPadding = PaddingValues(MaterialTheme.hikariSpacing.space16),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
+        item(key = "story-overview-header") {
+            HikariSectionHeader(title = "Details")
+        }
         story.description?.takeIf(String::isNotBlank)?.let { description ->
             item {
                 Text(

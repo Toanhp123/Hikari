@@ -15,7 +15,7 @@ data class HikariDimensions(
     val borderThin: Dp = 1.dp,
     val glassBlurRadius: Dp = 8.dp,
     val glassShadowElevation: Dp = 8.dp,
-    val surfaceTonalElevation: Dp = 2.dp,
+    val contentCardShadowElevation: Dp = 1.dp,
     val glyphStrokeFine: Dp = 1.7.dp,
     val glyphStroke: Dp = 1.8.dp,
     val glyphDotRadius: Dp = 2.4.dp,

@@ -30,6 +30,14 @@ system dimension tokens rather than feature-local constants. Responsive decision
 `MaterialTheme.hikariBreakpoints`; a feature must not invent its own viewport threshold.
 Discrete layout decisions such as the compact two-column policy use
 `MaterialTheme.hikariLayoutPolicy` rather than numeric counts at the screen call site.
+Material 3 surface roles are also product-owned: `HikariColorScheme` explicitly defines
+`surfaceBright`, `surfaceDim`, and the complete `surfaceContainer*` range so Cards, sheets,
+menus, and other Material containers cannot fall back to an unrelated default neutral palette.
+Content/list cards use `HikariContentCard`: separation is shadow-only, with no outline/border,
+and the subtle card shadow comes from the semantic `contentCardShadowElevation` token. Floating
+glass keeps its stronger glass-specific border/shadow treatment and must not be reused as a
+content-card fallback when no backdrop is present. Nested list-item surfaces are avoided; child
+rows inherit their parent card surface unless they represent an independently elevated object.
 
 `scripts/verify-ui-tokens.sh` enforces this policy over production Compose sources and is
 part of both repository verification entry points through `verification-common.sh`. It also
@@ -39,20 +47,36 @@ Hikari shapes remain the application-facing contract. Token definition files und
 
 ## Shared component rule
 
-A repeated visual pattern has one owner. Domain-neutral patterns such as glass panels,
-round icon actions, glyphs, search chrome, filter chips, metadata groups/badges, inline
-feedback, section/destination headers, bottom-sheet content chrome, and application
+A repeated visual pattern has one owner. Domain-neutral patterns such as content cards, glass panels,
+round icon actions, glyphs, search chrome, filter chips, metadata groups/badges, wrapping
+metadata badge collections, inline feedback, section/destination headers, bottom-sheet content
+chrome, and application
 navigation live in `:core:designsystem`. Domain-aware repeated story/catalog patterns live
 in the owning presentation feature; for example update cards shared by Home and Updates
 live under `feature/catalog/.../ui/components`. Screens compose those contracts and map
 state; they do not fork a component to change padding, radius, border, alpha, icon geometry,
-touch size, heading semantics, or failure chrome locally.
+touch size, heading semantics, or failure chrome locally. Metadata badge collections use
+`HikariMetadataBadgeGroup`: badges keep their existing visual treatment, lay out horizontally
+first, and wrap only when the available width is exhausted.
 
 `scripts/tests/ui-shared-component-policy-test.sh` guards the high-value ownership boundaries
 that previously drifted so the repository static gates reject those feature-local forks.
 The guard also rejects app/feature-owned vector path geometry, font-text chevrons, raw fixed
 grid counts, redundant destination content-color wrappers, and heading-semantic forks that
 bypass the shared design-system owner.
+
+List-sized cover artwork uses `HikariListArtworkFrame` so compact thumbnails share the same
+semantic cover rounding instead of rendering square inside rounded content cards. Content/list
+secondary actions use `HikariContentAction`, an outlined pill with the shared minimum target;
+compact toolbar and utility text actions use `HikariUtilityAction`, while icon-only utilities use
+`HikariIconActionStyle.TONAL`. Hero CTAs, confirmation actions, and destructive semantics remain
+separate contracts rather than being flattened into the content-action style.
+
+Story Overview, Chapters, and Sources use the same `HikariSectionHeader` mini-header contract
+with aligned outer spacing. The header supports an optional subtitle and trailing utility action;
+Sources keeps refresh on the title row as a tonal icon action. The three tab bodies use the same
+outer content inset and let nested content inherit that inset instead of stacking feature-local
+padding.
 
 ## When to use Material directly
 

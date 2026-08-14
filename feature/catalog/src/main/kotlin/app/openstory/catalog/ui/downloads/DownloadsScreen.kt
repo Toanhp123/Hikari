@@ -3,13 +3,11 @@ package app.openstory.catalog.ui.downloads
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,8 +16,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.catalog.ui.download.DownloadActionSheet
 import app.openstory.catalog.ui.download.DownloadActions
-import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
@@ -116,7 +115,7 @@ private fun DownloadCard(
     pendingRemoval: Boolean,
     actions: DownloadListActions,
 ) {
-    Card(
+    HikariContentCard(
         modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
             contentDescription = "${item.storyTitle}, ${item.chapterLabel}, ${item.state.name.lowercase()} download"
         },
@@ -129,11 +128,13 @@ private fun DownloadCard(
         ) {
             Text(item.storyTitle, style = MaterialTheme.typography.titleMedium)
             Text(item.chapterLabel, style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
-                item.sourceLabel?.let { HikariMetadataBadge(it) }
-                HikariMetadataBadge(item.state.name.lowercase().replaceFirstChar(Char::uppercase))
-                item.sizeBytes.takeIf { it > 0L }?.let { HikariMetadataBadge(it.byteLabel()) }
-            }
+            HikariMetadataBadgeGroup(
+                listOfNotNull(
+                    item.sourceLabel,
+                    item.state.name.lowercase().replaceFirstChar(Char::uppercase),
+                    item.sizeBytes.takeIf { it > 0L }?.byteLabel(),
+                ),
+            )
             item.failureReason?.let { failure ->
                 HikariInlineFeedback(message = failure)
             }

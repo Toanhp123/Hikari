@@ -8,6 +8,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.openstory.designsystem.theme.HikariDarkColorScheme
+import app.openstory.designsystem.theme.HikariLightColorScheme
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.designsystem.theme.hikariBreakpoints
 import app.openstory.designsystem.theme.hikariColors
@@ -26,6 +28,25 @@ import org.robolectric.annotation.Config
 class HikariThemeTokensTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun themeOwnsMaterialSurfaceContainerRoles() {
+        assertEquals(Color(0xFFFFF9F2), HikariLightColorScheme.surfaceBright)
+        assertEquals(Color(0xFFDED4CB), HikariLightColorScheme.surfaceDim)
+        assertEquals(Color(0xFFFFF9F2), HikariLightColorScheme.surfaceContainerLowest)
+        assertEquals(Color(0xFFF6F0E8), HikariLightColorScheme.surfaceContainerLow)
+        assertEquals(Color(0xFFF2EAE1), HikariLightColorScheme.surfaceContainer)
+        assertEquals(Color(0xFFEFE6DD), HikariLightColorScheme.surfaceContainerHigh)
+        assertEquals(Color(0xFFECE3DA), HikariLightColorScheme.surfaceContainerHighest)
+
+        assertEquals(Color(0xFF24302A), HikariDarkColorScheme.surfaceBright)
+        assertEquals(Color(0xFF101714), HikariDarkColorScheme.surfaceDim)
+        assertEquals(Color(0xFF101714), HikariDarkColorScheme.surfaceContainerLowest)
+        assertEquals(Color(0xFF141C18), HikariDarkColorScheme.surfaceContainerLow)
+        assertEquals(Color(0xFF18211D), HikariDarkColorScheme.surfaceContainer)
+        assertEquals(Color(0xFF1E2924), HikariDarkColorScheme.surfaceContainerHigh)
+        assertEquals(Color(0xFF24302A), HikariDarkColorScheme.surfaceContainerHighest)
+    }
 
     @Test
     fun themeExposesApprovedProductTokens() {

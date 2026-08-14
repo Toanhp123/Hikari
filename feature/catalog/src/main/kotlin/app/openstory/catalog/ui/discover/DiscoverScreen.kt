@@ -47,6 +47,7 @@ import app.openstory.designsystem.theme.hikariOpacity
 import app.openstory.designsystem.theme.hikariShapes
 import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.icon.HikariChevronGlyph
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
@@ -322,15 +323,12 @@ private fun RefreshAction(refreshing: Boolean, onRefresh: () -> Unit) {
         Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.hikariSpacing.space20),
         horizontalArrangement = Arrangement.End,
     ) {
-        Text(
-            "Refresh sources",
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.hikariTypography.refreshAction,
-            modifier = Modifier
-                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
-                .clickable(enabled = !refreshing, onClick = onRefresh)
-                .padding(MaterialTheme.hikariSpacing.space14),
-        )
+        HikariUtilityAction(
+            onClick = onRefresh,
+            enabled = !refreshing,
+        ) {
+            Text("Refresh sources")
+        }
     }
 }
 

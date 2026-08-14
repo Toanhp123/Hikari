@@ -9,10 +9,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +21,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
+import app.openstory.designsystem.artwork.HikariListArtworkFrame
 import app.openstory.designsystem.artwork.rememberHikariArtwork
+import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -56,7 +57,7 @@ fun StoryUpdateCard(
     action: StoryUpdateCardAction? = null,
     traversalIndex: Float? = null,
 ) {
-    Card(
+    HikariContentCard(
         onClick = onClick,
         modifier = storyUpdateCardModifier(modifier, content, variant, traversalIndex),
     ) {
@@ -109,13 +110,15 @@ private fun StoryUpdateArtwork(
         StoryUpdateCardVariant.SHELF -> dimensions.posterActivity
         StoryUpdateCardVariant.ROW -> dimensions.posterUpdate
     }
-    HikariArtwork(
-        state = rememberHikariArtwork(
-            HikariArtworkModel(content.coverUrl, content.storyId.value, content.title),
-        ),
-        contentDescription = "${content.title} cover",
-        modifier = Modifier.width(artworkSize.width).height(artworkSize.height),
-    )
+    HikariListArtworkFrame(Modifier.width(artworkSize.width).height(artworkSize.height)) {
+        HikariArtwork(
+            state = rememberHikariArtwork(
+                HikariArtworkModel(content.coverUrl, content.storyId.value, content.title),
+            ),
+            contentDescription = "${content.title} cover",
+            modifier = Modifier.matchParentSize(),
+        )
+    }
 }
 
 @Composable
@@ -165,7 +168,7 @@ private fun RowScope.StoryUpdateText(
 
 @Composable
 private fun StoryUpdateAction(action: StoryUpdateCardAction) {
-    TextButton(
+    HikariContentAction(
         onClick = action.onClick,
         modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
     ) { Text(action.label) }

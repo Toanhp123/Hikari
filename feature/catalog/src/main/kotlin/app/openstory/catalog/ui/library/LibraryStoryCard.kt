@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,7 +22,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
+import app.openstory.designsystem.artwork.HikariListArtworkFrame
 import app.openstory.designsystem.artwork.rememberHikariArtwork
+import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.catalog.ui.components.StoryPosterCard
 import kotlin.math.roundToInt
@@ -54,7 +55,7 @@ internal fun LibraryStoryCard(
         return
     }
 
-    Card(
+    HikariContentCard(
         onClick = onSelected,
         modifier = Modifier
             .fillMaxWidth()
@@ -84,7 +85,9 @@ private fun Artwork(item: LibraryItemUiModel, modifier: Modifier) {
     val artwork = rememberHikariArtwork(
         HikariArtworkModel(item.coverUrl, item.storyId.value, item.title),
     )
-    HikariArtwork(artwork, null, modifier)
+    HikariListArtworkFrame(modifier) {
+        HikariArtwork(artwork, null, Modifier.matchParentSize())
+    }
 }
 
 @Composable

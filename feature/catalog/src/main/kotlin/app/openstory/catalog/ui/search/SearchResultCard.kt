@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,10 +24,11 @@ import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.rememberHikariArtwork
 import app.openstory.designsystem.content.HikariCoverCardFrame
-import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.content.HikariMetadataBadgeGroup
+import app.openstory.designsystem.surface.HikariContentCard
+import app.openstory.designsystem.surface.HikariContentCardStyle
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariShapes
 import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
@@ -42,15 +42,13 @@ fun SearchResultCard(
     val artwork = rememberHikariArtwork(
         HikariArtworkModel(primary?.coverUrl, result.story.id.value, title),
     )
-    Surface(
+    HikariContentCard(
         onClick = onClick,
+        style = HikariContentCardStyle.SHEET,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = MaterialTheme.hikariDimensions.searchResultMinHeight)
             .semantics(mergeDescendants = true) { contentDescription = result.accessibilityDescription() },
-        shape = MaterialTheme.hikariShapes.sheetCard,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = MaterialTheme.hikariDimensions.surfaceTonalElevation,
     ) {
         Row(
             modifier = Modifier.padding(MaterialTheme.hikariSpacing.space12),
@@ -79,12 +77,12 @@ private fun SearchResultMetadata(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
-            HikariMetadataBadge(result.story.contentType.displayName())
-            primary?.score?.let {
-                HikariMetadataBadge("${formatScore(it.value)}/${formatScore(it.scale)}")
-            }
-        }
+        HikariMetadataBadgeGroup(
+            listOfNotNull(
+                result.story.contentType.displayName(),
+                primary?.score?.let { "${formatScore(it.value)}/${formatScore(it.scale)}" },
+            ),
+        )
         primary?.authors?.takeIf(Set<String>::isNotEmpty)?.let { authors ->
             Text(
                 authors.sorted().joinToString(),

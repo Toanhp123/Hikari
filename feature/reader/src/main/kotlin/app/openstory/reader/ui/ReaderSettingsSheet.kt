@@ -8,12 +8,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.theme.hikariDimensions
 
@@ -33,7 +33,7 @@ fun ReaderSettingsSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(
+                HikariUtilityAction(
                     onClick = actions.onDecreaseFont,
                     enabled = state.fontScale > MIN_FONT_SCALE,
                     modifier = Modifier
@@ -44,7 +44,7 @@ fun ReaderSettingsSheet(
                     "${(state.fontScale * PERCENT_MULTIPLIER).toInt()}%",
                     style = MaterialTheme.typography.titleMedium,
                 )
-                TextButton(
+                HikariUtilityAction(
                     onClick = actions.onIncreaseFont,
                     enabled = state.fontScale < MAX_FONT_SCALE,
                     modifier = Modifier

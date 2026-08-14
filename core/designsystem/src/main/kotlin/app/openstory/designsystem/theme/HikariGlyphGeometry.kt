@@ -47,12 +47,27 @@ data class HikariViewGlyphGeometry(
     val lineEndX: Float = 1.0f,
 )
 
+
+@Immutable
+data class HikariRefreshGlyphGeometry(
+    val arcInsetFraction: Float = 0.18f,
+    val startAngleDegrees: Float = 35f,
+    val sweepAngleDegrees: Float = 285f,
+    val arrowTipX: Float = 0.82f,
+    val arrowTipY: Float = 0.28f,
+    val arrowUpperX: Float = 0.63f,
+    val arrowUpperY: Float = 0.26f,
+    val arrowLowerX: Float = 0.76f,
+    val arrowLowerY: Float = 0.46f,
+)
+
 @Immutable
 data class HikariGlyphGeometry(
     val back: HikariBackGlyphGeometry = HikariBackGlyphGeometry(),
     val search: HikariSearchGlyphGeometry = HikariSearchGlyphGeometry(),
     val filter: HikariFilterGlyphGeometry = HikariFilterGlyphGeometry(),
     val view: HikariViewGlyphGeometry = HikariViewGlyphGeometry(),
+    val refresh: HikariRefreshGlyphGeometry = HikariRefreshGlyphGeometry(),
 )
 
 internal val LocalHikariGlyphGeometry = staticCompositionLocalOf { HikariGlyphGeometry() }

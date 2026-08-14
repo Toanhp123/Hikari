@@ -230,7 +230,6 @@ private fun StorySectionContent(
             story = requireNotNull(state.story),
             selectedSource = state.selectedSource,
             refreshing = state.refreshing,
-            failure = null,
             onRetry = onRetry,
             onSourceSelected = onSourceSelected,
             mappingState = mappingState,

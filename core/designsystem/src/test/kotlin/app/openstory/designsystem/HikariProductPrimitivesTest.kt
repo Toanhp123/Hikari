@@ -1,7 +1,9 @@
 package app.openstory.designsystem
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,12 +22,20 @@ import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.content.HikariMetadataBadgeGroup
+import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.content.HikariSectionTitle
+import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.control.HikariIconAction
+import app.openstory.designsystem.control.HikariIconActionStyle
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.glass.HikariGlassRenderingMode
 import app.openstory.designsystem.glass.hikariGlassSurfaceColor
 import app.openstory.designsystem.glass.hikariGlassContentColor
@@ -118,6 +128,78 @@ class HikariProductPrimitivesTest {
         }
     }
 
+
+    @Test
+    fun metadataBadgeGroupLaysBadgesOutHorizontallyBeforeWrapping() {
+        compose.setContent {
+            HikariTheme {
+                Column {
+                    Box(Modifier.width(96.dp)) {
+                        HikariMetadataBadgeGroup(labels = listOf("A", "B"))
+                    }
+                    Box(Modifier.width(40.dp)) {
+                        HikariMetadataBadgeGroup(labels = listOf("C", "D"))
+                    }
+                }
+            }
+        }
+
+        compose.waitForIdle()
+        val wideFirstTop = compose.onNodeWithText("A").fetchSemanticsNode().boundsInRoot.top
+        val wideSecondTop = compose.onNodeWithText("B").fetchSemanticsNode().boundsInRoot.top
+        val narrowFirstTop = compose.onNodeWithText("C").fetchSemanticsNode().boundsInRoot.top
+        val narrowSecondTop = compose.onNodeWithText("D").fetchSemanticsNode().boundsInRoot.top
+
+        assertEquals(wideFirstTop, wideSecondTop, 0.5f)
+        assertTrue(narrowSecondTop > narrowFirstTop)
+    }
+
+    @Test
+    fun sharedActionsOwnVisibleChromeAndMinimumTargets() {
+        compose.setContent {
+            HikariTheme {
+                Column {
+                    HikariContentAction(
+                        onClick = {},
+                        modifier = Modifier.testTag("content-action"),
+                    ) { androidx.compose.material3.Text("Content action") }
+                    HikariUtilityAction(
+                        onClick = {},
+                        modifier = Modifier.testTag("utility-action"),
+                    ) { androidx.compose.material3.Text("Utility action") }
+                }
+            }
+        }
+
+        compose.onNodeWithTag("content-action").assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag("utility-action").assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun sectionHeaderSupportsSubtitleAndTonalTrailingAction() {
+        compose.setContent {
+            HikariTheme {
+                HikariSectionHeader(
+                    title = "Sources",
+                    subtitle = "Linked and catalog sources",
+                    action = {
+                        HikariIconAction(
+                            onClick = {},
+                            contentDescription = "Refresh source details",
+                            style = HikariIconActionStyle.TONAL,
+                        ) { androidx.compose.material3.Text("R") }
+                    },
+                )
+            }
+        }
+
+        val isHeading = SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
+        compose.onNodeWithText("Sources").assert(isHeading)
+        compose.onNodeWithText("Linked and catalog sources").fetchSemanticsNode()
+        compose.onNodeWithContentDescription("Refresh source details")
+            .assertWidthIsAtLeast(48.dp)
+            .assertHeightIsAtLeast(48.dp)
+    }
 
     @Test
     fun filterChipOwnsMinimumTouchTarget() {

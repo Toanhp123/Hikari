@@ -7,9 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariContentActionTone
 import app.openstory.designsystem.feedback.HikariConfirmDialog
 import app.openstory.designsystem.feedback.HikariConfirmationStyle
 import app.openstory.designsystem.theme.hikariSpacing
@@ -26,20 +27,27 @@ fun DownloadActionSheet(
     modifier: Modifier = Modifier,
     actionTag: String? = null,
 ) {
-    val actionModifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget).then(
+    val actionModifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget).then(
         if (actionTag == null) Modifier else Modifier.testTag(actionTag),
     )
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         when (state) {
             DownloadState.QUEUED, DownloadState.RUNNING ->
-                TextButton(onClick = { actions.onCancel(releaseId) }, modifier = actionModifier) { Text("Cancel") }
+                HikariContentAction(
+                    onClick = { actions.onCancel(releaseId) },
+                    modifier = actionModifier,
+                ) { Text("Cancel") }
             DownloadState.FAILED, DownloadState.CANCELLED ->
-                TextButton(onClick = { actions.onRetry(releaseId) }, modifier = actionModifier) { Text("Retry") }
-            DownloadState.COMPLETED -> TextButton(
+                HikariContentAction(
+                    onClick = { actions.onRetry(releaseId) },
+                    modifier = actionModifier,
+                ) { Text("Retry") }
+            DownloadState.COMPLETED -> HikariContentAction(
                 onClick = { actions.onRemove(releaseId) },
                 modifier = actionModifier,
+                tone = HikariContentActionTone.DESTRUCTIVE,
             ) { Text("Remove offline") }
-            null -> TextButton(
+            null -> HikariContentAction(
                 onClick = { actions.onDownload(releaseId) },
                 modifier = actionModifier,
             ) { Text("Download") }

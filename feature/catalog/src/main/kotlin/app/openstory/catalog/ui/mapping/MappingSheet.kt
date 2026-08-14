@@ -9,23 +9,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.content.HikariMetadataBadgeGroup
+import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.content.HikariSectionTitle
 import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.surface.HikariContentCard
+import app.openstory.designsystem.surface.HikariContentCardStyle
+import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 import java.util.Locale
-import app.openstory.designsystem.glass.HikariGlassPanel
-import app.openstory.designsystem.glass.HikariGlassPanelStyle
-import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun MappingSheet(state: MappingUiState, actions: MappingActions, modifier: Modifier = Modifier) {
@@ -59,22 +59,28 @@ fun MappingSheet(state: MappingUiState, actions: MappingActions, modifier: Modif
 private fun CurrentMappings(mappings: List<MappingItemUiModel>) {
     Text("Linked sources", style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
     if (mappings.isEmpty()) {
-        HikariGlassPanel(null, Modifier.fillMaxWidth(), HikariGlassPanelStyle.STANDARD) {
-            Text("No reading source linked yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HikariContentCard(Modifier.fillMaxWidth()) {
+            Text(
+                "No reading source linked yet",
+                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         return
     }
     mappings.forEach { mapping ->
-        HikariGlassPanel(null, Modifier.fillMaxWidth(), HikariGlassPanelStyle.STANDARD) {
-            Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
+        HikariContentCard(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+            ) {
                 Text(
                     mapping.pluginId.value,
                     style = MaterialTheme.hikariTypography.emphasizedTitleSmall,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
-                    HikariMetadataBadge(mapping.origin.displayName())
-                    HikariMetadataBadge(mapping.sourceStoryId)
-                }
+                HikariMetadataBadgeGroup(
+                    listOf(mapping.origin.displayName(), mapping.sourceStoryId),
+                )
             }
         }
     }
@@ -91,7 +97,7 @@ private fun UrlImport(state: MappingUiState, actions: MappingActions) {
             label = { Text("Reading source URL") },
             singleLine = true,
         )
-        OutlinedButton(
+        HikariContentAction(
             onClick = actions.onResolveUrl,
             enabled = !state.busy && state.urlInput.isNotBlank(),
             modifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
@@ -101,14 +107,22 @@ private fun UrlImport(state: MappingUiState, actions: MappingActions) {
 
 @Composable
 private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: MappingActions) {
-    HikariGlassPanel(null, Modifier.fillMaxWidth(), HikariGlassPanelStyle.PROMINENT) {
-        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10)) {
+    HikariContentCard(
+        modifier = Modifier.fillMaxWidth(),
+        style = HikariContentCardStyle.PROMINENT,
+    ) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
+        ) {
             Text(candidate.title, style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
-                HikariMetadataBadge(candidate.pluginId.value)
-                HikariMetadataBadge(candidate.decision.displayName())
-                HikariMetadataBadge(candidate.score.asPercent())
-            }
+            HikariMetadataBadgeGroup(
+                listOf(
+                    candidate.pluginId.value,
+                    candidate.decision.displayName(),
+                    candidate.score.asPercent(),
+                ),
+            )
             candidate.evidenceLabels.forEach { label ->
                 Text(
                     "- $label",
@@ -133,7 +147,7 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
                     onClick = { actions.onApprove(candidate.pluginId, candidate.sourceStoryId) },
                     modifier = Modifier.weight(1f).heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text(if (candidate.fromUrl) "Use URL source" else "Approve") }
-                OutlinedButton(
+                HikariContentAction(
                     onClick = { actions.onReject(candidate.pluginId, candidate.sourceStoryId) },
                     modifier = Modifier.weight(1f).heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
                 ) { Text("Reject") }

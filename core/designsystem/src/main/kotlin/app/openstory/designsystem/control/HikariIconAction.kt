@@ -30,6 +30,7 @@ fun HikariIconAction(
     modifier: Modifier = Modifier,
     backdropScope: HikariBackdropScope? = null,
     style: HikariIconActionStyle = HikariIconActionStyle.GLASS,
+    enabled: Boolean = true,
     focusRequester: FocusRequester? = null,
     nextFocusRequester: FocusRequester? = null,
     traversalIndex: Float? = null,
@@ -53,13 +54,14 @@ fun HikariIconAction(
     when (style) {
         HikariIconActionStyle.GLASS -> HikariGlassSurface(
             backdropScope = backdropScope,
-            modifier = focusModifier.clickable(role = Role.Button, onClick = onClick),
+            modifier = focusModifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick),
             shape = shape,
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
         }
         HikariIconActionStyle.ACCENTED_SURFACE -> Surface(
             onClick = onClick,
+            enabled = enabled,
             modifier = focusModifier.border(
                 dimensions.borderThin,
                 MaterialTheme.colorScheme.primary.copy(alpha = MaterialTheme.hikariOpacity.accentBorder),
@@ -68,6 +70,16 @@ fun HikariIconAction(
             shape = shape,
             color = MaterialTheme.colorScheme.surface.copy(alpha = MaterialTheme.hikariOpacity.surfaceStrong),
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+        }
+        HikariIconActionStyle.TONAL -> Surface(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = focusModifier,
+            shape = shape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
         }

@@ -7,55 +7,48 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.designsystem.content.HikariMetadataBadge
-import app.openstory.designsystem.content.HikariSectionTitle
+import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
-import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.glass.HikariGlassPanel
-import app.openstory.designsystem.glass.HikariGlassPanelStyle
+import app.openstory.designsystem.surface.HikariContentCard
+import app.openstory.designsystem.surface.HikariContentCardStyle
 import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun ChapterList(state: ChapterListUiState, actions: ChapterListActions, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            start = MaterialTheme.hikariSpacing.space16,
-            end = MaterialTheme.hikariSpacing.space16,
-            bottom = MaterialTheme.hikariSpacing.space16,
-        ),
+        contentPadding = PaddingValues(MaterialTheme.hikariSpacing.space16),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
     ) { chapterListItems(state, actions) }
 }
 
 fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterListActions) {
     item(key = "chapter-summary") {
-        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
-            HikariSectionTitle("Chapters")
-            Text(
-                "${state.unreadCount} unread chapters",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        HikariSectionHeader(
+            title = "Chapters",
+            subtitle = "${state.unreadCount} unread chapters",
+        )
     }
     item(key = "chapter-filters") { ChapterFiltersSheet(state, actions) }
     item(key = "chapter-download-visible") {
         val visibleReleaseIds = state.chapters.flatMap { chapter -> chapter.releases.map { it.id } }
-        TextButton(
+        HikariContentAction(
             enabled = visibleReleaseIds.isNotEmpty(),
             onClick = { actions.onDownloadFiltered(visibleReleaseIds) },
             modifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
@@ -80,8 +73,14 @@ private fun ChapterRow(
     storyId: app.openstory.common.id.StoryId,
     actions: ChapterListActions,
 ) {
-    HikariGlassPanel(null, Modifier.fillMaxWidth(), HikariGlassPanelStyle.PROMINENT) {
-        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
+    HikariContentCard(
+        modifier = Modifier.fillMaxWidth(),
+        style = HikariContentCardStyle.PROMINENT,
+    ) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -109,7 +108,7 @@ private fun ChapterRow(
                 HikariMetadataBadge(chapter.releaseCountLabel())
             }
             if (chapter.expanded) {
-                TextButton(
+                HikariContentAction(
                     onClick = { actions.onDownloadRange(chapter.releases.map { it.id }) },
                     modifier = Modifier
                         .fillMaxWidth()
