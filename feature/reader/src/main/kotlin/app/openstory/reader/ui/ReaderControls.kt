@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.control.HikariUtilityAction
@@ -105,7 +106,9 @@ fun ReaderChapterNavigation(
                 HikariUtilityAction(
                     onClick = { state.previousChapterId?.let(actions.onPreviousChapter) },
                     enabled = state.previousChapterId != null,
-                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
+                    modifier = Modifier
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+                        .testTag("reader-previous"),
                 ) { Text("Previous") }
                 Text(
                     text = "${(progress.coerceIn(0f, 1f) * 100).toInt()}%",
@@ -114,7 +117,9 @@ fun ReaderChapterNavigation(
                 HikariUtilityAction(
                     onClick = { state.nextChapterId?.let(actions.onNextChapter) },
                     enabled = state.nextChapterId != null,
-                    modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
+                    modifier = Modifier
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+                        .testTag("reader-next"),
                 ) { Text("Next") }
             }
             LinearProgressIndicator(

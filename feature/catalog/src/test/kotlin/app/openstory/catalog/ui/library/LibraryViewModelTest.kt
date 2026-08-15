@@ -31,8 +31,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -50,7 +52,7 @@ class LibraryViewModelTest {
         val fixtures = Fixtures()
         fixtures.entries.value = listOf(entry("a", LibraryStatus.READING), entry("b", LibraryStatus.READING))
         fixtures.catalog.value = listOf(projection("a", "Moon Archive"), projection("b", "Solar Index"))
-        val viewModel = fixtures.viewModel()
+        val viewModel = fixtures.viewModel(this)
         runCurrent()
 
         viewModel.updateQuery("moon")
@@ -67,7 +69,7 @@ class LibraryViewModelTest {
             entry("b", LibraryStatus.READING),
             entry("c", LibraryStatus.COMPLETED),
         )
-        val viewModel = fixtures.viewModel()
+        val viewModel = fixtures.viewModel(this)
         runCurrent()
 
         viewModel.selectStatus(LibraryStatus.COMPLETED)
@@ -86,7 +88,7 @@ class LibraryViewModelTest {
             entry("a", LibraryStatus.READING, addedAt = 10L, updatedAt = 30L),
         )
         fixtures.catalog.value = listOf(projection("a", "Zulu"), projection("b", "Alpha"))
-        val viewModel = fixtures.viewModel()
+        val viewModel = fixtures.viewModel(this)
         runCurrent()
 
         assertEquals(listOf(StoryId("a"), StoryId("b")), viewModel.state.value.items.map { it.storyId })
@@ -103,7 +105,7 @@ class LibraryViewModelTest {
         val fixtures = Fixtures()
         fixtures.entries.value = listOf(entry("linked", LibraryStatus.READING), entry("local", LibraryStatus.READING))
         fixtures.mappings.value = listOf(mapping("linked"))
-        val viewModel = fixtures.viewModel()
+        val viewModel = fixtures.viewModel(this)
         runCurrent()
 
         viewModel.selectSourceFilter(LibrarySourceState.LINKED)
@@ -117,7 +119,7 @@ class LibraryViewModelTest {
         val fixtures = Fixtures()
         fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
         fixtures.progress.value = listOf(progress("a", 0.2f, 10L), progress("a", 0.8f, 20L))
-        val viewModel = fixtures.viewModel()
+        val viewModel = fixtures.viewModel(this)
         runCurrent()
 
         assertEquals(0.8f, viewModel.state.value.items.single().progressFraction)
@@ -135,7 +137,7 @@ class LibraryViewModelTest {
                 "library.source-filter" to LibrarySourceState.NO_MAPPING.name,
             ),
         )
-        val viewModel = fixtures.viewModel(savedState)
+        val viewModel = fixtures.viewModel(this, savedState)
         runCurrent()
 
         assertEquals("moon", viewModel.state.value.query)
@@ -149,6 +151,7 @@ class LibraryViewModelTest {
     fun resetFilterSelectionsPreservesQueryAndDisplayMode() = runTest(dispatcher.scheduler) {
         val fixtures = Fixtures()
         val viewModel = fixtures.viewModel(
+            this,
             SavedStateHandle(
                 mapOf(
                     "library.query" to "moon",
@@ -179,7 +182,7 @@ class LibraryViewModelTest {
         fixtures.mappingFlow = flow { throw IllegalStateException("mapping unavailable") }
         fixtures.progressFlow = flow { throw IllegalStateException("progress unavailable") }
 
-        val viewModel = fixtures.viewModel()
+        val viewModel = fixtures.viewModel(this)
         runCurrent()
 
         assertEquals(listOf(StoryId("a")), viewModel.state.value.items.map { it.storyId })
@@ -192,7 +195,7 @@ class LibraryViewModelTest {
         val fixtures = Fixtures()
         fixtures.entryFlow = flow { }
 
-        val viewModel = fixtures.viewModel()
+        val viewModel = fixtures.viewModel(this)
         runCurrent()
 
         assertTrue(viewModel.state.value.loading)
@@ -202,6 +205,7 @@ class LibraryViewModelTest {
     fun unsupportedRestoredSourceStateFallsBackToAllSources() = runTest(dispatcher.scheduler) {
         val fixtures = Fixtures()
         val viewModel = fixtures.viewModel(
+            this,
             SavedStateHandle(mapOf("library.source-filter" to LibrarySourceState.REVIEW.name)),
         )
         runCurrent()
@@ -227,13 +231,18 @@ private class Fixtures {
     var mappingFlow: Flow<List<ContentMapping>> = mappings
     var progressFlow: Flow<List<ReadingProgress>> = progress
 
-    fun viewModel(savedState: SavedStateHandle = SavedStateHandle()) = LibraryViewModel(
+    fun viewModel(
+        scope: TestScope,
+        savedState: SavedStateHandle = SavedStateHandle(),
+    ): LibraryViewModel = LibraryViewModel(
         library = LibraryService(FakeLibraryRepository(entryFlow), Clock { 100L }, NoOpMappingScheduler),
         catalog = FakeProjectionRepository(catalogFlow),
         mappings = FakeMappingRepository(mappingFlow),
         progress = FakeProgressRepository(progressFlow),
         savedState = savedState,
-    )
+    ).also { viewModel ->
+        scope.backgroundScope.launch { viewModel.state.collect {} }
+    }
 }
 
 private class FakeLibraryRepository(private val entries: Flow<List<LibraryEntry>>) : LibraryRepository {

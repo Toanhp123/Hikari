@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,18 +31,32 @@ class DiscoverViewModel @Inject constructor(
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
     private val refreshFailure = MutableStateFlow<DiscoverUiFailure?>(null)
+    private val homes = repository.observeHomes()
+        .preserveLatestOnFailure(HOME_OBSERVE_EXCEPTION_CODE, emptyList())
+        .shareIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+            replay = 1,
+        )
     private val dependencies = DiscoverDependencies(
-        homes = repository.observeHomes().preserveLatestOnFailure(HOME_OBSERVE_EXCEPTION_CODE, emptyList()),
-        rankedStories = query.rankedStories.preserveLatestOnFailure(RANKING_OBSERVE_EXCEPTION_CODE, emptyList()),
+        homes = homes,
+        rankedStories = homes
+            .map(query::rank)
+            .preserveLatestOnFailure(RANKING_OBSERVE_EXCEPTION_CODE, emptyList()),
         refresh = {
-            val results = refreshService.refresh()
-            results.toReport(repository.observeHomes().first())
+            val cachedHomes = homes.first()
+            refreshService.refresh().toReport(cachedHomes)
         },
     )
     private val selectedCatalogId = MutableStateFlow<PluginId?>(null)
     private val selectedSourceId = MutableStateFlow<String?>(null)
     private val refreshing = MutableStateFlow(false)
     private val refreshReport = MutableStateFlow<DiscoverRefreshReport?>(null)
+    private var bootstrapAttempted = false
+
+    init {
+        bootstrapEmptyCache()
+    }
 
     private val selectionState = combine(
         selectedCatalogId,
@@ -76,6 +92,17 @@ class DiscoverViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = DiscoverUiState(),
     )
+
+    private fun bootstrapEmptyCache() {
+        viewModelScope.launch {
+            if (bootstrapAttempted) return@launch
+            bootstrapAttempted = true
+            val homes = dependencies.homes.first()
+            if (homes.isEmpty() && observationFailure.value == null) {
+                refresh()
+            }
+        }
+    }
 
     fun refresh() {
         if (refreshing.value) return
@@ -151,6 +178,8 @@ private fun List<CatalogRefreshResult>.toReport(
         when (result) {
             is CatalogRefreshResult.Success -> report.copy(
                 succeeded = report.succeeded + result.pluginId,
+                refreshedAtEpochMillis = report.refreshedAtEpochMillis +
+                    (result.pluginId to result.refreshedAtEpochMillis),
             )
             is CatalogRefreshResult.SourceFailure -> report.copy(
                 failed = report.failed + (result.pluginId to result.failure.code),

@@ -125,6 +125,7 @@ class ArchitectureConventionPlugin : Plugin<Project> {
         val productionDependencies = linkedSetOf<String>()
         val testDependencies = linkedSetOf<String>()
         val unknownDependencies = linkedMapOf<String, MutableSet<String>>()
+        val platform = appliedPlatform()
 
         configurations
             .sortedBy { it.name }
@@ -138,6 +139,8 @@ class ArchitectureConventionPlugin : Plugin<Project> {
 
                 when {
                     projectDependencies.isEmpty() -> Unit
+                    platform == ModulePlatform.ANDROID_TEST ->
+                        testDependencies += projectDependencies
                     configurationKind(configuration.name) ==
                         DependencyConfigurationKind.PRODUCTION ->
                         productionDependencies += projectDependencies
@@ -156,7 +159,7 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 .relativize(projectDir.toPath())
                 .toString()
                 .replace(File.separatorChar, '/'),
-            platform = appliedPlatform(),
+            platform = platform,
             production = productionDependencies.encodeSet(),
             test = testDependencies.encodeSet(),
             unknown = unknownDependencies.encodeUnknown(),
@@ -168,6 +171,8 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             ModulePlatform.ANDROID_APPLICATION
         pluginManager.hasPlugin("com.android.library") ->
             ModulePlatform.ANDROID_LIBRARY
+        pluginManager.hasPlugin("com.android.test") ->
+            ModulePlatform.ANDROID_TEST
         pluginManager.hasPlugin("org.jetbrains.kotlin.jvm") ->
             ModulePlatform.JVM
         else -> error("module_policy.platform_unresolved: $path")
@@ -178,7 +183,7 @@ class ArchitectureConventionPlugin : Plugin<Project> {
     ): DependencyConfigurationKind {
         val lower = name.lowercase()
 
-        if ("test" in lower) {
+        if ("test" in lower || lower == "baselineprofile") {
             return DependencyConfigurationKind.TEST
         }
 

@@ -31,7 +31,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -129,7 +131,7 @@ class MappingViewModelTest {
 private val STORY_ID = StoryId("story:mapping-ui")
 private val PLUGIN_ID = PluginId("org.example.reader")
 
-private fun viewModel(
+private fun TestScope.viewModel(
     repository: FakeMappingRepository,
     source: FakeContentSource = FakeContentSource(),
     scheduler: InitialChapterSyncScheduler = RecordingChapterSyncScheduler(),
@@ -141,7 +143,9 @@ private fun viewModel(
         policy = ContentMappingSearchPolicy(quickSourceCount = 1, maxQueryVariants = 1),
     )
     val service = ContentMappingService(repository, search, FakeClock(100L))
-    return MappingViewModel(MappingAssistedArgs(STORY_ID), service, scheduler)
+    return MappingViewModel(MappingAssistedArgs(STORY_ID), service, scheduler).also { viewModel ->
+        backgroundScope.launch { viewModel.state.collect {} }
+    }
 }
 
 private class RecordingChapterSyncScheduler : InitialChapterSyncScheduler {

@@ -54,7 +54,7 @@ class LibraryViewModel @Inject constructor(
         projectLibrary(entries, enrichment, controls)
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = LibraryUiState(),
     )
 
@@ -111,6 +111,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     private companion object {
+        const val STOP_TIMEOUT_MILLIS = 5_000L
         const val QUERY_KEY = "library.query"
         const val STATUS_KEY = "library.status"
         const val SORT_KEY = "library.sort"

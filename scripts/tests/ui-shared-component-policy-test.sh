@@ -132,6 +132,18 @@ assert_contains 'modifier = modifier.semantics { heading() }' \
 assert_contains 'object HikariNavigationGlyphs' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariNavigationGlyphs.kt' \
   'design system must own top-level navigation vector geometry'
+assert_contains 'val interactionSource = remember { MutableInteractionSource() }' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/navigation/HikariFloatingNavigation.kt' \
+  'floating navigation must own one interaction stream per item so visual state can stay inside the selection pill'
+assert_contains 'indication = null' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/navigation/HikariFloatingNavigation.kt' \
+  'floating navigation full-cell selectable must not draw an unclipped rectangular indication'
+assert_contains '.clip(MaterialTheme.hikariShapes.navigationSelection)' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/navigation/HikariFloatingNavigation.kt' \
+  'floating navigation interaction chrome must be clipped to the semantic selection pill'
+assert_contains '.indication(interactionSource, LocalIndication.current)' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/navigation/HikariFloatingNavigation.kt' \
+  'floating navigation pill must render hover focus and press feedback from the shared interaction stream'
 assert_contains 'fun HikariChevronGlyph(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariGlyphs.kt' \
   'design system must own chevron geometry used by feature navigation affordances'

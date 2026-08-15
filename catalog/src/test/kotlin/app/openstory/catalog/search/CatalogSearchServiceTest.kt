@@ -33,6 +33,58 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class CatalogSearchServiceTest {
+
+    @Test
+    fun filtersReuseUnchangedPluginVersion() = runTest {
+        val source = FilterSource("a", "1")
+        val service = service(Registry(listOf(source)), FakeRepository())
+
+        service.filters()
+        service.filters()
+
+        assertEquals(1, source.filterCalls)
+    }
+
+    @Test
+    fun filtersReloadWhenPluginVersionChanges() = runTest {
+        val registry = MutableRegistry(listOf(FilterSource("a", "1")))
+        val service = service(registry, FakeRepository())
+        service.filters()
+        val updated = FilterSource("a", "2")
+        registry.values = listOf(updated)
+
+        service.filters()
+
+        assertEquals(1, updated.filterCalls)
+    }
+
+    @Test
+    fun disabledPluginFilterEntryIsEvicted() = runTest {
+        val first = FilterSource("a", "1")
+        val registry = MutableRegistry(listOf(first))
+        val service = service(registry, FakeRepository())
+        service.filters()
+        registry.values = emptyList()
+        service.filters()
+        val reenabled = FilterSource("a", "1")
+        registry.values = listOf(reenabled)
+
+        service.filters()
+
+        assertEquals(1, reenabled.filterCalls)
+    }
+
+    @Test
+    fun failedFilterLoadIsRetriedOnNextRequest() = runTest {
+        val source = FilterSource("a", "1", failuresRemaining = 1)
+        val service = service(Registry(listOf(source)), FakeRepository())
+
+        service.filters()
+        service.filters()
+
+        assertEquals(2, source.filterCalls)
+    }
+
     @Test
     fun selectingFreshResultLoadsDetailsBeforeReturningCanonicalStoryId() = runTest {
         val repository = FakeRepository()
@@ -151,6 +203,7 @@ class CatalogSearchServiceTest {
                 StoryMatcher(),
                 Clock { 100L },
             ),
+            CatalogFilterCache(),
         )
 
     private fun page(item: SourceItem) = SourceSearchPage(listOf(item), null)
@@ -232,6 +285,31 @@ class CatalogSearchServiceTest {
         override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> {
             this.request = request
             return CatalogSourceResult.Success(SourceSearchPage(emptyList(), null))
+        }
+    }
+
+
+    private class MutableRegistry(
+        var values: List<CatalogSource>,
+    ) : CatalogSourceRegistry {
+        override suspend fun enabled() = values
+        override suspend fun source(pluginId: PluginId) = values.firstOrNull { it.pluginId == pluginId }
+    }
+
+    private class FilterSource(
+        id: String,
+        override val version: String,
+        private var failuresRemaining: Int = 0,
+    ) : Source(id, SourceSearchPage(emptyList(), null)) {
+        var filterCalls = 0
+
+        override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> {
+            filterCalls++
+            return if (failuresRemaining-- > 0) {
+                CatalogSourceResult.Failure(CatalogSourceFailure("filters.down", true))
+            } else {
+                CatalogSourceResult.Success(emptyList())
+            }
         }
     }
 

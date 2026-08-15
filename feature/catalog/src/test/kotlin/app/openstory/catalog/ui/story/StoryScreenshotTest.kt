@@ -283,6 +283,9 @@ private fun fixture(section: StorySection = StorySection.OVERVIEW): StoryUiState
         selectedSource = StorySourceIdentity(sourceA.pluginId, sourceA.sourceId),
         libraryStatus = LibraryStatus.READING,
         resumeTarget = ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
+        readableTargets = listOf(
+            ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
+        ),
         selectedSection = section,
     )
 }

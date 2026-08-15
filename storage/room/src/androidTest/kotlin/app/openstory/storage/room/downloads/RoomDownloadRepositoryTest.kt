@@ -124,6 +124,15 @@ class RoomDownloadRepositoryTest {
     }
 
     @Test
+    fun completedCountProjectsOnlyCompletedExplicitDownloads() = runTest {
+        repository.save(download("completed", updatedAt = 200, state = DownloadState.COMPLETED))
+        repository.save(download("queued", updatedAt = 100, state = DownloadState.QUEUED))
+        repository.upsert(entry(key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-only")))
+
+        assertEquals(1, repository.observeCompletedCount().first())
+    }
+
+    @Test
     fun observeAllOrdersDownloadsByUpdateDescendingThenReleaseIdentity() = runTest {
         repository.save(download("release-z", updatedAt = 200))
         repository.save(download("release-a", updatedAt = 200))
@@ -151,9 +160,13 @@ class RoomDownloadRepositoryTest {
         lastAccessedAtEpochMillis = 1,
     )
 
-    private fun download(id: String, updatedAt: Long) = DownloadRecord(
+    private fun download(
+        id: String,
+        updatedAt: Long,
+        state: DownloadState = DownloadState.QUEUED,
+    ) = DownloadRecord(
         key = key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, id),
-        state = DownloadState.QUEUED,
+        state = state,
         updatedAtEpochMillis = updatedAt,
     )
 }

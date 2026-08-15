@@ -83,7 +83,7 @@ class ContentMappingMigrationTest {
 
     @Test
     fun roomCompareAndWriteProtectsUserMappingAndKeepsApprovalIdempotent() = runTest {
-        withRepository { repository ->
+        withRepository { _, repository ->
             val approved = mapping("chosen", ContentMappingOrigin.USER_APPROVED, updatedAt = 10L)
             val first = repository.compareAndWrite(approved, ContentMappingOrigin.entries.toSet())
             val automatic = repository.compareAndWrite(
@@ -105,8 +105,31 @@ class ContentMappingMigrationTest {
     }
 
     @Test
+    fun storyScopedObservationExcludesUnrelatedMappings() = runTest {
+        withRepository { database, repository ->
+            database.openHelper.writableDatabase.execSQL(
+                "INSERT INTO stories (story_id, content_type) VALUES ('story:other', 'MANGA')",
+            )
+            database.openHelper.writableDatabase.execSQL(
+                "INSERT INTO content_mappings " +
+                    "(story_id, plugin_id, source_story_id, origin, policy_version, updated_at_epoch_millis) " +
+                    "VALUES ('story:other', 'org.example.other', 'source-other', 'AUTOMATED', 1, 1)",
+            )
+            repository.compareAndWrite(
+                mapping("chosen", ContentMappingOrigin.USER_APPROVED, updatedAt = 10L),
+                ContentMappingOrigin.entries.toSet(),
+            )
+
+            val observed = repository.observeForStories(setOf(StoryId(STORY_ID))).first()
+
+            assertEquals(listOf(STORY_ID), observed.map { it.storyId.value }.distinct())
+            assertEquals(emptyList(), repository.observeForStories(emptySet()).first())
+        }
+    }
+
+    @Test
     fun rejectionIsScopedToCandidateAndPolicyVersion() = runTest {
-        withRepository { repository ->
+        withRepository { _, repository ->
             repository.reject(
                 ContentMappingRejection(
                     storyId = StoryId(STORY_ID),
@@ -123,7 +146,9 @@ class ContentMappingMigrationTest {
         }
     }
 
-    private suspend fun withRepository(block: suspend (RoomContentMappingRepository) -> Unit) {
+    private suspend fun withRepository(
+        block: suspend (OpenStoryDatabase, RoomContentMappingRepository) -> Unit,
+    ) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val database = Room.inMemoryDatabaseBuilder(context, OpenStoryDatabase::class.java).build()
         try {
@@ -137,7 +162,7 @@ class ContentMappingMigrationTest {
                     "VALUES (?, ?, ?, ?)",
                 arrayOf<Any?>(STORY_ID, LibraryStatus.READING.name, 10L, 10L),
             )
-            block(RoomContentMappingRepository(database))
+            block(database, RoomContentMappingRepository(database))
         } finally {
             database.close()
         }

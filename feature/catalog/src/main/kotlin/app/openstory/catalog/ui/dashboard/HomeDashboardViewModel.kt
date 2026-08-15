@@ -6,7 +6,6 @@ import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.chapters.repository.ChapterRepository
-import app.openstory.downloads.DownloadRecord
 import app.openstory.downloads.DownloadRepository
 import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryService
@@ -21,7 +20,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 
 @HiltViewModel
@@ -35,18 +38,30 @@ class HomeDashboardViewModel @Inject constructor(
 ) : ViewModel() {
     private val projector = HomeDashboardProjector()
     private val failure = MutableStateFlow<HomeDashboardFailure?>(null)
+    private val started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS)
+    private val libraryEntries = library.observe()
+        .preserveLatest(LIBRARY_FAILURE, emptyList())
+        .shareIn(viewModelScope, started, replay = 1)
+    private val libraryStoryIds = libraryEntries
+        .map { entries -> entries.mapTo(linkedSetOf()) { it.storyId } }
+        .distinctUntilChanged()
+        .shareIn(viewModelScope, started, replay = 1)
 
     private val libraryContent = combine(
-        library.observe().preserveLatest(LIBRARY_FAILURE, emptyList()),
-        catalog.observe().preserveLatest(CATALOG_FAILURE, emptyList()),
-        progress.observeAll().preserveLatest(PROGRESS_FAILURE, emptyList()),
+        libraryEntries,
+        libraryStoryIds.flatMapLatest(catalog::observeForStories)
+            .preserveLatest(CATALOG_FAILURE, emptyList()),
+        libraryStoryIds.flatMapLatest(progress::observeForStories)
+            .preserveLatest(PROGRESS_FAILURE, emptyList()),
     ) { entries, projections, records -> LibraryContent(entries, projections, records) }
 
     private val chapterContent = combine(
-        chapters.observeAll().preserveLatest(CHAPTERS_FAILURE, emptyList()),
-        mappings.observeAll().preserveLatest(MAPPINGS_FAILURE, emptyList()),
-        downloads.observeAll().preserveLatest(DOWNLOADS_FAILURE, emptyList()),
-    ) { groups, links, records -> ChapterContent(groups, links, records) }
+        libraryStoryIds.flatMapLatest(chapters::observeForStories)
+            .preserveLatest(CHAPTERS_FAILURE, emptyList()),
+        libraryStoryIds.flatMapLatest(mappings::observeForStories)
+            .preserveLatest(MAPPINGS_FAILURE, emptyList()),
+        downloads.observeCompletedCount().preserveLatest(DOWNLOADS_FAILURE, 0),
+    ) { groups, links, downloadedCount -> ChapterContent(groups, links, downloadedCount) }
 
     private val content = combine(libraryContent, chapterContent) { personal, releases ->
         projector.project(
@@ -56,7 +71,7 @@ class HomeDashboardViewModel @Inject constructor(
                 progress = personal.progress,
                 chapters = releases.chapters,
                 mappings = releases.mappings,
-                downloads = releases.downloads,
+                downloadedCount = releases.downloadedCount,
             ),
         )
     }
@@ -65,7 +80,7 @@ class HomeDashboardViewModel @Inject constructor(
         dashboard.copy(failure = observationFailure)
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+        started = started,
         initialValue = HomeDashboardUiState(),
     )
 
@@ -93,7 +108,7 @@ class HomeDashboardViewModel @Inject constructor(
     private data class ChapterContent(
         val chapters: List<CanonicalChapterGroup>,
         val mappings: List<ContentMapping>,
-        val downloads: List<DownloadRecord>,
+        val downloadedCount: Int,
     )
 
     private companion object {

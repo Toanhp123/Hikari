@@ -6,6 +6,7 @@ enum class ModulePlatform(
     JVM("jvm"),
     ANDROID_APPLICATION("android-application"),
     ANDROID_LIBRARY("android-library"),
+    ANDROID_TEST("android-test"),
     ;
 
     companion object {

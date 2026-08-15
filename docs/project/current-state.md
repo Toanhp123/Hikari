@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-13
+Date: 2026-08-15
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -8,6 +8,7 @@ Purpose: single source of truth for the implemented repository boundary.
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
 - Current production Gradle graph: 14 modules.
+- Performance tooling graph: 1 `android-test` module (`:benchmark`), excluded from production capability ownership.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
 - Wave 06 Tasks 01-06: **VERIFIED**; Wave 06 is complete.
@@ -22,6 +23,9 @@ Purpose: single source of truth for the implemented repository boundary.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+
+- Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
+- Performance Wave 4: **IMPLEMENTED; LOCAL STATIC VERIFIED; GRADLE/DEVICE VERIFICATION PENDING**. Discover now shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling.
 
 ## Independent version spaces
 

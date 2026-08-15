@@ -28,25 +28,33 @@ class CatalogSearchService @Inject constructor(
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,
     private val details: CatalogDetailsService,
+    private val filterCache: CatalogFilterCache,
 ) {
     suspend fun filters(): List<CatalogSearchFilterGroup> = supervisorScope {
-        sources.enabled().sortedBy { it.pluginId.value }
-            .map { source ->
-                async {
-                    val definitions = try {
-                        when (val result = source.filters()) {
-                            is CatalogSourceResult.Success -> result.value
-                            is CatalogSourceResult.Failure -> emptyList()
-                        }
-                    } catch (cancellation: CancellationException) {
-                        throw cancellation
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-                    CatalogSearchFilterGroup(source.pluginId, definitions)
-                }
+        val enabledSources = sources.enabled().sortedBy { it.pluginId.value }
+        val enabledKeys = enabledSources
+            .map { source -> CatalogFilterCacheKey(source.pluginId, source.version) }
+            .toSet()
+        filterCache.retainEnabled(enabledKeys)
+        enabledSources.map { source ->
+            async {
+                val key = CatalogFilterCacheKey(source.pluginId, source.version)
+                filterCache.get(key) ?: loadFilterGroup(source)?.also { group ->
+                    filterCache.put(key, group)
+                } ?: CatalogSearchFilterGroup(source.pluginId, emptyList())
             }
-            .awaitAll()
+        }.awaitAll()
+    }
+
+    private suspend fun loadFilterGroup(source: CatalogSource): CatalogSearchFilterGroup? = try {
+        when (val result = source.filters()) {
+            is CatalogSourceResult.Success -> CatalogSearchFilterGroup(source.pluginId, result.value)
+            is CatalogSourceResult.Failure -> null
+        }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
     }
 
     suspend fun search(request: CatalogSearchRequest): CatalogSearchResult {

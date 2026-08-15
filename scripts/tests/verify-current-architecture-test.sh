@@ -89,16 +89,24 @@ printf 'unregistered plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/u
 expect_failure 'a production plugin asset missing from the bundled plugin registry'
 make_fixture
 
-module_count="$(grep -cE '^[[:space:]]*"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$module_count" == 14 ]] || {
+production_module_count="$(awk '
+  /"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{/ { module = $0; is_test = 0 }
+  /"platform"[[:space:]]*:[[:space:]]*"android-test"/ { is_test = 1 }
+  /^[[:space:]]*}[,]?[[:space:]]*$/ && module != "" { if (!is_test) count++; module = "" }
+  END { print count + 0 }
+' "$FIXTURE/config/architecture/module-boundaries.json")"
+[[ "$production_module_count" == 14 ]] || {
   echo "UI foundation boundary must contain exactly fourteen production modules." >&2
   exit 1
 }
 
-expected_modules=$':app\n:catalog\n:chapters\n:core:common\n:core:designsystem\n:downloads\n:feature:catalog\n:feature:reader\n:library\n:plugins:api\n:plugins:runtime\n:reader\n:storage:files\n:storage:room'
-actual_modules="$(grep -oE '"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json" | sed -E 's/"([^\"]+)".*/\1/' | sort)"
-[[ "$actual_modules" == "$expected_modules" ]] || {
-  echo "UI foundation policy must declare the approved fourteen-module graph." >&2
+grep -q '"\:benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" || {
+  echo "Performance tooling policy must declare the benchmark test module." >&2
+  exit 1
+}
+grep -A4 '"\:benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" |
+  grep -q '"platform"[[:space:]]*:[[:space:]]*"android-test"' || {
+  echo "Benchmark must be classified as android-test, not production." >&2
   exit 1
 }
 

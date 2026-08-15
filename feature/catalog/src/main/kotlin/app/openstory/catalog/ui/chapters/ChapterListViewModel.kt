@@ -65,7 +65,7 @@ class ChapterListViewModel @AssistedInject constructor(
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = ChapterListUiState(),
     )
 
@@ -108,6 +108,7 @@ class ChapterListViewModel @AssistedInject constructor(
     }
 
     private companion object {
+        const val STOP_TIMEOUT_MILLIS = 5_000L
         const val OBSERVE_FAILED = "chapter.list.observe_failed"
         const val CORRECTION_FAILED = "chapter.list.correction_failed"
     }

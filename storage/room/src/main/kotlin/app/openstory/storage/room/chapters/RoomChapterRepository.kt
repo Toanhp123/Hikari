@@ -23,6 +23,7 @@ import app.openstory.storage.room.OpenStoryDatabase
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 class RoomChapterRepository internal constructor(
@@ -38,6 +39,14 @@ class RoomChapterRepository internal constructor(
 
     override fun observeAll(): Flow<List<CanonicalChapterGroup>> =
         dao.observeAllGroups().map(List<CanonicalChapterWithReleases>::toModelsByIdentity)
+
+    override fun observeForStories(storyIds: Set<StoryId>): Flow<List<CanonicalChapterGroup>> =
+        if (storyIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            dao.observeGroups(storyIds.map(StoryId::value))
+                .map(List<CanonicalChapterWithReleases>::toModelsByIdentity)
+        }
 
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
         dao.observeGroups(storyId.value).map(List<CanonicalChapterWithReleases>::toModels)

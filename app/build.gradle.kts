@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.roborazzi)
+    alias(libs.plugins.androidx.baselineprofile)
     id("openstory.android.application")
     id("openstory.hilt")
     id("openstory.compose")
@@ -47,6 +48,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
         buildConfigField(
             "String",
             "MYANIMELIST_CLIENT_ID",
@@ -56,9 +58,16 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true
             optimization {
-                enable = false
+                enable = true
             }
+        }
+        create("benchmarkRelease") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        create("nonMinifiedRelease") {
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -68,7 +77,13 @@ android {
     }
 }
 
+baselineProfile {
+    automaticGenerationDuringBuild = false
+    dexLayoutOptimization = true
+}
+
 dependencies {
+    "baselineProfile"(project(":benchmark"))
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":catalog"))
@@ -91,9 +106,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)

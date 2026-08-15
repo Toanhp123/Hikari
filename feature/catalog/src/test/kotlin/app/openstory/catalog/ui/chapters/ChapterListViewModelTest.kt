@@ -27,7 +27,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -47,6 +50,7 @@ class ChapterListViewModelTest {
     fun projectsCanonicalUnreadCountExpansionAndFilters() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2")))
         val viewModel = ChapterListViewModel(ChapterListAssistedArgs(STORY_ID), repository)
+        observe(viewModel.state)
         runCurrent()
 
         assertEquals(2, viewModel.state.value.unreadCount)
@@ -68,6 +72,7 @@ class ChapterListViewModelTest {
             ChapterListAssistedArgs(STORY_ID),
             FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2"))),
         )
+        observe(viewModel.state)
         runCurrent()
         val targets = viewModel.state.value.readableTargets
 
@@ -82,6 +87,7 @@ class ChapterListViewModelTest {
     fun tombstonesStayHiddenUntilExplicitlyRequested() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1"), group("2", tombstoned = true)))
         val viewModel = ChapterListViewModel(ChapterListAssistedArgs(STORY_ID), repository)
+        observe(viewModel.state)
         runCurrent()
 
         assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.chapters.map { it.id })
@@ -96,6 +102,7 @@ class ChapterListViewModelTest {
     fun correctionCommandsPersistProtectedOverrides() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1")))
         val viewModel = ChapterListViewModel(ChapterListAssistedArgs(STORY_ID), repository)
+        observe(viewModel.state)
         runCurrent()
         val releaseId = ChapterReleaseId("release:1:0")
         val chapterId = CanonicalChapterId("chapter:1")
@@ -111,6 +118,10 @@ class ChapterListViewModelTest {
             ),
             repository.savedOverrides,
         )
+    }
+
+    private fun TestScope.observe(state: StateFlow<ChapterListUiState>) {
+        backgroundScope.launch(dispatcher) { state.collect {} }
     }
 }
 

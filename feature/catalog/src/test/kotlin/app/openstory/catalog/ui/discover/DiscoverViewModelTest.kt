@@ -64,6 +64,85 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun homesAndRankingShareOneRepositoryObservation() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val viewModel = viewModel(repository, FakeSource())
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertEquals(1, repository.observeHomesSubscriptions)
+    }
+
+    @Test
+    fun refreshUsesCommittedSuccessTimestampWithoutSecondHomeObservation() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val viewModel = viewModel(repository, FakeSource())
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertEquals(1, repository.observeHomesSubscriptions)
+        assertEquals(
+            200L,
+            viewModel.state.value.refreshReport?.refreshedAtEpochMillis?.get(PluginId("catalog.a")),
+        )
+    }
+
+    @Test
+    fun emptyFirstCacheEmissionBootstrapsRefreshExactlyOnce() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(emptyList())
+        val source = FakeSource()
+
+        viewModel(repository, source)
+        runCurrent()
+
+        assertEquals(1, source.homeCalls)
+        runCurrent()
+        assertEquals(1, source.homeCalls)
+    }
+
+    @Test
+    fun populatedFirstCacheEmissionDoesNotBootstrapRefresh() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val source = FakeSource()
+
+        viewModel(repository, source)
+        runCurrent()
+
+        assertEquals(0, source.homeCalls)
+    }
+
+    @Test
+    fun failedEmptyCacheBootstrapDoesNotRetryLoop() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(emptyList())
+        val source = FakeSource().apply {
+            homeAction = {
+                CatalogSourceResult.Failure(CatalogSourceFailure("catalog.offline", true))
+            }
+        }
+
+        viewModel(repository, source)
+        runCurrent()
+        assertEquals(1, source.homeCalls)
+
+        runCurrent()
+        assertEquals(1, source.homeCalls)
+    }
+
+    @Test
+    fun observationFailureFallbackDoesNotBootstrapNetworkRefresh() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(emptyList(), observeFailure = true)
+        val source = FakeSource()
+
+        viewModel(repository, source)
+        runCurrent()
+
+        assertEquals(0, source.homeCalls)
+    }
+
+    @Test
     fun cachedHomeEmitsBeforeRefreshCompletes() = runTest(dispatcher.scheduler) {
         val repository = FakeRepository(cachedHome())
         val source = FakeSource()
@@ -222,7 +301,7 @@ class DiscoverViewModelTest {
 
     private fun viewModel(repository: FakeRepository, source: FakeSource) = DiscoverViewModel(
         repository,
-        CatalogHomeQuery(repository),
+        CatalogHomeQuery(),
         CatalogRefreshService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
     )
 }
@@ -258,13 +337,19 @@ private class FakeRepository(
     private val observeFailureAfterEmission: Boolean = false,
 ) : CatalogRepository {
     private val homes = MutableStateFlow(initialHomes)
-    override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = when {
-        observeFailure -> flow { error("catalog observation unavailable") }
-        observeFailureAfterEmission -> flow {
-            emit(homes.value)
-            error("catalog observation unavailable")
+    var observeHomesSubscriptions = 0
+        private set
+
+    override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = flow {
+        observeHomesSubscriptions++
+        when {
+            observeFailure -> error("catalog observation unavailable")
+            observeFailureAfterEmission -> {
+                emit(homes.value)
+                error("catalog observation unavailable")
+            }
+            else -> homes.collect { emit(it) }
         }
-        else -> homes
     }
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
     override suspend fun matchSnapshot(): CatalogMatchSnapshot {

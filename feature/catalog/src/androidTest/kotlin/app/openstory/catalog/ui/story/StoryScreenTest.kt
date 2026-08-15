@@ -92,7 +92,7 @@ class StoryScreenTest {
             StoryId("story-1"), CanonicalChapterId("chapter-2"), ChapterReleaseId("release-2"),
         )
         setStoryContent(
-            state = fixtureState().copy(resumeTarget = target),
+            state = fixtureState().copy(resumeTarget = target, readableTargets = listOf(target)),
             chapterState = ChapterListUiState(readableTargets = listOf(target)),
             onRead = { opened = it },
         )

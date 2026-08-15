@@ -11,6 +11,8 @@ import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.chapters.repository.ChapterGraphSnapshot
+import app.openstory.chapters.repository.ChapterRepository
 import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryService
 import app.openstory.library.LibraryStatus
@@ -37,12 +39,26 @@ class StoryViewModel @AssistedInject constructor(
     private val details: CatalogDetailsService,
     private val library: LibraryService,
     private val progress: ReadingProgressRepository,
+    private val chapters: ChapterRepository,
 ) : ViewModel() {
     private val storyId = assistedArgs.storyId
     private val selectedSource = MutableStateFlow<StorySourceIdentity?>(null)
     private val refreshing = MutableStateFlow(false)
     private val failure = MutableStateFlow<StoryRefreshFailure?>(null)
     private val selectedSection = MutableStateFlow(StorySection.OVERVIEW)
+    private val readableTargets = MutableStateFlow<List<ReaderTarget>>(emptyList())
+
+    init {
+        viewModelScope.launch {
+            try {
+                readableTargets.value = chapters.snapshot(storyId).asReaderTargets(storyId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                readableTargets.value = emptyList()
+            }
+        }
+    }
 
     private val personal = combine(
         library.observe().preserveLatest(emptyList()),
@@ -64,7 +80,12 @@ class StoryViewModel @AssistedInject constructor(
         StoryCatalogState(snapshot, sources, selectedIdentity, busy, currentFailure)
     }
 
-    val state = combine(catalogState, personal, selectedSection) { catalog, personal, section ->
+    val state = combine(
+        catalogState,
+        personal,
+        selectedSection,
+        readableTargets,
+    ) { catalog, personal, section, targets ->
         StoryUiState(
             storyId = storyId,
             story = catalog.snapshot?.toUiModel(catalog.sources, catalog.selectedIdentity),
@@ -73,11 +94,12 @@ class StoryViewModel @AssistedInject constructor(
             failure = catalog.failure,
             libraryStatus = personal.entries.firstOrNull { it.storyId == storyId }?.status,
             resumeTarget = personal.records.latestResumeTarget(storyId),
+            readableTargets = targets,
             selectedSection = section,
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = StoryUiState(storyId),
     )
 
@@ -143,6 +165,7 @@ class StoryViewModel @AssistedInject constructor(
     }
 
     private companion object {
+        const val STOP_TIMEOUT_MILLIS = 5_000L
         const val SOURCE_UNAVAILABLE_CODE = "catalog.story.source_unavailable"
         const val OBSERVE_EXCEPTION_CODE = "catalog.story.observe_exception"
         const val REFRESH_EXCEPTION_CODE = "catalog.story.refresh_exception"
@@ -216,4 +239,13 @@ private fun CatalogDetailsFailure.toUiFailure(): StoryRefreshFailure = when (thi
     is CatalogDetailsFailure.SourceFailure -> StoryRefreshFailure(code, retryable)
     is CatalogDetailsFailure.SourceIdMismatch -> StoryRefreshFailure("catalog.details_source_mismatch", false)
     is CatalogDetailsFailure.StoreFailure -> StoryRefreshFailure(code, retryable)
+}
+
+private fun ChapterGraphSnapshot.asReaderTargets(storyId: StoryId): List<ReaderTarget> {
+    val releasesByChapter = releases.groupBy { release -> release.canonicalChapterId }
+    return chapters.filterNot { chapter -> chapter.tombstoned }.flatMap { chapter ->
+        releasesByChapter[chapter.id].orEmpty().map { release ->
+            ReaderTarget(storyId, chapter.id, release.id)
+        }
+    }
 }

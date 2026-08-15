@@ -2,6 +2,12 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_BUILD="$ROOT_DIR/app/build.gradle.kts"
+
+grep -Fq 'testInstrumentationRunnerArguments["clearPackageData"] = "true"' "$APP_BUILD" || {
+  echo "Instrumentation tests must clear package data between orchestrated test invocations." >&2
+  exit 1
+}
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 

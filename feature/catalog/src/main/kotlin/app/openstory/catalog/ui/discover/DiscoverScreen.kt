@@ -107,6 +107,7 @@ fun DiscoverScreen(
                                 contentDescription = "Search all stories",
                                 readOnly = true,
                                 onClick = onSearch,
+                                modifier = Modifier.testTag("discover-search"),
                                 focusRequester = searchFocusRequester,
                                 nextFocusRequester = searchNextFocusRequester,
                             )

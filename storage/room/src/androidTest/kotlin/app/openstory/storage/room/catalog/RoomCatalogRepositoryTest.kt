@@ -40,6 +40,21 @@ class RoomCatalogRepositoryTest {
     }
 
     @Test
+    fun storyProjectionObservationScopesRowsToRequestedStories() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 1))
+            repository.commitHomeRefresh(mutation("b", listOf("b-1"), 2))
+            val projections = RoomCatalogStoryProjectionRepository(database)
+
+            val observed = projections.observeForStories(setOf(StoryId("story:a-1"))).first()
+
+            assertEquals(listOf("story:a-1"), observed.map { it.storyId.value })
+            assertEquals(emptyList(), projections.observeForStories(emptySet()).first())
+        }
+    }
+
+    @Test
     fun detailEnrichmentDoesNotAlterHomeMembership() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)

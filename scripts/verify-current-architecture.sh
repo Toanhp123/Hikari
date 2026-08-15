@@ -49,18 +49,47 @@ policy_path() {
     head -1
 }
 
+policy_dependency_mode() {
+  local module="$1" block
+  block="$(module_block "$module")"
+  printf '%s\n' "$block" |
+    sed -nE 's/^[[:space:]]*"dependencyMode"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' |
+    head -1
+}
+
+policy_platform() {
+  local module="$1" block
+  block="$(module_block "$module")"
+  printf '%s\n' "$block" |
+    sed -nE 's/^[[:space:]]*"platform"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' |
+    head -1
+}
+
+dependency_set_allowed() {
+  local actual="$1" expected="$2" mode="$3" dependency
+  if [[ "$mode" == "exact" ]]; then
+    [[ "$actual" == "$expected" ]]
+    return
+  fi
+  [[ "$mode" == "allowlist" ]] || fail "Unknown dependencyMode: $mode"
+  while IFS= read -r dependency; do
+    [[ -n "$dependency" ]] || continue
+    grep -Fxq "$dependency" <<< "$expected" || return 1
+  done <<< "$actual"
+}
+
 actual_dependencies() {
   local build_file="$1" kind="$2" configuration dependency lower
   [[ -f "$build_file" ]] || return 0
 
   while IFS= read -r line; do
     [[ "$line" == *'project(":'* ]] || continue
-    configuration="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*([A-Za-z0-9_]+)[[:space:]]*\(.*/\1/p')"
+    configuration="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*"?([A-Za-z0-9_]+)"?[[:space:]]*\(.*/\1/p')"
     dependency="$(printf '%s\n' "$line" | grep -oE 'project\(":[a-z0-9:-]+"\)' | head -1 | sed -E 's/project\("([^"]+)"\)/\1/')"
     [[ -n "$configuration" && -n "$dependency" ]] || continue
 
     lower="$(printf '%s' "$configuration" | tr '[:upper:]' '[:lower:]')"
-    if [[ "$lower" == *test* ]]; then
+    if [[ "$lower" == *test* || "$lower" == "baselineprofile" ]]; then
       if [[ "$kind" == "test" ]]; then
         printf '%s\n' "$dependency"
       fi
@@ -95,24 +124,31 @@ policy_modules="$({
 [[ "$declared_modules" == "$policy_modules" ]] ||
   fail "settings.gradle.kts modules must match module-boundaries.json exactly."
 
-module_count=0
+production_module_count=0
+android_test_module_count=0
 while IFS= read -r module; do
   [[ -n "$module" ]] || continue
-  module_count=$((module_count + 1))
+  platform="$(policy_platform "$module")"
+  if [[ "$platform" == "android-test" ]]; then
+    android_test_module_count=$((android_test_module_count + 1))
+  else
+    production_module_count=$((production_module_count + 1))
+  fi
   path="$(policy_path "$module")"
   [[ -n "$path" ]] || fail "Missing path for $module in architecture policy."
   [[ -d "$ROOT_DIR/$path" ]] || fail "Missing module directory for $module: $path"
   build_file="$ROOT_DIR/$path/build.gradle.kts"
   [[ -f "$build_file" ]] || fail "Missing build script for $module: $build_file"
 
+  dependency_mode="$(policy_dependency_mode "$module")"
   expected_production="$(policy_dependencies "$module" productionDependencies)"
   actual_production="$(actual_dependencies "$build_file" production)"
-  [[ "$actual_production" == "$expected_production" ]] ||
+  dependency_set_allowed "$actual_production" "$expected_production" "$dependency_mode" ||
     fail "Production dependencies for $module do not match module-boundaries.json."
 
   expected_test="$(policy_dependencies "$module" testDependencies)"
   actual_test="$(actual_dependencies "$build_file" test)"
-  [[ "$actual_test" == "$expected_test" ]] ||
+  dependency_set_allowed "$actual_test" "$expected_test" "$dependency_mode" ||
     fail "Test dependencies for $module do not match module-boundaries.json."
 done <<< "$policy_modules"
 
@@ -197,4 +233,8 @@ if ((${#production_roots[@]} > 0)); then
   fi
 fi
 
-echo "Current architecture verified: $module_count modules, Room schema 1..$latest_schema."
+production_label="modules"
+[[ "$production_module_count" -eq 1 ]] && production_label="module"
+android_test_label="modules"
+[[ "$android_test_module_count" -eq 1 ]] && android_test_label="module"
+echo "Current architecture verified: $production_module_count production $production_label, $android_test_module_count android-test $android_test_label, Room schema 1..$latest_schema."

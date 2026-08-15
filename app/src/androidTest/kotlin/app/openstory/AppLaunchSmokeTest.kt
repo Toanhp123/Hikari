@@ -12,6 +12,7 @@ import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
@@ -46,6 +47,11 @@ class AppLaunchSmokeTest {
         val utility = composeRule.onNodeWithContentDescription("Open quick access")
         val firstHomeAction = composeRule.onNodeWithText("Discover stories")
 
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Discover stories")
+                .fetchSemanticsNodes()
+                .size == 1
+        }
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.window.decorView.requestFocusFromTouch()
         }
@@ -62,7 +68,7 @@ class AppLaunchSmokeTest {
             .performClick()
         composeRule.onNodeWithContentDescription("Search all stories")
             .performClick()
-        composeRule.onNodeWithText("Search every catalog")
+        composeRule.onNodeWithTag("search-content")
             .assertIsDisplayed()
     }
 

@@ -78,6 +78,27 @@ class RoomChapterRepositoryTest {
     }
 
     @Test
+    fun storyScopedObservationExcludesUnrelatedChapterGraphs() = runTest {
+        withRepository { database, repository ->
+            val chapter = chapter("chapter-1", "1")
+            repository.commit(mutation(creates = listOf(chapter), releases = emptyList()))
+            database.openHelper.writableDatabase.apply {
+                execSQL("INSERT INTO stories (story_id, content_type) VALUES ('story:other', 'MANGA')")
+                execSQL(
+                    "INSERT INTO canonical_chapters " +
+                        "(canonical_chapter_id, story_id, kind, display_label, tombstoned) " +
+                        "VALUES ('chapter:other', 'story:other', 'NUMBERED', 'Other', 0)",
+                )
+            }
+
+            val observed = repository.observeForStories(setOf(STORY_ID)).first()
+
+            assertEquals(listOf(STORY_ID), observed.map { it.chapter.storyId }.distinct())
+            assertEquals(emptyList(), repository.observeForStories(emptySet()).first())
+        }
+    }
+
+    @Test
     fun tombstonesAndProtectedOverridesSurviveLaterCommits() = runTest {
         withRepository { _, repository ->
             val chapter = chapter("chapter-1", "1")

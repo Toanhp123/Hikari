@@ -81,6 +81,73 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun nextChapterReloadsInsideTheSameViewModelAndPersistsCurrentChapter() = runTest(dispatcher.scheduler) {
+        val savedState = SavedStateHandle()
+        val chapters = FakeReaderChapterRepository(graph())
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter-1", null),
+            savedState,
+            chapters,
+            documents(),
+            FakeReaderProgressRepository(null),
+            FakeClock(100),
+        )
+        runCurrent()
+
+        viewModel.openChapter(CanonicalChapterId("chapter-2"))
+        runCurrent()
+
+        assertEquals("chapter-2", viewModel.state.value.chapterLabel)
+        assertEquals("chapter-1", viewModel.state.value.previousChapterId?.value)
+        assertEquals(null, viewModel.state.value.nextChapterId)
+        assertEquals("chapter-2", savedState.get<String>("reader.chapter-id"))
+        assertEquals(1, chapters.snapshotCalls)
+    }
+
+    @Test
+    fun chapterSwitchFlushesPendingProgressForThePreviousChapter() = runTest(dispatcher.scheduler) {
+        val progress = FakeReaderProgressRepository(null)
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter-1", null),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graph()),
+            documents(),
+            progress,
+            FakeClock(100),
+        )
+        runCurrent()
+
+        viewModel.updatePosition(ReadingPosition("block", 3, 0.25f), completed = false)
+        viewModel.openChapter(CanonicalChapterId("chapter-2"))
+        runCurrent()
+
+        assertEquals("chapter-1", progress.current()?.canonicalChapterId?.value)
+        assertEquals("chapter-2", viewModel.state.value.chapterLabel)
+    }
+
+    @Test
+    fun chapterGraphGroupingPreservesChapterAndReleaseOrder() {
+        val first = chapter("chapter-1", "release-a")
+        val firstAlternate = first.second.copy(
+            id = ChapterReleaseId("release-a-2"),
+            sourceReleaseId = "release-a-2",
+        )
+        val second = chapter("chapter-2", "release-b")
+        val groups = ChapterGraphSnapshot(
+            chapters = listOf(first.first, second.first),
+            releases = listOf(first.second, second.second, firstAlternate),
+            overrides = emptyList(),
+        ).toReaderGroups()
+
+        assertEquals(listOf("chapter-1", "chapter-2"), groups.map { it.chapter.id.value })
+        assertEquals(
+            listOf("release-a", "release-a-2"),
+            groups.first().releases.map { it.id.value },
+        )
+        assertEquals(listOf("release-b"), groups.last().releases.map { it.id.value })
+    }
+
+    @Test
     fun explicitSourceSwitchIsSavedAndReloaded() = runTest(dispatcher.scheduler) {
         val first = chapter("chapter", "release-a")
         val secondRelease = first.second.copy(id = ChapterReleaseId("release-b"), sourceReleaseId = "release-b")
@@ -165,10 +232,14 @@ private class FakeReaderChapterRepository(
     private val graph: ChapterGraphSnapshot,
 ) : ChapterRepository {
     private val all = MutableStateFlow<List<CanonicalChapterGroup>>(emptyList())
+    var snapshotCalls = 0
     override fun observeAll(): Flow<List<CanonicalChapterGroup>> = all
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
         error("Not used")
-    override suspend fun snapshot(storyId: StoryId) = graph
+    override suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot {
+        snapshotCalls++
+        return graph
+    }
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult = ChapterCommitResult.Success
     override suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride) = Unit
     override suspend fun syncState(

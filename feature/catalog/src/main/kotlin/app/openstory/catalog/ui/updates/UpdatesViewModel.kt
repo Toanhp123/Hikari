@@ -12,12 +12,16 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 
 @HiltViewModel
@@ -29,14 +33,22 @@ class UpdatesViewModel @Inject constructor(
     private val projector: LibraryActivityProjector,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<String?>(null)
+    private val started = SharingStarted.WhileSubscribed(5_000L)
+    private val libraryEntries = library.observe()
+        .preserveLatest(emptyList())
+        .shareIn(viewModelScope, started, replay = 1)
+    private val libraryStoryIds = libraryEntries
+        .map { entries -> entries.mapTo(linkedSetOf()) { it.storyId } }
+        .distinctUntilChanged()
+        .shareIn(viewModelScope, started, replay = 1)
 
     private val content = combine(
-        library.observe().preserveLatest(emptyList()),
-        catalog.observe().preserveLatest(emptyList()),
-        chapters.observeAll().preserveLatest(emptyList()),
-        mappings.observeAll().preserveLatest(emptyList()),
-    ) {
-            entries, projections, groups, links ->
+        libraryEntries,
+        libraryStoryIds.flatMapLatest(catalog::observeForStories)
+            .preserveLatest(emptyList()),
+        libraryStoryIds.flatMapLatest(chapters::observeForStories).preserveLatest(emptyList()),
+        libraryStoryIds.flatMapLatest(mappings::observeForStories).preserveLatest(emptyList()),
+    ) { entries, projections, groups, links ->
         val activity = projector.project(entries, projections, groups, links)
         UpdatesUiState(
             groups = activity.groupBy { it.publishedAtEpochMillis.dateLabel() }
@@ -46,7 +58,7 @@ class UpdatesViewModel @Inject constructor(
     }
 
     val state = combine(content, observationFailure) { current, failure -> current.copy(failure = failure) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), UpdatesUiState())
+        .stateIn(viewModelScope, started, UpdatesUiState())
 
     private fun <T> Flow<T>.preserveLatest(initial: T): Flow<T> = flow {
         var latest = initial

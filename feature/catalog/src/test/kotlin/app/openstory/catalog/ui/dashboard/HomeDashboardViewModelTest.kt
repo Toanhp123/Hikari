@@ -17,6 +17,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.downloads.DownloadRecord
 import app.openstory.downloads.DownloadRepository
+import app.openstory.downloads.DownloadState
 import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryMappingScheduler
 import app.openstory.library.LibraryRepository
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -137,6 +139,9 @@ private class FakeMappingRepository(private val flow: Flow<List<ContentMapping>>
 
 private class FakeDownloadRepository(private val flow: Flow<List<DownloadRecord>>) : DownloadRepository {
     override fun observeAll() = flow
+    override fun observeCompletedCount(): Flow<Int> = flow.map { records ->
+        records.count { it.state == DownloadState.COMPLETED }
+    }
     override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? = null
     override fun observe(releaseId: ChapterReleaseId): Flow<DownloadRecord?> = flowOfNull()
     override suspend fun save(record: DownloadRecord) = Unit

@@ -43,10 +43,12 @@ import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.control.HikariIconActionStyle
 import app.openstory.designsystem.control.HikariUtilityAction
+import app.openstory.designsystem.glass.HikariBackdropMode
 import app.openstory.designsystem.glass.HikariGlassRenderingMode
 import app.openstory.designsystem.glass.hikariGlassSurfaceColor
 import app.openstory.designsystem.glass.hikariGlassContentColor
 import app.openstory.designsystem.glass.glassRenderingMode
+import app.openstory.designsystem.glass.shouldUseBackdropBlur
 import app.openstory.designsystem.layout.HikariWindowClass
 import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.layout.classifyWindow
@@ -88,6 +90,20 @@ class HikariProductPrimitivesTest {
         assertEquals(HikariGlassRenderingMode.TRANSLUCENT, glassRenderingMode(26))
         assertEquals(HikariGlassRenderingMode.TRANSLUCENT, glassRenderingMode(30))
         assertEquals(HikariGlassRenderingMode.BLUR, glassRenderingMode(31))
+    }
+
+    @Test
+    fun backdropBlurIsEnabledNormallyAndOnlyDisabledByExplicitBenchmarkMode() {
+        assertTrue(shouldUseBackdropBlur(31, HikariBackdropMode.ENABLED, hasBackdrop = true))
+        assertFalse(
+            shouldUseBackdropBlur(
+                31,
+                HikariBackdropMode.DISABLED_FOR_BENCHMARK,
+                hasBackdrop = true,
+            ),
+        )
+        assertFalse(shouldUseBackdropBlur(30, HikariBackdropMode.ENABLED, hasBackdrop = true))
+        assertFalse(shouldUseBackdropBlur(31, HikariBackdropMode.ENABLED, hasBackdrop = false))
     }
 
     @Test

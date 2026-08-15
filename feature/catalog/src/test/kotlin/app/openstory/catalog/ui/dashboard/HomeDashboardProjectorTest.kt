@@ -99,7 +99,7 @@ class HomeDashboardProjectorTest {
         chapters: List<CanonicalChapterGroup> = emptyList(),
         mappings: List<ContentMapping> = emptyList(),
     ) = projector.project(
-        HomeDashboardInput(library, catalog, progress, chapters, mappings, emptyList()),
+        HomeDashboardInput(library, catalog, progress, chapters, mappings, downloadedCount = 0),
     )
 }
 

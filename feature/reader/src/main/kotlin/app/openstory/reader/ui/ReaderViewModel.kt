@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.openstory.chapters.model.ChapterRelease
 import app.openstory.chapters.repository.CanonicalChapterGroup
+import app.openstory.chapters.repository.ChapterGraphSnapshot
 import app.openstory.chapters.repository.ChapterRepository
 import app.openstory.common.Clock
 import app.openstory.common.id.CanonicalChapterId
@@ -43,9 +44,10 @@ class ReaderViewModel @AssistedInject constructor(
     clock: Clock,
 ) : ViewModel() {
     private val storyId = StoryId(assistedArgs.storyId)
-    private val chapterId = CanonicalChapterId(assistedArgs.chapterId)
+    private var chapterId = CanonicalChapterId(savedState[CHAPTER_ID_KEY] ?: assistedArgs.chapterId)
     private val initialReleaseId = assistedArgs.releaseId?.let(::ChapterReleaseId)
     private val progressService = ReadingProgressService(progress, clock, viewModelScope)
+    private var cachedChapterGroups: List<CanonicalChapterGroup>? = null
     private var loadJob: Job? = null
     private val mutableState = MutableStateFlow(
         ReaderUiState(fontScale = savedState[FONT_SCALE_KEY] ?: 1f),
@@ -61,6 +63,20 @@ class ReaderViewModel @AssistedInject constructor(
     fun selectRelease(releaseId: ChapterReleaseId) {
         savedState[RELEASE_ID_KEY] = releaseId.value
         load(releaseId, flushProgress = true)
+    }
+
+    fun openChapter(chapterId: CanonicalChapterId) {
+        if (chapterId == this.chapterId) return
+        mutableState.value = mutableState.value.copy(
+            loading = true,
+            document = null,
+            selectedReleaseId = null,
+            failure = null,
+        )
+        this.chapterId = chapterId
+        savedState[CHAPTER_ID_KEY] = chapterId.value
+        savedState.remove<String>(RELEASE_ID_KEY)
+        load(explicitReleaseId = null, flushProgress = true)
     }
 
     fun increaseFont() = setFontScale(mutableState.value.fontScale + FONT_SCALE_STEP)
@@ -87,7 +103,7 @@ class ReaderViewModel @AssistedInject constructor(
             if (flushProgress) progressService.flush()
             mutableState.value = mutableState.value.copy(loading = true, failure = null)
             try {
-                val groups = chapters.observeOnce(storyId)
+                val groups = chapterGroups()
                 val index = groups.indexOfFirst { it.chapter.id == chapterId }
                 if (index < 0) {
                     fail(READER_CHAPTER_NOT_FOUND)
@@ -148,6 +164,11 @@ class ReaderViewModel @AssistedInject constructor(
         )
     }
 
+    private suspend fun chapterGroups(): List<CanonicalChapterGroup> =
+        cachedChapterGroups ?: chapters.snapshot(storyId).toReaderGroups().also { groups ->
+            cachedChapterGroups = groups
+        }
+
     private fun fail(code: String) {
         mutableState.value = mutableState.value.copy(loading = false, document = null, failure = code)
     }
@@ -165,6 +186,7 @@ class ReaderViewModel @AssistedInject constructor(
 
     private companion object {
         const val RELEASE_ID_KEY = "reader.release-id"
+        const val CHAPTER_ID_KEY = "reader.chapter-id"
         const val FONT_SCALE_KEY = "reader.font-scale"
         const val READER_CHAPTER_NOT_FOUND = "reader.chapter_not_found"
         const val READER_LOAD_FAILED = "reader.load_failed"
@@ -172,12 +194,12 @@ class ReaderViewModel @AssistedInject constructor(
     }
 }
 
-private suspend fun ChapterRepository.observeOnce(storyId: StoryId): List<CanonicalChapterGroup> =
-    snapshot(storyId).let { snapshot ->
-        snapshot.chapters.filterNot { it.tombstoned }.map { chapter ->
-            CanonicalChapterGroup(chapter, snapshot.releases.filter { it.canonicalChapterId == chapter.id })
-        }
+internal fun ChapterGraphSnapshot.toReaderGroups(): List<CanonicalChapterGroup> {
+    val releasesByChapter = releases.groupBy { release -> release.canonicalChapterId }
+    return chapters.filterNot { chapter -> chapter.tombstoned }.map { chapter ->
+        CanonicalChapterGroup(chapter, releasesByChapter[chapter.id].orEmpty())
     }
+}
 
 private fun ChapterRelease.toUiModel() = ReaderReleaseUiModel(
     id,

@@ -3,16 +3,15 @@ package app.openstory.catalog.ui.download
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.openstory.common.id.ChapterReleaseId
-import app.openstory.downloads.DownloadRecord
 import app.openstory.downloads.DownloadScheduler
 import app.openstory.downloads.DownloadService
-import app.openstory.downloads.DownloadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -23,18 +22,11 @@ class DownloadViewModel @Inject constructor(
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(DownloadUiState())
     val state: StateFlow<DownloadUiState> = mutableState.asStateFlow()
-    private val watched = mutableSetOf<ChapterReleaseId>()
-
-    fun watch(releaseId: ChapterReleaseId) {
-        if (!watched.add(releaseId)) return
-        viewModelScope.launch {
-            service.observe(releaseId).collect { record ->
-                mutableState.update { it.copy(records = it.records + (releaseId to record)) }
-            }
-        }
+    val statuses = service.observeAll().map { records ->
+        records.associate { record -> record.key.releaseId to record.state }
     }
 
-    fun download(releaseId: ChapterReleaseId) = command(releaseId) {
+    fun download(releaseId: ChapterReleaseId) = command {
         service.queue(releaseId, System.currentTimeMillis())
         scheduler.schedule(releaseId)
     }
@@ -42,7 +34,7 @@ class DownloadViewModel @Inject constructor(
     fun downloadRange(releaseIds: List<ChapterReleaseId>) = releaseIds.distinct().forEach(::download)
     fun downloadFiltered(releaseIds: List<ChapterReleaseId>) = downloadRange(releaseIds)
 
-    fun cancel(releaseId: ChapterReleaseId) = command(releaseId) {
+    fun cancel(releaseId: ChapterReleaseId) = command {
         scheduler.cancel(releaseId)
         service.cancel(releaseId, System.currentTimeMillis())
     }
@@ -63,8 +55,7 @@ class DownloadViewModel @Inject constructor(
         cancel(releaseId)
     }
 
-    private fun command(releaseId: ChapterReleaseId, block: suspend () -> Unit) {
-        watch(releaseId)
+    private fun command(block: suspend () -> Unit) {
         viewModelScope.launch {
             try {
                 block()
@@ -79,9 +70,6 @@ class DownloadViewModel @Inject constructor(
 }
 
 data class DownloadUiState(
-    val records: Map<ChapterReleaseId, DownloadRecord?> = emptyMap(),
     val pendingRemoval: ChapterReleaseId? = null,
     val failure: String? = null,
-) {
-    fun status(releaseId: ChapterReleaseId): DownloadState? = records[releaseId]?.state
-}
+)

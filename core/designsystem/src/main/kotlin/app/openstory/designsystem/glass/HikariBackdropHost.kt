@@ -12,7 +12,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 @Stable
 class HikariBackdropScope internal constructor(
-    internal val token: HikariBackdropToken,
+    internal val token: HikariBackdropToken?,
 )
 
 internal class HikariBackdropToken(internal val backdrop: Backdrop)
@@ -23,6 +23,15 @@ fun HikariBackdropHost(
     background: @Composable BoxScope.() -> Unit,
     overlay: @Composable HikariBackdropScope.() -> Unit,
 ) {
+    if (LocalHikariBackdropMode.current == HikariBackdropMode.DISABLED_FOR_BENCHMARK) {
+        val scope = HikariBackdropScope(token = null)
+        Box(modifier) {
+            Box(modifier = Modifier.fillMaxSize(), content = background)
+            scope.overlay()
+        }
+        return
+    }
+
     val backdrop = rememberLayerBackdrop()
     val scope = HikariBackdropScope(HikariBackdropToken(backdrop))
     Box(modifier) {

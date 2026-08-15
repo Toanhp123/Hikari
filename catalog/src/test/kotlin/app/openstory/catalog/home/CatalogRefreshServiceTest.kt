@@ -59,9 +59,10 @@ class CatalogRefreshServiceTest {
             listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))),
         )
 
-        service(registry, repository, 99).refresh()
+        val results = service(registry, repository, 99).refresh()
 
         assertEquals(99, repository.mutations.single().refreshedAtEpochMillis)
+        assertEquals(99, (results.single() as CatalogRefreshResult.Success).refreshedAtEpochMillis)
     }
 
     @Test

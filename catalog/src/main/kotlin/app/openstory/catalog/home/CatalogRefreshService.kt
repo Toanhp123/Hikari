@@ -92,10 +92,11 @@ class CatalogRefreshService @Inject constructor(
     ): CatalogRefreshResult {
         val localCandidates = candidates.toMutableList()
         val resolved = resolveEntries(source, sections, localCandidates)
+        val refreshedAtEpochMillis = clock.nowEpochMillis()
         val mutation = CatalogHomeMutation(
             pluginId = source.pluginId,
             pluginVersion = source.version,
-            refreshedAtEpochMillis = clock.nowEpochMillis(),
+            refreshedAtEpochMillis = refreshedAtEpochMillis,
             stories = resolved.values
                 .map { entry -> localCandidates.first { it.story.id == entry.storyId }.story }
                 .distinctBy { it.id },
@@ -108,7 +109,7 @@ class CatalogRefreshService @Inject constructor(
             is Outcome.Success -> {
                 candidates.clear()
                 candidates += localCandidates
-                CatalogRefreshResult.Success(source.pluginId)
+                CatalogRefreshResult.Success(source.pluginId, refreshedAtEpochMillis)
             }
             is Outcome.Failure -> CatalogRefreshResult.StoreFailure(source.pluginId, stored.error)
         }

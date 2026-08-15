@@ -1,6 +1,9 @@
 package app.openstory.designsystem.navigation
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,8 +17,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -62,21 +68,26 @@ private fun androidx.compose.foundation.layout.RowScope.NavigationItem(
     val selectedColor = MaterialTheme.colorScheme.secondary
     val selectedContainer = MaterialTheme.colorScheme.secondaryContainer
     val color = if (selected) selectedColor else MaterialTheme.colorScheme.onSurfaceVariant
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
             .weight(1f)
+            .testTag("navigation-${item.key}")
             .heightIn(min = MaterialTheme.hikariDimensions.navigationItemMinHeight)
             .selectable(
                 selected = selected,
+                interactionSource = interactionSource,
+                indication = null,
                 role = Role.Tab,
                 onClick = { onSelected(item.key) },
             )
             .semantics { this.selected = selected }
             .padding(MaterialTheme.hikariSpacing.space4)
+            .clip(MaterialTheme.hikariShapes.navigationSelection)
             .background(
                 if (selected) selectedContainer else MaterialTheme.hikariColors.transparent,
-                MaterialTheme.hikariShapes.navigationSelection,
             )
+            .indication(interactionSource, LocalIndication.current)
             .padding(
                 horizontal = MaterialTheme.hikariSpacing.space4,
                 vertical = MaterialTheme.hikariSpacing.space6,

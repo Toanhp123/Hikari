@@ -38,10 +38,16 @@ fun HikariGlassSurface(
     val contentColor = hikariGlassContentColor()
     val dimensions = MaterialTheme.hikariDimensions
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = MaterialTheme.hikariOpacity.glassBorder)
-    val mode = glassRenderingMode(Build.VERSION.SDK_INT)
-    val glassModifier = if (mode == HikariGlassRenderingMode.BLUR && backdropScope != null) {
+    val backdrop = backdropScope?.token?.backdrop
+    val glassModifier = if (
+        shouldUseBackdropBlur(
+            sdkInt = Build.VERSION.SDK_INT,
+            mode = LocalHikariBackdropMode.current,
+            hasBackdrop = backdrop != null,
+        )
+    ) {
         modifier.drawBackdrop(
-            backdrop = backdropScope.token.backdrop,
+            backdrop = requireNotNull(backdrop),
             shape = { shape },
             effects = { blur(dimensions.glassBlurRadius.toPx()) },
             highlight = null,

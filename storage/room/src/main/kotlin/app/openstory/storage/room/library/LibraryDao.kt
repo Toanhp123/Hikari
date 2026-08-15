@@ -34,6 +34,9 @@ internal interface LibraryDao {
     @Query("SELECT * FROM content_mappings ORDER BY story_id, plugin_id")
     fun observeMappings(): Flow<List<ContentMappingEntity>>
 
+    @Query("SELECT * FROM content_mappings WHERE story_id IN (:storyIds) ORDER BY story_id, plugin_id")
+    fun observeMappings(storyIds: Collection<String>): Flow<List<ContentMappingEntity>>
+
     @Query("SELECT * FROM content_mappings WHERE story_id = :storyId ORDER BY plugin_id")
     fun observeMappings(storyId: String): Flow<List<ContentMappingEntity>>
 

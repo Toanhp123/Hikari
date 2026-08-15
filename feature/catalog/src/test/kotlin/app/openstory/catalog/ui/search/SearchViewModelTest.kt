@@ -9,6 +9,7 @@ import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
 import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.search.CatalogFilterCache
 import app.openstory.catalog.search.CatalogSearchService
 import app.openstory.catalog.source.CatalogSource
 import app.openstory.catalog.source.CatalogSourceFailure
@@ -224,7 +225,7 @@ class SearchViewModelTest {
     private fun viewModel(registry: Registry, repository: EmptyRepository): SearchViewModel {
         val matcher = StoryMatcher()
         val details = CatalogDetailsService(registry, repository, matcher, Clock { 100L })
-        return SearchViewModel(CatalogSearchService(registry, repository, matcher, details))
+        return SearchViewModel(CatalogSearchService(registry, repository, matcher, details, CatalogFilterCache()))
     }
 
     private suspend fun kotlinx.coroutines.test.TestScope.advanceSearch() {

@@ -64,6 +64,20 @@ class RoomReadingProgressRepositoryTest {
     }
 
     @Test
+    fun storyScopedObservationExcludesUnrelatedProgress() = runTest {
+        seedGraph("story-a", "chapter-a", "release-a")
+        seedGraph("story-b", "chapter-b", "release-b")
+        val repository = RoomReadingProgressRepository(database)
+        repository.save(progress("story-a", "chapter-a", "release-a", updatedAt = 100))
+        repository.save(progress("story-b", "chapter-b", "release-b", updatedAt = 200))
+
+        val observed = repository.observeForStories(setOf(StoryId("story-a"))).first()
+
+        assertEquals(listOf("story-a"), observed.map { it.storyId.value })
+        assertEquals(emptyList(), repository.observeForStories(emptySet()).first())
+    }
+
+    @Test
     fun observeAllOrdersByUpdateDescendingThenStoryAndChapterIdentity() = runTest {
         seedGraph("story-b", "chapter-b", "release-b")
         seedGraph("story-a", "chapter-z", "release-z")

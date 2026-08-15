@@ -10,6 +10,7 @@ import app.openstory.library.mapping.ContentMappingRepository
 import app.openstory.library.mapping.ContentMappingWriteResult
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 class RoomContentMappingRepository internal constructor(
@@ -23,6 +24,14 @@ class RoomContentMappingRepository internal constructor(
 
     override fun observeAll(): Flow<List<ContentMapping>> =
         dao.observeMappings().map { mappings -> mappings.map(ContentMappingEntity::toModel) }
+
+    override fun observeForStories(storyIds: Set<StoryId>): Flow<List<ContentMapping>> =
+        if (storyIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            dao.observeMappings(storyIds.map(StoryId::value))
+                .map { mappings -> mappings.map(ContentMappingEntity::toModel) }
+        }
 
     override suspend fun compareAndWrite(
         mapping: ContentMapping,

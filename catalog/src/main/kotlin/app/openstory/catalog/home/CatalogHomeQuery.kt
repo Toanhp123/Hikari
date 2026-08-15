@@ -1,23 +1,19 @@
 package app.openstory.catalog.home
 
+import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.ranking.AggregateRanking
 import app.openstory.catalog.ranking.CatalogEntryWithStory
 import app.openstory.catalog.ranking.RankedCatalogStory
-import app.openstory.catalog.repository.CatalogRepository
 import javax.inject.Inject
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
-class CatalogHomeQuery @Inject constructor(
-    repository: CatalogRepository,
-    private val ranking: AggregateRanking = AggregateRanking(),
-) {
-    val rankedStories: Flow<List<RankedCatalogStory>> = repository.observeHomes()
-        .map { homes ->
-            val entries = homes
-                .flatMap { home -> home.sections.flatMap { section -> section.items } }
-                .distinctBy { entry -> entry.pluginId to entry.sourceId }
-                .map { entry -> CatalogEntryWithStory(entry.storyId, entry) }
-            ranking.rank(entries)
-        }
+class CatalogHomeQuery @Inject constructor() {
+    private val ranking = AggregateRanking()
+
+    fun rank(homes: List<CatalogHomeSnapshot>): List<RankedCatalogStory> {
+        val entries = homes
+            .flatMap { home -> home.sections.flatMap { section -> section.items } }
+            .distinctBy { entry -> entry.pluginId to entry.sourceId }
+            .map { entry -> CatalogEntryWithStory(entry.storyId, entry) }
+        return ranking.rank(entries)
+    }
 }

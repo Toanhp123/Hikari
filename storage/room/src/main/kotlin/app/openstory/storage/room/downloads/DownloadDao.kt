@@ -15,6 +15,12 @@ internal interface DownloadDao {
     )
     fun observeAllDownloads(): Flow<List<ChapterStorageEntryEntity>>
 
+    @Query(
+        "SELECT COUNT(*) FROM chapter_storage_entries " +
+            "WHERE namespace = 'EXPLICIT_DOWNLOAD' AND download_state = 'COMPLETED'",
+    )
+    fun observeCompletedDownloadCount(): Flow<Int>
+
     @Query("SELECT * FROM chapter_storage_entries")
     suspend fun allEntries(): List<ChapterStorageEntryEntity>
 

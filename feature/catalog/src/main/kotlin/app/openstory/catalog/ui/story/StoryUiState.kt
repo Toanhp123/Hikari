@@ -16,6 +16,7 @@ data class StoryUiState(
     val failure: StoryRefreshFailure? = null,
     val libraryStatus: LibraryStatus? = null,
     val resumeTarget: ReaderTarget? = null,
+    val readableTargets: List<ReaderTarget> = emptyList(),
     val selectedSection: StorySection = StorySection.OVERVIEW,
 )
 

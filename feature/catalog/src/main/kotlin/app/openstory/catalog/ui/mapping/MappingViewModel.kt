@@ -54,7 +54,7 @@ class MappingViewModel @AssistedInject constructor(
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = MappingUiState(),
     )
 
@@ -136,6 +136,7 @@ class MappingViewModel @AssistedInject constructor(
     }
 
     private companion object {
+        const val STOP_TIMEOUT_MILLIS = 5_000L
         const val OBSERVE_FAILURE = "library.mapping.observe_failed"
         const val SEARCH_FAILURE = "library.mapping.search_failed"
         const val ACTION_FAILURE = "library.mapping.action_failed"

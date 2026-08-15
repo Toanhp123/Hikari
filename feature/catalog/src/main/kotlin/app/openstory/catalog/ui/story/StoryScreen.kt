@@ -84,7 +84,7 @@ fun StoryScreen(
         }
         return
     }
-    val readableTargets = chapterState?.readableTargets.orEmpty()
+    val readableTargets = state.readableTargets
     val validatedResumeTarget = state.resumeTarget?.takeIf { target ->
         readableTargets.any { it.chapterId == target.chapterId && it.releaseId == target.releaseId }
     }

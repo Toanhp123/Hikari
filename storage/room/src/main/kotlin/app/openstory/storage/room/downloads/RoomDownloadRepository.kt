@@ -27,6 +27,8 @@ class RoomDownloadRepository internal constructor(
     override fun observeAll(): Flow<List<DownloadRecord>> =
         dao.observeAllDownloads().map { entries -> entries.mapNotNull(ChapterStorageEntryEntity::toDownloadRecord) }
 
+    override fun observeCompletedCount(): Flow<Int> = dao.observeCompletedDownloadCount()
+
     override suspend fun entries(): List<CacheEntry> = dao.storedEntries().map { it.toCacheEntry() }
 
     override suspend fun upsert(entry: CacheEntry) {

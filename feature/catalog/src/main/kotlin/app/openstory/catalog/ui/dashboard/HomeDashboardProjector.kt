@@ -4,8 +4,6 @@ import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.activity.LibraryActivityProjector
 import app.openstory.chapters.repository.CanonicalChapterGroup
-import app.openstory.downloads.DownloadRecord
-import app.openstory.downloads.DownloadState
 import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryStatus
 import app.openstory.library.mapping.ContentMapping
@@ -17,7 +15,7 @@ data class HomeDashboardInput(
     val progress: List<ReadingProgress>,
     val chapters: List<CanonicalChapterGroup>,
     val mappings: List<ContentMapping>,
-    val downloads: List<DownloadRecord>,
+    val downloadedCount: Int,
 )
 
 class HomeDashboardProjector(
@@ -81,7 +79,7 @@ class HomeDashboardProjector(
                 libraryCount = input.library.size,
                 readingCount = input.library.count { it.status == LibraryStatus.READING },
                 completedCount = input.library.count { it.status == LibraryStatus.COMPLETED },
-                downloadedCount = input.downloads.count { it.state == DownloadState.COMPLETED },
+                downloadedCount = input.downloadedCount,
             ),
             continueReading = continueReading,
             reading = shelf(LibraryStatus.READING),
