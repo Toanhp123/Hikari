@@ -81,6 +81,18 @@ focus regression.
   medium Story, partial failure, light Library, and Reader; no clipping, overlap, or
   hierarchy defect was observed.
 
+## Post-Checkpoint Refresh UX Follow-up — 2026-08-15
+
+Status: **IMPLEMENTED; FINAL VISUAL RE-RECORD PENDING**
+
+- Discover, Story Overview, and Story Sources use the shared `HikariPullToRefresh`; Chapters remains intentionally non-refreshable.
+- Edge-to-edge Discover now passes the shell safe top inset into the refresh owner and removes that inset from the list padding, preventing duplicate inset consumption while keeping the indicator below system chrome.
+- Regression coverage now includes real `performTouchInput { swipeDown() }` gestures in the shared primitive and Discover/Story integrations, in addition to the accessibility `Refresh` action.
+- Source-detail refresh failures are scoped to Overview/Sources and no longer appear above Chapters.
+- Overview, Chapters, and Sources consume one shared Story section-padding owner; nested Sources/Mapping content no longer owns a competing horizontal outer inset.
+- The obsolete manual-refresh glyph geometry and refresh-action typography token were removed together with the stale policy requirement that preserved them.
+- The original pull-to-refresh implementation plan is marked complete except for the final developer-machine visual/full verification step. The Story/Discover Roborazzi baselines must be reviewed, recorded, and verified after this follow-up before this addendum can be promoted to accepted evidence.
+
 ## Decision
 
 The product UI redesign checkpoint is accepted. The current product graph is ready to

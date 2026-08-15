@@ -2,6 +2,7 @@ package app.openstory.catalog.ui.mapping
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -28,9 +29,16 @@ import app.openstory.library.matching.ContentMatchDecision
 import java.util.Locale
 
 @Composable
-fun MappingSheet(state: MappingUiState, actions: MappingActions, modifier: Modifier = Modifier) {
+fun MappingSheet(
+    state: MappingUiState,
+    actions: MappingActions,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues? = null,
+) {
     Column(
-        modifier = modifier.fillMaxWidth().padding(MaterialTheme.hikariSpacing.space16),
+        modifier = modifier.fillMaxWidth().padding(
+            contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.space16),
+        ),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         HikariSectionTitle("Reading sources")

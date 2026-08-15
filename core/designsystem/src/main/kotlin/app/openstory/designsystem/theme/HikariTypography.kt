@@ -137,7 +137,6 @@ data class HikariSemanticTypography(
     val heroTitleExpanded: TextStyle = HikariTypography.headlineMedium.copy(fontWeight = FontWeight.Black),
     val heroScore: TextStyle = HikariTypography.labelLarge.copy(fontWeight = FontWeight.Bold),
     val heroAction: TextStyle = HikariTypography.bodyLarge.copy(fontWeight = FontWeight.Black),
-    val refreshAction: TextStyle = HikariTypography.bodyLarge.copy(fontWeight = FontWeight.Bold),
     val readerBody: TextStyle = HikariTypography.bodyLarge.copy(fontSize = 18.sp, lineHeight = 29.sp),
     val readerNote: TextStyle = HikariTypography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 24.sp),
 )

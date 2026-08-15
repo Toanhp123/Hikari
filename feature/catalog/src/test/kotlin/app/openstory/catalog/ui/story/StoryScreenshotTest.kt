@@ -12,6 +12,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
@@ -90,6 +92,20 @@ class StoryScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun overviewPullGestureRefreshesSourceDetails() {
+        var refreshCalls = 0
+        setStoryContent(
+            state = fixture(StorySection.OVERVIEW).withoutArtwork(),
+            onRefresh = { refreshCalls += 1 },
+        )
+
+        compose.onNodeWithTag("story-overview-pull-refresh").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+
+        assertEquals(1, refreshCalls)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun sourcesExposePullRefreshWithoutManualRefreshIcon() {
         var refreshCalls = 0
         setStoryContent(
@@ -109,6 +125,20 @@ class StoryScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun sourcesPullGestureRefreshesSourceDetails() {
+        var refreshCalls = 0
+        setStoryContent(
+            state = fixture(StorySection.SOURCES).withoutArtwork(),
+            onRefresh = { refreshCalls += 1 },
+        )
+
+        compose.onNodeWithTag("story-sources-pull-refresh").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+
+        assertEquals(1, refreshCalls)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun chaptersDoNotExposePullRefresh() {
         setStoryContent(state = fixture(StorySection.CHAPTERS).withoutArtwork())
 
@@ -122,6 +152,18 @@ class StoryScreenshotTest {
 
         compose.onAllNodesWithTag("story-overview-pull-refresh").assertCountEquals(0)
         compose.onAllNodesWithTag("story-sources-pull-refresh").assertCountEquals(1)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun chaptersHideSourceDetailRefreshFailure() {
+        setStoryContent(
+            state = fixture(StorySection.CHAPTERS).withoutArtwork().copy(
+                failure = StoryRefreshFailure("catalog.offline", retryable = true),
+            ),
+        )
+
+        compose.onNodeWithText("Source detail refresh failed: catalog.offline").assertDoesNotExist()
+        compose.onNodeWithText("Retry").assertDoesNotExist()
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")

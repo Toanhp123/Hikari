@@ -44,6 +44,7 @@ import app.openstory.designsystem.icon.HikariChevronGlyph
 import app.openstory.designsystem.layout.HikariSearchBar
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.layout.withTop
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
 import app.openstory.designsystem.theme.hikariDimensions
@@ -74,6 +75,10 @@ fun DiscoverScreen(
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
     val background = MaterialTheme.hikariAtmosphereBrush
+    val refreshTopInset = contentPadding.calculateTopPadding()
+    val listContentPadding = contentPadding
+        .withTop(MaterialTheme.hikariDimensions.zero)
+        .plus(bottom = MaterialTheme.hikariSpacing.space24)
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         HikariPullToRefresh(
             refreshing = state.refreshing,
@@ -82,10 +87,11 @@ fun DiscoverScreen(
                 .fillMaxSize()
                 .background(background)
                 .testTag("discover-pull-refresh"),
+            topInset = refreshTopInset,
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
+                contentPadding = listContentPadding,
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
             ) {
                 item("discover-search") {

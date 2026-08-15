@@ -3,12 +3,10 @@ package app.openstory.designsystem.icon
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -187,44 +185,5 @@ private fun HikariViewGlyph(grid: Boolean, modifier: Modifier) {
                 )
             }
         }
-    }
-}
-
-@Composable
-fun HikariRefreshGlyph(modifier: Modifier = Modifier) {
-    val color = LocalContentColor.current
-    val dimensions = MaterialTheme.hikariDimensions
-    val geometry = MaterialTheme.hikariGlyphGeometry.refresh
-    Canvas(
-        modifier
-            .size(dimensions.iconStandard)
-            .padding(MaterialTheme.hikariSpacing.space3),
-    ) {
-        val inset = size.minDimension * geometry.arcInsetFraction
-        val arcBounds = Rect(inset, inset, size.width - inset, size.height - inset)
-        drawArc(
-            color = color,
-            startAngle = geometry.startAngleDegrees,
-            sweepAngle = geometry.sweepAngleDegrees,
-            useCenter = false,
-            topLeft = arcBounds.topLeft,
-            size = arcBounds.size,
-            style = Stroke(width = dimensions.glyphStroke.toPx(), cap = StrokeCap.Round),
-        )
-        val tip = Offset(size.width * geometry.arrowTipX, size.height * geometry.arrowTipY)
-        drawLine(
-            color = color,
-            start = Offset(size.width * geometry.arrowUpperX, size.height * geometry.arrowUpperY),
-            end = tip,
-            strokeWidth = dimensions.glyphStroke.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = color,
-            start = Offset(size.width * geometry.arrowLowerX, size.height * geometry.arrowLowerY),
-            end = tip,
-            strokeWidth = dimensions.glyphStroke.toPx(),
-            cap = StrokeCap.Round,
-        )
     }
 }

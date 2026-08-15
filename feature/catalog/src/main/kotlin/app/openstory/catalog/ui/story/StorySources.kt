@@ -43,23 +43,26 @@ internal fun StorySources(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space16),
+            contentPadding = storySectionContentPadding(),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
         ) {
             item(key = "story-sources-header") {
-                Column(
-                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
-                ) {
-                    HikariSectionHeader(title = "Sources")
-                }
+                HikariSectionHeader(title = "Sources")
             }
             items(story.sources, key = { "${it.pluginId.value}:${it.sourceId}" }) { source ->
                 SourceCard(source, selectedSource?.matches(source) == true) {
                     onSourceSelected(source.pluginId, source.sourceId)
                 }
             }
-            mappingState?.let { item { MappingSheet(it, mappingActions) } }
+            mappingState?.let {
+                item {
+                    MappingSheet(
+                        state = it,
+                        actions = mappingActions,
+                        contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space16),
+                    )
+                }
+            }
         }
     }
 }
@@ -72,10 +75,7 @@ private fun SourceCard(source: CatalogEntry, selected: Boolean, onSelected: () -
             .semantics(mergeDescendants = true) {
                 contentDescription = "${source.title}, source ${source.pluginId.value}"
             }
-            .padding(
-                horizontal = MaterialTheme.hikariSpacing.space16,
-                vertical = MaterialTheme.hikariSpacing.space8,
-            ),
+            .padding(vertical = MaterialTheme.hikariSpacing.space8),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
     ) {
         HikariFilterChip(

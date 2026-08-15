@@ -1,12 +1,14 @@
 # Pull-to-Refresh UX System Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace manual refresh controls with a design-system-owned pull-to-refresh interaction on Discover and Story Overview/Sources without inventing refresh behavior for Chapters or unrelated screens.
 
 **Architecture:** `:core:designsystem` owns `HikariPullToRefresh`, including Material 3 gesture wiring, indicator styling, semantics, and duplicate-request guarding. Discover and Story consume that primitive around their existing scrollable content; Story ViewModel exposes the data operation as `refresh()` and Retry UI delegates to it.
 
 **Tech Stack:** Kotlin, Jetpack Compose Material 3, Compose UI testing, Robolectric/Roborazzi, Detekt, shell policy tests.
+
+> Implementation status: production migration, tests, and static guardrails are complete. The final developer-machine visual/full verification step remains intentionally open until the post-implementation safe-area/gesture cleanup is recorded and re-verified.
 
 ## Global Constraints
 
@@ -29,21 +31,21 @@
 - Produces: `@Composable fun HikariPullToRefresh(refreshing: Boolean, onRefresh: () -> Unit, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit)`.
 - Semantics: custom accessibility action labeled `Refresh`; action returns false and does not dispatch while `refreshing`.
 
-- [ ] **Step 1: Write failing design-system tests**
+- [x] **Step 1: Write failing design-system tests**
 
 Add tests that render `HikariPullToRefresh`, invoke its `Refresh` semantics action, assert one callback when idle, and assert no additional callback while `refreshing = true`.
 
-- [ ] **Step 2: Run the targeted test and confirm RED**
+- [x] **Step 2: Run the targeted test and confirm RED**
 
 Run: `./gradlew :core:designsystem:testDebugUnitTest --tests app.openstory.designsystem.HikariProductPrimitivesTest --stacktrace`
 
 Expected before implementation: compile/test failure because `HikariPullToRefresh` does not exist.
 
-- [ ] **Step 3: Implement the primitive**
+- [x] **Step 3: Implement the primitive**
 
 Use Material 3 `PullToRefreshBox` + `rememberPullToRefreshState`; use `PullToRefreshDefaults.Indicator` aligned top-center with Hikari theme colors. Wrap `onRefresh` with `if (!refreshing) onRefresh()`. Add the `Refresh` custom accessibility action to the container semantics with the same guard.
 
-- [ ] **Step 4: Re-run the targeted tests and confirm GREEN**
+- [x] **Step 4: Re-run the targeted tests and confirm GREEN**
 
 Run the command from Step 2 and expect success.
 
@@ -57,19 +59,19 @@ Run the command from Step 2 and expect success.
 - Consumes: `HikariPullToRefresh(refreshing = state.refreshing, onRefresh = onRefresh)`.
 - Removes: `RefreshAction`, `discover-refresh-action`, and the duplicate `discover-refreshing` linear progress item.
 
-- [ ] **Step 1: Write failing Discover tests**
+- [x] **Step 1: Write failing Discover tests**
 
 Assert the screen exposes a `Refresh` semantics action, invoking it calls `onRefresh`, `Refresh sources` is absent, and cached content + partial failure stay visible when `refreshing = true`.
 
-- [ ] **Step 2: Run Discover screen tests and confirm RED**
+- [x] **Step 2: Run Discover screen tests and confirm RED**
 
 Run: `./gradlew :feature:catalog:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.ui.discover.DiscoverScreenTest --stacktrace` or the project-equivalent Android test task available locally.
 
-- [ ] **Step 3: Wrap the existing LazyColumn and remove manual/duplicate controls**
+- [x] **Step 3: Wrap the existing LazyColumn and remove manual/duplicate controls**
 
 Keep all existing content padding, arrangements, focus behavior, shelves, and feedback items. Only the refresh container/chrome changes.
 
-- [ ] **Step 4: Re-run the relevant tests and confirm GREEN**
+- [x] **Step 4: Re-run the relevant tests and confirm GREEN**
 
 Run the same test task.
 
@@ -91,19 +93,19 @@ Run the same test task.
 - `StorySources` receives `refreshing` and `onRefresh`, owns a refresh wrapper around its `LazyColumn`, and removes the header refresh icon.
 - Chapters receive no refresh callback and expose no refresh semantics.
 
-- [ ] **Step 1: Write failing ViewModel and Story UI tests**
+- [x] **Step 1: Write failing ViewModel and Story UI tests**
 
 Rename ViewModel tests to call `refresh()`. Add Story tests proving Overview and Sources expose `Refresh`, Sources no longer has `story-source-refresh`, Chapters exposes no `Refresh`, Retry remains visible/actionable, and cached failure content remains visible while refreshing.
 
-- [ ] **Step 2: Run targeted Story tests and confirm RED**
+- [x] **Step 2: Run targeted Story tests and confirm RED**
 
 Run: `./gradlew :feature:catalog:testDebugUnitTest --tests app.openstory.catalog.ui.story.StoryViewModelTest --stacktrace` plus the Story Android UI test task.
 
-- [ ] **Step 3: Implement the minimal migration**
+- [x] **Step 3: Implement the minimal migration**
 
 Rename the ViewModel function, route AppNavHost/StoryScreen callbacks to `refresh`, remove the top `LinearProgressIndicator`, wrap only Overview and Sources in `HikariPullToRefresh`, and remove the Sources refresh icon/action imports and parameters.
 
-- [ ] **Step 4: Re-run targeted tests and confirm GREEN**
+- [x] **Step 4: Re-run targeted tests and confirm GREEN**
 
 Run the commands from Step 2.
 
@@ -118,15 +120,15 @@ Run the commands from Step 2.
 - Policy rejects `Refresh sources`, `story-source-refresh`, and Story Source refresh icon ownership.
 - Policy requires Discover, Story Overview, and Story Sources to consume `HikariPullToRefresh` and forbids it in Chapter list production UI.
 
-- [ ] **Step 1: Add failing policy assertions and confirm RED**
+- [x] **Step 1: Add failing policy assertions and confirm RED**
 
 Run: `./scripts/tests/ui-shared-component-policy-test.sh` and confirm it fails against pre-migration production code.
 
-- [ ] **Step 2: Make production usage satisfy the contract**
+- [x] **Step 2: Make production usage satisfy the contract**
 
 Update only policy/documentation needed for the approved behavior; do not add suppression allowances.
 
-- [ ] **Step 3: Run static gates**
+- [x] **Step 3: Run static gates**
 
 Run: `./scripts/tests/ui-shared-component-policy-test.sh`, `./scripts/tests/ui-token-policy-test.sh`, `./scripts/verify-package-boundaries.sh`, `./scripts/verify-source-layout.sh`, and `git diff --check` when in a git checkout.
 

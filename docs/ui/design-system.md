@@ -74,16 +74,20 @@ separate contracts rather than being flattened into the content-action style.
 
 Story Overview, Chapters, and Sources use the same `HikariSectionHeader` mini-header contract
 with aligned outer spacing. The header supports an optional subtitle and trailing utility action.
-The three tab bodies use the same outer content inset and let nested content inherit that inset
-instead of stacking feature-local padding.
+The three tab bodies consume the feature-owned `storySectionContentPadding()` outer inset contract;
+nested content inherits that horizontal inset instead of stacking feature-local padding.
 
 Cross-screen manual refresh uses `HikariPullToRefresh`. The design system owns the Material 3
 pull gesture, theme-driven indicator, busy-state semantics, and the accessibility `Refresh`
-action; features only provide their real refresh callback and scrollable content. A pull gesture
-is enabled only where the feature has a matching refresh pipeline. Visible Retry actions remain
-for retryable failures, and feature code must not reintroduce manual refresh buttons or duplicate
-refresh progress chrome for the same operation. Story Overview and Sources are refreshable;
-Story Chapters is intentionally not refreshable until chapter synchronization has its own pipeline.
+action; features only provide their real refresh callback and scrollable content. Edge-to-edge
+hosts pass the already-computed safe top inset into the refresh owner and remove that same top
+inset from their scroll content padding, so the indicator and content consume system insets exactly
+once. A pull gesture is enabled only where the feature has a matching refresh pipeline. Visible
+Retry actions remain for retryable failures, and feature code must not reintroduce manual refresh
+buttons, refresh glyphs, or duplicate refresh progress chrome for the same operation. Story Overview
+and Sources are refreshable; Story Chapters is intentionally not refreshable until chapter
+synchronization has its own pipeline. Source-detail refresh failures render only in Overview/Sources,
+not above Chapters.
 
 ## When to use Material directly
 

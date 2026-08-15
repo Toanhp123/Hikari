@@ -65,6 +65,17 @@ fun PaddingValues.plus(
 }
 
 @Composable
+fun PaddingValues.withTop(top: Dp): PaddingValues {
+    val layoutDirection = LocalLayoutDirection.current
+    return PaddingValues(
+        start = calculateStartPadding(layoutDirection),
+        top = top,
+        end = calculateEndPadding(layoutDirection),
+        bottom = calculateBottomPadding(),
+    )
+}
+
+@Composable
 fun HikariTopLevelHeader(
     title: String? = null,
     modifier: Modifier = Modifier,

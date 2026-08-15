@@ -262,9 +262,6 @@ assert_contains 'FilledTonalButton(' \
 assert_contains 'TONAL' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariIconActionStyle.kt' \
   'icon actions must expose a tonal utility treatment'
-assert_contains 'fun HikariRefreshGlyph(' \
-  'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariGlyphs.kt' \
-  'design system must own refresh icon geometry'
 assert_absent 'import androidx\.compose\.material3\.TextButton|TextButton\(' \
   'feature/catalog/src/main/kotlin' \
   'catalog actions must not bypass shared Hikari action treatments with bare TextButton chrome'
@@ -293,6 +290,18 @@ assert_contains 'PullToRefreshBox(' \
 assert_contains 'CustomAccessibilityAction(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
   'pull-to-refresh must expose an equivalent accessibility action'
+assert_contains 'performTouchInput { swipeDown() }' \
+  'core/designsystem/src/test/kotlin/app/openstory/designsystem/HikariProductPrimitivesTest.kt' \
+  'shared pull-to-refresh must retain a real gesture regression test'
+assert_contains 'pullGestureRefreshesDiscover' \
+  'feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverSemanticsTest.kt' \
+  'Discover must retain real pull gesture integration coverage'
+assert_contains 'overviewPullGestureRefreshesSourceDetails' \
+  'feature/catalog/src/test/kotlin/app/openstory/catalog/ui/story/StoryScreenshotTest.kt' \
+  'Story Overview must retain real pull gesture integration coverage'
+assert_contains 'sourcesPullGestureRefreshesSourceDetails' \
+  'feature/catalog/src/test/kotlin/app/openstory/catalog/ui/story/StoryScreenshotTest.kt' \
+  'Story Sources must retain real pull gesture integration coverage'
 assert_absent 'PullToRefreshBox\(|[.]pullToRefresh\(' \
   'feature' \
   'features must consume HikariPullToRefresh instead of owning pull-to-refresh mechanics'
@@ -302,6 +311,12 @@ assert_absent 'PullToRefreshBox\(|[.]pullToRefresh\(' \
 assert_contains 'HikariPullToRefresh(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
   'Discover must expose shared pull-to-refresh'
+assert_contains 'topInset: Dp = HikariDefaultDimensions.zero' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
+  'shared pull-to-refresh must support a safe-area top inset'
+assert_contains 'contentPadding.calculateTopPadding()' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
+  'Discover must place the pull indicator below the shell safe top inset'
 assert_contains 'HikariPullToRefresh(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
   'Story Overview must expose shared pull-to-refresh'
@@ -323,5 +338,20 @@ assert_absent 'story-source-refresh|HikariRefreshGlyph\(' \
 assert_absent 'LinearProgressIndicator\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
   'Story must not duplicate pull-to-refresh feedback with a global linear progress bar'
+assert_contains 'showsSourceDetailFailure()' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'Story must scope source-detail refresh failures away from Chapters'
+assert_contains 'storySectionContentPadding()' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
+  'Story Overview must consume the shared Story section inset owner'
+assert_contains 'storySectionContentPadding()' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
+  'Story Sources must consume the shared Story section inset owner'
+assert_contains 'storySectionContentPadding()' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'Story Chapters must receive the shared Story section inset owner'
+assert_absent 'fun HikariRefreshGlyph\(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon' \
+  'obsolete manual-refresh glyph must not remain after pull-to-refresh migration'
 
 echo "UI shared-component policy contract verified."

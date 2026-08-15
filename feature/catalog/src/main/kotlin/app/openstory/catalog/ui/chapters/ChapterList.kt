@@ -30,10 +30,15 @@ import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
-fun ChapterList(state: ChapterListUiState, actions: ChapterListActions, modifier: Modifier = Modifier) {
+fun ChapterList(
+    state: ChapterListUiState,
+    actions: ChapterListActions,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues? = null,
+) {
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(MaterialTheme.hikariSpacing.space16),
+        contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.space16),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
     ) { chapterListItems(state, actions) }
 }

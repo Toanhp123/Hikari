@@ -1,10 +1,12 @@
 package app.openstory.catalog.ui.discover
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -14,6 +16,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.unit.dp
@@ -87,6 +91,53 @@ class DiscoverSemanticsTest {
             assertEquals(1, refreshCalls)
         }
         compose.onNodeWithText("Refresh sources").assertDoesNotExist()
+    }
+
+    @Test
+    fun pullIndicatorStaysBelowDiscoverSafeTopInset() {
+        var density = 1f
+        compose.setContent {
+            density = LocalDensity.current.density
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(refreshing = true),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                    contentPadding = PaddingValues(top = 32.dp),
+                )
+            }
+        }
+
+        compose.waitForIdle()
+        val indicatorTop = compose.onNodeWithTag("hikari-pull-refresh-indicator")
+            .fetchSemanticsNode().boundsInRoot.top
+
+        assertTrue(indicatorTop >= 32f * density)
+    }
+
+    @Test
+    fun pullGestureRefreshesDiscover() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(),
+                    onRefresh = { refreshCalls += 1 },
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("discover-pull-refresh").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+
+        assertEquals(1, refreshCalls)
     }
 
     @Test

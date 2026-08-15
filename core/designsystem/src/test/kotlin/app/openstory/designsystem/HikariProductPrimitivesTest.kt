@@ -2,8 +2,12 @@ package app.openstory.designsystem
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +30,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.dp
@@ -242,6 +248,57 @@ class HikariProductPrimitivesTest {
         compose.onNodeWithTag("refresh-busy").assert(
             SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Refreshing"),
         )
+    }
+
+    @Test
+    fun pullGestureInvokesRefreshExactlyOnce() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                HikariPullToRefresh(
+                    refreshing = false,
+                    onRefresh = { refreshCalls += 1 },
+                    modifier = Modifier.size(200.dp).testTag("refresh-gesture"),
+                ) {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        Box(Modifier.height(400.dp))
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithTag("refresh-gesture").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+
+        assertEquals(1, refreshCalls)
+    }
+
+    @Test
+    fun pullToRefreshIndicatorRespectsTopInset() {
+        var density = 1f
+        compose.setContent {
+            density = LocalDensity.current.density
+            HikariTheme {
+                HikariPullToRefresh(
+                    refreshing = true,
+                    onRefresh = {},
+                    topInset = 32.dp,
+                    modifier = Modifier.size(200.dp),
+                ) {
+                    Box(Modifier.fillMaxSize())
+                }
+            }
+        }
+
+        compose.waitForIdle()
+        val indicatorTop = compose.onNodeWithTag("hikari-pull-refresh-indicator")
+            .fetchSemanticsNode().boundsInRoot.top
+
+        assertTrue(indicatorTop >= 32f * density)
     }
 
     @Test

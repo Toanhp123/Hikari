@@ -1,7 +1,6 @@
 package app.openstory.catalog.ui.story
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,7 +43,7 @@ private fun StoryOverviewList(
 ) {
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(MaterialTheme.hikariSpacing.space16),
+        contentPadding = storySectionContentPadding(),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         item(key = "story-overview-header") {

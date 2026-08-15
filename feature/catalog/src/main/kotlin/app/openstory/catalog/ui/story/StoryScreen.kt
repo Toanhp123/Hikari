@@ -190,7 +190,9 @@ private fun androidx.compose.foundation.layout.ColumnScope.StoryBody(
     chapterActions: ChapterListActions,
 ) {
     StorySectionTabs(state.selectedSection, onSectionSelected)
-    state.failure?.let { StoryFailureBanner(it, state.refreshing, onRefresh) }
+    state.failure
+        ?.takeIf { state.selectedSection.showsSourceDetailFailure() }
+        ?.let { StoryFailureBanner(it, state.refreshing, onRefresh) }
     StorySectionContent(
         state, onRefresh, onSourceSelected, mappingState, mappingActions,
         chapterState, chapterActions, Modifier.weight(1f),
@@ -244,9 +246,10 @@ private fun StorySectionContent(
             onRefresh = onRefresh,
         )
         StorySection.CHAPTERS -> ChapterList(
-            chapterState ?: ChapterListUiState(state.storyId),
-            chapterActions,
-            modifier,
+            state = chapterState ?: ChapterListUiState(state.storyId),
+            actions = chapterActions,
+            modifier = modifier,
+            contentPadding = storySectionContentPadding(),
         )
         StorySection.SOURCES -> StorySources(
             story = requireNotNull(state.story),
@@ -283,6 +286,8 @@ private fun EmptyStory(state: StoryUiState, onRefresh: () -> Unit, modifier: Mod
         modifier = modifier.fillMaxSize(),
     )
 }
+
+private fun StorySection.showsSourceDetailFailure(): Boolean = this != StorySection.CHAPTERS
 
 private fun StorySection.label() = when (this) {
     StorySection.OVERVIEW -> "Overview"
