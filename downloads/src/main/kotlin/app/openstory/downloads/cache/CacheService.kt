@@ -25,7 +25,7 @@ class CacheService(
             CacheEntry(
                 key = key,
                 checksum = blob.checksum,
-                sizeBytes = blob.bytes().size.toLong(),
+                sizeBytes = blob.sizeBytes.toLong(),
                 lastAccessedAtEpochMillis = accessedAtEpochMillis,
                 pinned = pinned,
                 current = current,

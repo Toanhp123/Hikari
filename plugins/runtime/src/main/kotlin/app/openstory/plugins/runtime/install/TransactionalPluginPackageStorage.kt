@@ -9,57 +9,62 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.Comparator
 import java.util.UUID
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class TransactionalPluginPackageStorage(
     rootDirectory: Path,
     private val stagingName: () -> String = { UUID.randomUUID().toString() },
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : PluginPackageStorage {
     private val root = rootDirectory.toAbsolutePath().normalize()
     private val pluginsRoot = root.resolve("plugins").normalize()
     private val stagingRoot = root.resolve("staging").normalize()
 
-    override suspend fun store(value: VerifiedPluginPackage): PluginCallResult<StoredPluginVersion> {
-        val destination = installedPath(value.pluginId, value.version)
-        val staging = stagingRoot.resolve(stagingName()).normalize()
-        return when {
-            destination == null || !staging.startsWith(stagingRoot) ->
-                PluginCallResult.Failure("plugin.package_path_invalid", false)
-            Files.exists(destination) -> PluginCallResult.Failure("plugin.package_version_conflict", false)
-            else -> storeAt(value, staging, destination)
+    override suspend fun store(value: VerifiedPluginPackage): PluginCallResult<StoredPluginVersion> =
+        withContext(ioDispatcher) {
+            val destination = installedPath(value.pluginId, value.version)
+            val staging = stagingRoot.resolve(stagingName()).normalize()
+            when {
+                destination == null || !staging.startsWith(stagingRoot) ->
+                    PluginCallResult.Failure("plugin.package_path_invalid", false)
+                Files.exists(destination) -> PluginCallResult.Failure("plugin.package_version_conflict", false)
+                else -> storeAt(value, staging, destination)
+            }
         }
-    }
 
     private fun storeAt(
         value: VerifiedPluginPackage,
         staging: Path,
         destination: Path,
     ): PluginCallResult<StoredPluginVersion> = try {
-            deleteQuietly(staging)
-            Files.createDirectories(staging)
-            value.entries.forEach { (name, bytes) ->
-                val target = staging.resolve(name).normalize()
-                require(target.startsWith(staging)) { "Entry escapes staging" }
-                Files.createDirectories(target.parent)
-                Files.write(target, bytes)
-            }
-            Files.createDirectories(destination.parent)
-            Files.move(staging, destination, StandardCopyOption.ATOMIC_MOVE)
-            makeReadOnly(destination)
-            PluginCallResult.Success(
-                StoredPluginVersion(value.version, destination.toString(), value.sha256, value.signerFingerprint),
-            )
-        } catch (_: RuntimeException) {
-            deleteQuietly(staging)
-            PluginCallResult.Failure("storage.plugin_package_write_failed", retryable = true)
+        deleteQuietly(staging)
+        Files.createDirectories(staging)
+        value.entries.forEach { (name, bytes) ->
+            val target = staging.resolve(name).normalize()
+            require(target.startsWith(staging)) { "Entry escapes staging" }
+            Files.createDirectories(target.parent)
+            Files.write(target, bytes)
         }
+        Files.createDirectories(destination.parent)
+        Files.move(staging, destination, StandardCopyOption.ATOMIC_MOVE)
+        makeReadOnly(destination)
+        PluginCallResult.Success(
+            StoredPluginVersion(value.version, destination.toString(), value.sha256, value.signerFingerprint),
+        )
+    } catch (_: RuntimeException) {
+        deleteQuietly(staging)
+        PluginCallResult.Failure("storage.plugin_package_write_failed", retryable = true)
+    }
 
     override suspend fun readEntry(
         pluginId: PluginId,
         version: String,
         entry: String,
-    ): PluginCallResult<ByteArray> {
+    ): PluginCallResult<ByteArray> = withContext(ioDispatcher) {
         val rootPath = installedPath(pluginId, version)
-        return when {
+        when {
             entry != MAIN_SCRIPT && entry != MANIFEST ->
                 PluginCallResult.Failure("plugin.package_entry_denied", false)
             rootPath == null -> PluginCallResult.Failure("plugin.package_path_invalid", false)
@@ -75,8 +80,10 @@ class TransactionalPluginPackageStorage(
     }
 
     override suspend fun remove(location: String) {
-        val path = Paths.get(location).toAbsolutePath().normalize()
-        if (path.startsWith(root)) deleteQuietly(path)
+        withContext(ioDispatcher) {
+            val path = Paths.get(location).toAbsolutePath().normalize()
+            if (path.startsWith(root)) deleteQuietly(path)
+        }
     }
 
     private fun installedPath(pluginId: PluginId, version: String): Path? {

@@ -22,8 +22,10 @@ import app.openstory.designsystem.theme.hikariColors
 import app.openstory.designsystem.theme.hikariOpacity
 import coil3.ImageLoader
 import coil3.compose.AsyncImagePainter
+import coil3.compose.ConstraintsSizeResolver
 import coil3.compose.LocalPlatformContext
 import coil3.compose.rememberAsyncImagePainter
+import coil3.compose.rememberConstraintsSizeResolver
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -38,6 +40,7 @@ data class HikariArtworkModel(
 @Stable
 class HikariArtworkState internal constructor(
     internal val painter: Painter,
+    internal val sizeResolver: ConstraintsSizeResolver,
     val fallback: HikariArtworkFallback,
     val loading: Boolean,
 )
@@ -58,15 +61,17 @@ internal fun rememberHikariArtwork(
 ): HikariArtworkState {
     val context = LocalPlatformContext.current
     val reduceMotion = LocalHikariMotionPolicy.current.reduceMotion
+    val sizeResolver = rememberConstraintsSizeResolver()
     val fallback = remember(model.stableKey, model.title) {
         fallbackFor(model.stableKey, model.title)
     }
     val cacheKey = remember(model.stableKey, model.url) {
         "hikari-artwork:${model.stableKey}:${model.url.orEmpty()}"
     }
-    val request = remember(context, model.url, cacheKey, reduceMotion) {
+    val request = remember(context, model.url, cacheKey, reduceMotion, sizeResolver) {
         ImageRequest.Builder(context)
             .data(model.url)
+            .size(sizeResolver)
             .memoryCacheKey(cacheKey)
             .diskCacheKey(cacheKey)
             .crossfade(!reduceMotion)
@@ -83,9 +88,10 @@ internal fun rememberHikariArtwork(
             painterState is AsyncImagePainter.State.Loading
         )
 
-    return remember(painter, fallback, loading) {
+    return remember(painter, sizeResolver, fallback, loading) {
         HikariArtworkState(
             painter = painter,
+            sizeResolver = sizeResolver,
             fallback = fallback,
             loading = loading,
         )
@@ -172,7 +178,9 @@ private fun ArtworkLayer(
             painter = state.painter,
             contentDescription = contentDescription,
             contentScale = contentScale,
-            modifier = Modifier.matchParentSize(),
+            modifier = Modifier
+                .matchParentSize()
+                .then(state.sizeResolver),
         )
     }
 }
