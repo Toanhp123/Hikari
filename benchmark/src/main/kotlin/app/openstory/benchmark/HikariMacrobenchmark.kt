@@ -64,7 +64,7 @@ class HikariMacrobenchmark {
                 waitForTag("reader-content")
             },
         ) {
-            repeat(10) { clickTag("reader-next") }
+            repeat(READER_NEXT_ACTION_COUNT) { clickTag("reader-next") }
         }
     }
 
@@ -91,6 +91,7 @@ class HikariMacrobenchmark {
         startupMode = null,
         iterations = 5,
         setupBlock = {
+            killProcess()
             pressHome()
             startHikari(backdropDisabled)
             setup()

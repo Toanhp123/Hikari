@@ -8,6 +8,7 @@ import androidx.test.uiautomator.Until
 
 internal const val HIKARI_PACKAGE = "app.openstory"
 internal const val BENCHMARK_STORY_TITLE_ARGUMENT = "benchmarkStoryTitle"
+internal const val READER_NEXT_ACTION_COUNT = 10
 private const val DISABLE_BACKDROP_EXTRA = "app.openstory.benchmark.DISABLE_BACKDROP"
 private const val UI_TIMEOUT_MILLIS = 10_000L
 

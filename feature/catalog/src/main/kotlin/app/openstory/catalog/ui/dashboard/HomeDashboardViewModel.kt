@@ -16,6 +16,7 @@ import app.openstory.reader.progress.ReadingProgressRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeDashboardViewModel @Inject constructor(
     library: LibraryService,
     catalog: CatalogStoryProjectionRepository,
@@ -49,17 +51,25 @@ class HomeDashboardViewModel @Inject constructor(
 
     private val libraryContent = combine(
         libraryEntries,
-        libraryStoryIds.flatMapLatest(catalog::observeForStories)
-            .preserveLatest(CATALOG_FAILURE, emptyList()),
-        libraryStoryIds.flatMapLatest(progress::observeForStories)
-            .preserveLatest(PROGRESS_FAILURE, emptyList()),
+        libraryStoryIds.flatMapLatest { storyIds ->
+            catalog.observeForStories(storyIds)
+                .preserveLatest(CATALOG_FAILURE, emptyList())
+        },
+        libraryStoryIds.flatMapLatest { storyIds ->
+            progress.observeForStories(storyIds)
+                .preserveLatest(PROGRESS_FAILURE, emptyList())
+        },
     ) { entries, projections, records -> LibraryContent(entries, projections, records) }
 
     private val chapterContent = combine(
-        libraryStoryIds.flatMapLatest(chapters::observeForStories)
-            .preserveLatest(CHAPTERS_FAILURE, emptyList()),
-        libraryStoryIds.flatMapLatest(mappings::observeForStories)
-            .preserveLatest(MAPPINGS_FAILURE, emptyList()),
+        libraryStoryIds.flatMapLatest { storyIds ->
+            chapters.observeForStories(storyIds)
+                .preserveLatest(CHAPTERS_FAILURE, emptyList())
+        },
+        libraryStoryIds.flatMapLatest { storyIds ->
+            mappings.observeForStories(storyIds)
+                .preserveLatest(MAPPINGS_FAILURE, emptyList())
+        },
         downloads.observeCompletedCount().preserveLatest(DOWNLOADS_FAILURE, 0),
     ) { groups, links, downloadedCount -> ChapterContent(groups, links, downloadedCount) }
 

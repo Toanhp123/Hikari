@@ -43,7 +43,7 @@ grep -q 'retainEnabled' "$filter_cache" || fail "filter cache does not evict dis
 for vm in "$home_vm" "$updates_vm"; do
   grep -q 'observeForStories' "$vm" || fail "scoped observation missing: $vm"
   ! grep -q 'catalog\.observe()' "$vm" || fail "unbounded catalog projection observation remains: $vm"
-  grep -q 'catalog::observeForStories' "$vm" || fail "catalog projection is not scoped to library stories: $vm"
+  grep -q 'catalog\.observeForStories' "$vm" || fail "catalog projection is not scoped to library stories: $vm"
   ! grep -q 'chapters\.observeAll()' "$vm" || fail "unbounded chapter observation remains: $vm"
   ! grep -q 'mappings\.observeAll()' "$vm" || fail "unbounded mapping observation remains: $vm"
 done
@@ -54,6 +54,17 @@ done
 grep -q 'include(":benchmark")' "$settings" || fail ":benchmark is not declared"
 grep -q 'benchmarkMacro' "$versions" || fail "Macrobenchmark version is not pinned"
 grep -q 'baselineProfile' "$versions" || fail "Baseline Profile plugin version is not pinned"
+agp_version="$(sed -n 's/^agp = "\([^"]*\)"/\1/p' "$versions")"
+baseline_profile_version="$(sed -n 's/^baselineProfile = "\([^"]*\)"/\1/p' "$versions")"
+agp_major="${agp_version%%.*}"
+baseline_profile_major="${baseline_profile_version%%.*}"
+baseline_profile_rest="${baseline_profile_version#*.}"
+baseline_profile_minor="${baseline_profile_rest%%.*}"
+if [[ "$agp_major" =~ ^[0-9]+$ && "$baseline_profile_major" =~ ^[0-9]+$ && "$baseline_profile_minor" =~ ^[0-9]+$ ]]; then
+  if (( agp_major >= 9 )) && (( baseline_profile_major < 1 || (baseline_profile_major == 1 && baseline_profile_minor < 5) )); then
+    fail "AGP 9+ new DSL requires the Baseline Profile Gradle Plugin 1.5.x line or newer"
+  fi
+fi
 grep -q 'ANDROID_TEST("android-test")' "$architecture_models" || fail "architecture verifier does not recognize android-test modules"
 grep -q 'targetProjectPath = ":app"' "$benchmark_build" || fail "benchmark module does not target :app"
 grep -q 'android.experimental.self-instrumenting' "$benchmark_build" || fail "benchmark module is not self-instrumenting"
@@ -62,6 +73,8 @@ grep -A3 'create("benchmarkRelease")' "$app_build" | grep -q 'signingConfig = si
 grep -q 'FrameTimingMetric()' "$benchmark_test" || fail "Macrobenchmark does not measure frame timing"
 grep -q 'startupMode = null' "$benchmark_test" || fail "interaction Macrobenchmarks must not force startup mode"
 ! grep -q 'StartupMode.WARM' "$benchmark_test" || fail "interaction Macrobenchmarks must not force warm startup"
+grep -q 'killProcess()' "$benchmark_test" ||
+  fail "interaction Macrobenchmarks must reset the target process before each iteration"
 grep -q 'BaselineProfileRule' "$profile_test" || fail "Baseline Profile generator does not use BaselineProfileRule"
 grep -q 'isMinifyEnabled = true' "$app_build" || fail "release minification is not enabled"
 grep -q 'optimization {' "$app_build" || fail "release optimization block is missing"

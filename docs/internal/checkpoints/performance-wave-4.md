@@ -15,6 +15,7 @@ Performance Wave 4 removes repeat work that remained after navigation/Reader lif
 - Home and Updates derive a distinct library-story-id set and switch catalog/chapter/mapping/progress observations with `flatMapLatest`. Room adapters implement story-filtered DAO queries, and empty story sets return an empty flow result without issuing an unbounded query.
 - Home consumes a completed-download count projection rather than materializing every download record.
 - `:benchmark` is an `android-test` module, outside the 14-module production graph. It owns Macrobenchmark `FrameTimingMetric` CUJs and Baseline Profile generation against `:app`.
+- The Baseline Profile Gradle Plugin is pinned to `1.5.0-beta01` because AGP `9.3.0` uses the new DSL by default; the `1.4.x` plugin train still depends on the legacy AGP DSL/variant surface. Macrobenchmark runtime remains on stable `1.4.1`.
 - Release minification/optimization is enabled. Baseline Profile generation stays explicit (`automaticGenerationDuringBuild = false`), while DEX layout optimization is enabled.
 - A benchmark-only intent switch can disable Hikari backdrop blur for paired A/B measurements. Normal app launches retain the existing blur path.
 

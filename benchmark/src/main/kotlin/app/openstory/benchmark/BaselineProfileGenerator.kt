@@ -44,7 +44,7 @@ class BaselineProfileGenerator {
             clickTag("story-tab-overview")
             clickTag("story-read")
             waitForTag("reader-content")
-            repeat(10) { clickTag("reader-next") }
+            repeat(READER_NEXT_ACTION_COUNT) { clickTag("reader-next") }
         }
     }
 }

@@ -14,6 +14,7 @@ android {
         minSdk = 26
         targetSdk = 37
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["useTestStorageService"] = "true"
     }
 
     targetProjectPath = ":app"
@@ -33,5 +34,6 @@ dependencies {
     implementation(libs.androidx.benchmark.macro.junit4)
     implementation(libs.androidx.junit)
     implementation(libs.androidx.test.runner)
+    androidTestUtil(libs.androidx.test.services)
     implementation(libs.androidx.test.uiautomator)
 }

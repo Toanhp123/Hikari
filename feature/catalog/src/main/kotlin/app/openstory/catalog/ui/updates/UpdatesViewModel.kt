@@ -13,6 +13,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class UpdatesViewModel @Inject constructor(
     library: LibraryService,
     catalog: CatalogStoryProjectionRepository,
@@ -44,10 +46,15 @@ class UpdatesViewModel @Inject constructor(
 
     private val content = combine(
         libraryEntries,
-        libraryStoryIds.flatMapLatest(catalog::observeForStories)
-            .preserveLatest(emptyList()),
-        libraryStoryIds.flatMapLatest(chapters::observeForStories).preserveLatest(emptyList()),
-        libraryStoryIds.flatMapLatest(mappings::observeForStories).preserveLatest(emptyList()),
+        libraryStoryIds.flatMapLatest { storyIds ->
+            catalog.observeForStories(storyIds).preserveLatest(emptyList())
+        },
+        libraryStoryIds.flatMapLatest { storyIds ->
+            chapters.observeForStories(storyIds).preserveLatest(emptyList())
+        },
+        libraryStoryIds.flatMapLatest { storyIds ->
+            mappings.observeForStories(storyIds).preserveLatest(emptyList())
+        },
     ) { entries, projections, groups, links ->
         val activity = projector.project(entries, projections, groups, links)
         UpdatesUiState(
