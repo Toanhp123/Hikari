@@ -17,7 +17,12 @@ class RoomPluginStateStore internal constructor(
 
     override suspend fun find(pluginId: PluginId): StoredPluginState? = dao.find(pluginId.value)?.toStored()
 
-    override suspend fun all(): List<StoredPluginState> = dao.all().mapNotNull { it.toStored() }
+    override suspend fun all(): List<StoredPluginState> {
+        val snapshot = dao.snapshot()
+        if (snapshot.states.isEmpty()) return emptyList()
+        val versions = snapshot.versions.associateBy { entity -> entity.pluginId to entity.version }
+        return snapshot.states.mapNotNull { entity -> entity.toStored(versions) }
+    }
 
     override suspend fun replace(state: StoredPluginState) {
         val now = clock.nowEpochMillis()
@@ -40,15 +45,28 @@ class RoomPluginStateStore internal constructor(
     private suspend fun PluginStateEntity.toStored(): StoredPluginState? {
         val active = dao.findVersion(pluginId, activeVersion) ?: return null
         val previous = previousVersion?.let { dao.findVersion(pluginId, it) }
-        return StoredPluginState(
-            pluginId = PluginId(pluginId),
-            services = active.services.map(PluginService::valueOf).toSet(),
-            enabled = enabled,
-            activeVersion = active.toStoredVersion(),
-            previousVersion = previous?.toStoredVersion(),
-            acceptedNetworkHosts = active.acceptedNetworkHosts,
-        )
+        return toStored(active, previous)
     }
+
+    private fun PluginStateEntity.toStored(
+        versions: Map<Pair<String, String>, PluginVersionEntity>,
+    ): StoredPluginState? {
+        val active = versions[pluginId to activeVersion] ?: return null
+        val previous = previousVersion?.let { versions[pluginId to it] }
+        return toStored(active, previous)
+    }
+
+    private fun PluginStateEntity.toStored(
+        active: PluginVersionEntity,
+        previous: PluginVersionEntity?,
+    ) = StoredPluginState(
+        pluginId = PluginId(pluginId),
+        services = active.services.map(PluginService::valueOf).toSet(),
+        enabled = enabled,
+        activeVersion = active.toStoredVersion(),
+        previousVersion = previous?.toStoredVersion(),
+        acceptedNetworkHosts = active.acceptedNetworkHosts,
+    )
 
     private fun StoredPluginVersion.toEntity(
         state: StoredPluginState,

@@ -9,6 +9,7 @@ import app.openstory.downloads.DownloadRecord
 import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.DownloadState
 import app.openstory.downloads.cache.CacheEntry
+import app.openstory.downloads.cache.CacheQuotaSnapshot
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.reconcile.StorageDownloadFailure
 import app.openstory.downloads.reconcile.StorageMetadataEntry
@@ -31,6 +32,20 @@ class RoomDownloadRepository internal constructor(
 
     override suspend fun entries(): List<CacheEntry> = dao.storedEntries().map { it.toCacheEntry() }
 
+    override suspend fun quotaSnapshot(quotaBytes: Long): CacheQuotaSnapshot =
+        database.withTransaction {
+            require(quotaBytes >= 0) { "Cache quota must not be negative." }
+            val usage = dao.automaticCacheUsageBytes()
+            CacheQuotaSnapshot(
+                usageBytes = usage,
+                entriesByLru = if (usage > quotaBytes) {
+                    dao.automaticCacheEntriesByLru().map { entity -> entity.toCacheEntry() }
+                } else {
+                    emptyList()
+                },
+            )
+        }
+
     override suspend fun upsert(entry: CacheEntry) {
         dao.upsert(entry.toEntity())
     }
@@ -48,11 +63,8 @@ class RoomDownloadRepository internal constructor(
         database.withTransaction {
             keys.mapNotNull { key ->
                 if (key.namespace != ChapterBlobNamespace.AUTOMATIC_CACHE) return@mapNotNull null
-                val entity = dao.find(key.namespace.name, key.releaseId.value, key.contentFingerprint)
-                    ?: return@mapNotNull null
-                if (entity.namespace != ChapterBlobNamespace.AUTOMATIC_CACHE.name) return@mapNotNull null
-                dao.delete(entity)
-                key
+                val deleted = dao.deleteAutomaticCache(key.releaseId.value, key.contentFingerprint)
+                key.takeIf { deleted > 0 }
             }
         }
 

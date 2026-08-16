@@ -18,6 +18,20 @@ internal abstract class PluginStateDao {
     @Query("SELECT * FROM plugin_versions WHERE plugin_id = :pluginId AND version = :version")
     abstract suspend fun findVersion(pluginId: String, version: String): PluginVersionEntity?
 
+    @Query(
+        "SELECT versions.* FROM plugin_versions AS versions " +
+            "INNER JOIN plugin_state AS state ON state.plugin_id = versions.plugin_id " +
+            "WHERE versions.version = state.active_version OR versions.version = state.previous_version " +
+            "ORDER BY versions.plugin_id, versions.version",
+    )
+    abstract suspend fun stateVersions(): List<PluginVersionEntity>
+
+    @Transaction
+    open suspend fun snapshot() = PluginStateSnapshot(
+        states = all(),
+        versions = stateVersions(),
+    )
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertVersion(version: PluginVersionEntity): Long
 
@@ -46,3 +60,8 @@ internal abstract class PluginStateDao {
         const val INSERT_CONFLICT = -1L
     }
 }
+
+internal data class PluginStateSnapshot(
+    val states: List<PluginStateEntity>,
+    val versions: List<PluginVersionEntity>,
+)

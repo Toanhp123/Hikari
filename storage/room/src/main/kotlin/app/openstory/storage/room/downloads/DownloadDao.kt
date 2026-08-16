@@ -28,6 +28,19 @@ internal interface DownloadDao {
     suspend fun storedEntries(): List<ChapterStorageEntryEntity>
 
     @Query(
+        "SELECT COALESCE(SUM(size_bytes), 0) FROM chapter_storage_entries " +
+            "WHERE namespace = 'AUTOMATIC_CACHE' AND checksum IS NOT NULL",
+    )
+    suspend fun automaticCacheUsageBytes(): Long
+
+    @Query(
+        "SELECT * FROM chapter_storage_entries " +
+            "WHERE namespace = 'AUTOMATIC_CACHE' AND checksum IS NOT NULL " +
+            "ORDER BY last_accessed_at_epoch_millis ASC, chapter_release_id ASC",
+    )
+    suspend fun automaticCacheEntriesByLru(): List<ChapterStorageEntryEntity>
+
+    @Query(
         "SELECT * FROM chapter_storage_entries WHERE namespace = :namespace " +
             "AND chapter_release_id = :releaseId AND content_fingerprint = :fingerprint",
     )
@@ -50,6 +63,12 @@ internal interface DownloadDao {
             "AND chapter_release_id = :releaseId",
     )
     suspend fun deleteDownload(releaseId: String)
+
+    @Query(
+        "DELETE FROM chapter_storage_entries WHERE namespace = 'AUTOMATIC_CACHE' " +
+            "AND chapter_release_id = :releaseId AND content_fingerprint = :fingerprint",
+    )
+    suspend fun deleteAutomaticCache(releaseId: String, fingerprint: String): Int
 
     @Upsert
     suspend fun upsert(entry: ChapterStorageEntryEntity)

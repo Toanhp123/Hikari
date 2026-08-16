@@ -9,7 +9,10 @@ import app.openstory.plugins.runtime.update.PluginUpdateService
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 
 class BundledPluginProvisionerTest {
     @Test
@@ -94,6 +97,119 @@ class BundledPluginProvisionerTest {
         provisioner.ensureProvisioned()
 
         assertEquals("3.0.0", state.find(pluginId)?.activeVersion?.version)
+    }
+
+    @Test
+    fun `successful bundled provisioning is memoized for the process`() = runTest {
+        val state = MemoryStateStore()
+        val storage = MemoryPackageStorage()
+        val installer = PluginInstaller(PackageVerifier(), storage, state)
+        val bytes = packageBytes()
+        var sourceCalls = 0
+        val source = BundledPluginSource {
+            sourceCalls++
+            listOf(
+                BundledPluginPackage(
+                    bytes,
+                    PluginArtifact(
+                        "org.example.plugin",
+                        "1.0.0",
+                        "https://bundled.openstory.app/plugin.osp",
+                        bytes.sha256ForTest(),
+                    ),
+                ),
+            )
+        }
+        val provisioner = BundledPluginProvisioner(
+            source,
+            installer,
+            PluginUpdateService(installer, state),
+            state,
+        )
+
+        provisioner.ensureProvisioned()
+        provisioner.ensureProvisioned()
+
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `concurrent callers share one failed provisioning pass before retry`() = runTest {
+        val state = MemoryStateStore()
+        val storage = MemoryPackageStorage()
+        val installer = PluginInstaller(PackageVerifier(), storage, state)
+        val firstEntered = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        var sourceCalls = 0
+        val source = BundledPluginSource {
+            sourceCalls++
+            if (sourceCalls == 1) {
+                firstEntered.complete(Unit)
+                releaseFirst.await()
+            }
+            listOf(
+                BundledPluginPackage(
+                    byteArrayOf(1),
+                    PluginArtifact(
+                        "org.example.plugin",
+                        "1.0.0",
+                        "https://bundled.openstory.app/plugin.osp",
+                        "0".repeat(64),
+                    ),
+                ),
+            )
+        }
+        val provisioner = BundledPluginProvisioner(
+            source,
+            installer,
+            PluginUpdateService(installer, state),
+            state,
+        )
+
+        val first = async { provisioner.ensureProvisioned() }
+        firstEntered.await()
+        val second = async { provisioner.ensureProvisioned() }
+        yield()
+        releaseFirst.complete(Unit)
+
+        assertEquals(first.await(), second.await())
+        assertEquals(1, sourceCalls)
+
+        provisioner.ensureProvisioned()
+        assertEquals(2, sourceCalls)
+    }
+
+    @Test
+    fun `failed bundled provisioning remains retryable`() = runTest {
+        val state = MemoryStateStore()
+        val storage = MemoryPackageStorage()
+        val installer = PluginInstaller(PackageVerifier(), storage, state)
+        var sourceCalls = 0
+        val source = BundledPluginSource {
+            sourceCalls++
+            listOf(
+                BundledPluginPackage(
+                    byteArrayOf(1),
+                    PluginArtifact(
+                        "org.example.plugin",
+                        "1.0.0",
+                        "https://bundled.openstory.app/plugin.osp",
+                        "0".repeat(64),
+                    ),
+                ),
+            )
+        }
+        val provisioner = BundledPluginProvisioner(
+            source,
+            installer,
+            PluginUpdateService(installer, state),
+            state,
+        )
+
+        provisioner.ensureProvisioned()
+        provisioner.ensureProvisioned()
+
+        assertEquals(2, sourceCalls)
     }
 }
 

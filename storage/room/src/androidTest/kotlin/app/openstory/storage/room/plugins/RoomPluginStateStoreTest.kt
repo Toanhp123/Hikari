@@ -2,6 +2,7 @@ package app.openstory.storage.room.plugins
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.openstory.common.id.PluginId
@@ -14,6 +15,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import org.junit.runner.RunWith
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executor
 
 @RunWith(AndroidJUnit4::class)
 class RoomPluginStateStoreTest {
@@ -126,9 +129,99 @@ class RoomPluginStateStoreTest {
         }
     }
 
-    private fun version(value: String) = StoredPluginVersion(
+    @Test
+    fun snapshotLoadsOnlyActiveAndPreviousPluginVersions() = runTest {
+        withDatabase { database ->
+            val store = RoomPluginStateStore(database)
+            val pluginId = PluginId("org.example.history")
+            store.replace(
+                StoredPluginState(
+                    pluginId = pluginId,
+                    services = setOf(PluginService.CATALOG),
+                    enabled = true,
+                    activeVersion = versionFor(pluginId.value, "1.0.0"),
+                    previousVersion = null,
+                    acceptedNetworkHosts = emptySet(),
+                ),
+            )
+            store.replace(
+                StoredPluginState(
+                    pluginId = pluginId,
+                    services = setOf(PluginService.CATALOG),
+                    enabled = true,
+                    activeVersion = versionFor(pluginId.value, "2.0.0"),
+                    previousVersion = versionFor(pluginId.value, "1.0.0"),
+                    acceptedNetworkHosts = emptySet(),
+                ),
+            )
+            store.replace(
+                StoredPluginState(
+                    pluginId = pluginId,
+                    services = setOf(PluginService.CATALOG),
+                    enabled = true,
+                    activeVersion = versionFor(pluginId.value, "3.0.0"),
+                    previousVersion = versionFor(pluginId.value, "2.0.0"),
+                    acceptedNetworkHosts = emptySet(),
+                ),
+            )
+
+            assertEquals(
+                listOf("2.0.0", "3.0.0"),
+                database.pluginStateDao().snapshot().versions.map { version -> version.version },
+            )
+        }
+    }
+
+    @Test
+    fun allLoadsPluginVersionsInOneBulkQuery() = runTest {
+        val queries = CopyOnWriteArrayList<String>()
+        val database = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext<Context>(),
+            OpenStoryDatabase::class.java,
+        ).setQueryCallback(
+            RoomDatabase.QueryCallback { sql, _ -> queries += sql },
+            Executor(Runnable::run),
+        ).build()
+        try {
+            val store = RoomPluginStateStore(database)
+            store.replace(
+                StoredPluginState(
+                    pluginId = PluginId("org.example.one"),
+                    services = setOf(PluginService.CATALOG),
+                    enabled = true,
+                    activeVersion = versionFor("org.example.one", "1.0.0"),
+                    previousVersion = null,
+                    acceptedNetworkHosts = emptySet(),
+                ),
+            )
+            store.replace(
+                StoredPluginState(
+                    pluginId = PluginId("org.example.two"),
+                    services = setOf(PluginService.CONTENT),
+                    enabled = true,
+                    activeVersion = versionFor("org.example.two", "2.0.0"),
+                    previousVersion = versionFor("org.example.two", "1.0.0"),
+                    acceptedNetworkHosts = emptySet(),
+                ),
+            )
+            queries.clear()
+
+            assertEquals(2, store.all().size)
+
+            val versionSelects = queries.filter { sql ->
+                sql.contains("FROM plugin_versions", ignoreCase = true)
+            }
+            assertEquals(1, versionSelects.size)
+        } finally {
+            database.close()
+        }
+    }
+
+    private fun version(value: String) = versionFor("org.example.plugin", value)
+
+    private fun versionFor(pluginId: String, value: String) = StoredPluginVersion(
         version = value,
-        packageLocation = "plugins/org.example.plugin/$value",
+        packageLocation = "plugins/$pluginId/$value",
         sha256 = "a".repeat(64),
         signerFingerprint = null,
     )

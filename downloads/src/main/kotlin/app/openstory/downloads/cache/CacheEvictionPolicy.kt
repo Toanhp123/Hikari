@@ -10,20 +10,33 @@ object CacheEvictionPolicy {
         progressProtectedReleaseIds: Set<ChapterReleaseId>,
     ): CacheEvictionPlan {
         require(quotaBytes >= 0) { "Cache quota must not be negative." }
-
         val automaticEntries = entries.filter { it.key.namespace == ChapterBlobNamespace.AUTOMATIC_CACHE }
-        var retainedBytes = automaticEntries.sumOf(CacheEntry::sizeBytes)
+        return planOrdered(
+            entriesByLru = automaticEntries.sortedWith(
+                compareBy(CacheEntry::lastAccessedAtEpochMillis).thenBy { it.key.releaseId.value },
+            ),
+            usageBytes = automaticEntries.sumOf(CacheEntry::sizeBytes),
+            quotaBytes = quotaBytes,
+            progressProtectedReleaseIds = progressProtectedReleaseIds,
+        )
+    }
+
+    internal fun planOrdered(
+        entriesByLru: List<CacheEntry>,
+        usageBytes: Long,
+        quotaBytes: Long,
+        progressProtectedReleaseIds: Set<ChapterReleaseId>,
+    ): CacheEvictionPlan {
+        require(usageBytes >= 0) { "Cache usage must not be negative." }
+        require(quotaBytes >= 0) { "Cache quota must not be negative." }
+        var retainedBytes = usageBytes
         val keys = buildList {
-            automaticEntries
-                .asSequence()
-                .filterNot { entry -> entry.isProtected(progressProtectedReleaseIds) }
-                .sortedWith(compareBy(CacheEntry::lastAccessedAtEpochMillis).thenBy { it.key.releaseId.value })
-                .forEach { entry ->
-                    if (retainedBytes > quotaBytes) {
-                        add(entry.key)
-                        retainedBytes -= entry.sizeBytes
-                    }
+            entriesByLru.forEach { entry ->
+                if (retainedBytes > quotaBytes && !entry.isProtected(progressProtectedReleaseIds)) {
+                    add(entry.key)
+                    retainedBytes -= entry.sizeBytes
                 }
+            }
         }
         return CacheEvictionPlan(keys, retainedBytes, quotaBytes)
     }
