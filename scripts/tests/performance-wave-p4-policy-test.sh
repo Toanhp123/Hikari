@@ -26,10 +26,13 @@ grep -q 'loadFromSources' "$reader_repository" || fail "reader source enumeratio
 
 [[ -f "$fixture_manifest" ]] || fail "benchmarkRelease fixture manifest is missing"
 [[ -f "$fixture_activity" ]] || fail "benchmarkRelease fixture activity is missing"
-grep -q 'androidComponents' "$app_build" || fail "app build does not restore benchmarkRelease fixture sources after Baseline Profile source copying"
-grep -q 'finalizeDsl' "$app_build" || fail "benchmarkRelease fixture sources are not restored during final DSL configuration"
-grep -q 'src/benchmarkRelease/kotlin' "$app_build" || fail "benchmarkRelease Kotlin fixture source is not explicitly reattached"
-grep -q 'src/benchmarkRelease/AndroidManifest.xml' "$app_build" || fail "benchmarkRelease fixture manifest is not explicitly reattached"
+grep -q 'androidComponents' "$app_build" || fail "app build does not restore benchmark fixture sources after Baseline Profile source copying"
+grep -q 'finalizeDsl' "$app_build" || fail "benchmark fixture sources are not restored during final DSL configuration"
+grep -q '"benchmarkRelease", "nonMinifiedRelease"' "$app_build" || \
+  fail "benchmark fixture is not attached to both Macrobenchmark and Baseline Profile target variants"
+grep -q 'kotlin.directories.add("src/benchmarkRelease/kotlin")' "$app_build" || \
+  fail "benchmark fixture Kotlin source is not explicitly reattached with the current AGP API"
+grep -q 'src/benchmarkRelease/AndroidManifest.xml' "$app_build" || fail "benchmark fixture manifest is not explicitly reattached"
 grep -q 'BenchmarkFixtureActivity' "$fixture_manifest" || fail "fixture activity is not declared in benchmarkRelease"
 ! grep -q 'BenchmarkFixtureActivity' "$root/app/src/main/AndroidManifest.xml" || \
   fail "benchmark fixture leaked into the production manifest"

@@ -16,7 +16,9 @@ P4 closes the performance implementation pass after P1-P3. It targets the two re
 - Chapter aggregation selects the best candidate in one pass instead of sorting all candidates for every release.
 - Existing score ordering, explicit-conflict filtering, and lexicographic chapter-id tie-break are preserved.
 - `benchmarkRelease` owns a deterministic local fixture with one library story, 12 chapters/releases, cached Reader documents, and progress fingerprints; chapter 1 is the only incomplete row so Reader always starts there through Resume.
-- Because the Baseline Profile Gradle plugin copies the original `release` build-type sources into `benchmarkRelease` during DSL finalization, `app/build.gradle.kts` re-attaches the benchmark-only Kotlin directory and manifest in a later `androidComponents.finalizeDsl` callback so the fixture is packaged in the benchmark APK without leaking into production release.
+- Because the Baseline Profile Gradle plugin creates both `benchmarkRelease` and `nonMinifiedRelease` from the original `release` build type, `app/build.gradle.kts` re-attaches the benchmark-only Kotlin directory and manifest to both generated target variants in a later `androidComponents.finalizeDsl` callback.
+- `benchmarkRelease` is used by Macrobenchmark and `nonMinifiedRelease` is used while generating the Baseline Profile; neither fixture source is attached to the production `release` source set.
+- The Kotlin source re-attachment uses AGP's `directories` mutable set rather than the deprecated `srcDir(...)` API.
 - Story/Reader benchmarks and Baseline Profile generation prepare that fixture outside measured iterations; Story/Reader navigation targets the deterministic fixture card by stable Story ID; `benchmarkStoryTitle` is no longer used.
 - Macrobenchmark adds separate cold-start timing and Reader max-memory journeys. Existing frame timing journeys remain memory-metric free.
 - `OpenStoryApplication` remains empty. No production startup/background behavior, Room schema, or visual path is changed.
@@ -64,4 +66,4 @@ Run the deterministic Macrobenchmark suite on the physical Redmi Note 9S (or ano
 
 No `benchmarkStoryTitle` argument or manual database seed is used. The benchmark fixture is prepared by the benchmarkRelease-only fixture Activity before each benchmark method. The P4 policy also requires the post-Baseline-Profile source-set re-attachment so the fixture Activity is present in the installed benchmark target APK.
 
-Generate the Baseline Profile separately on an API 33+ rooted/compatible device as required by the Baseline Profile toolchain.
+Generate the Baseline Profile separately on an API 33+ rooted/compatible device. The profile task targets `nonMinifiedRelease`, which intentionally shares the same benchmark-only fixture source and manifest as `benchmarkRelease`.
