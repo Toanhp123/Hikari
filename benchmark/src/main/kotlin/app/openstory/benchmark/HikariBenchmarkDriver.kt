@@ -7,14 +7,27 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 
 internal const val HIKARI_PACKAGE = "app.openstory"
-internal const val BENCHMARK_STORY_TITLE_ARGUMENT = "benchmarkStoryTitle"
+internal const val BENCHMARK_FIXTURE_STORY_CARD_TAG = "library-story-benchmark-fixture-story"
 internal const val READER_NEXT_ACTION_COUNT = 10
+private const val BENCHMARK_FIXTURE_COMPONENT =
+    "app.openstory/app.openstory.benchmark.BenchmarkFixtureActivity"
+private const val BENCHMARK_FIXTURE_READY_TEXT = "HIKARI_BENCHMARK_READY"
 private const val DISABLE_BACKDROP_EXTRA = "app.openstory.benchmark.DISABLE_BACKDROP"
 private const val UI_TIMEOUT_MILLIS = 10_000L
 
-internal fun benchmarkStoryTitle(): String? = InstrumentationRegistry.getArguments()
-    .getString(BENCHMARK_STORY_TITLE_ARGUMENT)
-    ?.takeIf(String::isNotBlank)
+internal fun prepareBenchmarkFixture() {
+    val device = benchmarkDevice()
+    device.executeShellCommand("am force-stop $HIKARI_PACKAGE")
+    val launchResult = device.executeShellCommand("am start -W -n $BENCHMARK_FIXTURE_COMPONENT")
+    check("Error" !in launchResult && "Exception" !in launchResult) {
+        "Benchmark fixture activity failed to launch: $launchResult"
+    }
+    check(device.wait(Until.hasObject(By.text(BENCHMARK_FIXTURE_READY_TEXT)), UI_TIMEOUT_MILLIS)) {
+        "Benchmark fixture did not become ready."
+    }
+    device.pressHome()
+    device.waitForIdle()
+}
 
 internal fun MacrobenchmarkScope.startHikari(
     backdropDisabled: Boolean = false,
@@ -32,11 +45,10 @@ internal fun clickTag(tag: String) {
     benchmarkDevice().waitForIdle()
 }
 
-internal fun clickText(text: String) {
-    val node = benchmarkDevice().wait(Until.findObject(By.text(text)), UI_TIMEOUT_MILLIS)
-    requireNotNull(node) { "Benchmark text was not found: $text" }
-    node.click()
-    benchmarkDevice().waitForIdle()
+internal fun openBenchmarkFixtureStory() {
+    clickTag("navigation-library")
+    clickTag(BENCHMARK_FIXTURE_STORY_CARD_TAG)
+    waitForTag("story-overview-pull-refresh")
 }
 
 internal fun waitForTag(tag: String) {

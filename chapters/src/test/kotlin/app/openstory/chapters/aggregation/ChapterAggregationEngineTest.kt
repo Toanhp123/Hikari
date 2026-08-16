@@ -69,6 +69,21 @@ class ChapterAggregationEngineTest {
     }
 
     @Test
+    fun equalScoreTieBreakUsesLexicographicallySmallestChapterId() {
+        val parsed = numbered("10")
+        val later = chapter("chapter-z", parsed)
+        val earlier = chapter("chapter-a", parsed)
+        val incoming = release("release-10", parsed)
+
+        val plan = engine.plan(STORY_ID, listOf(later, earlier), listOf(incoming), emptyList())
+
+        assertEquals(
+            listOf(ChapterReleaseLink(incoming.id, earlier.id)),
+            plan.links,
+        )
+    }
+
+    @Test
     fun protectedLinkOverrideOutranksNumberConflict() {
         val existing = chapter("existing-10", numbered("10"))
         val release = release("release-11", numbered("11"))

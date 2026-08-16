@@ -31,6 +31,30 @@ class ReaderDocumentRepositoryTest {
     }
 
     @Test
+    fun cacheHitSkipsSourceRegistryEnumeration() = runTest {
+        val document = document("fingerprint")
+        val store = FakeStore(readResult = document)
+        var enabledCalls = 0
+        val repository = ReaderDocumentRepository(
+            store,
+            object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> {
+                    enabledCalls += 1
+                    return listOf(FakeSource())
+                }
+            },
+            ReleaseSelector(),
+        )
+
+        val result = repository.load(
+            request(candidate("release"), mapOf(ChapterReleaseId("release") to "fingerprint")),
+        )
+
+        assertEquals(true, assertIs<ReaderLoadResult.Success>(result).fromStore)
+        assertEquals(0, enabledCalls)
+    }
+
+    @Test
     fun returnsCurrentStoreEntryWithoutProgressFingerprint() = runTest {
         val document = document("downloaded")
         val store = FakeStore(currentReadResult = document)

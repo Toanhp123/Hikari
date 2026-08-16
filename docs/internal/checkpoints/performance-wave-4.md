@@ -21,7 +21,7 @@ Performance Wave 4 removes repeat work that remained after navigation/Reader lif
 
 ## Measurement journeys
 
-The benchmark module covers Home -> Library -> Home, Home -> Discover -> Home, Search reopen, Story tab switching, Reader Next x10, and paired backdrop-enabled/backdrop-disabled navigation. Story/Reader journeys require a seeded library story title supplied through the `benchmarkStoryTitle` instrumentation argument.
+The benchmark module covers Home -> Library -> Home, Home -> Discover -> Home, Search reopen, Story tab switching, Reader Next x10, and paired backdrop-enabled/backdrop-disabled navigation. Story/Reader journeys use the benchmarkRelease-only deterministic fixture and target its Library card by stable Story ID.
 
 Baseline Profile generation covers startup and the same stable top-level/Search path, plus Story/Reader when seeded data is available. Profile generation must run on a rooted device or API 33+ connected device. Frame numbers intended for product decisions should be collected on a physical device rather than treated as authoritative from an emulator.
 
@@ -59,4 +59,4 @@ Gradle verification is pending on the developer machine because the sandbox cann
 ./scripts/verify.sh
 ```
 
-After the focused/full gates are green, generate the profile explicitly and run benchmarks on an API 33+ device. For Story/Reader coverage, seed a library story with at least 11 readable chapters and pass its exact title as `benchmarkStoryTitle`.
+After the focused/full gates are green, generate the profile explicitly and run benchmarks on an API 33+ device. For Story/Reader coverage, the benchmarkRelease fixture seeds the Story, 12 readable chapters, cached Reader documents, and progress automatically; no title argument or manual seed is required.

@@ -41,7 +41,7 @@ class ReaderDocumentSanitizer {
     }
 
     private fun valid(title: String?, blocks: List<ReaderBlock>): DocumentValidationResult.Valid =
-        DocumentValidationResult.Valid(ReaderDocument(title, blocks, sha256(canonicalText(title, blocks))))
+        DocumentValidationResult.Valid(ReaderDocument(title, blocks, canonicalFingerprint(title, blocks)))
 
     private fun sanitizeBlock(index: Int, block: ChapterBlockDto): ReaderBlock? = when (block) {
         is ParagraphBlockDto -> block.text.safeText(MAX_PARAGRAPH_LENGTH)?.let {
@@ -71,18 +71,28 @@ class ReaderDocumentSanitizer {
         is ReaderBlock.Note -> text.length
     }
 
-    private fun canonicalText(title: String?, blocks: List<ReaderBlock>): String = buildString {
-        append(title.orEmpty()).append('\n')
+    private fun canonicalFingerprint(title: String?, blocks: List<ReaderBlock>): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.updateUtf8(title.orEmpty())
+        digest.update(NEWLINE)
         blocks.forEach { block ->
-            append(block::class.simpleName).append(':').append(block.id).append(':')
+            digest.updateUtf8(block.canonicalTypeName())
+            digest.update(COLON)
+            digest.updateUtf8(block.id)
+            digest.update(COLON)
             when (block) {
-                is ReaderBlock.Paragraph -> append(block.text)
-                is ReaderBlock.Heading -> append(block.level).append(':').append(block.text)
+                is ReaderBlock.Paragraph -> digest.updateUtf8(block.text)
+                is ReaderBlock.Heading -> {
+                    digest.updateUtf8(block.level.toString())
+                    digest.update(COLON)
+                    digest.updateUtf8(block.text)
+                }
                 is ReaderBlock.Divider -> Unit
-                is ReaderBlock.Note -> append(block.text)
+                is ReaderBlock.Note -> digest.updateUtf8(block.text)
             }
-            append('\n')
+            digest.update(NEWLINE)
         }
+        return digest.digest().toLowerHex()
     }
 
     private fun blockId(index: Int, text: String): String = "block-$index-${sha256(text).take(BLOCK_HASH_LENGTH)}"
@@ -99,12 +109,40 @@ class ReaderDocumentSanitizer {
         const val MIN_HEADING_LEVEL = 1
         const val MAX_HEADING_LEVEL = 6
         const val BLOCK_HASH_LENGTH = 12
+        const val COLON: Byte = ':'.code.toByte()
+        const val NEWLINE: Byte = '\n'.code.toByte()
     }
+}
+
+private fun ReaderBlock.canonicalTypeName(): String = when (this) {
+    is ReaderBlock.Paragraph -> "Paragraph"
+    is ReaderBlock.Heading -> "Heading"
+    is ReaderBlock.Divider -> "Divider"
+    is ReaderBlock.Note -> "Note"
 }
 
 private fun isDisallowedControl(character: Char): Boolean =
     character.isISOControl() && character != '\n' && character != '\t'
 
+private fun MessageDigest.updateUtf8(value: String) {
+    update(value.toByteArray(Charsets.UTF_8))
+}
+
 private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
     .digest(value.toByteArray(Charsets.UTF_8))
-    .joinToString(separator = "") { byte -> "%02x".format(byte) }
+    .toLowerHex()
+
+private fun ByteArray.toLowerHex(): String {
+    val encoded = CharArray(size * 2)
+    forEachIndexed { index, byte ->
+        val unsigned = byte.toInt() and BYTE_MASK
+        encoded[index * 2] = HEX[unsigned ushr HEX_NIBBLE_SHIFT]
+        encoded[index * 2 + 1] = HEX[unsigned and HEX_NIBBLE_MASK]
+    }
+    return encoded.concatToString()
+}
+
+private const val BYTE_MASK = 0xff
+private const val HEX_NIBBLE_SHIFT = 4
+private const val HEX_NIBBLE_MASK = 0x0f
+private const val HEX = "0123456789abcdef"

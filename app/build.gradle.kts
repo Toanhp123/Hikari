@@ -82,6 +82,18 @@ baselineProfile {
     dexLayoutOptimization = true
 }
 
+// The Baseline Profile plugin copies release source directories into benchmarkRelease
+// during finalizeDsl. Re-attach benchmark-only fixture sources afterwards so the
+// deterministic seed Activity is packaged only in the benchmark target APK.
+androidComponents {
+    finalizeDsl { extension ->
+        extension.sourceSets.getByName("benchmarkRelease").apply {
+            kotlin.srcDir("src/benchmarkRelease/kotlin")
+            manifest.srcFile("src/benchmarkRelease/AndroidManifest.xml")
+        }
+    }
+}
+
 dependencies {
     "baselineProfile"(project(":benchmark"))
     implementation(project(":core:common"))

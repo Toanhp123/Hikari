@@ -14,31 +14,33 @@ class BaselineProfileGenerator {
     val baselineProfileRule = BaselineProfileRule()
 
     @Test
-    fun startup() = baselineProfileRule.collect(
-        packageName = HIKARI_PACKAGE,
-        includeInStartupProfile = true,
-    ) {
-        pressHome()
-        startHikari()
+    fun startup() {
+        prepareBenchmarkFixture()
+        baselineProfileRule.collect(
+            packageName = HIKARI_PACKAGE,
+            includeInStartupProfile = true,
+        ) {
+            pressHome()
+            startHikari()
+        }
     }
 
     @Test
-    fun criticalJourneys() = baselineProfileRule.collect(
-        packageName = HIKARI_PACKAGE,
-    ) {
-        pressHome()
-        startHikari()
-        clickTag("navigation-library")
-        clickTag("navigation-home")
-        clickTag("navigation-discover")
-        clickTag("discover-search")
-        waitForTag("search-content")
-        pressBackAndWait()
-
-        benchmarkStoryTitle()?.let { storyTitle ->
+    fun criticalJourneys() {
+        prepareBenchmarkFixture()
+        baselineProfileRule.collect(
+            packageName = HIKARI_PACKAGE,
+        ) {
+            pressHome()
+            startHikari()
             clickTag("navigation-library")
-            clickText(storyTitle)
-            waitForTag("story-overview-pull-refresh")
+            clickTag("navigation-home")
+            clickTag("navigation-discover")
+            clickTag("discover-search")
+            waitForTag("search-content")
+            pressBackAndWait()
+
+            openBenchmarkFixtureStory()
             clickTag("story-tab-sources")
             clickTag("story-tab-chapters")
             clickTag("story-tab-overview")

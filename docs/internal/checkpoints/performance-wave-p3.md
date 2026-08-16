@@ -1,7 +1,7 @@
 # Performance Wave P3 Checkpoint
 
 Date: 2026-08-16
-Status: **IMPLEMENTED; STATIC + STANDALONE RUNTIME VERIFIED; GRADLE VERIFICATION PENDING**
+Status: **VERIFIED ON DEVELOPER MACHINE**
 
 ## Scope
 
@@ -92,3 +92,7 @@ Offline verification used the actual P3 production source where possible and pas
 - P1/P2/P3/lifecycle/Wave 4 performance policies, package boundaries, source layout, structural suppressions, current architecture, and Room schema-stability checks passed individually.
 
 Before marking P3 verified, use the developer-machine commands above and address any compiler, Detekt, lint, or instrumentation findings they surface.
+
+## Developer-machine verification result
+
+Developer-machine verification completed on 2026-08-16: focused JVM tests, modified Room instrumentation, Detekt, and `./scripts/verify.sh` all passed; Room schema remained stable at versions 1..6.

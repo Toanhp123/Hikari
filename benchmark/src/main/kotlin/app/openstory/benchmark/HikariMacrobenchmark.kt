@@ -1,12 +1,15 @@
 package app.openstory.benchmark
 
 import androidx.benchmark.macro.CompilationMode
+import androidx.benchmark.macro.ExperimentalMetricApi
 import androidx.benchmark.macro.FrameTimingMetric
+import androidx.benchmark.macro.MemoryUsageMetric
+import androidx.benchmark.macro.StartupMode
+import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
-import org.junit.Assume.assumeNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,6 +19,20 @@ import org.junit.runner.RunWith
 class HikariMacrobenchmark {
     @get:Rule
     val benchmarkRule = MacrobenchmarkRule()
+
+    @Test
+    fun coldStartup() {
+        prepareBenchmarkFixture()
+        benchmarkRule.measureRepeated(
+            packageName = HIKARI_PACKAGE,
+            metrics = listOf(StartupTimingMetric()),
+            compilationMode = CompilationMode.DEFAULT,
+            startupMode = StartupMode.COLD,
+            iterations = 5,
+            setupBlock = { pressHome() },
+            measureBlock = { startHikari() },
+        )
+    }
 
     @Test
     fun homeLibraryHome() = measureNavigation {
@@ -41,31 +58,47 @@ class HikariMacrobenchmark {
     }
 
     @Test
-    fun storyTabs() {
-        val storyTitle = benchmarkStoryTitle()
-        assumeNotNull(storyTitle)
-        measureNavigation(
-            setup = { openBenchmarkStory(requireNotNull(storyTitle)) },
-        ) {
-            clickTag("story-tab-sources")
-            clickTag("story-tab-chapters")
-            clickTag("story-tab-overview")
-        }
+    fun storyTabs() = measureNavigation(
+        setup = { openBenchmarkFixtureStory() },
+    ) {
+        clickTag("story-tab-sources")
+        clickTag("story-tab-chapters")
+        clickTag("story-tab-overview")
     }
 
     @Test
-    fun readerNextTen() {
-        val storyTitle = benchmarkStoryTitle()
-        assumeNotNull(storyTitle)
-        measureNavigation(
-            setup = {
-                openBenchmarkStory(requireNotNull(storyTitle))
+    fun readerNextTen() = measureNavigation(
+        setup = {
+            openBenchmarkFixtureStory()
+            clickTag("story-read")
+            waitForTag("reader-content")
+        },
+    ) {
+        repeat(READER_NEXT_ACTION_COUNT) { clickTag("reader-next") }
+    }
+
+    @OptIn(ExperimentalMetricApi::class)
+    @Test
+    fun readerMemory() {
+        benchmarkRule.measureRepeated(
+            packageName = HIKARI_PACKAGE,
+            metrics = listOf(MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
+            compilationMode = CompilationMode.DEFAULT,
+            startupMode = null,
+            iterations = 5,
+            setupBlock = {
+                prepareBenchmarkFixture()
+                killProcess()
+                pressHome()
+                startHikari()
+                openBenchmarkFixtureStory()
                 clickTag("story-read")
                 waitForTag("reader-content")
             },
-        ) {
-            repeat(READER_NEXT_ACTION_COUNT) { clickTag("reader-next") }
-        }
+            measureBlock = {
+                repeat(READER_NEXT_ACTION_COUNT) { clickTag("reader-next") }
+            },
+        )
     }
 
     @Test
@@ -84,24 +117,21 @@ class HikariMacrobenchmark {
         backdropDisabled: Boolean = false,
         setup: MacrobenchmarkScope.() -> Unit = {},
         measure: MacrobenchmarkScope.() -> Unit,
-    ) = benchmarkRule.measureRepeated(
-        packageName = HIKARI_PACKAGE,
-        metrics = listOf(FrameTimingMetric()),
-        compilationMode = CompilationMode.DEFAULT,
-        startupMode = null,
-        iterations = 5,
-        setupBlock = {
-            killProcess()
-            pressHome()
-            startHikari(backdropDisabled)
-            setup()
-        },
-        measureBlock = measure,
-    )
-
-    private fun MacrobenchmarkScope.openBenchmarkStory(storyTitle: String) {
-        clickTag("navigation-library")
-        clickText(storyTitle)
-        waitForTag("story-overview-pull-refresh")
+    ) {
+        benchmarkRule.measureRepeated(
+            packageName = HIKARI_PACKAGE,
+            metrics = listOf(FrameTimingMetric()),
+            compilationMode = CompilationMode.DEFAULT,
+            startupMode = null,
+            iterations = 5,
+            setupBlock = {
+                prepareBenchmarkFixture()
+                killProcess()
+                pressHome()
+                startHikari(backdropDisabled)
+                setup()
+            },
+            measureBlock = measure,
+        )
     }
 }
