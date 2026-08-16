@@ -2,6 +2,7 @@ package app.openstory.catalog.details
 
 import app.openstory.catalog.home.toModel
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.matching.CatalogMatchIndex
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
@@ -103,12 +104,10 @@ class CatalogDetailsService @Inject constructor(
         source: CatalogSource,
         details: SourceDetails,
     ): CatalogDetailsResult {
-        val snapshot = repository.matchSnapshot()
+        val matchIndex = CatalogMatchIndex(matcher, repository.matchSnapshot().candidates)
         val incoming = details.toCandidate(source.pluginId)
-        val story = when (val resolution = matcher.resolve(incoming, snapshot.candidates)) {
-            is StoryResolution.Existing -> snapshot.candidates
-                .first { it.story.id == resolution.storyId }
-                .story
+        val story = when (val resolution = matchIndex.resolve(incoming)) {
+            is StoryResolution.Existing -> matchIndex.story(resolution.storyId)
             is StoryResolution.Create -> resolution.story
         }
         val entry = details.toEntry(source.pluginId, story.id)

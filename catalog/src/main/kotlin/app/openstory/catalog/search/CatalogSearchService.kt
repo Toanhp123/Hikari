@@ -4,6 +4,7 @@ import app.openstory.catalog.details.CatalogDetailsFailure
 import app.openstory.catalog.details.CatalogDetailsResult
 import app.openstory.catalog.details.CatalogDetailsService
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.matching.CatalogMatchIndex
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
@@ -58,7 +59,7 @@ class CatalogSearchService @Inject constructor(
     }
 
     suspend fun search(request: CatalogSearchRequest): CatalogSearchResult {
-        val candidates = repository.matchSnapshot().candidates.toMutableList()
+        var matchIndex = CatalogMatchIndex(matcher, repository.matchSnapshot().candidates)
         val stories = linkedMapOf<StoryId, MutableList<CatalogSearchSourceCard>>()
         val failures = mutableListOf<CatalogSearchFailure>()
         supervisorScope {
@@ -73,9 +74,8 @@ class CatalogSearchService @Inject constructor(
                             result.failure.retryable,
                         )
                         is CatalogSourceResult.Success -> try {
-                            val projection = project(source.pluginId, result.value, candidates)
-                            candidates.clear()
-                            candidates += projection.candidates
+                            val projection = project(source.pluginId, result.value, matchIndex)
+                            matchIndex = projection.matchIndex
                             projection.cards.forEach { (storyId, cards) ->
                                 stories.getOrPut(storyId) { mutableListOf() } += cards
                             }
@@ -93,7 +93,7 @@ class CatalogSearchService @Inject constructor(
         }
         val canonicalStories = stories.map { (storyId, cards) ->
             CatalogSearchStory(
-                candidates.first { it.story.id == storyId }.story,
+                matchIndex.story(storyId),
                 cards.toList(),
             )
         }
@@ -128,25 +128,23 @@ class CatalogSearchService @Inject constructor(
     private fun project(
         pluginId: app.openstory.common.id.PluginId,
         page: SourceSearchPage,
-        candidates: List<CatalogMatchCandidate>,
+        matchIndex: CatalogMatchIndex,
     ): SearchProjection {
-        val localCandidates = candidates.toMutableList()
+        val localIndex = matchIndex.fork()
         val cards = linkedMapOf<StoryId, MutableList<CatalogSearchSourceCard>>()
         page.items.sortedBy { it.sourceId }.forEach { item ->
             val incoming = item.toCandidate(pluginId)
-            val story = when (val resolution = matcher.resolve(incoming, localCandidates)) {
-                is StoryResolution.Existing -> localCandidates.first { it.story.id == resolution.storyId }.story
-                is StoryResolution.Create -> resolution.story.also { created ->
-                    localCandidates += incoming.copy(story = created)
-                }
+            val story = when (val resolution = localIndex.resolve(incoming)) {
+                is StoryResolution.Existing -> localIndex.story(resolution.storyId)
+                is StoryResolution.Create -> resolution.story
             }
             cards.getOrPut(story.id) { mutableListOf() } += item.toCard(pluginId)
         }
-        return SearchProjection(localCandidates, cards)
+        return SearchProjection(localIndex, cards)
     }
 
     private data class SearchProjection(
-        val candidates: List<CatalogMatchCandidate>,
+        val matchIndex: CatalogMatchIndex,
         val cards: Map<StoryId, List<CatalogSearchSourceCard>>,
     )
 

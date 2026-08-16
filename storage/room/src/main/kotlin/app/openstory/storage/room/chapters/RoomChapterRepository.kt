@@ -75,11 +75,15 @@ class RoomChapterRepository internal constructor(
             if (mutation.plan.unlinks.isNotEmpty()) {
                 dao.unlink(mutation.plan.unlinks.map { it.value })
             }
+            val linkedChapterIds = linkedSetOf<String>()
             mutation.plan.links.forEach { link ->
                 check(dao.link(link.releaseId.value, link.canonicalChapterId.value) == 1) {
                     "Chapter release link target is missing"
                 }
-                dao.restore(link.canonicalChapterId.value)
+                linkedChapterIds += link.canonicalChapterId.value
+            }
+            if (linkedChapterIds.isNotEmpty()) {
+                dao.restore(linkedChapterIds)
             }
             if (mutation.plan.tombstones.isNotEmpty()) {
                 dao.tombstone(mutation.plan.tombstones.map { it.value })

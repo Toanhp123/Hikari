@@ -33,14 +33,18 @@ class RoomCatalogRepository internal constructor(
         homeDao.observeSnapshots(),
         homeDao.observeSections(),
         homeDao.observeItems(),
-        dao.observeAllEntries(),
+        dao.observeHomeEntries(),
     ) { snapshots, sections, items, storedEntries ->
-        val entries = storedEntries.associateBy { it.pluginId to it.sourceId }
+        val sectionsByPlugin = sections.groupBy(CatalogHomeSectionEntity::pluginId)
+        val itemsByPlugin = items.groupBy(CatalogHomeItemEntity::pluginId)
+        val entries = storedEntries.associate { entry ->
+            (entry.pluginId to entry.sourceId) to entry.toModel()
+        }
         snapshots.map { snapshot ->
             snapshot.toModel(
-                sections.filter { it.pluginId == snapshot.pluginId },
-                items.filter { it.pluginId == snapshot.pluginId },
-                entries.mapValues { it.value.toModel() },
+                sectionsByPlugin[snapshot.pluginId].orEmpty(),
+                itemsByPlugin[snapshot.pluginId].orEmpty(),
+                entries,
             )
         }
     }
@@ -52,21 +56,27 @@ class RoomCatalogRepository internal constructor(
         story?.toModel()?.let { value -> StoryCatalogSnapshot(value, entries.map(CatalogEntryEntity::toModel)) }
     }
 
-    override suspend fun matchSnapshot(): CatalogMatchSnapshot = CatalogMatchSnapshot(
-        dao.entries().sortedWith(
-            compareBy<CatalogEntryEntity> { it.storyId }
-                .thenBy { it.pluginId }
-                .thenBy { it.sourceId },
-        )
-            .map(CatalogEntryEntity::toCandidate),
-    )
+    override suspend fun matchSnapshot(): CatalogMatchSnapshot = database.withTransaction {
+        val storiesById = dao.stories().associateBy(StoryEntity::storyId)
+        val candidates = dao.entries()
+            .groupBy(CatalogEntryEntity::storyId)
+            .toSortedMap()
+            .mapNotNull { (storyId, entries) ->
+                storiesById[storyId]?.let(entries::toCandidate)
+            }
+        CatalogMatchSnapshot(candidates)
+    }
 
     override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
         try {
             database.withTransaction {
-                val existing = mutation.entries.mapNotNull { entry ->
-                    dao.findEntry(entry.pluginId.value, entry.sourceId)
-                }.associateBy { it.pluginId to it.sourceId }
+                val sourceIds = mutation.entries.map(CatalogEntry::sourceId).distinct()
+                val existing = if (sourceIds.isEmpty()) {
+                    emptyMap()
+                } else {
+                    dao.entries(mutation.pluginId.value, sourceIds)
+                        .associateBy { it.pluginId to it.sourceId }
+                }
                 dao.upsertStories(mutation.stories.map { it.toEntity() })
                 dao.upsertEntries(
                     mutation.entries.map { entry ->

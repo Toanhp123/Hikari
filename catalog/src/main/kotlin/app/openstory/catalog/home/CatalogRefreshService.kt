@@ -2,6 +2,7 @@ package app.openstory.catalog.home
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.matching.CatalogMatchIndex
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
@@ -34,20 +35,23 @@ class CatalogRefreshService @Inject constructor(
     private val clock: Clock,
 ) {
     suspend fun refresh(request: SourceHomeRequest = SourceHomeRequest()): List<CatalogRefreshResult> {
-        val candidates = repository.matchSnapshot().candidates.toMutableList()
-        return supervisorScope {
+        var matchIndex = CatalogMatchIndex(matcher, repository.matchSnapshot().candidates)
+        val fetched = supervisorScope {
             sources.enabled().sortedBy { it.pluginId.value }
                 .map { source -> async { source to fetch(source, request) } }
                 .awaitAll()
-                .map { (source, result) ->
-                    when (result) {
-                        is CatalogSourceResult.Failure -> CatalogRefreshResult.SourceFailure(
-                            source.pluginId,
-                            result.failure,
-                        )
-                        is CatalogSourceResult.Success -> runCatchingCommit(source, result.value, candidates)
-                    }
+        }
+        return fetched.map { (source, result) ->
+            when (result) {
+                is CatalogSourceResult.Failure -> CatalogRefreshResult.SourceFailure(
+                    source.pluginId,
+                    result.failure,
+                )
+                is CatalogSourceResult.Success -> runCatchingCommit(source, result.value, matchIndex).let { attempt ->
+                    attempt.committedIndex?.let { matchIndex = it }
+                    attempt.result
                 }
+            }
         }
     }
 
@@ -70,35 +74,38 @@ class CatalogRefreshService @Inject constructor(
     private suspend fun runCatchingCommit(
         source: CatalogSource,
         sections: List<app.openstory.catalog.source.SourceSection>,
-        candidates: MutableList<CatalogMatchCandidate>,
-    ): CatalogRefreshResult = try {
-        commit(source, sections, candidates)
+        matchIndex: CatalogMatchIndex,
+    ): CommitAttempt = try {
+        commit(source, sections, matchIndex)
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
-        CatalogRefreshResult.SourceFailure(
-            source.pluginId,
-            app.openstory.catalog.source.CatalogSourceFailure(
-                "catalog.source.invalid",
-                retryable = false,
+        CommitAttempt(
+            CatalogRefreshResult.SourceFailure(
+                source.pluginId,
+                app.openstory.catalog.source.CatalogSourceFailure(
+                    "catalog.source.invalid",
+                    retryable = false,
+                ),
             ),
+            committedIndex = null,
         )
     }
 
     private suspend fun commit(
         source: CatalogSource,
         sections: List<app.openstory.catalog.source.SourceSection>,
-        candidates: MutableList<CatalogMatchCandidate>,
-    ): CatalogRefreshResult {
-        val localCandidates = candidates.toMutableList()
-        val resolved = resolveEntries(source, sections, localCandidates)
+        matchIndex: CatalogMatchIndex,
+    ): CommitAttempt {
+        val localIndex = matchIndex.fork()
+        val resolved = resolveEntries(source, sections, localIndex)
         val refreshedAtEpochMillis = clock.nowEpochMillis()
         val mutation = CatalogHomeMutation(
             pluginId = source.pluginId,
             pluginVersion = source.version,
             refreshedAtEpochMillis = refreshedAtEpochMillis,
             stories = resolved.values
-                .map { entry -> localCandidates.first { it.story.id == entry.storyId }.story }
+                .map { entry -> localIndex.story(entry.storyId) }
                 .distinctBy { it.id },
             entries = resolved.values.toList(),
             sections = sections.toCatalogSections(resolved),
@@ -106,35 +113,39 @@ class CatalogRefreshService @Inject constructor(
         )
         val stored = commitMutation(mutation)
         return when (stored) {
-            is Outcome.Success -> {
-                candidates.clear()
-                candidates += localCandidates
-                CatalogRefreshResult.Success(source.pluginId, refreshedAtEpochMillis)
-            }
-            is Outcome.Failure -> CatalogRefreshResult.StoreFailure(source.pluginId, stored.error)
+            is Outcome.Success -> CommitAttempt(
+                CatalogRefreshResult.Success(source.pluginId, refreshedAtEpochMillis),
+                localIndex,
+            )
+            is Outcome.Failure -> CommitAttempt(
+                CatalogRefreshResult.StoreFailure(source.pluginId, stored.error),
+                committedIndex = null,
+            )
         }
     }
 
     private fun resolveEntries(
         source: CatalogSource,
         sections: List<app.openstory.catalog.source.SourceSection>,
-        localCandidates: MutableList<CatalogMatchCandidate>,
+        matchIndex: CatalogMatchIndex,
     ): Map<String, CatalogEntry> = sections
         .flatMap { it.items }
         .distinctBy { it.sourceId }
         .sortedBy { it.sourceId }
         .associate { item ->
             val incoming = item.toCandidate(source)
-            val story = when (val resolution = matcher.resolve(incoming, localCandidates)) {
-                is StoryResolution.Existing -> localCandidates
-                    .first { it.story.id == resolution.storyId }
-                    .story
-                is StoryResolution.Create -> resolution.story.also { created ->
-                    localCandidates += incoming.copy(story = created)
-                }
+            val story = when (val resolution = matchIndex.resolve(incoming)) {
+                is StoryResolution.Existing -> matchIndex.story(resolution.storyId)
+                is StoryResolution.Create -> resolution.story
             }
             item.sourceId to item.toEntry(source, story.id)
         }
+
+
+    private data class CommitAttempt(
+        val result: CatalogRefreshResult,
+        val committedIndex: CatalogMatchIndex?,
+    )
 
     private suspend fun commitMutation(
         mutation: CatalogHomeMutation,

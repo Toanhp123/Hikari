@@ -85,6 +85,33 @@ class ChapterSyncServiceTest {
     }
 
     @Test
+    fun paginatedSyncLoadsChapterGraphOnlyOncePerRun() = runTest {
+        val initial = ChapterSyncState(
+            STORY_ID,
+            PLUGIN_ID,
+            SOURCE_STORY_ID,
+            ChapterSyncPhase.FULL,
+            cursor = null,
+            checkpoint = null,
+            fingerprint = "old-fingerprint",
+            updatedAtEpochMillis = 1L,
+        )
+        val repository = RecordingChapterRepository(initialState = initial)
+        val source = RecordingSource { request ->
+            when (request.nextToken) {
+                null -> page("full-1", "1", nextToken = "page-2")
+                "page-2" -> page("full-2", "2")
+                else -> error("unexpected cursor ${request.nextToken}")
+            }
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        assertEquals(2, repository.commits.size)
+        assertEquals(1, repository.snapshotCalls)
+    }
+
+    @Test
     fun failedCommitDoesNotAdvanceCursorOrFingerprint() = runTest {
         val initial = ChapterSyncState(
             STORY_ID,
@@ -198,6 +225,8 @@ private class RecordingChapterRepository(
     initialReleases: List<ChapterRelease> = emptyList(),
 ) : ChapterRepository {
     val commits = mutableListOf<ChapterMutation>()
+    var snapshotCalls = 0
+        private set
     private val groups = MutableStateFlow<List<CanonicalChapterGroup>>(emptyList())
     private var state = initialState
     private val releases = initialReleases.associateByTo(linkedMapOf()) { release -> release.id.value }
@@ -205,11 +234,14 @@ private class RecordingChapterRepository(
     override fun observeAll(): Flow<List<CanonicalChapterGroup>> = groups
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = groups
 
-    override suspend fun snapshot(storyId: StoryId) = ChapterGraphSnapshot(
-        chapters = emptyList(),
-        releases = releases.values.toList(),
-        overrides = emptyList(),
-    )
+    override suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot {
+        snapshotCalls += 1
+        return ChapterGraphSnapshot(
+            chapters = emptyList(),
+            releases = releases.values.toList(),
+            overrides = emptyList(),
+        )
+    }
 
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult {
         commits += mutation

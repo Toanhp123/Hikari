@@ -1,6 +1,7 @@
 package app.openstory.storage.room.catalog
 
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.matching.CatalogMatchEvidence
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSection
@@ -74,9 +75,21 @@ internal fun CatalogEntryEntity.toModel() = CatalogEntry(
     popularityRank = popularityRank,
 )
 
-internal fun CatalogEntryEntity.toCandidate() = CatalogMatchCandidate(
-    story = Story(StoryId(storyId), ContentType.valueOf(contentType)),
-    titles = setOf(title) + aliases,
-    authors = authors,
-    sourceKeys = setOf(SourceKey(PluginId(pluginId), sourceId)),
-)
+internal fun List<CatalogEntryEntity>.toCandidate(story: StoryEntity): CatalogMatchCandidate {
+    require(isNotEmpty())
+    val titles = linkedSetOf<String>()
+    val authors = linkedSetOf<String>()
+    val sourceKeys = linkedSetOf<SourceKey>()
+    val evidence = map { entry ->
+        titles += entry.title
+        titles += entry.aliases
+        authors += entry.authors
+        sourceKeys += SourceKey(PluginId(entry.pluginId), entry.sourceId)
+        CatalogMatchEvidence(
+            setOf(entry.title) + entry.aliases,
+            entry.authors,
+            ContentType.valueOf(entry.contentType),
+        )
+    }
+    return CatalogMatchCandidate(story.toModel(), titles, authors, sourceKeys, evidence)
+}

@@ -126,11 +126,32 @@ class RoomCatalogRepositoryTest {
         }
     }
 
-    private fun mutation(plugin: String, sourceIds: List<String>, timestamp: Long): CatalogHomeMutation {
+    @Test
+    fun matchSnapshotCollapsesSourceEntriesIntoOneCanonicalCandidate() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 1, StoryId("story:shared")))
+            repository.commitHomeRefresh(mutation("b", listOf("b-1"), 2, StoryId("story:shared")))
+
+            val candidate = repository.matchSnapshot().candidates.single()
+
+            assertEquals(StoryId("story:shared"), candidate.story.id)
+            assertEquals(setOf("a", "b"), candidate.sourceKeys.map { it.pluginId.value }.toSet())
+            assertEquals(setOf("a-1", "b-1"), candidate.sourceKeys.map { it.sourceId }.toSet())
+            assertEquals(2, candidate.evidence.size)
+        }
+    }
+
+    private fun mutation(
+        plugin: String,
+        sourceIds: List<String>,
+        timestamp: Long,
+        canonicalStoryId: StoryId? = null,
+    ): CatalogHomeMutation {
         val pluginId = PluginId(plugin)
         val entries = sourceIds.map { sourceId ->
             CatalogEntry(
-                StoryId("story:$sourceId"),
+                canonicalStoryId ?: StoryId("story:$sourceId"),
                 pluginId,
                 sourceId,
                 sourceId,

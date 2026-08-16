@@ -54,8 +54,8 @@ internal interface ChapterDao {
     @Query("UPDATE canonical_chapters SET tombstoned = 1 WHERE canonical_chapter_id IN (:chapterIds)")
     suspend fun tombstone(chapterIds: Collection<String>)
 
-    @Query("UPDATE canonical_chapters SET tombstoned = 0 WHERE canonical_chapter_id = :chapterId")
-    suspend fun restore(chapterId: String)
+    @Query("UPDATE canonical_chapters SET tombstoned = 0 WHERE canonical_chapter_id IN (:chapterIds)")
+    suspend fun restore(chapterIds: Collection<String>)
 
 }
 
