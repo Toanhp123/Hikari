@@ -50,9 +50,12 @@ class ChapterListViewModelTest {
     fun projectsCanonicalUnreadCountExpansionAndFilters() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2")))
         val viewModel = ChapterListViewModel(ChapterListAssistedArgs(STORY_ID), repository)
+        assertTrue(viewModel.state.value.loading)
+
         observe(viewModel.state)
         runCurrent()
 
+        assertFalse(viewModel.state.value.loading)
         assertEquals(2, viewModel.state.value.unreadCount)
         assertFalse(viewModel.state.value.chapters.first().expanded)
 

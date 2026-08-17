@@ -38,6 +38,7 @@ fun HikariAppShell(
     content: @Composable HikariAppShellScope.(PaddingValues) -> Unit,
 ) {
     val contentPadding = hikariAppContentPadding(currentRoute)
+    val showFloatingNavigation = shouldShowFloatingNavigation(currentRoute)
     val shellScope = HikariAppShellScope(
         onUtilityRequested = onUtilityRequested,
         utilityFocusRequester = utilityFocusRequester,
@@ -46,9 +47,10 @@ fun HikariAppShell(
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         HikariBackdropHost(
             modifier = Modifier.fillMaxSize(),
+            captureBackdrop = showFloatingNavigation,
             background = { shellScope.content(contentPadding) },
         ) {
-            if (shouldShowFloatingNavigation(currentRoute)) {
+            if (showFloatingNavigation) {
                 val selectedRoute = requireNotNull(currentRoute)
                 Box(Modifier.fillMaxSize()) {
                     HikariFloatingNavigation(

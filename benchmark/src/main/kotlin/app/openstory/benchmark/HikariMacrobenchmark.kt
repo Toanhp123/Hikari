@@ -47,6 +47,23 @@ class HikariMacrobenchmark {
     }
 
     @Test
+    fun homeDiscoverWarm() = measureNavigation(
+        setup = {
+            clickTag("navigation-discover")
+            clickTag("navigation-home")
+        },
+    ) {
+        clickTag("navigation-discover")
+        clickTag("navigation-home")
+    }
+
+    @Test
+    fun homeDiscoverLegacyTransitions() = measureNavigation(legacyNavigationTransitions = true) {
+        clickTag("navigation-discover")
+        clickTag("navigation-home")
+    }
+
+    @Test
     fun searchReopen() = measureNavigation(
         setup = { clickTag("navigation-discover") },
     ) {
@@ -64,6 +81,20 @@ class HikariMacrobenchmark {
         clickTag("story-tab-sources")
         clickTag("story-tab-chapters")
         clickTag("story-tab-overview")
+    }
+
+    @Test
+    fun storyTabSources() = measureNavigation(
+        setup = { openBenchmarkFixtureStory() },
+    ) {
+        clickTag("story-tab-sources")
+    }
+
+    @Test
+    fun storyTabChapters() = measureNavigation(
+        setup = { openBenchmarkFixtureStory() },
+    ) {
+        clickTag("story-tab-chapters")
     }
 
     @Test
@@ -113,6 +144,12 @@ class HikariMacrobenchmark {
     }
 
     @Test
+    fun readerScrollBackdropEnabled() = measureReaderScroll(backdropDisabled = false)
+
+    @Test
+    fun readerScrollBackdropDisabled() = measureReaderScroll(backdropDisabled = true)
+
+    @Test
     fun chaptersExpandAndScroll() = measureNavigation(
         setup = {
             openBenchmarkFixtureStory()
@@ -123,6 +160,12 @@ class HikariMacrobenchmark {
     ) {
         swipeUpOnTag("chapter-list", repetitions = SCROLL_SWIPE_COUNT)
     }
+
+    @Test
+    fun chaptersScrollShadowEnabled() = measureChapterScroll(surfaceShadowsDisabled = false)
+
+    @Test
+    fun chaptersScrollShadowDisabled() = measureChapterScroll(surfaceShadowsDisabled = true)
 
     @Test
     fun libraryListScroll() = measureNavigation(
@@ -158,8 +201,33 @@ class HikariMacrobenchmark {
         clickTag("navigation-home")
     }
 
+    private fun measureReaderScroll(backdropDisabled: Boolean) = measureNavigation(
+        backdropDisabled = backdropDisabled,
+        setup = {
+            openBenchmarkFixtureStory()
+            clickTag("story-read")
+            waitForTag("reader-content")
+        },
+    ) {
+        swipeUpOnTag("reader-content", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
+    private fun measureChapterScroll(surfaceShadowsDisabled: Boolean) = measureNavigation(
+        surfaceShadowsDisabled = surfaceShadowsDisabled,
+        setup = {
+            openBenchmarkFixtureStory()
+            clickTag("story-tab-chapters")
+            waitForTag("chapter-list")
+            clickTag("chapter-summary-first")
+        },
+    ) {
+        swipeUpOnTag("chapter-list", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
     private fun measureNavigation(
         backdropDisabled: Boolean = false,
+        surfaceShadowsDisabled: Boolean = false,
+        legacyNavigationTransitions: Boolean = false,
         setup: MacrobenchmarkScope.() -> Unit = {},
         measure: MacrobenchmarkScope.() -> Unit,
     ) {
@@ -173,7 +241,11 @@ class HikariMacrobenchmark {
                 prepareBenchmarkFixture()
                 killProcess()
                 pressHome()
-                startHikari(backdropDisabled)
+                startHikari(
+                    backdropDisabled = backdropDisabled,
+                    surfaceShadowsDisabled = surfaceShadowsDisabled,
+                    legacyNavigationTransitions = legacyNavigationTransitions,
+                )
                 setup()
             },
             measureBlock = measure,

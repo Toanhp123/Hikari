@@ -19,10 +19,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.progress.ReadingPosition
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
@@ -45,6 +43,7 @@ fun ReaderContent(
         restoredBlockId,
         restoredCharacterOffset,
     )
+    val textStyles = rememberReaderTextStyles(fontScale)
     TrackReaderProgress(document, titleOffset, listState, onPositionChanged)
     LazyColumn(
         state = listState,
@@ -61,9 +60,7 @@ fun ReaderContent(
                         horizontal = MaterialTheme.hikariSpacing.space20,
                         vertical = MaterialTheme.hikariSpacing.space16,
                     ).semantics { heading() },
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = MaterialTheme.typography.headlineMedium.fontSize * fontScale,
-                    ),
+                    style = textStyles.title,
                 )
             }
         }
@@ -72,7 +69,7 @@ fun ReaderContent(
             key = { document.blocks[it].id },
             contentType = { document.blocks[it].contentType() },
         ) { index ->
-            ReaderBlock(document.blocks[index], fontScale)
+            ReaderBlock(document.blocks[index], textStyles)
         }
     }
 }
@@ -112,25 +109,10 @@ private fun rememberRestoredReaderState(
 }
 
 @Composable
-private fun TrackReaderProgress(
-    document: ReaderDocument,
-    titleOffset: Int,
-    listState: LazyListState,
-    onPositionChanged: (ReadingPosition, Boolean) -> Unit,
+private fun ReaderBlock(
+    block: ReaderBlock,
+    textStyles: ReaderTextStyles,
 ) {
-    LaunchedEffect(document.fingerprint, listState) {
-        snapshotFlow { listState.viewport(document.blocks.lastIndex + titleOffset) }
-            .filterNotNull()
-            .distinctUntilChanged()
-            .collect { viewport ->
-                val update = viewport.progress(document, titleOffset) ?: return@collect
-                onPositionChanged(update, viewport.reachedEnd)
-            }
-    }
-}
-
-@Composable
-private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
     when (block) {
         is ReaderBlock.Paragraph -> Text(
             block.text,
@@ -138,12 +120,7 @@ private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
                 horizontal = MaterialTheme.hikariSpacing.space20,
                 vertical = MaterialTheme.hikariSpacing.space12,
             ),
-            style = MaterialTheme.hikariTypography.readerBody.let { style ->
-                style.copy(
-                    fontSize = style.fontSize * fontScale,
-                    lineHeight = style.lineHeight * fontScale,
-                )
-            },
+            style = textStyles.paragraph,
         )
         is ReaderBlock.Heading -> Text(
             block.text,
@@ -151,7 +128,7 @@ private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
                 horizontal = MaterialTheme.hikariSpacing.space20,
                 vertical = MaterialTheme.hikariSpacing.space16,
             ).semantics { heading() },
-            style = headingStyle(block.level, fontScale),
+            style = textStyles.heading(block.level),
         )
         is ReaderBlock.Divider -> HorizontalDivider(
             Modifier.padding(
@@ -166,72 +143,9 @@ private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
                 vertical = MaterialTheme.hikariSpacing.space12,
             ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyLarge.let { style ->
-                style.copy(
-                    fontSize = style.fontSize * fontScale,
-                    lineHeight = style.lineHeight * fontScale,
-                )
-            },
+            style = textStyles.note,
         )
     }
-}
-
-@Composable
-private fun headingStyle(level: Int, fontScale: Float) = when (level) {
-    1 -> MaterialTheme.typography.headlineLarge
-    2 -> MaterialTheme.typography.headlineMedium
-    HEADING_LEVEL_THREE -> MaterialTheme.typography.headlineSmall
-    else -> MaterialTheme.typography.titleLarge
-}.let { style -> style.copy(fontSize = style.fontSize * fontScale) }
-
-private data class ReaderViewport(
-    val itemIndex: Int,
-    val itemOffset: Int,
-    val itemSize: Int,
-    val reachedEnd: Boolean,
-)
-
-private fun LazyListState.viewport(lastItemIndex: Int): ReaderViewport? {
-    val layout = layoutInfo
-    val first = layout.visibleItemsInfo.firstOrNull() ?: return null
-    val last = layout.visibleItemsInfo.lastOrNull()
-    return ReaderViewport(
-        first.index,
-        first.offset,
-        first.size,
-        last?.index == lastItemIndex && last.offset + last.size <= layout.viewportEndOffset,
-    )
-}
-
-private fun ReaderViewport.progress(
-    document: ReaderDocument,
-    titleOffset: Int,
-): ReadingPosition? {
-    val blockIndex = (itemIndex - titleOffset).coerceAtLeast(0)
-    val block = document.blocks.getOrNull(blockIndex) ?: return null
-    val blockCharacters = block.characterCount()
-    val characterOffset = if (itemIndex < titleOffset) {
-        0
-    } else {
-        (
-            (-itemOffset).coerceAtLeast(0).toFloat() /
-                itemSize.coerceAtLeast(1) * blockCharacters
-            ).roundToInt().coerceIn(0, blockCharacters)
-    }
-    val fraction = if (reachedEnd) {
-        1f
-    } else {
-        val withinBlock = characterOffset.toFloat() / blockCharacters.coerceAtLeast(1)
-        ((blockIndex + withinBlock) / document.blocks.size).coerceIn(0f, 1f)
-    }
-    return ReadingPosition(block.id, characterOffset, fraction)
-}
-
-private fun ReaderBlock.characterCount(): Int = when (this) {
-    is ReaderBlock.Paragraph -> text.length
-    is ReaderBlock.Heading -> text.length
-    is ReaderBlock.Divider -> 0
-    is ReaderBlock.Note -> text.length
 }
 
 internal fun restoredReaderItemIndex(
@@ -242,9 +156,6 @@ internal fun restoredReaderItemIndex(
     val blockIndex = blocks.indexOfFirst { block -> block.id == restoredBlockId }
     return if (blockIndex >= 0) blockIndex + if (hasTitle) 1 else 0 else 0
 }
-
-private const val HEADING_LEVEL_THREE = 3
-
 
 private fun ReaderBlock.contentType(): String = when (this) {
     is ReaderBlock.Paragraph -> "reader-paragraph"

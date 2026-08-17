@@ -2,7 +2,12 @@ package app.openstory.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.focus.FocusRequester
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -179,10 +184,17 @@ internal fun StoryDestination(
     )
     val downloadViewModel = hiltViewModel<DownloadViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var prewarmSections by remember(storyId) { mutableStateOf(false) }
+    LaunchedEffect(storyId, state.story != null) {
+        if (state.story == null || prewarmSections) return@LaunchedEffect
+        withFrameNanos { }
+        prewarmSections = true
+    }
     val navigateToReader: (ReaderTarget) -> Unit = { target -> navigate(target.readerRoute()) }
     val dependencies = storySectionDependencies(
         storyId = storyId,
         section = state.selectedSection,
+        prewarmSections = prewarmSections,
         downloadViewModel = downloadViewModel,
         navigateToReader = navigateToReader,
     )

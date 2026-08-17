@@ -29,12 +29,26 @@ internal data class StorySectionDependencies(
 internal fun storySectionDependencies(
     storyId: StoryId,
     section: StorySection,
+    prewarmSections: Boolean,
     downloadViewModel: DownloadViewModel,
     navigateToReader: (ReaderTarget) -> Unit,
-): StorySectionDependencies = when (section) {
-    StorySection.OVERVIEW -> StorySectionDependencies()
-    StorySection.SOURCES -> sourceDependencies(storyId)
-    StorySection.CHAPTERS -> chapterDependencies(storyId, downloadViewModel, navigateToReader)
+): StorySectionDependencies {
+    val source = if (prewarmSections || section == StorySection.SOURCES) {
+        sourceDependencies(storyId)
+    } else {
+        StorySectionDependencies()
+    }
+    val chapters = if (prewarmSections || section == StorySection.CHAPTERS) {
+        chapterDependencies(storyId, downloadViewModel, navigateToReader)
+    } else {
+        StorySectionDependencies()
+    }
+    return StorySectionDependencies(
+        mappingState = source.mappingState,
+        mappingActions = source.mappingActions,
+        chapterState = chapters.chapterState,
+        chapterActions = chapters.chapterActions,
+    )
 }
 
 @Composable

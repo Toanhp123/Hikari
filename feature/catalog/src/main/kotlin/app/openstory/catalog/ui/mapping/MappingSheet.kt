@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionTitle
@@ -63,23 +64,33 @@ fun LazyListScope.mappingItems(
     item(key = "mapping-linked-title", contentType = "mapping-subheader") {
         Text("Linked sources", style = MaterialTheme.typography.titleMedium)
     }
-    if (state.mappings.isEmpty()) {
-        item(key = "mapping-linked-empty", contentType = "mapping-card") {
-            HikariContentCard(Modifier.fillMaxWidth()) {
-                Text(
-                    "No reading source linked yet",
-                    modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    when {
+        state.loading && state.mappings.isEmpty() -> {
+            item(key = "mapping-linked-loading", contentType = "mapping-progress") {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().testTag("mapping-loading"),
                 )
             }
         }
-    } else {
-        items(
-            items = state.mappings,
-            key = { mapping -> "mapping-linked:${mapping.pluginId.value}:${mapping.sourceStoryId}" },
-            contentType = { "mapping-card" },
-        ) { mapping ->
-            CurrentMappingCard(mapping)
+        state.mappings.isEmpty() -> {
+            item(key = "mapping-linked-empty", contentType = "mapping-card") {
+                HikariContentCard(Modifier.fillMaxWidth()) {
+                    Text(
+                        "No reading source linked yet",
+                        modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        else -> {
+            items(
+                items = state.mappings,
+                key = { mapping -> "mapping-linked:${mapping.pluginId.value}:${mapping.sourceStoryId}" },
+                contentType = { "mapping-card" },
+            ) { mapping ->
+                CurrentMappingCard(mapping)
+            }
         }
     }
     item(key = "mapping-search", contentType = "mapping-action") {

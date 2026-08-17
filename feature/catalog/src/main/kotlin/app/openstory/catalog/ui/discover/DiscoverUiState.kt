@@ -73,9 +73,9 @@ fun projectDiscoverState(
     val shelves = if (effectiveSelectedCatalogId == null) {
         val combinedEntries = rankedStories.mapNotNull { ranked ->
             ranked.contributions
+                .asSequence()
                 .map { it.entry }
-                .sortedWith(catalogEntryPresentationOrder)
-                .firstOrNull()
+                .minWithOrNull(catalogEntryPresentationOrder)
         }
         val combined = if (combinedEntries.isEmpty()) emptyList() else listOf(
             DiscoverShelf(null, "ranked", "Across catalogs", combinedEntries),
@@ -112,21 +112,22 @@ fun projectDiscoverState(
 }
 
 fun selectFeatured(rankedStories: List<RankedCatalogStory>): CatalogEntry? = rankedStories
+    .asSequence()
     .flatMap { ranked ->
-        ranked.contributions.map { contribution ->
+        ranked.contributions.asSequence().map { contribution ->
             FeaturedCandidate(contribution.entry, ranked.orderingScore)
         }
     }
-    .sortedWith(
-        compareByDescending<FeaturedCandidate> { it.entry.hasUsableArtwork() }
-            .thenByDescending { it.score }
-            .thenBy { it.entry.pluginId.value }
-            .thenBy { it.entry.sourceId },
-    )
-    .firstOrNull()
+    .minWithOrNull(featuredCandidateOrder)
     ?.entry
 
 private data class FeaturedCandidate(val entry: CatalogEntry, val score: Double)
+
+private val featuredCandidateOrder =
+    compareByDescending<FeaturedCandidate> { it.entry.hasUsableArtwork() }
+        .thenByDescending { it.score }
+        .thenBy { it.entry.pluginId.value }
+        .thenBy { it.entry.sourceId }
 
 private val catalogEntryPresentationOrder =
     compareByDescending<CatalogEntry> { it.hasUsableArtwork() }

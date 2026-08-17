@@ -24,6 +24,12 @@ class ReaderContentTest {
     fun knownBlockIncludesTheTitleOffset() {
         assertEquals(2, restoredReaderItemIndex(blocks, hasTitle = true, restoredBlockId = "second"))
     }
+
+    @Test
+    fun readerProgressSamplingIsBoundedToTenUpdatesPerSecond() {
+        assertEquals(100L, READER_PROGRESS_SAMPLE_MILLIS)
+    }
+
     @Test
     fun visibleProgressBucketsToWholePercent() {
         assertEquals(0, fractionToPercent(0f))
@@ -31,5 +37,4 @@ class ReaderContentTest {
         assertEquals(42, fractionToPercent(0.429f))
         assertEquals(100, fractionToPercent(1f))
     }
-
 }

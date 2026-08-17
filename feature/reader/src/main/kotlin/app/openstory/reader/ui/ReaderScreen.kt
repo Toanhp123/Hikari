@@ -38,7 +38,9 @@ fun ReaderScreen(
     FlushProgressOnStop(actions.onFlushProgress)
     var chromeVisible by remember { mutableStateOf(true) }
     var settingsVisible by remember { mutableStateOf(false) }
-    val progressState = remember(state.document?.fingerprint) { ReaderProgressUiState() }
+    val progressState = remember(state.document?.fingerprint) {
+        ReaderProgressUiState(fractionToPercent(state.restoredProgressFraction))
+    }
     val closeReader = {
         actions.onFlushProgress()
         onBack()

@@ -20,27 +20,23 @@ internal class HikariBackdropToken(internal val backdrop: Backdrop)
 @Composable
 fun HikariBackdropHost(
     modifier: Modifier = Modifier,
+    captureBackdrop: Boolean = true,
     background: @Composable BoxScope.() -> Unit,
     overlay: @Composable HikariBackdropScope.() -> Unit,
 ) {
-    if (LocalHikariBackdropMode.current == HikariBackdropMode.DISABLED_FOR_BENCHMARK) {
-        val scope = HikariBackdropScope(token = null)
-        Box(modifier) {
-            Box(modifier = Modifier.fillMaxSize(), content = background)
-            scope.overlay()
-        }
-        return
-    }
-
     val backdrop = rememberLayerBackdrop()
-    val scope = HikariBackdropScope(HikariBackdropToken(backdrop))
+    val shouldCapture = captureBackdrop &&
+        LocalHikariBackdropMode.current != HikariBackdropMode.DISABLED_FOR_BENCHMARK
+    val scope = HikariBackdropScope(
+        token = if (shouldCapture) HikariBackdropToken(backdrop) else null,
+    )
+    val backgroundModifier = if (shouldCapture) {
+        Modifier.fillMaxSize().layerBackdrop(backdrop)
+    } else {
+        Modifier.fillMaxSize()
+    }
     Box(modifier) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .layerBackdrop(backdrop),
-            content = background,
-        )
+        Box(modifier = backgroundModifier, content = background)
         scope.overlay()
     }
 }

@@ -66,7 +66,7 @@ class MappingSheetTest {
         compose.setContent {
             HikariTheme {
                 MappingSheet(
-                    state = MappingUiState(urlInput = url.value),
+                    state = MappingUiState(urlInput = url.value, loading = false),
                     actions = MappingActions(
                         onUrlChange = { value -> url.value = value },
                         onResolveUrl = { resolved = true },
@@ -109,7 +109,7 @@ class MappingSheetTest {
         compose.setContent {
             HikariTheme {
                 MappingSheet(
-                    state = MappingUiState(),
+                    state = MappingUiState(loading = false),
                     actions = MappingActions(),
                 )
             }

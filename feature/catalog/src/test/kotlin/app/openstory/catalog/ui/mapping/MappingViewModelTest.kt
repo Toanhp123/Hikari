@@ -58,7 +58,9 @@ class MappingViewModelTest {
         val repository = FakeMappingRepository()
         val scheduler = RecordingChapterSyncScheduler()
         val viewModel = viewModel(repository, scheduler = scheduler)
+        assertTrue(viewModel.state.value.loading)
         runCurrent()
+        assertFalse(viewModel.state.value.loading)
 
         viewModel.search()
         runCurrent()

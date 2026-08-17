@@ -6,6 +6,7 @@ nav="$root/app/src/main/kotlin/app/openstory/navigation/AppNavigator.kt"
 host="$root/app/src/main/kotlin/app/openstory/navigation/AppNavHost.kt"
 download_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/download/DownloadViewModel.kt"
 story_deps="$root/app/src/main/kotlin/app/openstory/navigation/StorySectionDependencies.kt"
+story_destination="$root/app/src/main/kotlin/app/openstory/navigation/AppDestinations.kt"
 chapter_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterListViewModel.kt"
 mapping_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingViewModel.kt"
 discover_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt"
@@ -34,8 +35,11 @@ grep -q 'val statuses' "$download_vm" || fail "download status aggregation flow 
 ! grep -q 'fun watch(' "$download_vm" || fail "per-release download watch collectors remain"
 ! grep -q 'downloadViewModel\.watch' "$host" || fail "Story still starts per-release download observers"
 
-grep -q 'StorySection.SOURCES ->' "$story_deps" || fail "Story Sources lazy branch is missing"
-grep -q 'StorySection.CHAPTERS ->' "$story_deps" || fail "Story Chapters lazy branch is missing"
+grep -q 'prewarmSections || section == StorySection.SOURCES' "$story_deps" ||
+    fail "Story Sources are not deferred-then-prewarmed"
+grep -q 'prewarmSections || section == StorySection.CHAPTERS' "$story_deps" ||
+    fail "Story Chapters are not deferred-then-prewarmed"
+grep -q 'withFrameNanos' "$story_destination" || fail "Story section prewarm does not wait until after the first frame"
 ! grep -q 'SharingStarted\.Eagerly' "$chapter_vm" || fail "ChapterList UI state is still eager"
 ! grep -q 'SharingStarted\.Eagerly' "$mapping_vm" || fail "Mapping UI state is still eager"
 ! grep -q 'SharingStarted\.Eagerly' "$story_vm" || fail "Story UI state is still eager while its retained NavEntry can be off-screen"

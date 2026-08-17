@@ -120,10 +120,10 @@ vertical lazy container may contain bounded horizontal shelves, but nested verti
 require an explicit architecture review.
 
 Rapid gesture state stays as close to the gesture as possible. Slider drag values remain local and
-commit feature/ViewModel state from `onValueChangeFinished`. Reader persists its precise viewport
-position through one long-lived conflated/debounced progress pipeline instead of cancelling and
-relaunching a coroutine for every scroll-frame update, while visible progress is bucketed to whole
-percent inside a stable local holder so per-pixel scroll does not invalidate the Reader screen tree.
+commit feature/ViewModel state from `onValueChangeFinished`. Reader samples active scroll sessions at a bounded cadence before sending precise viewport
+positions into its long-lived conflated/debounced persistence pipeline, and reports the exact final
+position when scrolling stops. Visible progress is bucketed to whole percent inside a stable local
+holder so per-pixel scroll does not invalidate the Reader screen tree.
 Reader document content padding is stable whether chrome is visible or hidden; toolbar visibility is
 an overlay concern and must not relayout the document.
 
@@ -135,8 +135,9 @@ backdrop owner rather than stacked as extra full-size layout surfaces.
 
 Frame-sensitive UI paths are protected by Macrobenchmarks in addition to startup/navigation checks.
 The benchmark fixture provides deterministic long Reader content and populated Discover/Library
-collections, and the suite measures `readerScrollLongChapter`, `chaptersExpandAndScroll`,
-`libraryListScroll`, and `discoverScroll` with `FrameTimingMetric`. These measurements are the
+collections. In addition to `readerScrollLongChapter`, `chaptersExpandAndScroll`, `libraryListScroll`,
+and `discoverScroll`, paired P5 journeys isolate Reader backdrop blur, repeated Chapter-card shadows,
+and legacy top-level navigation transitions with `FrameTimingMetric`. These measurements are the
 runtime authority for jank regressions; code review alone is not evidence that scrolling is smooth.
 
 ## When to use Material directly

@@ -46,6 +46,7 @@ class MappingViewModel @AssistedInject constructor(
         failures,
     ) { currentMappings, pending, url, isBusy, currentFailures ->
         MappingUiState(
+            loading = false,
             mappings = currentMappings.map(ContentMapping::toUiModel),
             candidates = pending.map(PendingCandidate::toUiModel),
             urlInput = url,

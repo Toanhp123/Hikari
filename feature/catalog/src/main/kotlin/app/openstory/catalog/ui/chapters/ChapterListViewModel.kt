@@ -54,6 +54,7 @@ class ChapterListViewModel @AssistedInject constructor(
             .map { group -> group.toUiModel(group.chapter.id in expandedIds) }
         ChapterListUiState(
             storyId = storyId,
+            loading = false,
             chapters = visible,
             readableTargets = activeGroups.flatMap { group ->
                 group.releases.map { release -> ReaderTarget(storyId, group.chapter.id, release.id) }
@@ -66,7 +67,7 @@ class ChapterListViewModel @AssistedInject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
-        initialValue = ChapterListUiState(),
+        initialValue = ChapterListUiState(storyId = storyId),
     )
 
     fun toggleExpanded(chapterId: CanonicalChapterId) {
@@ -129,6 +130,7 @@ enum class ChapterListFilter {
 
 data class ChapterListUiState(
     val storyId: StoryId? = null,
+    val loading: Boolean = true,
     val chapters: List<ChapterItemUiModel> = emptyList(),
     val readableTargets: List<ReaderTarget> = emptyList(),
     val unreadCount: Int = 0,

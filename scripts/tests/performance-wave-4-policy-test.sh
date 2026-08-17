@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 discover_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt"
+discover_pipeline="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipeline.kt"
 home_query="$root/catalog/src/main/kotlin/app/openstory/catalog/home/CatalogHomeQuery.kt"
 search_service="$root/catalog/src/main/kotlin/app/openstory/catalog/search/CatalogSearchService.kt"
 filter_cache="$root/catalog/src/main/kotlin/app/openstory/catalog/search/CatalogFilterCache.kt"
@@ -26,10 +27,15 @@ fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
 [[ -f "$profile_test" ]] || fail "Baseline Profile generator is missing"
 [[ -f "$backdrop_mode" ]] || fail "benchmark backdrop mode owner is missing"
 
-# Discover must have one repository home observation and derive ranking from it.
+# Discover must have one repository home observation and derive ranking/projection from that same emission.
 [[ $(grep -o 'repository\.observeHomes()' "$discover_vm" | wc -l) -eq 1 ]] ||
   fail "DiscoverViewModel must own exactly one repository.observeHomes() source"
-grep -Eq 'map\(query::rank\)|query\.rank\(' "$discover_vm" || fail "Discover ranking is not derived from the shared homes flow"
+[[ -f "$discover_pipeline" ]] || fail "Discover projection pipeline is missing"
+grep -q 'map(projection::prepare)' "$discover_vm" ||
+  fail "Discover homes are not projected through one prepared-content flow"
+grep -q 'query.rank(homes)' "$discover_pipeline" || fail "Discover ranking is not derived from the shared homes emission"
+grep -q 'projectDiscoverState' "$discover_pipeline" || fail "Discover ranking and UI projection do not share one main-safe pipeline"
+! grep -q 'rankedStories = homes' "$discover_vm" || fail "Discover still owns a second homes-derived ranking flow"
 ! grep -q 'val rankedStories: Flow' "$home_query" || fail "CatalogHomeQuery still owns a second cold repository observation"
 grep -q 'fun rank(homes: List<CatalogHomeSnapshot>)' "$home_query" || fail "CatalogHomeQuery is not a pure ranking projector"
 

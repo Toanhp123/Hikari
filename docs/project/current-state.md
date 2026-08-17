@@ -26,6 +26,7 @@ Purpose: single source of truth for the implemented repository boundary.
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
 - Performance Wave 4: **IMPLEMENTED; LOCAL STATIC VERIFIED; GRADLE/DEVICE VERIFICATION PENDING**. Discover now shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling.
+- Performance Wave P5: **IMPLEMENTED; STATIC VERIFIED; DEVICE A/B MEASUREMENT PENDING**. Top-level navigation avoids full-scene transitions, Story section data is deferred-then-prewarmed, Discover ranking/projection runs as one injected-Default-dispatcher pipeline, Reader progress is scroll-session sampled, and benchmark-only backdrop/shadow switches isolate remaining draw cost.
 
 ## Independent version spaces
 

@@ -148,6 +148,7 @@ class ReaderViewModel @AssistedInject constructor(
         restored: app.openstory.reader.progress.ReadingProgress?,
     ) {
         val releaseId = result.release.release.id
+        val restoredForRelease = restored?.takeIf { it.releaseId == releaseId }
         savedState[RELEASE_ID_KEY] = releaseId.value
         mutableState.value = mutableState.value.copy(
             loading = false,
@@ -157,8 +158,9 @@ class ReaderViewModel @AssistedInject constructor(
             selectedReleaseId = releaseId,
             previousChapterId = groups.getOrNull(index - 1)?.chapter?.id,
             nextChapterId = groups.getOrNull(index + 1)?.chapter?.id,
-            restoredBlockId = restored?.takeIf { it.releaseId == releaseId }?.position?.blockId,
-            restoredCharacterOffset = restored?.takeIf { it.releaseId == releaseId }?.position?.characterOffset ?: 0,
+            restoredBlockId = restoredForRelease?.position?.blockId,
+            restoredCharacterOffset = restoredForRelease?.position?.characterOffset ?: 0,
+            restoredProgressFraction = restoredForRelease?.position?.fraction ?: 0f,
             availableOffline = result.fromStore,
             failure = null,
         )

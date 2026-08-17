@@ -2,11 +2,9 @@ package app.openstory.catalog.ui.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.openstory.catalog.home.CatalogHomeQuery
 import app.openstory.catalog.home.CatalogRefreshResult
 import app.openstory.catalog.home.CatalogRefreshService
 import app.openstory.catalog.model.CatalogHomeSnapshot
-import app.openstory.catalog.ranking.RankedCatalogStory
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.id.PluginId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,11 +24,12 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
-    query: CatalogHomeQuery,
     refreshService: CatalogRefreshService,
+    projection: DiscoverProjectionPipeline,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
     private val refreshFailure = MutableStateFlow<DiscoverUiFailure?>(null)
+    private val projection = projection
     private val homes = repository.observeHomes()
         .preserveLatestOnFailure(HOME_OBSERVE_EXCEPTION_CODE, emptyList())
         .shareIn(
@@ -40,9 +39,12 @@ class DiscoverViewModel @Inject constructor(
         )
     private val dependencies = DiscoverDependencies(
         homes = homes,
-        rankedStories = homes
-            .map(query::rank)
-            .preserveLatestOnFailure(RANKING_OBSERVE_EXCEPTION_CODE, emptyList()),
+        content = homes
+            .map(projection::prepare)
+            .preserveLatestOnFailure(
+                RANKING_OBSERVE_EXCEPTION_CODE,
+                DiscoverPreparedContent(emptyList(), emptyList()),
+            ),
         refresh = {
             val cachedHomes = homes.first()
             refreshService.refresh().toReport(cachedHomes)
@@ -66,15 +68,13 @@ class DiscoverViewModel @Inject constructor(
     }
 
     private val contentState = combine(
-        dependencies.homes,
-        dependencies.rankedStories,
+        dependencies.content,
         selectionState,
         refreshing,
         refreshReport,
-    ) { homes, ranked, selection, busy, report ->
-        projectDiscoverState(
-            catalogs = homes,
-            rankedStories = ranked,
+    ) { content, selection, busy, report ->
+        projection.project(
+            content = content,
             selectedCatalogId = selection.pluginId,
             selectedSourceId = selection.sourceId,
             refreshing = busy,
@@ -138,7 +138,7 @@ class DiscoverViewModel @Inject constructor(
 
     private data class DiscoverDependencies(
         val homes: Flow<List<CatalogHomeSnapshot>>,
-        val rankedStories: Flow<List<RankedCatalogStory>>,
+        val content: Flow<DiscoverPreparedContent>,
         val refresh: suspend () -> DiscoverRefreshReport,
     )
 

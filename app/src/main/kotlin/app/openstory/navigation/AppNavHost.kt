@@ -1,5 +1,8 @@
 package app.openstory.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.metadata
 import androidx.navigation3.ui.NavDisplay
 import app.openstory.designsystem.feedback.HikariSnackbarHost
 import app.openstory.designsystem.theme.hikariDimensions
@@ -27,6 +31,7 @@ import app.openstory.ui.HikariUtilitySheet
 @Composable
 fun AppNavHost(
     navigator: AppNavigator,
+    useLegacyNavigationTransitions: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -53,7 +58,14 @@ fun AppNavHost(
         utilityNextFocusRequester = focus.utilityNext(navigator.currentRoute),
         modifier = modifier,
     ) { contentPadding ->
-        AppNavigationContent(navigator, focus, snackbarHostState, contentPadding, this)
+        AppNavigationContent(
+            navigator,
+            focus,
+            snackbarHostState,
+            contentPadding,
+            this,
+            useLegacyNavigationTransitions,
+        )
     }
     if (showUtilitySheet) {
         HikariUtilitySheet(
@@ -73,10 +85,13 @@ private fun AppNavigationContent(
     snackbarHostState: SnackbarHostState,
     contentPadding: PaddingValues,
     shellScope: HikariAppShellScope,
+    useLegacyNavigationTransitions: Boolean,
 ) {
     Box(Modifier.fillMaxSize()) {
         val provider = entryProvider<NavKey> {
-            entry<AppRoute.Discover> {
+            entry<AppRoute.Discover>(
+                metadata = topLevelEntryMetadata(useLegacyNavigationTransitions),
+            ) {
                 DiscoverDestination(
                     contentPadding = contentPadding,
                     onSearch = { navigator.navigate(AppRoute.Search) },
@@ -91,7 +106,9 @@ private fun AppNavigationContent(
                     shellScope = shellScope,
                 )
             }
-            entry<AppRoute.Home> {
+            entry<AppRoute.Home>(
+                metadata = topLevelEntryMetadata(useLegacyNavigationTransitions),
+            ) {
                 HomeDestination(
                     contentPadding = contentPadding,
                     onDiscover = { navigator.selectTopLevel(TopLevelDestination.Discover) },
@@ -116,7 +133,9 @@ private fun AppNavigationContent(
                     navigator.navigate(AppRoute.Story(storyId.value))
                 }
             }
-            entry<AppRoute.Library> {
+            entry<AppRoute.Library>(
+                metadata = topLevelEntryMetadata(useLegacyNavigationTransitions),
+            ) {
                 LibraryDestination(
                     contentPadding = contentPadding,
                     onDiscover = { navigator.selectTopLevel(TopLevelDestination.Discover) },
@@ -175,6 +194,24 @@ private fun AppNavigationContent(
         )
     }
 }
+
+private val noTopLevelTransitionMetadata: Map<String, Any> = metadata {
+    put(NavDisplay.TransitionKey) {
+        EnterTransition.None togetherWith ExitTransition.None
+    }
+    put(NavDisplay.PopTransitionKey) {
+        EnterTransition.None togetherWith ExitTransition.None
+    }
+}
+
+private val legacyTopLevelTransitionMetadata: Map<String, Any> = emptyMap()
+
+private fun topLevelEntryMetadata(useLegacyNavigationTransitions: Boolean): Map<String, Any> =
+    if (useLegacyNavigationTransitions) {
+        legacyTopLevelTransitionMetadata
+    } else {
+        noTopLevelTransitionMetadata
+    }
 
 private data class AppNavFocus(
     val discoverSearch: FocusRequester,

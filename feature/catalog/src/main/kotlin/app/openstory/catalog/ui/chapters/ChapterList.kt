@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,6 +63,14 @@ fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterLi
         item(key = "chapter-failure", contentType = "chapter-feedback") {
             HikariInlineFeedback(message = failure)
         }
+    }
+    if (state.loading && state.chapters.isEmpty()) {
+        item(key = "chapter-loading", contentType = "chapter-progress") {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().testTag("chapter-loading"),
+            )
+        }
+        return
     }
     if (state.chapters.isEmpty()) {
         item(key = "chapter-empty", contentType = "chapter-empty") {

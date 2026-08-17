@@ -13,6 +13,9 @@ private const val BENCHMARK_FIXTURE_COMPONENT =
     "app.openstory/app.openstory.benchmark.BenchmarkFixtureActivity"
 private const val BENCHMARK_FIXTURE_READY_TEXT = "HIKARI_BENCHMARK_READY"
 private const val DISABLE_BACKDROP_EXTRA = "app.openstory.benchmark.DISABLE_BACKDROP"
+private const val DISABLE_SURFACE_SHADOWS_EXTRA = "app.openstory.benchmark.DISABLE_SURFACE_SHADOWS"
+private const val LEGACY_NAVIGATION_TRANSITIONS_EXTRA =
+    "app.openstory.benchmark.LEGACY_NAVIGATION_TRANSITIONS"
 private const val UI_TIMEOUT_MILLIS = 10_000L
 private const val SWIPE_EDGE_DIVISOR = 5
 private const val SWIPE_STEPS = 20
@@ -33,9 +36,13 @@ internal fun prepareBenchmarkFixture() {
 
 internal fun MacrobenchmarkScope.startHikari(
     backdropDisabled: Boolean = false,
+    surfaceShadowsDisabled: Boolean = false,
+    legacyNavigationTransitions: Boolean = false,
 ) {
     startActivityAndWait { intent ->
         intent.putExtra(DISABLE_BACKDROP_EXTRA, backdropDisabled)
+        intent.putExtra(DISABLE_SURFACE_SHADOWS_EXTRA, surfaceShadowsDisabled)
+        intent.putExtra(LEGACY_NAVIGATION_TRANSITIONS_EXTRA, legacyNavigationTransitions)
     }
     benchmarkDevice().waitForIdle()
 }

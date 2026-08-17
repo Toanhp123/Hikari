@@ -5,6 +5,7 @@ import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 
 data class MappingUiState(
+    val loading: Boolean = true,
     val mappings: List<MappingItemUiModel> = emptyList(),
     val candidates: List<MappingCandidateUiModel> = emptyList(),
     val urlInput: String = "",

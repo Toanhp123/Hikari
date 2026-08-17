@@ -75,6 +75,7 @@ class ReaderViewModelTest {
         assertEquals("chapter-1", viewModel.state.value.previousChapterId?.value)
         assertEquals(null, viewModel.state.value.nextChapterId)
         assertEquals("block", viewModel.state.value.restoredBlockId)
+        assertEquals(0.5f, viewModel.state.value.restoredProgressFraction)
 
         viewModel.increaseFont()
         assertEquals(1.1f, savedState.get<Float>("reader.font-scale"))

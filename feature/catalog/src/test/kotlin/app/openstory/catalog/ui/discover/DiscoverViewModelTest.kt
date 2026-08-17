@@ -27,6 +27,7 @@ import app.openstory.catalog.source.SourceSection
 import app.openstory.common.FakeClock
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
+import app.openstory.common.dispatchers.FixedAppDispatchers
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -301,8 +302,11 @@ class DiscoverViewModelTest {
 
     private fun viewModel(repository: FakeRepository, source: FakeSource) = DiscoverViewModel(
         repository,
-        CatalogHomeQuery(),
         CatalogRefreshService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
+        DiscoverProjectionPipeline(
+            CatalogHomeQuery(),
+            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+        ),
     )
 }
 

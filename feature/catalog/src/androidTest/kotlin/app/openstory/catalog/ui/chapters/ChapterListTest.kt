@@ -144,6 +144,7 @@ class ChapterListTest {
 }
 
 private fun fixtureState() = ChapterListUiState(
+    loading = false,
     storyId = StoryId("story:chapter-list-test"),
     unreadCount = 2,
     chapters = listOf(
