@@ -166,8 +166,8 @@ assert_contains 'HikariMetadataBadge(' \
   'feature/reader/src/main/kotlin/app/openstory/reader/ui/DownloadIndicator.kt' \
   'reader offline status must use the shared metadata/status badge presentation'
 assert_contains 'StoryUpdateCard(' \
-  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardScreen.kt' \
-  'dashboard must consume StoryUpdateCard'
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardShelves.kt' \
+  'dashboard shelf owner must consume StoryUpdateCard'
 assert_contains 'StoryUpdateCard(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/updates/UpdatesScreen.kt' \
   'Updates destination must consume StoryUpdateCard'
@@ -283,15 +283,6 @@ assert_contains 'HikariListArtworkFrame(' \
 assert_contains 'HikariListArtworkFrame(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/components/StoryUpdateCard.kt' \
   'update/activity artwork must use the shared rounded list frame'
-assert_contains 'fun HikariContentAction(' \
-  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentAction.kt' \
-  'design system must own outlined content/list actions'
-assert_contains 'OutlinedButton(' \
-  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentAction.kt' \
-  'content/list secondary actions must expose visible outlined chrome'
-assert_contains 'BorderStroke(' \
-  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentAction.kt' \
-  'content/list secondary actions must own their outline treatment'
 assert_contains 'fun HikariUtilityAction(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariUtilityAction.kt' \
   'design system must own tonal text utility actions'
@@ -381,7 +372,7 @@ assert_absent 'LinearProgressIndicator\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
   'Story must not duplicate pull-to-refresh feedback with a global linear progress bar'
 assert_contains 'showsSourceDetailFailure()' \
-  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySections.kt' \
   'Story must scope source-detail refresh failures away from Chapters'
 assert_contains 'storySectionContentPadding()' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
@@ -390,7 +381,7 @@ assert_contains 'storySectionContentPadding()' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
   'Story Sources must consume the shared Story section inset owner'
 assert_contains 'storySectionContentPadding()' \
-  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySections.kt' \
   'Story Chapters must receive the shared Story section inset owner'
 assert_absent 'fun HikariRefreshGlyph\(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon' \
@@ -534,6 +525,68 @@ assert_contains 'val heroClickModifier = if (medium)' \
 assert_contains 'val fallbackBrush = remember(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/artwork/HikariArtwork.kt' \
   'artwork fallback gradients must be remembered instead of allocated on every recomposition'
+
+# Final UI cleanup contracts.
+assert_contains 'NarrowStoryHeroActions(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryHeroActions.kt' \
+  'compact Story hero actions must use a vertical responsive layout so CTA labels never wrap in half-width buttons'
+assert_contains 'narrowHero = windowClass == HikariWindowClass.COMPACT' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'compact-width Story must select the narrow hero while large phones retain the wider hero layout'
+assert_contains 'narrow = narrowHero' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryLayouts.kt' \
+  'phone Story layout must forward responsive hero width intent explicitly'
+assert_contains 'FlowRow(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterFiltersSheet.kt' \
+  'chapter filters must wrap cleanly instead of forcing all controls into one Row'
+assert_absent 'Checkbox\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterFiltersSheet.kt' \
+  'Unavailable chapter filtering must use the shared HikariFilterChip instead of a raw checkbox/text pair'
+assert_absent 'HikariUtilityAction\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'bulk chapter download affordances must stay quiet/inline instead of adding full-width tonal pill bars'
+assert_contains 'Channel<ProgressUpdate>' \
+  'reader/src/main/kotlin/app/openstory/reader/progress/ReadingProgressService.kt' \
+  'reader progress persistence must use one long-lived conflated update pipeline'
+assert_absent 'pendingWrite' \
+  'reader/src/main/kotlin/app/openstory/reader/progress/ReadingProgressService.kt' \
+  'reader scroll updates must not cancel and relaunch a coroutine job for every viewport change'
+if [[ -e "$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentAction.kt" || \
+      -e "$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariContentActionTone.kt" ]]; then
+  fail 'unused outlined HikariContentAction API must be removed from the production design system'
+fi
+if [[ -e "$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariOfflineState.kt" ]]; then
+  fail 'unused HikariOfflineState abstraction must be removed from the production design system'
+fi
+assert_absent 'onArtworkInverse' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariVisualTokens.kt' \
+  'unused onArtworkInverse semantic color token must be removed'
+discover_screen_lines="$(wc -l < "$ROOT_DIR/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt")"
+if (( discover_screen_lines > 220 )); then
+  fail "DiscoverScreen must remain orchestration-focused (<=220 lines, found $discover_screen_lines)"
+fi
+home_screen_lines="$(wc -l < "$ROOT_DIR/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardScreen.kt")"
+if (( home_screen_lines > 220 )); then
+  fail "HomeDashboardScreen must remain orchestration-focused (<=220 lines, found $home_screen_lines)"
+fi
+story_screen_lines="$(wc -l < "$ROOT_DIR/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt")"
+if (( story_screen_lines > 180 )); then
+  fail "StoryScreen must remain orchestration-focused (<=180 lines, found $story_screen_lines)"
+fi
+for screen_limit in \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt:30' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardScreen.kt:25' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt:25'; do
+  screen_path="${screen_limit%:*}"
+  max_imports="${screen_limit##*:}"
+  import_count="$(grep -c '^import ' "$ROOT_DIR/$screen_path")"
+  if (( import_count > max_imports )); then
+    fail "$screen_path must remain orchestration-focused (<=$max_imports imports, found $import_count)"
+  fi
+done
+assert_absent 'Row\(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/download/DownloadActionSheet.kt' \
+  'DownloadActionSheet renders one action at a time and must not keep a redundant Row layout node'
 assert_contains 'LibraryStatus.WANT_TO_READ' \
   'app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt' \
   'benchmark browse fixtures must use a valid LibraryStatus while populating the scroll collection'

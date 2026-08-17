@@ -52,6 +52,25 @@ class ChapterListTest {
         compose.onNodeWithText("English", useUnmergedTree = true).assertIsDisplayed()
     }
     @Test
+    fun unavailableFilterUsesSharedChipAction() {
+        var showUnavailable = false
+        compose.setContent {
+            HikariTheme {
+                ChapterList(
+                    state = fixtureState().copy(showTombstones = false),
+                    actions = ChapterListActions(
+                        onTombstonesVisible = { showUnavailable = it },
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Unavailable").performClick()
+
+        kotlin.test.assertTrue(showUnavailable)
+    }
+
+    @Test
     fun visibleFilterAndChapterRangeExposeDownloadCommands() {
         val state = fixtureState().copy(chapters = fixtureState().chapters.map { it.copy(expanded = true) })
         var filtered = emptyList<ChapterReleaseId>()

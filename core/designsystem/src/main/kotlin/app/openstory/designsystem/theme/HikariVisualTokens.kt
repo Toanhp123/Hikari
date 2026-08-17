@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Color
 @Immutable
 data class HikariSemanticColors(
     val onArtwork: Color = Color.White,
-    val onArtworkInverse: Color = Color.Black,
     val artworkScrim: Color = Color.Black,
     val transparent: Color = Color.Transparent,
     val surfaceShadow: Color = Color.Black,

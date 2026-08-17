@@ -79,9 +79,9 @@ List-sized cover artwork uses `HikariListArtworkFrame` so compact thumbnails sha
 semantic cover rounding instead of rendering square inside rounded content cards. Action hierarchy
 is deliberately sparse: `HikariPrimaryAction` is reserved for the single dominant CTA,
 `HikariUtilityAction` is the normal tonal secondary action, and `HikariInlineAction` is the
-borderless low-priority/destructive text action used when another outlined pill would add visual
-noise. `HikariContentAction` remains an explicit outlined primitive but is not the default fallback
-for feature actions. Icon-only utilities default to `HikariIconActionStyle.TONAL`; callers request
+borderless low-priority/destructive text action used when another pill would add visual noise.
+Outlined action chrome is intentionally not part of the default Hikari action hierarchy. Icon-only
+utilities default to `HikariIconActionStyle.TONAL`; callers request
 `GLASS` only when they are actually inside a `HikariBackdropHost` overlay and pass a real backdrop
 scope. Filled and tonal Hikari action owners explicitly disable Material button elevation so
 interaction states cannot reintroduce a directional shadow. A card or hero with child actions has
@@ -90,8 +90,12 @@ both through nested clickable modifiers.
 
 Story Overview, Chapters, and Sources use the same `HikariSectionHeader` mini-header contract
 with aligned outer spacing. The header supports an optional subtitle and trailing utility action.
-The three tab bodies consume the feature-owned `storySectionContentPadding()` outer inset contract;
-nested content inherits that horizontal inset instead of stacking feature-local padding.
+Compact-width Story heroes stack Read/Download actions vertically so labels retain a full-width touch
+target; large phones may use the wider horizontal hero action layout. Chapter filters use the shared
+chip language in a wrapping `FlowRow`, while bulk/range download commands stay inline instead of
+adding another layer of full-width pill chrome. The three tab bodies consume the feature-owned
+`storySectionContentPadding()` outer inset contract; nested content inherits that horizontal inset
+instead of stacking feature-local padding.
 
 Cross-screen manual refresh uses `HikariPullToRefresh`. The design system owns the Material 3
 pull gesture, zero-elevation indicator container, centered Hikari shadow, theme-driven progress
@@ -117,10 +121,11 @@ require an explicit architecture review.
 
 Rapid gesture state stays as close to the gesture as possible. Slider drag values remain local and
 commit feature/ViewModel state from `onValueChangeFinished`. Reader persists its precise viewport
-position through the existing progress service, while visible progress is bucketed to whole percent
-inside a stable local holder so per-pixel scroll does not invalidate the Reader screen tree. Reader
-document content padding is stable whether chrome is visible or hidden; toolbar visibility is an
-overlay concern and must not relayout the document.
+position through one long-lived conflated/debounced progress pipeline instead of cancelling and
+relaunching a coroutine for every scroll-frame update, while visible progress is bucketed to whole
+percent inside a stable local holder so per-pixel scroll does not invalidate the Reader screen tree.
+Reader document content padding is stable whether chrome is visible or hidden; toolbar visibility is
+an overlay concern and must not relayout the document.
 
 `HikariModalSheet` owns Material modal-sheet shape, color, and zero tonal elevation. Features own
 sheet content/state but do not instantiate `ModalBottomSheet` directly. Reusable visual brushes are
@@ -162,7 +167,7 @@ one-off Material controls may still be used directly when no Hikari-specific pre
 | Filtered empty | Feature copy with an optional clear-filter action |
 | Search empty | Feature copy |
 | Setup required | Feature copy with a feature-owned action |
-| Offline with no cache | Feature mapping with `HikariOfflineState` |
+| Offline with no cache | Feature-owned copy composed from shared empty/error feedback primitives |
 
 ## Error presentation
 
@@ -175,9 +180,9 @@ one-off Material controls may still be used directly when no Hikari-specific pre
 
 ## Offline presentation
 
-Use `HikariOfflineState` only after the feature maps its connectivity and cache
-state to an offline presentation. The feature supplies precise copy and the
-appropriate retry, settings, or navigation action.
+Offline copy remains feature-owned because cache/connectivity semantics differ by destination.
+Compose it from the shared empty/error/feedback primitives, with the feature supplying the precise
+retry, settings, or navigation action.
 
 ## Snackbar vs Toast
 

@@ -38,10 +38,10 @@ import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.content.HikariSectionTitle
-import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.control.HikariIconActionStyle
+import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.control.HikariPrimaryAction
 import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.glass.HikariBackdropMode
@@ -188,21 +188,21 @@ class HikariProductPrimitivesTest {
                         onClick = {},
                         modifier = Modifier.testTag("primary-action"),
                     ) { androidx.compose.material3.Text("Primary action") }
-                    HikariContentAction(
-                        onClick = {},
-                        modifier = Modifier.testTag("content-action"),
-                    ) { androidx.compose.material3.Text("Content action") }
                     HikariUtilityAction(
                         onClick = {},
                         modifier = Modifier.testTag("utility-action"),
                     ) { androidx.compose.material3.Text("Utility action") }
+                    HikariInlineAction(
+                        onClick = {},
+                        modifier = Modifier.testTag("inline-action"),
+                    ) { androidx.compose.material3.Text("Inline action") }
                 }
             }
         }
 
         compose.onNodeWithTag("primary-action").assertHeightIsAtLeast(48.dp)
-        compose.onNodeWithTag("content-action").assertHeightIsAtLeast(48.dp)
         compose.onNodeWithTag("utility-action").assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag("inline-action").assertHeightIsAtLeast(48.dp)
     }
 
     @Test

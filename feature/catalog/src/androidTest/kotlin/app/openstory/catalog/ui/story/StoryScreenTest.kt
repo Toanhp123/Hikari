@@ -103,6 +103,23 @@ class StoryScreenTest {
     }
 
     @Test
+    fun compactHeroStacksReadAndDownloadActions() {
+        val target = ReaderTarget(
+            StoryId("story-1"), CanonicalChapterId("chapter-2"), ChapterReleaseId("release-2"),
+        )
+        setStoryContent(
+            state = fixtureState().copy(readableTargets = listOf(target)),
+            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            modifier = Modifier.requiredWidth(320.dp),
+        )
+
+        val readBounds = compose.onNodeWithTag("story-read").fetchSemanticsNode().boundsInRoot
+        val downloadBounds = compose.onNodeWithTag("story-download").fetchSemanticsNode().boundsInRoot
+
+        assertTrue(downloadBounds.top >= readBounds.bottom)
+    }
+
+    @Test
     fun staleResumeDoesNotExposeDownloadWithoutReadableChapter() {
         val target = ReaderTarget(
             StoryId("story-1"), CanonicalChapterId("chapter-old"), ChapterReleaseId("release-old"),

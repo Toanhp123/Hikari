@@ -1,7 +1,5 @@
 package app.openstory.catalog.ui.download
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
@@ -16,7 +14,6 @@ import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.feedback.HikariConfirmDialog
 import app.openstory.designsystem.feedback.HikariConfirmationStyle
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.downloads.DownloadState
 
 @Composable
@@ -32,29 +29,24 @@ fun DownloadActionSheet(
         .fillMaxWidth()
         .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
         .then(if (actionTag == null) Modifier else Modifier.testTag(actionTag))
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
-    ) {
-        when (state) {
-            DownloadState.QUEUED, DownloadState.RUNNING -> HikariUtilityAction(
-                onClick = { actions.onCancel(releaseId) },
-                modifier = actionModifier,
-            ) { Text("Cancel") }
-            DownloadState.FAILED, DownloadState.CANCELLED -> HikariUtilityAction(
-                onClick = { actions.onRetry(releaseId) },
-                modifier = actionModifier,
-            ) { Text("Retry") }
-            DownloadState.COMPLETED -> HikariInlineAction(
-                onClick = { actions.onRemove(releaseId) },
-                modifier = actionModifier,
-                tone = HikariInlineActionTone.DESTRUCTIVE,
-            ) { Text("Remove offline") }
-            null -> HikariUtilityAction(
-                onClick = { actions.onDownload(releaseId) },
-                modifier = actionModifier,
-            ) { Text("Download") }
-        }
+    when (state) {
+        DownloadState.QUEUED, DownloadState.RUNNING -> HikariUtilityAction(
+            onClick = { actions.onCancel(releaseId) },
+            modifier = modifier.then(actionModifier),
+        ) { Text("Cancel") }
+        DownloadState.FAILED, DownloadState.CANCELLED -> HikariUtilityAction(
+            onClick = { actions.onRetry(releaseId) },
+            modifier = modifier.then(actionModifier),
+        ) { Text("Retry") }
+        DownloadState.COMPLETED -> HikariInlineAction(
+            onClick = { actions.onRemove(releaseId) },
+            modifier = modifier.then(actionModifier),
+            tone = HikariInlineActionTone.DESTRUCTIVE,
+        ) { Text("Remove offline") }
+        null -> HikariUtilityAction(
+            onClick = { actions.onDownload(releaseId) },
+            modifier = modifier.then(actionModifier),
+        ) { Text("Download") }
     }
     if (pendingRemoval) {
         HikariConfirmDialog(

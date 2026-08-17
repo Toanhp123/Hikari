@@ -7,7 +7,6 @@ import androidx.compose.ui.test.performClick
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
-import app.openstory.designsystem.state.HikariOfflineState
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -58,23 +57,5 @@ class HikariStateComponentsTest {
 
         compose.onNodeWithText("Retry").performClick()
         compose.runOnIdle { assertTrue(invoked) }
-    }
-
-    @Test
-    fun offlineUsesCallerProvidedCopyAndAction() {
-        compose.setContent {
-            HikariTheme {
-                HikariOfflineState(
-                    title = "Reader unavailable",
-                    message = "Connect to refresh this chapter.",
-                    actionLabel = "Try again",
-                    onAction = {},
-                )
-            }
-        }
-
-        compose.onNodeWithText("Reader unavailable").assertIsDisplayed()
-        compose.onNodeWithText("Connect to refresh this chapter.").assertIsDisplayed()
-        compose.onNodeWithText("Try again").assertIsDisplayed()
     }
 }

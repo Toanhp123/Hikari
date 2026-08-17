@@ -4,6 +4,7 @@ import app.openstory.common.FakeClock
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceTimeBy
@@ -11,12 +12,30 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReadingProgressServiceTest {
+    @Test
+    fun flushPersistsLatestRapidPositionWithoutDelayedDuplicateWrite() = runTest {
+        val repository = FakeProgressRepository()
+        val service = ReadingProgressService(repository, FakeClock(2_000), backgroundScope, debounceMillis = 100)
+
+        repeat(20) { index ->
+            service.update(update("release-a", index / 20f, completed = false))
+        }
+        service.update(update("release-a", 0.975f, completed = false))
+        service.flush()
+
+        assertEquals(1, repository.saveCount)
+        assertEquals(0.975f, repository.value.value?.position?.fraction)
+        advanceTimeBy(200)
+        assertEquals(1, repository.saveCount)
+    }
+
     @Test
     fun debouncesWritesAndKeepsCompletionMonotonicAcrossReleaseSwitches() = runTest {
         val repository = FakeProgressRepository()
         val clock = FakeClock(1_000)
-        val service = ReadingProgressService(repository, clock, this, debounceMillis = 100)
+        val service = ReadingProgressService(repository, clock, backgroundScope, debounceMillis = 100)
 
         service.update(update("release-a", 0.3f, completed = true))
         service.update(update("release-a", 0.8f, completed = true))

@@ -21,7 +21,7 @@ import androidx.compose.ui.semantics.semantics
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.content.HikariSectionHeader
-import app.openstory.designsystem.control.HikariUtilityAction
+import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.surface.HikariContentCard
@@ -45,20 +45,19 @@ fun ChapterList(
 
 fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterListActions) {
     item(key = "chapter-summary", contentType = "chapter-header") {
+        val visibleReleaseIds = state.chapters.flatMap { chapter -> chapter.releases.map { it.id } }
         HikariSectionHeader(
             title = "Chapters",
             subtitle = "${state.unreadCount} unread chapters",
+            action = {
+                HikariInlineAction(
+                    enabled = visibleReleaseIds.isNotEmpty(),
+                    onClick = { actions.onDownloadFiltered(visibleReleaseIds) },
+                ) { Text("Download visible") }
+            },
         )
     }
     item(key = "chapter-filters", contentType = "chapter-filters") { ChapterFiltersSheet(state, actions) }
-    item(key = "chapter-download-visible", contentType = "chapter-action") {
-        val visibleReleaseIds = state.chapters.flatMap { chapter -> chapter.releases.map { it.id } }
-        HikariUtilityAction(
-            enabled = visibleReleaseIds.isNotEmpty(),
-            onClick = { actions.onDownloadFiltered(visibleReleaseIds) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
-        ) { Text("Download visible") }
-    }
     state.failure?.let { failure ->
         item(key = "chapter-failure", contentType = "chapter-feedback") {
             HikariInlineFeedback(message = failure)
@@ -95,12 +94,9 @@ private fun LazyListScope.chapterItems(
         key = "chapter:${chapter.id.value}:download",
         contentType = "chapter-action",
     ) {
-        HikariUtilityAction(
+        HikariInlineAction(
             onClick = { actions.onDownloadRange(chapter.releases.map { it.id }) },
             enabled = chapter.releases.isNotEmpty(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
         ) { Text("Download chapter") }
     }
     items(

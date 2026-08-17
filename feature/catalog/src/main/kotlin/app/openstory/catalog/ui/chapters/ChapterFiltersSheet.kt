@@ -1,16 +1,14 @@
 package app.openstory.catalog.ui.chapters
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.theme.hikariSpacing
-import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun ChapterFiltersSheet(
@@ -18,10 +16,10 @@ fun ChapterFiltersSheet(
     actions: ChapterListActions,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         HikariFilterChip(
             selected = state.selectedFilter == ChapterListFilter.ALL,
@@ -33,10 +31,10 @@ fun ChapterFiltersSheet(
             onClick = { actions.onFilterSelected(ChapterListFilter.MULTI_RELEASE) },
             label = { Text("Multi-source") },
         )
-        Checkbox(
-            checked = state.showTombstones,
-            onCheckedChange = actions.onTombstonesVisible,
+        HikariFilterChip(
+            selected = state.showTombstones,
+            onClick = { actions.onTombstonesVisible(!state.showTombstones) },
+            label = { Text("Unavailable") },
         )
-        Text("Unavailable")
     }
 }
