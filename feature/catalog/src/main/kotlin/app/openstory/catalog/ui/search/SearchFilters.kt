@@ -15,6 +15,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -27,7 +31,7 @@ import app.openstory.common.id.PluginId
 import java.math.BigDecimal
 import kotlin.math.round
 import kotlin.math.roundToInt
-import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
@@ -70,7 +74,7 @@ private fun FilterGroupHeader(
     ) {
         Text(pluginId.value, style = MaterialTheme.typography.titleSmall)
         if (selectedValues.isNotEmpty()) {
-            HikariContentAction(
+            HikariInlineAction(
                 onClick = { onClear(pluginId) },
                 modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
             ) { Text("Clear") }
@@ -161,15 +165,21 @@ private fun RangeFilter(
         return
     }
     val (minimum, maximum, step) = bounds
-    val current = selected.firstOrNull()?.toDoubleOrNull()?.coerceIn(minimum, maximum) ?: minimum
+    val committed = selected.firstOrNull()?.toDoubleOrNull()?.coerceIn(minimum, maximum) ?: minimum
+    var transient by remember(pluginId, definition.id, committed) {
+        mutableFloatStateOf(committed.toFloat())
+    }
+    val current = snapRangeValue(transient.toDouble(), minimum, maximum, step)
     val steps = ((maximum - minimum) / step).roundToInt().minus(1).coerceAtLeast(0)
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text("${definition.label}: ${formatRangeValue(current)}")
         Slider(
             value = current.toFloat(),
             onValueChange = { raw ->
-                val snapped = (minimum + round((raw - minimum) / step) * step).coerceIn(minimum, maximum)
-                onValuesChange(pluginId, definition.id, listOf(formatRangeValue(snapped)))
+                transient = snapRangeValue(raw.toDouble(), minimum, maximum, step).toFloat()
+            },
+            onValueChangeFinished = {
+                onValuesChange(pluginId, definition.id, listOf(formatRangeValue(current)))
             },
             modifier = Modifier.semantics { contentDescription = "${definition.label} range" },
             valueRange = minimum.toFloat()..maximum.toFloat(),
@@ -202,6 +212,13 @@ private fun nextOptionValues(multiple: Boolean, selected: List<String>, value: S
     } else {
         if (selected.singleOrNull() == value) emptyList() else listOf(value)
     }
+
+internal fun snapRangeValue(
+    raw: Double,
+    minimum: Double,
+    maximum: Double,
+    step: Double,
+): Double = (minimum + round((raw - minimum) / step) * step).coerceIn(minimum, maximum)
 
 private fun formatRangeValue(value: Double): String = BigDecimal.valueOf(value)
     .stripTrailingZeros()

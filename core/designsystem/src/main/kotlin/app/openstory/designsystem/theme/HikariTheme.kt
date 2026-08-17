@@ -14,6 +14,8 @@ fun HikariTheme(
     motionPolicy: HikariMotionPolicy = HikariDefaultMotionPolicy,
     content: @Composable () -> Unit,
 ) {
+    val colorScheme = if (darkTheme) HikariDarkColorScheme else HikariLightColorScheme
+    val visualBrushes = if (darkTheme) HikariDarkVisualBrushes else HikariLightVisualBrushes
     CompositionLocalProvider(
         LocalHikariSpacing provides HikariDefaultSpacing,
         LocalHikariDimensions provides HikariDefaultDimensions,
@@ -24,11 +26,12 @@ fun HikariTheme(
         LocalHikariSemanticShapes provides HikariDefaultSemanticShapes,
         LocalHikariSemanticColors provides HikariDefaultSemanticColors,
         LocalHikariOpacity provides HikariDefaultOpacity,
+        LocalHikariVisualBrushes provides visualBrushes,
         LocalHikariSemanticTypography provides HikariDefaultSemanticTypography,
         LocalHikariMotionPolicy provides motionPolicy,
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) HikariDarkColorScheme else HikariLightColorScheme,
+            colorScheme = colorScheme,
             typography = HikariTypography,
             shapes = HikariShapes,
             content = content,

@@ -29,7 +29,7 @@ fun HikariIconAction(
     contentDescription: String,
     modifier: Modifier = Modifier,
     backdropScope: HikariBackdropScope? = null,
-    style: HikariIconActionStyle = HikariIconActionStyle.GLASS,
+    style: HikariIconActionStyle = HikariIconActionStyle.TONAL,
     enabled: Boolean = true,
     focusRequester: FocusRequester? = null,
     nextFocusRequester: FocusRequester? = null,

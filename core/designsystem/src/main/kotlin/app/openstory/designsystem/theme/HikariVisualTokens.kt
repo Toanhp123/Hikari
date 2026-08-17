@@ -1,5 +1,6 @@
 package app.openstory.designsystem.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -40,11 +41,67 @@ data class HikariOpacity(
     val surfaceShadow: Float = 0.14f,
 )
 
+@Immutable
+class HikariVisualBrushes internal constructor(
+    val atmosphere: Brush,
+    val artworkBackdrop: Brush,
+    val heroHorizontalScrim: Brush,
+    val heroVerticalScrim: Brush,
+)
+
 val HikariDefaultSemanticColors = HikariSemanticColors()
 val HikariDefaultOpacity = HikariOpacity()
 
 internal val LocalHikariSemanticColors = staticCompositionLocalOf { HikariDefaultSemanticColors }
 internal val LocalHikariOpacity = staticCompositionLocalOf { HikariDefaultOpacity }
+internal val LocalHikariVisualBrushes = staticCompositionLocalOf {
+    buildHikariVisualBrushes(HikariLightColorScheme, HikariDefaultSemanticColors, HikariDefaultOpacity)
+}
+
+internal val HikariLightVisualBrushes = buildHikariVisualBrushes(
+    HikariLightColorScheme,
+    HikariDefaultSemanticColors,
+    HikariDefaultOpacity,
+)
+internal val HikariDarkVisualBrushes = buildHikariVisualBrushes(
+    HikariDarkColorScheme,
+    HikariDefaultSemanticColors,
+    HikariDefaultOpacity,
+)
+
+private fun buildHikariVisualBrushes(
+    colorScheme: ColorScheme,
+    colors: HikariSemanticColors,
+    opacity: HikariOpacity,
+): HikariVisualBrushes = HikariVisualBrushes(
+    atmosphere = Brush.verticalGradient(
+        listOf(
+            colorScheme.secondaryContainer.copy(alpha = opacity.subtleSurface),
+            colorScheme.background.copy(alpha = opacity.surfaceOpaque),
+            colorScheme.background,
+        ),
+    ),
+    artworkBackdrop = Brush.verticalGradient(
+        listOf(
+            colors.transparent,
+            colors.artworkScrim.copy(alpha = opacity.artworkBackdropMid),
+            colors.artworkScrim.copy(alpha = opacity.artworkBackdropStrong),
+        ),
+    ),
+    heroHorizontalScrim = Brush.horizontalGradient(
+        listOf(
+            colors.artworkScrim.copy(alpha = opacity.heroScrimLight),
+            colors.artworkScrim.copy(alpha = opacity.heroScrimMedium),
+            colors.artworkScrim.copy(alpha = opacity.heroScrimStrong),
+        ),
+    ),
+    heroVerticalScrim = Brush.verticalGradient(
+        listOf(
+            colors.transparent,
+            colors.artworkScrim.copy(alpha = opacity.heroBottomScrim),
+        ),
+    ),
+)
 
 val MaterialTheme.hikariColors: HikariSemanticColors
     @Composable
@@ -59,34 +116,22 @@ val MaterialTheme.hikariOpacity: HikariOpacity
 val MaterialTheme.hikariAtmosphereBrush: Brush
     @Composable
     @ReadOnlyComposable
-    get() = Brush.verticalGradient(
-        listOf(
-            colorScheme.secondaryContainer.copy(alpha = hikariOpacity.subtleSurface),
-            colorScheme.background.copy(alpha = hikariOpacity.surfaceOpaque),
-            colorScheme.background,
-        ),
-    )
+    get() = LocalHikariVisualBrushes.current.atmosphere
+
+val MaterialTheme.hikariArtworkBackdropScrim: Brush
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalHikariVisualBrushes.current.artworkBackdrop
 
 val MaterialTheme.hikariHeroHorizontalScrim: Brush
     @Composable
     @ReadOnlyComposable
-    get() = Brush.horizontalGradient(
-        listOf(
-            hikariColors.artworkScrim.copy(alpha = hikariOpacity.heroScrimLight),
-            hikariColors.artworkScrim.copy(alpha = hikariOpacity.heroScrimMedium),
-            hikariColors.artworkScrim.copy(alpha = hikariOpacity.heroScrimStrong),
-        ),
-    )
+    get() = LocalHikariVisualBrushes.current.heroHorizontalScrim
 
 val MaterialTheme.hikariHeroVerticalScrim: Brush
     @Composable
     @ReadOnlyComposable
-    get() = Brush.verticalGradient(
-        listOf(
-            hikariColors.transparent,
-            hikariColors.artworkScrim.copy(alpha = hikariOpacity.heroBottomScrim),
-        ),
-    )
+    get() = LocalHikariVisualBrushes.current.heroVerticalScrim
 
 internal val HikariArtworkFallbackPalette = listOf(
     Color(0xFF425B76),

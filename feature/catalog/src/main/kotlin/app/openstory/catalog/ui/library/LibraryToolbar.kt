@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.control.HikariIconActionStyle
@@ -60,6 +61,7 @@ internal fun LibraryToolbar(
         HikariIconAction(
             contentDescription = "Switch to ${targetMode.label().lowercase()} view",
             onClick = { onDisplayModeSelected(targetMode) },
+            modifier = Modifier.testTag("library-view-switch"),
             focusRequester = viewFocusRequester,
             nextFocusRequester = contentFocusRequester,
             style = HikariIconActionStyle.ACCENTED_SURFACE,

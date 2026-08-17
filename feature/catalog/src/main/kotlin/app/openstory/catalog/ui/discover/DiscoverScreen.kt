@@ -90,7 +90,7 @@ fun DiscoverScreen(
             topInset = refreshTopInset,
         ) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag("discover-list"),
                 contentPadding = listContentPadding,
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
             ) {

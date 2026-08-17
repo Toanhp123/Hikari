@@ -215,6 +215,13 @@ class SearchViewModelTest {
         assertEquals(1, source.detailsCalls)
     }
 
+
+    @Test
+    fun rangeSliderSnapsToConfiguredStep() {
+        assertEquals(4.0, snapRangeValue(raw = 4.2, minimum = 0.0, maximum = 10.0, step = 2.0))
+        assertEquals(10.0, snapRangeValue(raw = 11.0, minimum = 0.0, maximum = 10.0, step = 2.0))
+    }
+
     private fun viewModel(vararg sources: FakeSearchSource): SearchViewModel =
         viewModel(EmptyRepository(), *sources)
 
@@ -326,4 +333,5 @@ private class EmptyRepository(
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
     ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+
 }

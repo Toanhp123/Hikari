@@ -3,13 +3,12 @@ package app.openstory.ui
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import app.openstory.navigation.AppRoute
-import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariUtilityAction
+import app.openstory.designsystem.layout.HikariModalSheet
 import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.theme.hikariDimensions
 
@@ -19,19 +18,18 @@ val utilityDestinations = listOf(
 )
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun HikariUtilitySheet(
     onDismiss: () -> Unit,
     onDestinationSelected: (AppRoute) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    ModalBottomSheet(
+    HikariModalSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
     ) {
         HikariSheetContent(title = "Quick access") {
             utilityDestinations.forEach { destination ->
-                HikariContentAction(
+                HikariUtilityAction(
                     onClick = { onDestinationSelected(destination.route) },
                     modifier = Modifier
                         .fillMaxWidth()

@@ -6,7 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.CatalogHomeSection
+import app.openstory.catalog.model.Story
 import app.openstory.catalog.repository.CatalogDetailsMutation
+import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.chapters.aggregation.AggregationPlan
 import app.openstory.chapters.aggregation.ChapterReleaseLink
@@ -55,6 +58,8 @@ class BenchmarkFixtureActivity : ComponentActivity() {
     }
 
     private suspend fun seedFixture() {
+        seedBrowseFixtures()
+
         val storyId = StoryId(BENCHMARK_STORY_ID)
         val catalogResult = catalog.commitDetails(
             CatalogDetailsMutation(
@@ -75,6 +80,13 @@ class BenchmarkFixtureActivity : ComponentActivity() {
         )
         check(catalogResult is Outcome.Success)
         library.add(storyId, LibraryStatus.READING, BENCHMARK_EPOCH_MILLIS)
+        check(
+            library.changeStatus(
+                storyId,
+                LibraryStatus.READING,
+                BENCHMARK_EPOCH_MILLIS + BENCHMARK_PRIMARY_ACTIVITY_OFFSET,
+            ) != null,
+        )
 
         val chapterFixtures = (1..BENCHMARK_CHAPTER_COUNT).map { index -> chapterFixture(storyId, index) }
         val commit = chapters.commit(
@@ -115,6 +127,54 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                     updatedAtEpochMillis =
                         BENCHMARK_EPOCH_MILLIS + (BENCHMARK_CHAPTER_COUNT - fixture.index),
                 ),
+            )
+        }
+    }
+
+
+    private suspend fun seedBrowseFixtures() {
+        val pluginId = PluginId(BENCHMARK_PLUGIN_ID)
+        val entries = List(BENCHMARK_BROWSE_STORY_COUNT) { index ->
+            val storyId = StoryId("benchmark-browse-story-$index")
+            CatalogEntry(
+                storyId = storyId,
+                pluginId = pluginId,
+                sourceId = "benchmark-browse-source-$index",
+                title = "Benchmark Browse Story ${index + 1}",
+                authors = setOf("Hikari"),
+                description = "Deterministic browse fixture ${index + 1} for scroll macrobenchmarks.",
+                contentType = ContentType.MANGA,
+                languageTags = setOf("en"),
+                popularityRank = index.toLong(),
+            )
+        }
+        val sectionSize = BENCHMARK_BROWSE_STORY_COUNT / BENCHMARK_BROWSE_SECTION_COUNT
+        val sections = entries.chunked(sectionSize).mapIndexed { sectionIndex, sectionEntries ->
+            CatalogHomeSection(
+                sourceId = "benchmark-section-$sectionIndex",
+                title = "Benchmark Shelf ${sectionIndex + 1}",
+                items = sectionEntries,
+            )
+        }
+        val homeResult = catalog.commitHomeRefresh(
+            CatalogHomeMutation(
+                pluginId = pluginId,
+                pluginVersion = BENCHMARK_PLUGIN_VERSION,
+                refreshedAtEpochMillis = BENCHMARK_EPOCH_MILLIS,
+                stories = entries.map { entry -> Story(entry.storyId, entry.contentType) },
+                entries = entries,
+                sections = sections,
+                orderedSourceItemIds = sections.associate { section ->
+                    section.sourceId to section.items.map(CatalogEntry::sourceId)
+                },
+            ),
+        )
+        check(homeResult is Outcome.Success)
+        entries.forEachIndexed { index, entry ->
+            val activityAt = BENCHMARK_EPOCH_MILLIS - index - 1
+            library.add(entry.storyId, LibraryStatus.WANT_TO_READ, activityAt)
+            check(
+                library.changeStatus(entry.storyId, LibraryStatus.WANT_TO_READ, activityAt) != null,
             )
         }
     }
@@ -181,9 +241,12 @@ class BenchmarkFixtureActivity : ComponentActivity() {
         const val BENCHMARK_PLUGIN_VERSION = "1.0.0"
         const val BENCHMARK_STORY_TITLE = "Hikari Benchmark Fixture"
         const val BENCHMARK_CHAPTER_COUNT = 12
+        const val BENCHMARK_BROWSE_STORY_COUNT = 30
+        const val BENCHMARK_BROWSE_SECTION_COUNT = 3
         const val BENCHMARK_RESUME_CHAPTER_INDEX = 1
         const val BENCHMARK_PARAGRAPH_COUNT = 24
         const val BENCHMARK_EPOCH_MILLIS = 1_700_000_000_000L
+        const val BENCHMARK_PRIMARY_ACTIVITY_OFFSET = 1_000L
         const val BENCHMARK_SEEDING_TEXT = "HIKARI_BENCHMARK_SEEDING"
         const val BENCHMARK_READY_TEXT = "HIKARI_BENCHMARK_READY"
         const val BENCHMARK_FAILED_PREFIX = "HIKARI_BENCHMARK_FAILED:"

@@ -76,14 +76,17 @@ grid counts, redundant destination content-color wrappers, and heading-semantic 
 bypass the shared design-system owner.
 
 List-sized cover artwork uses `HikariListArtworkFrame` so compact thumbnails share the same
-semantic cover rounding instead of rendering square inside rounded content cards. Filled product
-CTAs use `HikariPrimaryAction`; content/list secondary actions use `HikariContentAction`, an
-outlined pill with the shared minimum target. Compact toolbar and utility text actions use
-`HikariUtilityAction`, while icon-only utilities use `HikariIconActionStyle.TONAL`. Filled and tonal
-Hikari action owners explicitly disable Material button elevation so interaction states cannot
-reintroduce a directional shadow. Confirmation
-actions and destructive semantics remain separate contracts rather than being flattened into the
-content-action style.
+semantic cover rounding instead of rendering square inside rounded content cards. Action hierarchy
+is deliberately sparse: `HikariPrimaryAction` is reserved for the single dominant CTA,
+`HikariUtilityAction` is the normal tonal secondary action, and `HikariInlineAction` is the
+borderless low-priority/destructive text action used when another outlined pill would add visual
+noise. `HikariContentAction` remains an explicit outlined primitive but is not the default fallback
+for feature actions. Icon-only utilities default to `HikariIconActionStyle.TONAL`; callers request
+`GLASS` only when they are actually inside a `HikariBackdropHost` overlay and pass a real backdrop
+scope. Filled and tonal Hikari action owners explicitly disable Material button elevation so
+interaction states cannot reintroduce a directional shadow. A card or hero with child actions has
+one click owner per semantic region: either the container owns navigation or child actions do, never
+both through nested clickable modifiers.
 
 Story Overview, Chapters, and Sources use the same `HikariSectionHeader` mini-header contract
 with aligned outer spacing. The header supports an optional subtitle and trailing utility action.
@@ -102,6 +105,34 @@ buttons, refresh glyphs, or duplicate refresh progress chrome for the same opera
 and Sources are refreshable; Story Chapters is intentionally not refreshable until chapter
 synchronization has its own pipeline. Source-detail refresh failures render only in Overview/Sources,
 not above Chapters.
+
+## UI hierarchy and performance rules
+
+Scrollable collections must preserve real laziness. Repeated chapter releases, source mappings,
+failures, candidates, and similar unbounded collections are emitted as independent `LazyListScope`
+items with stable keys; they must not be rendered with `forEach` inside one lazy item. Heterogeneous
+hot lists such as Reader also declare `contentType` so compatible compositions can be reused. A
+vertical lazy container may contain bounded horizontal shelves, but nested vertical scroll owners
+require an explicit architecture review.
+
+Rapid gesture state stays as close to the gesture as possible. Slider drag values remain local and
+commit feature/ViewModel state from `onValueChangeFinished`. Reader persists its precise viewport
+position through the existing progress service, while visible progress is bucketed to whole percent
+inside a stable local holder so per-pixel scroll does not invalidate the Reader screen tree. Reader
+document content padding is stable whether chrome is visible or hidden; toolbar visibility is an
+overlay concern and must not relayout the document.
+
+`HikariModalSheet` owns Material modal-sheet shape, color, and zero tonal elevation. Features own
+sheet content/state but do not instantiate `ModalBottomSheet` directly. Reusable visual brushes are
+created once with the theme or remembered at the artwork boundary; composables should not allocate
+full-surface gradient brushes on every recomposition. Discover hero scrims are drawn by the artwork
+backdrop owner rather than stacked as extra full-size layout surfaces.
+
+Frame-sensitive UI paths are protected by Macrobenchmarks in addition to startup/navigation checks.
+The benchmark fixture provides deterministic long Reader content and populated Discover/Library
+collections, and the suite measures `readerScrollLongChapter`, `chaptersExpandAndScroll`,
+`libraryListScroll`, and `discoverScroll` with `FrameTimingMetric`. These measurements are the
+runtime authority for jank regressions; code review alone is not evidence that scrolling is smooth.
 
 ## When to use Material directly
 

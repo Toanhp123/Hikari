@@ -25,7 +25,7 @@ import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkState
-import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.control.HikariPrimaryAction
 import app.openstory.designsystem.menu.HikariDropdownMenu
 import app.openstory.designsystem.theme.hikariColors
@@ -180,7 +180,7 @@ private fun StoryHeroActions(
             Text(if (isResume) "Resume" else "Read")
         }
         if (downloadableReleaseId != null) {
-            HikariContentAction(
+            HikariUtilityAction(
                 onClick = { onDownload(downloadableReleaseId) },
                 modifier = Modifier
                     .weight(1f)
@@ -199,7 +199,7 @@ private fun LibraryStatusMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        HikariContentAction(
+        HikariUtilityAction(
             onClick = { expanded = true },
             modifier = Modifier
                 .fillMaxWidth()

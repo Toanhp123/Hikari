@@ -1,5 +1,6 @@
 package app.openstory.catalog.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -23,7 +25,7 @@ import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.HikariListArtworkFrame
 import app.openstory.designsystem.artwork.rememberHikariArtwork
-import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
@@ -57,23 +59,35 @@ fun StoryUpdateCard(
     action: StoryUpdateCardAction? = null,
     traversalIndex: Float? = null,
 ) {
+    val cardOwnsClick = action == null
     HikariContentCard(
-        onClick = onClick,
-        modifier = storyUpdateCardModifier(modifier, content, variant, traversalIndex),
+        onClick = onClick.takeIf { cardOwnsClick },
+        modifier = storyUpdateCardModifier(
+            modifier = modifier,
+            content = content,
+            variant = variant,
+            traversalIndex = traversalIndex,
+            mergeContent = cardOwnsClick,
+        ),
     ) {
-        val spacing = MaterialTheme.hikariSpacing
-        val contentPadding = when (variant) {
-            StoryUpdateCardVariant.SHELF -> spacing.space12
-            StoryUpdateCardVariant.ROW -> spacing.space12
-        }
+        val contentPadding = MaterialTheme.hikariSpacing.space12
         Row(
             modifier = Modifier.padding(contentPadding),
             horizontalArrangement = Arrangement.spacedBy(contentPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StoryUpdateArtwork(content, variant)
-            StoryUpdateText(content, variant)
-            action?.let { StoryUpdateAction(it) }
+            if (cardOwnsClick) {
+                StoryUpdateArtwork(content, variant)
+                StoryUpdateText(content, variant)
+            } else {
+                StoryUpdateClickableContent(
+                    content = content,
+                    variant = variant,
+                    onClick = onClick,
+                    modifier = Modifier.weight(1f),
+                )
+                StoryUpdateAction(action)
+            }
         }
     }
 }
@@ -84,6 +98,7 @@ private fun storyUpdateCardModifier(
     content: StoryUpdateCardContent,
     variant: StoryUpdateCardVariant,
     traversalIndex: Float?,
+    mergeContent: Boolean,
 ): Modifier {
     val dimensions = MaterialTheme.hikariDimensions
     val sizedModifier = when (variant) {
@@ -94,9 +109,29 @@ private fun storyUpdateCardModifier(
             .fillMaxWidth()
             .heightIn(min = dimensions.updateRowMinHeight)
     }
-    return sizedModifier.semantics(mergeDescendants = true) {
-        contentDescription = content.contentDescription
+    return sizedModifier.semantics(mergeDescendants = mergeContent) {
+        if (mergeContent) contentDescription = content.contentDescription
         traversalIndex?.let { value -> this.traversalIndex = value }
+    }
+}
+
+@Composable
+private fun StoryUpdateClickableContent(
+    content: StoryUpdateCardContent,
+    variant: StoryUpdateCardVariant,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    Row(
+        modifier = modifier
+            .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = content.contentDescription },
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StoryUpdateArtwork(content, variant)
+        StoryUpdateText(content, variant)
     }
 }
 
@@ -168,7 +203,7 @@ private fun RowScope.StoryUpdateText(
 
 @Composable
 private fun StoryUpdateAction(action: StoryUpdateCardAction) {
-    HikariContentAction(
+    HikariUtilityAction(
         onClick = action.onClick,
         modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
     ) { Text(action.label) }

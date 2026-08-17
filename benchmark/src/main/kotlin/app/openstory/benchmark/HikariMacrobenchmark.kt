@@ -102,6 +102,51 @@ class HikariMacrobenchmark {
     }
 
     @Test
+    fun readerScrollLongChapter() = measureNavigation(
+        setup = {
+            openBenchmarkFixtureStory()
+            clickTag("story-read")
+            waitForTag("reader-content")
+        },
+    ) {
+        swipeUpOnTag("reader-content", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
+    @Test
+    fun chaptersExpandAndScroll() = measureNavigation(
+        setup = {
+            openBenchmarkFixtureStory()
+            clickTag("story-tab-chapters")
+            waitForTag("chapter-list")
+            clickTag("chapter-summary-first")
+        },
+    ) {
+        swipeUpOnTag("chapter-list", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
+    @Test
+    fun libraryListScroll() = measureNavigation(
+        setup = {
+            clickTag("navigation-library")
+            waitForTag("library-collection")
+            clickTag("library-view-switch")
+            waitForTag("library-collection")
+        },
+    ) {
+        swipeUpOnTag("library-collection", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
+    @Test
+    fun discoverScroll() = measureNavigation(
+        setup = {
+            clickTag("navigation-discover")
+            waitForTag("discover-list")
+        },
+    ) {
+        swipeUpOnTag("discover-list", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
+    @Test
     fun backdropEnabled() = measureNavigation(backdropDisabled = false) {
         clickTag("navigation-discover")
         clickTag("navigation-home")
@@ -133,5 +178,9 @@ class HikariMacrobenchmark {
             },
             measureBlock = measure,
         )
+    }
+
+    private companion object {
+        const val SCROLL_SWIPE_COUNT = 6
     }
 }

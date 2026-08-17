@@ -6,23 +6,20 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import app.openstory.library.LibraryStatus
-import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.layout.HikariModalSheet
 import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 internal fun LibraryFilterSheet(
     state: LibraryUiState,
     onDismiss: () -> Unit,
@@ -31,12 +28,7 @@ internal fun LibraryFilterSheet(
     onSortSelected: (LibrarySort) -> Unit,
     onResetFilters: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
+    HikariModalSheet(onDismissRequest = onDismiss) {
         HikariSheetContent(title = "Library filters") {
             FilterSection("Status") {
                 LibraryChip(
@@ -80,7 +72,7 @@ internal fun LibraryFilterSheet(
                     )
                 }
             }
-            HikariContentAction(
+            HikariInlineAction(
                 onClick = onResetFilters,
                 modifier = Modifier
                     .fillMaxWidth()

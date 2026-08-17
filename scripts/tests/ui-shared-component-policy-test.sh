@@ -454,3 +454,92 @@ assert_contains 'fun HikariDropdownMenu(' \
   'design system must own popup menu shape and shadow'
 
 echo "UI shared-component policy contract verified."
+
+# UI architecture/performance hardening contracts.
+assert_contains 'contentType = {' \
+  'feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderContent.kt' \
+  'Reader lazy content must declare content types so heterogeneous blocks can reuse compatible compositions'
+assert_contains 'ReaderProgressUiState' \
+  'feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderScreen.kt' \
+  'Reader visible progress must be isolated in a stable local holder instead of a root per-pixel Float state'
+assert_absent 'contentPadding[[:space:]]*=[[:space:]]*if[[:space:]]*\(chromeVisible\)' \
+  'feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderScreen.kt' \
+  'Reader document padding must remain stable when chrome visibility changes'
+assert_absent 'chapter[.]releases[.]forEach' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'expanded chapter releases must be independent lazy items instead of eager children of one lazy item'
+assert_contains 'contentType = { "chapter-release" }' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter releases must declare a stable lazy content type'
+assert_absent 'state[.](mappings|failures|candidates)[.]forEach' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
+  'mapping collections must be LazyListScope items instead of eager Column children'
+assert_contains 'fun LazyListScope.mappingItems(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
+  'mapping UI must expose lazy items for Story Sources to compose lazily'
+assert_contains 'mappingItems(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
+  'Story Sources must flatten mapping items into its existing LazyColumn'
+assert_contains 'onValueChangeFinished = {' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchFilters.kt' \
+  'range filters must commit ViewModel state only after slider dragging finishes'
+assert_contains 'fun HikariInlineAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariInlineAction.kt' \
+  'design system must own the shared borderless low-priority action treatment'
+assert_absent 'import androidx[.]compose[.]material3[.]ModalBottomSheet' \
+  'app/src/main/kotlin' \
+  'app UI must use HikariModalSheet instead of owning Material bottom-sheet chrome'
+assert_absent 'import androidx[.]compose[.]material3[.]ModalBottomSheet' \
+  'feature' \
+  'feature UI must use HikariModalSheet instead of owning Material bottom-sheet chrome'
+assert_contains 'fun HikariModalSheet(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariModalSheet.kt' \
+  'design system must own the modal bottom-sheet surface contract'
+assert_contains 'style: HikariIconActionStyle = HikariIconActionStyle.TONAL' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariIconAction.kt' \
+  'icon actions must default to tonal; glass intent must be explicit at real backdrop call sites'
+assert_contains 'HikariVisualBrushes' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariVisualTokens.kt' \
+  'theme must own reusable visual brush tokens rather than allocate gradient brushes on every property read'
+assert_contains 'ReaderDestination(' \
+  'app/src/main/kotlin/app/openstory/navigation/AppDestinations.kt' \
+  'destination ViewModel/screen adapters must live outside AppNavHost'
+app_nav_lines="$(wc -l < "$ROOT_DIR/app/src/main/kotlin/app/openstory/navigation/AppNavHost.kt")"
+if (( app_nav_lines > 260 )); then
+  fail "AppNavHost must stay focused on graph/shell assembly (<=260 lines, found $app_nav_lines)"
+fi
+for benchmark in readerScrollLongChapter chaptersExpandAndScroll libraryListScroll discoverScroll; do
+  assert_contains "fun $benchmark()" \
+    'benchmark/src/main/kotlin/app/openstory/benchmark/HikariMacrobenchmark.kt' \
+    "macrobenchmark suite must cover $benchmark frame timing"
+done
+assert_contains 'fun swipeUpOnTag(' \
+  'benchmark/src/main/kotlin/app/openstory/benchmark/HikariBenchmarkDriver.kt' \
+  'benchmark driver must own a reusable deterministic tagged scroll gesture helper'
+assert_absent 'HikariContentAction\(' \
+  'feature' \
+  'feature actions must prefer primary, tonal, or inline hierarchy; outlined actions are reserved for explicit exceptional use'
+assert_absent 'HikariContentAction\(' \
+  'app/src/main/kotlin' \
+  'app utility actions must prefer tonal or inline hierarchy instead of outlined pills'
+assert_absent 'onClick[[:space:]]*=[[:space:]]*\{[[:space:]]*item[.]storyId[?][.]let\(actions[.]onStorySelected\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
+  'download cards with child download controls must not also own the parent click target'
+assert_contains 'val cardOwnsClick = action == null' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/components/StoryUpdateCard.kt' \
+  'update cards with a sibling action must split interaction ownership instead of nesting click targets'
+assert_contains 'val heroClickModifier = if (medium)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverHero.kt' \
+  'medium Discover hero must delegate navigation to its explicit CTA instead of nesting a CTA inside a clickable hero'
+assert_contains 'val fallbackBrush = remember(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/artwork/HikariArtwork.kt' \
+  'artwork fallback gradients must be remembered instead of allocated on every recomposition'
+assert_contains 'LibraryStatus.WANT_TO_READ' \
+  'app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt' \
+  'benchmark browse fixtures must use a valid LibraryStatus while populating the scroll collection'
+assert_contains 'BENCHMARK_EPOCH_MILLIS - index - 1' \
+  'app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt' \
+  'benchmark browse fillers must sort behind the primary fixture so story-navigation benchmarks can still find it without pre-scrolling'
+assert_contains 'library.changeStatus(' \
+  'app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt' \
+  'benchmark fixture reseeding must refresh Library ordering instead of relying on add-if-absent timestamps from a previous run'

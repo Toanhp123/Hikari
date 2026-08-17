@@ -2,21 +2,22 @@ package app.openstory.catalog.ui.download
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import app.openstory.common.id.ChapterReleaseId
-import app.openstory.designsystem.control.HikariContentAction
-import app.openstory.designsystem.control.HikariContentActionTone
+import app.openstory.designsystem.control.HikariInlineAction
+import app.openstory.designsystem.control.HikariInlineActionTone
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.feedback.HikariConfirmDialog
 import app.openstory.designsystem.feedback.HikariConfirmationStyle
+import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.downloads.DownloadState
-import app.openstory.designsystem.theme.hikariDimensions
-import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun DownloadActionSheet(
@@ -27,27 +28,29 @@ fun DownloadActionSheet(
     modifier: Modifier = Modifier,
     actionTag: String? = null,
 ) {
-    val actionModifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget).then(
-        if (actionTag == null) Modifier else Modifier.testTag(actionTag),
-    )
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
+    val actionModifier = Modifier
+        .fillMaxWidth()
+        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+        .then(if (actionTag == null) Modifier else Modifier.testTag(actionTag))
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
+    ) {
         when (state) {
-            DownloadState.QUEUED, DownloadState.RUNNING ->
-                HikariContentAction(
-                    onClick = { actions.onCancel(releaseId) },
-                    modifier = actionModifier,
-                ) { Text("Cancel") }
-            DownloadState.FAILED, DownloadState.CANCELLED ->
-                HikariContentAction(
-                    onClick = { actions.onRetry(releaseId) },
-                    modifier = actionModifier,
-                ) { Text("Retry") }
-            DownloadState.COMPLETED -> HikariContentAction(
+            DownloadState.QUEUED, DownloadState.RUNNING -> HikariUtilityAction(
+                onClick = { actions.onCancel(releaseId) },
+                modifier = actionModifier,
+            ) { Text("Cancel") }
+            DownloadState.FAILED, DownloadState.CANCELLED -> HikariUtilityAction(
+                onClick = { actions.onRetry(releaseId) },
+                modifier = actionModifier,
+            ) { Text("Retry") }
+            DownloadState.COMPLETED -> HikariInlineAction(
                 onClick = { actions.onRemove(releaseId) },
                 modifier = actionModifier,
-                tone = HikariContentActionTone.DESTRUCTIVE,
+                tone = HikariInlineActionTone.DESTRUCTIVE,
             ) { Text("Remove offline") }
-            null -> HikariContentAction(
+            null -> HikariUtilityAction(
                 onClick = { actions.onDownload(releaseId) },
                 modifier = actionModifier,
             ) { Text("Download") }

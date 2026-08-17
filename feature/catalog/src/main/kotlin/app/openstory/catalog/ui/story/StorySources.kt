@@ -2,7 +2,6 @@ package app.openstory.catalog.ui.story
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,7 +16,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.ui.mapping.MappingActions
-import app.openstory.catalog.ui.mapping.MappingSheet
+import app.openstory.catalog.ui.mapping.mappingItems
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.content.HikariSectionHeader
@@ -54,14 +53,8 @@ internal fun StorySources(
                     onSourceSelected(source.pluginId, source.sourceId)
                 }
             }
-            mappingState?.let {
-                item {
-                    MappingSheet(
-                        state = it,
-                        actions = mappingActions,
-                        contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space16),
-                    )
-                }
+            mappingState?.let { mapping ->
+                mappingItems(mapping, mappingActions)
             }
         }
     }

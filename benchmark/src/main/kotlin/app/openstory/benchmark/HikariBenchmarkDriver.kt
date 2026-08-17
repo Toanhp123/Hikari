@@ -14,6 +14,8 @@ private const val BENCHMARK_FIXTURE_COMPONENT =
 private const val BENCHMARK_FIXTURE_READY_TEXT = "HIKARI_BENCHMARK_READY"
 private const val DISABLE_BACKDROP_EXTRA = "app.openstory.benchmark.DISABLE_BACKDROP"
 private const val UI_TIMEOUT_MILLIS = 10_000L
+private const val SWIPE_EDGE_DIVISOR = 5
+private const val SWIPE_STEPS = 20
 
 internal fun prepareBenchmarkFixture() {
     val device = benchmarkDevice()
@@ -60,6 +62,22 @@ internal fun waitForTag(tag: String) {
 internal fun pressBackAndWait() {
     benchmarkDevice().pressBack()
     benchmarkDevice().waitForIdle()
+}
+
+internal fun swipeUpOnTag(tag: String, repetitions: Int = 1) {
+    require(repetitions > 0)
+    val device = benchmarkDevice()
+    repeat(repetitions) {
+        val node = device.wait(Until.findObject(By.res(tag)), UI_TIMEOUT_MILLIS)
+        requireNotNull(node) { "Benchmark node was not found: $tag" }
+        val bounds = node.visibleBounds
+        val inset = (bounds.height() / SWIPE_EDGE_DIVISOR).coerceAtLeast(1)
+        val startY = bounds.bottom - inset
+        val endY = bounds.top + inset
+        check(startY > endY) { "Benchmark node is too small to swipe: $tag $bounds" }
+        device.swipe(bounds.centerX(), startY, bounds.centerX(), endY, SWIPE_STEPS)
+        device.waitForIdle()
+    }
 }
 
 private fun benchmarkDevice(): UiDevice = UiDevice.getInstance(

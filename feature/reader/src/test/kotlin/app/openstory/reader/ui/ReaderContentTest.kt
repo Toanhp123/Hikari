@@ -24,4 +24,12 @@ class ReaderContentTest {
     fun knownBlockIncludesTheTitleOffset() {
         assertEquals(2, restoredReaderItemIndex(blocks, hasTitle = true, restoredBlockId = "second"))
     }
+    @Test
+    fun visibleProgressBucketsToWholePercent() {
+        assertEquals(0, fractionToPercent(0f))
+        assertEquals(42, fractionToPercent(0.421f))
+        assertEquals(42, fractionToPercent(0.429f))
+        assertEquals(100, fractionToPercent(1f))
+    }
+
 }

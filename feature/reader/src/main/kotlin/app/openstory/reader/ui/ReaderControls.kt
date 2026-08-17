@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.control.HikariIconAction
+import app.openstory.designsystem.control.HikariIconActionStyle
 import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.glass.HikariBackdropScope
 import app.openstory.designsystem.icon.HikariBackGlyph
@@ -48,6 +49,7 @@ fun ReaderControls(
             onClick = onBack,
             contentDescription = "Back",
             backdropScope = backdropScope,
+            style = HikariIconActionStyle.GLASS,
         ) { HikariBackGlyph() }
         HikariGlassPanel(
             backdropScope = backdropScope,
@@ -74,6 +76,7 @@ fun ReaderControls(
             onClick = onSettings,
             contentDescription = "Open reader settings",
             backdropScope = backdropScope,
+            style = HikariIconActionStyle.GLASS,
         ) { Text("Aa", style = MaterialTheme.typography.titleMedium) }
     }
 }
@@ -81,7 +84,7 @@ fun ReaderControls(
 @Composable
 fun ReaderChapterNavigation(
     state: ReaderUiState,
-    progress: Float,
+    progressPercent: Int,
     backdropScope: HikariBackdropScope,
     actions: ReaderActions,
     modifier: Modifier = Modifier,
@@ -111,7 +114,7 @@ fun ReaderChapterNavigation(
                         .testTag("reader-previous"),
                 ) { Text("Previous") }
                 Text(
-                    text = "${(progress.coerceIn(0f, 1f) * 100).toInt()}%",
+                    text = "${progressPercent.coerceIn(0, MAX_READER_PROGRESS_PERCENT)}%",
                     style = MaterialTheme.typography.labelLarge,
                 )
                 HikariUtilityAction(
@@ -123,7 +126,10 @@ fun ReaderChapterNavigation(
                 ) { Text("Next") }
             }
             LinearProgressIndicator(
-                progress = { progress.coerceIn(0f, 1f) },
+                progress = {
+                    progressPercent.coerceIn(0, MAX_READER_PROGRESS_PERCENT) /
+                        MAX_READER_PROGRESS_PERCENT.toFloat()
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -134,3 +140,5 @@ private fun selectedSourceLabel(state: ReaderUiState): String = state.releases
     .firstOrNull { it.id == state.selectedReleaseId }
     ?.let { "${it.source} - ${it.languageTag}" }
     ?: "Reading view"
+
+private const val MAX_READER_PROGRESS_PERCENT = 100

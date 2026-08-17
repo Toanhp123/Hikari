@@ -1,6 +1,5 @@
 package app.openstory.catalog.ui.discover
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,6 +30,7 @@ import app.openstory.designsystem.artwork.HikariArtworkBackdrop
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.rememberHikariArtwork
 import app.openstory.designsystem.content.HikariMetadataBadge
+import app.openstory.designsystem.control.HikariPrimaryAction
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariBreakpoints
 import app.openstory.designsystem.theme.hikariDimensions
@@ -69,22 +68,23 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
             MaterialTheme.hikariDimensions.discoverHeroCompactPosterWidth
         }
         val shape = MaterialTheme.hikariShapes.hero
+        val heroClickModifier = if (medium) {
+            Modifier
+        } else {
+            Modifier.clickable { onSelected(entry.storyId) }
+        }
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(heroHeight)
                 .clip(shape)
-                .clickable { onSelected(entry.storyId) },
+                .then(heroClickModifier),
         ) {
             HikariArtworkBackdrop(
                 state = artwork,
                 modifier = Modifier.fillMaxSize(),
                 scrim = MaterialTheme.hikariHeroHorizontalScrim,
-            )
-            Box(
-                Modifier.fillMaxSize().background(
-                    MaterialTheme.hikariHeroVerticalScrim,
-                ),
+                overlayScrim = MaterialTheme.hikariHeroVerticalScrim,
             )
             Row(
                 modifier = Modifier.fillMaxSize().padding(MaterialTheme.hikariSpacing.space8),
@@ -169,20 +169,8 @@ private fun HeroDetails(
             }
         }
         if (medium) {
-            Surface(
-                onClick = { onSelected(entry.storyId) },
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.hikariColors.onArtworkInverse,
-                shape = MaterialTheme.hikariShapes.contentCard,
-            ) {
-                Text(
-                    "Open story",
-                    modifier = Modifier.padding(
-                        horizontal = MaterialTheme.hikariSpacing.space20,
-                        vertical = MaterialTheme.hikariSpacing.space12,
-                    ),
-                    style = MaterialTheme.hikariTypography.heroAction,
-                )
+            HikariPrimaryAction(onClick = { onSelected(entry.storyId) }) {
+                Text("Open story", style = MaterialTheme.hikariTypography.heroAction)
             }
         }
     }

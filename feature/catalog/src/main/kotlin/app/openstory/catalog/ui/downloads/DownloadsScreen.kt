@@ -1,5 +1,6 @@
 package app.openstory.catalog.ui.downloads
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.catalog.ui.download.DownloadActionSheet
@@ -115,28 +117,37 @@ private fun DownloadCard(
     pendingRemoval: Boolean,
     actions: DownloadListActions,
 ) {
-    HikariContentCard(
-        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-            contentDescription = "${item.storyTitle}, ${item.chapterLabel}, ${item.state.name.lowercase()} download"
-        },
-        onClick = { item.storyId?.let(actions.onStorySelected) },
-        enabled = item.storyId != null,
-    ) {
+    HikariContentCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
-            Text(item.storyTitle, style = MaterialTheme.typography.titleMedium)
-            Text(item.chapterLabel, style = MaterialTheme.typography.bodyMedium)
-            HikariMetadataBadgeGroup(
-                listOfNotNull(
-                    item.sourceLabel,
-                    item.state.name.lowercase().replaceFirstChar(Char::uppercase),
-                    item.sizeBytes.takeIf { it > 0L }?.byteLabel(),
-                ),
-            )
-            item.failureReason?.let { failure ->
-                HikariInlineFeedback(message = failure)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        item.storyId?.let { storyId ->
+                            Modifier.clickable(role = Role.Button) { actions.onStorySelected(storyId) }
+                        } ?: Modifier,
+                    )
+                    .semantics(mergeDescendants = true) {
+                        contentDescription =
+                            "${item.storyTitle}, ${item.chapterLabel}, ${item.state.name.lowercase()} download"
+                    },
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            ) {
+                Text(item.storyTitle, style = MaterialTheme.typography.titleMedium)
+                Text(item.chapterLabel, style = MaterialTheme.typography.bodyMedium)
+                HikariMetadataBadgeGroup(
+                    listOfNotNull(
+                        item.sourceLabel,
+                        item.state.name.lowercase().replaceFirstChar(Char::uppercase),
+                        item.sizeBytes.takeIf { it > 0L }?.byteLabel(),
+                    ),
+                )
+                item.failureReason?.let { failure ->
+                    HikariInlineFeedback(message = failure)
+                }
             }
             DownloadActionSheet(
                 releaseId = item.releaseId,

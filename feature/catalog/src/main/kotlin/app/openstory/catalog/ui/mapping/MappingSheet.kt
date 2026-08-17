@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -15,8 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionTitle
-import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.control.HikariPrimaryAction
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.surface.HikariContentCardStyle
@@ -32,61 +37,96 @@ fun MappingSheet(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues? = null,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth().padding(
-            contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.space16),
-        ),
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.space16),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
+        mappingItems(state, actions)
+    }
+}
+
+fun LazyListScope.mappingItems(
+    state: MappingUiState,
+    actions: MappingActions,
+) {
+    item(key = "mapping-title", contentType = "mapping-header") {
         HikariSectionTitle("Reading sources")
+    }
+    item(key = "mapping-description", contentType = "mapping-copy") {
         Text(
             "Linked sources stay protected until you explicitly approve a replacement.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        CurrentMappings(state.mappings)
+    }
+    item(key = "mapping-linked-title", contentType = "mapping-subheader") {
+        Text("Linked sources", style = MaterialTheme.typography.titleMedium)
+    }
+    if (state.mappings.isEmpty()) {
+        item(key = "mapping-linked-empty", contentType = "mapping-card") {
+            HikariContentCard(Modifier.fillMaxWidth()) {
+                Text(
+                    "No reading source linked yet",
+                    modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    } else {
+        items(
+            items = state.mappings,
+            key = { mapping -> "mapping-linked:${mapping.pluginId.value}:${mapping.sourceStoryId}" },
+            contentType = { "mapping-card" },
+        ) { mapping ->
+            CurrentMappingCard(mapping)
+        }
+    }
+    item(key = "mapping-search", contentType = "mapping-action") {
         HikariPrimaryAction(
             onClick = actions.onSearch,
             enabled = !state.busy,
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Find reading sources") }
+    }
+    item(key = "mapping-url", contentType = "mapping-form") {
         UrlImport(state, actions)
-        if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        state.failures.forEach { failure -> HikariInlineFeedback(message = "Mapping issue: $failure") }
-        if (state.candidates.isNotEmpty()) {
+    }
+    if (state.busy) {
+        item(key = "mapping-progress", contentType = "mapping-progress") {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+    }
+    itemsIndexed(
+        items = state.failures,
+        key = { index, failure -> "mapping-failure:$index:$failure" },
+        contentType = { _, _ -> "mapping-feedback" },
+    ) { _, failure ->
+        HikariInlineFeedback(message = "Mapping issue: $failure")
+    }
+    if (state.candidates.isNotEmpty()) {
+        item(key = "mapping-candidates-title", contentType = "mapping-subheader") {
             Text("Candidates", style = MaterialTheme.typography.titleMedium)
         }
-        state.candidates.forEach { MappingCandidateCard(it, actions) }
+    }
+    items(
+        items = state.candidates,
+        key = { candidate -> "mapping-candidate:${candidate.pluginId.value}:${candidate.sourceStoryId}" },
+        contentType = { "mapping-candidate" },
+    ) { candidate ->
+        MappingCandidateCard(candidate, actions)
     }
 }
 
 @Composable
-private fun CurrentMappings(mappings: List<MappingItemUiModel>) {
-    Text("Linked sources", style = MaterialTheme.typography.titleMedium)
-    if (mappings.isEmpty()) {
-        HikariContentCard(Modifier.fillMaxWidth()) {
-            Text(
-                "No reading source linked yet",
-                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        return
-    }
-    mappings.forEach { mapping ->
-        HikariContentCard(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
-            ) {
-                Text(
-                    mapping.pluginId.value,
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                HikariMetadataBadgeGroup(
-                    listOf(mapping.origin.displayName(), mapping.sourceStoryId),
-                )
-            }
+private fun CurrentMappingCard(mapping: MappingItemUiModel) {
+    HikariContentCard(Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
+            Text(mapping.pluginId.value, style = MaterialTheme.typography.titleSmall)
+            HikariMetadataBadgeGroup(listOf(mapping.origin.displayName(), mapping.sourceStoryId))
         }
     }
 }
@@ -102,7 +142,7 @@ private fun UrlImport(state: MappingUiState, actions: MappingActions) {
             label = { Text("Reading source URL") },
             singleLine = true,
         )
-        HikariContentAction(
+        HikariUtilityAction(
             onClick = actions.onResolveUrl,
             enabled = !state.busy && state.urlInput.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
@@ -152,7 +192,7 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
                     onClick = { actions.onApprove(candidate.pluginId, candidate.sourceStoryId) },
                     modifier = Modifier.weight(1f),
                 ) { Text(if (candidate.fromUrl) "Use URL source" else "Approve") }
-                HikariContentAction(
+                HikariInlineAction(
                     onClick = { actions.onReject(candidate.pluginId, candidate.sourceStoryId) },
                     modifier = Modifier.weight(1f),
                 ) { Text("Reject") }

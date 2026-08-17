@@ -1,5 +1,6 @@
 package app.openstory.designsystem.artwork
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.openstory.designsystem.motion.LocalHikariMotionPolicy
 import app.openstory.designsystem.theme.hikariColors
+import app.openstory.designsystem.theme.hikariArtworkBackdropScrim
 import app.openstory.designsystem.theme.hikariOpacity
 import coil3.ImageLoader
 import coil3.compose.AsyncImagePainter
@@ -118,6 +120,7 @@ fun HikariArtworkBackdrop(
     state: HikariArtworkState,
     modifier: Modifier = Modifier,
     scrim: Brush = HikariBackdropDefaults.scrim,
+    overlayScrim: Brush? = null,
 ) {
     Box(modifier = modifier) {
         ArtworkLayer(
@@ -126,28 +129,17 @@ fun HikariArtworkBackdrop(
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
         )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(scrim),
-        )
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawRect(scrim)
+            overlayScrim?.let { overlay -> drawRect(overlay) }
+        }
     }
 }
 
 object HikariBackdropDefaults {
     val scrim: Brush
         @Composable
-        get() {
-            val colors = MaterialTheme.hikariColors
-            val opacity = MaterialTheme.hikariOpacity
-            return Brush.verticalGradient(
-                colors = listOf(
-                    colors.transparent,
-                    colors.artworkScrim.copy(alpha = opacity.artworkBackdropMid),
-                    colors.artworkScrim.copy(alpha = opacity.artworkBackdropStrong),
-                ),
-            )
-        }
+        get() = MaterialTheme.hikariArtworkBackdropScrim
 }
 
 @Composable
@@ -157,15 +149,16 @@ private fun ArtworkLayer(
     modifier: Modifier,
     contentScale: ContentScale,
 ) {
-    Box(
-        modifier = modifier.background(
-            Brush.linearGradient(
-                colors = listOf(
-                    state.fallback.startColor,
-                    state.fallback.endColor,
-                ),
+    val fallbackBrush = remember(state.fallback.startColor, state.fallback.endColor) {
+        Brush.linearGradient(
+            colors = listOf(
+                state.fallback.startColor,
+                state.fallback.endColor,
             ),
-        ),
+        )
+    }
+    Box(
+        modifier = modifier.background(fallbackBrush),
         contentAlignment = Alignment.Center,
     ) {
         Text(

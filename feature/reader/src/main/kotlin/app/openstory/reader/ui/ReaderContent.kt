@@ -54,7 +54,7 @@ fun ReaderContent(
         contentPadding = contentPadding,
     ) {
         document.title?.let { title ->
-            item(key = "reader-title") {
+            item(key = "reader-title", contentType = "reader-title") {
                 Text(
                     title,
                     modifier = Modifier.padding(
@@ -67,7 +67,11 @@ fun ReaderContent(
                 )
             }
         }
-        items(document.blocks.size, key = { document.blocks[it].id }) { index ->
+        items(
+            count = document.blocks.size,
+            key = { document.blocks[it].id },
+            contentType = { document.blocks[it].contentType() },
+        ) { index ->
             ReaderBlock(document.blocks[index], fontScale)
         }
     }
@@ -240,3 +244,11 @@ internal fun restoredReaderItemIndex(
 }
 
 private const val HEADING_LEVEL_THREE = 3
+
+
+private fun ReaderBlock.contentType(): String = when (this) {
+    is ReaderBlock.Paragraph -> "reader-paragraph"
+    is ReaderBlock.Heading -> "reader-heading"
+    is ReaderBlock.Divider -> "reader-divider"
+    is ReaderBlock.Note -> "reader-note"
+}

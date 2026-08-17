@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -14,18 +12,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.designsystem.control.HikariUtilityAction
+import app.openstory.designsystem.layout.HikariModalSheet
 import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun ReaderSettingsSheet(
     state: ReaderUiState,
     actions: ReaderActions,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, modifier = modifier) {
+    HikariModalSheet(onDismissRequest = onDismiss, modifier = modifier) {
         HikariSheetContent(title = "Reading settings") {
             Text("Text size", style = MaterialTheme.typography.titleMedium)
             Row(

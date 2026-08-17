@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.testTag
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.layout.HikariResponsiveContent
 import app.openstory.designsystem.layout.HikariWindowClass
@@ -169,6 +170,7 @@ private fun LibraryCollection(
         )
         if (state.displayMode == LibraryDisplayMode.LIST) {
             LazyColumn(
+                modifier = Modifier.testTag("library-collection"),
                 contentPadding = PaddingValues(bottom = MaterialTheme.hikariSpacing.space24),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
             ) {
@@ -192,6 +194,7 @@ private fun LibraryCollection(
             }
             LazyVerticalGrid(
                 columns = columns,
+                modifier = Modifier.testTag("library-collection"),
                 contentPadding = collectionPadding,
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),

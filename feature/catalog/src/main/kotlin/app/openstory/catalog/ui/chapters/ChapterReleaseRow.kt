@@ -18,7 +18,8 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
-import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariInlineAction
+import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.downloads.DownloadState
@@ -42,7 +43,7 @@ fun ChapterReleaseRow(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(MaterialTheme.hikariSpacing.space12),
+            .padding(MaterialTheme.hikariSpacing.space16),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         Text(release.sourceName, style = MaterialTheme.typography.titleSmall)
@@ -55,9 +56,9 @@ fun ChapterReleaseRow(
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
-            HikariContentAction(
+            HikariUtilityAction(
                 onClick = { onRead(ReaderTarget(storyId, chapterId, release.id)) },
                 modifier = Modifier
                     .weight(1f)
@@ -75,13 +76,13 @@ fun ChapterReleaseRow(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
-            HikariContentAction(
+            HikariInlineAction(
                 onClick = { onKeepGrouped(release.id, chapterId) },
                 modifier = Modifier.weight(1f),
             ) { Text("Keep grouped") }
-            HikariContentAction(
+            HikariInlineAction(
                 onClick = { onSeparate(release.id) },
                 modifier = Modifier.weight(1f),
             ) { Text("Separate") }
