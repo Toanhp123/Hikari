@@ -14,6 +14,7 @@ data class HikariSemanticColors(
     val onArtworkInverse: Color = Color.Black,
     val artworkScrim: Color = Color.Black,
     val transparent: Color = Color.Transparent,
+    val surfaceShadow: Color = Color.Black,
 )
 
 @Immutable
@@ -36,6 +37,7 @@ data class HikariOpacity(
     val onArtworkSecondary: Float = 0.78f,
     val onArtworkMuted: Float = 0.82f,
     val onArtworkBadge: Float = 0.13f,
+    val surfaceShadow: Float = 0.14f,
 )
 
 val HikariDefaultSemanticColors = HikariSemanticColors()
@@ -53,7 +55,6 @@ val MaterialTheme.hikariOpacity: HikariOpacity
     @Composable
     @ReadOnlyComposable
     get() = LocalHikariOpacity.current
-
 
 val MaterialTheme.hikariAtmosphereBrush: Brush
     @Composable

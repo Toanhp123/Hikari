@@ -97,7 +97,7 @@ private fun FilterSection(
     title: String,
     content: @Composable FlowRowScope.() -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,

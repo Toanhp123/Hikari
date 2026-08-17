@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariGlyphGeometry
-import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun HikariBackGlyph(modifier: Modifier = Modifier) {
@@ -108,10 +107,11 @@ fun HikariFilterGlyph(modifier: Modifier = Modifier) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     val dimensions = MaterialTheme.hikariDimensions
     val geometry = MaterialTheme.hikariGlyphGeometry.filter
+    val glyphPadding = (dimensions.minimumTouchTarget - dimensions.iconMedium) / 2f
     Canvas(
         modifier
             .size(dimensions.minimumTouchTarget)
-            .padding(MaterialTheme.hikariSpacing.space14),
+            .padding(glyphPadding),
     ) {
         val stroke = dimensions.glyphStroke.toPx()
         val lines = listOf(
@@ -147,10 +147,11 @@ private fun HikariViewGlyph(grid: Boolean, modifier: Modifier) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     val dimensions = MaterialTheme.hikariDimensions
     val geometry = MaterialTheme.hikariGlyphGeometry.view
+    val glyphPadding = (dimensions.minimumTouchTarget - dimensions.iconMedium) / 2f
     Canvas(
         modifier
             .size(dimensions.minimumTouchTarget)
-            .padding(MaterialTheme.hikariSpacing.space14),
+            .padding(glyphPadding),
     ) {
         val stroke = dimensions.glyphStrokeFine.toPx()
         if (grid) {

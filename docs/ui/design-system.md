@@ -33,11 +33,21 @@ Discrete layout decisions such as the compact two-column policy use
 Material 3 surface roles are also product-owned: `HikariColorScheme` explicitly defines
 `surfaceBright`, `surfaceDim`, and the complete `surfaceContainer*` range so Cards, sheets,
 menus, and other Material containers cannot fall back to an unrelated default neutral palette.
-Content/list cards use `HikariContentCard`: separation is shadow-only, with no outline/border,
-and the subtle card shadow comes from the semantic `contentCardShadowElevation` token. Floating
-glass keeps its stronger glass-specific border/shadow treatment and must not be reused as a
-content-card fallback when no backdrop is present. Nested list-item surfaces are avoided; child
-rows inherit their parent card surface unless they represent an independently elevated object.
+The base spacing scale is intentionally small: `4 / 8 / 12 / 16 / 20 / 24 / 32.dp`.
+Generic icon sizing is limited to `20 / 24.dp`; product geometry such as poster sizes, reader
+insets, breakpoints, hero heights, and glyph stroke measurements stays in named semantic
+dimension tokens when the value has a real layout purpose. Semantic card radii use the deliberate
+`20 / 24 / 28 / 36.dp` family instead of component-by-component 2dp steps.
+
+Visible surface separation uses one Hikari shadow contract. `hikariSurfaceShadow` renders a
+zero-offset `2.dp` drop shadow with semantic color/opacity tokens so the result stays balanced on
+all four sides. `HikariContentCard`, non-blurred glass fallback, pull-to-refresh indicator chrome,
+and popup menus consume this owner. Material `shadowElevation` is explicitly zero anywhere Hikari
+adds visible shadow, and production app/feature code must not create `Modifier.shadow`, raw
+`dropShadow`, or default-elevated popup/refresh surfaces. Real backdrop glass keeps its blur and
+border treatment but no separate directional elevation shadow. Content/list cards remain
+shadow-only with no outline/border. Nested list-item surfaces are avoided; child rows inherit
+their parent card surface unless they represent an independently elevated object.
 
 `scripts/verify-ui-tokens.sh` enforces this policy over production Compose sources and is
 part of both repository verification entry points through `verification-common.sh`. It also
@@ -66,11 +76,14 @@ grid counts, redundant destination content-color wrappers, and heading-semantic 
 bypass the shared design-system owner.
 
 List-sized cover artwork uses `HikariListArtworkFrame` so compact thumbnails share the same
-semantic cover rounding instead of rendering square inside rounded content cards. Content/list
-secondary actions use `HikariContentAction`, an outlined pill with the shared minimum target;
-compact toolbar and utility text actions use `HikariUtilityAction`, while icon-only utilities use
-`HikariIconActionStyle.TONAL`. Hero CTAs, confirmation actions, and destructive semantics remain
-separate contracts rather than being flattened into the content-action style.
+semantic cover rounding instead of rendering square inside rounded content cards. Filled product
+CTAs use `HikariPrimaryAction`; content/list secondary actions use `HikariContentAction`, an
+outlined pill with the shared minimum target. Compact toolbar and utility text actions use
+`HikariUtilityAction`, while icon-only utilities use `HikariIconActionStyle.TONAL`. Filled and tonal
+Hikari action owners explicitly disable Material button elevation so interaction states cannot
+reintroduce a directional shadow. Confirmation
+actions and destructive semantics remain separate contracts rather than being flattened into the
+content-action style.
 
 Story Overview, Chapters, and Sources use the same `HikariSectionHeader` mini-header contract
 with aligned outer spacing. The header supports an optional subtitle and trailing utility action.
@@ -78,8 +91,9 @@ The three tab bodies consume the feature-owned `storySectionContentPadding()` ou
 nested content inherits that horizontal inset instead of stacking feature-local padding.
 
 Cross-screen manual refresh uses `HikariPullToRefresh`. The design system owns the Material 3
-pull gesture, theme-driven indicator, busy-state semantics, and the accessibility `Refresh`
-action; features only provide their real refresh callback and scrollable content. Edge-to-edge
+pull gesture, zero-elevation indicator container, centered Hikari shadow, theme-driven progress
+indicator, busy-state semantics, and the accessibility `Refresh` action; features only provide
+their real refresh callback and scrollable content. Edge-to-edge
 hosts pass the already-computed safe top inset into the refresh owner and remove that same top
 inset from their scroll content padding, so the indicator and content consume system insets exactly
 once. A pull gesture is enabled only where the feature has a matching refresh pipeline. Visible
@@ -95,8 +109,9 @@ Use Material 3 directly for standard controls and layout primitives when Hikari 
 visual rule beyond the theme. Do not wrap every Material component. Once a visual rule
 is Hikari-specific or repeats across screens, expose a shared component or semantic token
 instead of customizing each call site. `FilterChip` is intentionally wrapped by
-`HikariFilterChip` because Hikari owns its minimum interactive target; interactive one-off
-Material controls may still be used directly when no Hikari-specific presentation exists.
+`HikariFilterChip` because Hikari owns its minimum interactive target; `DropdownMenu` is wrapped
+by `HikariDropdownMenu` because popup shape/elevation/shadow are product-owned. Interactive
+one-off Material controls may still be used directly when no Hikari-specific presentation exists.
 
 ## Loading
 

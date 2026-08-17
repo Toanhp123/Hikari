@@ -27,7 +27,6 @@ import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.surface.HikariContentCardStyle
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun ChapterList(
@@ -39,7 +38,7 @@ fun ChapterList(
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.space16),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) { chapterListItems(state, actions) }
 }
 
@@ -83,7 +82,7 @@ private fun ChapterRow(
         style = HikariContentCardStyle.PROMINENT,
     ) {
         Column(
-            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             Row(
@@ -97,9 +96,9 @@ private fun ChapterRow(
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space3),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
                 ) {
-                    Text(chapter.label, style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
+                    Text(chapter.label, style = MaterialTheme.typography.titleMedium)
                     Text(
                         if (chapter.tombstoned) "Unavailable" else "Unread",
                         style = MaterialTheme.typography.bodySmall,

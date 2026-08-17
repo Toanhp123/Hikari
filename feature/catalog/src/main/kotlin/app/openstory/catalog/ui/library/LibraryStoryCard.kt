@@ -65,7 +65,7 @@ internal fun LibraryStoryCard(
             .semantics(mergeDescendants = true) { contentDescription = item.accessibilityDescription() },
     ) {
         Row(
-            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space10),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space12),
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
             verticalAlignment = Alignment.CenterVertically,
         ) {

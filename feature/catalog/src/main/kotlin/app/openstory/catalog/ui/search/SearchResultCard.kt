@@ -29,7 +29,6 @@ import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.surface.HikariContentCardStyle
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun SearchResultCard(
@@ -52,7 +51,7 @@ fun SearchResultCard(
     ) {
         Row(
             modifier = Modifier.padding(MaterialTheme.hikariSpacing.space12),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             HikariCoverCardFrame(Modifier.width(MaterialTheme.hikariDimensions.posterSearchWidth)) {
@@ -70,10 +69,10 @@ private fun SearchResultMetadata(
     title: String,
     modifier: Modifier,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space7)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
         Text(
             title,
-            style = MaterialTheme.hikariTypography.emphasizedTitleMedium,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -94,7 +93,7 @@ private fun SearchResultMetadata(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             result.sources.take(MAX_VISIBLE_SOURCES).forEachIndexed { index, source ->
-                if (index > 0) Spacer(Modifier.size(MaterialTheme.hikariSpacing.space6))
+                if (index > 0) Spacer(Modifier.size(MaterialTheme.hikariSpacing.space8))
                 Text(
                     source.displayLabel(),
                     style = MaterialTheme.typography.labelSmall,

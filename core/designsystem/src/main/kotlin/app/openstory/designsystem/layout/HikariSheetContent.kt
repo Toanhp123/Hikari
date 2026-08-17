@@ -26,7 +26,7 @@ fun HikariSheetContent(
                 horizontal = MaterialTheme.hikariSpacing.space20,
                 vertical = MaterialTheme.hikariSpacing.space12,
             ),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space14),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
     ) {
         Text(
             text = title,

@@ -3,17 +3,12 @@ package app.openstory.catalog.ui.story
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +25,9 @@ import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkState
+import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariPrimaryAction
+import app.openstory.designsystem.menu.HikariDropdownMenu
 import app.openstory.designsystem.theme.hikariColors
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariOpacity
@@ -114,7 +112,7 @@ internal fun NarrowHeroContent(
         modifier = modifier
             .fillMaxWidth()
             .padding(MaterialTheme.hikariSpacing.space16),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
@@ -132,7 +130,7 @@ internal fun NarrowHeroContent(
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             ) {
                 Text(
                     text = story.preferredTitle,
@@ -172,25 +170,21 @@ private fun StoryHeroActions(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
-        Button(
+        HikariPrimaryAction(
             onClick = { readerTarget?.let(onRead) },
             enabled = readerTarget != null,
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                 .testTag("story-read"),
-            contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space8),
         ) {
             Text(if (isResume) "Resume" else "Read")
         }
         if (downloadableReleaseId != null) {
-            OutlinedButton(
+            HikariContentAction(
                 onClick = { onDownload(downloadableReleaseId) },
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                     .testTag("story-download"),
-                contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space8),
             ) {
                 Text("Download")
             }
@@ -205,16 +199,15 @@ private fun LibraryStatusMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(
+        HikariContentAction(
             onClick = { expanded = true },
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                 .testTag("story-library"),
         ) {
             Text(status?.label() ?: "Add to Library")
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        HikariDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             LibraryStatus.entries.forEach { item ->
                 DropdownMenuItem(
                     text = { Text(item.label()) },

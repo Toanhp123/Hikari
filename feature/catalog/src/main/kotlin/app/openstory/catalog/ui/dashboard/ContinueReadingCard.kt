@@ -12,7 +12,6 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.StoryPosterCard
-import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable

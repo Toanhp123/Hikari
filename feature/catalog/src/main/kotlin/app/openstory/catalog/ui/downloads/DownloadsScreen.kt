@@ -123,7 +123,7 @@ private fun DownloadCard(
         enabled = item.storyId != null,
     ) {
         Column(
-            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             Text(item.storyTitle, style = MaterialTheme.typography.titleMedium)

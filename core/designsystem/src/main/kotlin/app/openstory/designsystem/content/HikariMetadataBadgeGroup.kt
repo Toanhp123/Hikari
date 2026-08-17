@@ -16,8 +16,8 @@ fun HikariMetadataBadgeGroup(
     if (labels.isEmpty()) return
     FlowRow(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         labels.forEach { label -> HikariMetadataBadge(label) }
     }

@@ -33,7 +33,6 @@ import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariOpacity
 import app.openstory.designsystem.theme.hikariShapes
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.theme.hikariTypography
 
 @Composable
 fun HikariSearchBar(
@@ -89,7 +88,7 @@ fun HikariSearchBar(
             singleLine = true,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
-            textStyle = MaterialTheme.hikariTypography.searchText.copy(
+            textStyle = MaterialTheme.typography.titleMedium.copy(
                 color = MaterialTheme.colorScheme.onSurface,
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -112,24 +111,24 @@ private fun SearchBarContent(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = MaterialTheme.hikariSpacing.space18),
+            .padding(horizontal = MaterialTheme.hikariSpacing.space20),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
-        HikariSearchGlyph(Modifier.size(MaterialTheme.hikariDimensions.iconSmall))
+        HikariSearchGlyph(Modifier.size(MaterialTheme.hikariDimensions.iconMedium))
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) {
                 Text(
                     text = placeholder,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.hikariTypography.searchText,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             } else {
                 innerTextField?.invoke() ?: Text(
                     text = value,
-                    style = MaterialTheme.hikariTypography.searchText,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

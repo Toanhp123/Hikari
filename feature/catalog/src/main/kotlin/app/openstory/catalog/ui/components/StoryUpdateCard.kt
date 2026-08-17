@@ -63,7 +63,7 @@ fun StoryUpdateCard(
     ) {
         val spacing = MaterialTheme.hikariSpacing
         val contentPadding = when (variant) {
-            StoryUpdateCardVariant.SHELF -> spacing.space10
+            StoryUpdateCardVariant.SHELF -> spacing.space12
             StoryUpdateCardVariant.ROW -> spacing.space12
         }
         Row(
@@ -130,9 +130,9 @@ private fun RowScope.StoryUpdateText(
         modifier = if (variant == StoryUpdateCardVariant.ROW) Modifier.weight(1f) else Modifier,
         verticalArrangement = Arrangement.spacedBy(
             if (variant == StoryUpdateCardVariant.ROW) {
-                MaterialTheme.hikariSpacing.space6
+                MaterialTheme.hikariSpacing.space8
             } else {
-                MaterialTheme.hikariSpacing.space2
+                MaterialTheme.hikariSpacing.space4
             },
         ),
     ) {

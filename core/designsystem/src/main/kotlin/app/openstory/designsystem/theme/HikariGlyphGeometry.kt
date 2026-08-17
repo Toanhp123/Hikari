@@ -48,7 +48,6 @@ data class HikariViewGlyphGeometry(
 )
 
 
-
 @Immutable
 data class HikariGlyphGeometry(
     val back: HikariBackGlyphGeometry = HikariBackGlyphGeometry(),
@@ -57,7 +56,9 @@ data class HikariGlyphGeometry(
     val view: HikariViewGlyphGeometry = HikariViewGlyphGeometry(),
 )
 
-internal val LocalHikariGlyphGeometry = staticCompositionLocalOf { HikariGlyphGeometry() }
+val HikariDefaultGlyphGeometry = HikariGlyphGeometry()
+
+internal val LocalHikariGlyphGeometry = staticCompositionLocalOf { HikariDefaultGlyphGeometry }
 
 val MaterialTheme.hikariGlyphGeometry: HikariGlyphGeometry
     @Composable

@@ -42,6 +42,7 @@ import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.control.HikariIconActionStyle
+import app.openstory.designsystem.control.HikariPrimaryAction
 import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.glass.HikariBackdropMode
 import app.openstory.designsystem.glass.HikariGlassRenderingMode
@@ -183,6 +184,10 @@ class HikariProductPrimitivesTest {
         compose.setContent {
             HikariTheme {
                 Column {
+                    HikariPrimaryAction(
+                        onClick = {},
+                        modifier = Modifier.testTag("primary-action"),
+                    ) { androidx.compose.material3.Text("Primary action") }
                     HikariContentAction(
                         onClick = {},
                         modifier = Modifier.testTag("content-action"),
@@ -195,6 +200,7 @@ class HikariProductPrimitivesTest {
             }
         }
 
+        compose.onNodeWithTag("primary-action").assertHeightIsAtLeast(48.dp)
         compose.onNodeWithTag("content-action").assertHeightIsAtLeast(48.dp)
         compose.onNodeWithTag("utility-action").assertHeightIsAtLeast(48.dp)
     }

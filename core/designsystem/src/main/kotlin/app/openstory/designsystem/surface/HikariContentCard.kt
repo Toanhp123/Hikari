@@ -19,26 +19,30 @@ fun HikariContentCard(
     val shape = hikariContentCardShape(style)
     val dimensions = MaterialTheme.hikariDimensions
     val colorScheme = MaterialTheme.colorScheme
+    val cardModifier = modifier.hikariSurfaceShadow(
+        shape = shape,
+        enabled = onClick == null || enabled,
+    )
     if (onClick == null) {
         Surface(
-            modifier = modifier,
+            modifier = cardModifier,
             shape = shape,
             color = colorScheme.surface,
             contentColor = colorScheme.onSurface,
             tonalElevation = dimensions.zero,
-            shadowElevation = dimensions.contentCardShadowElevation,
+            shadowElevation = dimensions.zero,
             content = content,
         )
     } else {
         Surface(
             onClick = onClick,
-            modifier = modifier,
+            modifier = cardModifier,
             enabled = enabled,
             shape = shape,
             color = if (enabled) colorScheme.surface else colorScheme.surfaceContainerLow,
             contentColor = if (enabled) colorScheme.onSurface else colorScheme.onSurfaceVariant,
             tonalElevation = dimensions.zero,
-            shadowElevation = if (enabled) dimensions.contentCardShadowElevation else dimensions.zero,
+            shadowElevation = dimensions.zero,
             content = content,
         )
     }
@@ -47,6 +51,6 @@ fun HikariContentCard(
 @Composable
 private fun hikariContentCardShape(style: HikariContentCardStyle): Shape = when (style) {
     HikariContentCardStyle.STANDARD -> MaterialTheme.hikariShapes.contentCard
-    HikariContentCardStyle.PROMINENT -> MaterialTheme.hikariShapes.prominentCard
+    HikariContentCardStyle.PROMINENT -> MaterialTheme.hikariShapes.sheetCard
     HikariContentCardStyle.SHEET -> MaterialTheme.hikariShapes.sheetCard
 }

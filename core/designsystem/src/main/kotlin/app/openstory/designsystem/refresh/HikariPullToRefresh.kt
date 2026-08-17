@@ -1,9 +1,13 @@
 package app.openstory.designsystem.refresh
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -20,7 +24,11 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
+import app.openstory.designsystem.surface.hikariSurfaceShadow
 import app.openstory.designsystem.theme.HikariDefaultDimensions
+import app.openstory.designsystem.theme.hikariColors
+import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,13 +77,38 @@ private fun Modifier.refreshSemantics(refreshing: Boolean, onRefresh: () -> Unit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BoxScope.HikariPullRefreshIndicator(state: PullToRefreshState, refreshing: Boolean) {
-    PullToRefreshDefaults.Indicator(
+    val dimensions = MaterialTheme.hikariDimensions
+    val indicatorShape = MaterialTheme.hikariShapes.circle
+    PullToRefreshDefaults.IndicatorBox(
         state = state,
         isRefreshing = refreshing,
         modifier = Modifier
             .align(Alignment.TopCenter)
             .testTag("hikari-pull-refresh-indicator"),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        color = MaterialTheme.colorScheme.primary,
-    )
+        shape = RectangleShape,
+        containerColor = MaterialTheme.hikariColors.transparent,
+        elevation = MaterialTheme.hikariDimensions.zero,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(dimensions.surfaceShadowRadius)
+                .hikariSurfaceShadow(indicatorShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, indicatorShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (refreshing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(dimensions.iconStandard),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                CircularProgressIndicator(
+                    progress = { state.distanceFraction.coerceIn(0f, 1f) },
+                    modifier = Modifier.size(dimensions.iconStandard),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
 }

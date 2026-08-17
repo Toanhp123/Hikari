@@ -31,7 +31,6 @@ import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.designsystem.theme.hikariDimensions
-import app.openstory.designsystem.theme.hikariTypography
 
 internal fun LazyListScope.searchFilterItems(
     groups: List<CatalogSearchFilterGroup>,
@@ -69,7 +68,7 @@ private fun FilterGroupHeader(
         modifier = Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.hikariSpacing.space16),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(pluginId.value, style = MaterialTheme.hikariTypography.emphasizedTitleSmall)
+        Text(pluginId.value, style = MaterialTheme.typography.titleSmall)
         if (selectedValues.isNotEmpty()) {
             HikariContentAction(
                 onClick = { onClear(pluginId) },

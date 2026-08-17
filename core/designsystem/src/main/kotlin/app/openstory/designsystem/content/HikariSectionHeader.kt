@@ -30,7 +30,7 @@ fun HikariSectionHeader(
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space2),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
         ) {
             Text(
                 text = title,

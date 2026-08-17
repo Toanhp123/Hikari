@@ -146,7 +146,7 @@ fun HikariFocusedHeader(
                 .semantics { contentDescription = "Back" },
             contentAlignment = Alignment.Center,
         ) {
-            HikariBackGlyph(Modifier.size(MaterialTheme.hikariDimensions.iconBack))
+            HikariBackGlyph(Modifier.size(MaterialTheme.hikariDimensions.iconStandard))
         }
         Text(title, style = MaterialTheme.typography.headlineSmall)
     }

@@ -8,4 +8,6 @@ data class HikariMotionPolicy(
     val reduceMotion: Boolean = false,
 )
 
-val LocalHikariMotionPolicy = staticCompositionLocalOf { HikariMotionPolicy() }
+val HikariDefaultMotionPolicy = HikariMotionPolicy()
+
+val LocalHikariMotionPolicy = staticCompositionLocalOf { HikariDefaultMotionPolicy }

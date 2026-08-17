@@ -74,7 +74,7 @@ private fun SearchHeader(query: String, onQueryChange: (String) -> Unit, focusMa
             horizontal = MaterialTheme.hikariSpacing.space16,
             vertical = MaterialTheme.hikariSpacing.space8,
         ),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         HikariSectionTitle("Find your next story")
         Text(

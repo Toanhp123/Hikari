@@ -90,11 +90,11 @@ private fun androidx.compose.foundation.layout.RowScope.NavigationItem(
             .indication(interactionSource, LocalIndication.current)
             .padding(
                 horizontal = MaterialTheme.hikariSpacing.space4,
-                vertical = MaterialTheme.hikariSpacing.space6,
+                vertical = MaterialTheme.hikariSpacing.space8,
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(
-            MaterialTheme.hikariSpacing.space2,
+            MaterialTheme.hikariSpacing.space4,
             Alignment.CenterVertically,
         ),
     ) {

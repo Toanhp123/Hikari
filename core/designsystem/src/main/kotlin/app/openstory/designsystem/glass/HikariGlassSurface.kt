@@ -12,8 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
+import app.openstory.designsystem.surface.hikariSurfaceShadow
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariOpacity
 import com.kyant.backdrop.drawBackdrop
@@ -56,7 +56,7 @@ fun HikariGlassSurface(
         )
     } else {
         modifier
-            .shadow(dimensions.glassShadowElevation, shape, clip = false)
+            .hikariSurfaceShadow(shape)
             .background(surfaceColor, shape)
     }
     Box(

@@ -8,6 +8,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.theme.HikariDefaultDimensions
+import app.openstory.designsystem.theme.HikariDefaultSemanticColors
+import app.openstory.designsystem.theme.HikariDefaultOpacity
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -21,6 +24,13 @@ import org.robolectric.annotation.Config
 class HikariThemeTokenTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun surfaceShadowUsesApprovedCenteredTokens() {
+        assertEquals(2.dp, HikariDefaultDimensions.surfaceShadowRadius)
+        assertEquals(Color.Black, HikariDefaultSemanticColors.surfaceShadow)
+        assertEquals(0.14f, HikariDefaultOpacity.surfaceShadow, 0f)
+    }
 
     @Test
     fun lightThemeExposesHikariProductTokens() {

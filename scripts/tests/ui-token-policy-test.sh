@@ -83,4 +83,71 @@ assert_rejected "feature font weight" $'package app.example\nimport androidx.com
 assert_rejected "feature font family" $'package app.example\nimport androidx.compose.ui.text.font.FontFamily\nval Bad = FontFamily.Serif'
 assert_rejected "feature circle shape" $'package app.example\nimport androidx.compose.foundation.shape.CircleShape\nval Bad = CircleShape'
 
+# Approved Hikari visual scales must stay intentionally small.
+SPACING_FILE="$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt"
+DIMENSIONS_FILE="$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariDimensions.kt"
+SHAPES_FILE="$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariShapes.kt"
+TYPOGRAPHY_FILE="$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariTypography.kt"
+
+for retired in space2 space3 space5 space6 space7 space10 space14 space18 space28; do
+  if grep -Eq "val ${retired}\\b" "$SPACING_FILE"; then
+    echo "Retired spacing token remains: $retired" >&2
+    exit 1
+  fi
+done
+for value in 4 8 12 16 20 24 32; do
+  if ! grep -Eq "val space${value}:[[:space:]]*Dp[[:space:]]*=[[:space:]]*${value}[.]dp" "$SPACING_FILE"; then
+    echo "Approved spacing token missing or mis-sized: space${value} = ${value}.dp" >&2
+    exit 1
+  fi
+done
+spacing_tokens="$(grep -Eo 'val space[0-9]+' "$SPACING_FILE" | awk '{print $2}' | sort | tr '\n' ' ' | sed 's/ $//')"
+if [[ "$spacing_tokens" != "space12 space16 space20 space24 space32 space4 space8" ]]; then
+  echo "Spacing scale drifted outside the approved 4/8/12/16/20/24/32 tokens: $spacing_tokens" >&2
+  exit 1
+fi
+icon_tokens="$(grep -Eo 'val icon[A-Za-z0-9_]+' "$DIMENSIONS_FILE" | awk '{print $2}' | sort | tr '\n' ' ' | sed 's/ $//')"
+if [[ "$icon_tokens" != "iconMedium iconStandard" ]]; then
+  echo "Generic icon scale must stay limited to iconMedium/iconStandard: $icon_tokens" >&2
+  exit 1
+fi
+for retired in iconSmall iconBack glassShadowElevation contentCardShadowElevation contentCardShadowRadius; do
+  if grep -Eq "(val|fun)[[:space:]]+${retired}\\b" "$DIMENSIONS_FILE"; then
+    echo "Retired dimension token remains: $retired" >&2
+    exit 1
+  fi
+done
+if ! grep -Eq 'val surfaceShadowRadius:[[:space:]]*Dp[[:space:]]*=[[:space:]]*2[.]dp' "$DIMENSIONS_FILE"; then
+  echo "Shared surface shadow radius must be 2.dp" >&2
+  exit 1
+fi
+GLYPHS_FILE="$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariGlyphs.kt"
+if ! grep -Fq '(dimensions.minimumTouchTarget - dimensions.iconMedium) / 2f' "$GLYPHS_FILE"; then
+  echo "Touch-target glyph padding must derive from semantic touch/icon dimensions instead of owning a one-off spacing token" >&2
+  exit 1
+fi
+for retired in compactCard prominentCard; do
+  if grep -Eq "val ${retired}\\b" "$SHAPES_FILE"; then
+    echo "Redundant semantic shape remains: $retired" >&2
+    exit 1
+  fi
+done
+shape_radii="$(grep -Eo 'RoundedCornerShape\([0-9]+[.]dp\)' "$SHAPES_FILE" | grep -Eo '[0-9]+' | sort -n -u | tr '\n' ' ' | sed 's/ $//')"
+if [[ "$shape_radii" != "8 12 20 24 28 36" ]]; then
+  echo "Rounded-corner scale drifted outside the approved 8/12/20/24/28/36 family: $shape_radii" >&2
+  exit 1
+fi
+for retired in searchText emphasizedTitleSmall emphasizedTitleMedium heroScore readerNote; do
+  if grep -Eq "val ${retired}\\b" "$TYPOGRAPHY_FILE"; then
+    echo "No-op semantic typography alias remains: $retired" >&2
+    exit 1
+  fi
+done
+
+THEME_FILE="$ROOT_DIR/core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariTheme.kt"
+if grep -Eq 'provides[[:space:]]+Hikari[A-Za-z]+\(\)' "$THEME_FILE"; then
+  echo "HikariTheme must reuse immutable default token singletons instead of allocating token objects per composition" >&2
+  exit 1
+fi
+
 echo "UI token policy contract verified."

@@ -117,7 +117,7 @@ private fun HeroDetails(
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(
-            if (medium) MaterialTheme.hikariSpacing.space6 else MaterialTheme.hikariSpacing.space4,
+            if (medium) MaterialTheme.hikariSpacing.space8 else MaterialTheme.hikariSpacing.space4,
         ),
     ) {
         Text(
@@ -140,7 +140,7 @@ private fun HeroDetails(
             Text(
                 "${score.value.toAccessibleNumber()} / ${score.scale.toAccessibleNumber()}",
                 color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.hikariTypography.heroScore,
+                style = MaterialTheme.typography.labelLarge,
             )
         }
         Text(
@@ -173,7 +173,7 @@ private fun HeroDetails(
                 onClick = { onSelected(entry.storyId) },
                 color = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.hikariColors.onArtworkInverse,
-                shape = MaterialTheme.hikariShapes.compactCard,
+                shape = MaterialTheme.hikariShapes.contentCard,
             ) {
                 Text(
                     "Open story",

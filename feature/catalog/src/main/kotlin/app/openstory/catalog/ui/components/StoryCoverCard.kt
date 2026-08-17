@@ -65,7 +65,7 @@ fun StoryPosterCard(
                 this.contentDescription = contentDescription
                 this.traversalIndex = traversalIndex
             },
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         val artwork = rememberHikariArtwork(
             HikariArtworkModel(coverUrl, storyId.value, title),

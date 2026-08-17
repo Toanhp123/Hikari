@@ -22,7 +22,7 @@ fun HikariCoverCardFrame(
     }
     val shape = when (variant) {
         HikariCoverCardVariant.STANDARD -> MaterialTheme.hikariShapes.cover
-        HikariCoverCardVariant.POSTER -> MaterialTheme.hikariShapes.compactCard
+        HikariCoverCardVariant.POSTER -> MaterialTheme.hikariShapes.contentCard
     }
     Box(
         modifier = modifier

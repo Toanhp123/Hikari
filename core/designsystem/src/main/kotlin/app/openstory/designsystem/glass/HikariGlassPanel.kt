@@ -21,20 +21,20 @@ fun HikariGlassPanel(
     val padding: PaddingValues
     when (style) {
         HikariGlassPanelStyle.COMPACT -> {
-            shape = shapes.compactCard
+            shape = shapes.contentCard
             padding = PaddingValues(spacing.space12)
         }
         HikariGlassPanelStyle.STANDARD -> {
             shape = shapes.contentCard
-            padding = PaddingValues(spacing.space14)
+            padding = PaddingValues(spacing.space16)
         }
         HikariGlassPanelStyle.PROMINENT -> {
-            shape = shapes.prominentCard
-            padding = PaddingValues(spacing.space14)
+            shape = shapes.sheetCard
+            padding = PaddingValues(spacing.space16)
         }
         HikariGlassPanelStyle.TOOLBAR -> {
             shape = shapes.sheetCard
-            padding = PaddingValues(horizontal = spacing.space18, vertical = spacing.space12)
+            padding = PaddingValues(horizontal = spacing.space20, vertical = spacing.space12)
         }
         HikariGlassPanelStyle.FLOATING -> {
             shape = shapes.hero

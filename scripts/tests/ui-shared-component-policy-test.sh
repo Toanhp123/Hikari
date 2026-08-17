@@ -114,6 +114,18 @@ assert_contains 'keyboardActions: KeyboardActions = KeyboardActions.Default' \
 assert_contains 'fun HikariFilterChip(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariFilterChip.kt' \
   'design system must own the shared filter chip'
+assert_contains 'fun HikariPrimaryAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariPrimaryAction.kt' \
+  'design system must own the shared filled primary action'
+assert_contains 'elevation = null' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariPrimaryAction.kt' \
+  'primary actions must explicitly disable Material directional button elevation'
+assert_absent 'import androidx\.compose\.material3\.(Button|OutlinedButton)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story' \
+  'Story actions must use semantic Hikari action components instead of raw Material buttons'
+assert_absent 'import androidx\.compose\.material3\.Button' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping' \
+  'Mapping primary actions must use HikariPrimaryAction instead of raw Material Button'
 assert_contains '.semantics { heading() }' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionHeader.kt' \
   'HikariSectionHeader must own heading semantics'
@@ -197,12 +209,27 @@ assert_contains 'surfaceContainerHighest =' \
 assert_contains 'fun HikariContentCard(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
   'design system must own content/list card surface treatment'
-assert_contains 'contentCardShadowElevation' \
+assert_contains 'surfaceShadowRadius' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariDimensions.kt' \
-  'content/list card shadow must come from a semantic dimension token'
-assert_contains 'shadowElevation = dimensions.contentCardShadowElevation' \
+  'all elevated Hikari surfaces must share one semantic shadow radius token'
+assert_contains 'surfaceShadow' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariVisualTokens.kt' \
+  'all elevated Hikari surfaces must share one semantic shadow color/opacity token'
+assert_contains '.hikariSurfaceShadow(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
-  'content cards must use the semantic light shadow token'
+  'content cards must use the shared centered surface-shadow treatment'
+assert_contains 'radius = MaterialTheme.hikariDimensions.surfaceShadowRadius' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariSurfaceShadow.kt' \
+  'shared surface shadow must use the semantic 2dp radius token'
+assert_contains 'offset = DpOffset.Zero' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariSurfaceShadow.kt' \
+  'shared surface shadow must stay centered instead of casting downward'
+assert_contains 'alpha = MaterialTheme.hikariOpacity.surfaceShadow' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariSurfaceShadow.kt' \
+  'shared surface shadow must use the semantic subtle opacity token'
+assert_contains 'shadowElevation = dimensions.zero' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
+  'content cards must disable Material directional shadow elevation'
 assert_absent '[.]border\(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariContentCard.kt' \
   'content cards must be shadow-only and must not add an outline border'
@@ -271,6 +298,9 @@ assert_contains 'fun HikariUtilityAction(' \
 assert_contains 'FilledTonalButton(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariUtilityAction.kt' \
   'toolbar and utility text actions must use visible tonal chrome'
+assert_contains 'elevation = null' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariUtilityAction.kt' \
+  'utility actions must explicitly disable Material directional button elevation'
 assert_contains 'TONAL' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariIconActionStyle.kt' \
   'icon actions must expose a tonal utility treatment'
@@ -365,5 +395,62 @@ assert_contains 'storySectionContentPadding()' \
 assert_absent 'fun HikariRefreshGlyph\(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon' \
   'obsolete manual-refresh glyph must not remain after pull-to-refresh migration'
+
+assert_absent 'import androidx\.compose\.material3\.Button' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/state' \
+  'state actions must consume HikariPrimaryAction instead of owning a raw Material Button'
+assert_contains 'HikariPrimaryAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariEmptyState.kt' \
+  'empty/error state actions must use the shared Hikari primary action'
+
+# Hikari surface shadow ownership: directional Material elevation shadows are forbidden.
+assert_absent '[.]shadow\(' \
+  'app/src/main/kotlin' \
+  'app code must not create directional elevation shadows'
+assert_absent '[.]shadow\(' \
+  'feature' \
+  'feature code must not create directional elevation shadows'
+assert_absent '[.]dropShadow\(' \
+  'app/src/main/kotlin' \
+  'app code must consume the shared Hikari shadow owner instead of custom drop shadows'
+assert_absent '[.]dropShadow\(' \
+  'feature' \
+  'feature code must consume the shared Hikari shadow owner instead of custom drop shadows'
+raw_designsystem_drop_shadows="$(
+  rg -n --glob '*.kt' '[.]dropShadow\(' "$ROOT_DIR/core/designsystem/src/main/kotlin" \
+    | grep -v '/surface/HikariSurfaceShadow.kt:' || true
+)"
+if [[ -n "$raw_designsystem_drop_shadows" ]]; then
+  fail "design-system drop shadows must route through HikariSurfaceShadow"
+fi
+nonzero_shadow_elevation="$(
+  rg -n --glob '*.kt' 'shadowElevation[[:space:]]*=' \
+    "$ROOT_DIR/app/src/main/kotlin" "$ROOT_DIR/feature" "$ROOT_DIR/core/designsystem/src/main/kotlin" \
+    | grep -vE '=[[:space:]]*(zero|dimensions[.]zero|MaterialTheme[.]hikariDimensions[.]zero)[,)]?' || true
+)"
+if [[ -n "$nonzero_shadow_elevation" ]]; then
+  fail "Material shadowElevation must remain zero; use HikariSurfaceShadow for visible elevation"
+fi
+assert_contains 'fun Modifier.hikariSurfaceShadow(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariSurfaceShadow.kt' \
+  'design system must own the shared centered surface shadow'
+assert_absent '[.]shadow\(' \
+  'core/designsystem/src/main/kotlin' \
+  'design-system surfaces must not use directional Modifier.shadow elevation'
+assert_absent 'PullToRefreshDefaults[.]Indicator\(' \
+  'core/designsystem/src/main/kotlin' \
+  'pull-to-refresh must not use the Material indicator with built-in elevation shadow'
+assert_contains 'PullToRefreshDefaults.IndicatorBox(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
+  'pull-to-refresh must explicitly own its indicator container and shadow'
+assert_contains 'elevation = MaterialTheme.hikariDimensions.zero' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
+  'pull-to-refresh Material indicator elevation must be disabled'
+assert_absent 'import androidx\.compose\.material3\.DropdownMenu([[:space:]]|$)|(^|[^[:alnum:]_])DropdownMenu\(' \
+  'feature' \
+  'features must use the shared Hikari dropdown menu so popup elevation cannot drift'
+assert_contains 'fun HikariDropdownMenu(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/menu/HikariDropdownMenu.kt' \
+  'design system must own popup menu shape and shadow'
 
 echo "UI shared-component policy contract verified."

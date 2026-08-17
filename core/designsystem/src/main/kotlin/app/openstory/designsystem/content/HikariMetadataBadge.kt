@@ -26,8 +26,8 @@ fun HikariMetadataBadge(
         modifier = modifier
             .background(containerColor, MaterialTheme.hikariShapes.pill)
             .padding(
-                horizontal = MaterialTheme.hikariSpacing.space10,
-                vertical = MaterialTheme.hikariSpacing.space5,
+                horizontal = MaterialTheme.hikariSpacing.space8,
+                vertical = MaterialTheme.hikariSpacing.space4,
             ),
         color = contentColor,
         style = MaterialTheme.typography.labelMedium,

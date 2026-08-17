@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 
 internal val HikariShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(14.dp),
+    small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(20.dp),
     large = RoundedCornerShape(28.dp),
     extraLarge = RoundedCornerShape(36.dp),
@@ -21,9 +21,7 @@ internal val HikariShapes = Shapes(
 
 @Immutable
 data class HikariSemanticShapes(
-    val compactCard: Shape = RoundedCornerShape(18.dp),
     val contentCard: Shape = RoundedCornerShape(20.dp),
-    val prominentCard: Shape = RoundedCornerShape(22.dp),
     val sheetCard: Shape = RoundedCornerShape(24.dp),
     val hero: Shape = RoundedCornerShape(28.dp),
     val floatingNavigation: Shape = RoundedCornerShape(36.dp),
@@ -33,7 +31,9 @@ data class HikariSemanticShapes(
     val circle: Shape = CircleShape,
 )
 
-internal val LocalHikariSemanticShapes = staticCompositionLocalOf { HikariSemanticShapes() }
+val HikariDefaultSemanticShapes = HikariSemanticShapes()
+
+internal val LocalHikariSemanticShapes = staticCompositionLocalOf { HikariDefaultSemanticShapes }
 
 val MaterialTheme.hikariShapes: HikariSemanticShapes
     @Composable

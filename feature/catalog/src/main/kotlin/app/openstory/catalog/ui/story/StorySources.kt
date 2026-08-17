@@ -76,7 +76,7 @@ private fun SourceCard(source: CatalogEntry, selected: Boolean, onSelected: () -
                 contentDescription = "${source.title}, source ${source.pluginId.value}"
             }
             .padding(vertical = MaterialTheme.hikariSpacing.space8),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         HikariFilterChip(
             selected = selected,

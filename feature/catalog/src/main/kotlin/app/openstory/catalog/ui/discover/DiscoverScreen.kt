@@ -202,7 +202,7 @@ private fun DiscoverCategoryCard(
     width: Dp,
     modifier: Modifier,
 ) {
-    val shape = MaterialTheme.hikariShapes.prominentCard
+    val shape = MaterialTheme.hikariShapes.sheetCard
     Surface(
         color = if (selected) {
             MaterialTheme.colorScheme.primary.copy(
@@ -235,14 +235,14 @@ private fun DiscoverCategoryCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = MaterialTheme.hikariSpacing.space18,
-                    vertical = MaterialTheme.hikariSpacing.space14,
+                    horizontal = MaterialTheme.hikariSpacing.space20,
+                    vertical = MaterialTheme.hikariSpacing.space16,
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space2),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
             ) {
                 Text(
                     category.presentationLabel().uppercase(),

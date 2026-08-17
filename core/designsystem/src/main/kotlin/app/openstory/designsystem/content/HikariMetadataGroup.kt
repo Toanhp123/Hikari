@@ -17,7 +17,7 @@ fun HikariMetadataGroup(
     if (values.isEmpty()) return
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         Text(title, style = MaterialTheme.typography.titleMedium)
         HikariMetadataBadgeGroup(values.sorted())

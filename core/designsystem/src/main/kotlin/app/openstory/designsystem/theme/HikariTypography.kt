@@ -119,29 +119,20 @@ data class HikariSemanticTypography(
         fontFamily = SansBody,
         fontWeight = FontWeight.Black,
     ),
-    val searchText: TextStyle = HikariTypography.titleMedium.copy(
-        fontWeight = FontWeight.SemiBold,
-    ),
     val sectionTitle: TextStyle = HikariTypography.headlineSmall.copy(
         fontWeight = FontWeight.Bold,
-    ),
-    val emphasizedTitleSmall: TextStyle = HikariTypography.titleSmall.copy(
-        fontWeight = FontWeight.SemiBold,
-    ),
-    val emphasizedTitleMedium: TextStyle = HikariTypography.titleMedium.copy(
-        fontWeight = FontWeight.SemiBold,
     ),
     val posterTitle: TextStyle = HikariTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
     val heroEyebrow: TextStyle = HikariTypography.labelMedium.copy(fontWeight = FontWeight.Black),
     val heroTitleCompact: TextStyle = HikariTypography.headlineSmall.copy(fontWeight = FontWeight.Black),
     val heroTitleExpanded: TextStyle = HikariTypography.headlineMedium.copy(fontWeight = FontWeight.Black),
-    val heroScore: TextStyle = HikariTypography.labelLarge.copy(fontWeight = FontWeight.Bold),
     val heroAction: TextStyle = HikariTypography.bodyLarge.copy(fontWeight = FontWeight.Black),
     val readerBody: TextStyle = HikariTypography.bodyLarge.copy(fontSize = 18.sp, lineHeight = 29.sp),
-    val readerNote: TextStyle = HikariTypography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 24.sp),
 )
 
-internal val LocalHikariSemanticTypography = staticCompositionLocalOf { HikariSemanticTypography() }
+val HikariDefaultSemanticTypography = HikariSemanticTypography()
+
+internal val LocalHikariSemanticTypography = staticCompositionLocalOf { HikariDefaultSemanticTypography }
 
 val MaterialTheme.hikariTypography: HikariSemanticTypography
     @Composable

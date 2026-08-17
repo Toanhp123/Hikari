@@ -5,9 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -16,14 +14,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
-import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.content.HikariSectionTitle
+import app.openstory.designsystem.control.HikariContentAction
+import app.openstory.designsystem.control.HikariPrimaryAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.surface.HikariContentCardStyle
-import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 import java.util.Locale
@@ -48,16 +45,16 @@ fun MappingSheet(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         CurrentMappings(state.mappings)
-        Button(
+        HikariPrimaryAction(
             onClick = actions.onSearch,
             enabled = !state.busy,
-            modifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
+            modifier = Modifier.fillMaxWidth(),
         ) { Text("Find reading sources") }
         UrlImport(state, actions)
         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.failures.forEach { failure -> HikariInlineFeedback(message = "Mapping issue: $failure") }
         if (state.candidates.isNotEmpty()) {
-            Text("Candidates", style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
+            Text("Candidates", style = MaterialTheme.typography.titleMedium)
         }
         state.candidates.forEach { MappingCandidateCard(it, actions) }
     }
@@ -65,12 +62,12 @@ fun MappingSheet(
 
 @Composable
 private fun CurrentMappings(mappings: List<MappingItemUiModel>) {
-    Text("Linked sources", style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
+    Text("Linked sources", style = MaterialTheme.typography.titleMedium)
     if (mappings.isEmpty()) {
         HikariContentCard(Modifier.fillMaxWidth()) {
             Text(
                 "No reading source linked yet",
-                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
+                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -79,12 +76,12 @@ private fun CurrentMappings(mappings: List<MappingItemUiModel>) {
     mappings.forEach { mapping ->
         HikariContentCard(Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space6),
+                modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             ) {
                 Text(
                     mapping.pluginId.value,
-                    style = MaterialTheme.hikariTypography.emphasizedTitleSmall,
+                    style = MaterialTheme.typography.titleSmall,
                 )
                 HikariMetadataBadgeGroup(
                     listOf(mapping.origin.displayName(), mapping.sourceStoryId),
@@ -97,7 +94,7 @@ private fun CurrentMappings(mappings: List<MappingItemUiModel>) {
 @Composable
 private fun UrlImport(state: MappingUiState, actions: MappingActions) {
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
-        Text("Resolve a known URL", style = MaterialTheme.hikariTypography.emphasizedTitleSmall)
+        Text("Resolve a known URL", style = MaterialTheme.typography.titleSmall)
         OutlinedTextField(
             value = state.urlInput,
             onValueChange = actions.onUrlChange,
@@ -108,7 +105,7 @@ private fun UrlImport(state: MappingUiState, actions: MappingActions) {
         HikariContentAction(
             onClick = actions.onResolveUrl,
             enabled = !state.busy && state.urlInput.isNotBlank(),
-            modifier = Modifier.fillMaxWidth().heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
+            modifier = Modifier.fillMaxWidth(),
         ) { Text("Resolve URL") }
     }
 }
@@ -120,10 +117,10 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
         style = HikariContentCardStyle.PROMINENT,
     ) {
         Column(
-            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space14),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space10),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
         ) {
-            Text(candidate.title, style = MaterialTheme.hikariTypography.emphasizedTitleMedium)
+            Text(candidate.title, style = MaterialTheme.typography.titleMedium)
             HikariMetadataBadgeGroup(
                 listOf(
                     candidate.pluginId.value,
@@ -151,13 +148,13 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             ) {
-                Button(
+                HikariPrimaryAction(
                     onClick = { actions.onApprove(candidate.pluginId, candidate.sourceStoryId) },
-                    modifier = Modifier.weight(1f).heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
+                    modifier = Modifier.weight(1f),
                 ) { Text(if (candidate.fromUrl) "Use URL source" else "Approve") }
                 HikariContentAction(
                     onClick = { actions.onReject(candidate.pluginId, candidate.sourceStoryId) },
-                    modifier = Modifier.weight(1f).heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
+                    modifier = Modifier.weight(1f),
                 ) { Text("Reject") }
             }
         }

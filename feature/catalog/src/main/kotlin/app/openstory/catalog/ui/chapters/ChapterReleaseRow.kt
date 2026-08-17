@@ -21,7 +21,6 @@ import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.control.HikariContentAction
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
-import app.openstory.designsystem.theme.hikariTypography
 import app.openstory.downloads.DownloadState
 import java.time.Instant
 import java.time.ZoneOffset
@@ -46,7 +45,7 @@ fun ChapterReleaseRow(
             .padding(MaterialTheme.hikariSpacing.space12),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
-        Text(release.sourceName, style = MaterialTheme.hikariTypography.emphasizedTitleSmall)
+        Text(release.sourceName, style = MaterialTheme.typography.titleSmall)
         HikariMetadataBadgeGroup(
             listOfNotNull(
                 release.languageLabel,

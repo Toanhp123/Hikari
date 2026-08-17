@@ -2,7 +2,6 @@ package app.openstory.reader.ui
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.designsystem.control.HikariUtilityAction
+import app.openstory.designsystem.menu.HikariDropdownMenu
 import app.openstory.designsystem.theme.hikariDimensions
 
 @Composable
@@ -32,7 +32,7 @@ fun ReleaseSwitcher(
     ) {
         Text(selected?.source ?: "Source")
     }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+    HikariDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         releases.forEach { release ->
             DropdownMenuItem(
                 text = { Text("${release.source} - ${release.languageTag} - ${release.label}") },

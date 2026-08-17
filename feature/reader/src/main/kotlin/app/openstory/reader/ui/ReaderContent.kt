@@ -132,7 +132,7 @@ private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
             block.text,
             modifier = Modifier.padding(
                 horizontal = MaterialTheme.hikariSpacing.space20,
-                vertical = MaterialTheme.hikariSpacing.space10,
+                vertical = MaterialTheme.hikariSpacing.space12,
             ),
             style = MaterialTheme.hikariTypography.readerBody.let { style ->
                 style.copy(
@@ -145,7 +145,7 @@ private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
             block.text,
             modifier = Modifier.padding(
                 horizontal = MaterialTheme.hikariSpacing.space20,
-                vertical = MaterialTheme.hikariSpacing.space14,
+                vertical = MaterialTheme.hikariSpacing.space16,
             ).semantics { heading() },
             style = headingStyle(block.level, fontScale),
         )
@@ -158,11 +158,11 @@ private fun ReaderBlock(block: ReaderBlock, fontScale: Float) {
         is ReaderBlock.Note -> Text(
             block.text,
             modifier = Modifier.padding(
-                horizontal = MaterialTheme.hikariSpacing.space28,
-                vertical = MaterialTheme.hikariSpacing.space10,
+                horizontal = MaterialTheme.hikariSpacing.space32,
+                vertical = MaterialTheme.hikariSpacing.space12,
             ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.hikariTypography.readerNote.let { style ->
+            style = MaterialTheme.typography.bodyLarge.let { style ->
                 style.copy(
                     fontSize = style.fontSize * fontScale,
                     lineHeight = style.lineHeight * fontScale,
