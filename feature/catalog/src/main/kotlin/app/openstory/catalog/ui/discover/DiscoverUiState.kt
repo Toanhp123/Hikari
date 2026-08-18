@@ -20,11 +20,6 @@ data class DiscoverUiState(
 ) {
     val globalFailure: DiscoverUiFailure?
         get() = refreshFailure ?: observationFailure
-
-    val selectedCatalog: CatalogHomeSnapshot?
-        get() = selectedCatalogId?.let { selectedId ->
-            catalogs.firstOrNull { it.pluginId == selectedId }
-        }
 }
 
 data class DiscoverQuickCategory(

@@ -18,7 +18,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.ui.NavDisplay
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.ui.HikariAppShell
 import app.openstory.ui.HikariUtilitySheet
@@ -91,8 +90,9 @@ class AppNavigationTest {
                     libraryViewModel = viewModel { RetainedNavigationViewModel() }
                 }
             }
-            NavDisplay(
-                entries = navigationState.decoratedEntries(provider),
+            PersistentTopLevelNavDisplay(
+                navigationState = navigationState,
+                entryProvider = provider,
                 onBack = {},
             )
         }

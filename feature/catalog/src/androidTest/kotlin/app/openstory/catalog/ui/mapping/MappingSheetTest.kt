@@ -1,7 +1,13 @@
 package app.openstory.catalog.ui.mapping
 
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -16,6 +22,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.theme.HikariTheme
+import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 import kotlin.test.assertEquals
@@ -33,17 +40,13 @@ class MappingSheetTest {
         var rejected: Pair<PluginId, String>? = null
         compose.setContent {
             HikariTheme {
-                LazyColumn {
-                    item {
-                        MappingSheet(
-                            state = stateWithCandidate(),
-                            actions = MappingActions(
-                                onApprove = { pluginId, sourceStoryId -> approved = pluginId to sourceStoryId },
-                                onReject = { pluginId, sourceStoryId -> rejected = pluginId to sourceStoryId },
-                            ),
-                        )
-                    }
-                }
+                MappingItemsTestHost(
+                    state = stateWithCandidate(),
+                    actions = MappingActions(
+                        onApprove = { pluginId, sourceStoryId -> approved = pluginId to sourceStoryId },
+                        onReject = { pluginId, sourceStoryId -> rejected = pluginId to sourceStoryId },
+                    ),
+                )
             }
         }
 
@@ -65,7 +68,7 @@ class MappingSheetTest {
         var resolved = false
         compose.setContent {
             HikariTheme {
-                MappingSheet(
+                MappingItemsTestHost(
                     state = MappingUiState(urlInput = url.value, loading = false),
                     actions = MappingActions(
                         onUrlChange = { value -> url.value = value },
@@ -85,7 +88,7 @@ class MappingSheetTest {
     fun currentProtectedMappingIsRendered() {
         compose.setContent {
             HikariTheme {
-                MappingSheet(
+                MappingItemsTestHost(
                     state = MappingUiState(
                         mappings = listOf(
                             MappingItemUiModel(
@@ -108,7 +111,7 @@ class MappingSheetTest {
     fun emptyMappingKeepsCopyAndActions() {
         compose.setContent {
             HikariTheme {
-                MappingSheet(
+                MappingItemsTestHost(
                     state = MappingUiState(loading = false),
                     actions = MappingActions(),
                 )
@@ -118,6 +121,20 @@ class MappingSheetTest {
         compose.onNodeWithText("No reading source linked yet").assertIsDisplayed()
         compose.onNodeWithText("Find reading sources").assertIsDisplayed()
         compose.onNodeWithText("Resolve URL").assertIsDisplayed()
+    }
+}
+
+@Composable
+private fun MappingItemsTestHost(
+    state: MappingUiState,
+    actions: MappingActions,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(MaterialTheme.hikariSpacing.space16),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+    ) {
+        mappingItems(state, actions)
     }
 }
 

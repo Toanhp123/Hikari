@@ -17,7 +17,7 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
-import app.openstory.reader.content.NoOpReaderDocumentStore
+import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderDocumentRepository
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
@@ -292,3 +292,10 @@ private fun progress(chapterId: String, releaseId: String, fingerprint: String) 
     StoryId("story"), CanonicalChapterId(chapterId), ChapterReleaseId(releaseId), fingerprint,
     app.openstory.reader.progress.ReadingPosition("block", 5, 0.5f), null, 10,
 )
+
+private object NoOpReaderDocumentStore : ReaderDocumentStore {
+    override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? = null
+    override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? = null
+    override suspend fun write(releaseId: ChapterReleaseId, fingerprint: String, document: ReaderDocument) = Unit
+    override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) = Unit
+}

@@ -2,11 +2,9 @@ package app.openstory.catalog.ui.mapping
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,22 +28,6 @@ import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 import java.util.Locale
-
-@Composable
-fun MappingSheet(
-    state: MappingUiState,
-    actions: MappingActions,
-    modifier: Modifier = Modifier,
-    contentPadding: PaddingValues? = null,
-) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.space16),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
-    ) {
-        mappingItems(state, actions)
-    }
-}
 
 fun LazyListScope.mappingItems(
     state: MappingUiState,

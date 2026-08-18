@@ -196,7 +196,7 @@ class DiscoverViewModelTest {
         viewModel.selectCatalog(source.pluginId)
         runCurrent()
 
-        assertEquals(source.pluginId, viewModel.state.value.selectedCatalog?.pluginId)
+        assertEquals(source.pluginId, viewModel.state.value.selectedCatalogId)
         assertEquals(0, source.homeCalls)
         viewModel.selectCombined()
         runCurrent()

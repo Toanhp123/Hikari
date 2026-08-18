@@ -32,13 +32,6 @@ class AppNavigationState(
 
     val currentRoute: AppRoute?
         get() = activeBackStack.lastOrNull() as? AppRoute
-
-    val stacksInUse: List<AppRoute>
-        get() = if (topLevelRoute == startRoute) {
-            listOf(startRoute)
-        } else {
-            listOf(startRoute, topLevelRoute)
-        }
 }
 
 @Composable
@@ -60,21 +53,6 @@ fun rememberAppNavigationState(): AppNavigationState {
             ),
         )
     }
-}
-
-@Composable
-fun AppNavigationState.decoratedEntries(
-    entryProvider: (NavKey) -> NavEntry<NavKey>,
-): List<NavEntry<NavKey>> {
-    val discoverEntries = decoratedEntriesFor(AppRoute.Discover, entryProvider)
-    val homeEntries = decoratedEntriesFor(AppRoute.Home, entryProvider)
-    val libraryEntries = decoratedEntriesFor(AppRoute.Library, entryProvider)
-    val entries = mapOf(
-        AppRoute.Discover to discoverEntries,
-        AppRoute.Home to homeEntries,
-        AppRoute.Library to libraryEntries,
-    )
-    return stacksInUse.flatMap { route -> entries.getValue(route) }
 }
 
 @Composable
