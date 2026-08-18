@@ -66,15 +66,24 @@ fun rememberAppNavigationState(): AppNavigationState {
 fun AppNavigationState.decoratedEntries(
     entryProvider: (NavKey) -> NavEntry<NavKey>,
 ): List<NavEntry<NavKey>> {
-    val discoverEntries = rememberTopLevelEntries(AppRoute.Discover, entryProvider)
-    val homeEntries = rememberTopLevelEntries(AppRoute.Home, entryProvider)
-    val libraryEntries = rememberTopLevelEntries(AppRoute.Library, entryProvider)
+    val discoverEntries = decoratedEntriesFor(AppRoute.Discover, entryProvider)
+    val homeEntries = decoratedEntriesFor(AppRoute.Home, entryProvider)
+    val libraryEntries = decoratedEntriesFor(AppRoute.Library, entryProvider)
     val entries = mapOf(
         AppRoute.Discover to discoverEntries,
         AppRoute.Home to homeEntries,
         AppRoute.Library to libraryEntries,
     )
     return stacksInUse.flatMap { route -> entries.getValue(route) }
+}
+
+@Composable
+internal fun AppNavigationState.decoratedEntriesFor(
+    route: AppRoute,
+    entryProvider: (NavKey) -> NavEntry<NavKey>,
+): List<NavEntry<NavKey>> {
+    require(route.isTopLevel()) { "Top-level route required: $route" }
+    return rememberTopLevelEntries(route, entryProvider)
 }
 
 @Composable

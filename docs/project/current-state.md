@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-15
+Date: 2026-08-18
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -27,6 +27,7 @@ Purpose: single source of truth for the implemented repository boundary.
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
 - Performance Wave 4: **IMPLEMENTED; LOCAL STATIC VERIFIED; GRADLE/DEVICE VERIFICATION PENDING**. Discover now shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling.
 - Performance Wave P5: **IMPLEMENTED; STATIC VERIFIED; DEVICE A/B MEASUREMENT PENDING**. Top-level navigation avoids full-scene transitions, Story section data is deferred-then-prewarmed, Discover ranking/projection runs as one injected-Default-dispatcher pipeline, Reader progress is scroll-session sampled, and benchmark-only backdrop/shadow switches isolate remaining draw cost.
+- Performance Wave P6: **PROMOTED TO PRODUCTION**. Device A/B confirmed that retaining visited top-level compositions with active-only measurement removes the repeatable ~90 ms Home/Discover rebuild spike: P6.1 reduced CPU P90 by about 68%, median maximum frame by about 59%, and median summed frame CPU by about 12.5% versus the same-build control, with no material RSS regression. Production now retains only visited top-level compositions and measures/places only the active route.
 
 ## Independent version spaces
 

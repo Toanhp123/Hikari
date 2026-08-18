@@ -173,10 +173,11 @@ private fun AppNavigationContent(
                 ReaderDestination(route, navigator::back)
             }
         }
-        NavDisplay(
-            modifier = Modifier.fillMaxSize(),
-            entries = navigator.navigationState.decoratedEntries(provider),
+        PersistentTopLevelNavDisplay(
+            navigationState = navigator.navigationState,
+            entryProvider = provider,
             onBack = navigator::back,
+            modifier = Modifier.fillMaxSize(),
         )
         HikariSnackbarHost(
             hostState = snackbarHostState,

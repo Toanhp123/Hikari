@@ -1,11 +1,18 @@
 package app.openstory.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavBackStack
@@ -106,6 +113,116 @@ class AppNavigationTest {
         composeRule.waitForIdle()
 
         assertSame(firstHomeViewModel, homeViewModel)
+    }
+
+    @Test
+    fun persistentTopLevelDisplayKeepsVisitedCompositionAlive() {
+        lateinit var navigationState: AppNavigationState
+        var discoverCompositions = 0
+        var discoverDisposals = 0
+        composeRule.setContent {
+            navigationState = rememberAppNavigationState()
+            val provider = entryProvider<NavKey> {
+                entry<AppRoute.Discover> {
+                    DisposableEffect(Unit) {
+                        discoverCompositions += 1
+                        onDispose { discoverDisposals += 1 }
+                    }
+                }
+                entry<AppRoute.Home> {}
+                entry<AppRoute.Library> {}
+            }
+            PersistentTopLevelNavDisplay(
+                navigationState = navigationState,
+                entryProvider = provider,
+                onBack = {},
+            )
+        }
+        composeRule.waitForIdle()
+        assertEquals(0, discoverCompositions)
+
+        composeRule.runOnIdle {
+            navigationState.topLevelRoute = AppRoute.Discover
+        }
+        composeRule.waitForIdle()
+        assertEquals(1, discoverCompositions)
+        assertEquals(0, discoverDisposals)
+
+        composeRule.runOnIdle {
+            navigationState.topLevelRoute = AppRoute.Home
+        }
+        composeRule.waitForIdle()
+        assertEquals(1, discoverCompositions)
+        assertEquals(0, discoverDisposals)
+
+        composeRule.runOnIdle {
+            navigationState.topLevelRoute = AppRoute.Discover
+        }
+        composeRule.waitForIdle()
+        assertEquals(1, discoverCompositions)
+        assertEquals(0, discoverDisposals)
+    }
+
+    @Test
+    fun persistentTopLevelDisplayDoesNotMeasureInactiveVisitedRoute() {
+        lateinit var navigationState: AppNavigationState
+        var discoverMeasures = 0
+        val hostSize = mutableStateOf(120.dp)
+        composeRule.setContent {
+            navigationState = rememberAppNavigationState()
+            val provider = entryProvider<NavKey> {
+                entry<AppRoute.Discover> {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .layout { measurable, constraints ->
+                                discoverMeasures += 1
+                                val placeable = measurable.measure(constraints)
+                                layout(placeable.width, placeable.height) {
+                                    placeable.placeRelative(0, 0)
+                                }
+                            },
+                    )
+                }
+                entry<AppRoute.Home> {
+                    Box(Modifier.fillMaxSize())
+                }
+                entry<AppRoute.Library> {}
+            }
+            PersistentTopLevelNavDisplay(
+                navigationState = navigationState,
+                entryProvider = provider,
+                onBack = {},
+                modifier = Modifier.size(hostSize.value),
+            )
+        }
+        composeRule.waitForIdle()
+        assertEquals(0, discoverMeasures)
+
+        composeRule.runOnIdle {
+            navigationState.topLevelRoute = AppRoute.Discover
+        }
+        composeRule.waitForIdle()
+        assertTrue(discoverMeasures > 0)
+        val activeDiscoverMeasures = discoverMeasures
+
+        composeRule.runOnIdle {
+            navigationState.topLevelRoute = AppRoute.Home
+        }
+        composeRule.waitForIdle()
+        assertEquals(activeDiscoverMeasures, discoverMeasures)
+
+        composeRule.runOnIdle {
+            hostSize.value = 160.dp
+        }
+        composeRule.waitForIdle()
+        assertEquals(activeDiscoverMeasures, discoverMeasures)
+
+        composeRule.runOnIdle {
+            navigationState.topLevelRoute = AppRoute.Discover
+        }
+        composeRule.waitForIdle()
+        assertTrue(discoverMeasures > activeDiscoverMeasures)
     }
 
     @Test
