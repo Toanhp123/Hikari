@@ -28,6 +28,7 @@ import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.mapping.ContentMappingRejection
 import app.openstory.library.mapping.ContentMappingRepository
 import app.openstory.library.mapping.ContentMappingWriteResult
+import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import kotlin.test.AfterTest
@@ -103,6 +104,7 @@ private class Fixtures {
         chapters = FakeChapterRepository(chapters),
         mappings = FakeMappingRepository(mappings),
         downloads = FakeDownloadRepository(downloads),
+        readerSources = ReaderSourceAvailability { setOf(PluginId("content.fixture")) },
     )
 }
 

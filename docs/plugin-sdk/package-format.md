@@ -25,6 +25,7 @@ are rejected. `manifest.json` and `main.js` are required.
   "protocol": 1,
   "entry": "main.js",
   "provides": ["CATALOG"],
+  "operations": ["catalog.home", "catalog.search", "catalog.details", "catalog.filters"],
   "languages": ["en"],
   "homepageUrl": "https://example.org/",
   "sourceUrl": "https://example.org/source",
@@ -41,6 +42,10 @@ are rejected. `manifest.json` and `main.js` are required.
 - `protocol` is the supported protocol major.
 - `entry` must be exactly `main.js`.
 - `provides` contains `CATALOG`, `CONTENT`, or both and cannot be empty.
+- `operations` optionally declares the exact wire operations implemented by `main.js`. Every
+  declared operation must belong to a service in `provides`. Protocol `1` packages that omit
+  `operations` keep the legacy service-level behavior for compatibility; new or updated packages
+  should declare the exact operations they implement.
 - language tags are normalized lowercase values.
 - metadata URLs are HTTPS.
 - network hosts are exact lowercase hostnames; wildcards, schemes, ports, and paths are invalid.

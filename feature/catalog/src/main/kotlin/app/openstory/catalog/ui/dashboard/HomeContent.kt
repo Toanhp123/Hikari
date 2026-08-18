@@ -61,6 +61,7 @@ internal fun HomeContent(
         )
         latestUpdatesShelf(
             state.latestUpdates,
+            onStorySelected,
             onResume,
             state.firstUpdatesFocus(firstContentFocusRequester),
         )

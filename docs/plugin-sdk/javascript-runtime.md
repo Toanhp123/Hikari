@@ -48,10 +48,22 @@ Packages that declare the `CONTENT` service may implement these operations:
   optional HTTPS `sourceUrl`. The host caps candidate counts and validates any returned
   URL against the package's accepted network hosts.
 - `content.resolveUrl` receives `{url}` for a user-supplied HTTPS URL whose exact host is
-  already accepted by that package. It returns one content-story candidate. Packages may
-  omit this operation; unsupported URL resolution is a bounded source failure.
-- `content.story`, `content.chapters`, and `content.chapter` remain reserved for the later
-  content-reading waves.
+  already accepted by that package. It returns one content-story candidate.
+- `content.story` receives `{sourceStoryId}` and returns details for the mapped content story.
+- `content.chapters` receives `{sourceStoryId, mode, checkpoint, nextToken}` and returns chapter
+  release records plus paging/checkpoint state. Supporting chapter lists does not imply that a
+  package can provide reader documents.
+- `content.chapter` receives `{sourceReleaseId}` and returns a validated structured chapter
+  document. Read and download surfaces only treat releases from packages that support this
+  operation as reader-capable.
+
+Packages should declare their implemented wire operations in manifest `operations`. Protocol `1`
+packages without that field keep legacy service-level discovery for compatibility. The host uses
+operation declarations for capability discovery and returns `plugin.operation_unavailable` before
+script execution when an explicitly declared package does not support the requested operation.
+The bundled MangaDex package intentionally declares `content.search`, `content.resolveUrl`, and
+`content.chapters` but not `content.chapter`, so it can contribute chapter lists without advertising
+a text Reader body it cannot provide.
 
 ## Host capabilities
 

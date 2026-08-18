@@ -6,13 +6,14 @@ import app.openstory.chapters.model.ChapterAggregationOverride
 import app.openstory.chapters.model.ChapterOverrideKind
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.chapters.repository.ChapterRepository
+import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
-import app.openstory.catalog.ui.download.DownloadActions
-import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.downloads.DownloadState
+import app.openstory.reader.content.ReaderSourceAvailability
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 class ChapterListViewModel @AssistedInject constructor(
     @Assisted assistedArgs: ChapterListAssistedArgs,
     private val repository: ChapterRepository,
+    private val readerSources: ReaderSourceAvailability,
 ) : ViewModel() {
     private val storyId = assistedArgs.storyId
     private val expanded = MutableStateFlow<Set<CanonicalChapterId>>(emptySet())
@@ -37,27 +40,37 @@ class ChapterListViewModel @AssistedInject constructor(
     private val tombstonesVisible = MutableStateFlow(false)
     private val failure = MutableStateFlow<String?>(null)
 
-    val state = combine(
+    private val groupsWithReaderSources = combine(
         repository.observe(storyId).catch {
             failure.value = OBSERVE_FAILED
             emit(emptyList())
         },
+        flow { emit(readerSources.enabledPluginIds()) }.catch { emit(emptySet()) },
+    ) { groups, readerPluginIds -> groups to readerPluginIds }
+
+    val state = combine(
+        groupsWithReaderSources,
         expanded,
         filter,
         tombstonesVisible,
         failure,
-    ) { groups, expandedIds, selectedFilter, showTombstones, currentFailure ->
+    ) { (groups, readerPluginIds), expandedIds, selectedFilter, showTombstones, currentFailure ->
         val activeGroups = groups.filterNot { group -> group.chapter.tombstoned }
         val visible = groups
             .filter { group -> showTombstones || !group.chapter.tombstoned }
             .filter { group -> selectedFilter.accepts(group) }
-            .map { group -> group.toUiModel(group.chapter.id in expandedIds) }
+            .map { group -> group.toUiModel(group.chapter.id in expandedIds, readerPluginIds) }
         ChapterListUiState(
             storyId = storyId,
             loading = false,
             chapters = visible,
-            readableTargets = activeGroups.flatMap { group ->
+            releaseTargets = activeGroups.flatMap { group ->
                 group.releases.map { release -> ReaderTarget(storyId, group.chapter.id, release.id) }
+            },
+            readableTargets = activeGroups.flatMap { group ->
+                group.releases
+                    .filter { release -> release.pluginId in readerPluginIds }
+                    .map { release -> ReaderTarget(storyId, group.chapter.id, release.id) }
             },
             unreadCount = activeGroups.size,
             selectedFilter = selectedFilter,
@@ -133,6 +146,7 @@ data class ChapterListUiState(
     val loading: Boolean = true,
     val chapters: List<ChapterItemUiModel> = emptyList(),
     val readableTargets: List<ReaderTarget> = emptyList(),
+    val releaseTargets: List<ReaderTarget> = readableTargets,
     val unreadCount: Int = 0,
     val selectedFilter: ChapterListFilter = ChapterListFilter.ALL,
     val showTombstones: Boolean = false,
@@ -153,6 +167,7 @@ data class ChapterReleaseUiModel(
     val sourceName: String,
     val languageLabel: String,
     val publishedAtEpochMillis: Long?,
+    val readerCapable: Boolean,
 )
 
 data class ChapterListActions(
@@ -169,7 +184,10 @@ data class ChapterListActions(
     val downloadActions: DownloadActions = DownloadActions(),
 )
 
-private fun CanonicalChapterGroup.toUiModel(expanded: Boolean) = ChapterItemUiModel(
+private fun CanonicalChapterGroup.toUiModel(
+    expanded: Boolean,
+    readerPluginIds: Set<PluginId>,
+) = ChapterItemUiModel(
     id = chapter.id,
     label = chapter.displayLabel,
     tombstoned = chapter.tombstoned,
@@ -181,6 +199,7 @@ private fun CanonicalChapterGroup.toUiModel(expanded: Boolean) = ChapterItemUiMo
             sourceName = release.pluginId.value,
             languageLabel = release.languageTag.languageDisplayName(),
             publishedAtEpochMillis = release.publishedAtEpochMillis,
+            readerCapable = release.pluginId in readerPluginIds,
         )
     },
 )

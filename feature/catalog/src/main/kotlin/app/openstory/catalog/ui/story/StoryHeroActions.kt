@@ -33,6 +33,7 @@ internal fun StoryHeroActions(
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
+    onFindSource: () -> Unit,
     onDownload: (ChapterReleaseId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -46,6 +47,7 @@ internal fun StoryHeroActions(
             readerTarget = readerTarget,
             isResume = isResume,
             onRead = onRead,
+            onFindSource = onFindSource,
             modifier = Modifier.weight(1f),
         )
         HikariIconAction(
@@ -76,11 +78,20 @@ private fun StoryReadAction(
     readerTarget: ReaderTarget?,
     isResume: Boolean,
     onRead: (ReaderTarget) -> Unit,
+    onFindSource: () -> Unit,
     modifier: Modifier,
 ) {
+    if (readerTarget == null) {
+        HikariPrimaryAction(
+            onClick = onFindSource,
+            modifier = modifier.testTag("story-find-source"),
+        ) {
+            Text("Find source", maxLines = 1)
+        }
+        return
+    }
     HikariPrimaryAction(
-        onClick = { readerTarget?.let(onRead) },
-        enabled = readerTarget != null,
+        onClick = { onRead(readerTarget) },
         modifier = modifier.testTag("story-read"),
     ) {
         Text(if (isResume) "Resume" else "Read", maxLines = 1)

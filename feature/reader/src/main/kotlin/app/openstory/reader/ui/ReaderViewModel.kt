@@ -25,13 +25,13 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 @HiltViewModel(assistedFactory = ReaderViewModel.Factory::class)
@@ -72,6 +72,7 @@ class ReaderViewModel @AssistedInject constructor(
             document = null,
             selectedReleaseId = null,
             failure = null,
+            failureRetryable = true,
         )
         this.chapterId = chapterId
         savedState[CHAPTER_ID_KEY] = chapterId.value
@@ -101,19 +102,19 @@ class ReaderViewModel @AssistedInject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             if (flushProgress) progressService.flush()
-            mutableState.value = mutableState.value.copy(loading = true, failure = null)
+            mutableState.value = mutableState.value.copy(loading = true, failure = null, failureRetryable = true)
             try {
                 val groups = chapterGroups()
                 val index = groups.indexOfFirst { it.chapter.id == chapterId }
                 if (index < 0) {
-                    fail(READER_CHAPTER_NOT_FOUND)
+                    fail(READER_CHAPTER_NOT_FOUND, retryable = false)
                     return@launch
                 }
                 loadGroup(groups, index, explicitReleaseId)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                fail(READER_LOAD_FAILED)
+                fail(READER_LOAD_FAILED, retryable = true)
             }
         }
     }
@@ -135,7 +136,14 @@ class ReaderViewModel @AssistedInject constructor(
         )
         val fingerprints = restored?.let { mapOf(it.releaseId to it.contentFingerprint) }.orEmpty()
         when (val result = documents.load(ReaderLoadRequest(candidates, policy, fingerprints))) {
-            is ReaderLoadResult.Failure -> fail(result.attempts.joinToString { it.code }.ifBlank { READER_EMPTY })
+            is ReaderLoadResult.Failure -> {
+                val failure = result.attempts.firstOrNull { attempt -> attempt.retryable }
+                    ?: result.attempts.firstOrNull()
+                fail(
+                    code = failure?.code ?: READER_EMPTY,
+                    retryable = failure?.retryable ?: false,
+                )
+            }
             is ReaderLoadResult.Success -> show(groups, index, group, result, restored)
         }
     }
@@ -163,6 +171,7 @@ class ReaderViewModel @AssistedInject constructor(
             restoredProgressFraction = restoredForRelease?.position?.fraction ?: 0f,
             availableOffline = result.fromStore,
             failure = null,
+            failureRetryable = true,
         )
     }
 
@@ -171,8 +180,13 @@ class ReaderViewModel @AssistedInject constructor(
             cachedChapterGroups = groups
         }
 
-    private fun fail(code: String) {
-        mutableState.value = mutableState.value.copy(loading = false, document = null, failure = code)
+    private fun fail(code: String, retryable: Boolean) {
+        mutableState.value = mutableState.value.copy(
+            loading = false,
+            document = null,
+            failure = code,
+            failureRetryable = retryable,
+        )
     }
 
     private fun setFontScale(value: Float) {

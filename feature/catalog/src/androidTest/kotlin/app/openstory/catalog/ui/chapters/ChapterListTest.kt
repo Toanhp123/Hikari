@@ -9,8 +9,10 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.CanonicalChapterId
@@ -18,6 +20,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
+import app.openstory.downloads.DownloadState
 import org.junit.Rule
 import org.junit.Test
 
@@ -128,6 +131,77 @@ class ChapterListTest {
         kotlin.test.assertEquals(ChapterReleaseId("release:10:a"), downloaded)
     }
 
+
+    @Test
+    fun listOnlyReleaseHasNoReadOrDownloadAndBulkDownloadSkipsIt() {
+        val base = fixtureState()
+        val state = base.copy(
+            chapters = base.chapters.map { chapter ->
+                chapter.copy(
+                    expanded = true,
+                    releases = chapter.releases.mapIndexed { index, release ->
+                        release.copy(readerCapable = index != 0)
+                    },
+                )
+            },
+        )
+        var filtered = emptyList<ChapterReleaseId>()
+        var range = emptyList<ChapterReleaseId>()
+        compose.setContent {
+            HikariTheme {
+                ChapterList(
+                    state = state,
+                    actions = ChapterListActions(
+                        onDownloadFiltered = { filtered = it },
+                        onDownloadRange = { range = it },
+                    ),
+                )
+            }
+        }
+
+        compose.onAllNodesWithTag("chapter-read-release:10:a").assertCountEquals(0)
+        compose.onAllNodesWithTag("chapter-download-release:10:a").assertCountEquals(0)
+        compose.onNodeWithText("List only", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Download visible").performClick()
+        compose.onNodeWithText("Download chapter").performClick()
+
+        val readable = listOf(ChapterReleaseId("release:10:b"))
+        kotlin.test.assertEquals(readable, filtered)
+        kotlin.test.assertEquals(readable, range)
+    }
+
+
+    @Test
+    fun completedListOnlyReleaseRemainsReadableOfflineWithoutNewDownload() {
+        val base = fixtureState()
+        val state = base.copy(
+            chapters = base.chapters.map { chapter ->
+                chapter.copy(
+                    expanded = true,
+                    releases = chapter.releases.mapIndexed { index, release ->
+                        release.copy(readerCapable = index != 0)
+                    },
+                )
+            },
+        )
+        compose.setContent {
+            HikariTheme {
+                ChapterList(
+                    state = state,
+                    actions = ChapterListActions(
+                        downloadState = { releaseId ->
+                            DownloadState.COMPLETED.takeIf { releaseId == ChapterReleaseId("release:10:a") }
+                        },
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("chapter-read-release:10:a").assertIsDisplayed()
+        compose.onNodeWithTag("chapter-download-release:10:a").assertIsDisplayed()
+        compose.onNodeWithText("Offline only", useUnmergedTree = true).assertIsDisplayed()
+    }
+
     @Test
     fun emptyChapterListKeepsExistingCopy() {
         compose.setContent {
@@ -160,6 +234,7 @@ private fun fixtureState() = ChapterListUiState(
                     sourceName = "org.mangadex.content",
                     languageLabel = "English",
                     publishedAtEpochMillis = 1L,
+                    readerCapable = true,
                 ),
                 ChapterReleaseUiModel(
                     id = ChapterReleaseId("release:10:b"),
@@ -167,6 +242,7 @@ private fun fixtureState() = ChapterListUiState(
                     sourceName = "org.example.content",
                     languageLabel = "Vietnamese",
                     publishedAtEpochMillis = 2L,
+                    readerCapable = true,
                 ),
             ),
         ),

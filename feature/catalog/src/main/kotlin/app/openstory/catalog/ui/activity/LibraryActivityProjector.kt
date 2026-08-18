@@ -5,6 +5,7 @@ import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.library.LibraryEntry
 import app.openstory.library.mapping.ContentMapping
@@ -20,7 +21,7 @@ data class LibraryActivityItem(
     val sourceLabel: String,
     val languageTag: String,
     val publishedAtEpochMillis: Long?,
-    val readerTarget: ReaderTarget,
+    val readerTarget: ReaderTarget?,
 )
 
 open class LibraryActivityProjector @Inject constructor() {
@@ -29,6 +30,7 @@ open class LibraryActivityProjector @Inject constructor() {
         catalog: List<CatalogStoryProjection>,
         chapters: List<CanonicalChapterGroup>,
         mappings: List<ContentMapping>,
+        readerPluginIds: Set<PluginId>,
     ): List<LibraryActivityItem> {
         val libraryStories = library.mapTo(hashSetOf(), LibraryEntry::storyId)
         val catalogByStory = catalog.associateBy(CatalogStoryProjection::storyId)
@@ -55,7 +57,9 @@ open class LibraryActivityProjector @Inject constructor() {
                     sourceLabel = release.pluginId.value,
                     languageTag = release.languageTag,
                     publishedAtEpochMillis = release.publishedAtEpochMillis,
-                    readerTarget = ReaderTarget(release.storyId, chapterId, release.id),
+                    readerTarget = release.pluginId
+                        .takeIf(readerPluginIds::contains)
+                        ?.let { ReaderTarget(release.storyId, chapterId, release.id) },
                 )
             }
             .sortedWith(

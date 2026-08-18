@@ -7,6 +7,7 @@ import app.openstory.catalog.ui.activity.LibraryActivityProjector
 import app.openstory.chapters.repository.ChapterRepository
 import app.openstory.library.LibraryService
 import app.openstory.library.mapping.ContentMappingRepository
+import app.openstory.reader.content.ReaderSourceAvailability
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneOffset
@@ -32,6 +33,7 @@ class UpdatesViewModel @Inject constructor(
     catalog: CatalogStoryProjectionRepository,
     chapters: ChapterRepository,
     mappings: ContentMappingRepository,
+    readerSources: ReaderSourceAvailability,
     private val projector: LibraryActivityProjector,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<String?>(null)
@@ -44,6 +46,9 @@ class UpdatesViewModel @Inject constructor(
         .distinctUntilChanged()
         .shareIn(viewModelScope, started, replay = 1)
 
+    private val readerPluginIds = flow { emit(readerSources.enabledPluginIds()) }
+        .preserveLatest(emptySet())
+
     private val content = combine(
         libraryEntries,
         libraryStoryIds.flatMapLatest { storyIds ->
@@ -55,8 +60,9 @@ class UpdatesViewModel @Inject constructor(
         libraryStoryIds.flatMapLatest { storyIds ->
             mappings.observeForStories(storyIds).preserveLatest(emptyList())
         },
-    ) { entries, projections, groups, links ->
-        val activity = projector.project(entries, projections, groups, links)
+        readerPluginIds,
+    ) { entries, projections, groups, links, readerIds ->
+        val activity = projector.project(entries, projections, groups, links, readerIds)
         UpdatesUiState(
             groups = activity.groupBy { it.publishedAtEpochMillis.dateLabel() }
                 .map { (label, items) -> UpdatesGroupUiModel(label, items) },

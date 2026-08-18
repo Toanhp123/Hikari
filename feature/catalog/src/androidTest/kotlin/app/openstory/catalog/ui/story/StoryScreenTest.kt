@@ -93,12 +93,34 @@ class StoryScreenTest {
             StoryId("story-1"), CanonicalChapterId("chapter-2"), ChapterReleaseId("release-2"),
         )
         setStoryContent(
-            state = fixtureState().copy(resumeTarget = target, readableTargets = listOf(target)),
+            state = fixtureState().copy(resumeTarget = target),
             chapterState = ChapterListUiState(readableTargets = listOf(target)),
             onRead = { opened = it },
         )
 
         compose.onNodeWithText("Resume").assertHeightIsAtLeast(48.dp).performClick()
+
+        assertEquals(target, opened)
+    }
+
+
+    @Test
+    fun existingProgressCanResumeOfflineWithoutLiveReaderCapability() {
+        val target = ReaderTarget(
+            StoryId("story-1"), CanonicalChapterId("chapter-offline"), ChapterReleaseId("release-offline"),
+        )
+        var opened: ReaderTarget? = null
+        setStoryContent(
+            state = fixtureState().copy(resumeTarget = target),
+            chapterState = ChapterListUiState(
+                loading = false,
+                storyId = StoryId("story-1"),
+                releaseTargets = listOf(target),
+            ),
+            onRead = { opened = it },
+        )
+
+        compose.onNodeWithText("Resume").performClick()
 
         assertEquals(target, opened)
     }
@@ -109,7 +131,7 @@ class StoryScreenTest {
             StoryId("story-1"), CanonicalChapterId("chapter-2"), ChapterReleaseId("release-2"),
         )
         setStoryContent(
-            state = fixtureState().copy(readableTargets = listOf(target)),
+            state = fixtureState(),
             chapterState = ChapterListUiState(readableTargets = listOf(target)),
             modifier = Modifier.requiredWidth(320.dp),
         )
@@ -133,7 +155,7 @@ class StoryScreenTest {
         var downloaded: ChapterReleaseId? = null
         var status: LibraryStatus? = null
         setStoryContent(
-            state = fixtureState().copy(readableTargets = listOf(target)),
+            state = fixtureState(),
             chapterState = ChapterListUiState(readableTargets = listOf(target)),
             onDownload = { downloaded = it },
             onLibraryStatusSelected = { status = it },
@@ -157,8 +179,23 @@ class StoryScreenTest {
         setStoryContent(state = fixtureState().copy(resumeTarget = target))
 
         assertEquals(0, compose.onAllNodesWithText("Resume").fetchSemanticsNodes().size)
-        compose.onNodeWithText("Read").assertIsDisplayed()
+        compose.onNodeWithText("Find source").assertIsDisplayed()
         assertEquals(0, compose.onAllNodesWithText("Download").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun missingReadableReleaseOffersFindSourceInsteadOfDisabledRead() {
+        var selected: StorySection? = null
+        setStoryContent(
+            state = fixtureState(),
+            chapterState = ChapterListUiState(loading = false),
+            onSectionSelected = { selected = it },
+        )
+
+        compose.onNodeWithTag("story-read").assertDoesNotExist()
+        compose.onNodeWithTag("story-find-source").assertIsDisplayed().performClick()
+
+        assertEquals(StorySection.SOURCES, selected)
     }
 
     @Test
@@ -261,7 +298,6 @@ class StoryScreenTest {
         compose.waitForIdle()
     }
 }
-
 
 private fun fixtureState(failed: Boolean = false): StoryUiState {
     val storyId = StoryId("story-1")

@@ -36,7 +36,7 @@ class ChapterListScreenshotTest {
             chapters = listOf(
                 ChapterItemUiModel(
                     CanonicalChapterId("chapter-12"), "Chapter 12 - The Locked Constellation", false, true,
-                    listOf(ChapterReleaseUiModel(releaseId, PluginId("mangadex"), "MangaDex", "English", 1_786_560_000_000L)),
+                    listOf(ChapterReleaseUiModel(releaseId, PluginId("mangadex"), "MangaDex", "English", 1_786_560_000_000L, true)),
                 ),
                 ChapterItemUiModel(CanonicalChapterId("chapter-11"), "Chapter 11 - A Fox at Dawn", false, false, emptyList()),
             ),

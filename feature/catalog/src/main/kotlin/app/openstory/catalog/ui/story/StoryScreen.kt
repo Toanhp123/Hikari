@@ -65,9 +65,11 @@ fun StoryScreen(
         }
         return
     }
-    val readableTargets = state.readableTargets
+    val readableTargets = chapterState?.readableTargets.orEmpty()
     val validatedResumeTarget = state.resumeTarget?.takeIf { target ->
-        readableTargets.any { it.chapterId == target.chapterId && it.releaseId == target.releaseId }
+        chapterState?.releaseTargets?.any { release ->
+            release.chapterId == target.chapterId && release.releaseId == target.releaseId
+        } == true
     }
     val firstReadableTarget = readableTargets.firstOrNull()
     val readerTarget = validatedResumeTarget ?: firstReadableTarget
@@ -77,15 +79,15 @@ fun StoryScreen(
                 MediumStoryLayout(
                     state, story, readerTarget, validatedResumeTarget != null,
                     firstReadableTarget?.releaseId, onRefresh, onSourceSelected, onSectionSelected,
-                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
-                    chapterState, chapterActions,
+                    onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
+                    onDownload, mappingState, mappingActions, chapterState, chapterActions,
                 )
             } else {
                 CompactStoryLayout(
                     state, story, readerTarget, validatedResumeTarget != null,
                     firstReadableTarget?.releaseId, onRefresh, onSourceSelected, onSectionSelected,
-                    onLibraryStatusSelected, onRead, onDownload, mappingState, mappingActions,
-                    chapterState, chapterActions,
+                    onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
+                    onDownload, mappingState, mappingActions, chapterState, chapterActions,
                     narrowHero = windowClass == HikariWindowClass.COMPACT,
                 )
             }

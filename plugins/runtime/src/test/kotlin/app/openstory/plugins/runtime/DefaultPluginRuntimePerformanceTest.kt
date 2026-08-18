@@ -24,6 +24,7 @@ import app.openstory.plugins.runtime.update.PluginUpdateService
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
@@ -33,6 +34,28 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
 class DefaultPluginRuntimePerformanceTest {
+    @Test
+    fun `operation discovery and invocation honor manifest declarations`() = runTest {
+        val pluginId = PluginId("org.example.plugin")
+        val state = MutableStateStore(stored(pluginId, "1.0.0", "a".repeat(64)))
+        val storage = CountingPackageStorage().apply {
+            put(
+                pluginId,
+                "1.0.0",
+                manifest("1.0.0", operations = setOf(PluginOperation.CATALOG_SEARCH)),
+                "globalThis.openstoryPlugin = {};",
+            )
+        }
+        val runtime = runtime(state, storage)
+
+        assertEquals(listOf(pluginId), runtime.enabled(PluginOperation.CATALOG_SEARCH).map { it.pluginId })
+        assertTrue(runtime.enabled(PluginOperation.CATALOG_HOME).isEmpty())
+        val unavailable = assertIs<PluginCallResult.Failure>(
+            runtime.invoke(pluginId, PluginOperation.CATALOG_HOME, JsonObject(emptyMap())),
+        )
+        assertEquals("plugin.operation_unavailable", unavailable.code)
+    }
+
     @Test
     fun `active package is loaded once until immutable package identity changes`() = runTest {
         val pluginId = PluginId("org.example.plugin")
@@ -116,12 +139,16 @@ class DefaultPluginRuntimePerformanceTest {
         return DefaultPluginRuntime(state, storage, runner, bundled, Json)
     }
 
-    private fun manifest(version: String) = PluginManifest(
+    private fun manifest(
+        version: String,
+        operations: Set<PluginOperation>? = null,
+    ) = PluginManifest(
         id = "org.example.plugin",
         name = "Example",
         version = version,
         protocol = PluginProtocolVersion(1),
         provides = setOf(PluginService.CATALOG),
+        operations = operations,
         capabilities = PluginCapabilities(),
     )
 

@@ -35,9 +35,25 @@ class UpdatesScreenTest {
         compose.onNodeWithText("Read").performClick()
         assertEquals("release-update", reader?.releaseId?.value)
     }
+
+    @Test
+    fun listOnlyUpdateNavigatesToStoryWithoutReadAction() {
+        var story: StoryId? = null
+        compose.setContent {
+            HikariTheme {
+                UpdatesScreen(updatesFixture(readerCapable = false), { story = it }, {})
+            }
+        }
+
+        compose.onNodeWithText("Read").assertDoesNotExist()
+        compose.onNodeWithContentDescription(
+            "The Fox of the Moonlit Archive, Chapter 12, content.mangadex, en",
+        ).performClick()
+        assertEquals(StoryId("story-update"), story)
+    }
 }
 
-private fun updatesFixture(): UpdatesUiState {
+private fun updatesFixture(readerCapable: Boolean = true): UpdatesUiState {
     val storyId = StoryId("story-update")
     val target = ReaderTarget(storyId, CanonicalChapterId("chapter-update"), ChapterReleaseId("release-update"))
     return UpdatesUiState(
@@ -47,7 +63,8 @@ private fun updatesFixture(): UpdatesUiState {
                 listOf(
                     LibraryActivityItem(
                         storyId, "The Fox of the Moonlit Archive", null, target.chapterId, target.releaseId,
-                        "Chapter 12", "content.mangadex", "en", 1_754_236_800_000L, target,
+                        "Chapter 12", "content.mangadex", "en", 1_754_236_800_000L,
+                        target.takeIf { readerCapable },
                     ),
                 ),
             ),

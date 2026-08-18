@@ -18,6 +18,7 @@ data class ReaderUiState(
     val fontScale: Float = DEFAULT_FONT_SCALE,
     val availableOffline: Boolean = false,
     val failure: String? = null,
+    val failureRetryable: Boolean = true,
 )
 
 data class ReaderReleaseUiModel(

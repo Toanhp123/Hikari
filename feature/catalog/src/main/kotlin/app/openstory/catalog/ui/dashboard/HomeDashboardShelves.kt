@@ -47,6 +47,7 @@ internal fun LazyListScope.continueReadingShelf(
 
 internal fun LazyListScope.latestUpdatesShelf(
     updates: List<HomeUpdateItem>,
+    onStorySelected: (StoryId) -> Unit,
     onResume: (ReaderTarget) -> Unit,
     firstFocusRequester: FocusRequester?,
 ) {
@@ -61,10 +62,15 @@ internal fun LazyListScope.latestUpdatesShelf(
                             title = update.title,
                             coverUrl = update.coverUrl,
                             chapterLabel = update.chapterLabel,
-                            contentDescription =
-                                "Read ${update.title}, ${update.chapterLabel}. Section Latest Updates",
+                            contentDescription = if (update.readerTarget != null) {
+                                "Read ${update.title}, ${update.chapterLabel}. Section Latest Updates"
+                            } else {
+                                "Open ${update.title}, ${update.chapterLabel}. Section Latest Updates"
+                            },
                         ),
-                        onClick = { onResume(update.readerTarget) },
+                        onClick = {
+                            update.readerTarget?.let(onResume) ?: onStorySelected(update.storyId)
+                        },
                         variant = StoryUpdateCardVariant.SHELF,
                         traversalIndex = UPDATE_CARD_TRAVERSAL_INDEX,
                         modifier = Modifier.then(

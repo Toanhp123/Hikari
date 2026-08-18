@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
@@ -58,6 +59,44 @@ class HomeDashboardScreenTest {
         continueCard.assertIsFocused()
         continueCard.performKeyInput { pressKey(Key.DirectionDown) }
         readingCard.assertIsFocused()
+    }
+
+    @Test
+    fun listOnlyLatestUpdateOpensStoryInsteadOfReader() {
+        val storyId = StoryId("story-list-only")
+        var openedStory: StoryId? = null
+        var openedReader: ReaderTarget? = null
+        compose.setContent {
+            HikariTheme {
+                HomeDashboardScreen(
+                    state = HomeDashboardUiState(
+                        latestUpdates = listOf(
+                            HomeUpdateItem(
+                                storyId = storyId,
+                                title = "List-only story",
+                                coverUrl = null,
+                                chapterId = CanonicalChapterId("chapter-1"),
+                                releaseId = ChapterReleaseId("release-1"),
+                                chapterLabel = "Chapter 1",
+                                publishedAtEpochMillis = 1L,
+                                readerTarget = null,
+                            ),
+                        ),
+                        loading = false,
+                    ),
+                    onDiscover = {},
+                    onStorySelected = { openedStory = it },
+                    onResume = { openedReader = it },
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription(
+            "Open List-only story, Chapter 1. Section Latest Updates",
+        ).performClick()
+
+        kotlin.test.assertEquals(storyId, openedStory)
+        kotlin.test.assertEquals(null, openedReader)
     }
 
     @Test

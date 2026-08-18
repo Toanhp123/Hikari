@@ -34,6 +34,7 @@ internal fun MediumStoryLayout(
     onSectionSelected: (StorySection) -> Unit,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
+    onFindSource: () -> Unit,
     onDownload: (ChapterReleaseId) -> Unit,
     mappingState: MappingUiState?,
     mappingActions: MappingActions,
@@ -44,7 +45,7 @@ internal fun MediumStoryLayout(
         Column(storyPane(MaterialTheme.hikariLayoutRatios.detailSummaryPaneWeight, "story-summary-pane", 0f)) {
             StoryHero(
                 story, state.libraryStatus, readerTarget, isResume, downloadableReleaseId,
-                onLibraryStatusSelected, onRead, onDownload, narrow = true,
+                onLibraryStatusSelected, onRead, onFindSource, onDownload, narrow = true,
             )
             if (state.selectedSection != StorySection.OVERVIEW) {
                 StoryOverview(story, compact = true, modifier = Modifier.weight(1f))
@@ -71,6 +72,7 @@ internal fun CompactStoryLayout(
     onSectionSelected: (StorySection) -> Unit,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
+    onFindSource: () -> Unit,
     onDownload: (ChapterReleaseId) -> Unit,
     mappingState: MappingUiState?,
     mappingActions: MappingActions,
@@ -81,7 +83,7 @@ internal fun CompactStoryLayout(
     Column(Modifier.fillMaxSize()) {
         StoryHero(
             story, state.libraryStatus, readerTarget, isResume, downloadableReleaseId,
-            onLibraryStatusSelected, onRead, onDownload, narrow = narrowHero,
+            onLibraryStatusSelected, onRead, onFindSource, onDownload, narrow = narrowHero,
         )
         StoryBody(
             state, onRefresh, onSourceSelected, onSectionSelected, mappingState,

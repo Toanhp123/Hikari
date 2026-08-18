@@ -18,6 +18,7 @@ import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.mapping.ContentMappingRejection
 import app.openstory.library.mapping.ContentMappingRepository
 import app.openstory.library.mapping.ContentMappingWriteResult
+import app.openstory.reader.content.ReaderSourceAvailability
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -89,6 +90,7 @@ class UpdatesViewModelTest {
             catalog = failingCatalog,
             chapters = FakeUpdatesChapterRepository,
             mappings = FakeMappingRepository,
+            readerSources = ReaderSourceAvailability { setOf(PluginId("content.fixture")) },
             projector = FakeActivityProjector(listOf(activity)),
         )
 
@@ -106,6 +108,7 @@ class UpdatesViewModelTest {
         },
         chapters = FakeUpdatesChapterRepository,
         mappings = FakeMappingRepository,
+        readerSources = ReaderSourceAvailability { setOf(PluginId("content.fixture")) },
         projector = projector,
     )
 }
@@ -116,6 +119,7 @@ private class FakeActivityProjector(private val items: List<app.openstory.catalo
         catalog: List<CatalogStoryProjection>,
         chapters: List<CanonicalChapterGroup>,
         mappings: List<ContentMapping>,
+        readerPluginIds: Set<PluginId>,
     ) = items
 }
 

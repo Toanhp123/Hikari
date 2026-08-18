@@ -283,9 +283,6 @@ private fun fixture(section: StorySection = StorySection.OVERVIEW): StoryUiState
         selectedSource = StorySourceIdentity(sourceA.pluginId, sourceA.sourceId),
         libraryStatus = LibraryStatus.READING,
         resumeTarget = ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
-        readableTargets = listOf(
-            ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
-        ),
         selectedSection = section,
     )
 }
@@ -300,7 +297,7 @@ private fun chapterFixture() = ChapterListUiState(
     chapters = listOf(
         ChapterItemUiModel(
             CanonicalChapterId("chapter-12"), "Chapter 12 · The Locked Constellation", false, true,
-            listOf(ChapterReleaseUiModel(ChapterReleaseId("release-12"), PluginId("mangadex"), "MangaDex", "English", 12L)),
+            listOf(ChapterReleaseUiModel(ChapterReleaseId("release-12"), PluginId("mangadex"), "MangaDex", "English", 12L, true)),
         ),
         ChapterItemUiModel(CanonicalChapterId("chapter-11"), "Chapter 11 · A Fox at Dawn", false, false, emptyList()),
     ),

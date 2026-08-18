@@ -27,6 +27,21 @@ import kotlin.test.assertIs
 
 class PluginReaderDocumentSourceTest {
     @Test
+    fun registryUsesChapterOperationCapabilityForReaderAvailability() = runTest {
+        val readerPlugin = InstalledPlugin(PluginId("reader.plugin"), "1", setOf(PluginService.CONTENT))
+        val runtime = FakeRuntime(enabledForChapter = listOf(readerPlugin))
+        val registry = PluginReaderDocumentSourceRegistry(
+            runtime,
+            Json,
+            ReaderDocumentSanitizer(),
+        )
+
+        assertEquals(listOf(PluginId("reader.plugin")), registry.enabled().map { it.pluginId })
+        assertEquals(setOf(PluginId("reader.plugin")), registry.enabledPluginIds())
+        assertEquals(PluginOperation.CONTENT_CHAPTER, runtime.enabledOperation)
+    }
+
+    @Test
     fun invokesChapterOperationAndSanitizesPayload() = runTest {
         val runtime = FakeRuntime()
         val source = PluginReaderDocumentSource(
@@ -66,9 +81,11 @@ class PluginReaderDocumentSourceTest {
 
 private class FakeRuntime(
     private val invalidPayload: Boolean = false,
+    private val enabledForChapter: List<InstalledPlugin> = emptyList(),
 ) : PluginRuntime {
     var operation: PluginOperation? = null
     var sourceReleaseId: String? = null
+    var enabledOperation: PluginOperation? = null
 
     override suspend fun invoke(
         pluginId: PluginId,
@@ -93,4 +110,9 @@ private class FakeRuntime(
     }
 
     override suspend fun enabled(service: PluginService): List<InstalledPlugin> = emptyList()
+
+    override suspend fun enabled(operation: PluginOperation): List<InstalledPlugin> {
+        enabledOperation = operation
+        return enabledForChapter
+    }
 }

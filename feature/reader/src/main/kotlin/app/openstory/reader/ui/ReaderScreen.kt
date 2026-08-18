@@ -135,14 +135,30 @@ private fun ReaderBackground(
             else -> Centered {
                 HikariErrorState(
                     title = "Reader unavailable",
-                    message = state.failure,
-                    actionLabel = "Retry",
-                    onAction = onRetry,
+                    message = readerFailureMessage(state.failure, state.failureRetryable),
+                    actionLabel = if (state.failureRetryable) "Retry" else null,
+                    onAction = if (state.failureRetryable) onRetry else null,
                 )
             }
         }
     }
 }
+
+private fun readerFailureMessage(code: String?, retryable: Boolean): String? = when (code) {
+    null -> null
+    "plugin.operation_unavailable", "reader.source_unavailable" ->
+        "This source cannot provide readable content."
+    "reader.no_release_available" -> "No readable release is available for this chapter."
+    "reader.chapter_not_found" -> "This chapter is no longer available."
+    else -> if (MACHINE_FAILURE_CODE.matches(code)) {
+        if (retryable) "The selected release is temporarily unavailable."
+        else "The selected release cannot be opened."
+    } else {
+        code
+    }
+}
+
+private val MACHINE_FAILURE_CODE = Regex("[a-z0-9]+(?:[._-][a-z0-9]+)+")
 
 @Stable
 internal class ReaderProgressUiState(initialPercent: Int = 0) {

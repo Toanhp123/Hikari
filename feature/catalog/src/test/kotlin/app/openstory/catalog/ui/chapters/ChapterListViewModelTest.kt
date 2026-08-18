@@ -16,6 +16,7 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.reader.content.ReaderSourceAvailability
 import java.math.BigDecimal
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -49,7 +50,7 @@ class ChapterListViewModelTest {
     @Test
     fun projectsCanonicalUnreadCountExpansionAndFilters() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2")))
-        val viewModel = ChapterListViewModel(ChapterListAssistedArgs(STORY_ID), repository)
+        val viewModel = chapterViewModel(repository)
         assertTrue(viewModel.state.value.loading)
 
         observe(viewModel.state)
@@ -71,8 +72,7 @@ class ChapterListViewModelTest {
 
     @Test
     fun readableTargetsRemainStableAcrossPresentationFilters() = runTest(dispatcher.scheduler) {
-        val viewModel = ChapterListViewModel(
-            ChapterListAssistedArgs(STORY_ID),
+        val viewModel = chapterViewModel(
             FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2"))),
         )
         observe(viewModel.state)
@@ -87,9 +87,48 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun newlySyncedReaderReleaseBecomesReadableWithoutRecreatingViewModel() = runTest(dispatcher.scheduler) {
+        val repository = FakeChapterRepository(emptyList())
+        val viewModel = chapterViewModel(
+            repository,
+            readerPlugins = setOf(PluginId("content.0")),
+        )
+        observe(viewModel.state)
+        runCurrent()
+        assertEquals(emptyList(), viewModel.state.value.readableTargets)
+
+        repository.replace(listOf(group("1")))
+        runCurrent()
+
+        assertEquals(
+            listOf(ChapterReleaseId("release:1:0")),
+            viewModel.state.value.readableTargets.map { it.releaseId },
+        )
+    }
+
+    @Test
+    fun listOnlyReleasesStayVisibleButNeverBecomeReaderTargets() = runTest(dispatcher.scheduler) {
+        val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2)))
+        val viewModel = chapterViewModel(
+            repository,
+            readerPlugins = setOf(PluginId("content.1")),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        val releases = viewModel.state.value.chapters.single().releases
+        assertEquals(listOf(false, true), releases.map { it.readerCapable })
+        assertEquals(
+            listOf(ChapterReleaseId("release:1:0"), ChapterReleaseId("release:1:1")),
+            viewModel.state.value.releaseTargets.map { it.releaseId },
+        )
+        assertEquals(listOf(ChapterReleaseId("release:1:1")), viewModel.state.value.readableTargets.map { it.releaseId })
+    }
+
+    @Test
     fun tombstonesStayHiddenUntilExplicitlyRequested() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1"), group("2", tombstoned = true)))
-        val viewModel = ChapterListViewModel(ChapterListAssistedArgs(STORY_ID), repository)
+        val viewModel = chapterViewModel(repository)
         observe(viewModel.state)
         runCurrent()
 
@@ -104,7 +143,7 @@ class ChapterListViewModelTest {
     @Test
     fun correctionCommandsPersistProtectedOverrides() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1")))
-        val viewModel = ChapterListViewModel(ChapterListAssistedArgs(STORY_ID), repository)
+        val viewModel = chapterViewModel(repository)
         observe(viewModel.state)
         runCurrent()
         val releaseId = ChapterReleaseId("release:1:0")
@@ -128,9 +167,22 @@ class ChapterListViewModelTest {
     }
 }
 
+private fun chapterViewModel(
+    repository: ChapterRepository,
+    readerPlugins: Set<PluginId> = setOf(PluginId("content.0"), PluginId("content.1")),
+) = ChapterListViewModel(
+    ChapterListAssistedArgs(STORY_ID),
+    repository,
+    ReaderSourceAvailability { readerPlugins },
+)
+
 private class FakeChapterRepository(initial: List<CanonicalChapterGroup>) : ChapterRepository {
     private val groups = MutableStateFlow(initial)
     val savedOverrides = mutableListOf<ChapterAggregationOverride>()
+
+    fun replace(value: List<CanonicalChapterGroup>) {
+        groups.value = value
+    }
 
     override fun observeAll(): Flow<List<CanonicalChapterGroup>> = groups
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = groups

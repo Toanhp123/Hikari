@@ -45,7 +45,7 @@ grep -q 'database.withTransaction' "$download_repo" || fail "Room quota snapshot
 grep -q 'if (usage > quotaBytes)' "$download_repo" || fail "Room cache candidates are materialized even when usage is within quota"
 grep -q 'dao.deleteAutomaticCache' "$download_repo" || fail "Room cache repository does not use direct automatic-cache deletion"
 
-runtime_line=$(grep -n 'runtime.enabled(PluginService.CONTENT)' "$registry" | cut -d: -f1 | head -1)
+runtime_line=$(grep -n 'runtime.enabled(PluginOperation.CONTENT_SEARCH)' "$registry" | cut -d: -f1 | head -1)
 lock_line=$(grep -n 'cacheMutex.withLock' "$registry" | cut -d: -f1 | head -1)
 [[ -n "$runtime_line" && -n "$lock_line" && "$runtime_line" -lt "$lock_line" ]] || \
     fail "content source registry still holds cache mutex across runtime.enabled()"

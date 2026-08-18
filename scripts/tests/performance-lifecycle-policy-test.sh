@@ -13,6 +13,7 @@ discover_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/disc
 home_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardViewModel.kt"
 library_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryViewModel.kt"
 story_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt"
+story_screen="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt"
 reader_vm="$root/feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderViewModel.kt"
 nav_state="$root/app/src/main/kotlin/app/openstory/navigation/AppNavigationState.kt"
 
@@ -43,8 +44,12 @@ grep -q 'withFrameNanos' "$story_destination" || fail "Story section prewarm doe
 ! grep -q 'SharingStarted\.Eagerly' "$chapter_vm" || fail "ChapterList UI state is still eager"
 ! grep -q 'SharingStarted\.Eagerly' "$mapping_vm" || fail "Mapping UI state is still eager"
 ! grep -q 'SharingStarted\.Eagerly' "$story_vm" || fail "Story UI state is still eager while its retained NavEntry can be off-screen"
-grep -q 'chapters\.snapshot(storyId)' "$story_vm" || fail "Story hero readable targets are not loaded from a one-shot chapter snapshot"
-! grep -q 'chapters\.observe(storyId)\.first()' "$story_vm" || fail "Story hero still creates a chapter Flow observer for one-shot targets"
+! grep -q 'ChapterRepository' "$story_vm" || fail "StoryViewModel still owns duplicate chapter availability state"
+! grep -q 'chapters\.snapshot(storyId)' "$story_vm" || fail "Story hero still reads stale one-shot chapter targets"
+grep -q 'chapterState?.readableTargets' "$story_screen" ||
+    fail "Story hero does not consume reactive ChapterList reader targets"
+grep -q 'repository.observe(storyId)' "$chapter_vm" || fail "ChapterList reader availability is not driven by chapter observation"
+grep -q 'ReaderSourceAvailability' "$chapter_vm" || fail "ChapterList does not capability-gate reader targets"
 
 grep -q 'fun openChapter(' "$reader_vm" || fail "ReaderViewModel does not own chapter switching"
 ! grep -A8 'onPreviousChapter' "$host" | grep -q 'navigate(AppRoute.Reader' || fail "Previous chapter still pushes a Reader route"

@@ -2,7 +2,6 @@ package app.openstory.reader.content
 
 import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.PluginId
-import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.content.ChapterDocumentDto
 import app.openstory.plugins.api.protocol.content.ContentChapterRequestDto
@@ -56,9 +55,14 @@ class PluginReaderDocumentSourceRegistry(
     private val runtime: PluginRuntime,
     private val json: Json,
     private val sanitizer: ReaderDocumentSanitizer,
-) : ReaderDocumentSourceRegistry {
-    override suspend fun enabled(): List<ReaderDocumentSource> =
-        runtime.enabled(PluginService.CONTENT)
+) : ReaderDocumentSourceRegistry, ReaderSourceAvailability {
+    override suspend fun enabled(): List<ReaderDocumentSource> = enabledPlugins()
+        .map { plugin -> PluginReaderDocumentSource(plugin, runtime, json, sanitizer) }
+
+    override suspend fun enabledPluginIds(): Set<PluginId> = enabledPlugins()
+        .mapTo(linkedSetOf()) { plugin -> plugin.pluginId }
+
+    private suspend fun enabledPlugins(): List<InstalledPlugin> =
+        runtime.enabled(PluginOperation.CONTENT_CHAPTER)
             .sortedBy { plugin -> plugin.pluginId.value }
-            .map { plugin -> PluginReaderDocumentSource(plugin, runtime, json, sanitizer) }
 }

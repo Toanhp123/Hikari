@@ -14,6 +14,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import app.openstory.common.id.CanonicalChapterId
@@ -173,6 +175,30 @@ class ReaderScreenTest {
             HikariTheme { ReaderScreen(ReaderUiState(loading = true), ReaderActions()) }
         }
         compose.onNodeWithText("Loading reader").assertIsDisplayed()
+    }
+
+
+    @Test
+    fun unsupportedReaderSourceUsesSafeCopyWithoutRetry() {
+        var retried = false
+        compose.setContent {
+            HikariTheme {
+                ReaderScreen(
+                    ReaderUiState(
+                        loading = false,
+                        failure = "plugin.operation_unavailable",
+                        failureRetryable = false,
+                    ),
+                    ReaderActions(onRetry = { retried = true }),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Reader unavailable").assertIsDisplayed()
+        compose.onNodeWithText("This source cannot provide readable content.").assertIsDisplayed()
+        compose.onAllNodesWithText("plugin.operation_unavailable").assertCountEquals(0)
+        compose.onAllNodesWithText("Retry").assertCountEquals(0)
+        assertEquals(false, retried)
     }
 
     @Test

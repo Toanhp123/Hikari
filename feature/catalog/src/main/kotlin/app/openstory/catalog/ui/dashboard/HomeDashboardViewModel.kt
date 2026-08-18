@@ -6,11 +6,13 @@ import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.chapters.repository.ChapterRepository
+import app.openstory.common.id.PluginId
 import app.openstory.downloads.DownloadRepository
 import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryService
 import app.openstory.library.mapping.ContentMapping
 import app.openstory.library.mapping.ContentMappingRepository
+import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -37,6 +40,7 @@ class HomeDashboardViewModel @Inject constructor(
     chapters: ChapterRepository,
     mappings: ContentMappingRepository,
     downloads: DownloadRepository,
+    readerSources: ReaderSourceAvailability,
 ) : ViewModel() {
     private val projector = HomeDashboardProjector()
     private val failure = MutableStateFlow<HomeDashboardFailure?>(null)
@@ -61,6 +65,9 @@ class HomeDashboardViewModel @Inject constructor(
         },
     ) { entries, projections, records -> LibraryContent(entries, projections, records) }
 
+    private val readerPluginIds = flow { emit(readerSources.enabledPluginIds()) }
+        .catch { emit(emptySet()) }
+
     private val chapterContent = combine(
         libraryStoryIds.flatMapLatest { storyIds ->
             chapters.observeForStories(storyIds)
@@ -71,7 +78,10 @@ class HomeDashboardViewModel @Inject constructor(
                 .preserveLatest(MAPPINGS_FAILURE, emptyList())
         },
         downloads.observeCompletedCount().preserveLatest(DOWNLOADS_FAILURE, 0),
-    ) { groups, links, downloadedCount -> ChapterContent(groups, links, downloadedCount) }
+        readerPluginIds,
+    ) { groups, links, downloadedCount, readerIds ->
+        ChapterContent(groups, links, readerIds, downloadedCount)
+    }
 
     private val content = combine(libraryContent, chapterContent) { personal, releases ->
         projector.project(
@@ -81,6 +91,7 @@ class HomeDashboardViewModel @Inject constructor(
                 progress = personal.progress,
                 chapters = releases.chapters,
                 mappings = releases.mappings,
+                readerPluginIds = releases.readerPluginIds,
                 downloadedCount = releases.downloadedCount,
             ),
         )
@@ -118,6 +129,7 @@ class HomeDashboardViewModel @Inject constructor(
     private data class ChapterContent(
         val chapters: List<CanonicalChapterGroup>,
         val mappings: List<ContentMapping>,
+        val readerPluginIds: Set<PluginId>,
         val downloadedCount: Int,
     )
 

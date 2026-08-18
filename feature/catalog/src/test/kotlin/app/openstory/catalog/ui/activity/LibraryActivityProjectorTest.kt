@@ -37,11 +37,29 @@ class LibraryActivityProjectorTest {
                 group(outsideStory, "outside", "outside", 50L),
             ),
             mappings = listOf(mapping(libraryStory, "mapped"), mapping(outsideStory, "outside")),
+            readerPluginIds = setOf(PluginId("content.fixture")),
         )
 
         assertEquals(listOf("release-new", "release-old"), items.map { it.releaseId.value })
         assertEquals("Library Story", items.first().title)
         assertEquals("content.fixture", items.first().sourceLabel)
+    }
+
+
+    @Test
+    fun `list-only releases remain updates without advertising reader navigation`() {
+        val storyId = StoryId("story")
+
+        val item = projector.project(
+            library = listOf(entry(storyId)),
+            catalog = emptyList(),
+            chapters = listOf(group(storyId, "12", "mapped", 20L)),
+            mappings = listOf(mapping(storyId, "mapped")),
+            readerPluginIds = emptySet(),
+        ).single()
+
+        assertEquals(ChapterReleaseId("release-12"), item.releaseId)
+        assertEquals(null, item.readerTarget)
     }
 
     @Test
@@ -54,13 +72,14 @@ class LibraryActivityProjectorTest {
             catalog = emptyList(),
             chapters = listOf(duplicate, duplicate),
             mappings = listOf(mapping(storyId, "mapped")),
+            readerPluginIds = setOf(PluginId("content.fixture")),
         )
 
         val item = items.single()
         assertEquals(storyId, item.storyId)
-        assertEquals(storyId, item.readerTarget.storyId)
-        assertEquals(item.chapterId, item.readerTarget.chapterId)
-        assertEquals(item.releaseId, item.readerTarget.releaseId)
+        assertEquals(storyId, item.readerTarget?.storyId)
+        assertEquals(item.chapterId, item.readerTarget?.chapterId)
+        assertEquals(item.releaseId, item.readerTarget?.releaseId)
         assertEquals("story", item.title)
     }
 }

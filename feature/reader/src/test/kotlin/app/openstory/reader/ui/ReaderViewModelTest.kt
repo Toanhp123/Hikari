@@ -190,6 +190,23 @@ class ReaderViewModelTest {
         assertEquals("release-b", viewModel.state.value.selectedReleaseId?.value)
     }
 
+
+    @Test
+    fun nonRetryableReaderSourceFailureIsProjectedWithoutRetry() = runTest(dispatcher.scheduler) {
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter", "release-a"),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graphForSingleChapter()),
+            failingDocuments("plugin.operation_unavailable", retryable = false),
+            FakeReaderProgressRepository(null),
+            FakeClock(100),
+        )
+        runCurrent()
+
+        assertEquals("plugin.operation_unavailable", viewModel.state.value.failure)
+        assertFalse(viewModel.state.value.failureRetryable)
+    }
+
     @Test
     fun flushStartsPersistenceBeforeNavigationCanClearTheViewModel() = runTest(dispatcher.scheduler) {
         val repository = FakeReaderProgressRepository(null)
@@ -208,6 +225,21 @@ class ReaderViewModelTest {
 
         assertEquals(ReadingPosition("block", 4, 0.4f), repository.current()?.position)
     }
+
+
+    private fun failingDocuments(code: String, retryable: Boolean) = ReaderDocumentRepository(
+        NoOpReaderDocumentStore,
+        object : ReaderDocumentSourceRegistry {
+            override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                object : ReaderDocumentSource {
+                    override val pluginId = PluginId("plugin")
+                    override suspend fun fetch(release: ChapterRelease) =
+                        ReaderSourceResult.Failure(code, retryable)
+                },
+            )
+        },
+        ReleaseSelector(),
+    )
 
     private fun documents() = ReaderDocumentRepository(
         NoOpReaderDocumentStore,

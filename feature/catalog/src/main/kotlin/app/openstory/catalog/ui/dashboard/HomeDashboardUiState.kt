@@ -30,7 +30,7 @@ data class HomeUpdateItem(
     val releaseId: ChapterReleaseId,
     val chapterLabel: String,
     val publishedAtEpochMillis: Long?,
-    val readerTarget: ReaderTarget,
+    val readerTarget: ReaderTarget?,
 )
 
 data class HomeDashboardUiState(

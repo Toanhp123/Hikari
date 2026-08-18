@@ -43,9 +43,25 @@ class DefaultPluginRuntime(
 
     override suspend fun enabled(service: PluginService): List<InstalledPlugin> {
         bundled.ensureProvisioned()
-        return state.all().filter { it.enabled && service in it.services }.map {
-            InstalledPlugin(it.pluginId, it.activeVersion.version, it.services, it.acceptedNetworkHosts)
-        }.sortedBy { it.pluginId.value }
+        return state.all()
+            .filter { stored -> stored.enabled && service in stored.services }
+            .map(StoredPluginState::toInstalledPlugin)
+            .sortedBy { plugin -> plugin.pluginId.value }
+    }
+
+    override suspend fun enabled(operation: PluginOperation): List<InstalledPlugin> {
+        bundled.ensureProvisioned()
+        return state.all()
+            .filter { stored -> stored.enabled && operation.service in stored.services }
+            .mapNotNull { stored ->
+                when (val loaded = loadPackage(stored)) {
+                    is PluginCallResult.Failure -> null
+                    is PluginCallResult.Success -> stored
+                        .takeIf { loaded.value.manifest.supports(operation) }
+                        ?.toInstalledPlugin()
+                }
+            }
+            .sortedBy { plugin -> plugin.pluginId.value }
     }
 
     private suspend fun invokeStored(
@@ -56,13 +72,17 @@ class DefaultPluginRuntime(
         if (!stored.enabled) return PluginCallResult.Failure("plugin.disabled", false)
         return when (val loaded = loadPackage(stored)) {
             is PluginCallResult.Failure -> loaded
-            is PluginCallResult.Success -> runner.run(
-                stored.pluginId,
-                loaded.value.manifest,
-                loaded.value.script,
-                operation,
-                input,
-            )
+            is PluginCallResult.Success -> if (!loaded.value.manifest.supports(operation)) {
+                PluginCallResult.Failure("plugin.operation_unavailable", false)
+            } else {
+                runner.run(
+                    stored.pluginId,
+                    loaded.value.manifest,
+                    loaded.value.script,
+                    operation,
+                    input,
+                )
+            }
         }
     }
 
@@ -132,6 +152,13 @@ private data class CachedPluginPackage(
 
 private fun Map<PluginId, CachedPluginPackage>.cached(identity: PluginPackageIdentity): LoadedPluginPackage? =
     get(identity.pluginId)?.takeIf { cached -> cached.identity == identity }?.value
+
+private fun StoredPluginState.toInstalledPlugin() = InstalledPlugin(
+    pluginId = pluginId,
+    version = activeVersion.version,
+    services = services,
+    allowedNetworkHosts = acceptedNetworkHosts,
+)
 
 private fun StoredPluginState.packageIdentity() = PluginPackageIdentity(
     pluginId = pluginId,

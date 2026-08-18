@@ -3,6 +3,7 @@ package app.openstory.di
 import app.openstory.plugins.api.manifest.PluginManifest
 import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.packageformat.PluginArtifact
+import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.PluginCallResult
 import app.openstory.plugins.runtime.install.PackageVerifier
 import java.io.ByteArrayOutputStream
@@ -67,6 +68,15 @@ class MangaDexContentPackageTest {
         assertEquals(MANGADEX_PACKAGE_PLUGIN_ID, manifest.id)
         assertEquals(MANGADEX_PACKAGE_VERSION, manifest.version)
         assertEquals(setOf(PluginService.CONTENT), manifest.provides)
+        assertEquals(
+            setOf(
+                PluginOperation.CONTENT_SEARCH,
+                PluginOperation.CONTENT_RESOLVE_URL,
+                PluginOperation.CONTENT_CHAPTERS,
+            ),
+            manifest.operations,
+        )
+        assertFalse(manifest.supports(PluginOperation.CONTENT_CHAPTER))
         assertEquals(setOf("api.mangadex.org", "mangadex.org"), manifest.capabilities.network?.hosts)
         assertTrue(mainSource.contains("content: Object.freeze"))
         assertTrue(mainSource.contains("search: async"))
@@ -110,7 +120,7 @@ private fun ByteArray.mangaDexSha256(): String = MessageDigest.getInstance("SHA-
     .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
 private const val MANGADEX_PACKAGE_PLUGIN_ID = "org.openstory.content.mangadex"
-private const val MANGADEX_PACKAGE_VERSION = "1.1.0"
+private const val MANGADEX_PACKAGE_VERSION = "1.2.0"
 private const val MANGADEX_ASSET_PATH = "plugins/mangadex-content.osp"
 private const val MANGADEX_ASSET_RELATIVE_PATH = "app/src/main/assets/plugins/mangadex-content.osp"
 private const val MANGADEX_MANIFEST_RELATIVE_PATH = "bundled-plugins/mangadex-content/manifest.json"

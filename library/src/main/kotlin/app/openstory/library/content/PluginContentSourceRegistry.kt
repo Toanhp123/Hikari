@@ -1,7 +1,7 @@
 package app.openstory.library.content
 
 import app.openstory.common.id.PluginId
-import app.openstory.plugins.api.manifest.PluginService
+import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.InstalledPlugin
 import app.openstory.plugins.runtime.PluginRuntime
 import java.util.concurrent.atomic.AtomicLong
@@ -20,7 +20,7 @@ class PluginContentSourceRegistry(
 
     override suspend fun enabled(): List<ContentSource> {
         val requestId = requestSequence.incrementAndGet()
-        val installed = runtime.enabled(PluginService.CONTENT)
+        val installed = runtime.enabled(PluginOperation.CONTENT_SEARCH)
             .sortedBy { plugin -> plugin.pluginId.value }
         return cacheMutex.withLock {
             if (requestId >= latestAppliedRequest) {

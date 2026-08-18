@@ -76,7 +76,9 @@ private fun UpdateGroups(
                             "${item.title}, ${item.chapterLabel}, ${item.sourceLabel}, ${item.languageTag}",
                     ),
                     onClick = { onStorySelected(item.storyId) },
-                    action = StoryUpdateCardAction("Read") { onRead(item.readerTarget) },
+                    action = item.readerTarget?.let { target ->
+                        StoryUpdateCardAction("Read") { onRead(target) }
+                    },
                     variant = StoryUpdateCardVariant.ROW,
                 )
             }

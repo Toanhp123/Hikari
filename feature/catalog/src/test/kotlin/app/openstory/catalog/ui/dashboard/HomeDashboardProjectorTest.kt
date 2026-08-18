@@ -31,12 +31,26 @@ class HomeDashboardProjectorTest {
             library = listOf(entry("story-a", LibraryStatus.READING)),
             progress = listOf(progress("story-a", "1", 10L), progress("story-a", "2", 20L)),
             catalog = listOf(projection("story-a", "Alpha")),
+            chapters = listOf(group(StoryId("story-a"), "2", "source-a", 20L)),
         )
 
         val item = state.continueReading.single()
         assertEquals("Alpha", item.title)
         assertEquals(CanonicalChapterId("chapter-2"), item.readerTarget?.chapterId)
         assertEquals(20L, item.lastActivityAtEpochMillis)
+    }
+
+    @Test
+    fun existingProgressRemainsResumableWhenLiveSourceIsUnavailable() {
+        val story = StoryId("story-a")
+        val state = project(
+            library = listOf(entry(story.value, LibraryStatus.READING)),
+            progress = listOf(progress(story.value, "1", 10L)),
+            chapters = listOf(group(story, "1", "source-a", 10L)),
+            readerPluginIds = emptySet(),
+        )
+
+        assertEquals(ChapterReleaseId("release-1"), state.continueReading.single().readerTarget?.releaseId)
     }
 
     @Test
@@ -80,7 +94,22 @@ class HomeDashboardProjectorTest {
         val update = state.latestUpdates.single()
         assertEquals("Alpha", update.title)
         assertEquals("Chapter 2", update.chapterLabel)
-        assertEquals(ChapterReleaseId("release-2"), update.readerTarget.releaseId)
+        assertEquals(ChapterReleaseId("release-2"), update.readerTarget?.releaseId)
+    }
+
+
+    @Test
+    fun listOnlyLatestReleaseRemainsVisibleWithoutReaderTarget() {
+        val story = StoryId("story-a")
+        val state = project(
+            library = listOf(entry(story.value, LibraryStatus.READING)),
+            mappings = listOf(mapping(story, "source-a")),
+            chapters = listOf(group(story, "1", "source-a", 10L)),
+            readerPluginIds = emptySet(),
+        )
+
+        assertEquals(ChapterReleaseId("release-1"), state.latestUpdates.single().releaseId)
+        assertNull(state.latestUpdates.single().readerTarget)
     }
 
     @Test
@@ -98,8 +127,13 @@ class HomeDashboardProjectorTest {
         progress: List<ReadingProgress> = emptyList(),
         chapters: List<CanonicalChapterGroup> = emptyList(),
         mappings: List<ContentMapping> = emptyList(),
+        readerPluginIds: Set<PluginId> = setOf(PluginId("content.a")),
     ) = projector.project(
-        HomeDashboardInput(library, catalog, progress, chapters, mappings, downloadedCount = 0),
+        HomeDashboardInput(
+            library, catalog, progress, chapters, mappings,
+            readerPluginIds = readerPluginIds,
+            downloadedCount = 0,
+        ),
     )
 }
 

@@ -1,17 +1,7 @@
 package app.openstory.catalog.ui.story
 
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.chapters.model.CanonicalChapter
-import app.openstory.chapters.model.ChapterAggregationOverride
-import app.openstory.chapters.model.ChapterKind
-import app.openstory.chapters.model.ChapterRelease
-import app.openstory.chapters.model.ParsedChapterLabel
-import app.openstory.chapters.repository.CanonicalChapterGroup
-import app.openstory.chapters.repository.ChapterCommitResult
-import app.openstory.chapters.repository.ChapterGraphSnapshot
-import app.openstory.chapters.repository.ChapterMutation
 import app.openstory.chapters.repository.ChapterRepository
-import app.openstory.chapters.repository.ChapterSyncState
 import app.openstory.catalog.details.CatalogDetailsService
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.SourceKey
@@ -82,22 +72,6 @@ class StoryViewModelTest {
     }
 
     @Test
-    fun readableTargetsAreLoadedForHeroWithoutChapterListUiState() = runTest(dispatcher.scheduler) {
-        val repository = StoryRepository(fixtureSnapshot())
-        val chapterRepository = FakeStoryChapterRepository(
-            listOf(storyChapterGroup("chapter-1", "release-1")),
-        )
-        val viewModel = viewModel(repository, chapters = chapterRepository)
-        runCurrent()
-
-        assertEquals(1, viewModel.state.value.readableTargets.size)
-        assertEquals("chapter-1", viewModel.state.value.readableTargets.single().chapterId.value)
-        assertEquals("release-1", viewModel.state.value.readableTargets.single().releaseId.value)
-        assertEquals(1, chapterRepository.snapshotCalls)
-        assertEquals(0, chapterRepository.observeCalls)
-    }
-
-    @Test
     fun cachedStoryRendersWithoutSourceRefresh() = runTest(dispatcher.scheduler) {
         val repository = StoryRepository(fixtureSnapshot())
         val source = DetailsSource("catalog.a")
@@ -164,6 +138,7 @@ class StoryViewModelTest {
 
         assertFalse(dependencyNames.any { "plugins.runtime" in it })
         assertFalse(dependencyNames.any { "room" in it.lowercase() })
+        assertFalse(dependencyNames.any { it == ChapterRepository::class.java.name })
     }
 
     @Test
@@ -257,7 +232,6 @@ class StoryViewModelTest {
         storyId: StoryId = StoryId("story-1"),
         libraryRepository: FakeLibraryRepository = FakeLibraryRepository(),
         progress: Flow<List<ReadingProgress>> = MutableStateFlow(emptyList()),
-        chapters: ChapterRepository = FakeStoryChapterRepository(emptyList()),
     ): StoryViewModel {
         val details = CatalogDetailsService(
             DetailsRegistry(sources.toList()),
@@ -269,7 +243,6 @@ class StoryViewModelTest {
             StoryAssistedArgs(storyId), repository, details,
             LibraryService(libraryRepository, Clock { 100L }, NoOpMappingScheduler),
             FakeProgressRepository(progress),
-            chapters,
         ).also { viewModel ->
             backgroundScope.launch { viewModel.state.collect {} }
         }
@@ -414,54 +387,3 @@ private fun successDetails(sourceId: String) = CatalogSourceResult.Success(
         popularityRank = 1L,
     ),
 )
-
-private class FakeStoryChapterRepository(
-    groups: List<CanonicalChapterGroup>,
-) : ChapterRepository {
-    private val current = MutableStateFlow(groups)
-    var observeCalls = 0
-    var snapshotCalls = 0
-    override fun observeAll(): Flow<List<CanonicalChapterGroup>> = current
-    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = current.also { observeCalls++ }
-    override suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot {
-        snapshotCalls++
-        return ChapterGraphSnapshot(
-            current.value.map { it.chapter },
-            current.value.flatMap { it.releases },
-            emptyList(),
-        )
-    }
-    override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult = ChapterCommitResult.Success
-    override suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride) = Unit
-    override suspend fun syncState(
-        storyId: StoryId,
-        pluginId: PluginId,
-        sourceStoryId: String,
-    ): ChapterSyncState? = null
-}
-
-private fun storyChapterGroup(chapterId: String, releaseId: String): CanonicalChapterGroup {
-    val canonicalId = CanonicalChapterId(chapterId)
-    val label = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null)
-    val release = ChapterRelease(
-        ChapterReleaseId(releaseId),
-        StoryId("story-1"),
-        PluginId("catalog.a"),
-        "source-a",
-        releaseId,
-        chapterId,
-        label,
-        "en",
-        1L,
-        canonicalId,
-    )
-    val chapter = CanonicalChapter(
-        canonicalId,
-        StoryId("story-1"),
-        label,
-        chapterId,
-        false,
-        setOf(release.id),
-    )
-    return CanonicalChapterGroup(chapter, listOf(release))
-}

@@ -3,6 +3,7 @@ package app.openstory.catalog.ui.dashboard
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.activity.LibraryActivityProjector
+import app.openstory.common.id.PluginId
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryStatus
@@ -15,6 +16,7 @@ data class HomeDashboardInput(
     val progress: List<ReadingProgress>,
     val chapters: List<CanonicalChapterGroup>,
     val mappings: List<ContentMapping>,
+    val readerPluginIds: Set<PluginId>,
     val downloadedCount: Int,
 )
 
@@ -37,13 +39,14 @@ class HomeDashboardProjector(
         fun item(entry: LibraryEntry, resumable: ReadingProgress? = null): HomeDashboardItem {
             val projection = catalog[entry.storyId]
             val group = resumable?.let { groupsByChapter[it.canonicalChapterId] }
+            val readerTarget = resumable?.let { progress ->
+                ReaderTarget(progress.storyId, progress.canonicalChapterId, progress.releaseId)
+            }
             return HomeDashboardItem(
                 storyId = entry.storyId,
                 title = projection?.title ?: entry.storyId.value,
                 coverUrl = projection?.coverUrl,
-                readerTarget = resumable?.let {
-                    ReaderTarget(it.storyId, it.canonicalChapterId, it.releaseId)
-                },
+                readerTarget = readerTarget,
                 progressFraction = resumable?.position?.fraction,
                 chapterLabel = group?.chapter?.displayLabel,
                 lastActivityAtEpochMillis = resumable?.updatedAtEpochMillis ?: entry.updatedAt,
@@ -53,13 +56,15 @@ class HomeDashboardProjector(
         fun shelf(status: LibraryStatus) = library.filter { it.status == status }.map(::item)
 
         val continueReading = library.mapNotNull { entry ->
-            latestProgress[entry.storyId]?.let { item(entry, it) }
+            latestProgress[entry.storyId]?.let { progress -> item(entry, progress) }
         }.sortedWith(
             compareByDescending<HomeDashboardItem> { it.lastActivityAtEpochMillis }
                 .thenBy { it.storyId.value },
         )
 
-        val updates = activityProjector.project(input.library, input.catalog, input.chapters, input.mappings)
+        val updates = activityProjector.project(
+            input.library, input.catalog, input.chapters, input.mappings, input.readerPluginIds,
+        )
             .distinctBy { it.storyId }
             .map { activity ->
                 HomeUpdateItem(

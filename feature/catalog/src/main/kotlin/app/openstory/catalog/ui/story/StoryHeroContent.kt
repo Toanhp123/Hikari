@@ -36,6 +36,7 @@ internal fun WideHeroContent(
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
+    onFindSource: () -> Unit,
     onDownload: (ChapterReleaseId) -> Unit,
     modifier: Modifier,
 ) {
@@ -68,6 +69,7 @@ internal fun WideHeroContent(
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,
                 onRead = onRead,
+                onFindSource = onFindSource,
                 onDownload = onDownload,
             )
         }
@@ -84,6 +86,7 @@ internal fun NarrowHeroContent(
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
+    onFindSource: () -> Unit,
     onDownload: (ChapterReleaseId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -117,6 +120,7 @@ internal fun NarrowHeroContent(
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,
                 onRead = onRead,
+                onFindSource = onFindSource,
                 onDownload = onDownload,
             )
         }

@@ -1,5 +1,6 @@
 package app.openstory.plugins.api.manifest
 
+import app.openstory.plugins.api.protocol.PluginOperation
 import java.net.URI
 import kotlinx.serialization.Serializable
 
@@ -11,6 +12,7 @@ data class PluginManifest(
     val protocol: PluginProtocolVersion,
     val entry: String = "main.js",
     val provides: Set<PluginService>,
+    val operations: Set<PluginOperation>? = null,
     val languages: Set<String> = emptySet(),
     val homepageUrl: String? = null,
     val sourceUrl: String? = null,
@@ -24,10 +26,19 @@ data class PluginManifest(
         require(VERSION_PATTERN.matches(version)) { "Plugin version must be semantic" }
         require(entry == "main.js") { "Plugin entry must be main.js" }
         require(provides.isNotEmpty()) { "Plugin must provide at least one service" }
+        operations?.let { declared ->
+            require(declared.isNotEmpty()) { "Declared plugin operations must not be empty" }
+            require(declared.all { operation -> operation.service in provides }) {
+                "Plugin operations must belong to a declared service"
+            }
+        }
         require(languages.all(::isNormalizedLanguageTag)) { "Language tags must be normalized and non-blank" }
         require(isHttpsUrl(homepageUrl)) { "Homepage URL must be HTTPS" }
         require(isHttpsUrl(sourceUrl)) { "Source URL must be HTTPS" }
     }
+
+    fun supports(operation: PluginOperation): Boolean =
+        operation.service in provides && (operations == null || operation in operations)
 
     companion object {
         private val ID_PATTERN = Regex("[a-z0-9]+(?:[.-][a-z0-9]+)+")

@@ -47,32 +47,40 @@ fun ChapterReleaseRow(
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         Text(release.sourceName, style = MaterialTheme.typography.titleSmall)
+        val offlineReadable = downloadState == DownloadState.COMPLETED
         HikariMetadataBadgeGroup(
             listOfNotNull(
                 release.languageLabel,
                 release.publishedAtEpochMillis?.freshnessLabel(),
                 downloadState?.name?.lowercase()?.replaceFirstChar(Char::uppercase),
+                when {
+                    release.readerCapable -> null
+                    offlineReadable -> "Offline only"
+                    else -> "List only"
+                },
             ),
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
-        ) {
-            HikariUtilityAction(
-                onClick = { onRead(ReaderTarget(storyId, chapterId, release.id)) },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
-                    .testTag("chapter-read-${release.id.value}"),
-            ) { Text("Read") }
-            DownloadActionSheet(
-                release.id,
-                downloadState,
-                pendingRemoval,
-                downloadActions,
-                modifier = Modifier.weight(1f),
-                actionTag = "chapter-download-${release.id.value}",
-            )
+        if (release.readerCapable || offlineReadable) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            ) {
+                HikariUtilityAction(
+                    onClick = { onRead(ReaderTarget(storyId, chapterId, release.id)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+                        .testTag("chapter-read-${release.id.value}"),
+                ) { Text("Read") }
+                DownloadActionSheet(
+                    release.id,
+                    downloadState,
+                    pendingRemoval,
+                    downloadActions,
+                    modifier = Modifier.weight(1f),
+                    actionTag = "chapter-download-${release.id.value}",
+                )
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -7,10 +7,12 @@ Implemented operations:
 
 - `content.search`
 - `content.resolveUrl`
+- `content.chapters`
 
 The package performs anonymous, read-only requests to `api.mangadex.org` and returns canonical
-MangaDex title URLs on `mangadex.org`. Chapter and reader operations remain intentionally absent
-until their owning waves.
+MangaDex title URLs on `mangadex.org`. It can list chapter releases but intentionally does not
+implement `content.chapter`, because the current Reader accepts structured text documents rather
+than MangaDex image pages.
 
 Build a standalone test package with:
 

@@ -24,6 +24,7 @@ internal fun StoryHero(
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
+    onFindSource: () -> Unit,
     onDownload: (ChapterReleaseId) -> Unit,
     narrow: Boolean = false,
     modifier: Modifier = Modifier,
@@ -52,6 +53,7 @@ internal fun StoryHero(
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,
                 onRead = onRead,
+                onFindSource = onFindSource,
                 onDownload = onDownload,
                 modifier = Modifier.align(Alignment.BottomStart),
             )
@@ -65,6 +67,7 @@ internal fun StoryHero(
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,
                 onRead = onRead,
+                onFindSource = onFindSource,
                 onDownload = onDownload,
                 modifier = Modifier.align(Alignment.BottomStart),
             )
