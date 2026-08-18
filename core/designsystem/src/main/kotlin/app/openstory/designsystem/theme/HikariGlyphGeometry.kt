@@ -47,6 +47,13 @@ data class HikariViewGlyphGeometry(
     val lineEndX: Float = 1.0f,
 )
 
+@Immutable
+data class HikariMoreGlyphGeometry(
+    val firstDotX: Float = 0.18f,
+    val secondDotX: Float = 0.50f,
+    val thirdDotX: Float = 0.82f,
+    val centerY: Float = 0.50f,
+)
 
 @Immutable
 data class HikariGlyphGeometry(
@@ -54,6 +61,7 @@ data class HikariGlyphGeometry(
     val search: HikariSearchGlyphGeometry = HikariSearchGlyphGeometry(),
     val filter: HikariFilterGlyphGeometry = HikariFilterGlyphGeometry(),
     val view: HikariViewGlyphGeometry = HikariViewGlyphGeometry(),
+    val more: HikariMoreGlyphGeometry = HikariMoreGlyphGeometry(),
 )
 
 val HikariDefaultGlyphGeometry = HikariGlyphGeometry()

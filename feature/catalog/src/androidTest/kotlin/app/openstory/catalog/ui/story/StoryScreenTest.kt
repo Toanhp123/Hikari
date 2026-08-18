@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -103,7 +104,7 @@ class StoryScreenTest {
     }
 
     @Test
-    fun compactHeroStacksReadAndDownloadActions() {
+    fun compactHeroKeepsReadAndMoreActionsBesideCover() {
         val target = ReaderTarget(
             StoryId("story-1"), CanonicalChapterId("chapter-2"), ChapterReleaseId("release-2"),
         )
@@ -113,10 +114,39 @@ class StoryScreenTest {
             modifier = Modifier.requiredWidth(320.dp),
         )
 
+        val coverBounds = compose.onNodeWithTag("story-hero-cover").fetchSemanticsNode().boundsInRoot
         val readBounds = compose.onNodeWithTag("story-read").fetchSemanticsNode().boundsInRoot
-        val downloadBounds = compose.onNodeWithTag("story-download").fetchSemanticsNode().boundsInRoot
+        val moreBounds = compose.onNodeWithTag("story-more").fetchSemanticsNode().boundsInRoot
 
-        assertTrue(downloadBounds.top >= readBounds.bottom)
+        assertTrue(readBounds.left >= coverBounds.right)
+        assertTrue(moreBounds.left >= coverBounds.right)
+        assertTrue(moreBounds.top < readBounds.bottom && moreBounds.bottom > readBounds.top)
+        compose.onNodeWithTag("story-download").assertDoesNotExist()
+        compose.onNodeWithTag("story-library").assertDoesNotExist()
+    }
+
+    @Test
+    fun moreActionsSheetOwnsDownloadAndLibraryActions() {
+        val target = ReaderTarget(
+            StoryId("story-1"), CanonicalChapterId("chapter-2"), ChapterReleaseId("release-2"),
+        )
+        var downloaded: ChapterReleaseId? = null
+        var status: LibraryStatus? = null
+        setStoryContent(
+            state = fixtureState().copy(readableTargets = listOf(target)),
+            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            onDownload = { downloaded = it },
+            onLibraryStatusSelected = { status = it },
+        )
+
+        compose.onNodeWithTag("story-more").performClick()
+        compose.onNodeWithText("Story actions").assertIsDisplayed()
+        compose.onNodeWithTag("story-download").performClick()
+        assertEquals(ChapterReleaseId("release-2"), downloaded)
+
+        compose.onNodeWithTag("story-more").performClick()
+        compose.onNodeWithText("Reading").performClick()
+        assertEquals(LibraryStatus.READING, status)
     }
 
     @Test
@@ -136,7 +166,7 @@ class StoryScreenTest {
         var status: LibraryStatus? = null
         setStoryContent(onLibraryStatusSelected = { status = it })
 
-        compose.onNodeWithTag("story-library").assertHeightIsAtLeast(48.dp).performClick()
+        compose.onNodeWithTag("story-more").assertHeightIsAtLeast(48.dp).performClick()
         compose.onNodeWithText("Reading").performClick()
 
         assertEquals(LibraryStatus.READING, status)
@@ -209,6 +239,7 @@ class StoryScreenTest {
         onSectionSelected: (StorySection) -> Unit = {},
         onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
         onRead: (ReaderTarget) -> Unit = {},
+        onDownload: (ChapterReleaseId) -> Unit = {},
         chapterState: ChapterListUiState? = null,
         modifier: Modifier = Modifier,
     ) {
@@ -221,11 +252,13 @@ class StoryScreenTest {
                     onSectionSelected = onSectionSelected,
                     onLibraryStatusSelected = onLibraryStatusSelected,
                     onRead = onRead,
+                    onDownload = onDownload,
                     chapterState = chapterState,
                     modifier = modifier,
                 )
             }
         }
+        compose.waitForIdle()
     }
 }
 

@@ -30,6 +30,24 @@ class LibraryScreenTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
+    fun libraryUsesSharedAtmosphereBackground() {
+        show(fixtureState())
+
+        compose.onNodeWithTag("library-atmosphere").assertIsDisplayed()
+    }
+
+    @Test
+    fun filterActionOpensCurrentFilterControls() {
+        show(fixtureState())
+
+        compose.onNodeWithContentDescription("Open Library filters").performClick()
+        compose.onNodeWithText("Library filters").assertIsDisplayed()
+        compose.onNodeWithTag("library-status-all").assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag("library-source-all").assertIsDisplayed()
+        compose.onNodeWithTag("library-sort-last_activity").assertIsDisplayed()
+    }
+
+    @Test
     fun storyCardExposesStatusProgressAndSourceWithoutColor() {
         show(fixtureState())
 
@@ -44,7 +62,7 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun controlsMeetMinimumTargetAndFocusFiltersBeforeStories() {
+    fun controlsMeetMinimumTargetAndFocusToolbarBeforeStories() {
         val firstFilterFocus = FocusRequester()
         lateinit var inputModeManager: InputModeManager
         show(fixtureState(), firstFilterFocus = firstFilterFocus) { inputModeManager = LocalInputModeManager.current }
@@ -53,12 +71,16 @@ class LibraryScreenTest {
             inputModeManager.requestInputMode(InputMode.Keyboard)
             firstFilterFocus.requestFocus()
         }
-        compose.onNodeWithTag("library-query").assertIsFocused().performKeyInput { pressKey(Key.Tab) }
-        compose.onNodeWithTag("library-status-all").assertHeightIsAtLeast(48.dp).assertIsFocused()
+        compose.onNodeWithContentDescription("Search your Library")
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.Tab) }
+        compose.onNodeWithContentDescription("Open Library filters")
+            .assertHeightIsAtLeast(48.dp)
+            .assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("library-source-all").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("library-sort-last_activity").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("library-display-grid").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithContentDescription("Switch to list view")
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
         compose.onNodeWithTag("library-story-story-1").assertIsFocused()
     }
 
@@ -72,7 +94,7 @@ class LibraryScreenTest {
             onDisplayModeSelected = { displayMode = it },
         )
 
-        compose.onNodeWithTag("library-display-list").performClick()
+        compose.onNodeWithContentDescription("Switch to list view").performClick()
         compose.onNodeWithContentDescription(
             "Fixture Novel. Want to read. 64% read. No source linked.",
         ).performClick()
@@ -100,7 +122,7 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun emptyActionsRemainReachableAfterFilterControls() {
+    fun emptyActionsRemainReachableAfterToolbarControls() {
         val firstFilterFocus = FocusRequester()
         lateinit var inputModeManager: InputModeManager
         show(
@@ -112,11 +134,12 @@ class LibraryScreenTest {
             inputModeManager.requestInputMode(InputMode.Keyboard)
             firstFilterFocus.requestFocus()
         }
-        compose.onNodeWithTag("library-query").performKeyInput { pressKey(Key.Tab) }
-        compose.onNodeWithTag("library-status-all").performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("library-source-all").performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("library-sort-last_activity").performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("library-display-grid").performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithContentDescription("Search your Library")
+            .performKeyInput { pressKey(Key.Tab) }
+        compose.onNodeWithContentDescription("Open Library filters")
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithContentDescription("Switch to list view")
+            .performKeyInput { pressKey(Key.DirectionDown) }
         compose.onNodeWithText("Clear filters").assertIsFocused()
     }
 

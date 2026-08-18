@@ -3,6 +3,7 @@ package app.openstory.designsystem.icon
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -185,6 +186,28 @@ private fun HikariViewGlyph(grid: Boolean, modifier: Modifier) {
                     cap = StrokeCap.Round,
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun HikariMoreGlyph(modifier: Modifier = Modifier) {
+    val color = LocalContentColor.current
+    val dimensions = MaterialTheme.hikariDimensions
+    val geometry = MaterialTheme.hikariGlyphGeometry.more
+    val glyphPadding = (dimensions.minimumTouchTarget - dimensions.iconMedium) / 2f
+    Canvas(
+        modifier
+            .size(dimensions.minimumTouchTarget)
+            .padding(glyphPadding),
+    ) {
+        val radius = dimensions.glyphDotRadius.toPx()
+        listOf(geometry.firstDotX, geometry.secondDotX, geometry.thirdDotX).forEach { x ->
+            drawCircle(
+                color = color,
+                radius = radius,
+                center = Offset(size.width * x, size.height * geometry.centerY),
+            )
         }
     }
 }

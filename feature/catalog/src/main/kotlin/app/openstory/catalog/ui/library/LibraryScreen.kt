@@ -1,5 +1,6 @@
 package app.openstory.catalog.ui.library
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
+import app.openstory.designsystem.theme.hikariAtmosphereBrush
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.LibraryStatus
 import app.openstory.designsystem.theme.hikariDimensions
@@ -85,16 +87,24 @@ fun LibraryScreen(
             )
         }
     }
+    val background = MaterialTheme.hikariAtmosphereBrush
     HikariDestinationScaffold(modifier) {
-        LibraryContent(
-            state = state,
-            focusRequester = contentFocus,
-            onClearFilters = onClearFilters,
-            onDiscover = onDiscover,
-            onStorySelected = onStorySelected,
-            chrome = chrome,
-            modifier = Modifier.fillMaxSize().padding(contentPadding),
-        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(background)
+                .testTag("library-atmosphere"),
+        ) {
+            LibraryContent(
+                state = state,
+                focusRequester = contentFocus,
+                onClearFilters = onClearFilters,
+                onDiscover = onDiscover,
+                onStorySelected = onStorySelected,
+                chrome = chrome,
+                modifier = Modifier.fillMaxSize().padding(contentPadding),
+            )
+        }
     }
     if (showFilters) {
         LibraryFilterSheet(

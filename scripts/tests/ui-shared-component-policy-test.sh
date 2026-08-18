@@ -105,6 +105,21 @@ assert_contains 'HikariSheetContent(' \
 assert_contains 'HikariSheetContent(' \
   'feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderSettingsSheet.kt' \
   'Reader settings must use shared Hikari sheet chrome'
+assert_contains 'HikariSheetContent(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryHeroActions.kt' \
+  'Story secondary actions must use shared Hikari sheet chrome'
+assert_contains 'HikariIconAction(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryHeroActions.kt' \
+  'Story hero overflow must use the shared Hikari icon action'
+assert_contains 'HikariMoreGlyph()' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryHeroActions.kt' \
+  'Story hero overflow must use the shared Hikari more glyph'
+assert_contains 'fun HikariMoreGlyph(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/icon/HikariGlyphs.kt' \
+  'design system must own the shared more-actions glyph geometry'
+assert_contains 'hikariAtmosphereBrush' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryScreen.kt' \
+  'Library must use the shared top-level atmosphere background'
 assert_contains 'keyboardOptions: KeyboardOptions = KeyboardOptions.Default' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariSearchBar.kt' \
   'HikariSearchBar must expose keyboard options for editable search consumers'
@@ -527,9 +542,12 @@ assert_contains 'val fallbackBrush = remember(' \
   'artwork fallback gradients must be remembered instead of allocated on every recomposition'
 
 # Final UI cleanup contracts.
-assert_contains 'NarrowStoryHeroActions(' \
-  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryHeroActions.kt' \
-  'compact Story hero actions must use a vertical responsive layout so CTA labels never wrap in half-width buttons'
+assert_contains 'StoryHeroActions(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryHeroContent.kt' \
+  'Story hero layouts must share one primary-plus-overflow action row'
+assert_absent 'WideStoryHeroActions|NarrowStoryHeroActions|LibraryStatusMenu' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story' \
+  'Story hero must not reintroduce duplicated wide/narrow action stacks or an inline Library menu'
 assert_contains 'narrowHero = windowClass == HikariWindowClass.COMPACT' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
   'compact-width Story must select the narrow hero while large phones retain the wider hero layout'

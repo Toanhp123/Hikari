@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.ui.components.ReaderTarget
@@ -60,14 +61,15 @@ internal fun WideHeroContent(
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             StoryHeroMetadata(story, compact = false)
-            WideStoryHeroActions(
+            StoryHeroActions(
+                libraryStatus = libraryStatus,
                 readerTarget = readerTarget,
                 isResume = isResume,
                 downloadableReleaseId = downloadableReleaseId,
+                onLibraryStatusSelected = onLibraryStatusSelected,
                 onRead = onRead,
                 onDownload = onDownload,
             )
-            LibraryStatusMenu(libraryStatus, onLibraryStatusSelected)
         }
     }
 }
@@ -85,41 +87,39 @@ internal fun NarrowHeroContent(
     onDownload: (ChapterReleaseId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(MaterialTheme.hikariSpacing.space16),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        verticalAlignment = Alignment.Bottom,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            HikariArtwork(
-                state = artwork,
-                contentDescription = "${story.preferredTitle} cover",
-                modifier = Modifier
-                    .size(
-                        width = MaterialTheme.hikariDimensions.posterDetailCompact.width,
-                        height = MaterialTheme.hikariDimensions.posterDetailCompact.height,
-                    )
-                    .clip(MaterialTheme.hikariShapes.contentCard),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
-            ) {
-                StoryHeroMetadata(story, compact = true)
-            }
-        }
-        NarrowStoryHeroActions(
-            readerTarget = readerTarget,
-            isResume = isResume,
-            downloadableReleaseId = downloadableReleaseId,
-            onRead = onRead,
-            onDownload = onDownload,
+        HikariArtwork(
+            state = artwork,
+            contentDescription = "${story.preferredTitle} cover",
+            modifier = Modifier
+                .size(
+                    width = MaterialTheme.hikariDimensions.posterDetailCompact.width,
+                    height = MaterialTheme.hikariDimensions.posterDetailCompact.height,
+                )
+                .clip(MaterialTheme.hikariShapes.contentCard)
+                .testTag("story-hero-cover"),
         )
-        LibraryStatusMenu(libraryStatus, onLibraryStatusSelected)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
+            StoryHeroMetadata(story, compact = true)
+            StoryHeroActions(
+                libraryStatus = libraryStatus,
+                readerTarget = readerTarget,
+                isResume = isResume,
+                downloadableReleaseId = downloadableReleaseId,
+                onLibraryStatusSelected = onLibraryStatusSelected,
+                onRead = onRead,
+                onDownload = onDownload,
+            )
+        }
     }
 }
 
