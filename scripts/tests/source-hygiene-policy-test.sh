@@ -37,9 +37,15 @@ grep -q 'PersistentTopLevelNavDisplay(' "$nav_test" || fail "navigation instrume
 
 ! grep -q 'CatalogMatchExplanation' "$catalog_match_result" || fail "unused catalog match explanation payload remains in production"
 ! grep -q 'matchedTitle' "$catalog_matcher" || fail "catalog matcher still computes an unused matched title"
+! grep -q 'matchedNormalizedTitle' "$catalog_matcher" || fail "catalog matcher still retains a dead title tie-break winner"
+! grep -q 'winsTieBreak' "$catalog_matcher" || fail "catalog matcher still evaluates a dead title tie-break"
+! grep -q 'hasTitle' "$catalog_matcher" || fail "catalog matcher still tracks redundant title-presence state"
 ! grep -Eq 'val display: String' "$catalog_matcher" || fail "prepared catalog titles still retain unused display text"
 
 ! grep -q 'ContentTitleEvidence' "$content_matcher" || fail "content matcher still allocates a title-evidence wrapper"
+! grep -q 'TitleEvidence' "$content_matcher" || fail "content matcher still allocates internal title-pair evidence"
+grep -q 'bestTitleSimilarity' "$content_matcher" || fail "content matcher is missing allocation-free best-title similarity scan"
+! grep -q 'bestTitleEvidence' "$content_matcher" || fail "content matcher still uses the retired title-evidence sorter"
 ! grep -Eq '^[[:space:]]*val reasons:' "$content_matcher" || fail "content matcher still builds unused reason strings"
 ! grep -Eq 'val (canonicalTitle|candidateTitle):' "$content_matcher" || fail "content matcher still retains unused title display payload"
 
@@ -53,7 +59,7 @@ grep -q 'data object Discover : AppRoute' "$app_route" || fail "Discover route i
 ! grep -q 'skips `HikariBackdropHost` entirely' "$p5_checkpoint" || fail "P5 checkpoint still describes the retired focused-route backdrop branch"
 
 for profile in "$baseline_profile" "$startup_profile"; do
-  ! grep -Eq 'ReaderProgressNavigation|CatalogMatchExplanation|ContentTitleEvidence|AppRoute[$](Plugins|Settings)' "$profile" ||
+  ! grep -Eq 'ReaderProgressNavigation|CatalogMatchExplanation|ContentTitleEvidence|TitleEvidence|bestTitleEvidence|AppRoute[$](Plugins|Settings)' "$profile" ||
     fail "generated profile still references retired source symbols: $profile"
 done
 

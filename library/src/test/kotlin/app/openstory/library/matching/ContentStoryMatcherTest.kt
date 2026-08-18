@@ -78,6 +78,24 @@ class ContentStoryMatcherTest {
     }
 
     @Test
+    fun highestAliasSimilarityDrivesTheResult() {
+        val result = matcher.compare(
+            ContentStoryFeatures(
+                title = "Completely Different",
+                aliases = linkedSetOf("Exact Match", "Noise"),
+            ),
+            ContentStoryFeatures(
+                title = "Other",
+                aliases = linkedSetOf("Noise Two", "Exact Match"),
+            ),
+        )
+
+        assertEquals(1.0, result.score)
+        assertEquals(1.0, result.explanation.titleSimilarity)
+        assertEquals(ContentMatchDecision.AUTO_LINK, result.decision)
+    }
+
+    @Test
     fun explanationIsDeterministicAcrossAliasSetOrder() {
         val leftA = ContentStoryFeatures("Primary", aliases = linkedSetOf("Beta", "Alpha"), authors = setOf("Writer"))
         val leftB = ContentStoryFeatures("Primary", aliases = linkedSetOf("Alpha", "Beta"), authors = setOf("Writer"))

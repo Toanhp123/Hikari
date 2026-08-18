@@ -145,9 +145,7 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
         storyId: StoryId,
     ): CatalogMatchResult {
         val contentConflict = source.contentType != candidate.contentType
-        var matchedNormalizedTitle = ""
         var titleScore = 0.0
-        var hasTitle = false
         candidate.titles.forEach { candidateTitle ->
             source.titles.forEach { sourceTitle ->
                 val score = TitleNormalizer.similarityNormalized(
@@ -156,13 +154,7 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
                     candidateTitle.normalized,
                     candidateTitle.tokens,
                 )
-                val winsTieBreak =
-                    score == titleScore && candidateTitle.normalized < matchedNormalizedTitle
-                if (!hasTitle || score > titleScore || winsTieBreak) {
-                    hasTitle = true
-                    titleScore = score
-                    matchedNormalizedTitle = candidateTitle.normalized
-                }
+                if (score > titleScore) titleScore = score
             }
         }
         val author = TitleNormalizer.setSimilarity(source.normalizedAuthors, candidate.normalizedAuthors)

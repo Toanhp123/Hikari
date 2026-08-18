@@ -47,7 +47,7 @@ class ContentStoryMatcher(
         canonical: ContentStoryFeatures,
         candidate: ContentStoryFeatures,
     ): MatchSignals {
-        val title = bestTitleEvidence(canonical.titles, candidate.titles)
+        val titleSimilarity = bestTitleSimilarity(canonical.titles, candidate.titles)
         val authorSimilarity = setSimilarity(
             canonical.authors.normalizedValues(),
             candidate.authors.normalizedValues(),
@@ -57,7 +57,7 @@ class ContentStoryMatcher(
             else -> canonical.contentType == candidate.contentType
         }
         return MatchSignals(
-            title = title,
+            titleSimilarity = titleSimilarity,
             authorSimilarity = authorSimilarity,
             authorConflict = authorSimilarity == 0.0,
             contentTypeMatch = contentTypeMatch,
@@ -69,10 +69,10 @@ class ContentStoryMatcher(
     private fun decide(score: Double, signals: MatchSignals): ContentMatchDecision = when {
         signals.contentTypeConflict -> ContentMatchDecision.REJECT
         signals.directEvidence -> ContentMatchDecision.AUTO_LINK
-        signals.authorConflict && signals.title.similarity >= policy.reviewAt -> ContentMatchDecision.REVIEW
+        signals.authorConflict && signals.titleSimilarity >= policy.reviewAt -> ContentMatchDecision.REVIEW
         signals.authorConflict -> ContentMatchDecision.REJECT
         score >= policy.autoLinkAt &&
-            signals.title.similarity >= policy.minimumAutoLinkTitleSimilarity &&
+            signals.titleSimilarity >= policy.minimumAutoLinkTitleSimilarity &&
             (signals.authorSimilarity == null ||
                 signals.authorSimilarity >= policy.minimumAutoLinkAuthorSimilarity) -> ContentMatchDecision.AUTO_LINK
         score >= policy.reviewAt -> ContentMatchDecision.REVIEW
@@ -81,7 +81,7 @@ class ContentStoryMatcher(
 
     private fun weightedScore(signals: MatchSignals): Double {
         if (signals.directEvidence) return 1.0
-        var weighted = signals.title.similarity * policy.titleWeight
+        var weighted = signals.titleSimilarity * policy.titleWeight
         var weights = policy.titleWeight
         signals.authorSimilarity?.let { similarity ->
             weighted += similarity * policy.authorWeight
@@ -94,25 +94,23 @@ class ContentStoryMatcher(
         return weighted / weights
     }
 
-    private fun bestTitleEvidence(
+    private fun bestTitleSimilarity(
         canonicalTitles: Set<String>,
         candidateTitles: Set<String>,
-    ): TitleEvidence = canonicalTitles
-        .flatMap { canonical ->
-            candidateTitles.map { candidate ->
-                TitleEvidence(canonical, candidate, similarity(canonical, candidate))
+    ): Double {
+        var best = 0.0
+        canonicalTitles.forEach { canonical ->
+            candidateTitles.forEach { candidate ->
+                val score = similarity(canonical, candidate)
+                if (score > best) best = score
             }
         }
-        .sortedWith(
-            compareByDescending<TitleEvidence> { it.similarity }
-                .thenBy { normalize(it.canonical) }
-                .thenBy { normalize(it.candidate) },
-        )
-        .first()
+        return best
+    }
 }
 
 private data class MatchSignals(
-    val title: TitleEvidence,
+    val titleSimilarity: Double,
     val authorSimilarity: Double?,
     val authorConflict: Boolean,
     val contentTypeMatch: Boolean?,
@@ -121,19 +119,13 @@ private data class MatchSignals(
 ) {
     fun explanation() = ContentMatchExplanation(
         directEvidence = directEvidence,
-        titleSimilarity = title.similarity,
+        titleSimilarity = titleSimilarity,
         authorSimilarity = authorSimilarity,
         authorConflict = authorConflict,
         contentTypeMatch = contentTypeMatch,
         contentTypeConflict = contentTypeConflict,
     )
 }
-
-private data class TitleEvidence(
-    val canonical: String,
-    val candidate: String,
-    val similarity: Double,
-)
 
 private val nonWord = Regex("[^\\p{L}\\p{N}]+")
 private val whitespace = Regex("\\s+")

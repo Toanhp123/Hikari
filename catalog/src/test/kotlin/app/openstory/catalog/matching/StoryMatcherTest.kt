@@ -30,6 +30,28 @@ class StoryMatcherTest {
         val b = candidate("story:b", "Reborn", emptySet(), setOf("B"))
         assertEquals(matcher.resolve(incoming, listOf(a, b)), matcher.resolve(incoming, listOf(b, a)))
     }
+
+    @Test
+    fun compareUsesHighestTitleSimilarityAcrossAliases() {
+        val incoming = CatalogMatchCandidate(
+            Story(StoryId("incoming"), ContentType.MANGA),
+            titles = linkedSetOf("Completely Different", "Exact Match"),
+            authors = setOf("Author"),
+            sourceKeys = emptySet(),
+        )
+        val existing = CatalogMatchCandidate(
+            Story(StoryId("existing"), ContentType.MANGA),
+            titles = linkedSetOf("Noise", "Exact Match"),
+            authors = setOf("Author"),
+            sourceKeys = emptySet(),
+        )
+
+        val result = matcher.compare(incoming, existing)
+
+        assertEquals(1.0, result.score)
+        assertEquals(MergeDecision.AUTO_LINK, result.decision)
+    }
+
     @Test
     fun missingCandidateTitlesRemainSeparateInsteadOfCrashing() {
         val incoming = candidate("incoming", "Title", emptySet(), setOf("Author"))
