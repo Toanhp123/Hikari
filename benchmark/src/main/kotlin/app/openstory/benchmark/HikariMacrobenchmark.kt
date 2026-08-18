@@ -1,5 +1,6 @@
 package app.openstory.benchmark
 
+import androidx.benchmark.macro.BaselineProfileMode
 import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.ExperimentalMetricApi
 import androidx.benchmark.macro.FrameTimingMetric
@@ -26,7 +27,7 @@ class HikariMacrobenchmark {
         benchmarkRule.measureRepeated(
             packageName = HIKARI_PACKAGE,
             metrics = listOf(StartupTimingMetric()),
-            compilationMode = CompilationMode.DEFAULT,
+            compilationMode = benchmarkCompilationMode,
             startupMode = StartupMode.COLD,
             iterations = 5,
             setupBlock = { pressHome() },
@@ -84,18 +85,10 @@ class HikariMacrobenchmark {
     }
 
     @Test
-    fun storyTabSources() = measureNavigation(
-        setup = { openBenchmarkFixtureStory() },
-    ) {
-        clickTag("story-tab-sources")
-    }
+    fun storyTabSources() = measureStoryTab("story-tab-sources")
 
     @Test
-    fun storyTabChapters() = measureNavigation(
-        setup = { openBenchmarkFixtureStory() },
-    ) {
-        clickTag("story-tab-chapters")
-    }
+    fun storyTabChapters() = measureStoryTab("story-tab-chapters")
 
     @Test
     fun readerNextTen() = measureNavigation(
@@ -114,7 +107,7 @@ class HikariMacrobenchmark {
         benchmarkRule.measureRepeated(
             packageName = HIKARI_PACKAGE,
             metrics = listOf(MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
-            compilationMode = CompilationMode.DEFAULT,
+            compilationMode = benchmarkCompilationMode,
             startupMode = null,
             iterations = 5,
             setupBlock = {
@@ -142,12 +135,6 @@ class HikariMacrobenchmark {
     ) {
         swipeUpOnTag("reader-content", repetitions = SCROLL_SWIPE_COUNT)
     }
-
-    @Test
-    fun readerScrollBackdropEnabled() = measureReaderScroll(backdropDisabled = false)
-
-    @Test
-    fun readerScrollBackdropDisabled() = measureReaderScroll(backdropDisabled = true)
 
     @Test
     fun chaptersExpandAndScroll() = measureNavigation(
@@ -201,15 +188,13 @@ class HikariMacrobenchmark {
         clickTag("navigation-home")
     }
 
-    private fun measureReaderScroll(backdropDisabled: Boolean) = measureNavigation(
-        backdropDisabled = backdropDisabled,
-        setup = {
-            openBenchmarkFixtureStory()
-            clickTag("story-read")
-            waitForTag("reader-content")
-        },
+    private fun measureStoryTab(tabTag: String) = measureNavigation(
+        setup = { openBenchmarkFixtureStory() },
     ) {
-        swipeUpOnTag("reader-content", repetitions = SCROLL_SWIPE_COUNT)
+        repeat(STORY_TAB_MEASUREMENT_CYCLE_COUNT) {
+            clickTag(tabTag)
+            clickTag("story-tab-overview")
+        }
     }
 
     private fun measureChapterScroll(surfaceShadowsDisabled: Boolean) = measureNavigation(
@@ -234,7 +219,7 @@ class HikariMacrobenchmark {
         benchmarkRule.measureRepeated(
             packageName = HIKARI_PACKAGE,
             metrics = listOf(FrameTimingMetric()),
-            compilationMode = CompilationMode.DEFAULT,
+            compilationMode = benchmarkCompilationMode,
             startupMode = null,
             iterations = 5,
             setupBlock = {
@@ -252,7 +237,12 @@ class HikariMacrobenchmark {
         )
     }
 
+    private val benchmarkCompilationMode = CompilationMode.Partial(
+        baselineProfileMode = BaselineProfileMode.Require,
+    )
+
     private companion object {
         const val SCROLL_SWIPE_COUNT = 6
+        const val STORY_TAB_MEASUREMENT_CYCLE_COUNT = 3
     }
 }

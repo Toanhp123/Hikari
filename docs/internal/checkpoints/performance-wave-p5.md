@@ -1,7 +1,7 @@
 # Performance Wave P5 Interaction-Jank Checkpoint
 
 Date: 2026-08-17
-Status: **IMPLEMENTED; STATIC VERIFICATION COMPLETE; DEVICE A/B MEASUREMENT PENDING**
+Status: **IMPLEMENTED; STATIC VERIFICATION COMPLETE; DEVICE A/B MEASUREMENT IN PROGRESS**
 
 ## Scope
 
@@ -17,7 +17,7 @@ P5 targets interaction spikes observed in a physical-device screen recording aft
 - Reader scroll persistence no longer reacts to viewport offsets every frame. It samples active user scroll sessions at a bounded 100 ms cadence and reports the exact final position when scrolling stops; it does not emit an initial viewport write before restored character offsets are applied. Reader chrome initializes from the persisted progress fraction, while the existing progress service remains responsible for persistence debouncing/flush.
 - Reader scaled `TextStyle` instances are remembered per font scale rather than rebuilt independently for every composed block.
 - Surface-shadow disabling remains benchmark-only. Production Hikari card shadows are unchanged until the paired Chapter-scroll measurements justify a visual-policy change.
-- Backdrop disabling remains benchmark-only. Production Reader glass is unchanged until paired Reader-scroll measurements isolate its cost.
+- Reader no longer captures a live backdrop behind its chrome in production. The shared glass components remain unchanged and fall back to the existing token-driven translucent surface/shadow path when the Reader host provides no backdrop token. Top-level backdrop capture remains unchanged.
 
 ## Added measurement journeys
 
@@ -27,12 +27,18 @@ The Macrobenchmark suite adds focused A/B or warm-path journeys:
 - `homeDiscoverLegacyTransitions`
 - `storyTabSources`
 - `storyTabChapters`
-- `readerScrollBackdropEnabled`
-- `readerScrollBackdropDisabled`
 - `chaptersScrollShadowEnabled`
 - `chaptersScrollShadowDisabled`
 
-All interaction journeys continue to use `FrameTimingMetric` and the deterministic benchmark-only fixture.
+All interaction journeys continue to use `FrameTimingMetric` and the deterministic benchmark-only fixture. The isolated Story-tab journeys alternate the target tab with Overview for three measured cycles, keeping a common baseline while producing a long enough frame window for stable Perfetto frame-timeline slices.
+
+### Reader backdrop decision
+
+The paired Reader backdrop experiment was completed on the Redmi Note 9S benchmark device with five repetitions and unlocked CPU. Disabling Reader backdrop capture reduced median frame CPU P50 from about 13.78 ms to 7.77 ms, median total frame CPU from about 3635 ms to 2498 ms, and the median share of frames with positive overrun from about 64.3% to 34.8%. CPU P95 also improved from about 32.51 ms to 26.91 ms. A production `readerScrollLongChapter` run reproduced the backdrop-enabled cost profile, so the production Reader now keeps `HikariBackdropHost` composition ownership but sets `captureBackdrop = false`.
+
+The one-off `readerScrollBackdropEnabled` / `readerScrollBackdropDisabled` decision CUJs are retired after this production decision so they cannot silently become identical benchmarks. `readerScrollLongChapter` remains the production Reader scroll regression CUJ. Global `backdropEnabled` / `backdropDisabled` journeys remain available for top-level shell A/B measurements.
+
+Macrobenchmarks explicitly use `CompilationMode.Partial(BaselineProfileMode.Require)`. This turns a missing or non-installable packaged Baseline Profile into a benchmark failure instead of silently falling back through `CompilationMode.DEFAULT` / `UseIfAvailable`.
 
 ## Static verification performed while producing the patch
 
@@ -64,4 +70,4 @@ Then run repository verification:
 ./scripts/verify.sh
 ```
 
-Run the focused physical-device Macrobenchmarks before making any production decision about backdrop blur or repeated card shadows. Compare the paired methods on the same device/build/profile state; do not infer a winner from a single iteration.
+Re-run `readerScrollLongChapter` after this production change to verify that the default Reader path now tracks the previously measured backdrop-disabled branch. Continue to compare the paired Chapter-shadow methods on the same device/build/profile state before changing the production shadow policy.

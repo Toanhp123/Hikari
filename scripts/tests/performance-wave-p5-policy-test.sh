@@ -29,12 +29,22 @@ fail() { echo "Performance Wave P5 policy violation: $1" >&2; exit 1; }
 
 [[ -f "$checkpoint" ]] || fail "P5 checkpoint documentation is missing"
 
+# Benchmark compilation must require the packaged Baseline Profile instead of silently falling back.
+grep -q 'BaselineProfileMode.Require' "$macro" || fail "Macrobenchmark does not require the packaged Baseline Profile"
+! grep -q 'CompilationMode.DEFAULT' "$macro" || fail "Macrobenchmark silently tolerates Baseline Profile installation failure"
+
 # Benchmark isolation must cover the user-observed interaction hot paths.
 grep -q 'fun homeDiscoverWarm()' "$macro" || fail "warm Home/Discover CUJ is missing"
 grep -q 'fun storyTabSources()' "$macro" || fail "isolated Sources-tab CUJ is missing"
 grep -q 'fun storyTabChapters()' "$macro" || fail "isolated Chapters-tab CUJ is missing"
-grep -q 'fun readerScrollBackdropEnabled()' "$macro" || fail "Reader backdrop-on scroll CUJ is missing"
-grep -q 'fun readerScrollBackdropDisabled()' "$macro" || fail "Reader backdrop-off scroll CUJ is missing"
+grep -q 'measureStoryTab("story-tab-sources")' "$macro" || fail "Sources-tab CUJ does not use the stabilized repeated-tab measurement"
+grep -q 'measureStoryTab("story-tab-chapters")' "$macro" || fail "Chapters-tab CUJ does not use the stabilized repeated-tab measurement"
+grep -q 'repeat(STORY_TAB_MEASUREMENT_CYCLE_COUNT)' "$macro" || fail "isolated Story-tab CUJs do not repeat enough interaction cycles for frame traces"
+grep -q 'const val STORY_TAB_MEASUREMENT_CYCLE_COUNT = 3' "$macro" || fail "isolated Story-tab CUJ measurement cycle count changed without updating the trace-stability contract"
+grep -q 'clickTag("story-tab-overview")' "$macro" || fail "isolated Story-tab CUJs do not return to the common Overview baseline"
+grep -q 'fun readerScrollLongChapter()' "$macro" || fail "production Reader long-scroll CUJ is missing"
+! grep -q 'fun readerScrollBackdropEnabled()' "$macro" || fail "obsolete Reader backdrop-on decision CUJ is still present"
+! grep -q 'fun readerScrollBackdropDisabled()' "$macro" || fail "obsolete Reader backdrop-off decision CUJ is still present"
 grep -q 'fun chaptersScrollShadowEnabled()' "$macro" || fail "chapter shadow-on scroll CUJ is missing"
 grep -q 'fun chaptersScrollShadowDisabled()' "$macro" || fail "chapter shadow-off scroll CUJ is missing"
 grep -q 'DISABLE_SURFACE_SHADOWS_EXTRA' "$driver" || fail "benchmark driver lacks the surface-shadow A/B switch"
@@ -80,6 +90,7 @@ grep -q 'rememberReaderTextStyles' "$reader_styles" || fail "Reader scaled text 
 grep -q 'restoredProgressFraction' "$reader_state" || fail "Reader UI state does not preserve the restored progress fraction"
 grep -q 'restoredProgressFraction = restoredForRelease' "$reader_vm" || fail "Reader ViewModel does not expose the restored progress fraction"
 grep -q 'ReaderProgressUiState(fractionToPercent(state.restoredProgressFraction))' "$reader_screen" || fail "Reader chrome does not initialize progress from restored state"
+grep -q 'captureBackdrop = false' "$reader_screen" || fail "Reader production path still captures the expensive backdrop during scrolling"
 ! grep -q 'visibleItemsInfo.firstOrNull()?.index' "$reader_progress" || fail "Reader tracking still emits an initial pre-restoration viewport update"
 
 echo "Performance Wave P5 policy verified."

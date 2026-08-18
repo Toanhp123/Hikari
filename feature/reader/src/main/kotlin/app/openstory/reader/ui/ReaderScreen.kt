@@ -48,6 +48,7 @@ fun ReaderScreen(
 
     HikariBackdropHost(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        captureBackdrop = false,
         background = {
             ReaderBackground(
                 state = state,
