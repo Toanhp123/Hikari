@@ -66,6 +66,22 @@ class CatalogRefreshServiceTest {
     }
 
     @Test
+    fun storeFailureReturnsTypedFailureWithoutPublishingCommittedIndex() = runTest {
+        val failure = CatalogStoreFailure("store.down", retryable = true)
+        val repository = RecordingRepository(storeFailure = failure)
+        val registry = Registry(
+            listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))),
+        )
+
+        val result = service(registry, repository, 99).refresh().single()
+
+        assertEquals(
+            CatalogRefreshResult.StoreFailure(PluginId("a"), failure),
+            result,
+        )
+    }
+
+    @Test
     fun incomingOrderDoesNotChangeResolvedStories() = runTest {
         suspend fun resolve(items: List<SourceItem>): List<StoryId> {
             val repository = RecordingRepository()
@@ -127,7 +143,9 @@ class CatalogRefreshServiceTest {
         override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
     }
 
-    private class RecordingRepository : CatalogRepository {
+    private class RecordingRepository(
+        private val storeFailure: CatalogStoreFailure? = null,
+    ) : CatalogRepository {
         val mutations = mutableListOf<CatalogHomeMutation>()
 
         override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
@@ -138,7 +156,7 @@ class CatalogRefreshServiceTest {
             mutation: CatalogHomeMutation,
         ): Outcome<Unit, CatalogStoreFailure> {
             mutations += mutation
-            return Outcome.Success(Unit)
+            return storeFailure?.let { Outcome.Failure(it) } ?: Outcome.Success(Unit)
         }
 
         override suspend fun commitDetails(

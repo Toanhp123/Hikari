@@ -55,6 +55,7 @@ class ContentStoryMatcherTest {
 
         assertEquals(1.0, result.score)
         assertEquals(ContentMatchDecision.AUTO_LINK, result.decision)
+        assertEquals(1.0, result.explanation.titleSimilarity)
         assertEquals(null, result.explanation.authorSimilarity)
         assertEquals(null, result.explanation.contentTypeMatch)
     }

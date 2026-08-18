@@ -16,7 +16,6 @@ import app.openstory.catalog.source.CatalogSourceRegistry
 import app.openstory.catalog.source.CatalogSourceResult
 import app.openstory.catalog.source.SourceDetails
 import app.openstory.common.Clock
-import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import javax.inject.Inject
@@ -125,18 +124,22 @@ class CatalogDetailsService @Inject constructor(
         entry: CatalogEntry,
         mutation: CatalogDetailsMutation,
     ): CatalogDetailsResult = try {
-        when (val stored = repository.commitDetails(mutation)) {
-            is Outcome.Success -> CatalogDetailsResult.Success(
-                story.copy(id = stored.value),
-                entry.copy(storyId = stored.value),
-            )
-            is Outcome.Failure -> CatalogDetailsResult.Failure(
-                CatalogDetailsFailure.StoreFailure(
-                    stored.error.code,
-                    stored.error.retryable,
-                ),
-            )
-        }
+        repository.commitDetails(mutation).fold(
+            onSuccess = { storyId ->
+                CatalogDetailsResult.Success(
+                    story.copy(id = storyId),
+                    entry.copy(storyId = storyId),
+                )
+            },
+            onFailure = { failure ->
+                CatalogDetailsResult.Failure(
+                    CatalogDetailsFailure.StoreFailure(
+                        failure.code,
+                        failure.retryable,
+                    ),
+                )
+            },
+        )
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {

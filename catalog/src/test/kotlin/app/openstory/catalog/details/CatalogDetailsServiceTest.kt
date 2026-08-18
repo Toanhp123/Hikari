@@ -61,6 +61,22 @@ class CatalogDetailsServiceTest {
     }
 
     @Test
+    fun storeFailureBecomesTypedDetailsFailure() = runTest {
+        val repository = FakeRepository(
+            storeFailure = CatalogStoreFailure("store.down", retryable = true),
+        )
+        val source = Source("a", details("source"))
+
+        val result = service(source, repository).load(PluginId("a"), "source")
+
+        assertEquals(
+            CatalogDetailsFailure.StoreFailure("store.down", retryable = true),
+            (result as CatalogDetailsResult.Failure).failure,
+        )
+        assertEquals(1, repository.detailCommits)
+    }
+
+    @Test
     fun unexpectedSourceExceptionBecomesTypedFailure() = runTest {
         val repository = FakeRepository()
 
@@ -145,6 +161,7 @@ class CatalogDetailsServiceTest {
 
     private class FakeRepository(
         private val durableStoryId: StoryId? = null,
+        private val storeFailure: CatalogStoreFailure? = null,
     ) : CatalogRepository {
         var detailCommits = 0
         val homes = MutableStateFlow<List<CatalogHomeSnapshot>>(emptyList())
@@ -160,7 +177,8 @@ class CatalogDetailsServiceTest {
             mutation: CatalogDetailsMutation,
         ): Outcome<StoryId, CatalogStoreFailure> {
             detailCommits++
-            return Outcome.Success(durableStoryId ?: mutation.storyId)
+            return storeFailure?.let { Outcome.Failure(it) }
+                ?: Outcome.Success(durableStoryId ?: mutation.storyId)
         }
     }
 }

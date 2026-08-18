@@ -31,17 +31,8 @@ sealed interface StoryResolution {
 
 enum class MergeDecision { AUTO_LINK, REVIEW, SEPARATE }
 
-data class CatalogMatchExplanation(
-    val titleSimilarity: Double,
-    val matchedTitle: String,
-    val authorSimilarity: Double?,
-    val authorConflict: Boolean,
-    val contentTypeConflict: Boolean,
-)
-
 data class CatalogMatchResult(
     val storyId: StoryId,
     val score: Double,
     val decision: MergeDecision,
-    val explanation: CatalogMatchExplanation,
 )

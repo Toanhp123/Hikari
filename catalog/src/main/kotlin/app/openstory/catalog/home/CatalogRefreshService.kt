@@ -111,17 +111,20 @@ class CatalogRefreshService @Inject constructor(
             sections = sections.toCatalogSections(resolved),
             orderedSourceItemIds = sections.associate { it.sourceId to it.items.map(SourceItem::sourceId) },
         )
-        val stored = commitMutation(mutation)
-        return when (stored) {
-            is Outcome.Success -> CommitAttempt(
-                CatalogRefreshResult.Success(source.pluginId, refreshedAtEpochMillis),
-                localIndex,
-            )
-            is Outcome.Failure -> CommitAttempt(
-                CatalogRefreshResult.StoreFailure(source.pluginId, stored.error),
-                committedIndex = null,
-            )
-        }
+        return commitMutation(mutation).fold(
+            onSuccess = {
+                CommitAttempt(
+                    CatalogRefreshResult.Success(source.pluginId, refreshedAtEpochMillis),
+                    localIndex,
+                )
+            },
+            onFailure = { failure ->
+                CommitAttempt(
+                    CatalogRefreshResult.StoreFailure(source.pluginId, failure),
+                    committedIndex = null,
+                )
+            },
+        )
     }
 
     private fun resolveEntries(

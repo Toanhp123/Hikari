@@ -108,7 +108,7 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
         PreparedCatalogMatchEvidence(
             titles = evidence.titles.map { title ->
                 val normalized = TitleNormalizer.normalize(title)
-                PreparedTitle(title, normalized, TitleNormalizer.tokensOfNormalized(normalized))
+                PreparedTitle(normalized, TitleNormalizer.tokensOfNormalized(normalized))
             },
             normalizedAuthors = evidence.authors.asSequence()
                 .map(TitleNormalizer::normalize)
@@ -132,12 +132,10 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
                 if (best == null || matchOrdering.compare(result, best) < 0) best = result
             }
         }
-        val contentConflict = source.story.contentType != candidate.story.contentType
         return best ?: CatalogMatchResult(
             candidate.story.id,
             0.0,
             MergeDecision.SEPARATE,
-            CatalogMatchExplanation(0.0, "", null, false, contentConflict),
         )
     }
 
@@ -147,7 +145,6 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
         storyId: StoryId,
     ): CatalogMatchResult {
         val contentConflict = source.contentType != candidate.contentType
-        var matchedTitle = ""
         var matchedNormalizedTitle = ""
         var titleScore = 0.0
         var hasTitle = false
@@ -164,13 +161,11 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
                 if (!hasTitle || score > titleScore || winsTieBreak) {
                     hasTitle = true
                     titleScore = score
-                    matchedTitle = candidateTitle.display
                     matchedNormalizedTitle = candidateTitle.normalized
                 }
             }
         }
         val author = TitleNormalizer.setSimilarity(source.normalizedAuthors, candidate.normalizedAuthors)
-        val conflict = author == 0.0
         val score = if (author == null) titleScore else titleScore * TITLE_WEIGHT + author * AUTHOR_WEIGHT
         val decision = when {
             contentConflict -> MergeDecision.SEPARATE
@@ -184,7 +179,6 @@ class StoryMatcher(private val policy: MatchPolicy = MatchPolicy()) {
             storyId,
             score,
             decision,
-            CatalogMatchExplanation(titleScore, matchedTitle, author, conflict, contentConflict),
         )
     }
 
@@ -220,7 +214,6 @@ internal data class PreparedCatalogMatchEvidence(
 )
 
 internal data class PreparedTitle(
-    val display: String,
     val normalized: String,
     val tokens: Set<String>,
 )

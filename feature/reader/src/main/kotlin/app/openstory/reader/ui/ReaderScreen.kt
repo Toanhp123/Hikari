@@ -97,33 +97,16 @@ private fun ReaderOverlay(
                 onOpenSettings,
                 Modifier.align(Alignment.TopCenter).testTag("reader-top-chrome"),
             )
-            ReaderProgressNavigation(
+            ReaderChapterNavigation(
                 state = state,
-                actions = actions,
-                progressState = progressState,
+                progressPercent = progressState.percent,
                 backdropScope = backdropScope,
+                actions = actions,
                 modifier = Modifier.align(Alignment.BottomCenter).testTag("reader-bottom-chrome"),
             )
         }
         if (settingsVisible) ReaderSettingsSheet(state, actions, onDismissSettings)
     }
-}
-
-@Composable
-private fun ReaderProgressNavigation(
-    state: ReaderUiState,
-    actions: ReaderActions,
-    progressState: ReaderProgressUiState,
-    backdropScope: HikariBackdropScope,
-    modifier: Modifier,
-) {
-    ReaderChapterNavigation(
-        state = state,
-        progressPercent = progressState.percent,
-        backdropScope = backdropScope,
-        actions = actions,
-        modifier = modifier,
-    )
 }
 
 @Composable

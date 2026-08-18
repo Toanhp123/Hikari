@@ -9,7 +9,7 @@ P5 targets interaction spikes observed in a physical-device screen recording aft
 
 ## Implemented boundary
 
-- Top-level `Discover`, `Home`, and `Library` entries opt out of Navigation 3 full-scene transitions. Focused routes such as Story, Search, and Reader keep Navigation 3 defaults. A benchmark-only intent extra restores the legacy transition path for A/B measurement. The app shell also skips `HikariBackdropHost` entirely on focused routes where floating navigation is absent, avoiding an unused full-screen backdrop capture around Story/Reader content.
+- Top-level `Discover`, `Home`, and `Library` entries opt out of Navigation 3 full-scene transitions. Focused routes such as Story, Search, and Reader keep Navigation 3 defaults. A benchmark-only intent extra restores the legacy transition path for A/B measurement. The app shell keeps `HikariBackdropHost` ownership stable on focused routes but disables backdrop capture when floating navigation is absent, avoiding unused full-screen capture without branching the shell composition tree.
 - Story waits until after its first rendered frame before prewarming Chapter and Mapping section ViewModels/state collectors. Selecting a section before that frame still initializes only the selected dependency immediately.
 - Chapter and Mapping state now distinguish initial loading from a real loaded-empty result, preventing false empty-state flashes while the first repository emission is pending.
 - Discover owns one prepared-content pipeline: a Home emission is ranked on the injected Default dispatcher and projected from that same prepared snapshot instead of recombining the raw Home flow with a separately-emitting ranking flow.

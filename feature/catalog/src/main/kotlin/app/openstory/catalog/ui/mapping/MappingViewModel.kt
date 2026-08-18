@@ -178,7 +178,7 @@ private fun PendingCandidate.toUiModel() = MappingCandidateUiModel(
 private fun ContentMatchExplanation.evidenceLabels(): List<String> = buildList {
     val currentAuthorSimilarity = authorSimilarity
     if (directEvidence) add("Direct mapping")
-    add("Title ${title.similarity.asPercent()}")
+    add("Title ${titleSimilarity.asPercent()}")
     when {
         authorConflict -> add("Author conflict")
         currentAuthorSimilarity == null -> add("Author evidence missing")

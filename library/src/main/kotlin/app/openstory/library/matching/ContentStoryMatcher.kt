@@ -9,20 +9,13 @@ enum class ContentMatchDecision {
     REJECT,
 }
 
-data class ContentTitleEvidence(
-    val similarity: Double,
-    val canonicalTitle: String,
-    val candidateTitle: String,
-)
-
 data class ContentMatchExplanation(
     val directEvidence: Boolean,
-    val title: ContentTitleEvidence,
+    val titleSimilarity: Double,
     val authorSimilarity: Double?,
     val authorConflict: Boolean,
     val contentTypeMatch: Boolean?,
     val contentTypeConflict: Boolean,
-    val reasons: List<String>,
 )
 
 data class ContentMatchResult(
@@ -45,7 +38,7 @@ class ContentStoryMatcher(
         return ContentMatchResult(
             score = score,
             decision = decision,
-            explanation = signals.explanation(decision),
+            explanation = signals.explanation(),
             policyVersion = policy.version,
         )
     }
@@ -126,20 +119,13 @@ private data class MatchSignals(
     val contentTypeConflict: Boolean,
     val directEvidence: Boolean,
 ) {
-    fun explanation(decision: ContentMatchDecision) = ContentMatchExplanation(
+    fun explanation() = ContentMatchExplanation(
         directEvidence = directEvidence,
-        title = ContentTitleEvidence(title.similarity, title.canonical, title.candidate),
+        titleSimilarity = title.similarity,
         authorSimilarity = authorSimilarity,
         authorConflict = authorConflict,
         contentTypeMatch = contentTypeMatch,
         contentTypeConflict = contentTypeConflict,
-        reasons = buildList {
-            if (directEvidence) add("direct_mapping")
-            if (contentTypeConflict) add("content_type_conflict")
-            if (authorConflict) add("author_conflict")
-            if (authorSimilarity == null) add("author_evidence_missing")
-            add("decision:${decision.name.lowercase(Locale.ROOT)}")
-        },
     )
 }
 

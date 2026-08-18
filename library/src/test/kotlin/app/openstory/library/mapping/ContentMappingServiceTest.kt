@@ -15,7 +15,6 @@ import app.openstory.library.matching.ContentMatchDecision
 import app.openstory.library.matching.ContentMatchExplanation
 import app.openstory.library.matching.ContentMatchResult
 import app.openstory.library.matching.ContentStoryMatcher
-import app.openstory.library.matching.ContentTitleEvidence
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -204,12 +203,11 @@ private fun candidate(policyVersion: Int) = ContentMappingCandidate(
         decision = ContentMatchDecision.AUTO_LINK,
         explanation = ContentMatchExplanation(
             directEvidence = false,
-            title = ContentTitleEvidence(1.0, "The Story", "The Story"),
+            titleSimilarity = 1.0,
             authorSimilarity = 1.0,
             authorConflict = false,
             contentTypeMatch = true,
             contentTypeConflict = false,
-            reasons = listOf("decision:auto_link"),
         ),
         policyVersion = policyVersion,
     ),

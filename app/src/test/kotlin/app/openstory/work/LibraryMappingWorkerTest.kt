@@ -9,7 +9,6 @@ import app.openstory.library.mapping.ContentMappingSearchStage
 import app.openstory.library.matching.ContentMatchDecision
 import app.openstory.library.matching.ContentMatchExplanation
 import app.openstory.library.matching.ContentMatchResult
-import app.openstory.library.matching.ContentTitleEvidence
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
@@ -99,12 +98,11 @@ private fun candidate(pluginId: PluginId) = ContentMappingCandidate(
         decision = ContentMatchDecision.AUTO_LINK,
         explanation = ContentMatchExplanation(
             directEvidence = false,
-            title = ContentTitleEvidence(1.0, "Story", "Story"),
+            titleSimilarity = 1.0,
             authorSimilarity = null,
             authorConflict = false,
             contentTypeMatch = null,
             contentTypeConflict = false,
-            reasons = listOf("decision:auto_link"),
         ),
         policyVersion = 1,
     ),

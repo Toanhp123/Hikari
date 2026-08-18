@@ -46,7 +46,7 @@ class CacheEvictionPolicyTest {
 
         assertEquals(listOf(removable.key), plan.keys)
         assertEquals(60, plan.retainedBytes)
-        assertTrue(plan.protectedBytesExceedQuota)
+        assertEquals(0, plan.quotaBytes)
     }
 
     @Test
