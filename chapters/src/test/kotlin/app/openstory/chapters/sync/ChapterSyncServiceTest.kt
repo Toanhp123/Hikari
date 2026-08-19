@@ -57,6 +57,42 @@ class ChapterSyncServiceTest {
     }
 
     @Test
+    fun rawNumberDefinesChapterIdentityWhenSourceTitleIsDescriptive() = runTest {
+        val repository = RecordingChapterRepository()
+        val source = RecordingSource { request ->
+            when (request.mode) {
+                ChapterListMode.RECENT -> ChapterSourceResult.Success(
+                    ChapterSourcePage(
+                        releases = listOf(
+                            ChapterSourceRelease(
+                                sourceReleaseId = "release-12",
+                                title = "Volume 99: The Locked Constellation",
+                                rawNumber = "12",
+                                languageTag = "en",
+                                publishedAtEpochMillis = 100L,
+                            ),
+                        ),
+                        nextToken = null,
+                    ),
+                )
+                ChapterListMode.FULL -> page("full-12", "12")
+                ChapterListMode.INCREMENTAL -> error("not expected")
+            }
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val release = repository.commits.first().releases.single()
+        assertEquals(java.math.BigDecimal("12"), release.parsedLabel.chapter)
+        assertEquals(null, release.parsedLabel.volume)
+        assertEquals("Chapter 12 · Volume 99: The Locked Constellation", release.displayLabel)
+        assertEquals(
+            java.math.BigDecimal("12"),
+            repository.commits.first().plan.creates.single().parsedLabel.chapter,
+        )
+    }
+
+    @Test
     fun completedFullSyncKeepsFingerprintInternalAndLeavesCheckpointEmpty() = runTest {
         val repository = RecordingChapterRepository()
         val source = RecordingSource { request ->

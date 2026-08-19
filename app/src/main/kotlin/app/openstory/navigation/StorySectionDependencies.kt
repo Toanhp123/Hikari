@@ -89,13 +89,11 @@ private fun chapterDependencies(
         chapterState = state,
         chapterActions = ChapterListActions(
             onRefresh = viewModel::refresh,
-            onToggleExpanded = viewModel::toggleExpanded,
             onFilterSelected = viewModel::selectFilter,
             onTombstonesVisible = viewModel::setTombstonesVisible,
             onKeepGrouped = viewModel::keepGrouped,
             onSeparate = viewModel::separate,
             onRead = navigateToReader,
-            onDownloadRange = downloadViewModel::downloadRange,
             onDownloadFiltered = downloadViewModel::downloadFiltered,
             downloadState = { releaseId -> statuses[releaseId] },
             pendingRemoval = downloadState.pendingRemoval,

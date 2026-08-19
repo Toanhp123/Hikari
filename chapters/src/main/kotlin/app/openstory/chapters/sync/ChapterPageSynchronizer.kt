@@ -27,6 +27,8 @@ internal class ChapterPageSynchronizer(
     private val parser: ChapterLabelParser,
     private val clock: Clock,
 ) {
+    private val releaseNormalizer = ChapterSourceReleaseNormalizer(parser)
+
     suspend fun state(storyId: StoryId, mapping: ContentMapping): ChapterSyncState? =
         chapters.syncState(storyId, mapping.pluginId, mapping.sourceStoryId)
 
@@ -139,17 +141,15 @@ internal class ChapterPageSynchronizer(
         storyId: StoryId,
         mapping: ContentMapping,
     ): List<ChapterRelease> = releases.map { sourceRelease ->
-        val displayLabel = sourceRelease.title?.takeIf(String::isNotBlank)
-            ?: sourceRelease.rawNumber?.takeIf(String::isNotBlank)
-            ?: sourceRelease.sourceReleaseId
+        val normalized = releaseNormalizer.normalize(sourceRelease)
         ChapterRelease(
             id = releaseId(mapping, sourceRelease.sourceReleaseId),
             storyId = storyId,
             pluginId = mapping.pluginId,
             sourceStoryId = mapping.sourceStoryId,
             sourceReleaseId = sourceRelease.sourceReleaseId,
-            displayLabel = displayLabel,
-            parsedLabel = parser.parse(displayLabel),
+            displayLabel = normalized.displayLabel,
+            parsedLabel = normalized.parsedLabel,
             languageTag = sourceRelease.languageTag?.takeIf(String::isNotBlank) ?: UNDETERMINED_LANGUAGE,
             publishedAtEpochMillis = sourceRelease.publishedAtEpochMillis,
             canonicalChapterId = null,

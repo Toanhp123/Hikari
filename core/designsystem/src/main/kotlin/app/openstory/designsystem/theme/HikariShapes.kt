@@ -21,6 +21,7 @@ internal val HikariShapes = Shapes(
 
 @Immutable
 data class HikariSemanticShapes(
+    val compactControl: Shape = RoundedCornerShape(8.dp),
     val contentCard: Shape = RoundedCornerShape(20.dp),
     val sheetCard: Shape = RoundedCornerShape(24.dp),
     val hero: Shape = RoundedCornerShape(28.dp),

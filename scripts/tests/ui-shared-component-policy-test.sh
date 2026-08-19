@@ -59,12 +59,14 @@ for section_rhythm_owner in \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
-  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt'; do
   assert_contains 'HikariSectionLead(' \
     "$section_rhythm_owner" \
     "sectioned lists must use the shared 8/12/16 rhythm owner: $section_rhythm_owner"
 done
+assert_contains 'hikariSectionHeader(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter list must use the shared lazy section-header rhythm owner'
 for rhythm_owner in \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeContent.kt' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
@@ -204,6 +206,27 @@ assert_contains 'keyboardActions: KeyboardActions = KeyboardActions.Default' \
 assert_contains 'fun HikariFilterChip(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariFilterChip.kt' \
   'design system must own the shared filter chip'
+assert_contains 'fun HikariCompactAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariCompactAction.kt' \
+  'design system must own compact rounded-rectangle actions'
+assert_contains 'fun HikariCompactIconAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariCompactAction.kt' \
+  'design system must own compact rounded-rectangle icon actions'
+assert_contains 'HikariCompactIconAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/navigation/HikariPagination.kt' \
+  'pagination arrows must use shared compact rounded-rectangle controls'
+assert_contains 'HikariCompactAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/navigation/HikariPagination.kt' \
+  'pagination selector must use the shared compact rounded-rectangle control'
+assert_contains 'HikariModalSheet(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterFiltersSheet.kt' \
+  'chapter filters/actions must live in the shared modal-sheet chrome'
+assert_contains 'HikariSheetContent(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterFiltersSheet.kt' \
+  'chapter filters/actions sheet must use shared sheet content chrome'
+assert_contains 'HikariCompactIconAction(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter header options trigger must use the shared compact icon action'
 assert_contains 'fun HikariSuggestionChip(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSuggestionChip.kt' \
   'design system must own suggestion/recent-query chip presentation'
@@ -233,7 +256,7 @@ assert_absent 'candidate[.]evidenceLabels[.]forEach' \
   'Mapping candidate evidence must stay compact instead of emitting one text row per evidence label'
 assert_absent 'contentType = "chapter-action"' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
-  'Expanded chapter download action must stay attached to its summary card instead of becoming a loose list tier'
+  'chapter-level download actions must not create a loose list tier in the compact chapter feed'
 assert_contains 'fun HikariPrimaryAction(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariPrimaryAction.kt' \
   'design system must own the shared filled primary action'
@@ -307,9 +330,45 @@ assert_contains 'HikariMetadataBadgeGroup(' \
 assert_contains 'HikariMetadataBadgeGroup(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
   'download metadata badges must use the shared wrapping collection'
-assert_contains 'HikariMetadataBadgeGroup(' \
+assert_contains 'HikariMetadataLine(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterReleaseRow.kt' \
-  'chapter release metadata badges must use the shared wrapping collection'
+  'chapter release metadata must use the shared compact metadata line'
+assert_contains 'fun HikariPagination(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/navigation/HikariPagination.kt' \
+  'design system must own reusable numbered pagination controls'
+assert_contains 'HikariPagination(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter paging must consume the shared Hikari pagination component'
+assert_contains 'fun LazyListScope.hikariSectionHeader(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionHeader.kt' \
+  'shared section-header owner must expose optional lazy sticky placement without a duplicate component'
+assert_contains 'sticky = true' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter controls must stay in the shared sticky section header'
+assert_contains 'stickyBottomSeparation = true' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter sticky header must preserve breathing room and shared bottom separation chrome'
+assert_contains 'topPadding = headerTopPadding' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter sticky header must own the section top inset so it survives sticky pinning'
+assert_contains 'contentPadding = listContentPadding' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter list must not scroll the sticky header top inset away as LazyColumn content padding'
+assert_contains 'Surface(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionHeader.kt' \
+  'shared lazy section header must own an opaque surface around all sticky chrome'
+assert_contains 'HikariBottomSeparationShadow(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionHeader.kt' \
+  'shared section-header owner must provide the same bottom separation shadow treatment used by top-level headers'
+assert_absent 'chapter-pagination-bottom' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter paging must live only in the sticky header instead of duplicating controls at the list tail'
+assert_contains 'fun HikariDisclosureRow(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariDisclosureRow.kt' \
+  'design system must own reusable compact disclosure-row treatment'
+assert_contains 'HikariDisclosureRow(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'chapter groups must consume the shared disclosure-row treatment'
 assert_contains 'HikariMetadataBadgeGroup(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
   'mapping metadata badges must use the shared wrapping collection'
@@ -370,10 +429,10 @@ assert_absent 'HikariGlassPanel\(null' \
   'app code must not use a null-backdrop glass panel as content-card chrome'
 assert_absent 'import androidx\.compose\.material3\.Surface|Surface\(|HikariContentCard\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterReleaseRow.kt' \
-  'chapter release content must remain flat inside its parent card instead of creating a nested surface'
-assert_contains 'HikariContentCard(' \
+  'chapter release content must remain flat without creating a nested surface'
+assert_absent 'HikariContentCard\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
-  'chapter list rows must use the shared content-card treatment'
+  'chapter list must stay flat and dense instead of wrapping canonical groups in cards'
 assert_contains 'HikariContentCard(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
   'mapping list items must use the shared content-card treatment'
@@ -427,7 +486,7 @@ assert_absent 'import androidx\.compose\.material3\.TextButton|TextButton\(' \
 assert_contains 'title = "Details"' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
   'Story Overview must use the shared Details mini-header'
-assert_contains 'HikariSectionHeader(' \
+assert_contains 'hikariSectionHeader(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
   'Story Chapters must use the shared mini-header contract'
 assert_contains 'title = "Sources"' \
@@ -691,7 +750,7 @@ assert_absent 'contentPadding[[:space:]]*=[[:space:]]*if[[:space:]]*\(chromeVisi
   'Reader document padding must remain stable when chrome visibility changes'
 assert_absent 'chapter[.]releases[.]forEach' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
-  'expanded chapter releases must be independent lazy items instead of eager children of one lazy item'
+  'chapter releases must remain independent lazy items instead of eager children of one chapter group'
 assert_contains 'contentType = { "chapter-release" }' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
   'chapter releases must declare a stable lazy content type'

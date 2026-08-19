@@ -290,16 +290,35 @@ private fun fixture(section: StorySection = StorySection.OVERVIEW): StoryUiState
 private fun StoryUiState.withoutArtwork() = copy(story = story?.copy(coverUrl = null, sources = story.sources.map { it.copy(coverUrl = null) }))
 
 private fun chapterFixture() = ChapterListUiState(
-    storyId = StoryId("moonlit-archive"), unreadCount = 2,
+    storyId = StoryId("moonlit-archive"),
+    chapterCount = 2,
     readableTargets = listOf(
         ReaderTarget(StoryId("moonlit-archive"), CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
     ),
     chapters = listOf(
         ChapterItemUiModel(
-            CanonicalChapterId("chapter-12"), "Chapter 12 · The Locked Constellation", false, true,
-            listOf(ChapterReleaseUiModel(ChapterReleaseId("release-12"), PluginId("mangadex"), "MangaDex", "English", 12L, true)),
+            id = CanonicalChapterId("chapter-12"),
+            label = "Chapter 12",
+            tombstoned = false,
+            releases = listOf(
+                ChapterReleaseUiModel(
+                    ChapterReleaseId("release-12"),
+                    PluginId("mangadex"),
+                    "MangaDex",
+                    "English",
+                    12L,
+                    true,
+                ),
+            ),
+            title = "The Locked Constellation",
         ),
-        ChapterItemUiModel(CanonicalChapterId("chapter-11"), "Chapter 11 · A Fox at Dawn", false, false, emptyList()),
+        ChapterItemUiModel(
+            id = CanonicalChapterId("chapter-11"),
+            label = "Chapter 11",
+            tombstoned = false,
+            releases = emptyList(),
+            title = "A Fox at Dawn",
+        ),
     ),
 )
 

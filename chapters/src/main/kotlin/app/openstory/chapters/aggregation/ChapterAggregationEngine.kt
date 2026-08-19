@@ -41,11 +41,9 @@ class ChapterAggregationEngine(
             links += ChapterReleaseLink(release.id, target)
         }
 
-        val activeReleaseIds = releases.mapTo(hashSetOf(), ChapterRelease::id)
+        val linkedChapterIds = links.mapTo(hashSetOf(), ChapterReleaseLink::canonicalChapterId)
         val tombstones = existing
-            .filter { chapter ->
-                chapter.releaseIds.isNotEmpty() && chapter.releaseIds.none(activeReleaseIds::contains)
-            }
+            .filter { chapter -> !chapter.tombstoned && chapter.id !in linkedChapterIds }
             .mapTo(sortedSetOf(compareBy(CanonicalChapterId::value)), CanonicalChapter::id)
 
         return AggregationPlan(

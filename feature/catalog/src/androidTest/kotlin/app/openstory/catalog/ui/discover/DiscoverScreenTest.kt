@@ -62,7 +62,7 @@ class DiscoverScreenTest {
             HikariTheme {
                 DiscoverScreen(
                     state = fixtureState().copy(
-                        globalFailure = DiscoverUiFailure("catalog.refresh_failed", true),
+                        refreshFailure = DiscoverUiFailure("catalog.refresh_failed", true),
                     ),
                     onRefresh = {},
                     onSearch = {},

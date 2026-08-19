@@ -61,7 +61,7 @@ class ChapterListViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun projectsCanonicalUnreadCountExpansionAndFilters() = runTest(dispatcher.scheduler) {
+    fun projectsCanonicalChapterCountAndFilters() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2")))
         val viewModel = chapterViewModel(repository)
         assertTrue(viewModel.state.value.loading)
@@ -70,17 +70,91 @@ class ChapterListViewModelTest {
         runCurrent()
 
         assertFalse(viewModel.state.value.loading)
-        assertEquals(2, viewModel.state.value.unreadCount)
-        assertFalse(viewModel.state.value.chapters.first().expanded)
+        assertEquals(2, viewModel.state.value.chapterCount)
 
-        viewModel.toggleExpanded(CanonicalChapterId("chapter:1"))
         viewModel.selectFilter(ChapterListFilter.MULTI_RELEASE)
         runCurrent()
 
         assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.chapters.map { it.id })
         assertEquals(2, viewModel.state.value.chapters.single().releases.size)
-        assertTrue(viewModel.state.value.chapters.single().expanded)
         assertEquals(3, viewModel.state.value.readableTargets.size)
+    }
+
+    @Test
+    fun projectsCompactChapterIdentityTitleSourceNameAndNewestFirst() = runTest(dispatcher.scheduler) {
+        val chapterTwelve = group(
+            "12",
+            releaseCount = 2,
+            displayLabel = "Chapter 12 · The Locked Constellation",
+        ).let { group ->
+            group.copy(
+                releases = group.releases.mapIndexed { index, release ->
+                    if (index == 0) release.copy(pluginId = PluginId("org.mangadex.content")) else release
+                },
+            )
+        }
+        val repository = FakeChapterRepository(listOf(group("1"), chapterTwelve))
+        val viewModel = chapterViewModel(repository)
+        observe(viewModel.state)
+        runCurrent()
+
+        assertEquals(2, viewModel.state.value.chapterCount)
+        assertEquals(listOf("Chapter 12", "Chapter 1"), viewModel.state.value.chapters.map { it.label })
+        assertEquals("The Locked Constellation", viewModel.state.value.chapters.first().title)
+        assertEquals("MangaDex", viewModel.state.value.chapters.first().releases.first().sourceName)
+    }
+
+    @Test
+    fun keepsPartIdentityOutOfTitleAndPreservesNamedChapterDescription() = runTest(dispatcher.scheduler) {
+        val partParsed = ParsedChapterLabel(
+            kind = ChapterKind.NUMBERED,
+            volume = null,
+            chapter = BigDecimal("12"),
+            part = 2,
+            normalizedTitle = "the split",
+        )
+        val partGroup = group("12").let { group ->
+            val displayLabel = "Chapter 12 · Part 2 · The Split"
+            val releases = group.releases.map { release ->
+                release.copy(displayLabel = displayLabel, parsedLabel = partParsed)
+            }
+            CanonicalChapterGroup(
+                chapter = group.chapter.copy(
+                    parsedLabel = partParsed,
+                    displayLabel = displayLabel,
+                    releaseIds = releases.mapTo(linkedSetOf()) { it.id },
+                ),
+                releases = releases,
+            )
+        }
+        val prologueParsed = ParsedChapterLabel(
+            kind = ChapterKind.PROLOGUE,
+            volume = null,
+            chapter = null,
+            part = null,
+            normalizedTitle = "to the war",
+        )
+        val prologueGroup = group("0").let { group ->
+            val releases = group.releases.map { release ->
+                release.copy(displayLabel = "Prologue to the War", parsedLabel = prologueParsed)
+            }
+            CanonicalChapterGroup(
+                chapter = group.chapter.copy(
+                    parsedLabel = prologueParsed,
+                    displayLabel = "Prologue to the War",
+                    releaseIds = releases.mapTo(linkedSetOf()) { it.id },
+                ),
+                releases = releases,
+            )
+        }
+        val viewModel = chapterViewModel(FakeChapterRepository(listOf(prologueGroup, partGroup)))
+        observe(viewModel.state)
+        runCurrent()
+
+        assertEquals("Chapter 12 · Part 2", viewModel.state.value.chapters[0].label)
+        assertEquals("The Split", viewModel.state.value.chapters[0].title)
+        assertEquals("Prologue", viewModel.state.value.chapters[1].label)
+        assertEquals("Prologue to the War", viewModel.state.value.chapters[1].title)
     }
 
     @Test
@@ -328,6 +402,7 @@ private fun group(
     number: String,
     releaseCount: Int = 1,
     tombstoned: Boolean = false,
+    displayLabel: String = "Chapter $number",
 ): CanonicalChapterGroup {
     val chapterId = CanonicalChapterId("chapter:$number")
     val label = ParsedChapterLabel(ChapterKind.NUMBERED, null, BigDecimal(number), null, null)
@@ -346,7 +421,7 @@ private fun group(
         )
     }
     return CanonicalChapterGroup(
-        CanonicalChapter(chapterId, STORY_ID, label, "Chapter $number", tombstoned, releases.mapTo(linkedSetOf()) { it.id }),
+        CanonicalChapter(chapterId, STORY_ID, label, displayLabel, tombstoned, releases.mapTo(linkedSetOf()) { it.id }),
         releases,
     )
 }

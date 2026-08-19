@@ -100,6 +100,19 @@ class ChapterAggregationEngineTest {
     }
 
     @Test
+    fun chapterEmptiedByRelinkBecomesTombstone() {
+        val releaseId = ChapterReleaseId("release-12")
+        val legacy = chapter("legacy-title", named(ChapterKind.UNKNOWN, "the locked constellation"))
+            .copy(releaseIds = setOf(releaseId))
+        val normalized = release("release-12", numbered("12"))
+
+        val plan = engine.plan(STORY_ID, listOf(legacy), listOf(normalized), emptyList())
+
+        assertTrue(plan.links.none { it.canonicalChapterId == legacy.id })
+        assertEquals(setOf(legacy.id), plan.tombstones)
+    }
+
+    @Test
     fun chapterWithOnlyMissingReleasesBecomesTombstone() {
         val missingReleaseId = ChapterReleaseId("missing-release")
         val existing = chapter("existing-10", numbered("10")).copy(releaseIds = setOf(missingReleaseId))

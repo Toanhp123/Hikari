@@ -7,6 +7,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -16,8 +17,10 @@ import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariGlyphGeometry
 
 @Composable
-fun HikariBackGlyph(modifier: Modifier = Modifier) {
-    val color = MaterialTheme.colorScheme.onBackground
+fun HikariBackGlyph(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.onBackground,
+) {
     val stroke = MaterialTheme.hikariDimensions.glyphStroke
     val geometry = MaterialTheme.hikariGlyphGeometry.back
     Canvas(modifier) {
@@ -70,6 +73,18 @@ fun HikariSearchGlyph(modifier: Modifier = Modifier) {
             cap = StrokeCap.Round,
         )
     }
+}
+
+@Composable
+fun HikariDisclosureGlyph(
+    expanded: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = LocalContentColor.current,
+) {
+    HikariChevronGlyph(
+        modifier = modifier.rotate(if (expanded) DISCLOSURE_EXPANDED_ROTATION else DISCLOSURE_COLLAPSED_ROTATION),
+        color = color,
+    )
 }
 
 @Composable
@@ -237,3 +252,6 @@ fun HikariUpGlyph(modifier: Modifier = Modifier) {
         )
     }
 }
+
+private const val DISCLOSURE_COLLAPSED_ROTATION = 0f
+private const val DISCLOSURE_EXPANDED_ROTATION = 90f
