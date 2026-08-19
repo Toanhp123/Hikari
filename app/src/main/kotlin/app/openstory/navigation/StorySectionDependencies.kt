@@ -1,6 +1,8 @@
 package app.openstory.navigation
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -12,6 +14,7 @@ import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.catalog.ui.download.DownloadViewModel
 import app.openstory.catalog.ui.mapping.MappingActions
+import app.openstory.catalog.ui.mapping.MappingEvent
 import app.openstory.catalog.ui.mapping.MappingAssistedArgs
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.catalog.ui.mapping.MappingViewModel
@@ -32,9 +35,10 @@ internal fun storySectionDependencies(
     prewarmSections: Boolean,
     downloadViewModel: DownloadViewModel,
     navigateToReader: (ReaderTarget) -> Unit,
+    snackbarHostState: SnackbarHostState,
 ): StorySectionDependencies {
     val source = if (prewarmSections || section == StorySection.SOURCES) {
-        sourceDependencies(storyId)
+        sourceDependencies(storyId, snackbarHostState)
     } else {
         StorySectionDependencies()
     }
@@ -52,11 +56,17 @@ internal fun storySectionDependencies(
 }
 
 @Composable
-private fun sourceDependencies(storyId: StoryId): StorySectionDependencies {
+private fun sourceDependencies(
+    storyId: StoryId,
+    snackbarHostState: SnackbarHostState,
+): StorySectionDependencies {
     val viewModel = hiltViewModel<MappingViewModel, MappingViewModel.Factory>(
         creationCallback = { factory -> factory.create(MappingAssistedArgs(storyId)) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(viewModel, snackbarHostState) {
+        viewModel.events.collect { event -> snackbarHostState.showSnackbar(event.message()) }
+    }
     return StorySectionDependencies(
         mappingState = state,
         mappingActions = viewModel.actions(),
@@ -109,3 +119,9 @@ private fun MappingViewModel.actions() = MappingActions(
     onApprove = ::approve,
     onReject = ::reject,
 )
+
+private fun MappingEvent.message(): String = when (this) {
+    MappingEvent.SOURCE_LINKED -> "Reading source linked"
+    MappingEvent.SOURCE_REPLACED -> "Reading source replaced"
+    MappingEvent.SOURCE_ALREADY_LINKED -> "Reading source already linked"
+}

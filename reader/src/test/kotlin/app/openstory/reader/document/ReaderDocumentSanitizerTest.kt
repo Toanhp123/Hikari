@@ -3,6 +3,7 @@ package app.openstory.reader.document
 import app.openstory.plugins.api.protocol.content.ChapterDocumentDto
 import app.openstory.plugins.api.protocol.content.DividerBlockDto
 import app.openstory.plugins.api.protocol.content.HeadingBlockDto
+import app.openstory.plugins.api.protocol.content.ImagePageBlockDto
 import app.openstory.plugins.api.protocol.content.ParagraphBlockDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,6 +41,56 @@ class ReaderDocumentSanitizerTest {
         assertEquals("block-2-002cd6bbb3f7", document.blocks[2].id)
         assertEquals("4d9d5066c6a1816410311c8341572891ad20e297f895a76215c19261e10a422c", document.fingerprint)
         assertTrue(document.fingerprint.all { it in '0'..'9' || it in 'a'..'f' })
+    }
+
+    @Test
+    fun remoteImagePagesRequireExplicitReaderCapability() {
+        val input = ChapterDocumentDto(
+            null,
+            listOf(ImagePageBlockDto("hash/page-001.png", "https://node.example/page-001.png")),
+        )
+
+        assertEquals(
+            "reader.document_block_invalid",
+            assertIs<DocumentValidationResult.Invalid>(sanitizer.sanitize(input)).code,
+        )
+        assertIs<DocumentValidationResult.Valid>(sanitizer.sanitize(input, allowRemoteImages = true))
+    }
+
+    @Test
+    fun imagePageFingerprintUsesStableIdentityInsteadOfExpiringDeliveryUrl() {
+        val first = assertIs<DocumentValidationResult.Valid>(
+            sanitizer.sanitize(
+                ChapterDocumentDto(
+                    null,
+                    listOf(ImagePageBlockDto("hash/page-001.png", "https://node-a.example/page-001.png")),
+                ),
+                allowRemoteImages = true,
+            ),
+        ).document
+        val refreshed = assertIs<DocumentValidationResult.Valid>(
+            sanitizer.sanitize(
+                ChapterDocumentDto(
+                    null,
+                    listOf(ImagePageBlockDto("hash/page-001.png", "https://node-b.example/page-001.png")),
+                ),
+                allowRemoteImages = true,
+            ),
+        ).document
+        val changedPage = assertIs<DocumentValidationResult.Valid>(
+            sanitizer.sanitize(
+                ChapterDocumentDto(
+                    null,
+                    listOf(ImagePageBlockDto("hash/page-002.png", "https://node-b.example/page-002.png")),
+                ),
+                allowRemoteImages = true,
+            ),
+        ).document
+
+        assertEquals(first.fingerprint, refreshed.fingerprint)
+        assertEquals(false, first.isLocalPersistable)
+        assertTrue(first.fingerprint != changedPage.fingerprint)
+        assertEquals("image-0-d5fe7805d6c0", first.blocks.single().id)
     }
 
     @Test

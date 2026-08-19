@@ -25,6 +25,7 @@ class PluginReaderDocumentSource(
 ) : ReaderDocumentSource {
     override val pluginId: PluginId = installed.pluginId
     private val invocationMutex = Mutex()
+    private val allowRemoteImages = installed.readerCapability?.remoteImages == true
 
     override suspend fun fetch(release: ChapterRelease): ReaderSourceResult = try {
         val input = json.encodeToJsonElement(ContentChapterRequestDto(release.sourceReleaseId))
@@ -42,7 +43,10 @@ class PluginReaderDocumentSource(
 
     private fun decode(result: PluginCallResult.Success<kotlinx.serialization.json.JsonElement>): ReaderSourceResult =
         try {
-            when (val sanitized = sanitizer.sanitize(json.decodeFromJsonElement<ChapterDocumentDto>(result.value))) {
+            when (val sanitized = sanitizer.sanitize(
+                json.decodeFromJsonElement<ChapterDocumentDto>(result.value),
+                allowRemoteImages = allowRemoteImages,
+            )) {
                 is DocumentValidationResult.Valid -> ReaderSourceResult.Success(sanitized.document)
                 is DocumentValidationResult.Invalid -> ReaderSourceResult.Failure(sanitized.code, false)
             }
@@ -60,6 +64,10 @@ class PluginReaderDocumentSourceRegistry(
         .map { plugin -> PluginReaderDocumentSource(plugin, runtime, json, sanitizer) }
 
     override suspend fun enabledPluginIds(): Set<PluginId> = enabledPlugins()
+        .mapTo(linkedSetOf()) { plugin -> plugin.pluginId }
+
+    override suspend fun offlineDownloadPluginIds(): Set<PluginId> = enabledPlugins()
+        .filter { plugin -> plugin.readerCapability?.offlineDownload != false }
         .mapTo(linkedSetOf()) { plugin -> plugin.pluginId }
 
     private suspend fun enabledPlugins(): List<InstalledPlugin> =

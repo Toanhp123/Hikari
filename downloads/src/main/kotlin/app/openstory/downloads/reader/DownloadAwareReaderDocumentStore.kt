@@ -13,6 +13,7 @@ import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
+import app.openstory.reader.document.isLocalPersistable
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -102,6 +103,7 @@ class DownloadAwareReaderDocumentStore(
 
 internal object ReaderDocumentBlobCodec {
     fun encode(document: ReaderDocument): ChapterBlob {
+        require(document.isLocalPersistable) { "Remote image documents cannot be stored as chapter blobs" }
         val output = ByteArrayOutputStream()
         DataOutputStream(output).use { data ->
             data.writeInt(FORMAT_VERSION)
@@ -145,6 +147,7 @@ internal object ReaderDocumentBlobCodec {
                 writeString(block.id)
                 writeString(block.text)
             }
+            is ReaderBlock.ImagePage -> error("Remote image pages are not persistable")
         }
     }
 

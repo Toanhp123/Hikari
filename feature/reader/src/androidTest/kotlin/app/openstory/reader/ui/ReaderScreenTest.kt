@@ -179,6 +179,24 @@ class ReaderScreenTest {
 
 
     @Test
+    fun imagePageDocumentExposesAContinuousReaderPage() {
+        val document = ReaderDocument(
+            title = null,
+            blocks = listOf(
+                ReaderBlock.ImagePage(
+                    id = "image-page-1",
+                    imageUrl = "https://example.com/page-1.jpg",
+                ),
+            ),
+            fingerprint = "image-document",
+        )
+
+        setReaderContent(state = readerState().copy(document = document))
+
+        compose.onNodeWithTag("reader-image-image-page-1").assertIsDisplayed()
+    }
+
+    @Test
     fun unsupportedReaderSourceUsesSafeCopyWithoutRetry() {
         var retried = false
         compose.setContent {

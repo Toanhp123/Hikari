@@ -107,7 +107,7 @@ fun LazyListScope.mappingItems(
         key = { candidate -> "mapping-candidate:${candidate.pluginId.value}:${candidate.sourceStoryId}" },
         contentType = { "mapping-candidate" },
     ) { candidate ->
-        MappingCandidateCard(candidate, actions)
+        MappingCandidateCard(candidate, actions, enabled = !state.busy)
     }
 }
 
@@ -144,7 +144,11 @@ private fun UrlImport(state: MappingUiState, actions: MappingActions) {
 }
 
 @Composable
-private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: MappingActions) {
+private fun MappingCandidateCard(
+    candidate: MappingCandidateUiModel,
+    actions: MappingActions,
+    enabled: Boolean,
+) {
     HikariContentCard(
         modifier = Modifier.fillMaxWidth(),
         style = HikariContentCardStyle.PROMINENT,
@@ -155,11 +159,14 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
         ) {
             Text(candidate.title, style = MaterialTheme.typography.titleMedium)
             HikariMetadataBadgeGroup(
-                listOf(
-                    candidate.pluginId.value,
-                    candidate.decision.displayName(),
-                    candidate.score.asPercent(),
-                ),
+                buildList {
+                    add(candidate.pluginId.value)
+                    add(candidate.decision.displayName())
+                    add(candidate.score.asPercent())
+                    candidate.replacesSourceStoryId?.let { sourceStoryId ->
+                        add("Replaces $sourceStoryId")
+                    }
+                },
             )
             candidate.evidenceLabels.forEach { label ->
                 Text(
@@ -183,10 +190,12 @@ private fun MappingCandidateCard(candidate: MappingCandidateUiModel, actions: Ma
             ) {
                 HikariPrimaryAction(
                     onClick = { actions.onApprove(candidate.pluginId, candidate.sourceStoryId) },
+                    enabled = enabled,
                     modifier = Modifier.weight(1f),
-                ) { Text(if (candidate.fromUrl) "Use URL source" else "Approve") }
+                ) { Text(candidate.approvalLabel()) }
                 HikariInlineAction(
                     onClick = { actions.onReject(candidate.pluginId, candidate.sourceStoryId) },
+                    enabled = enabled,
                     modifier = Modifier.weight(1f),
                 ) { Text("Reject") }
             }
@@ -208,3 +217,10 @@ private fun ContentMatchDecision.displayName(): String = when (this) {
 
 private const val PERCENT_MULTIPLIER = 100.0
 private fun Double.asPercent(): String = String.format(Locale.ROOT, "%.0f%%", this * PERCENT_MULTIPLIER)
+
+private fun MappingCandidateUiModel.approvalLabel(): String = when {
+    replacesSourceStoryId != null && fromUrl -> "Replace with URL"
+    replacesSourceStoryId != null -> "Replace"
+    fromUrl -> "Use URL source"
+    else -> "Approve"
+}

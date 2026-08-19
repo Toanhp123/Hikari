@@ -58,7 +58,7 @@ class DefaultPluginRuntime(
                     is PluginCallResult.Failure -> null
                     is PluginCallResult.Success -> stored
                         .takeIf { loaded.value.manifest.supports(operation) }
-                        ?.toInstalledPlugin()
+                        ?.toInstalledPlugin(loaded.value.manifest)
                 }
             }
             .sortedBy { plugin -> plugin.pluginId.value }
@@ -153,11 +153,12 @@ private data class CachedPluginPackage(
 private fun Map<PluginId, CachedPluginPackage>.cached(identity: PluginPackageIdentity): LoadedPluginPackage? =
     get(identity.pluginId)?.takeIf { cached -> cached.identity == identity }?.value
 
-private fun StoredPluginState.toInstalledPlugin() = InstalledPlugin(
+private fun StoredPluginState.toInstalledPlugin(manifest: PluginManifest? = null) = InstalledPlugin(
     pluginId = pluginId,
     version = activeVersion.version,
     services = services,
     allowedNetworkHosts = acceptedNetworkHosts,
+    readerCapability = manifest?.capabilities?.reader,
 )
 
 private fun StoredPluginState.packageIdentity() = PluginPackageIdentity(

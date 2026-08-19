@@ -49,6 +49,31 @@ class PluginManifestTest {
         assertEquals(setOf(PluginService.CATALOG), manifest().provides)
     }
 
+    @Test
+    fun remoteImageCapabilityCannotAdvertiseUnsupportedOfflineDownload() {
+        assertFailsWith<IllegalArgumentException> {
+            ReaderCapability(offlineDownload = true, remoteImages = true)
+        }
+    }
+
+    @Test
+    fun readerCapabilityRequiresChapterOperationAndCanDisableOfflineDownload() {
+        assertFailsWith<IllegalArgumentException> {
+            contentManifest(
+                operations = setOf(PluginOperation.CONTENT_CHAPTERS),
+                reader = ReaderCapability(offlineDownload = false, remoteImages = true),
+            )
+        }
+
+        val manifest = contentManifest(
+            operations = setOf(PluginOperation.CONTENT_CHAPTER),
+            reader = ReaderCapability(offlineDownload = false, remoteImages = true),
+        )
+
+        assertFalse(manifest.capabilities.reader!!.offlineDownload)
+        assertTrue(manifest.capabilities.reader!!.remoteImages)
+    }
+
     private fun manifest(
         entry: String = "main.js",
         networkHosts: Set<String> = setOf("api.example.com"),
@@ -62,5 +87,17 @@ class PluginManifestTest {
         provides = setOf(PluginService.CATALOG),
         operations = operations,
         capabilities = PluginCapabilities(NetworkCapability(networkHosts)),
+    )
+    private fun contentManifest(
+        operations: Set<PluginOperation>,
+        reader: ReaderCapability?,
+    ) = PluginManifest(
+        id = "org.example.content",
+        name = "Example content",
+        version = "1.0.0",
+        protocol = PluginProtocolVersion(1),
+        provides = setOf(PluginService.CONTENT),
+        operations = operations,
+        capabilities = PluginCapabilities(reader = reader),
     )
 }

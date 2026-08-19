@@ -28,6 +28,7 @@ data class MappingCandidateUiModel(
     val score: Double,
     val evidenceLabels: List<String>,
     val fromUrl: Boolean,
+    val replacesSourceStoryId: String? = null,
 )
 
 data class MappingActions(

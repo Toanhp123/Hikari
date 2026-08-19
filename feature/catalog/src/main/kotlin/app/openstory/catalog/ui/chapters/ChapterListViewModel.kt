@@ -45,8 +45,15 @@ class ChapterListViewModel @AssistedInject constructor(
             failure.value = OBSERVE_FAILED
             emit(emptyList())
         },
-        flow { emit(readerSources.enabledPluginIds()) }.catch { emit(emptySet()) },
-    ) { groups, readerPluginIds -> groups to readerPluginIds }
+        flow {
+            emit(
+                ReaderAvailability(
+                    readablePluginIds = readerSources.enabledPluginIds(),
+                    offlineDownloadPluginIds = readerSources.offlineDownloadPluginIds(),
+                ),
+            )
+        }.catch { emit(ReaderAvailability()) },
+    ) { groups, availability -> groups to availability }
 
     val state = combine(
         groupsWithReaderSources,
@@ -54,12 +61,12 @@ class ChapterListViewModel @AssistedInject constructor(
         filter,
         tombstonesVisible,
         failure,
-    ) { (groups, readerPluginIds), expandedIds, selectedFilter, showTombstones, currentFailure ->
+    ) { (groups, availability), expandedIds, selectedFilter, showTombstones, currentFailure ->
         val activeGroups = groups.filterNot { group -> group.chapter.tombstoned }
         val visible = groups
             .filter { group -> showTombstones || !group.chapter.tombstoned }
             .filter { group -> selectedFilter.accepts(group) }
-            .map { group -> group.toUiModel(group.chapter.id in expandedIds, readerPluginIds) }
+            .map { group -> group.toUiModel(group.chapter.id in expandedIds, availability) }
         ChapterListUiState(
             storyId = storyId,
             loading = false,
@@ -69,7 +76,12 @@ class ChapterListViewModel @AssistedInject constructor(
             },
             readableTargets = activeGroups.flatMap { group ->
                 group.releases
-                    .filter { release -> release.pluginId in readerPluginIds }
+                    .filter { release -> release.pluginId in availability.readablePluginIds }
+                    .map { release -> ReaderTarget(storyId, group.chapter.id, release.id) }
+            },
+            downloadableTargets = activeGroups.flatMap { group ->
+                group.releases
+                    .filter { release -> release.pluginId in availability.offlineDownloadPluginIds }
                     .map { release -> ReaderTarget(storyId, group.chapter.id, release.id) }
             },
             unreadCount = activeGroups.size,
@@ -146,6 +158,7 @@ data class ChapterListUiState(
     val loading: Boolean = true,
     val chapters: List<ChapterItemUiModel> = emptyList(),
     val readableTargets: List<ReaderTarget> = emptyList(),
+    val downloadableTargets: List<ReaderTarget> = readableTargets,
     val releaseTargets: List<ReaderTarget> = readableTargets,
     val unreadCount: Int = 0,
     val selectedFilter: ChapterListFilter = ChapterListFilter.ALL,
@@ -168,6 +181,7 @@ data class ChapterReleaseUiModel(
     val languageLabel: String,
     val publishedAtEpochMillis: Long?,
     val readerCapable: Boolean,
+    val downloadCapable: Boolean = readerCapable,
 )
 
 data class ChapterListActions(
@@ -186,7 +200,7 @@ data class ChapterListActions(
 
 private fun CanonicalChapterGroup.toUiModel(
     expanded: Boolean,
-    readerPluginIds: Set<PluginId>,
+    availability: ReaderAvailability,
 ) = ChapterItemUiModel(
     id = chapter.id,
     label = chapter.displayLabel,
@@ -199,9 +213,15 @@ private fun CanonicalChapterGroup.toUiModel(
             sourceName = release.pluginId.value,
             languageLabel = release.languageTag.languageDisplayName(),
             publishedAtEpochMillis = release.publishedAtEpochMillis,
-            readerCapable = release.pluginId in readerPluginIds,
+            readerCapable = release.pluginId in availability.readablePluginIds,
+            downloadCapable = release.pluginId in availability.offlineDownloadPluginIds,
         )
     },
+)
+
+private data class ReaderAvailability(
+    val readablePluginIds: Set<PluginId> = emptySet(),
+    val offlineDownloadPluginIds: Set<PluginId> = emptySet(),
 )
 
 private fun Set<CanonicalChapterId>.toggle(id: CanonicalChapterId): Set<CanonicalChapterId> =

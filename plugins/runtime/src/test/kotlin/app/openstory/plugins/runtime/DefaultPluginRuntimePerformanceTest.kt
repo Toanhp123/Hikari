@@ -5,6 +5,7 @@ import app.openstory.plugins.api.manifest.PluginCapabilities
 import app.openstory.plugins.api.manifest.PluginManifest
 import app.openstory.plugins.api.manifest.PluginProtocolVersion
 import app.openstory.plugins.api.manifest.PluginService
+import app.openstory.plugins.api.manifest.ReaderCapability
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.capabilities.CapabilityDispatcher
 import app.openstory.plugins.runtime.execution.JavaScriptEngine
@@ -54,6 +55,41 @@ class DefaultPluginRuntimePerformanceTest {
             runtime.invoke(pluginId, PluginOperation.CATALOG_HOME, JsonObject(emptyMap())),
         )
         assertEquals("plugin.operation_unavailable", unavailable.code)
+    }
+
+    @Test
+    fun `operation discovery carries reader capability from loaded manifest`() = runTest {
+        val pluginId = PluginId("org.example.reader")
+        val state = MutableStateStore(
+            stored(
+                pluginId = pluginId,
+                version = "1.0.0",
+                sha = "a".repeat(64),
+                services = setOf(PluginService.CONTENT),
+            ),
+        )
+        val storage = CountingPackageStorage().apply {
+            put(
+                pluginId,
+                "1.0.0",
+                manifest(
+                    version = "1.0.0",
+                    operations = setOf(PluginOperation.CONTENT_CHAPTER),
+                    provides = setOf(PluginService.CONTENT),
+                    capabilities = PluginCapabilities(
+                        reader = ReaderCapability(offlineDownload = false, remoteImages = true),
+                    ),
+                ),
+                "globalThis.openstoryPlugin = {};",
+            )
+        }
+        val runtime = runtime(state, storage)
+
+        val installed = runtime.enabled(PluginOperation.CONTENT_CHAPTER).single()
+
+        assertEquals(pluginId, installed.pluginId)
+        assertEquals(false, installed.readerCapability?.offlineDownload)
+        assertEquals(true, installed.readerCapability?.remoteImages)
     }
 
     @Test
@@ -142,19 +178,26 @@ class DefaultPluginRuntimePerformanceTest {
     private fun manifest(
         version: String,
         operations: Set<PluginOperation>? = null,
+        provides: Set<PluginService> = setOf(PluginService.CATALOG),
+        capabilities: PluginCapabilities = PluginCapabilities(),
     ) = PluginManifest(
         id = "org.example.plugin",
         name = "Example",
         version = version,
         protocol = PluginProtocolVersion(1),
-        provides = setOf(PluginService.CATALOG),
+        provides = provides,
         operations = operations,
-        capabilities = PluginCapabilities(),
+        capabilities = capabilities,
     )
 
-    private fun stored(pluginId: PluginId, version: String, sha: String) = StoredPluginState(
+    private fun stored(
+        pluginId: PluginId,
+        version: String,
+        sha: String,
+        services: Set<PluginService> = setOf(PluginService.CATALOG),
+    ) = StoredPluginState(
         pluginId = pluginId,
-        services = setOf(PluginService.CATALOG),
+        services = services,
         enabled = true,
         activeVersion = StoredPluginVersion(version, "/packages/${pluginId.value}/$version", sha, null),
         previousVersion = null,

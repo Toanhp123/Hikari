@@ -47,7 +47,7 @@ fun ChapterList(
 fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterListActions) {
     item(key = "chapter-summary", contentType = "chapter-header") {
         val visibleReleaseIds = state.chapters.flatMap { chapter ->
-            chapter.releases.filter(ChapterReleaseUiModel::readerCapable).map(ChapterReleaseUiModel::id)
+            chapter.releases.filter(ChapterReleaseUiModel::downloadCapable).map(ChapterReleaseUiModel::id)
         }
         HikariSectionHeader(
             title = "Chapters",
@@ -108,10 +108,10 @@ private fun LazyListScope.chapterItems(
         HikariInlineAction(
             onClick = {
                 actions.onDownloadRange(
-                    chapter.releases.filter(ChapterReleaseUiModel::readerCapable).map(ChapterReleaseUiModel::id),
+                    chapter.releases.filter(ChapterReleaseUiModel::downloadCapable).map(ChapterReleaseUiModel::id),
                 )
             },
-            enabled = chapter.releases.any(ChapterReleaseUiModel::readerCapable),
+            enabled = chapter.releases.any(ChapterReleaseUiModel::downloadCapable),
         ) { Text("Download chapter") }
     }
     items(

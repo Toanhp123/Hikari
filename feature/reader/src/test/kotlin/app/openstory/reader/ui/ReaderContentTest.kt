@@ -26,6 +26,21 @@ class ReaderContentTest {
     }
 
     @Test
+    fun imagePagesDoNotInventCharacterOffsets() {
+        val page = ReaderBlock.ImagePage("page", "https://node.example/page.png")
+
+        assertEquals(0, page.progressExtent())
+        assertEquals(5, ReaderBlock.Paragraph("text", "Hello").progressExtent())
+    }
+
+    @Test
+    fun imageRestoreUsesDocumentFractionWithinTheKnownPage() {
+        assertEquals(0.5f, restoredImagePageFraction(blockIndex = 1, blockCount = 4, documentFraction = 0.375f))
+        assertEquals(0f, restoredImagePageFraction(blockIndex = 2, blockCount = 4, documentFraction = 0.1f))
+        assertEquals(1f, restoredImagePageFraction(blockIndex = 2, blockCount = 4, documentFraction = 0.9f))
+    }
+
+    @Test
     fun readerProgressSamplingIsBoundedToTenUpdatesPerSecond() {
         assertEquals(100L, READER_PROGRESS_SAMPLE_MILLIS)
     }

@@ -140,7 +140,7 @@ class ChapterListTest {
                 chapter.copy(
                     expanded = true,
                     releases = chapter.releases.mapIndexed { index, release ->
-                        release.copy(readerCapable = index != 0)
+                        release.copy(readerCapable = index != 0, downloadCapable = index != 0)
                     },
                 )
             },
@@ -171,6 +171,45 @@ class ChapterListTest {
     }
 
 
+
+    @Test
+    fun onlineOnlyReleaseKeepsReadButHidesDownloadAndBulkSkipsIt() {
+        val base = fixtureState()
+        val state = base.copy(
+            chapters = base.chapters.map { chapter ->
+                chapter.copy(
+                    expanded = true,
+                    releases = chapter.releases.mapIndexed { index, release ->
+                        release.copy(downloadCapable = index != 0)
+                    },
+                )
+            },
+        )
+        var filtered = emptyList<ChapterReleaseId>()
+        var range = emptyList<ChapterReleaseId>()
+        compose.setContent {
+            HikariTheme {
+                ChapterList(
+                    state = state,
+                    actions = ChapterListActions(
+                        onDownloadFiltered = { filtered = it },
+                        onDownloadRange = { range = it },
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("chapter-read-release:10:a").assertIsDisplayed()
+        compose.onAllNodesWithTag("chapter-download-release:10:a").assertCountEquals(0)
+        compose.onNodeWithText("Online only", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Download visible").performClick()
+        compose.onNodeWithText("Download chapter").performClick()
+
+        val downloadable = listOf(ChapterReleaseId("release:10:b"))
+        kotlin.test.assertEquals(downloadable, filtered)
+        kotlin.test.assertEquals(downloadable, range)
+    }
+
     @Test
     fun completedListOnlyReleaseRemainsReadableOfflineWithoutNewDownload() {
         val base = fixtureState()
@@ -179,7 +218,7 @@ class ChapterListTest {
                 chapter.copy(
                     expanded = true,
                     releases = chapter.releases.mapIndexed { index, release ->
-                        release.copy(readerCapable = index != 0)
+                        release.copy(readerCapable = index != 0, downloadCapable = index != 0)
                     },
                 )
             },
@@ -235,6 +274,7 @@ private fun fixtureState() = ChapterListUiState(
                     languageLabel = "English",
                     publishedAtEpochMillis = 1L,
                     readerCapable = true,
+                    downloadCapable = true,
                 ),
                 ChapterReleaseUiModel(
                     id = ChapterReleaseId("release:10:b"),
@@ -243,6 +283,7 @@ private fun fixtureState() = ChapterListUiState(
                     languageLabel = "Vietnamese",
                     publishedAtEpochMillis = 2L,
                     readerCapable = true,
+                    downloadCapable = true,
                 ),
             ),
         ),

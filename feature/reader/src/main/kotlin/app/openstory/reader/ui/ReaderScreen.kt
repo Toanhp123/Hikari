@@ -124,6 +124,7 @@ private fun ReaderBackground(
                 fontScale = state.fontScale,
                 restoredBlockId = state.restoredBlockId,
                 restoredCharacterOffset = state.restoredCharacterOffset,
+                restoredProgressFraction = state.restoredProgressFraction,
                 contentPadding = PaddingValues(
                     top = MaterialTheme.hikariDimensions.readerTopInset,
                     bottom = MaterialTheme.hikariDimensions.readerBottomInset,
@@ -131,6 +132,7 @@ private fun ReaderBackground(
                 onPositionChanged = onPositionChanged,
                 modifier = Modifier.testTag("reader-content"),
                 onToggleChrome = onToggleChrome,
+                onReloadDocument = onRetry,
             )
             else -> Centered {
                 HikariErrorState(

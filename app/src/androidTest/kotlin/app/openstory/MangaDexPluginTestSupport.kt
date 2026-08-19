@@ -51,6 +51,6 @@ internal fun mangaDexSha256(bytes: ByteArray): String = MessageDigest.getInstanc
     .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
 internal const val MANGADEX_PLUGIN_ID = "org.openstory.content.mangadex"
-internal const val MANGADEX_PLUGIN_VERSION = "1.2.0"
+internal const val MANGADEX_PLUGIN_VERSION = "1.3.0"
 internal const val ONE_PIECE_MANGADEX_ID = "a1c7c817-4e59-43b7-9365-09675a149a6f"
 internal const val ONE_PIECE_MANGADEX_URL = "https://mangadex.org/title/$ONE_PIECE_MANGADEX_ID"

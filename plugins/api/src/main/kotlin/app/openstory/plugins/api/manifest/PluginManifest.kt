@@ -35,6 +35,9 @@ data class PluginManifest(
         require(languages.all(::isNormalizedLanguageTag)) { "Language tags must be normalized and non-blank" }
         require(isHttpsUrl(homepageUrl)) { "Homepage URL must be HTTPS" }
         require(isHttpsUrl(sourceUrl)) { "Source URL must be HTTPS" }
+        require(capabilities.reader == null || supports(PluginOperation.CONTENT_CHAPTER)) {
+            "Reader capability requires content.chapter"
+        }
     }
 
     fun supports(operation: PluginOperation): Boolean =
@@ -61,7 +64,20 @@ data class PluginManifest(
 @Serializable
 data class PluginCapabilities(
     val network: NetworkCapability? = null,
+    val reader: ReaderCapability? = null,
 )
+
+@Serializable
+data class ReaderCapability(
+    val offlineDownload: Boolean = true,
+    val remoteImages: Boolean = false,
+) {
+    init {
+        require(!remoteImages || !offlineDownload) {
+            "Remote image reader capability cannot declare offline download"
+        }
+    }
+}
 
 @Serializable
 data class NetworkCapability(

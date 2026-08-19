@@ -2,6 +2,7 @@ package app.openstory.reader.content
 
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.reader.document.ReaderDocument
+import app.openstory.reader.document.isLocalPersistable
 import app.openstory.reader.selection.ReleaseCandidate
 import app.openstory.reader.selection.ReleaseSelectionResult
 import app.openstory.reader.selection.ReleaseSelector
@@ -81,7 +82,9 @@ class ReaderDocumentRepository(
         } else {
             when (val fetched = fetch(source, candidate)) {
                 is ReaderSourceResult.Success -> {
-                    store.write(candidate.release.id, fetched.document.fingerprint, fetched.document)
+                    if (fetched.document.isLocalPersistable) {
+                        store.write(candidate.release.id, fetched.document.fingerprint, fetched.document)
+                    }
                     CandidateLoadResult.Success(ReaderLoadResult.Success(candidate, fetched.document, false))
                 }
                 is ReaderSourceResult.Failure -> CandidateLoadResult.Failure(

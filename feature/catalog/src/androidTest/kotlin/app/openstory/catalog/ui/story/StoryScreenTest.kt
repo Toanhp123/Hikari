@@ -172,6 +172,29 @@ class StoryScreenTest {
     }
 
     @Test
+    fun onlineOnlyReaderTargetDoesNotDownloadAnotherReleaseFromHero() {
+        val onlineTarget = ReaderTarget(
+            StoryId("story-1"), CanonicalChapterId("chapter-1"), ChapterReleaseId("release-online"),
+        )
+        val otherDownload = ReaderTarget(
+            StoryId("story-1"), CanonicalChapterId("chapter-2"), ChapterReleaseId("release-offline"),
+        )
+        setStoryContent(
+            state = fixtureState(),
+            chapterState = ChapterListUiState(
+                readableTargets = listOf(onlineTarget),
+                downloadableTargets = listOf(otherDownload),
+                releaseTargets = listOf(onlineTarget, otherDownload),
+            ),
+        )
+
+        compose.onNodeWithTag("story-more").performClick()
+
+        compose.onNodeWithTag("story-download").assertDoesNotExist()
+        compose.onNodeWithTag("story-library-reading").assertIsDisplayed()
+    }
+
+    @Test
     fun staleResumeDoesNotExposeDownloadWithoutReadableChapter() {
         val target = ReaderTarget(
             StoryId("story-1"), CanonicalChapterId("chapter-old"), ChapterReleaseId("release-old"),

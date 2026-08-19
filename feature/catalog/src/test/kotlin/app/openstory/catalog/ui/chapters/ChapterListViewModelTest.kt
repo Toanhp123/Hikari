@@ -125,6 +125,31 @@ class ChapterListViewModelTest {
         assertEquals(listOf(ChapterReleaseId("release:1:1")), viewModel.state.value.readableTargets.map { it.releaseId })
     }
 
+
+    @Test
+    fun onlineOnlyReaderReleaseIsReadableButExcludedFromDownloadTargets() = runTest(dispatcher.scheduler) {
+        val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2)))
+        val viewModel = chapterViewModel(
+            repository,
+            readerPlugins = setOf(PluginId("content.0"), PluginId("content.1")),
+            offlineDownloadPlugins = setOf(PluginId("content.1")),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        val releases = viewModel.state.value.chapters.single().releases
+        assertEquals(listOf(true, true), releases.map { it.readerCapable })
+        assertEquals(listOf(false, true), releases.map { it.downloadCapable })
+        assertEquals(
+            listOf(ChapterReleaseId("release:1:0"), ChapterReleaseId("release:1:1")),
+            viewModel.state.value.readableTargets.map { it.releaseId },
+        )
+        assertEquals(
+            listOf(ChapterReleaseId("release:1:1")),
+            viewModel.state.value.downloadableTargets.map { it.releaseId },
+        )
+    }
+
     @Test
     fun tombstonesStayHiddenUntilExplicitlyRequested() = runTest(dispatcher.scheduler) {
         val repository = FakeChapterRepository(listOf(group("1"), group("2", tombstoned = true)))
@@ -170,10 +195,14 @@ class ChapterListViewModelTest {
 private fun chapterViewModel(
     repository: ChapterRepository,
     readerPlugins: Set<PluginId> = setOf(PluginId("content.0"), PluginId("content.1")),
+    offlineDownloadPlugins: Set<PluginId> = readerPlugins,
 ) = ChapterListViewModel(
     ChapterListAssistedArgs(STORY_ID),
     repository,
-    ReaderSourceAvailability { readerPlugins },
+    object : ReaderSourceAvailability {
+        override suspend fun enabledPluginIds(): Set<PluginId> = readerPlugins
+        override suspend fun offlineDownloadPluginIds(): Set<PluginId> = offlineDownloadPlugins
+    },
 )
 
 private class FakeChapterRepository(initial: List<CanonicalChapterGroup>) : ChapterRepository {

@@ -54,9 +54,10 @@ fun ChapterReleaseRow(
                 release.publishedAtEpochMillis?.freshnessLabel(),
                 downloadState?.name?.lowercase()?.replaceFirstChar(Char::uppercase),
                 when {
-                    release.readerCapable -> null
-                    offlineReadable -> "Offline only"
-                    else -> "List only"
+                    !release.readerCapable && offlineReadable -> "Offline only"
+                    !release.readerCapable -> "List only"
+                    !release.downloadCapable -> "Online only"
+                    else -> null
                 },
             ),
         )
@@ -72,14 +73,16 @@ fun ChapterReleaseRow(
                         .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
                         .testTag("chapter-read-${release.id.value}"),
                 ) { Text("Read") }
-                DownloadActionSheet(
-                    release.id,
-                    downloadState,
-                    pendingRemoval,
-                    downloadActions,
-                    modifier = Modifier.weight(1f),
-                    actionTag = "chapter-download-${release.id.value}",
-                )
+                if (release.downloadCapable || downloadState != null) {
+                    DownloadActionSheet(
+                        release.id,
+                        downloadState,
+                        pendingRemoval,
+                        downloadActions,
+                        modifier = Modifier.weight(1f),
+                        actionTag = "chapter-download-${release.id.value}",
+                    )
+                }
             }
         }
         Row(

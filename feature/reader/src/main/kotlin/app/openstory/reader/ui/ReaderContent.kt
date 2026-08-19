@@ -11,6 +11,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -31,17 +33,25 @@ fun ReaderContent(
     fontScale: Float,
     restoredBlockId: String?,
     restoredCharacterOffset: Int,
+    restoredProgressFraction: Float = 0f,
     contentPadding: PaddingValues,
     onPositionChanged: (ReadingPosition, Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onToggleChrome: () -> Unit = {},
+    onReloadDocument: () -> Unit = {},
 ) {
     val titleOffset = if (document.title == null) 0 else 1
+    val measuredImageHeights = remember(document.fingerprint) { mutableStateMapOf<String, Int>() }
+    val restoredImageHeight = document.blocks
+        .firstOrNull { block -> block.id == restoredBlockId }
+        ?.let { block -> (block as? ReaderBlock.ImagePage)?.let { measuredImageHeights[it.id] } }
     val listState = rememberRestoredReaderState(
         document,
         titleOffset,
         restoredBlockId,
         restoredCharacterOffset,
+        restoredProgressFraction,
+        restoredImageHeight,
     )
     val textStyles = rememberReaderTextStyles(fontScale)
     TrackReaderProgress(document, titleOffset, listState, onPositionChanged)
@@ -69,7 +79,13 @@ fun ReaderContent(
             key = { document.blocks[it].id },
             contentType = { document.blocks[it].contentType() },
         ) { index ->
-            ReaderBlock(document.blocks[index], textStyles)
+            ReaderBlock(
+                block = document.blocks[index],
+                textStyles = textStyles,
+                documentFingerprint = document.fingerprint,
+                onReloadDocument = onReloadDocument,
+                onImageMeasured = { blockId, height -> measuredImageHeights[blockId] = height },
+            )
         }
     }
 }
@@ -80,6 +96,8 @@ private fun rememberRestoredReaderState(
     titleOffset: Int,
     restoredBlockId: String?,
     restoredCharacterOffset: Int,
+    restoredProgressFraction: Float,
+    restoredImageHeight: Int?,
 ): LazyListState {
     val restoredIndex = restoredReaderItemIndex(
         document.blocks,
@@ -93,14 +111,34 @@ private fun rememberRestoredReaderState(
     ) {
         LazyListState(firstVisibleItemIndex = restoredIndex)
     }
-    LaunchedEffect(document.fingerprint, restoredIndex, restoredCharacterOffset) {
-        if (restoredCharacterOffset <= 0) return@LaunchedEffect
-        val itemSize = snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == restoredIndex }?.size
-        }.filterNotNull().first()
-        val block = document.blocks.getOrNull(restoredIndex - titleOffset) ?: return@LaunchedEffect
-        val characterCount = block.characterCount().coerceAtLeast(1)
-        val scrollOffset = (restoredCharacterOffset.toFloat() / characterCount * itemSize)
+    LaunchedEffect(
+        document.fingerprint,
+        restoredIndex,
+        restoredBlockId,
+        restoredCharacterOffset,
+        restoredProgressFraction,
+        restoredImageHeight,
+    ) {
+        val blockIndex = document.blocks.indexOfFirst { block -> block.id == restoredBlockId }
+        if (blockIndex < 0) return@LaunchedEffect
+        val block = document.blocks[blockIndex]
+        val itemSize: Int
+        val withinBlock: Float
+        if (block is ReaderBlock.ImagePage) {
+            itemSize = restoredImageHeight ?: return@LaunchedEffect
+            withinBlock = restoredImagePageFraction(
+                blockIndex = blockIndex,
+                blockCount = document.blocks.size,
+                documentFraction = restoredProgressFraction,
+            )
+        } else {
+            if (restoredCharacterOffset <= 0) return@LaunchedEffect
+            itemSize = snapshotFlow {
+                listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == restoredIndex }?.size
+            }.filterNotNull().first()
+            withinBlock = restoredCharacterOffset.toFloat() / block.progressExtent().coerceAtLeast(1)
+        }
+        val scrollOffset = (withinBlock * itemSize)
             .roundToInt()
             .coerceIn(0, (itemSize - 1).coerceAtLeast(0))
         listState.scrollToItem(restoredIndex, scrollOffset)
@@ -112,6 +150,9 @@ private fun rememberRestoredReaderState(
 private fun ReaderBlock(
     block: ReaderBlock,
     textStyles: ReaderTextStyles,
+    documentFingerprint: String,
+    onReloadDocument: () -> Unit,
+    onImageMeasured: (String, Int) -> Unit,
 ) {
     when (block) {
         is ReaderBlock.Paragraph -> Text(
@@ -145,6 +186,12 @@ private fun ReaderBlock(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = textStyles.note,
         )
+        is ReaderBlock.ImagePage -> ReaderImagePage(
+            block = block,
+            documentFingerprint = documentFingerprint,
+            onReloadDocument = onReloadDocument,
+            onImageMeasured = { height -> onImageMeasured(block.id, height) },
+        )
     }
 }
 
@@ -157,9 +204,19 @@ internal fun restoredReaderItemIndex(
     return if (blockIndex >= 0) blockIndex + if (hasTitle) 1 else 0 else 0
 }
 
+internal fun restoredImagePageFraction(
+    blockIndex: Int,
+    blockCount: Int,
+    documentFraction: Float,
+): Float {
+    if (blockCount <= 0 || blockIndex !in 0 until blockCount) return 0f
+    return (documentFraction.coerceIn(0f, 1f) * blockCount - blockIndex).coerceIn(0f, 1f)
+}
+
 private fun ReaderBlock.contentType(): String = when (this) {
     is ReaderBlock.Paragraph -> "reader-paragraph"
     is ReaderBlock.Heading -> "reader-heading"
     is ReaderBlock.Divider -> "reader-divider"
     is ReaderBlock.Note -> "reader-note"
+    is ReaderBlock.ImagePage -> "reader-image-page"
 }

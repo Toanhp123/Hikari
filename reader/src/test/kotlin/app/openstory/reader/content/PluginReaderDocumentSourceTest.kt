@@ -7,6 +7,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.plugins.api.manifest.PluginService
+import app.openstory.plugins.api.manifest.ReaderCapability
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.InstalledPlugin
 import app.openstory.plugins.runtime.PluginCallResult
@@ -39,6 +40,64 @@ class PluginReaderDocumentSourceTest {
         assertEquals(listOf(PluginId("reader.plugin")), registry.enabled().map { it.pluginId })
         assertEquals(setOf(PluginId("reader.plugin")), registry.enabledPluginIds())
         assertEquals(PluginOperation.CONTENT_CHAPTER, runtime.enabledOperation)
+    }
+
+    @Test
+    fun registrySeparatesReadableSourcesFromOfflineDownloadSources() = runTest {
+        val onlineOnly = InstalledPlugin(
+            PluginId("online.plugin"),
+            "1",
+            setOf(PluginService.CONTENT),
+            readerCapability = ReaderCapability(offlineDownload = false),
+        )
+        val offline = InstalledPlugin(
+            PluginId("offline.plugin"),
+            "1",
+            setOf(PluginService.CONTENT),
+            readerCapability = ReaderCapability(offlineDownload = true),
+        )
+        val legacy = InstalledPlugin(PluginId("legacy.plugin"), "1", setOf(PluginService.CONTENT))
+        val registry = PluginReaderDocumentSourceRegistry(
+            FakeRuntime(enabledForChapter = listOf(onlineOnly, offline, legacy)),
+            Json,
+            ReaderDocumentSanitizer(),
+        )
+
+        assertEquals(
+            setOf(PluginId("online.plugin"), PluginId("offline.plugin"), PluginId("legacy.plugin")),
+            registry.enabledPluginIds(),
+        )
+        assertEquals(
+            setOf(PluginId("offline.plugin"), PluginId("legacy.plugin")),
+            registry.offlineDownloadPluginIds(),
+        )
+    }
+
+    @Test
+    fun remoteImagePayloadRequiresExplicitReaderCapability() = runTest {
+        val denied = PluginReaderDocumentSource(
+            InstalledPlugin(PluginId("plugin"), "1", setOf(PluginService.CONTENT)),
+            FakeRuntime(imagePayload = true),
+            Json,
+            ReaderDocumentSanitizer(),
+        )
+        val allowed = PluginReaderDocumentSource(
+            InstalledPlugin(
+                PluginId("plugin"),
+                "1",
+                setOf(PluginService.CONTENT),
+                readerCapability = ReaderCapability(offlineDownload = false, remoteImages = true),
+            ),
+            FakeRuntime(imagePayload = true),
+            Json,
+            ReaderDocumentSanitizer(),
+        )
+
+        assertEquals(
+            "reader.document_block_invalid",
+            assertIs<ReaderSourceResult.Failure>(denied.fetch(release())).code,
+        )
+        assertIs<ReaderSourceResult.Success>(allowed.fetch(release()))
     }
 
     @Test
@@ -81,6 +140,7 @@ class PluginReaderDocumentSourceTest {
 
 private class FakeRuntime(
     private val invalidPayload: Boolean = false,
+    private val imagePayload: Boolean = false,
     private val enabledForChapter: List<InstalledPlugin> = emptyList(),
 ) : PluginRuntime {
     var operation: PluginOperation? = null
@@ -99,9 +159,17 @@ private class FakeRuntime(
                 put("title", "Chapter")
                 putJsonArray("blocks") {
                     add(
-                        buildJsonObject {
-                            put("type", "paragraph")
-                            put("text", if (invalidPayload) "" else "Safe paragraph")
+                        if (imagePayload) {
+                            buildJsonObject {
+                                put("type", "image")
+                                put("stableId", "hash/page-001.png")
+                                put("imageUrl", "https://node.example/page-001.png")
+                            }
+                        } else {
+                            buildJsonObject {
+                                put("type", "paragraph")
+                                put("text", if (invalidPayload) "" else "Safe paragraph")
+                            }
                         },
                     )
                 }

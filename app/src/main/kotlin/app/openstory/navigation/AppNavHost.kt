@@ -167,7 +167,7 @@ private fun AppNavigationContent(
                 )
             }
             entry<AppRoute.Story> { route ->
-                StoryDestination(route, navigator::navigate, contentPadding)
+                StoryDestination(route, navigator::navigate, contentPadding, snackbarHostState)
             }
             entry<AppRoute.Reader> { route ->
                 ReaderDestination(route, navigator::back)

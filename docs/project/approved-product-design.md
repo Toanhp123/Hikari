@@ -138,8 +138,8 @@ release without changing the source of the whole novel.
 5. Story matching between catalog entries and installed content plugins.
 6. Fast recent-chapter fetch followed by full background synchronization.
 7. Chapter aggregation into canonical chapters with multiple releases.
-8. A text reader with typography, theme, navigation, source switching, and
-   exact progress restoration.
+8. A structured text and vertical image-page reader with typography where applicable,
+   navigation, source switching, and exact progress restoration.
 9. Automatic cache and explicit offline downloads.
 10. Manual refresh and scheduled local background checks.
 11. Local notifications for canonical new chapters and preferred-language
@@ -151,7 +151,7 @@ release without changing the source of the whole novel.
 
 - Accounts and cloud synchronization.
 - Centralized plugin moderation or remote plugin disable infrastructure.
-- Manga image reader and anime functionality.
+- Anime playback and anime-specific functionality.
 - TTS, audiobook generation, translation, and AI summaries.
 - Social features, comments, or an application-owned rating system.
 - Native-code plugins or unrestricted JavaScript execution.
@@ -684,7 +684,8 @@ release list.
 
 ## Reader
 
-The MVP text reader supports:
+The MVP Reader supports sanitized structured text and vertically scrolling image-page documents.
+Text releases additionally support:
 
 - font family from a bundled safe set;
 - font size;
@@ -697,9 +698,10 @@ The MVP text reader supports:
 - offline and cache status;
 - retry and alternative-release actions.
 
-Remote HTML is sanitized into an application-owned chapter document model
-before rendering. Script, style, iframe, form, tracking, and executable content
-are not rendered in the reader.
+Remote HTML is sanitized into an application-owned chapter document model before rendering.
+Image sources may return bounded HTTPS image-page descriptors with stable page identities; the host
+loads the media directly and never renders plugin HTML. Script, style, iframe, form, tracking, and
+executable content are not rendered in the reader.
 
 If the active release fails, the reader offers other releases of the same
 canonical chapter before treating the chapter as unavailable.
@@ -708,7 +710,8 @@ canonical chapter before treating the chapter as unavailable.
 
 ### Cache
 
-- Successfully read chapter documents are cached automatically.
+- Persistable chapter documents are cached automatically. Online-only remote-image documents are
+  not serialized into the chapter-blob cache.
 - Cache is bounded by configurable storage size and recency.
 - Cache eviction never deletes explicit offline downloads.
 - Cache entries are keyed by release identity and content fingerprint.
@@ -867,8 +870,8 @@ Design constraints:
   sync.
 - Plugin requests and parsing are bounded and cancellable.
 - Full history sync runs off the main thread.
-- Reader rendering uses sanitized structured content rather than a live remote
-  page.
+- Reader rendering uses sanitized structured text/image descriptors rather than a live remote
+  page or embedded website.
 - Database indexes cover story, mapping, canonical chapter sort order, release
   external identity, language, and synchronization checkpoints.
 

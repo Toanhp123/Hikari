@@ -83,6 +83,25 @@ class ReaderDocumentRepositoryTest {
         assertEquals(listOf("second" to "network"), store.writes)
     }
 
+
+    @Test
+    fun remoteImageDocumentsStayOnlineAndAreNotWrittenToLocalStore() = runTest {
+        val store = FakeStore()
+        val imageDocument = ReaderDocument(
+            null,
+            listOf(ReaderBlock.ImagePage("image-1", "https://node.example/page.png")),
+            "image-fingerprint",
+        )
+        val source = FakeSource(
+            results = mutableMapOf("release" to ReaderSourceResult.Success(imageDocument)),
+        )
+
+        val result = repository(store, source).load(request(candidate("release")))
+
+        assertEquals(false, assertIs<ReaderLoadResult.Success>(result).fromStore)
+        assertEquals(emptyList(), store.writes)
+    }
+
     @Test
     fun quarantinesMismatchedStoreEntryAndPreservesCancellation() = runTest {
         val store = FakeStore(readResult = document("wrong"))

@@ -63,6 +63,22 @@ class MappingSheetTest {
     }
 
     @Test
+    fun replacementCandidateUsesExplicitReplaceAction() {
+        compose.setContent {
+            HikariTheme {
+                MappingItemsTestHost(
+                    state = stateWithCandidate(replacesSourceStoryId = "source-1"),
+                    actions = MappingActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Replace").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Replaces source-1").assertIsDisplayed()
+        compose.onAllNodesWithText("Approve").assertCountEquals(0)
+    }
+
+    @Test
     fun urlInputAndResolveStayUiActions() {
         val url = mutableStateOf("")
         var resolved = false
@@ -138,7 +154,7 @@ private fun MappingItemsTestHost(
     }
 }
 
-private fun stateWithCandidate() = MappingUiState(
+private fun stateWithCandidate(replacesSourceStoryId: String? = null) = MappingUiState(
     candidates = listOf(
         MappingCandidateUiModel(
             pluginId = PluginId("org.example.reader"),
@@ -149,6 +165,7 @@ private fun stateWithCandidate() = MappingUiState(
             score = 0.95,
             evidenceLabels = listOf("Title 100%", "Authors 100%", "Content type match"),
             fromUrl = false,
+            replacesSourceStoryId = replacesSourceStoryId,
         ),
     ),
 )

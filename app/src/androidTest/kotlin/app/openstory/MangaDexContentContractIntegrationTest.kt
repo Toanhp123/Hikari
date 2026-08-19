@@ -9,9 +9,12 @@ import app.openstory.plugins.api.protocol.PageDto
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.content.ContentResolveUrlRequestDto
 import app.openstory.plugins.api.protocol.content.ContentSearchRequestDto
+import app.openstory.plugins.api.protocol.content.ChapterDocumentDto
+import app.openstory.plugins.api.protocol.content.ContentChapterRequestDto
 import app.openstory.plugins.api.protocol.content.ContentChaptersRequestDto
 import app.openstory.plugins.api.protocol.content.ContentReleaseDto
 import app.openstory.plugins.api.protocol.content.ContentStoryCandidateDto
+import app.openstory.plugins.api.protocol.content.ImagePageBlockDto
 import app.openstory.plugins.runtime.PluginCallResult
 import app.openstory.plugins.runtime.capabilities.CapabilityDispatcher
 import app.openstory.plugins.runtime.capabilities.http.PluginHttpRequest
@@ -36,7 +39,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class MangaDexContentContractIntegrationTest {
     @Test
-    fun referencePluginExecutesSearchAndUrlResolutionAgainstFixtureApi() = runBlocking {
+    fun referencePluginExecutesContentFlowAgainstFixtureApi() = runBlocking {
         assumeTrue(JavaScriptSandbox.isSupported())
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val testContext = instrumentation.context
@@ -54,11 +57,14 @@ class MangaDexContentContractIntegrationTest {
         val pluginPackage = verified.requireSuccess("package verification")
         val manifest = pluginPackage.manifest
         assertEquals(setOf("api.mangadex.org", "mangadex.org"), manifest.capabilities.network?.hosts)
+        assertEquals(false, manifest.capabilities.reader?.offlineDownload)
+        assertEquals(true, manifest.capabilities.reader?.remoteImages)
         val script = pluginPackage.entries.getValue("main.js").decodeToString()
         val dispatcher = FixtureMangaDexDispatcher(
             searchBody = fixtureText(testContext, "search.json"),
             detailsBody = fixtureText(testContext, "details.json"),
             chaptersBody = fixtureText(testContext, "chapters.json"),
+            atHomeBody = fixtureText(testContext, "at-home.json"),
         )
         val engine = AndroidxJavaScriptEngine(appContext)
         try {
@@ -110,6 +116,30 @@ class MangaDexContentContractIntegrationTest {
             assertEquals("1100", chapterPage.items.single().rawNumber)
             assertEquals("en", chapterPage.items.single().languageTag)
             assertTrue(dispatcher.requestedUrls.any { it.contains("/feed?") })
+
+            val chapter = runner.run(
+                PluginId(MANGADEX_PLUGIN_ID),
+                manifest,
+                script,
+                PluginOperation.CONTENT_CHAPTER,
+                Json.encodeToJsonElement(ContentChapterRequestDto(FIXTURE_CHAPTER_ID)),
+            )
+            val chapterDocument = Json.decodeFromJsonElement<ChapterDocumentDto>(
+                chapter.requireSuccess("content.chapter", dispatcher.requestedUrls),
+            )
+            val imagePages = chapterDocument.blocks.map { block -> block as ImagePageBlockDto }
+            assertEquals(2, imagePages.size)
+            assertEquals(
+                "3303dd03ac8d27452cce3f2a882e94b2/" +
+                    "1-f7a76de10d346de7ba01786762ebbedc666b412ad0d4b73baa330a2a392dbcdd.png",
+                imagePages.first().stableId,
+            )
+            assertEquals(
+                "https://uploads.mangadex.org/data/3303dd03ac8d27452cce3f2a882e94b2/" +
+                    "1-f7a76de10d346de7ba01786762ebbedc666b412ad0d4b73baa330a2a392dbcdd.png",
+                imagePages.first().imageUrl,
+            )
+            assertTrue(dispatcher.requestedUrls.any { it.endsWith("/at-home/server/$FIXTURE_CHAPTER_ID") })
         } finally {
             engine.close()
         }
@@ -131,6 +161,7 @@ private class FixtureMangaDexDispatcher(
     private val searchBody: String,
     private val detailsBody: String,
     private val chaptersBody: String,
+    private val atHomeBody: String,
 ) : CapabilityDispatcher {
     val requestedUrls = mutableListOf<String>()
 
@@ -146,6 +177,7 @@ private class FixtureMangaDexDispatcher(
                 PluginOperation.CONTENT_SEARCH.wireName,
                 PluginOperation.CONTENT_RESOLVE_URL.wireName,
                 PluginOperation.CONTENT_CHAPTERS.wireName,
+                PluginOperation.CONTENT_CHAPTER.wireName,
             ) &&
             requestPolicy.allowedHosts == setOf("api.mangadex.org", "mangadex.org")
         if (!validContext || method != "http.execute") {
@@ -157,6 +189,7 @@ private class FixtureMangaDexDispatcher(
             request.url.startsWith("https://api.mangadex.org/manga?") -> searchBody
             request.url.startsWith("https://api.mangadex.org/manga/$ONE_PIECE_MANGADEX_ID?") -> detailsBody
             request.url.startsWith("https://api.mangadex.org/manga/$ONE_PIECE_MANGADEX_ID/feed?") -> chaptersBody
+            request.url == "https://api.mangadex.org/at-home/server/$FIXTURE_CHAPTER_ID" -> atHomeBody
             else -> return PluginCallResult.Failure("plugin.fixture_url_unexpected", false)
         }
         return PluginCallResult.Success(
@@ -171,3 +204,4 @@ private object NoOpDiagnostics : PluginDiagnosticsSink {
 }
 
 private const val HTTP_OK = 200
+private const val FIXTURE_CHAPTER_ID = "11111111-2222-4333-8444-555555555555"

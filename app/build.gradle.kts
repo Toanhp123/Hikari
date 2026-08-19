@@ -1,3 +1,5 @@
+import app.openstory.build.packaging.CanonicalPluginPackageTask
+
 plugins {
     alias(libs.plugins.roborazzi)
     alias(libs.plugins.androidx.baselineprofile)
@@ -17,14 +19,16 @@ val packageMyAnimeListPlugin by tasks.registering(Zip::class) {
     isPreserveFileTimestamps = false
 }
 
-val packageMangaDexPlugin by tasks.registering(Zip::class) {
-    from(layout.projectDirectory.dir("../bundled-plugins/mangadex-content")) {
-        include("manifest.json", "main.js")
-    }
-    destinationDirectory.set(layout.projectDirectory.dir("src/main/assets/plugins"))
-    archiveFileName.set("mangadex-content.osp")
-    isReproducibleFileOrder = true
-    isPreserveFileTimestamps = false
+val packageMangaDexPlugin by tasks.registering(CanonicalPluginPackageTask::class) {
+    manifestFile.set(
+        layout.projectDirectory.file("../bundled-plugins/mangadex-content/manifest.json"),
+    )
+    mainScriptFile.set(
+        layout.projectDirectory.file("../bundled-plugins/mangadex-content/main.js"),
+    )
+    archiveFile.set(
+        layout.projectDirectory.file("src/main/assets/plugins/mangadex-content.osp"),
+    )
 }
 
 tasks.named("preBuild") {
@@ -59,6 +63,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             optimization {
                 enable = true
             }

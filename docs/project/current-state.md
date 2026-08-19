@@ -56,7 +56,7 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
 | `:reader` | Sanitized document loading, deterministic release selection/fallback, and exact progress policy/contracts |
-| `:feature:reader` | Restorable Reader state and accessible structured-text Compose presentation |
+| `:feature:reader` | Restorable Reader state and accessible structured text / vertical image-page Compose presentation |
 | `:downloads` | Explicit download state, automatic-cache quota/eviction, Reader resolution, and reconciliation policy |
 | `:storage:files` | Atomic opaque chapter-blob persistence, inventory, and low-space admission |
 
@@ -73,6 +73,14 @@ runtime persistence SPI.
 - The bundled registry is an extensible distribution list, not a single-provider architecture
   invariant. Current architecture verification requires every production `.osp` asset to have a
   matching descriptor and rejects undeclared assets.
+- MangaDex `1.3.0` exposes online image-page chapter bodies through `content.chapter`. Its manifest
+  explicitly opts into host-rendered remote images and disables offline download; Reader image requests
+  use bounded in-memory caching and do not bypass Hikari's managed storage quota through a separate
+  image disk cache.
+- MangaDex@Home image success/failure reporting to `api.mangadex.network/report` is not yet
+  implemented. Reader retry refreshes chapter delivery metadata and obtains a fresh base URL, but
+  provider load reporting remains a release-hardening follow-up before the MangaDex image path is
+  considered provider-complete.
 - Catalog Home, Search, and Story details are source-preserving, cache-first, and exposed
   through catalog-owned repository/services.
 - Matching and aggregate ranking are deterministic and preserve source scores/scales.

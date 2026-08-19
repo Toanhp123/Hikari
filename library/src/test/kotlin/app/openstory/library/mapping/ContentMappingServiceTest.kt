@@ -77,6 +77,30 @@ class ContentMappingServiceTest {
     }
 
     @Test
+    fun searchForReviewExcludesAlreadyLinkedCandidateButKeepsAlternativeFromSamePlugin() = runTest {
+        val repository = RecordingRepository(
+            currentMappings = listOf(
+                ContentMapping(
+                    storyId = STORY_ID,
+                    pluginId = PLUGIN_ID,
+                    sourceStoryId = "source-1",
+                    origin = ContentMappingOrigin.USER_APPROVED,
+                    policyVersion = 1,
+                    updatedAt = 5L,
+                ),
+            ),
+        )
+        val service = service(
+            repository = repository,
+            stories = listOf(contentStory("source-1"), contentStory("source-2")),
+        )
+
+        val report = service.searchForReview(STORY_ID)
+
+        assertEquals(listOf("source-2"), report.candidates.map(ContentMappingCandidate::sourceStoryId))
+    }
+
+    @Test
     fun rejectRecordsCandidatePolicyVersion() = runTest {
         val repository = RecordingRepository()
         val clock = FakeClock(70L)
@@ -145,14 +169,17 @@ private data class RecordedWrite(
     val replaceableOrigins: Set<ContentMappingOrigin>,
 )
 
-private class RecordingRepository : ContentMappingRepository {
+private class RecordingRepository(
+    private val currentMappings: List<ContentMapping> = emptyList(),
+) : ContentMappingRepository {
     val writes = mutableListOf<RecordedWrite>()
     val recordedRejections = mutableListOf<ContentMappingRejection>()
     val rejections = mutableSetOf<ContentMappingRejection>()
 
-    override fun observe(storyId: StoryId): Flow<List<ContentMapping>> = flowOf(emptyList())
+    override fun observe(storyId: StoryId): Flow<List<ContentMapping>> =
+        flowOf(currentMappings.filter { mapping -> mapping.storyId == storyId })
 
-    override fun observeAll(): Flow<List<ContentMapping>> = flowOf(emptyList())
+    override fun observeAll(): Flow<List<ContentMapping>> = flowOf(currentMappings)
 
     override suspend fun compareAndWrite(
         mapping: ContentMapping,

@@ -74,29 +74,31 @@ private fun ReaderViewport.progress(
 ): ReadingPosition? {
     val blockIndex = (itemIndex - titleOffset).coerceAtLeast(0)
     val block = document.blocks.getOrNull(blockIndex) ?: return null
-    val blockCharacters = block.characterCount()
-    val characterOffset = if (itemIndex < titleOffset) {
-        0
-    } else {
-        (
-            (-itemOffset).coerceAtLeast(0).toFloat() /
-                itemSize.coerceAtLeast(1) * blockCharacters
-            ).roundToInt().coerceIn(0, blockCharacters)
+    val blockExtent = block.progressExtent()
+    val visibleFraction = (-itemOffset).coerceAtLeast(0).toFloat() / itemSize.coerceAtLeast(1)
+    val characterOffset = when {
+        itemIndex < titleOffset || block is ReaderBlock.ImagePage -> 0
+        else -> (visibleFraction * blockExtent).roundToInt().coerceIn(0, blockExtent)
     }
     val fraction = if (reachedEnd) {
         1f
     } else {
-        val withinBlock = characterOffset.toFloat() / blockCharacters.coerceAtLeast(1)
+        val withinBlock = if (block is ReaderBlock.ImagePage) {
+            visibleFraction.coerceIn(0f, 1f)
+        } else {
+            characterOffset.toFloat() / blockExtent.coerceAtLeast(1)
+        }
         ((blockIndex + withinBlock) / document.blocks.size).coerceIn(0f, 1f)
     }
     return ReadingPosition(block.id, characterOffset, fraction)
 }
 
-internal fun ReaderBlock.characterCount(): Int = when (this) {
+internal fun ReaderBlock.progressExtent(): Int = when (this) {
     is ReaderBlock.Paragraph -> text.length
     is ReaderBlock.Heading -> text.length
     is ReaderBlock.Divider -> 0
     is ReaderBlock.Note -> text.length
+    is ReaderBlock.ImagePage -> 0
 }
 
 internal const val READER_PROGRESS_SAMPLE_MILLIS = 100L

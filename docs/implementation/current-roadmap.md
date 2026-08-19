@@ -157,12 +157,12 @@ capability; WorkManager and notification adapters stay in `:app`.
 
 | Task | Outcome | State |
 |---|---|---|
-| 08.01 | Reader modules and bounded structured-document validation | Implementation present |
+| 08.01 | Reader modules and bounded structured text/image-document validation | Implementation present |
 | 08.02 | Pure deterministic release selection | Implementation present |
 | 08.03 | Store-first sanitized content loading and fallback | Implementation present |
 | 08.04 | Debounced exact progress and Room schema 5 | Implementation present |
 | 08.05 | Stable-ID navigation and process-restorable Reader state | Implementation present |
-| 08.06 | Accessible structured-text Compose Reader UI | Implementation present |
+| 08.06 | Accessible structured text / vertical image-page Compose Reader UI | Implementation present |
 
 ## Critical dependency chain
 

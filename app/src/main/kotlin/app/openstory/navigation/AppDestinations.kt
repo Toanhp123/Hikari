@@ -1,6 +1,7 @@
 package app.openstory.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -177,6 +178,7 @@ internal fun StoryDestination(
     route: AppRoute.Story,
     navigate: (AppRoute) -> Unit,
     contentPadding: PaddingValues,
+    snackbarHostState: SnackbarHostState,
 ) {
     val storyId = StoryId(route.storyId)
     val viewModel = hiltViewModel<StoryViewModel, StoryViewModel.Factory>(
@@ -197,6 +199,7 @@ internal fun StoryDestination(
         prewarmSections = prewarmSections,
         downloadViewModel = downloadViewModel,
         navigateToReader = navigateToReader,
+        snackbarHostState = snackbarHostState,
     )
     StoryScreen(
         state = state,

@@ -15,6 +15,8 @@ interface ReaderDocumentSourceRegistry {
 
 fun interface ReaderSourceAvailability {
     suspend fun enabledPluginIds(): Set<PluginId>
+
+    suspend fun offlineDownloadPluginIds(): Set<PluginId> = enabledPluginIds()
 }
 
 sealed interface ReaderSourceResult {

@@ -47,6 +47,7 @@ data class HikariDimensions(
     val dashboardCardWidth: Dp = 220.dp,
     val readerTopInset: Dp = 104.dp,
     val readerBottomInset: Dp = 96.dp,
+    val readerImagePlaceholderHeight: Dp = 240.dp,
 )
 
 @Immutable

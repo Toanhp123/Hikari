@@ -1,0 +1,15 @@
+{
+  "result": "ok",
+  "baseUrl": "https://uploads.mangadex.org",
+  "chapter": {
+    "hash": "3303dd03ac8d27452cce3f2a882e94b2",
+    "data": [
+      "1-f7a76de10d346de7ba01786762ebbedc666b412ad0d4b73baa330a2a392dbcdd.png",
+      "2-2a5e95dfec7f15cd01f9a63835be18a22fb77a10fd2d62858c7dcbb6e6c622f9.png"
+    ],
+    "dataSaver": [
+      "1-27e7476475e60ad4cc4cefdb9b2dce29d84f490e145211f6b2e14b13bdb57f33.jpg",
+      "2-b4e2cd69df2648279b7d87d44f7860d3fc760aa442e08c49579359f3cf4b4f14.jpg"
+    ]
+  }
+}

@@ -614,3 +614,20 @@ assert_contains 'BENCHMARK_EPOCH_MILLIS - index - 1' \
 assert_contains 'library.changeStatus(' \
   'app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt' \
   'benchmark fixture reseeding must refresh Library ordering instead of relying on add-if-absent timestamps from a previous run'
+
+# Image Reader contracts: lazy image pages must avoid subcomposition and keep sizing/cache identity explicit.
+assert_contains 'rememberAsyncImagePainter(' \
+  'feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderImagePage.kt' \
+  'Reader image pages must use the non-subcomposed Coil painter path inside LazyColumn'
+assert_contains 'rememberConstraintsSizeResolver()' \
+  'feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderImagePage.kt' \
+  'Reader image requests must be sized from Compose constraints'
+assert_contains 'readerImagePlaceholderHeight' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariDimensions.kt' \
+  'Reader image loading geometry must remain a design-system token'
+assert_contains 'diskCachePolicy(CachePolicy.DISABLED)' \
+  'feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderImagePage.kt' \
+  'online-only Reader image pages must not bypass Hikari storage quota through Coil disk cache'
+assert_absent 'SubcomposeAsyncImage' \
+  'feature/reader/src/main/kotlin/app/openstory/reader/ui' \
+  'Reader LazyColumn must not use subcomposition for image loading states'

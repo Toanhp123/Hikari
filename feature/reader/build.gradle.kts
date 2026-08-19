@@ -30,6 +30,8 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.javax.inject)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(platform(libs.androidx.compose.bom))

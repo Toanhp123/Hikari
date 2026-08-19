@@ -22,6 +22,8 @@ reader_screen="$root/feature/reader/src/main/kotlin/app/openstory/reader/ui/Read
 p5_checkpoint="$root/docs/internal/checkpoints/performance-wave-p5.md"
 baseline_profile="$root/app/src/release/generated/baselineProfiles/baseline-prof.txt"
 startup_profile="$root/app/src/release/generated/baselineProfiles/startup-prof.txt"
+plugin_packager="$root/build-logic/src/main/kotlin/app/openstory/build/packaging/CanonicalPluginPackageTask.kt"
+app_build="$root/app/build.gradle.kts"
 
 ! grep -Eq '^fun MappingSheet\(' "$mapping" || fail "retired standalone MappingSheet wrapper is still in production"
 grep -q '^fun LazyListScope.mappingItems(' "$mapping" || fail "production mapping lazy-item API is missing"
@@ -56,11 +58,30 @@ grep -q 'data object Discover : AppRoute' "$app_route" || fail "Discover route i
 ! grep -q 'ReaderProgressNavigation' "$reader_screen" || fail "single-hop Reader progress navigation wrapper remains in production"
 ! grep -q 'UNREACHABLE_CODE' "$http_capability" || fail "HTTP redirect flow still relies on unreachable-code suppression"
 
+[[ -f "$plugin_packager" ]] || fail "canonical bundled-plugin packager task is missing from build logic"
+grep -q 'tasks.registering(CanonicalPluginPackageTask::class)' "$app_build" ||
+  fail "MangaDex packaging must use the configuration-cache-safe custom task"
+! grep -q 'val mangaDexPluginSources = listOf' "$app_build" ||
+  fail "MangaDex packaging still captures build-script source objects"
+
 ! grep -q 'skips `HikariBackdropHost` entirely' "$p5_checkpoint" || fail "P5 checkpoint still describes the retired focused-route backdrop branch"
 
 for profile in "$baseline_profile" "$startup_profile"; do
   ! grep -Eq 'ReaderProgressNavigation|CatalogMatchExplanation|ContentTitleEvidence|TitleEvidence|bestTitleEvidence|AppRoute[$](Plugins|Settings)' "$profile" ||
     fail "generated profile still references retired source symbols: $profile"
+
+  stale_reader_profile_descriptors=(
+    'InstalledPlugin;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)V'
+    'ChapterListViewModel;-><init>(Lapp/openstory/catalog/ui/chapters/ChapterListAssistedArgs;Lapp/openstory/chapters/repository/ChapterRepository;)V'
+    'ChapterReleaseUiModel;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)V'
+    'ReaderDownloadContentSource;-><init>(Lapp/openstory/chapters/repository/ChapterReleaseLookup;Lapp/openstory/reader/content/ReaderDocumentSourceRegistry;)V'
+    'PluginCapabilities;-><init>(ILapp/openstory/plugins/api/manifest/NetworkCapability;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V'
+    'ReaderContent(Lapp/openstory/reader/document/ReaderDocument;FLjava/lang/String;ILandroidx/compose/foundation/layout/PaddingValues;'
+  )
+  for descriptor in "${stale_reader_profile_descriptors[@]}"; do
+    ! grep -Fq "$descriptor" "$profile" ||
+      fail "generated profile still contains a stale Reader/image ABI descriptor: $profile"
+  done
 done
 
 echo "Source hygiene policy verified."

@@ -38,7 +38,8 @@ A contract test should cover:
 ## Bundled content plugin
 
 `bundled-plugins/mangadex-content` is the official bundled package exercising the Wave 06
-`CONTENT` contract. It implements `content.search` and `content.resolveUrl` against MangaDex.
+`CONTENT` contract. It implements `content.search`, `content.resolveUrl`, `content.chapters`, and
+`content.chapter` against MangaDex; chapter bodies are online-only MangaDex@Home image descriptors.
 The build packages it into `app/src/main/assets/plugins/mangadex-content.osp`; production startup
 provisions it from the same app-owned descriptor registry as the MyAnimeList catalog package.
 Android instrumentation validates and executes that production artifact through the installer,

@@ -161,6 +161,18 @@ data class NoteBlockDto(val text: String) : ChapterBlockDto {
     }
 }
 
+@Serializable
+@SerialName("image")
+data class ImagePageBlockDto(
+    val stableId: String,
+    val imageUrl: String,
+) : ChapterBlockDto {
+    init {
+        requireSourceId(stableId, "stableId")
+        requireHttpsUrl(imageUrl)
+    }
+}
+
 private const val MAX_ID_LENGTH = 1024
 private const val MAX_QUERY_LENGTH = 1024
 private const val MAX_URL_LENGTH = 4096
