@@ -1,0 +1,1311 @@
+diff --git a/core/designsystem/src/androidTest/kotlin/app/openstory/designsystem/HikariStateComponentsTest.kt b/core/designsystem/src/androidTest/kotlin/app/openstory/designsystem/HikariStateComponentsTest.kt
+index dd91bab..6842614 100644
+--- a/core/designsystem/src/androidTest/kotlin/app/openstory/designsystem/HikariStateComponentsTest.kt
++++ b/core/designsystem/src/androidTest/kotlin/app/openstory/designsystem/HikariStateComponentsTest.kt
+@@ -1,12 +1,22 @@
+ package app.openstory.designsystem
+ 
++import androidx.compose.foundation.layout.size
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.platform.testTag
++import androidx.compose.ui.semantics.SemanticsActions
++import androidx.compose.ui.test.SemanticsMatcher
++import androidx.compose.ui.test.assert
+ import androidx.compose.ui.test.assertIsDisplayed
+ import androidx.compose.ui.test.junit4.v2.createComposeRule
++import androidx.compose.ui.test.onNodeWithTag
+ import androidx.compose.ui.test.onNodeWithText
+ import androidx.compose.ui.test.performClick
++import androidx.compose.ui.unit.dp
+ import app.openstory.designsystem.state.HikariEmptyState
+ import app.openstory.designsystem.state.HikariErrorState
+ import app.openstory.designsystem.state.HikariLoadingState
++import app.openstory.designsystem.state.HikariSkeleton
+ import app.openstory.designsystem.theme.HikariTheme
+ import org.junit.Assert.assertTrue
+ import org.junit.Rule
+@@ -25,6 +35,22 @@ class HikariStateComponentsTest {
+         compose.onNodeWithText("Loading chapters").assertIsDisplayed()
+     }
+ 
++    @Test
++    fun skeletonIsStaticAndNonActionable() {
++        compose.setContent {
++            HikariTheme {
++                HikariSkeleton(
++                    modifier = Modifier.size(120.dp).testTag("skeleton"),
++                    shape = MaterialTheme.shapes.medium,
++                )
++            }
++        }
++
++        compose.onNodeWithTag("skeleton").assert(
++            SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick),
++        )
++    }
++
+     @Test
+     fun emptyActionInvokesCallback() {
+         var invoked = false
+diff --git a/core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedControl.kt b/core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedControl.kt
+new file mode 100644
+index 0000000..5366376
+--- /dev/null
++++ b/core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedControl.kt
+@@ -0,0 +1,52 @@
++package app.openstory.designsystem.control
++
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.SegmentedButton
++import androidx.compose.material3.SegmentedButtonDefaults
++import androidx.compose.material3.SingleChoiceSegmentedButtonRow
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Modifier
++import app.openstory.designsystem.theme.hikariDimensions
++
++data class HikariSegmentedOption<T>(
++    val key: T,
++    val label: String,
++    val enabled: Boolean = true,
++)
++
++@Composable
++fun <T> HikariSegmentedControl(
++    options: List<HikariSegmentedOption<T>>,
++    selectedKey: T,
++    onSelected: (T) -> Unit,
++    modifier: Modifier = Modifier,
++) {
++    require(options.isNotEmpty()) { "Segmented control requires at least one option" }
++    require(options.map { option -> option.key }.distinct().size == options.size) {
++        "Segmented control option keys must be unique"
++    }
++    require(options.any { option -> option.key == selectedKey }) {
++        "Segmented control selected key must match an option"
++    }
++
++    SingleChoiceSegmentedButtonRow(
++        modifier = modifier.fillMaxWidth(),
++    ) {
++        options.forEachIndexed { index, option ->
++            SegmentedButton(
++                selected = option.key == selectedKey,
++                onClick = { onSelected(option.key) },
++                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
++                modifier = Modifier
++                    .weight(1f)
++                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
++                enabled = option.enabled,
++            ) {
++                Text(text = option.label)
++            }
++        }
++    }
++}
+diff --git a/core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariSkeleton.kt b/core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariSkeleton.kt
+new file mode 100644
+index 0000000..da8fa67
+--- /dev/null
++++ b/core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariSkeleton.kt
+@@ -0,0 +1,21 @@
++package app.openstory.designsystem.state
++
++import androidx.compose.foundation.background
++import androidx.compose.foundation.layout.Box
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.Shape
++
++@Composable
++fun HikariSkeleton(
++    modifier: Modifier = Modifier,
++    shape: Shape,
++) {
++    Box(
++        modifier = modifier
++            .clip(shape)
++            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
++    )
++}
+diff --git a/core/designsystem/src/test/kotlin/app/openstory/designsystem/HikariProductPrimitivesTest.kt b/core/designsystem/src/test/kotlin/app/openstory/designsystem/HikariProductPrimitivesTest.kt
+index 1bd71de..952aeef 100644
+--- a/core/designsystem/src/test/kotlin/app/openstory/designsystem/HikariProductPrimitivesTest.kt
++++ b/core/designsystem/src/test/kotlin/app/openstory/designsystem/HikariProductPrimitivesTest.kt
+@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.path
+ import androidx.compose.ui.platform.testTag
+ import androidx.compose.ui.platform.LocalDensity
+ import androidx.compose.ui.test.assertHeightIsAtLeast
++import androidx.compose.ui.test.assertIsNotEnabled
+ import androidx.compose.ui.test.assertIsNotSelected
+ import androidx.compose.ui.test.assertIsSelected
+ import androidx.compose.ui.test.assertWidthIsAtLeast
+@@ -43,6 +44,8 @@ import app.openstory.designsystem.control.HikariIconAction
+ import app.openstory.designsystem.control.HikariIconActionStyle
+ import app.openstory.designsystem.control.HikariInlineAction
+ import app.openstory.designsystem.control.HikariPrimaryAction
++import app.openstory.designsystem.control.HikariSegmentedControl
++import app.openstory.designsystem.control.HikariSegmentedOption
+ import app.openstory.designsystem.control.HikariUtilityAction
+ import app.openstory.designsystem.glass.HikariBackdropMode
+ import app.openstory.designsystem.glass.HikariGlassRenderingMode
+@@ -340,6 +343,35 @@ class HikariProductPrimitivesTest {
+             .assertHeightIsAtLeast(48.dp)
+     }
+ 
++    @Test
++    fun segmentedControlSharesWidthAndHonorsDisabledSelection() {
++        val selected = "manga"
++        compose.setContent {
++            HikariTheme {
++                Box(Modifier.width(320.dp)) {
++                    HikariSegmentedControl(
++                        options = listOf(
++                            HikariSegmentedOption("manga", "Manga"),
++                            HikariSegmentedOption("light-novel", "Light Novel", enabled = false),
++                        ),
++                        selectedKey = selected,
++                        onSelected = { selected = it },
++                    )
++                }
++            }
++        }
++
++        val manga = compose.onNodeWithText("Manga")
++        val lightNovel = compose.onNodeWithText("Light Novel")
++        manga.assertIsSelected().assertHeightIsAtLeast(48.dp)
++        lightNovel.assertIsNotSelected().assertIsNotEnabled().assertHeightIsAtLeast(48.dp)
++
++        val mangaWidth = manga.fetchSemanticsNode().boundsInRoot.width
++        val lightNovelWidth = lightNovel.fetchSemanticsNode().boundsInRoot.width
++        assertEquals(mangaWidth, lightNovelWidth, 0.5f)
++
++    }
++
+     @Test
+     fun floatingNavigationExposesSelectionAndMinimumTargets() {
+         var selected by mutableStateOf("home")
+diff --git a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipeline.kt b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipeline.kt
+index d1af794..40683d3 100644
+--- a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipeline.kt
++++ b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipeline.kt
+@@ -1,46 +1,72 @@
+ package app.openstory.catalog.ui.discover
+ 
+-import app.openstory.catalog.home.CatalogHomeQuery
+ import app.openstory.catalog.model.CatalogHomeSnapshot
+-import app.openstory.catalog.ranking.RankedCatalogStory
++import app.openstory.catalog.model.ContentType
++import app.openstory.catalog.ranking.AggregateRanking
++import app.openstory.catalog.ranking.CatalogEntryWithStory
+ import app.openstory.common.dispatchers.AppDispatchers
+ import app.openstory.common.id.PluginId
+ import javax.inject.Inject
+ import kotlinx.coroutines.withContext
+ 
+ internal data class DiscoverPreparedContent(
+-    val catalogs: List<CatalogHomeSnapshot>,
+-    val rankedStories: List<RankedCatalogStory>,
++    val homes: List<CatalogHomeSnapshot>,
+ )
+ 
+ class DiscoverProjectionPipeline @Inject constructor(
+-    private val query: CatalogHomeQuery,
+     dispatchers: AppDispatchers,
+ ) {
+     private val dispatcher = dispatchers.default
+ 
+     internal suspend fun prepare(homes: List<CatalogHomeSnapshot>): DiscoverPreparedContent =
+         withContext(dispatcher) {
+-            DiscoverPreparedContent(
+-                catalogs = homes,
+-                rankedStories = query.rank(homes),
+-            )
++            DiscoverPreparedContent(homes = homes)
+         }
+ 
+     internal suspend fun project(
+         content: DiscoverPreparedContent,
+-        selectedCatalogId: PluginId?,
+-        selectedSourceId: String?,
++        selectedContentType: ContentType,
++        loading: Boolean,
+         refreshing: Boolean,
+         refreshReport: DiscoverRefreshReport?,
++        legacySelectedCatalogId: PluginId? = null,
++        legacySelectedSourceId: String? = null,
+     ): DiscoverUiState = withContext(dispatcher) {
+-        projectDiscoverState(
+-            catalogs = content.catalogs,
+-            rankedStories = content.rankedStories,
+-            selectedCatalogId = selectedCatalogId,
+-            selectedSourceId = selectedSourceId,
++        val semantic = projectSemanticDiscoverState(
++            homes = content.homes,
++            selectedContentType = selectedContentType,
++            loading = loading,
+             refreshing = refreshing,
+             refreshReport = refreshReport,
+         )
++
++        // Task 7 removes these source-centric fields. Keeping them populated here makes
++        // Tasks 4-6 safe to apply independently while the old DiscoverScreen still exists.
++        val rankedStories = rankForLegacyPresentation(content.homes)
++        val legacy = projectDiscoverState(
++            catalogs = content.homes,
++            rankedStories = rankedStories,
++            selectedCatalogId = legacySelectedCatalogId,
++            selectedSourceId = legacySelectedSourceId,
++            refreshing = refreshing,
++            refreshReport = refreshReport,
++        )
++
++        semantic.copy(
++            catalogs = legacy.catalogs,
++            rankedStories = legacy.rankedStories,
++            featured = legacy.featured,
++            quickCategories = legacy.quickCategories,
++            shelves = legacy.shelves,
++            selectedCatalogId = legacy.selectedCatalogId,
++            selectedSourceId = legacy.selectedSourceId,
++        )
+     }
+ }
++
++private fun rankForLegacyPresentation(homes: List<CatalogHomeSnapshot>) = AggregateRanking().rank(
++    homes
++        .flatMap { home -> home.sections.flatMap { section -> section.items } }
++        .distinctBy { entry -> entry.pluginId to entry.sourceId }
++        .map { entry -> CatalogEntryWithStory(entry.storyId, entry) },
++)
+diff --git a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverSemanticProjection.kt b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverSemanticProjection.kt
+new file mode 100644
+index 0000000..06bc79b
+--- /dev/null
++++ b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverSemanticProjection.kt
+@@ -0,0 +1,199 @@
++package app.openstory.catalog.ui.discover
++
++import app.openstory.catalog.model.CatalogEntry
++import app.openstory.catalog.model.CatalogFeedKind
++import app.openstory.catalog.model.CatalogHomeSnapshot
++import app.openstory.catalog.model.ContentType
++import app.openstory.catalog.model.Score
++import app.openstory.catalog.ranking.AggregateRanking
++import app.openstory.catalog.ranking.CatalogEntryWithStory
++import app.openstory.common.id.StoryId
++
++internal fun projectSemanticDiscoverState(
++    homes: List<CatalogHomeSnapshot>,
++    selectedContentType: ContentType,
++    loading: Boolean,
++    refreshing: Boolean,
++    refreshReport: DiscoverRefreshReport?,
++): DiscoverUiState {
++    val entriesByStory = selectedEntriesByStory(homes, selectedContentType)
++    val popular = projectPopular(homes, selectedContentType)
++        .mapNotNull { storyId -> entriesByStory[storyId]?.toPresentationItem() }
++    val latestUpdates = projectLatest(homes, selectedContentType)
++        .mapNotNull { storyId -> entriesByStory[storyId]?.toPresentationItem() }
++    val topRated = projectTopRated(homes, selectedContentType)
++        .mapNotNull { storyId -> entriesByStory[storyId]?.toPresentationItem() }
++
++    return DiscoverUiState(
++        selectedContentType = selectedContentType,
++        mediaTypeOptions = defaultDiscoverMediaTypeOptions,
++        popular = popular,
++        latestUpdates = latestUpdates,
++        topRated = topRated,
++        loading = loading,
++        refreshing = refreshing,
++        refreshReport = refreshReport,
++    )
++}
++
++private data class FeedContribution(
++    val entry: CatalogEntry,
++    val itemIndex: Int,
++)
++
++private fun semanticFeedContributions(
++    homes: List<CatalogHomeSnapshot>,
++    selectedContentType: ContentType,
++    feedKind: CatalogFeedKind,
++): List<FeedContribution> = homes
++    .asSequence()
++    .flatMap { home ->
++        home.sections.asSequence()
++            .filter { section -> section.kind == feedKind }
++            .flatMap { section ->
++                section.items.asSequence().mapIndexedNotNull { index, entry ->
++                    entry.takeIf { it.contentType == selectedContentType }
++                        ?.let { FeedContribution(it, index) }
++                }
++            }
++    }
++    .toList()
++
++private fun selectedEntriesByStory(
++    homes: List<CatalogHomeSnapshot>,
++    selectedContentType: ContentType,
++): Map<StoryId, List<CatalogEntry>> = homes
++    .asSequence()
++    .flatMap { home -> home.sections.asSequence().flatMap { it.items.asSequence() } }
++    .filter { entry -> entry.contentType == selectedContentType }
++    .groupBy { entry -> entry.pluginId to entry.sourceId }
++    .values
++    .mapNotNull { duplicates -> duplicates.minWithOrNull(presentationOrder) }
++    .groupBy(CatalogEntry::storyId)
++
++private fun projectPopular(
++    homes: List<CatalogHomeSnapshot>,
++    selectedContentType: ContentType,
++): List<StoryId> = semanticFeedContributions(homes, selectedContentType, CatalogFeedKind.POPULAR)
++    .groupBy { contribution -> contribution.entry.storyId }
++    .map { (storyId, contributions) ->
++        val bestRank = contributions.minOf { contribution ->
++            contribution.entry.popularityRank ?: (contribution.itemIndex + 1).toLong()
++        }
++        storyId to bestRank
++    }
++    .sortedWith(
++        compareBy<Pair<StoryId, Long>> { it.second }
++            .thenBy { it.first.value },
++    )
++    .take(MAX_POPULAR)
++    .map(Pair<StoryId, Long>::first)
++
++private fun projectLatest(
++    homes: List<CatalogHomeSnapshot>,
++    selectedContentType: ContentType,
++): List<StoryId> = semanticFeedContributions(
++    homes,
++    selectedContentType,
++    CatalogFeedKind.LATEST_UPDATES,
++)
++    .mapNotNull { contribution ->
++        contribution.entry.latestUpdate?.let { update ->
++            Triple(contribution.entry.storyId, update.atEpochMillis, contribution.entry)
++        }
++    }
++    .groupBy { it.first }
++    .map { (storyId, candidates) ->
++        val newest = candidates.minWithOrNull(
++            compareByDescending<Triple<StoryId, Long, CatalogEntry>> { it.second }
++                .thenBy { it.third.pluginId.value }
++                .thenBy { it.third.sourceId },
++        )
++        storyId to checkNotNull(newest).second
++    }
++    .sortedWith(
++        compareByDescending<Pair<StoryId, Long>> { it.second }
++            .thenBy { it.first.value },
++    )
++    .take(MAX_LATEST)
++    .map(Pair<StoryId, Long>::first)
++
++private fun projectTopRated(
++    homes: List<CatalogHomeSnapshot>,
++    selectedContentType: ContentType,
++): List<StoryId> {
++    val entries = semanticFeedContributions(homes, selectedContentType, CatalogFeedKind.TOP_RATED)
++        .map(FeedContribution::entry)
++        .filter { entry -> entry.score != null }
++        .groupBy { entry -> entry.pluginId to entry.sourceId }
++        .values
++        .mapNotNull { duplicates -> duplicates.minWithOrNull(presentationOrder) }
++        .map { entry -> CatalogEntryWithStory(entry.storyId, entry) }
++
++    return AggregateRanking()
++        .rank(entries)
++        .take(MAX_TOP_RATED)
++        .map { ranked -> ranked.storyId }
++}
++
++private fun List<CatalogEntry>.toPresentationItem(): DiscoverStoryItem {
++    val ordered = sortedWith(presentationOrder)
++    val primary = ordered.first()
++    val genres = ordered
++        .firstOrNull { entry -> entry.genres.isNotEmpty() }
++        ?.genres
++        .orEmpty()
++        .sorted()
++        .take(MAX_PRESENTED_GENRES)
++    val status = ordered.firstNotNullOfOrNull(CatalogEntry::publicationStatus)
++    val latestUpdate = ordered
++        .filter { entry -> entry.latestUpdate != null }
++        .minWithOrNull(
++            compareByDescending<CatalogEntry> { it.latestUpdate!!.atEpochMillis }
++                .thenBy { it.pluginId.value }
++                .thenBy { it.sourceId },
++        )
++        ?.latestUpdate
++    val score = ordered
++        .filter { entry -> entry.score != null }
++        .minWithOrNull(
++            compareByDescending<CatalogEntry> { entry -> entry.score!!.normalizedValue() }
++                .thenBy { it.pluginId.value }
++                .thenBy { it.sourceId },
++        )
++        ?.score
++
++    return DiscoverStoryItem(
++        storyId = primary.storyId,
++        title = primary.title,
++        coverUrl = primary.coverUrl,
++        contentType = primary.contentType,
++        score = score,
++        genres = genres,
++        publicationStatus = status,
++        latestUpdate = latestUpdate,
++    )
++}
++
++private fun Score.normalizedValue(): Double = value / scale
++
++private val presentationOrder =
++    compareByDescending<CatalogEntry> { !it.coverUrl.isNullOrBlank() }
++        .thenByDescending { it.genres.isNotEmpty() }
++        .thenByDescending { it.publicationStatus != null }
++        .thenByDescending { it.score != null }
++        .thenByDescending { it.latestUpdate != null }
++        .thenBy { it.pluginId.value }
++        .thenBy { it.sourceId }
++        .thenBy { it.title }
++        .thenBy { it.coverUrl.orEmpty() }
++        .thenBy { it.genres.sorted().joinToString(separator = "\u0000") }
++        .thenBy { it.publicationStatus?.name.orEmpty() }
++        .thenByDescending { it.score?.normalizedValue() ?: Double.NEGATIVE_INFINITY }
++        .thenByDescending { it.latestUpdate?.atEpochMillis ?: Long.MIN_VALUE }
++        .thenBy { it.latestUpdate?.releaseLabel.orEmpty() }
++
++private const val MAX_POPULAR = 5
++private const val MAX_LATEST = 9
++private const val MAX_TOP_RATED = 5
++private const val MAX_PRESENTED_GENRES = 3
+diff --git a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverStoryItem.kt b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverStoryItem.kt
+new file mode 100644
+index 0000000..9a2be92
+--- /dev/null
++++ b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverStoryItem.kt
+@@ -0,0 +1,28 @@
++package app.openstory.catalog.ui.discover
++
++import app.openstory.catalog.model.CatalogLatestUpdate
++import app.openstory.catalog.model.ContentType
++import app.openstory.catalog.model.PublicationStatus
++import app.openstory.catalog.model.Score
++import app.openstory.common.id.StoryId
++
++data class DiscoverMediaTypeOption(
++    val contentType: ContentType,
++    val enabled: Boolean,
++)
++
++data class DiscoverStoryItem(
++    val storyId: StoryId,
++    val title: String,
++    val coverUrl: String?,
++    val contentType: ContentType,
++    val score: Score?,
++    val genres: List<String>,
++    val publicationStatus: PublicationStatus?,
++    val latestUpdate: CatalogLatestUpdate?,
++)
++
++internal val defaultDiscoverMediaTypeOptions = listOf(
++    DiscoverMediaTypeOption(ContentType.MANGA, enabled = true),
++    DiscoverMediaTypeOption(ContentType.LIGHT_NOVEL, enabled = false),
++)
+diff --git a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverUiState.kt b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverUiState.kt
+index 0c69801..d2edf73 100644
+--- a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverUiState.kt
++++ b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverUiState.kt
+@@ -2,10 +2,18 @@ package app.openstory.catalog.ui.discover
+ 
+ import app.openstory.catalog.model.CatalogEntry
+ import app.openstory.catalog.model.CatalogHomeSnapshot
++import app.openstory.catalog.model.ContentType
+ import app.openstory.catalog.ranking.RankedCatalogStory
+ import app.openstory.common.id.PluginId
+ 
+ data class DiscoverUiState(
++    val selectedContentType: ContentType = ContentType.MANGA,
++    val mediaTypeOptions: List<DiscoverMediaTypeOption> = defaultDiscoverMediaTypeOptions,
++    val popular: List<DiscoverStoryItem> = emptyList(),
++    val latestUpdates: List<DiscoverStoryItem> = emptyList(),
++    val topRated: List<DiscoverStoryItem> = emptyList(),
++    val loading: Boolean = true,
++    // Transitional source-centric fields remain until the Compose migration in Task 7.
+     val catalogs: List<CatalogHomeSnapshot> = emptyList(),
+     val rankedStories: List<RankedCatalogStory> = emptyList(),
+     val featured: CatalogEntry? = null,
+@@ -90,6 +98,7 @@ fun projectDiscoverState(
+             .orEmpty()
+     }
+     return DiscoverUiState(
++        loading = false,
+         catalogs = catalogs,
+         rankedStories = rankedStories,
+         featured = selectFeatured(rankedStories),
+diff --git a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt
+index 1a0a77f..d850bad 100644
+--- a/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt
++++ b/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt
+@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
+ import app.openstory.catalog.home.CatalogRefreshResult
+ import app.openstory.catalog.home.CatalogRefreshService
+ import app.openstory.catalog.model.CatalogHomeSnapshot
++import app.openstory.catalog.model.ContentType
+ import app.openstory.catalog.repository.CatalogRepository
+ import app.openstory.common.id.PluginId
+ import dagger.hilt.android.lifecycle.HiltViewModel
+@@ -14,10 +15,11 @@ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.combine
++import kotlinx.coroutines.flow.collect
+ import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.flow
+ import kotlinx.coroutines.flow.map
+ import kotlinx.coroutines.flow.shareIn
+-import kotlinx.coroutines.flow.flow
+ import kotlinx.coroutines.flow.stateIn
+ import kotlinx.coroutines.launch
+ 
+@@ -43,13 +45,15 @@ class DiscoverViewModel @Inject constructor(
+             .map(projection::prepare)
+             .preserveLatestOnFailure(
+                 RANKING_OBSERVE_EXCEPTION_CODE,
+-                DiscoverPreparedContent(emptyList(), emptyList()),
++                DiscoverPreparedContent(emptyList()),
+             ),
+         refresh = {
+             val cachedHomes = homes.first()
+             refreshService.refresh().toReport(cachedHomes)
+         },
+     )
++    private val selectedContentType = MutableStateFlow(ContentType.MANGA)
++    private val initialLoading = MutableStateFlow(true)
+     private val selectedCatalogId = MutableStateFlow<PluginId?>(null)
+     private val selectedSourceId = MutableStateFlow<String?>(null)
+     private val refreshing = MutableStateFlow(false)
+@@ -60,25 +64,39 @@ class DiscoverViewModel @Inject constructor(
+         bootstrapEmptyCache()
+     }
+ 
+-    private val selectionState = combine(
++    private val legacySelectionState = combine(
+         selectedCatalogId,
+         selectedSourceId,
+     ) { pluginId, sourceId ->
+-        DiscoverSelection(pluginId, sourceId)
++        LegacyDiscoverSelection(pluginId, sourceId)
++    }
++
++    private val presentationSelectionState = combine(
++        legacySelectionState,
++        selectedContentType,
++        initialLoading,
++    ) { legacySelection, contentType, loading ->
++        DiscoverPresentationSelection(
++            legacy = legacySelection,
++            contentType = contentType,
++            loading = loading,
++        )
+     }
+ 
+     private val contentState = combine(
+         dependencies.content,
+-        selectionState,
++        presentationSelectionState,
+         refreshing,
+         refreshReport,
+     ) { content, selection, busy, report ->
+         projection.project(
+             content = content,
+-            selectedCatalogId = selection.pluginId,
+-            selectedSourceId = selection.sourceId,
++            selectedContentType = selection.contentType,
++            loading = selection.loading && content.homes.isEmpty(),
+             refreshing = busy,
+             refreshReport = report,
++            legacySelectedCatalogId = selection.legacy.pluginId,
++            legacySelectedSourceId = selection.legacy.sourceId,
+         )
+     }
+ 
+@@ -97,30 +115,40 @@ class DiscoverViewModel @Inject constructor(
+         viewModelScope.launch {
+             if (bootstrapAttempted) return@launch
+             bootstrapAttempted = true
+-            val homes = dependencies.homes.first()
+-            if (homes.isEmpty() && observationFailure.value == null) {
+-                refresh()
++            val cachedHomes = dependencies.homes.first()
++            if (cachedHomes.isEmpty() && observationFailure.value == null) {
++                performRefresh()
+             }
++            initialLoading.value = false
+         }
+     }
+ 
+     fun refresh() {
++        viewModelScope.launch { performRefresh() }
++    }
++
++    private suspend fun performRefresh() {
+         if (refreshing.value) return
+         refreshing.value = true
+-        viewModelScope.launch {
+-            try {
+-                refreshReport.value = dependencies.refresh()
+-                refreshFailure.value = null
+-            } catch (cancellation: CancellationException) {
+-                throw cancellation
+-            } catch (_: Exception) {
+-                refreshFailure.value = DiscoverUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
+-            } finally {
+-                refreshing.value = false
+-            }
++        try {
++            refreshReport.value = dependencies.refresh()
++            refreshFailure.value = null
++        } catch (cancellation: CancellationException) {
++            throw cancellation
++        } catch (_: Exception) {
++            refreshFailure.value = DiscoverUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
++        } finally {
++            refreshing.value = false
+         }
+     }
+ 
++    fun selectContentType(contentType: ContentType) {
++        if (contentType != ContentType.MANGA) return
++        selectedContentType.value = contentType
++    }
++
++    // Transitional callbacks keep the pre-redesign DiscoverScreen functional until Task 7
++    // replaces source/category selection with the media selector.
+     fun selectCatalog(pluginId: PluginId) {
+         selectedCatalogId.value = pluginId
+         selectedSourceId.value = null
+@@ -142,11 +170,17 @@ class DiscoverViewModel @Inject constructor(
+         val refresh: suspend () -> DiscoverRefreshReport,
+     )
+ 
+-    private data class DiscoverSelection(
++    private data class LegacyDiscoverSelection(
+         val pluginId: PluginId?,
+         val sourceId: String?,
+     )
+ 
++    private data class DiscoverPresentationSelection(
++        val legacy: LegacyDiscoverSelection,
++        val contentType: ContentType,
++        val loading: Boolean,
++    )
++
+     private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {
+         var latest = initial
+         try {
+diff --git a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipelineTest.kt b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipelineTest.kt
+index 1ec6795..5d0c535 100644
+--- a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipelineTest.kt
++++ b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipelineTest.kt
+@@ -1,12 +1,12 @@
+ package app.openstory.catalog.ui.discover
+ 
+-import app.openstory.catalog.home.CatalogHomeQuery
+ import app.openstory.catalog.model.CatalogEntry
++import app.openstory.catalog.model.CatalogFeedKind
+ import app.openstory.catalog.model.CatalogHomeSection
+ import app.openstory.catalog.model.CatalogHomeSnapshot
+ import app.openstory.catalog.model.ContentType
+-import app.openstory.common.id.PluginId
+ import app.openstory.common.dispatchers.FixedAppDispatchers
++import app.openstory.common.id.PluginId
+ import app.openstory.common.id.StoryId
+ import kotlin.test.Test
+ import kotlin.test.assertEquals
+@@ -17,24 +17,25 @@ import kotlinx.coroutines.test.runTest
+ @OptIn(ExperimentalCoroutinesApi::class)
+ class DiscoverProjectionPipelineTest {
+     @Test
+-    fun oneHomeSnapshotProducesRankingAndProjectedStateTogether() = runTest {
++    fun oneHomeSnapshotProducesSemanticStateOnProjectionBoundary() = runTest {
+         val dispatcher = StandardTestDispatcher(testScheduler)
+         val pipeline = DiscoverProjectionPipeline(
+-            CatalogHomeQuery(),
+             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+         )
+         val homes = listOf(snapshot())
+ 
+         val prepared = pipeline.prepare(homes)
+-        val projected = pipeline.project(prepared, null, null, false, null)
+-
+-        assertEquals(homes, prepared.catalogs)
+-        assertEquals(listOf(StoryId("story:one")), prepared.rankedStories.map { it.storyId })
+-        assertEquals("Story One", projected.featured?.title)
+-        assertEquals(
+-            listOf("combined:ranked", "catalog.one:popular"),
+-            projected.shelves.map(DiscoverShelf::key),
++        val projected = pipeline.project(
++            content = prepared,
++            selectedContentType = ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
++
++        assertEquals(homes, prepared.homes)
++        assertEquals(listOf(StoryId("story:one")), projected.popular.map(DiscoverStoryItem::storyId))
++        assertEquals(ContentType.MANGA, projected.selectedContentType)
+     }
+ }
+ 
+@@ -51,9 +52,10 @@ private fun snapshot() = CatalogHomeSnapshot(
+                     sourceId = "entry:one",
+                     storyId = StoryId("story:one"),
+                     title = "Story One",
+-                    contentType = ContentType.WEB_NOVEL,
++                    contentType = ContentType.MANGA,
+                 ),
+             ),
++            kind = CatalogFeedKind.POPULAR,
+         ),
+     ),
+     refreshedAtEpochMillis = 1L,
+diff --git a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionTest.kt b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionTest.kt
+index 1a9f3e4..44dfc16 100644
+--- a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionTest.kt
++++ b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionTest.kt
+@@ -1,187 +1,286 @@
+ package app.openstory.catalog.ui.discover
+ 
+ import app.openstory.catalog.model.CatalogEntry
++import app.openstory.catalog.model.CatalogFeedKind
+ import app.openstory.catalog.model.CatalogHomeSection
+ import app.openstory.catalog.model.CatalogHomeSnapshot
++import app.openstory.catalog.model.CatalogLatestUpdate
+ import app.openstory.catalog.model.ContentType
++import app.openstory.catalog.model.PublicationStatus
+ import app.openstory.catalog.model.Score
+-import app.openstory.catalog.ranking.CatalogRankContribution
+-import app.openstory.catalog.ranking.RankedCatalogStory
+ import app.openstory.common.id.PluginId
+ import app.openstory.common.id.StoryId
+ import kotlin.test.Test
+ import kotlin.test.assertEquals
++import kotlin.test.assertFalse
++import kotlin.test.assertTrue
+ 
+ class DiscoverProjectionTest {
+     @Test
+-    fun featuredPrefersArtworkThenScoreThenStableIdentity() {
+-        val noArtwork = entry("plugin.a", "source-a", "A", score = 10.0)
+-        val laterIdentity = entry("plugin.b", "source-b", "B", coverUrl = "b.jpg", score = 8.0)
+-        val stableWinner = entry("plugin.a", "source-a", "C", coverUrl = "c.jpg", score = 8.0)
+-
+-        assertEquals(
+-            stableWinner,
+-            selectFeatured(
+-                listOf(
+-                    ranked(noArtwork, 1.0),
+-                    ranked(laterIdentity, 0.8),
+-                    ranked(stableWinner, 0.8),
++    fun semanticProjectionAppliesSectionLimitsAndMediaPolicy() {
++        val state = projectSemanticDiscoverState(
++            homes = listOf(
++                snapshot(
++                    plugin = "catalog.a",
++                    sections = listOf(
++                        section(CatalogFeedKind.POPULAR, entries("popular", 6)),
++                        section(
++                            CatalogFeedKind.LATEST_UPDATES,
++                            entries("latest", 10) { index ->
++                                copy(latestUpdate = CatalogLatestUpdate(1_000L - index, "ch-$index"))
++                            },
++                        ),
++                        section(CatalogFeedKind.TOP_RATED, entries("rated", 6)),
++                    ),
+                 ),
+             ),
++            selectedContentType = ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
+-    }
+-
+-    @Test
+-    fun featuredFallsBackToHighestRankedEntryWithoutArtwork() {
+-        val lower = entry("plugin.a", "source-a", "Lower", score = 7.0)
+-        val higher = entry("plugin.b", "source-b", "Higher", score = 9.0)
+-
+-        assertEquals(higher, selectFeatured(listOf(ranked(lower, 0.7), ranked(higher, 0.9))))
+-    }
+-
+-    @Test
+-    fun featuredIgnoresBlankArtworkReferences() {
+-        val blankArtwork = entry("plugin.a", "source-a", "Blank", coverUrl = "  ")
+-        val usableArtwork = entry("plugin.b", "source-b", "Usable", coverUrl = "cover.jpg")
+ 
++        assertEquals(5, state.popular.size)
++        assertEquals(9, state.latestUpdates.size)
++        assertEquals(5, state.topRated.size)
++        assertEquals(ContentType.MANGA, state.selectedContentType)
+         assertEquals(
+-            usableArtwork,
+-            selectFeatured(listOf(ranked(blankArtwork, 1.0), ranked(usableArtwork, 0.8))),
++            listOf(ContentType.MANGA, ContentType.LIGHT_NOVEL),
++            state.mediaTypeOptions.map(DiscoverMediaTypeOption::contentType),
+         )
++        assertTrue(state.mediaTypeOptions.single { it.contentType == ContentType.MANGA }.enabled)
++        assertFalse(state.mediaTypeOptions.single { it.contentType == ContentType.LIGHT_NOVEL }.enabled)
+     }
+ 
+     @Test
+-    fun combinedShelfPrefersArtworkThenScoreThenStableIdentity() {
+-        val plain = entry("plugin.a", "source-a", "Plain", score = 9.0)
+-        val artwork = entry("plugin.b", "source-b", "Artwork", coverUrl = "cover.jpg", score = 7.0)
+-        val state = projectDiscoverState(
+-            catalogs = emptyList(),
+-            rankedStories = listOf(rankedWithContributions(0.9, plain, artwork)),
++    fun semanticProjectionUsesExplicitFeedKindAndSelectedContentTypeOnly() {
++        val manga = entry("catalog.a", "manga", "Manga", ContentType.MANGA)
++        val novel = entry("catalog.a", "novel", "Novel", ContentType.LIGHT_NOVEL)
++        val other = entry("catalog.a", "other", "Other", ContentType.MANGA)
++        val state = projectSemanticDiscoverState(
++            homes = listOf(
++                snapshot(
++                    "catalog.a",
++                    listOf(
++                        section(CatalogFeedKind.POPULAR, listOf(manga, novel)),
++                        section(CatalogFeedKind.OTHER, listOf(other)),
++                    ),
++                ),
++            ),
++            selectedContentType = ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
+ 
+-        assertEquals(artwork, state.shelves.single().entries.single())
++        assertEquals(listOf(manga.storyId), state.popular.map(DiscoverStoryItem::storyId))
++        assertTrue(state.latestUpdates.isEmpty())
++        assertTrue(state.topRated.isEmpty())
+     }
+ 
+     @Test
+-    fun partialRefreshKeepsCachedShelvesVisible() {
+-        val cached = entry("plugin.a", "source-a", "Cached", coverUrl = "cached.jpg")
+-        val state = projectDiscoverState(
+-            catalogs = listOf(snapshot("plugin.a", "source-a", cached)),
+-            rankedStories = listOf(ranked(cached, 0.8)),
+-            refreshing = true,
+-            refreshReport = DiscoverRefreshReport(
+-                failed = mapOf(PluginId("plugin.b") to "catalog.offline"),
++    fun latestRequiresSourceTimestampAndIgnoresCacheRefreshTime() {
++        val newest = entry("catalog.a", "newest", "Newest").copy(
++            latestUpdate = CatalogLatestUpdate(900L, "9"),
++        )
++        val middle = entry("catalog.a", "middle", "Middle").copy(
++            latestUpdate = CatalogLatestUpdate(800L, "8"),
++        )
++        val oldest = entry("catalog.a", "oldest", "Oldest").copy(
++            latestUpdate = CatalogLatestUpdate(700L, "7"),
++        )
++        val missing = entry("catalog.a", "missing", "Missing")
++        val state = projectSemanticDiscoverState(
++            homes = listOf(
++                snapshot(
++                    plugin = "catalog.a",
++                    sections = listOf(
++                        section(CatalogFeedKind.LATEST_UPDATES, listOf(oldest, missing, newest, middle)),
++                    ),
++                    refreshedAt = 99_999L,
++                ),
+             ),
++            selectedContentType = ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
+ 
+-        assertEquals("Cached", state.shelves.first().entries.single().title)
+-        assertEquals("catalog.offline", state.refreshReport?.failed?.get(PluginId("plugin.b")))
++        assertEquals(
++            listOf("Newest", "Middle", "Oldest"),
++            state.latestUpdates.map(DiscoverStoryItem::title),
++        )
+     }
+ 
+     @Test
+-    fun sourceSectionsPreservePluginOrderAndIdentity() {
+-        val first = entry("plugin.b", "source-2", "Second plugin")
+-        val second = entry("plugin.a", "source-1", "First plugin")
+-        val state = projectDiscoverState(
+-            catalogs = listOf(
+-                snapshot("plugin.b", "source-2", first),
+-                snapshot("plugin.a", "source-1", second),
++    fun topRatedRequiresScoreAndNormalizesDifferentScales() {
++        val nineOfTen = entry("catalog.a", "nine", "Nine of ten", score = Score(9.0, 10.0))
++        val ninetyFive = entry("catalog.a", "ninety-five", "Ninety five", score = Score(95.0, 100.0))
++        val missing = entry("catalog.a", "missing", "Missing", score = null)
++        val state = projectSemanticDiscoverState(
++            homes = listOf(
++                snapshot(
++                    "catalog.a",
++                    listOf(section(CatalogFeedKind.TOP_RATED, listOf(nineOfTen, missing, ninetyFive))),
++                ),
+             ),
+-            rankedStories = emptyList(),
++            selectedContentType = ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
+ 
+-        assertEquals(
+-            listOf("plugin.b:source-2", "plugin.a:source-1"),
+-            state.shelves.map(DiscoverShelf::key),
+-        )
++        assertEquals(listOf("Ninety five", "Nine of ten"), state.topRated.map(DiscoverStoryItem::title))
+     }
+ 
+     @Test
+-    fun quickCategoriesUseExecutableSourceGroupsInRepositoryOrder() {
+-        val first = entry("plugin.b", "source-2", "Second plugin")
+-        val second = entry("plugin.a", "source-1", "First plugin")
+-        val state = projectDiscoverState(
+-            catalogs = listOf(
+-                snapshot("plugin.b", "source-2", first),
+-                snapshot("plugin.a", "source-1", second),
++    fun popularUsesPopularityRankBeforeStableFeedPositionFallback() {
++        val fallbackFirst = entry("catalog.a", "fallback", "Fallback").copy(popularityRank = null)
++        val rankTwo = entry("catalog.a", "two", "Rank two").copy(popularityRank = 2)
++        val rankOne = entry("catalog.a", "one", "Rank one").copy(popularityRank = 1)
++        val state = projectSemanticDiscoverState(
++            homes = listOf(
++                snapshot(
++                    "catalog.a",
++                    listOf(
++                        section(
++                            CatalogFeedKind.POPULAR,
++                            listOf(rankTwo, rankOne, fallbackFirst),
++                        ),
++                    ),
++                ),
+             ),
+-            rankedStories = emptyList(),
++            selectedContentType = ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
+ 
+         assertEquals(
+-            listOf("Trending" to PluginId("plugin.b"), "Trending" to PluginId("plugin.a")),
+-            state.quickCategories.map { it.label to it.pluginId },
++            listOf("Rank one", "Rank two", "Fallback"),
++            state.popular.map(DiscoverStoryItem::title),
+         )
+     }
+ 
+     @Test
+-    fun selectedQuickCategoryProjectsOnlyItsOwnedSourceSection() {
+-        val trending = entry("plugin.a", "trending", "Trending story")
+-        val latest = entry("plugin.a", "latest", "Latest story")
+-        val catalog = CatalogHomeSnapshot(
+-            pluginId = PluginId("plugin.a"),
+-            pluginVersion = "1.0.0",
+-            refreshedAtEpochMillis = 100L,
+-            sections = listOf(
+-                CatalogHomeSection("trending", "Trending", listOf(trending)),
+-                CatalogHomeSection("latest", "Latest", listOf(latest)),
++    fun canonicalStoryDedupesAndMetadataMergeIsDeterministic() {
++        val storyId = StoryId("story:shared")
++        val sparse = entry("catalog.a", "shared-a", "Shared A", storyId = storyId).copy(
++            genres = setOf("Action", "Fantasy"),
++            publicationStatus = PublicationStatus.ONGOING,
++            score = Score(8.0, 10.0),
++            latestUpdate = CatalogLatestUpdate(700L, "7"),
++        )
++        val artwork = entry("catalog.b", "shared-b", "Shared B", storyId = storyId).copy(
++            coverUrl = "https://example.test/shared.jpg",
++            score = Score(90.0, 100.0),
++            latestUpdate = CatalogLatestUpdate(900L, "9"),
++        )
++        val first = snapshot(
++            "catalog.a",
++            listOf(
++                section(CatalogFeedKind.POPULAR, listOf(sparse)),
++                section(CatalogFeedKind.LATEST_UPDATES, listOf(sparse)),
++                section(CatalogFeedKind.TOP_RATED, listOf(sparse)),
++            ),
++        )
++        val second = snapshot(
++            "catalog.b",
++            listOf(
++                section(CatalogFeedKind.POPULAR, listOf(artwork)),
++                section(CatalogFeedKind.LATEST_UPDATES, listOf(artwork)),
++                section(CatalogFeedKind.TOP_RATED, listOf(artwork)),
+             ),
+         )
+-        val state = projectDiscoverState(
+-            catalogs = listOf(catalog),
+-            rankedStories = emptyList(),
+-            selectedCatalogId = PluginId("plugin.a"),
+-            selectedSourceId = "latest",
++
++        val forward = projectSemanticDiscoverState(
++            listOf(first, second),
++            ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
++        )
++        val reversed = projectSemanticDiscoverState(
++            listOf(second, first),
++            ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
+ 
+-        assertEquals(listOf("plugin.a:latest"), state.shelves.map(DiscoverShelf::key))
++        assertEquals(forward.popular, reversed.popular)
++        assertEquals(forward.latestUpdates, reversed.latestUpdates)
++        assertEquals(forward.topRated, reversed.topRated)
++        assertEquals(1, forward.popular.size)
++        assertEquals("https://example.test/shared.jpg", forward.popular.single().coverUrl)
++        assertEquals(listOf("Action", "Fantasy"), forward.popular.single().genres)
++        assertEquals(PublicationStatus.ONGOING, forward.popular.single().publicationStatus)
++        assertEquals(CatalogLatestUpdate(900L, "9"), forward.popular.single().latestUpdate)
++        assertEquals(Score(90.0, 100.0), forward.popular.single().score)
+     }
+ 
+     @Test
+-    fun missingSelectedCatalogFallsBackToCombinedProjection() {
+-        val available = entry("plugin.a", "source-1", "Available")
+-        val state = projectDiscoverState(
+-            catalogs = listOf(snapshot("plugin.a", "source-1", available)),
+-            rankedStories = listOf(ranked(available, 0.8)),
+-            selectedCatalogId = PluginId("plugin.missing"),
++    fun partialSemanticFeedsStayEmptyInsteadOfFabricatingFallbackMeaning() {
++        val rated = entry("catalog.a", "rated", "Rated")
++        val state = projectSemanticDiscoverState(
++            homes = listOf(
++                snapshot(
++                    "catalog.a",
++                    listOf(section(CatalogFeedKind.TOP_RATED, listOf(rated))),
++                ),
++            ),
++            selectedContentType = ContentType.MANGA,
++            loading = false,
++            refreshing = false,
++            refreshReport = null,
+         )
+ 
+-        assertEquals(null, state.selectedCatalogId)
+-        assertEquals("Across catalogs", state.shelves.first().title)
++        assertTrue(state.popular.isEmpty())
++        assertTrue(state.latestUpdates.isEmpty())
++        assertEquals(listOf("Rated"), state.topRated.map(DiscoverStoryItem::title))
+     }
+ 
+-    private fun ranked(entry: CatalogEntry, score: Double) = RankedCatalogStory(
+-        storyId = entry.storyId,
+-        orderingScore = score,
+-        contributions = listOf(CatalogRankContribution(entry, score, 1.0)),
+-    )
++    private fun entries(
++        prefix: String,
++        count: Int,
++        transform: CatalogEntry.(Int) -> CatalogEntry = { this },
++    ): List<CatalogEntry> = (0 until count).map { index ->
++        entry("catalog.a", "$prefix-$index", "$prefix $index")
++            .copy(popularityRank = (index + 1).toLong())
++            .transform(index)
++    }
+ 
+-    private fun rankedWithContributions(score: Double, vararg entries: CatalogEntry) = RankedCatalogStory(
+-        storyId = entries.first().storyId,
+-        orderingScore = score,
+-        contributions = entries.map { CatalogRankContribution(it, score, 1.0) },
++    private fun section(kind: CatalogFeedKind, items: List<CatalogEntry>) = CatalogHomeSection(
++        sourceId = "section-${kind.name.lowercase()}-${items.firstOrNull()?.sourceId.orEmpty()}",
++        title = kind.name,
++        items = items,
++        kind = kind,
+     )
+ 
+-    private fun snapshot(plugin: String, source: String, entry: CatalogEntry) = CatalogHomeSnapshot(
++    private fun snapshot(
++        plugin: String,
++        sections: List<CatalogHomeSection>,
++        refreshedAt: Long = 100L,
++    ) = CatalogHomeSnapshot(
+         pluginId = PluginId(plugin),
+         pluginVersion = "1.0.0",
+-        refreshedAtEpochMillis = 100L,
+-        sections = listOf(CatalogHomeSection(source, "Trending", listOf(entry))),
++        refreshedAtEpochMillis = refreshedAt,
++        sections = sections,
+     )
+ 
+     private fun entry(
+         plugin: String,
+         source: String,
+         title: String,
+-        coverUrl: String? = null,
+-        score: Double = 8.0,
++        contentType: ContentType = ContentType.MANGA,
++        score: Score? = Score(8.0, 10.0),
++        storyId: StoryId = StoryId("story:$plugin:$source"),
+     ) = CatalogEntry(
+-        storyId = StoryId("${plugin}_${source}_${title.lowercase().replace(' ', '_')}"),
++        storyId = storyId,
+         pluginId = PluginId(plugin),
+         sourceId = source,
+         title = title,
+-        contentType = ContentType.WEB_NOVEL,
+-        coverUrl = coverUrl,
+-        score = Score(score, 10.0),
++        contentType = contentType,
++        score = score,
+     )
+ }
+diff --git a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModelTest.kt b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModelTest.kt
+index 4234466..1a37724 100644
+--- a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModelTest.kt
++++ b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModelTest.kt
+@@ -1,10 +1,10 @@
+ package app.openstory.catalog.ui.discover
+ 
+ import app.openstory.catalog.CatalogStoreFailure
+-import app.openstory.catalog.home.CatalogHomeQuery
+ import app.openstory.catalog.home.CatalogRefreshService
+ import app.openstory.catalog.matching.StoryMatcher
+ import app.openstory.catalog.model.CatalogEntry
++import app.openstory.catalog.model.CatalogFeedKind
+ import app.openstory.catalog.model.CatalogHomeSection
+ import app.openstory.catalog.model.CatalogHomeSnapshot
+ import app.openstory.catalog.model.ContentType
+@@ -143,6 +143,76 @@ class DiscoverViewModelTest {
+         assertEquals(0, source.homeCalls)
+     }
+ 
++    @Test
++    fun mangaIsDefaultAndLightNovelSelectionIsIgnoredWhileDisabled() = runTest(dispatcher.scheduler) {
++        val repository = FakeRepository(cachedHome())
++        val source = FakeSource()
++        val viewModel = viewModel(repository, source)
++        backgroundScope.launch { viewModel.state.collect() }
++        runCurrent()
++
++        assertEquals(ContentType.MANGA, viewModel.state.value.selectedContentType)
++
++        viewModel.selectContentType(ContentType.LIGHT_NOVEL)
++        runCurrent()
++
++        assertEquals(ContentType.MANGA, viewModel.state.value.selectedContentType)
++        assertEquals(0, source.homeCalls)
++    }
++
++    @Test
++    fun emptyCacheKeepsInitialLoadingUntilBootstrapRefreshFinishes() = runTest(dispatcher.scheduler) {
++        val repository = FakeRepository(emptyList())
++        val source = FakeSource()
++        val release = CompletableDeferred<Unit>()
++        source.homeAction = {
++            release.await()
++            CatalogSourceResult.Success(emptyList())
++        }
++        val viewModel = viewModel(repository, source)
++        backgroundScope.launch { viewModel.state.collect() }
++        runCurrent()
++
++        assertTrue(viewModel.state.value.loading)
++        assertTrue(viewModel.state.value.refreshing)
++
++        release.complete(Unit)
++        runCurrent()
++
++        assertFalse(viewModel.state.value.loading)
++        assertFalse(viewModel.state.value.refreshing)
++        assertTrue(viewModel.state.value.popular.isEmpty())
++        assertTrue(viewModel.state.value.latestUpdates.isEmpty())
++        assertTrue(viewModel.state.value.topRated.isEmpty())
++    }
++
++    @Test
++    fun cachedContentNeverReturnsToSkeletonDuringManualRefresh() = runTest(dispatcher.scheduler) {
++        val repository = FakeRepository(cachedHome())
++        val source = FakeSource()
++        val release = CompletableDeferred<Unit>()
++        source.homeAction = {
++            release.await()
++            CatalogSourceResult.Success(emptyList())
++        }
++        val viewModel = viewModel(repository, source)
++        backgroundScope.launch { viewModel.state.collect() }
++        runCurrent()
++
++        assertFalse(viewModel.state.value.loading)
++        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
++
++        viewModel.refresh()
++        runCurrent()
++
++        assertTrue(viewModel.state.value.refreshing)
++        assertFalse(viewModel.state.value.loading)
++        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
++
++        release.complete(Unit)
++        runCurrent()
++    }
++
+     @Test
+     fun cachedHomeEmitsBeforeRefreshCompletes() = runTest(dispatcher.scheduler) {
+         val repository = FakeRepository(cachedHome())
+@@ -304,7 +374,6 @@ class DiscoverViewModelTest {
+         repository,
+         CatalogRefreshService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
+         DiscoverProjectionPipeline(
+-            CatalogHomeQuery(),
+             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+         ),
+     )
+@@ -380,7 +449,7 @@ private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot
+         sourceId = "source-1",
+         title = "Fixture Novel",
+         authors = setOf("Fixture Author"),
+-        contentType = ContentType.WEB_NOVEL,
++        contentType = ContentType.MANGA,
+         score = Score(8.4, 10.0),
+     )
+     return listOf(
+@@ -388,7 +457,14 @@ private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot
+             pluginId = pluginId,
+             pluginVersion = "1.0.0",
+             refreshedAtEpochMillis = 100L,
+-            sections = listOf(CatalogHomeSection("trending", "Trending", listOf(entry))),
++            sections = listOf(
++                CatalogHomeSection(
++                    sourceId = "trending",
++                    title = "Trending",
++                    items = listOf(entry),
++                    kind = CatalogFeedKind.POPULAR,
++                ),
++            ),
+         ),
+     )
+ }

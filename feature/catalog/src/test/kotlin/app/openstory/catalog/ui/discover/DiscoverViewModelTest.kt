@@ -1,10 +1,10 @@
 package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.catalog.home.CatalogHomeQuery
 import app.openstory.catalog.home.CatalogRefreshService
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
@@ -141,6 +141,76 @@ class DiscoverViewModelTest {
         runCurrent()
 
         assertEquals(0, source.homeCalls)
+    }
+
+    @Test
+    fun mangaIsDefaultAndLightNovelSelectionIsIgnoredWhileDisabled() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val source = FakeSource()
+        val viewModel = viewModel(repository, source)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertEquals(ContentType.MANGA, viewModel.state.value.selectedContentType)
+
+        viewModel.selectContentType(ContentType.LIGHT_NOVEL)
+        runCurrent()
+
+        assertEquals(ContentType.MANGA, viewModel.state.value.selectedContentType)
+        assertEquals(0, source.homeCalls)
+    }
+
+    @Test
+    fun emptyCacheKeepsInitialLoadingUntilBootstrapRefreshFinishes() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(emptyList())
+        val source = FakeSource()
+        val release = CompletableDeferred<Unit>()
+        source.homeAction = {
+            release.await()
+            CatalogSourceResult.Success(emptyList())
+        }
+        val viewModel = viewModel(repository, source)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertTrue(viewModel.state.value.loading)
+        assertTrue(viewModel.state.value.refreshing)
+
+        release.complete(Unit)
+        runCurrent()
+
+        assertFalse(viewModel.state.value.loading)
+        assertFalse(viewModel.state.value.refreshing)
+        assertTrue(viewModel.state.value.popular.isEmpty())
+        assertTrue(viewModel.state.value.latestUpdates.isEmpty())
+        assertTrue(viewModel.state.value.topRated.isEmpty())
+    }
+
+    @Test
+    fun cachedContentNeverReturnsToSkeletonDuringManualRefresh() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val source = FakeSource()
+        val release = CompletableDeferred<Unit>()
+        source.homeAction = {
+            release.await()
+            CatalogSourceResult.Success(emptyList())
+        }
+        val viewModel = viewModel(repository, source)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertFalse(viewModel.state.value.loading)
+        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.refreshing)
+        assertFalse(viewModel.state.value.loading)
+        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
+
+        release.complete(Unit)
+        runCurrent()
     }
 
     @Test
@@ -304,7 +374,6 @@ class DiscoverViewModelTest {
         repository,
         CatalogRefreshService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
         DiscoverProjectionPipeline(
-            CatalogHomeQuery(),
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
         ),
     )
@@ -380,7 +449,7 @@ private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot
         sourceId = "source-1",
         title = "Fixture Novel",
         authors = setOf("Fixture Author"),
-        contentType = ContentType.WEB_NOVEL,
+        contentType = ContentType.MANGA,
         score = Score(8.4, 10.0),
     )
     return listOf(
@@ -388,7 +457,14 @@ private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot
             pluginId = pluginId,
             pluginVersion = "1.0.0",
             refreshedAtEpochMillis = 100L,
-            sections = listOf(CatalogHomeSection("trending", "Trending", listOf(entry))),
+            sections = listOf(
+                CatalogHomeSection(
+                    sourceId = "trending",
+                    title = "Trending",
+                    items = listOf(entry),
+                    kind = CatalogFeedKind.POPULAR,
+                ),
+            ),
         ),
     )
 }

@@ -32,8 +32,8 @@ class HikariThemeTest {
         }
 
         compose.runOnIdle {
-            assertEquals(16.dp, spacing?.large)
-            assertEquals(24.dp, spacing?.extraLarge)
+            assertEquals(16.dp, spacing?.space16)
+            assertEquals(24.dp, spacing?.space24)
         }
     }
 

@@ -1,187 +1,286 @@
 package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
-import app.openstory.catalog.ranking.CatalogRankContribution
-import app.openstory.catalog.ranking.RankedCatalogStory
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class DiscoverProjectionTest {
     @Test
-    fun featuredPrefersArtworkThenScoreThenStableIdentity() {
-        val noArtwork = entry("plugin.a", "source-a", "A", score = 10.0)
-        val laterIdentity = entry("plugin.b", "source-b", "B", coverUrl = "b.jpg", score = 8.0)
-        val stableWinner = entry("plugin.a", "source-a", "C", coverUrl = "c.jpg", score = 8.0)
-
-        assertEquals(
-            stableWinner,
-            selectFeatured(
-                listOf(
-                    ranked(noArtwork, 1.0),
-                    ranked(laterIdentity, 0.8),
-                    ranked(stableWinner, 0.8),
+    fun semanticProjectionAppliesSectionLimitsAndMediaPolicy() {
+        val state = projectSemanticDiscoverState(
+            homes = listOf(
+                snapshot(
+                    plugin = "catalog.a",
+                    sections = listOf(
+                        section(CatalogFeedKind.POPULAR, entries("popular", 6)),
+                        section(
+                            CatalogFeedKind.LATEST_UPDATES,
+                            entries("latest", 10) { index ->
+                                copy(latestUpdate = CatalogLatestUpdate(1_000L - index, "ch-$index"))
+                            },
+                        ),
+                        section(CatalogFeedKind.TOP_RATED, entries("rated", 6)),
+                    ),
                 ),
             ),
+            selectedContentType = ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
         )
-    }
 
-    @Test
-    fun featuredFallsBackToHighestRankedEntryWithoutArtwork() {
-        val lower = entry("plugin.a", "source-a", "Lower", score = 7.0)
-        val higher = entry("plugin.b", "source-b", "Higher", score = 9.0)
-
-        assertEquals(higher, selectFeatured(listOf(ranked(lower, 0.7), ranked(higher, 0.9))))
-    }
-
-    @Test
-    fun featuredIgnoresBlankArtworkReferences() {
-        val blankArtwork = entry("plugin.a", "source-a", "Blank", coverUrl = "  ")
-        val usableArtwork = entry("plugin.b", "source-b", "Usable", coverUrl = "cover.jpg")
-
+        assertEquals(5, state.popular.size)
+        assertEquals(9, state.latestUpdates.size)
+        assertEquals(5, state.topRated.size)
+        assertEquals(ContentType.MANGA, state.selectedContentType)
         assertEquals(
-            usableArtwork,
-            selectFeatured(listOf(ranked(blankArtwork, 1.0), ranked(usableArtwork, 0.8))),
+            listOf(ContentType.MANGA, ContentType.LIGHT_NOVEL),
+            state.mediaTypeOptions.map(DiscoverMediaTypeOption::contentType),
         )
+        assertTrue(state.mediaTypeOptions.single { it.contentType == ContentType.MANGA }.enabled)
+        assertFalse(state.mediaTypeOptions.single { it.contentType == ContentType.LIGHT_NOVEL }.enabled)
     }
 
     @Test
-    fun combinedShelfPrefersArtworkThenScoreThenStableIdentity() {
-        val plain = entry("plugin.a", "source-a", "Plain", score = 9.0)
-        val artwork = entry("plugin.b", "source-b", "Artwork", coverUrl = "cover.jpg", score = 7.0)
-        val state = projectDiscoverState(
-            catalogs = emptyList(),
-            rankedStories = listOf(rankedWithContributions(0.9, plain, artwork)),
-        )
-
-        assertEquals(artwork, state.shelves.single().entries.single())
-    }
-
-    @Test
-    fun partialRefreshKeepsCachedShelvesVisible() {
-        val cached = entry("plugin.a", "source-a", "Cached", coverUrl = "cached.jpg")
-        val state = projectDiscoverState(
-            catalogs = listOf(snapshot("plugin.a", "source-a", cached)),
-            rankedStories = listOf(ranked(cached, 0.8)),
-            refreshing = true,
-            refreshReport = DiscoverRefreshReport(
-                failed = mapOf(PluginId("plugin.b") to "catalog.offline"),
+    fun semanticProjectionUsesExplicitFeedKindAndSelectedContentTypeOnly() {
+        val manga = entry("catalog.a", "manga", "Manga", ContentType.MANGA)
+        val novel = entry("catalog.a", "novel", "Novel", ContentType.LIGHT_NOVEL)
+        val other = entry("catalog.a", "other", "Other", ContentType.MANGA)
+        val state = projectSemanticDiscoverState(
+            homes = listOf(
+                snapshot(
+                    "catalog.a",
+                    listOf(
+                        section(CatalogFeedKind.POPULAR, listOf(manga, novel)),
+                        section(CatalogFeedKind.OTHER, listOf(other)),
+                    ),
+                ),
             ),
+            selectedContentType = ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
         )
 
-        assertEquals("Cached", state.shelves.first().entries.single().title)
-        assertEquals("catalog.offline", state.refreshReport?.failed?.get(PluginId("plugin.b")))
+        assertEquals(listOf(manga.storyId), state.popular.map(DiscoverStoryItem::storyId))
+        assertTrue(state.latestUpdates.isEmpty())
+        assertTrue(state.topRated.isEmpty())
     }
 
     @Test
-    fun sourceSectionsPreservePluginOrderAndIdentity() {
-        val first = entry("plugin.b", "source-2", "Second plugin")
-        val second = entry("plugin.a", "source-1", "First plugin")
-        val state = projectDiscoverState(
-            catalogs = listOf(
-                snapshot("plugin.b", "source-2", first),
-                snapshot("plugin.a", "source-1", second),
-            ),
-            rankedStories = emptyList(),
+    fun latestRequiresSourceTimestampAndIgnoresCacheRefreshTime() {
+        val newest = entry("catalog.a", "newest", "Newest").copy(
+            latestUpdate = CatalogLatestUpdate(900L, "9"),
         )
-
-        assertEquals(
-            listOf("plugin.b:source-2", "plugin.a:source-1"),
-            state.shelves.map(DiscoverShelf::key),
+        val middle = entry("catalog.a", "middle", "Middle").copy(
+            latestUpdate = CatalogLatestUpdate(800L, "8"),
         )
-    }
-
-    @Test
-    fun quickCategoriesUseExecutableSourceGroupsInRepositoryOrder() {
-        val first = entry("plugin.b", "source-2", "Second plugin")
-        val second = entry("plugin.a", "source-1", "First plugin")
-        val state = projectDiscoverState(
-            catalogs = listOf(
-                snapshot("plugin.b", "source-2", first),
-                snapshot("plugin.a", "source-1", second),
+        val oldest = entry("catalog.a", "oldest", "Oldest").copy(
+            latestUpdate = CatalogLatestUpdate(700L, "7"),
+        )
+        val missing = entry("catalog.a", "missing", "Missing")
+        val state = projectSemanticDiscoverState(
+            homes = listOf(
+                snapshot(
+                    plugin = "catalog.a",
+                    sections = listOf(
+                        section(CatalogFeedKind.LATEST_UPDATES, listOf(oldest, missing, newest, middle)),
+                    ),
+                    refreshedAt = 99_999L,
+                ),
             ),
-            rankedStories = emptyList(),
+            selectedContentType = ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
         )
 
         assertEquals(
-            listOf("Trending" to PluginId("plugin.b"), "Trending" to PluginId("plugin.a")),
-            state.quickCategories.map { it.label to it.pluginId },
+            listOf("Newest", "Middle", "Oldest"),
+            state.latestUpdates.map(DiscoverStoryItem::title),
         )
     }
 
     @Test
-    fun selectedQuickCategoryProjectsOnlyItsOwnedSourceSection() {
-        val trending = entry("plugin.a", "trending", "Trending story")
-        val latest = entry("plugin.a", "latest", "Latest story")
-        val catalog = CatalogHomeSnapshot(
-            pluginId = PluginId("plugin.a"),
-            pluginVersion = "1.0.0",
-            refreshedAtEpochMillis = 100L,
-            sections = listOf(
-                CatalogHomeSection("trending", "Trending", listOf(trending)),
-                CatalogHomeSection("latest", "Latest", listOf(latest)),
+    fun topRatedRequiresScoreAndNormalizesDifferentScales() {
+        val nineOfTen = entry("catalog.a", "nine", "Nine of ten", score = Score(9.0, 10.0))
+        val ninetyFive = entry("catalog.a", "ninety-five", "Ninety five", score = Score(95.0, 100.0))
+        val missing = entry("catalog.a", "missing", "Missing", score = null)
+        val state = projectSemanticDiscoverState(
+            homes = listOf(
+                snapshot(
+                    "catalog.a",
+                    listOf(section(CatalogFeedKind.TOP_RATED, listOf(nineOfTen, missing, ninetyFive))),
+                ),
+            ),
+            selectedContentType = ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
+        )
+
+        assertEquals(listOf("Ninety five", "Nine of ten"), state.topRated.map(DiscoverStoryItem::title))
+    }
+
+    @Test
+    fun popularUsesPopularityRankBeforeStableFeedPositionFallback() {
+        val fallbackFirst = entry("catalog.a", "fallback", "Fallback").copy(popularityRank = null)
+        val rankTwo = entry("catalog.a", "two", "Rank two").copy(popularityRank = 2)
+        val rankOne = entry("catalog.a", "one", "Rank one").copy(popularityRank = 1)
+        val state = projectSemanticDiscoverState(
+            homes = listOf(
+                snapshot(
+                    "catalog.a",
+                    listOf(
+                        section(
+                            CatalogFeedKind.POPULAR,
+                            listOf(rankTwo, rankOne, fallbackFirst),
+                        ),
+                    ),
+                ),
+            ),
+            selectedContentType = ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
+        )
+
+        assertEquals(
+            listOf("Rank one", "Rank two", "Fallback"),
+            state.popular.map(DiscoverStoryItem::title),
+        )
+    }
+
+    @Test
+    fun canonicalStoryDedupesAndMetadataMergeIsDeterministic() {
+        val storyId = StoryId("story:shared")
+        val sparse = entry("catalog.a", "shared-a", "Shared A", storyId = storyId).copy(
+            genres = setOf("Action", "Fantasy"),
+            publicationStatus = PublicationStatus.ONGOING,
+            score = Score(8.0, 10.0),
+            latestUpdate = CatalogLatestUpdate(700L, "7"),
+        )
+        val artwork = entry("catalog.b", "shared-b", "Shared B", storyId = storyId).copy(
+            coverUrl = "https://example.test/shared.jpg",
+            score = Score(90.0, 100.0),
+            latestUpdate = CatalogLatestUpdate(900L, "9"),
+        )
+        val first = snapshot(
+            "catalog.a",
+            listOf(
+                section(CatalogFeedKind.POPULAR, listOf(sparse)),
+                section(CatalogFeedKind.LATEST_UPDATES, listOf(sparse)),
+                section(CatalogFeedKind.TOP_RATED, listOf(sparse)),
             ),
         )
-        val state = projectDiscoverState(
-            catalogs = listOf(catalog),
-            rankedStories = emptyList(),
-            selectedCatalogId = PluginId("plugin.a"),
-            selectedSourceId = "latest",
+        val second = snapshot(
+            "catalog.b",
+            listOf(
+                section(CatalogFeedKind.POPULAR, listOf(artwork)),
+                section(CatalogFeedKind.LATEST_UPDATES, listOf(artwork)),
+                section(CatalogFeedKind.TOP_RATED, listOf(artwork)),
+            ),
         )
 
-        assertEquals(listOf("plugin.a:latest"), state.shelves.map(DiscoverShelf::key))
+        val forward = projectSemanticDiscoverState(
+            listOf(first, second),
+            ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
+        )
+        val reversed = projectSemanticDiscoverState(
+            listOf(second, first),
+            ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
+        )
+
+        assertEquals(forward.popular, reversed.popular)
+        assertEquals(forward.latestUpdates, reversed.latestUpdates)
+        assertEquals(forward.topRated, reversed.topRated)
+        assertEquals(1, forward.popular.size)
+        assertEquals("https://example.test/shared.jpg", forward.popular.single().coverUrl)
+        assertEquals(listOf("Action", "Fantasy"), forward.popular.single().genres)
+        assertEquals(PublicationStatus.ONGOING, forward.popular.single().publicationStatus)
+        assertEquals(CatalogLatestUpdate(900L, "9"), forward.popular.single().latestUpdate)
+        assertEquals(Score(90.0, 100.0), forward.popular.single().score)
     }
 
     @Test
-    fun missingSelectedCatalogFallsBackToCombinedProjection() {
-        val available = entry("plugin.a", "source-1", "Available")
-        val state = projectDiscoverState(
-            catalogs = listOf(snapshot("plugin.a", "source-1", available)),
-            rankedStories = listOf(ranked(available, 0.8)),
-            selectedCatalogId = PluginId("plugin.missing"),
+    fun partialSemanticFeedsStayEmptyInsteadOfFabricatingFallbackMeaning() {
+        val rated = entry("catalog.a", "rated", "Rated")
+        val state = projectSemanticDiscoverState(
+            homes = listOf(
+                snapshot(
+                    "catalog.a",
+                    listOf(section(CatalogFeedKind.TOP_RATED, listOf(rated))),
+                ),
+            ),
+            selectedContentType = ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
         )
 
-        assertEquals(null, state.selectedCatalogId)
-        assertEquals("Across catalogs", state.shelves.first().title)
+        assertTrue(state.popular.isEmpty())
+        assertTrue(state.latestUpdates.isEmpty())
+        assertEquals(listOf("Rated"), state.topRated.map(DiscoverStoryItem::title))
     }
 
-    private fun ranked(entry: CatalogEntry, score: Double) = RankedCatalogStory(
-        storyId = entry.storyId,
-        orderingScore = score,
-        contributions = listOf(CatalogRankContribution(entry, score, 1.0)),
+    private fun entries(
+        prefix: String,
+        count: Int,
+        transform: CatalogEntry.(Int) -> CatalogEntry = { this },
+    ): List<CatalogEntry> = (0 until count).map { index ->
+        entry("catalog.a", "$prefix-$index", "$prefix $index")
+            .copy(popularityRank = (index + 1).toLong())
+            .transform(index)
+    }
+
+    private fun section(kind: CatalogFeedKind, items: List<CatalogEntry>) = CatalogHomeSection(
+        sourceId = "section-${kind.name.lowercase()}-${items.firstOrNull()?.sourceId.orEmpty()}",
+        title = kind.name,
+        items = items,
+        kind = kind,
     )
 
-    private fun rankedWithContributions(score: Double, vararg entries: CatalogEntry) = RankedCatalogStory(
-        storyId = entries.first().storyId,
-        orderingScore = score,
-        contributions = entries.map { CatalogRankContribution(it, score, 1.0) },
-    )
-
-    private fun snapshot(plugin: String, source: String, entry: CatalogEntry) = CatalogHomeSnapshot(
+    private fun snapshot(
+        plugin: String,
+        sections: List<CatalogHomeSection>,
+        refreshedAt: Long = 100L,
+    ) = CatalogHomeSnapshot(
         pluginId = PluginId(plugin),
         pluginVersion = "1.0.0",
-        refreshedAtEpochMillis = 100L,
-        sections = listOf(CatalogHomeSection(source, "Trending", listOf(entry))),
+        refreshedAtEpochMillis = refreshedAt,
+        sections = sections,
     )
 
     private fun entry(
         plugin: String,
         source: String,
         title: String,
-        coverUrl: String? = null,
-        score: Double = 8.0,
+        contentType: ContentType = ContentType.MANGA,
+        score: Score? = Score(8.0, 10.0),
+        storyId: StoryId = StoryId("story:$plugin:$source"),
     ) = CatalogEntry(
-        storyId = StoryId("${plugin}_${source}_${title.lowercase().replace(' ', '_')}"),
+        storyId = storyId,
         pluginId = PluginId(plugin),
         sourceId = source,
         title = title,
-        contentType = ContentType.WEB_NOVEL,
-        coverUrl = coverUrl,
-        score = Score(score, 10.0),
+        contentType = contentType,
+        score = score,
     )
 }

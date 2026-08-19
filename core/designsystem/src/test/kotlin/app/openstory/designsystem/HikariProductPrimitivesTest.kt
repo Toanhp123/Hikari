@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
@@ -43,6 +44,8 @@ import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.control.HikariIconActionStyle
 import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.control.HikariPrimaryAction
+import app.openstory.designsystem.control.HikariSegmentedControl
+import app.openstory.designsystem.control.HikariSegmentedOption
 import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.glass.HikariBackdropMode
 import app.openstory.designsystem.glass.HikariGlassRenderingMode
@@ -338,6 +341,40 @@ class HikariProductPrimitivesTest {
         compose.onNodeWithText("Downloaded")
             .assertWidthIsAtLeast(48.dp)
             .assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun segmentedControlSharesWidthAndHonorsDisabledSelection() {
+        var selected by mutableStateOf("manga")
+        compose.setContent {
+            HikariTheme {
+                Box(Modifier.width(320.dp)) {
+                    HikariSegmentedControl(
+                        options = listOf(
+                            HikariSegmentedOption("manga", "Manga"),
+                            HikariSegmentedOption("light-novel", "Light Novel", enabled = false),
+                        ),
+                        selectedKey = selected,
+                        onSelected = { selected = it },
+                    )
+                }
+            }
+        }
+
+        val manga = compose.onNodeWithText("Manga")
+        val lightNovel = compose.onNodeWithText("Light Novel")
+        manga.assertIsSelected().assertHeightIsAtLeast(48.dp)
+        lightNovel.assertIsNotSelected().assertIsNotEnabled().assertHeightIsAtLeast(48.dp)
+
+        val segmentNodes = compose
+            .onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected))
+            .fetchSemanticsNodes()
+            .sortedBy { node -> node.boundsInRoot.left }
+        assertEquals(2, segmentNodes.size)
+        val mangaWidth = segmentNodes[0].boundsInRoot.width
+        val lightNovelWidth = segmentNodes[1].boundsInRoot.width
+        assertEquals(mangaWidth, lightNovelWidth, 1.5f)
+
     }
 
     @Test

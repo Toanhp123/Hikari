@@ -2,10 +2,18 @@ package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.ranking.RankedCatalogStory
 import app.openstory.common.id.PluginId
 
 data class DiscoverUiState(
+    val selectedContentType: ContentType = ContentType.MANGA,
+    val mediaTypeOptions: List<DiscoverMediaTypeOption> = defaultDiscoverMediaTypeOptions,
+    val popular: List<DiscoverStoryItem> = emptyList(),
+    val latestUpdates: List<DiscoverStoryItem> = emptyList(),
+    val topRated: List<DiscoverStoryItem> = emptyList(),
+    val loading: Boolean = true,
+    // Transitional source-centric fields remain until the Compose migration in Task 7.
     val catalogs: List<CatalogHomeSnapshot> = emptyList(),
     val rankedStories: List<RankedCatalogStory> = emptyList(),
     val featured: CatalogEntry? = null,
@@ -90,6 +98,7 @@ fun projectDiscoverState(
             .orEmpty()
     }
     return DiscoverUiState(
+        loading = false,
         catalogs = catalogs,
         rankedStories = rankedStories,
         featured = selectFeatured(rankedStories),

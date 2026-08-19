@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.openstory.catalog.home.CatalogRefreshResult
 import app.openstory.catalog.home.CatalogRefreshService
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.id.PluginId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,10 +15,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -43,13 +45,15 @@ class DiscoverViewModel @Inject constructor(
             .map(projection::prepare)
             .preserveLatestOnFailure(
                 RANKING_OBSERVE_EXCEPTION_CODE,
-                DiscoverPreparedContent(emptyList(), emptyList()),
+                DiscoverPreparedContent(emptyList()),
             ),
         refresh = {
             val cachedHomes = homes.first()
             refreshService.refresh().toReport(cachedHomes)
         },
     )
+    private val selectedContentType = MutableStateFlow(ContentType.MANGA)
+    private val initialLoading = MutableStateFlow(true)
     private val selectedCatalogId = MutableStateFlow<PluginId?>(null)
     private val selectedSourceId = MutableStateFlow<String?>(null)
     private val refreshing = MutableStateFlow(false)
@@ -60,25 +64,39 @@ class DiscoverViewModel @Inject constructor(
         bootstrapEmptyCache()
     }
 
-    private val selectionState = combine(
+    private val legacySelectionState = combine(
         selectedCatalogId,
         selectedSourceId,
     ) { pluginId, sourceId ->
-        DiscoverSelection(pluginId, sourceId)
+        LegacyDiscoverSelection(pluginId, sourceId)
+    }
+
+    private val presentationSelectionState = combine(
+        legacySelectionState,
+        selectedContentType,
+        initialLoading,
+    ) { legacySelection, contentType, loading ->
+        DiscoverPresentationSelection(
+            legacy = legacySelection,
+            contentType = contentType,
+            loading = loading,
+        )
     }
 
     private val contentState = combine(
         dependencies.content,
-        selectionState,
+        presentationSelectionState,
         refreshing,
         refreshReport,
     ) { content, selection, busy, report ->
         projection.project(
             content = content,
-            selectedCatalogId = selection.pluginId,
-            selectedSourceId = selection.sourceId,
+            selectedContentType = selection.contentType,
+            loading = selection.loading && content.homes.isEmpty(),
             refreshing = busy,
             refreshReport = report,
+            legacySelectedCatalogId = selection.legacy.pluginId,
+            legacySelectedSourceId = selection.legacy.sourceId,
         )
     }
 
@@ -97,30 +115,40 @@ class DiscoverViewModel @Inject constructor(
         viewModelScope.launch {
             if (bootstrapAttempted) return@launch
             bootstrapAttempted = true
-            val homes = dependencies.homes.first()
-            if (homes.isEmpty() && observationFailure.value == null) {
-                refresh()
+            val cachedHomes = dependencies.homes.first()
+            if (cachedHomes.isEmpty() && observationFailure.value == null) {
+                performRefresh()
             }
+            initialLoading.value = false
         }
     }
 
     fun refresh() {
+        viewModelScope.launch { performRefresh() }
+    }
+
+    private suspend fun performRefresh() {
         if (refreshing.value) return
         refreshing.value = true
-        viewModelScope.launch {
-            try {
-                refreshReport.value = dependencies.refresh()
-                refreshFailure.value = null
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                refreshFailure.value = DiscoverUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
-            } finally {
-                refreshing.value = false
-            }
+        try {
+            refreshReport.value = dependencies.refresh()
+            refreshFailure.value = null
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            refreshFailure.value = DiscoverUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
+        } finally {
+            refreshing.value = false
         }
     }
 
+    fun selectContentType(contentType: ContentType) {
+        if (contentType != ContentType.MANGA) return
+        selectedContentType.value = contentType
+    }
+
+    // Transitional callbacks keep the pre-redesign DiscoverScreen functional until Task 7
+    // replaces source/category selection with the media selector.
     fun selectCatalog(pluginId: PluginId) {
         selectedCatalogId.value = pluginId
         selectedSourceId.value = null
@@ -142,9 +170,15 @@ class DiscoverViewModel @Inject constructor(
         val refresh: suspend () -> DiscoverRefreshReport,
     )
 
-    private data class DiscoverSelection(
+    private data class LegacyDiscoverSelection(
         val pluginId: PluginId?,
         val sourceId: String?,
+    )
+
+    private data class DiscoverPresentationSelection(
+        val legacy: LegacyDiscoverSelection,
+        val contentType: ContentType,
+        val loading: Boolean,
     )
 
     private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {
