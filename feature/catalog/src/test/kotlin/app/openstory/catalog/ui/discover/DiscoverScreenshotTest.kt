@@ -1,30 +1,26 @@
 package app.openstory.catalog.ui.discover
 
 import android.graphics.Bitmap
-import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import app.openstory.catalog.model.CatalogEntry
-import app.openstory.catalog.model.CatalogHomeSection
-import app.openstory.catalog.model.CatalogHomeSnapshot
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onRoot
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
-import app.openstory.catalog.ranking.CatalogRankContribution
-import app.openstory.catalog.ranking.RankedCatalogStory
-import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
-import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.designsystem.motion.HikariMotionPolicy
-import com.github.takahirom.roborazzi.captureRoboImage
+import app.openstory.designsystem.theme.HikariTheme
+import coil3.EventListener
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
-import coil3.EventListener
 import coil3.annotation.DelicateCoilApi
 import coil3.asImage
 import coil3.intercept.Interceptor
-import coil3.request.SuccessResult
 import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -83,7 +79,13 @@ class DiscoverScreenshotTest {
                     darkTheme = dark,
                     motionPolicy = HikariMotionPolicy(reduceMotion = true),
                 ) {
-                    DiscoverScreen(fixture(), {}, {}, {}, {}, {})
+                    DiscoverScreen(
+                        state = fixture(),
+                        onRefresh = {},
+                        onSearch = {},
+                        onStorySelected = {},
+                        onContentTypeSelected = {},
+                    )
                 }
             }
             compose.waitUntil { artworkRequests > 0 && artworkSuccesses == artworkRequests }
@@ -96,59 +98,37 @@ class DiscoverScreenshotTest {
     }
 
     private fun fixture(): DiscoverUiState {
-        val mangaDex = PluginId("org.openstory.catalog.mangadex")
-        val mal = PluginId("org.openstory.catalog.myanimelist")
-        fun entry(
-            id: String,
-            pluginId: PluginId,
-            title: String,
-            contentType: ContentType,
-            score: Double,
-            cover: Boolean = false,
-        ) = CatalogEntry(
-            storyId = StoryId(id),
-            pluginId = pluginId,
-            sourceId = id,
-            title = title,
-            genres = setOf("Fantasy", "Mystery"),
-            contentType = contentType,
-            languageTags = setOf("en"),
-            coverUrl = if (cover) "https://example.test/$id.png" else null,
-            score = Score(score, 10.0),
-        )
-        val entries = listOf(
-            entry("moonlit_archive", mangaDex, "The Fox of the Moonlit Archive", ContentType.LIGHT_NOVEL, 8.8, cover = true),
-            entry("asterism_protocol", mangaDex, "Asterism Protocol", ContentType.WEB_NOVEL, 8.5),
-            entry("quiet_sword", mangaDex, "Quiet Sword Saint", ContentType.LIGHT_NOVEL, 8.3),
-            entry("cinder_library", mangaDex, "Cinder Library", ContentType.WEB_NOVEL, 8.1),
-            entry("salt_clock", mal, "The Salt Clock", ContentType.LIGHT_NOVEL, 8.0),
-            entry("orchid_engine", mal, "Orchid Engine", ContentType.WEB_NOVEL, 7.9),
-            entry("glass_harbor", mal, "Glass Harbor", ContentType.LIGHT_NOVEL, 7.8),
-            entry("paper_crown", mal, "The Paper Crown", ContentType.WEB_NOVEL, 7.7),
-        )
-        return projectDiscoverState(
-            catalogs = listOf(
-                CatalogHomeSnapshot(
-                    mangaDex,
-                    "1",
-                    1L,
-                    listOf(CatalogHomeSection("trending", "Trending stories", entries.take(4))),
+        val items = (1..12).map { index ->
+            DiscoverStoryItem(
+                storyId = StoryId("fixture-story-$index"),
+                title = when (index) {
+                    1 -> "The Fox of the Moonlit Archive"
+                    2 -> "Asterism Protocol"
+                    3 -> "Quiet Sword Saint"
+                    4 -> "Cinder Library"
+                    5 -> "The Salt Clock"
+                    else -> "Fixture Story $index"
+                },
+                coverUrl = "https://example.test/fixture-$index.png",
+                contentType = ContentType.MANGA,
+                score = Score(9.7 - index * 0.1, 10.0),
+                genres = listOf("Fantasy", "Mystery", "Adventure"),
+                publicationStatus = if (index % 4 == 0) {
+                    PublicationStatus.COMPLETED
+                } else {
+                    PublicationStatus.ONGOING
+                },
+                latestUpdate = CatalogLatestUpdate(
+                    atEpochMillis = 10_000L - index,
+                    releaseLabel = (130 - index).toString(),
                 ),
-                CatalogHomeSnapshot(
-                    mal,
-                    "1",
-                    1L,
-                    listOf(CatalogHomeSection("fresh", "Fresh from your sources", entries.drop(4))),
-                ),
-            ),
-            rankedStories = entries.mapIndexed { index, catalogEntry ->
-                val score = 0.88 - index * 0.02
-                RankedCatalogStory(
-                    catalogEntry.storyId,
-                    score,
-                    listOf(CatalogRankContribution(catalogEntry, score, 1.0)),
-                )
-            },
+            )
+        }
+        return DiscoverUiState(
+            popular = items.take(5),
+            latestUpdates = items.take(9),
+            topRated = items.take(5),
+            loading = false,
         )
     }
 

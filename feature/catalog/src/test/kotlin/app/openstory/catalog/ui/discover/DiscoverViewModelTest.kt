@@ -230,7 +230,7 @@ class DiscoverViewModelTest {
         runCurrent()
 
         assertTrue(viewModel.state.value.refreshing)
-        assertEquals("Trending", viewModel.state.value.catalogs.single().sections.single().title)
+        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
         release.complete(Unit)
         runCurrent()
         assertFalse(viewModel.state.value.refreshing)
@@ -251,61 +251,8 @@ class DiscoverViewModelTest {
         viewModel.refresh()
         runCurrent()
 
-        assertEquals("Trending", viewModel.state.value.catalogs.single().sections.single().title)
+        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
         assertEquals("catalog.offline", viewModel.state.value.refreshReport?.failed?.get(source.pluginId))
-    }
-
-    @Test
-    fun sourceSelectionChangesProjectionWithoutPluginCall() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(cachedHome())
-        val source = FakeSource()
-        val viewModel = viewModel(repository, source)
-        backgroundScope.launch { viewModel.state.collect() }
-        runCurrent()
-
-        viewModel.selectCatalog(source.pluginId)
-        runCurrent()
-
-        assertEquals(source.pluginId, viewModel.state.value.selectedCatalogId)
-        assertEquals(0, source.homeCalls)
-        viewModel.selectCombined()
-        runCurrent()
-        assertEquals(null, viewModel.state.value.selectedCatalogId)
-    }
-
-    @Test
-    fun repositoryPluginOrderIsPreservedInDiscoverProjection() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(
-            listOf(
-                cachedHome(pluginId = "catalog.b").single(),
-                cachedHome(pluginId = "catalog.a").single(),
-            ),
-        )
-        val viewModel = viewModel(repository, FakeSource())
-        backgroundScope.launch { viewModel.state.collect() }
-        runCurrent()
-
-        assertEquals(
-            listOf(PluginId("catalog.b"), PluginId("catalog.a")),
-            viewModel.state.value.catalogs.map(CatalogHomeSnapshot::pluginId),
-        )
-    }
-
-    @Test
-    fun categorySelectionKeepsPluginAndSourceIdentity() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(cachedHome())
-        val viewModel = viewModel(repository, FakeSource())
-        backgroundScope.launch { viewModel.state.collect() }
-        runCurrent()
-
-        viewModel.selectCategory(
-            DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending"),
-        )
-        runCurrent()
-
-        assertEquals(PluginId("catalog.a"), viewModel.state.value.selectedCatalogId)
-        assertEquals("trending", viewModel.state.value.selectedSourceId)
-        assertEquals(listOf("catalog.a:trending"), viewModel.state.value.shelves.map(DiscoverShelf::key))
     }
 
     @Test
@@ -334,7 +281,7 @@ class DiscoverViewModelTest {
 
         assertFalse(viewModel.state.value.refreshing)
         assertEquals("catalog.home.refresh_exception", viewModel.state.value.globalFailure?.code)
-        assertEquals("Trending", viewModel.state.value.catalogs.single().sections.single().title)
+        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
     }
 
     @Test
@@ -350,7 +297,7 @@ class DiscoverViewModelTest {
                 "catalog.home.ranking_exception",
             ),
         )
-        assertTrue(viewModel.state.value.catalogs.isEmpty())
+        assertFalse(viewModel.state.value.hasContent)
     }
 
     @Test
@@ -360,7 +307,7 @@ class DiscoverViewModelTest {
         backgroundScope.launch { viewModel.state.collect() }
         runCurrent()
 
-        assertEquals("Trending", viewModel.state.value.catalogs.single().sections.single().title)
+        assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
         assertTrue(viewModel.state.value.globalFailure != null)
 
         viewModel.refresh()

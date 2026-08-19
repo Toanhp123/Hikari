@@ -54,8 +54,6 @@ class DiscoverViewModel @Inject constructor(
     )
     private val selectedContentType = MutableStateFlow(ContentType.MANGA)
     private val initialLoading = MutableStateFlow(true)
-    private val selectedCatalogId = MutableStateFlow<PluginId?>(null)
-    private val selectedSourceId = MutableStateFlow<String?>(null)
     private val refreshing = MutableStateFlow(false)
     private val refreshReport = MutableStateFlow<DiscoverRefreshReport?>(null)
     private var bootstrapAttempted = false
@@ -64,39 +62,19 @@ class DiscoverViewModel @Inject constructor(
         bootstrapEmptyCache()
     }
 
-    private val legacySelectionState = combine(
-        selectedCatalogId,
-        selectedSourceId,
-    ) { pluginId, sourceId ->
-        LegacyDiscoverSelection(pluginId, sourceId)
-    }
-
-    private val presentationSelectionState = combine(
-        legacySelectionState,
-        selectedContentType,
-        initialLoading,
-    ) { legacySelection, contentType, loading ->
-        DiscoverPresentationSelection(
-            legacy = legacySelection,
-            contentType = contentType,
-            loading = loading,
-        )
-    }
-
     private val contentState = combine(
         dependencies.content,
-        presentationSelectionState,
+        selectedContentType,
+        initialLoading,
         refreshing,
         refreshReport,
-    ) { content, selection, busy, report ->
+    ) { content, contentType, loading, busy, report ->
         projection.project(
             content = content,
-            selectedContentType = selection.contentType,
-            loading = selection.loading && content.homes.isEmpty(),
+            selectedContentType = contentType,
+            loading = loading && content.homes.isEmpty(),
             refreshing = busy,
             refreshReport = report,
-            legacySelectedCatalogId = selection.legacy.pluginId,
-            legacySelectedSourceId = selection.legacy.sourceId,
         )
     }
 
@@ -147,39 +125,13 @@ class DiscoverViewModel @Inject constructor(
         selectedContentType.value = contentType
     }
 
-    // Transitional callbacks keep the pre-redesign DiscoverScreen functional until Task 7
-    // replaces source/category selection with the media selector.
-    fun selectCatalog(pluginId: PluginId) {
-        selectedCatalogId.value = pluginId
-        selectedSourceId.value = null
-    }
-
-    fun selectCategory(category: DiscoverQuickCategory) {
-        selectedCatalogId.value = category.pluginId
-        selectedSourceId.value = category.sourceId
-    }
-
-    fun selectCombined() {
-        selectedCatalogId.value = null
-        selectedSourceId.value = null
-    }
-
     private data class DiscoverDependencies(
         val homes: Flow<List<CatalogHomeSnapshot>>,
         val content: Flow<DiscoverPreparedContent>,
         val refresh: suspend () -> DiscoverRefreshReport,
     )
 
-    private data class LegacyDiscoverSelection(
-        val pluginId: PluginId?,
-        val sourceId: String?,
-    )
 
-    private data class DiscoverPresentationSelection(
-        val legacy: LegacyDiscoverSelection,
-        val contentType: ContentType,
-        val loading: Boolean,
-    )
 
     private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {
         var latest = initial

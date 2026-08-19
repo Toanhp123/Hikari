@@ -5,8 +5,12 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogFeedKind
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.CatalogHomeSection
+import app.openstory.catalog.model.PublicationStatus
+import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
@@ -143,19 +147,48 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                 title = "Benchmark Browse Story ${index + 1}",
                 authors = setOf("Hikari"),
                 description = "Deterministic browse fixture ${index + 1} for scroll macrobenchmarks.",
+                genres = setOf("Fantasy", "Adventure"),
                 contentType = ContentType.MANGA,
                 languageTags = setOf("en"),
-                popularityRank = index.toLong(),
+                score = Score(10.0 - index * 0.1, 10.0),
+                popularityRank = (index + 1).toLong(),
+                publicationStatus = if (index % 5 == 0) {
+                    PublicationStatus.COMPLETED
+                } else {
+                    PublicationStatus.ONGOING
+                },
+                latestUpdate = CatalogLatestUpdate(
+                    atEpochMillis = BENCHMARK_EPOCH_MILLIS - index,
+                    releaseLabel = (BENCHMARK_BROWSE_STORY_COUNT - index).toString(),
+                ),
             )
         }
-        val sectionSize = BENCHMARK_BROWSE_STORY_COUNT / BENCHMARK_BROWSE_SECTION_COUNT
-        val sections = entries.chunked(sectionSize).mapIndexed { sectionIndex, sectionEntries ->
+        val sections = listOf(
             CatalogHomeSection(
-                sourceId = "benchmark-section-$sectionIndex",
-                title = "Benchmark Shelf ${sectionIndex + 1}",
-                items = sectionEntries,
-            )
-        }
+                sourceId = "benchmark-popular",
+                title = "Popular",
+                items = entries.take(5),
+                kind = CatalogFeedKind.POPULAR,
+            ),
+            CatalogHomeSection(
+                sourceId = "benchmark-latest",
+                title = "Latest Updates",
+                items = entries.take(9),
+                kind = CatalogFeedKind.LATEST_UPDATES,
+            ),
+            CatalogHomeSection(
+                sourceId = "benchmark-top-rated",
+                title = "Top Rated",
+                items = entries.take(5),
+                kind = CatalogFeedKind.TOP_RATED,
+            ),
+            CatalogHomeSection(
+                sourceId = "benchmark-other",
+                title = "Benchmark Remainder",
+                items = entries.drop(9),
+                kind = CatalogFeedKind.OTHER,
+            ),
+        )
         val homeResult = catalog.commitHomeRefresh(
             CatalogHomeMutation(
                 pluginId = pluginId,
@@ -242,7 +275,6 @@ class BenchmarkFixtureActivity : ComponentActivity() {
         const val BENCHMARK_STORY_TITLE = "Hikari Benchmark Fixture"
         const val BENCHMARK_CHAPTER_COUNT = 12
         const val BENCHMARK_BROWSE_STORY_COUNT = 30
-        const val BENCHMARK_BROWSE_SECTION_COUNT = 3
         const val BENCHMARK_RESUME_CHAPTER_INDEX = 1
         const val BENCHMARK_PARAGRAPH_COUNT = 24
         const val BENCHMARK_EPOCH_MILLIS = 1_700_000_000_000L

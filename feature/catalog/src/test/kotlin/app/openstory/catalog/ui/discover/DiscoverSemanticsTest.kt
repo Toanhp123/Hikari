@@ -1,39 +1,38 @@
 package app.openstory.catalog.ui.discover
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertHeightIsAtLeast
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
-import androidx.compose.ui.test.pressKey
-import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.unit.dp
-import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w360dp-h800dp")
@@ -46,12 +45,11 @@ class DiscoverSemanticsTest {
         compose.setContent {
             HikariTheme {
                 DiscoverScreen(
-                    state = DiscoverUiState(),
+                    state = semanticState(),
                     onRefresh = {},
                     onSearch = {},
                     onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
+                    onContentTypeSelected = {},
                     onUtilityRequested = {},
                 )
             }
@@ -67,17 +65,16 @@ class DiscoverSemanticsTest {
     }
 
     @Test
-    fun pullRefreshReplacesManualRefreshAction() {
+    fun pullRefreshRemainsTheRefreshContract() {
         var refreshCalls = 0
         compose.setContent {
             HikariTheme {
                 DiscoverScreen(
-                    state = DiscoverUiState(),
+                    state = semanticState(),
                     onRefresh = { refreshCalls += 1 },
                     onSearch = {},
                     onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
+                    onContentTypeSelected = {},
                 )
             }
         }
@@ -85,12 +82,28 @@ class DiscoverSemanticsTest {
         val refreshAction = compose.onNodeWithTag("discover-pull-refresh")
             .fetchSemanticsNode().config[SemanticsActions.CustomActions]
             .single { it.label == "Refresh" }
+        assertTrue(refreshAction.action())
+        assertEquals(1, refreshCalls)
+    }
 
-        compose.runOnIdle {
-            assertTrue(refreshAction.action())
-            assertEquals(1, refreshCalls)
+    @Test
+    fun pullGestureRefreshesDiscover() {
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(),
+                    onRefresh = { refreshCalls += 1 },
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
         }
-        compose.onNodeWithText("Refresh sources").assertDoesNotExist()
+
+        compose.onNodeWithTag("discover-pull-refresh").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        assertEquals(1, refreshCalls)
     }
 
     @Test
@@ -100,12 +113,11 @@ class DiscoverSemanticsTest {
             density = LocalDensity.current.density
             HikariTheme {
                 DiscoverScreen(
-                    state = DiscoverUiState(refreshing = true),
+                    state = semanticState(refreshing = true),
                     onRefresh = {},
                     onSearch = {},
                     onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
+                    onContentTypeSelected = {},
                     contentPadding = PaddingValues(top = 32.dp),
                 )
             }
@@ -114,251 +126,189 @@ class DiscoverSemanticsTest {
         compose.waitForIdle()
         val indicatorTop = compose.onNodeWithTag("hikari-pull-refresh-indicator")
             .fetchSemanticsNode().boundsInRoot.top
-
         assertTrue(indicatorTop >= 32f * density)
     }
 
     @Test
-    fun pullGestureRefreshesDiscover() {
-        var refreshCalls = 0
+    fun popularPagerExposesPagePositionAndDotsOnlyForMultipleStories() {
         compose.setContent {
             HikariTheme {
                 DiscoverScreen(
-                    state = DiscoverUiState(),
-                    onRefresh = { refreshCalls += 1 },
-                    onSearch = {},
-                    onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
-                )
-            }
-        }
-
-        compose.onNodeWithTag("discover-pull-refresh").performTouchInput { swipeDown() }
-        compose.waitForIdle()
-
-        assertEquals(1, refreshCalls)
-    }
-
-    @Test
-    fun partialRefreshFailureKeepsVisibleRetryAction() {
-        var refreshCalls = 0
-        compose.setContent {
-            HikariTheme {
-                DiscoverScreen(
-                    state = DiscoverUiState(
-                        refreshReport = DiscoverRefreshReport(
-                            failed = mapOf(
-                                PluginId("catalog.a") to "catalog.offline",
-                                PluginId("catalog.b") to "catalog.timeout",
-                            ),
-                        ),
-                    ),
-                    onRefresh = { refreshCalls += 1 },
-                    onSearch = {},
-                    onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
-                )
-            }
-        }
-
-        compose.onAllNodesWithText("Retry").assertCountEquals(1)
-        compose.onNodeWithText("Retry").performClick()
-
-        assertEquals(1, refreshCalls)
-    }
-
-    @Test
-    fun retryableGlobalFailureKeepsVisibleRetryAction() {
-        var refreshCalls = 0
-        compose.setContent {
-            HikariTheme {
-                DiscoverScreen(
-                    state = DiscoverUiState(
-                        refreshFailure = DiscoverUiFailure("catalog.offline", retryable = true),
-                    ),
-                    onRefresh = { refreshCalls += 1 },
-                    onSearch = {},
-                    onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
-                )
-            }
-        }
-
-        compose.onNodeWithText("Retry").performClick()
-        assertEquals(1, refreshCalls)
-    }
-
-    @Test
-    fun featuredSemanticsExposeTitleScoreAndSource() {
-        compose.setContent {
-            HikariTheme {
-                DiscoverScreen(
-                    state = DiscoverUiState(featured = fixtureEntry()),
+                    state = semanticState(popular = listOf(story(1), story(2))),
                     onRefresh = {},
                     onSearch = {},
                     onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("discover-popular-pager").assertIsDisplayed()
+        compose.onNodeWithTag("discover-popular-page-indicator").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Popular story 1 of 2: Story 1").assertIsDisplayed()
+
+        compose.onNodeWithTag("discover-popular-pager").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Popular story 2 of 2: Story 2").assertIsDisplayed()
+    }
+
+    @Test
+    fun singlePopularStoryDoesNotRenderPageDots() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(popular = listOf(story(1))),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("discover-popular-page-indicator").assertDoesNotExist()
+    }
+
+    @Test
+    fun mediaSelectorFillsWidthEquallyAndLightNovelIsDisabled() {
+        var selected: ContentType? = null
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = { selected = it },
+                )
+            }
+        }
+
+        val manga = compose.onNodeWithText("Manga")
+        val lightNovel = compose.onNodeWithText("Light Novel")
+        manga.assertIsSelected()
+        lightNovel.assertIsNotEnabled()
+        val mangaWidth = manga.fetchSemanticsNode().boundsInRoot.width
+        val lightNovelWidth = lightNovel.fetchSemanticsNode().boundsInRoot.width
+        assertTrue(kotlin.math.abs(mangaWidth - lightNovelWidth) <= 1.5f)
+
+        manga.performClick()
+        assertEquals(ContentType.MANGA, selected)
+    }
+
+    @Test
+    fun latestIsCappedAtNineAndTopRatedAtFive() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(
+                        latest = (1..10).map(::story),
+                        top = (1..6).map(::story),
+                    ),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("discover-latest-item-story-9", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("discover-latest-item-story-10", useUnmergedTree = true).assertDoesNotExist()
+
+        compose.onNodeWithTag("discover-list").performScrollToIndex(4)
+        compose.onNodeWithTag("discover-top-rated-rank-5", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("discover-top-rated-rank-6", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun topRatedRowExposesOneCoherentRankingDescription() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(top = listOf(story(1))),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
                 )
             }
         }
 
         compose.onNodeWithContentDescription(
-            "Featured Fixture Novel. Score 8.4 out of 10 from Catalog A.",
+            "Rank 1, Story 1, rating 9.1 out of 10, Action · Fantasy, Ongoing",
         ).assertIsDisplayed()
     }
 
     @Test
-    fun catalogSelectorUsesFriendlyPluginNameInsteadOfRawId() {
-        val pluginId = PluginId("org.openstory.catalog.mangadex")
+    fun initialLoadingUsesLayoutShapedContentButCachedRefreshKeepsRealContent() {
+        var state by mutableStateOf(semanticState(loading = true))
         compose.setContent {
             HikariTheme {
                 DiscoverScreen(
-                    state = DiscoverUiState(
-                        catalogs = listOf(
-                            app.openstory.catalog.model.CatalogHomeSnapshot(
-                                pluginId = pluginId,
-                                pluginVersion = "1",
-                                refreshedAtEpochMillis = 1L,
-                                sections = emptyList(),
-                            ),
-                        ),
-                    ),
+                    state = state,
                     onRefresh = {},
                     onSearch = {},
                     onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
+                    onContentTypeSelected = {},
                 )
             }
         }
+        compose.onNodeWithTag("discover-loading").assertIsDisplayed()
 
-        compose.onNodeWithText("MangaDex").assertIsDisplayed()
-        compose.onNodeWithText(pluginId.value).assertDoesNotExist()
+        compose.runOnIdle {
+            state = semanticState(popular = listOf(story(1)), refreshing = true)
+        }
+        compose.onNodeWithTag("discover-loading").assertDoesNotExist()
+        compose.onNodeWithTag("discover-popular-pager").assertIsDisplayed()
     }
 
     @Test
-    fun searchTargetAndShelfHeadingRemainAccessible() {
+    fun completedEmptyStateIsExplicitAndRetryRemainsNonBlocking() {
+        var refreshCalls = 0
         compose.setContent {
             HikariTheme {
                 DiscoverScreen(
-                    state = DiscoverUiState(
-                        shelves = listOf(
-                            DiscoverShelf(null, "ranked", "Across catalogs", listOf(fixtureEntry())),
-                        ),
+                    state = semanticState(
+                        refreshFailure = DiscoverUiFailure("catalog.offline", retryable = true),
                     ),
-                    onRefresh = {},
+                    onRefresh = { refreshCalls += 1 },
                     onSearch = {},
                     onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
+                    onContentTypeSelected = {},
                 )
             }
         }
 
-        compose.onNodeWithContentDescription("Search all stories").assertHeightIsAtLeast(48.dp)
-        compose.onAllNodesWithText("Across catalogs", useUnmergedTree = true)
-            .onFirst()
-            .assertIsDisplayed()
-        compose.onNodeWithTag("story-poster-card", useUnmergedTree = true).assertIsDisplayed()
-    }
-
-    @Test
-    fun executableCategoryTargetIsAtLeastFortyEightDp() {
-        var selected: DiscoverQuickCategory? = null
-        val category = DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending")
-        compose.setContent {
-            HikariTheme {
-                DiscoverScreen(
-                    state = DiscoverUiState(
-                        quickCategories = listOf(category),
-                    ),
-                    onRefresh = {},
-                    onSearch = {},
-                    onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
-                    onCategorySelected = { selected = it },
-                )
-            }
-        }
-
-        compose.onNodeWithContentDescription("Category Trending from Catalog A")
-            .assertHeightIsAtLeast(56.dp)
-            .performClick()
-        kotlin.test.assertEquals(category, selected)
-    }
-
-    @Test
-    fun selectedCategoryExposesSelectedSemantics() {
-        val category = DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending")
-        compose.setContent {
-            HikariTheme {
-                DiscoverScreen(
-                    state = DiscoverUiState(
-                        quickCategories = listOf(category),
-                        selectedCatalogId = category.pluginId,
-                        selectedSourceId = category.sourceId,
-                    ),
-                    onRefresh = {},
-                    onSearch = {},
-                    onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
-                )
-            }
-        }
-
-        compose.onNodeWithContentDescription("Category Trending from Catalog A")
-            .assertIsSelected()
-    }
-
-    @Test
-    fun keyboardTraversalMovesFromSearchToCategoryToCatalog() {
-        val category = DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending")
-        compose.setContent {
-            HikariTheme {
-                DiscoverScreen(
-                    state = DiscoverUiState(
-                        quickCategories = listOf(category),
-                        catalogs = app.openstory.catalog.model.CatalogHomeSnapshot(
-                            pluginId = category.pluginId,
-                            pluginVersion = "1",
-                            refreshedAtEpochMillis = 1L,
-                            sections = emptyList(),
-                        ).let(::listOf),
-                    ),
-                    onRefresh = {},
-                    onSearch = {},
-                    onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
-                )
-            }
-        }
-
-        val search = compose.onNodeWithContentDescription("Search all stories")
-        search.performKeyInput { pressKey(Key.Tab) }
-        search.assertIsFocused()
-        search.performKeyInput { pressKey(Key.Tab) }
-        compose.onNodeWithContentDescription("Open quick access").assertIsFocused()
-        compose.onNodeWithContentDescription("Open quick access")
-            .performKeyInput { pressKey(Key.Tab) }
-        compose.onNodeWithContentDescription("Category Trending from Catalog A").assertIsFocused()
-        compose.onNodeWithContentDescription("Category Trending from Catalog A")
-            .performKeyInput { pressKey(Key.Tab) }
-        compose.onNodeWithText("All sources").assertIsFocused()
+        compose.onNodeWithText("Nothing to discover yet").assertIsDisplayed()
+        compose.onNodeWithText("Retry").performClick()
+        assertEquals(1, refreshCalls)
     }
 }
 
-private fun fixtureEntry() = CatalogEntry(
-    storyId = StoryId("story-1"),
-    pluginId = PluginId("catalog.a"),
-    sourceId = "source-1",
-    title = "Fixture Novel",
-    contentType = ContentType.WEB_NOVEL,
-    score = Score(8.4, 10.0),
+private fun semanticState(
+    popular: List<DiscoverStoryItem> = emptyList(),
+    latest: List<DiscoverStoryItem> = emptyList(),
+    top: List<DiscoverStoryItem> = emptyList(),
+    loading: Boolean = false,
+    refreshing: Boolean = false,
+    refreshFailure: DiscoverUiFailure? = null,
+): DiscoverUiState = DiscoverUiState(
+    popular = popular,
+    latestUpdates = latest,
+    topRated = top,
+    loading = loading,
+    refreshing = refreshing,
+    refreshFailure = refreshFailure,
+)
+
+private fun story(index: Int): DiscoverStoryItem = DiscoverStoryItem(
+    storyId = StoryId("story-$index"),
+    title = "Story $index",
+    coverUrl = null,
+    contentType = ContentType.MANGA,
+    score = Score(9.0 + index / 10.0, 10.0),
+    genres = listOf("Action", "Fantasy"),
+    publicationStatus = PublicationStatus.ONGOING,
+    latestUpdate = CatalogLatestUpdate(1_000L + index, index.toString()),
 )

@@ -37,16 +37,14 @@ fun AppNavHost(
     val snackbarHostState = remember { SnackbarHostState() }
     val discoverSearchFocus = remember { FocusRequester() }
     val utilityFocus = remember { FocusRequester() }
-    val discoverCategoryFocus = remember { FocusRequester() }
-    val discoverCatalogFocus = remember { FocusRequester() }
+    val discoverMediaTypeFocus = remember { FocusRequester() }
     val homeContentFocus = remember { FocusRequester() }
     val libraryFilterFocus = remember { FocusRequester() }
     var showUtilitySheet by remember { mutableStateOf(false) }
     val focus = AppNavFocus(
         discoverSearchFocus,
         utilityFocus,
-        discoverCategoryFocus,
-        discoverCatalogFocus,
+        discoverMediaTypeFocus,
         homeContentFocus,
         libraryFilterFocus,
     )
@@ -100,9 +98,7 @@ private fun AppNavigationContent(
                     },
                     searchFocusRequester = focus.discoverSearch,
                     searchNextFocusRequester = focus.utility,
-                    categoryFocusRequester = focus.discoverCategory,
-                    categoryNextFocusRequester = focus.discoverCatalog,
-                    catalogFocusRequester = focus.discoverCatalog,
+                    mediaTypeFocusRequester = focus.discoverMediaType,
                     shellScope = shellScope,
                 )
             }
@@ -217,14 +213,13 @@ private fun topLevelEntryMetadata(useLegacyNavigationTransitions: Boolean): Map<
 private data class AppNavFocus(
     val discoverSearch: FocusRequester,
     val utility: FocusRequester,
-    val discoverCategory: FocusRequester,
-    val discoverCatalog: FocusRequester,
+    val discoverMediaType: FocusRequester,
     val homeContent: FocusRequester,
     val libraryFilter: FocusRequester,
 ) {
     fun utilityNext(route: AppRoute?): FocusRequester = when (route) {
         AppRoute.Home -> homeContent
         AppRoute.Library -> libraryFilter
-        else -> discoverCategory
+        else -> discoverMediaType
     }
 }

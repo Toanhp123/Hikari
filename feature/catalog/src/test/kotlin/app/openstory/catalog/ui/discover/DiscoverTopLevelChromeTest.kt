@@ -9,9 +9,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.unit.dp
-import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
-import app.openstory.common.id.PluginId
+import app.openstory.catalog.model.Score
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
@@ -31,19 +30,23 @@ class DiscoverTopLevelChromeTest {
         compose.setContent {
             HikariTheme {
                 DiscoverScreen(
-                    state = DiscoverUiState(shelves = discoverShelves()),
+                    state = DiscoverUiState(
+                        popular = listOf(item(1)),
+                        latestUpdates = (1..9).map(::item),
+                        topRated = (10..14).map(::item),
+                        loading = false,
+                    ),
                     onRefresh = {},
                     onSearch = {},
                     onStorySelected = {},
-                    onCatalogSelected = {},
-                    onCombinedSelected = {},
+                    onContentTypeSelected = {},
                     contentPadding = PaddingValues(top = 24.dp, bottom = 92.dp),
                 )
             }
         }
 
         compose.onNodeWithText("HIKARI").assertDoesNotExist()
-        compose.onNodeWithTag("discover-list").performScrollToIndex(7)
+        compose.onNodeWithTag("discover-list").performScrollToIndex(5)
         compose.onNodeWithContentDescription("Search all stories").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
         compose.waitForIdle()
@@ -51,22 +54,13 @@ class DiscoverTopLevelChromeTest {
     }
 }
 
-private fun discoverShelves(): List<DiscoverShelf> {
-    val pluginId = PluginId("catalog.fixture")
-    return (0..8).map { index ->
-        DiscoverShelf(
-            pluginId = pluginId,
-            sourceId = "source-$index",
-            title = "Shelf $index",
-            entries = listOf(
-                CatalogEntry(
-                    storyId = StoryId("story-$index"),
-                    pluginId = pluginId,
-                    sourceId = "story-source-$index",
-                    title = "Story $index",
-                    contentType = ContentType.WEB_NOVEL,
-                ),
-            ),
-        )
-    }
-}
+private fun item(index: Int) = DiscoverStoryItem(
+    storyId = StoryId("story-$index"),
+    title = "Story $index",
+    coverUrl = null,
+    contentType = ContentType.MANGA,
+    score = Score(8.0, 10.0),
+    genres = listOf("Fantasy"),
+    publicationStatus = null,
+    latestUpdate = null,
+)

@@ -8,44 +8,42 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.unit.dp
-import app.openstory.designsystem.theme.HikariTheme
-import app.openstory.catalog.ui.discover.DiscoverQuickCategory
+import app.openstory.catalog.model.CatalogLatestUpdate
+import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
+import app.openstory.catalog.model.Score
 import app.openstory.catalog.ui.discover.DiscoverScreen
+import app.openstory.catalog.ui.discover.DiscoverStoryItem
 import app.openstory.catalog.ui.discover.DiscoverUiState
 import app.openstory.catalog.ui.search.SearchScreen
 import app.openstory.catalog.ui.search.SearchUiState
-import app.openstory.catalog.model.CatalogEntry
-import app.openstory.catalog.model.ContentType
-import app.openstory.catalog.model.Score
-import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.ui.HikariAppShell
 import app.openstory.ui.HikariUtilitySheet
 import com.github.takahirom.roborazzi.captureRoboImage
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w360dp-h800dp")
@@ -59,31 +57,15 @@ class AppShellScreenshotTest {
 
     @Test
     fun discoverSelectedLight() {
-        val pluginId = PluginId("org.openstory.catalog.mangadex")
         compose.setContent {
             HikariTheme(darkTheme = false) {
                 HikariAppShell(AppRoute.Discover, {}, {}) { contentPadding ->
                     DiscoverScreen(
-                        state = DiscoverUiState(
-                            featured = CatalogEntry(
-                                storyId = StoryId("moonlit-archive"),
-                                pluginId = pluginId,
-                                sourceId = "moonlit-archive",
-                                title = "The Fox of the Moonlit Archive",
-                                genres = setOf("Fantasy", "Mystery"),
-                                contentType = ContentType.LIGHT_NOVEL,
-                                languageTags = setOf("en"),
-                                score = Score(8.8, 10.0),
-                            ),
-                            quickCategories = listOf(
-                                DiscoverQuickCategory(pluginId, "trending", "Trending stories"),
-                            ),
-                        ),
+                        state = discoverState(),
                         onRefresh = {},
                         onSearch = {},
                         onStorySelected = {},
-                        onCatalogSelected = {},
-                        onCombinedSelected = {},
+                        onContentTypeSelected = {},
                         contentPadding = contentPadding,
                     )
                 }
@@ -125,27 +107,24 @@ class AppShellScreenshotTest {
     }
 
     @Test
-    fun shellAndDiscoverExposeDeterministicTraversalOrder() {
-        val category = DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending")
+    fun discoverExposesMediaSelectionInsteadOfSourceSelection() {
         compose.setContent {
             HikariTheme {
                 HikariAppShell(AppRoute.Discover, {}, {}) { contentPadding ->
                     DiscoverScreen(
-                        state = DiscoverUiState(quickCategories = listOf(category)),
+                        state = discoverState(),
                         onRefresh = {},
                         onSearch = {},
                         onStorySelected = {},
-                        onCatalogSelected = {},
-                        onCombinedSelected = {},
+                        onContentTypeSelected = {},
                         contentPadding = contentPadding,
                     )
                 }
             }
         }
 
-        compose.onNodeWithContentDescription("Search all stories").assertTraversalIndex(0f)
-        compose.onNodeWithContentDescription("Open quick access").assertTraversalIndex(1f)
-        compose.onNodeWithContentDescription("Category Trending from Catalog A").assertTraversalIndex(2f)
+        compose.onNodeWithText("Manga").assertIsSelected()
+        compose.onNodeWithText("Light Novel").assertIsNotEnabled()
     }
 
     @Test
@@ -154,12 +133,11 @@ class AppShellScreenshotTest {
             HikariTheme {
                 HikariAppShell(AppRoute.Discover, {}, {}) { contentPadding ->
                     DiscoverScreen(
-                        state = DiscoverUiState(),
+                        state = DiscoverUiState(loading = false),
                         onRefresh = {},
                         onSearch = {},
                         onStorySelected = {},
-                        onCatalogSelected = {},
-                        onCombinedSelected = {},
+                        onContentTypeSelected = {},
                         contentPadding = contentPadding,
                     )
                 }
@@ -198,12 +176,10 @@ class AppShellScreenshotTest {
     }
 
     @Test
-    fun keyboardFocusMovesAcrossDiscoverAndShellLayers() {
-        val category = DiscoverQuickCategory(PluginId("catalog.a"), "trending", "Trending")
+    fun keyboardFocusMovesSearchToUtilityThenMediaSelector() {
         val searchFocus = FocusRequester()
         val utilityFocus = FocusRequester()
-        val categoryFocus = FocusRequester()
-        val catalogFocus = FocusRequester()
+        val mediaFocus = FocusRequester()
         lateinit var inputModeManager: InputModeManager
         compose.setContent {
             HikariTheme {
@@ -213,23 +189,20 @@ class AppShellScreenshotTest {
                     onTopLevelSelected = {},
                     onUtilityRequested = {},
                     utilityFocusRequester = utilityFocus,
-                    utilityNextFocusRequester = categoryFocus,
+                    utilityNextFocusRequester = mediaFocus,
                 ) { contentPadding ->
                     DiscoverScreen(
-                        state = DiscoverUiState(quickCategories = listOf(category)),
+                        state = discoverState(),
                         onRefresh = {},
                         onSearch = {},
                         onStorySelected = {},
-                        onCatalogSelected = {},
-                        onCombinedSelected = {},
+                        onContentTypeSelected = {},
                         searchFocusRequester = searchFocus,
                         searchNextFocusRequester = utilityFocus,
-                        categoryFocusRequester = categoryFocus,
-                        categoryNextFocusRequester = catalogFocus,
-                        catalogFocusRequester = catalogFocus,
+                        mediaTypeFocusRequester = mediaFocus,
                         onUtilityRequested = {},
                         utilityFocusRequester = utilityFocus,
-                        utilityNextFocusRequester = categoryFocus,
+                        utilityNextFocusRequester = mediaFocus,
                         contentPadding = contentPadding,
                     )
                 }
@@ -238,8 +211,7 @@ class AppShellScreenshotTest {
 
         val search = compose.onNodeWithContentDescription("Search all stories")
         val utility = compose.onNodeWithContentDescription("Open quick access")
-        val quickCategory = compose.onNodeWithContentDescription("Category Trending from Catalog A")
-        val combinedCatalog = compose.onNodeWithText("All sources")
+        val manga = compose.onNodeWithText("Manga")
 
         compose.runOnIdle {
             inputModeManager.requestInputMode(InputMode.Keyboard)
@@ -249,62 +221,7 @@ class AppShellScreenshotTest {
         search.performKeyInput { pressKey(Key.Tab) }
         utility.assertIsFocused()
         utility.performKeyInput { pressKey(Key.Tab) }
-        quickCategory.assertIsFocused()
-        quickCategory.performKeyInput { pressKey(Key.Tab) }
-        combinedCatalog.assertIsFocused()
-    }
-
-    @Test
-    fun keyboardFocusFallsBackToCatalogWhenCategoriesAreEmpty() {
-        val searchFocus = FocusRequester()
-        val utilityFocus = FocusRequester()
-        val categoryFocus = FocusRequester()
-        val catalogFocus = FocusRequester()
-        lateinit var inputModeManager: InputModeManager
-        compose.setContent {
-            HikariTheme {
-                inputModeManager = LocalInputModeManager.current
-                HikariAppShell(
-                    currentRoute = AppRoute.Home,
-                    onTopLevelSelected = {},
-                    onUtilityRequested = {},
-                    utilityFocusRequester = utilityFocus,
-                    utilityNextFocusRequester = categoryFocus,
-                ) { contentPadding ->
-                    DiscoverScreen(
-                        state = DiscoverUiState(),
-                        onRefresh = {},
-                        onSearch = {},
-                        onStorySelected = {},
-                        onCatalogSelected = {},
-                        onCombinedSelected = {},
-                        searchFocusRequester = searchFocus,
-                        searchNextFocusRequester = utilityFocus,
-                        categoryFocusRequester = categoryFocus,
-                        categoryNextFocusRequester = catalogFocus,
-                        catalogFocusRequester = catalogFocus,
-                        onUtilityRequested = {},
-                        utilityFocusRequester = utilityFocus,
-                        utilityNextFocusRequester = catalogFocus,
-                        contentPadding = contentPadding,
-                    )
-                }
-            }
-        }
-
-        val search = compose.onNodeWithContentDescription("Search all stories")
-        val utility = compose.onNodeWithContentDescription("Open quick access")
-        val combinedCatalog = compose.onNodeWithText("All sources")
-
-        compose.runOnIdle {
-            inputModeManager.requestInputMode(InputMode.Keyboard)
-            searchFocus.requestFocus()
-        }
-        search.assertIsFocused()
-        search.performKeyInput { pressKey(Key.Tab) }
-        utility.assertIsFocused()
-        utility.performKeyInput { pressKey(Key.Tab) }
-        combinedCatalog.assertIsFocused()
+        manga.assertIsFocused()
     }
 
     private fun captureShell(route: AppRoute, darkTheme: Boolean, fileName: String) {
@@ -325,5 +242,23 @@ class AppShellScreenshotTest {
     }
 }
 
-private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertTraversalIndex(index: Float) =
-    assert(SemanticsMatcher.expectValue(SemanticsProperties.TraversalIndex, index))
+private fun discoverState(): DiscoverUiState {
+    val stories = (1..9).map { index ->
+        DiscoverStoryItem(
+            storyId = StoryId("shell-story-$index"),
+            title = if (index == 1) "The Fox of the Moonlit Archive" else "Shell Story $index",
+            coverUrl = null,
+            contentType = ContentType.MANGA,
+            score = Score(9.5 - index * 0.1, 10.0),
+            genres = listOf("Fantasy", "Mystery"),
+            publicationStatus = PublicationStatus.ONGOING,
+            latestUpdate = CatalogLatestUpdate(2_000L - index, index.toString()),
+        )
+    }
+    return DiscoverUiState(
+        popular = stories.take(5),
+        latestUpdates = stories.take(9),
+        topRated = stories.take(5),
+        loading = false,
+    )
+}

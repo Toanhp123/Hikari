@@ -233,9 +233,12 @@ assert_contains 'fun HikariSuggestionChip(' \
 assert_contains 'HikariSuggestionChip(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
   'Search recent queries must consume the shared suggestion chip'
-assert_contains 'HikariContentCard(' \
-  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverCategoryCard.kt' \
-  'Discover quick categories must reuse shared Hikari content-card chrome'
+assert_contains 'HikariSegmentedControl(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverMediaTypeSelector.kt' \
+  'Discover media selection must reuse the shared Hikari segmented-control primitive'
+assert_contains 'HikariSkeleton(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverLoadingContent.kt' \
+  'Discover loading presentation must reuse the shared Hikari skeleton primitive'
 assert_contains 'HikariContentCard(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardSummary.kt' \
   'Home summary must have shared surface hierarchy instead of a fixed empty feature block'
