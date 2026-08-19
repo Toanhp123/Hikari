@@ -2,11 +2,9 @@ package app.openstory.catalog.ui.search
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -55,7 +53,6 @@ internal fun LazyListScope.searchFilterItems(
                     definition = definition,
                     selected = groupValues[definition.id].orEmpty(),
                     onValuesChange = onValuesChange,
-                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
                 )
             }
         }
@@ -69,7 +66,7 @@ private fun FilterGroupHeader(
     onClear: (PluginId) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.hikariSpacing.space16),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(pluginId.value, style = MaterialTheme.typography.titleSmall)
@@ -88,9 +85,8 @@ private fun FilterControl(
     definition: SourceFilter,
     selected: List<String>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Column(modifier) {
+    Column {
         when (definition) {
             is SourceOptionFilter -> OptionFilter(pluginId, definition, selected, onValuesChange)
             is SourceRangeFilter -> RangeFilter(pluginId, definition, selected, onValuesChange)
@@ -109,8 +105,7 @@ private fun OptionFilter(
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text(definition.label)
         LazyRow(
-            contentPadding = PaddingValues(end = MaterialTheme.hikariSpacing.space16),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.sectionContentGap),
         ) {
             items(definition.options, key = { it.value }) { option ->
                 HikariFilterChip(

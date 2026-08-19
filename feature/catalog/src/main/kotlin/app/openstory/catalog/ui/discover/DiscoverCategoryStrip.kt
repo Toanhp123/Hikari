@@ -2,7 +2,6 @@ package app.openstory.catalog.ui.discover
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -24,13 +23,10 @@ internal fun LazyListScope.quickCategoryItem(
     item("discover-categories") {
         BoxWithConstraints {
             val columnCount = MaterialTheme.hikariLayoutPolicy.compactGridColumns
-            val totalSpacing =
-                MaterialTheme.hikariSpacing.space20 * columnCount +
-                    MaterialTheme.hikariSpacing.space12 * (columnCount - 1)
+            val totalSpacing = MaterialTheme.hikariSpacing.itemGap * (columnCount - 1)
             val cardWidth = (maxWidth - totalSpacing) / columnCount
             LazyRow(
-                contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space20),
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
             ) {
                 items(state.quickCategories, key = DiscoverQuickCategory::key) { category ->
                     val selected = state.selectedCatalogId == category.pluginId &&

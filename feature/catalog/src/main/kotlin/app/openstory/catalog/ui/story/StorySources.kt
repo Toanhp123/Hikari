@@ -13,15 +13,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.ui.mapping.MappingActions
-import app.openstory.catalog.ui.mapping.mappingItems
 import app.openstory.catalog.ui.mapping.MappingUiState
+import app.openstory.catalog.ui.mapping.mappingItems
 import app.openstory.common.id.PluginId
+import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionHeader
-import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.content.HikariSectionLead
 import app.openstory.designsystem.refresh.HikariPullToRefresh
+import app.openstory.designsystem.surface.HikariContentCard
+import app.openstory.designsystem.surface.HikariContentCardStyle
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -43,43 +48,86 @@ internal fun StorySources(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = storySectionContentPadding(),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
         ) {
-            item(key = "story-sources-header") {
-                HikariSectionHeader(title = "Sources")
-            }
-            items(story.sources, key = { "${it.pluginId.value}:${it.sourceId}" }) { source ->
-                SourceCard(source, selectedSource?.matches(source) == true) {
-                    onSourceSelected(source.pluginId, source.sourceId)
+            val firstSource = story.sources.firstOrNull()
+            if (firstSource == null) {
+                item(key = "story-sources-header") { StorySourcesHeader() }
+            } else {
+                item(key = "story-sources-header") {
+                    HikariSectionLead(
+                        header = { StorySourcesHeader() },
+                        firstContent = {
+                            SourceCard(firstSource, selectedSource?.matches(firstSource) == true) {
+                                onSourceSelected(firstSource.pluginId, firstSource.sourceId)
+                            }
+                        },
+                    )
+                }
+                items(story.sources.drop(1), key = { "${it.pluginId.value}:${it.sourceId}" }) { source ->
+                    SourceCard(source, selectedSource?.matches(source) == true) {
+                        onSourceSelected(source.pluginId, source.sourceId)
+                    }
                 }
             }
             mappingState?.let { mapping ->
-                mappingItems(mapping, mappingActions)
+                mappingItems(mapping, mappingActions, separatedFromPreviousSection = true)
             }
         }
     }
 }
 
 @Composable
+private fun StorySourcesHeader() {
+    HikariSectionHeader(
+        title = "Sources",
+        subtitle = "Choose the catalog entry used for story details.",
+    )
+}
+
+@Composable
 private fun SourceCard(source: CatalogEntry, selected: Boolean, onSelected: () -> Unit) {
-    Column(
-        Modifier
+    HikariContentCard(
+        modifier = Modifier
             .fillMaxWidth()
+            .testTag("story-source-${source.pluginId.value}-${source.sourceId}")
             .semantics(mergeDescendants = true) {
                 contentDescription = "${source.title}, source ${source.pluginId.value}"
-            }
-            .padding(vertical = MaterialTheme.hikariSpacing.space8),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+                this.selected = selected
+            },
+        style = if (selected) HikariContentCardStyle.PROMINENT else HikariContentCardStyle.STANDARD,
+        onClick = onSelected,
     ) {
-        HikariFilterChip(
-            selected = selected,
-            onClick = onSelected,
-            label = { Text(source.pluginId.value) },
-            modifier = Modifier.testTag("story-source-${source.pluginId.value}-${source.sourceId}"),
-        )
-        Text(source.title, style = MaterialTheme.typography.titleMedium)
-        source.description?.let { Text(it, maxLines = 4) }
-        source.sourceUrl?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
+            Text(source.title, style = MaterialTheme.typography.titleMedium)
+            HikariMetadataBadgeGroup(
+                buildList {
+                    add(source.pluginId.value)
+                    if (selected) add("Selected")
+                },
+            )
+            source.description?.takeIf(String::isNotBlank)?.let { description ->
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            source.sourceUrl?.takeIf(String::isNotBlank)?.let { url ->
+                Text(
+                    url,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 

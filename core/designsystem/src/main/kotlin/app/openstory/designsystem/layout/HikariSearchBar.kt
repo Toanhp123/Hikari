@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
@@ -52,7 +52,7 @@ fun HikariSearchBar(
     val dimensions = MaterialTheme.hikariDimensions
     val containerModifier = modifier
         .fillMaxWidth()
-        .height(dimensions.minimumTouchTarget)
+        .heightIn(min = dimensions.minimumTouchTarget)
         .border(
             dimensions.borderThin,
             MaterialTheme.colorScheme.primary.copy(alpha = MaterialTheme.hikariOpacity.onArtworkSecondary),

@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.semantics
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariSectionLead
 import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
@@ -39,8 +40,8 @@ fun ChapterList(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxWidth().testTag("chapter-list"),
-        contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.space16),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.screenGutter),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
     ) { chapterListItems(state, actions) }
 }
 
@@ -49,18 +50,22 @@ fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterLi
         val visibleReleaseIds = state.chapters.flatMap { chapter ->
             chapter.releases.filter(ChapterReleaseUiModel::downloadCapable).map(ChapterReleaseUiModel::id)
         }
-        HikariSectionHeader(
-            title = "Chapters",
-            subtitle = "${state.unreadCount} unread chapters",
-            action = {
-                HikariInlineAction(
-                    enabled = visibleReleaseIds.isNotEmpty(),
-                    onClick = { actions.onDownloadFiltered(visibleReleaseIds) },
-                ) { Text("Download visible") }
+        HikariSectionLead(
+            header = {
+                HikariSectionHeader(
+                    title = "Chapters",
+                    subtitle = "${state.unreadCount} unread chapters",
+                    action = {
+                        HikariInlineAction(
+                            enabled = visibleReleaseIds.isNotEmpty(),
+                            onClick = { actions.onDownloadFiltered(visibleReleaseIds) },
+                        ) { Text("Download visible") }
+                    },
+                )
             },
+            firstContent = { ChapterFiltersSheet(state, actions) },
         )
     }
-    item(key = "chapter-filters", contentType = "chapter-filters") { ChapterFiltersSheet(state, actions) }
     state.failure?.let { failure ->
         item(key = "chapter-failure", contentType = "chapter-feedback") {
             HikariInlineFeedback(message = failure)
@@ -101,19 +106,6 @@ private fun LazyListScope.chapterItems(
     }
     if (!chapter.expanded) return
 
-    item(
-        key = "chapter:${chapter.id.value}:download",
-        contentType = "chapter-action",
-    ) {
-        HikariInlineAction(
-            onClick = {
-                actions.onDownloadRange(
-                    chapter.releases.filter(ChapterReleaseUiModel::downloadCapable).map(ChapterReleaseUiModel::id),
-                )
-            },
-            enabled = chapter.releases.any(ChapterReleaseUiModel::downloadCapable),
-        ) { Text("Download chapter") }
-    }
     items(
         items = chapter.releases,
         key = { release -> "chapter:${chapter.id.value}:release:${release.id.value}" },
@@ -149,30 +141,49 @@ private fun ChapterSummaryCard(
         style = HikariContentCardStyle.PROMINENT,
         onClick = { actions.onToggleExpanded(chapter.id) },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
-                .padding(MaterialTheme.hikariSpacing.space16),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)
+                    .padding(MaterialTheme.hikariSpacing.space16),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(chapter.label, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    if (chapter.tombstoned) "Unavailable" else "Unread",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (chapter.tombstoned) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
+                ) {
+                    Text(chapter.label, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (chapter.tombstoned) "Unavailable" else "Unread",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (chapter.tombstoned) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                    )
+                }
+                HikariMetadataBadge(chapter.releaseCountLabel())
             }
-            HikariMetadataBadge(chapter.releaseCountLabel())
+            if (chapter.expanded) {
+                HikariInlineAction(
+                    onClick = {
+                        actions.onDownloadRange(
+                            chapter.releases
+                                .filter(ChapterReleaseUiModel::downloadCapable)
+                                .map(ChapterReleaseUiModel::id),
+                        )
+                    },
+                    enabled = chapter.releases.any(ChapterReleaseUiModel::downloadCapable),
+                    modifier = Modifier.padding(
+                        start = MaterialTheme.hikariSpacing.space8,
+                        end = MaterialTheme.hikariSpacing.space8,
+                        bottom = MaterialTheme.hikariSpacing.space8,
+                    ),
+                ) { Text("Download chapter") }
+            }
         }
     }
 }

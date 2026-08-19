@@ -21,7 +21,7 @@ import androidx.compose.ui.platform.testTag
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.layout.HikariResponsiveContent
 import app.openstory.designsystem.layout.HikariWindowClass
-import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.theme.hikariDimensions
@@ -96,18 +96,16 @@ private fun LibraryCollection(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.testTag("library-collection"),
-                contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+                contentPadding = contentPadding.withScreenContentInsets(),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
             ) {
                 items(state.items, key = { it.storyId.value }) { item ->
-                    Box(Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16)) {
-                        LibraryStoryCard(
-                            item = item,
-                            displayMode = LibraryDisplayMode.LIST,
-                            onSelected = { onStorySelected(item.storyId) },
-                            focusRequester = firstFocusRequester.takeIf { item == state.items.first() },
-                        )
-                    }
+                    LibraryStoryCard(
+                        item = item,
+                        displayMode = LibraryDisplayMode.LIST,
+                        onSelected = { onStorySelected(item.storyId) },
+                        focusRequester = firstFocusRequester.takeIf { item == state.items.first() },
+                    )
                 }
             }
         } else {
@@ -120,13 +118,9 @@ private fun LibraryCollection(
                 columns = columns,
                 state = gridState,
                 modifier = Modifier.testTag("library-collection"),
-                contentPadding = contentPadding.plus(
-                    start = MaterialTheme.hikariSpacing.space16,
-                    end = MaterialTheme.hikariSpacing.space16,
-                    bottom = MaterialTheme.hikariSpacing.space24,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
+                contentPadding = contentPadding.withScreenContentInsets(),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
             ) {
                 items(state.items, key = { it.storyId.value }) { item ->
                     LibraryStoryCard(

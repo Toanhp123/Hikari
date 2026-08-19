@@ -91,11 +91,9 @@ fun ChapterReleaseRow(
         ) {
             HikariInlineAction(
                 onClick = { onKeepGrouped(release.id, chapterId) },
-                modifier = Modifier.weight(1f),
             ) { Text("Keep grouped") }
             HikariInlineAction(
                 onClick = { onSeparate(release.id) },
-                modifier = Modifier.weight(1f),
             ) { Text("Separate") }
         }
     }

@@ -106,9 +106,12 @@ class HikariScrollableHeaderTest {
         compose.onNodeWithTag("gap-scroll-content").performScrollToIndex(10)
         val headerBottom = compose.onNodeWithTag("pinned-header").fetchSemanticsNode().boundsInRoot.bottom
         val scrolledItemTop = compose.onNodeWithText("Gap story 11").fetchSemanticsNode().boundsInRoot.top
-        assertTrue(
-            "Scrollable body must keep a visible gap below sticky chrome after deep scroll",
-            scrolledItemTop > headerBottom,
+        val expectedGapPx = with(compose.density) { 16.dp.toPx() }
+        assertEquals(
+            "Sticky destinations must keep the shared header-to-content rhythm after deep scroll",
+            expectedGapPx,
+            scrolledItemTop - headerBottom,
+            1f,
         )
     }
 
@@ -122,7 +125,7 @@ class HikariScrollableHeaderTest {
                     header = { HikariTopLevelHeader(title = "Home") },
                     headerScrolled = scrolled.value,
                 ) {
-                    Box(Modifier.fillMaxSize())
+                    Box(Modifier.fillMaxSize().testTag("sticky-body"))
                 }
             }
         }
@@ -130,6 +133,15 @@ class HikariScrollableHeaderTest {
         compose.onNodeWithTag("hikari-bottom-separation-shadow").assertDoesNotExist()
         compose.runOnIdle { scrolled.value = true }
         compose.onNodeWithTag("hikari-bottom-separation-shadow").assertIsDisplayed()
+        val shadowBottom = compose.onNodeWithTag("hikari-bottom-separation-shadow")
+            .fetchSemanticsNode().boundsInRoot.bottom
+        val bodyTop = compose.onNodeWithTag("sticky-body").fetchSemanticsNode().boundsInRoot.top
+        assertEquals(
+            "Sticky separation shadow must end at the body edge so no blank space follows it",
+            bodyTop,
+            shadowBottom,
+            1f,
+        )
     }
 
     @Test

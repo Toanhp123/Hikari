@@ -2,7 +2,6 @@ package app.openstory.catalog.ui.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -31,7 +30,7 @@ internal fun LazyListScope.continueReadingShelf(
     if (state.continueReading.isEmpty()) return
     item("home-continue") {
         HomeSection("Continue Reading") {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap)) {
                 items(state.continueReading, key = { it.storyId.value }) { item ->
                     ContinueReadingCard(
                         item = item,
@@ -54,7 +53,7 @@ internal fun LazyListScope.latestUpdatesShelf(
     if (updates.isEmpty()) return
     item("home-updates") {
         HomeSection("Latest Updates") {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap)) {
                 items(updates, key = { it.releaseId.value }) { update ->
                     StoryUpdateCard(
                         content = StoryUpdateCardContent(
@@ -133,7 +132,7 @@ internal fun LazyListScope.itemShelf(
     if (entries.isEmpty()) return
     item("home-shelf-$title") {
         HomeSection(title) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap)) {
                 items(entries, key = { it.storyId.value }) { item ->
                     DashboardStoryCard(
                         item,
@@ -156,8 +155,7 @@ internal fun LazyListScope.itemShelf(
 @Composable
 private fun HomeSection(title: String, content: @Composable () -> Unit) {
     Column(
-        modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.sectionContentGap),
     ) {
         HikariSectionHeader(title)
         content()

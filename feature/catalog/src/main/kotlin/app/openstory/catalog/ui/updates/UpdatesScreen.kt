@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import app.openstory.catalog.ui.activity.LibraryActivityItem
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.StoryUpdateCard
 import app.openstory.catalog.ui.components.StoryUpdateCardAction
@@ -21,10 +22,11 @@ import app.openstory.common.id.StoryId
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariSectionLead
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariStickyDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
-import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -71,39 +73,46 @@ private fun UpdateGroups(
 ) {
     LazyColumn(
         state = listState,
-        contentPadding = contentPadding.plus(
-            start = MaterialTheme.hikariSpacing.space16,
-            end = MaterialTheme.hikariSpacing.space16,
-            bottom = MaterialTheme.hikariSpacing.space16,
-        ),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        contentPadding = contentPadding.withScreenContentInsets(),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
     ) {
-        groups.forEach { group ->
+        groups.filter { it.items.isNotEmpty() }.forEachIndexed { groupIndex, group ->
+            val firstItem = group.items.first()
             item(key = "heading-${group.label}") {
-                HikariSectionHeader(
-                    title = group.label,
-                    modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8),
+                HikariSectionLead(
+                    separatedFromPreviousSection = groupIndex > 0,
+                    header = { HikariSectionHeader(title = group.label) },
+                    firstContent = { UpdateListItem(firstItem, onStorySelected, onRead) },
                 )
             }
-            items(group.items, key = { it.releaseId.value }) { item ->
-                StoryUpdateCard(
-                    content = StoryUpdateCardContent(
-                        storyId = item.storyId,
-                        title = item.title,
-                        coverUrl = item.coverUrl,
-                        chapterLabel = item.chapterLabel,
-                        sourceLabel = item.sourceLabel,
-                        languageTag = item.languageTag,
-                        contentDescription =
-                            "${item.title}, ${item.chapterLabel}, ${item.sourceLabel}, ${item.languageTag}",
-                    ),
-                    onClick = { onStorySelected(item.storyId) },
-                    action = item.readerTarget?.let { target ->
-                        StoryUpdateCardAction("Read") { onRead(target) }
-                    },
-                    variant = StoryUpdateCardVariant.ROW,
-                )
+            items(group.items.drop(1), key = { it.releaseId.value }) { item ->
+                UpdateListItem(item, onStorySelected, onRead)
             }
         }
     }
+}
+
+@Composable
+private fun UpdateListItem(
+    item: LibraryActivityItem,
+    onStorySelected: (StoryId) -> Unit,
+    onRead: (ReaderTarget) -> Unit,
+) {
+    StoryUpdateCard(
+        content = StoryUpdateCardContent(
+            storyId = item.storyId,
+            title = item.title,
+            coverUrl = item.coverUrl,
+            chapterLabel = item.chapterLabel,
+            sourceLabel = item.sourceLabel,
+            languageTag = item.languageTag,
+            contentDescription =
+                "${item.title}, ${item.chapterLabel}, ${item.sourceLabel}, ${item.languageTag}",
+        ),
+        onClick = { onStorySelected(item.storyId) },
+        action = item.readerTarget?.let { target ->
+            StoryUpdateCardAction("Read") { onRead(target) }
+        },
+        variant = StoryUpdateCardVariant.ROW,
+    )
 }

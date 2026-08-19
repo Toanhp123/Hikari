@@ -38,8 +38,8 @@ fun StoryShelf(
                 modifier = Modifier.semantics { heading() },
             )
             LazyRow(
-                contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.space8),
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+                contentPadding = PaddingValues(vertical = MaterialTheme.hikariSpacing.sectionContentGap),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
             ) {
                 items(entries, key = { "${it.pluginId.value}:${it.sourceId}" }) { entry ->
                     StoryCoverCard(entry, title, onSelected, cardWidth)

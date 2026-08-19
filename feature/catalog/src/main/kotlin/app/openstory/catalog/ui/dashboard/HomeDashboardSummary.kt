@@ -1,36 +1,41 @@
 package app.openstory.catalog.ui.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import app.openstory.designsystem.feedback.HikariInlineFeedback
-import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.surface.HikariContentCard
+import app.openstory.designsystem.surface.HikariContentCardStyle
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 internal fun HomeSummary(summary: HomeReadingSummary) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(MaterialTheme.hikariDimensions.dashboardFeatureHeight)
-            .padding(MaterialTheme.hikariSpacing.space20),
+    HikariContentCard(
+        modifier = Modifier.fillMaxWidth(),
+        style = HikariContentCardStyle.PROMINENT,
     ) {
         Column(
-            modifier = Modifier.align(Alignment.BottomStart),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
         ) {
-            Text("Welcome back", style = MaterialTheme.typography.headlineMedium)
-            Text("Your library, progress and newest chapters in one place.", style = MaterialTheme.typography.bodyLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16)) {
+            Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
+                Text("Welcome back", style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    "Your library, progress and newest chapters in one place.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
                 SummaryMetric(summary.libraryCount, "Library")
                 SummaryMetric(summary.readingCount, "Reading")
                 SummaryMetric(summary.completedCount, "Completed")
@@ -42,9 +47,13 @@ internal fun HomeSummary(summary: HomeReadingSummary) {
 
 @Composable
 private fun SummaryMetric(value: Int, label: String) {
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text(value.toString(), style = MaterialTheme.typography.titleLarge)
-        Text(label, style = MaterialTheme.typography.labelMedium)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

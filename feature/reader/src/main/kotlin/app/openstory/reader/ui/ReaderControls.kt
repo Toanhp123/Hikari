@@ -39,10 +39,10 @@ fun ReaderControls(
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(
-                horizontal = MaterialTheme.hikariSpacing.space16,
-                vertical = MaterialTheme.hikariSpacing.space12,
+                horizontal = MaterialTheme.hikariSpacing.screenGutter,
+                vertical = MaterialTheme.hikariSpacing.itemGap,
             ),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HikariIconAction(
@@ -95,8 +95,8 @@ fun ReaderChapterNavigation(
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(
-                horizontal = MaterialTheme.hikariSpacing.space16,
-                vertical = MaterialTheme.hikariSpacing.space12,
+                horizontal = MaterialTheme.hikariSpacing.screenGutter,
+                vertical = MaterialTheme.hikariSpacing.itemGap,
             ),
         style = HikariGlassPanelStyle.FLOATING,
     ) {

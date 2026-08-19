@@ -1,7 +1,6 @@
 package app.openstory.catalog.ui.discover
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -23,8 +22,7 @@ internal fun LazyListScope.sourceFilterItem(
     catalogFocusRequester: FocusRequester?,
 ) = item("discover-sources") {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = MaterialTheme.hikariSpacing.space20),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.sectionContentGap),
     ) {
         item("combined") {
             HikariFilterChip(

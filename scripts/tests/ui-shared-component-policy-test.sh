@@ -26,6 +26,75 @@ assert_contains() {
   fi
 }
 
+# Screen rhythm contracts: keep one semantic owner for top-level content insets and gaps.
+assert_contains 'val screenGutter: Dp' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt' \
+  'design system must expose one semantic 16dp screen gutter'
+assert_contains 'val sectionGap: Dp' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt' \
+  'design system must expose one semantic top-level section gap'
+assert_contains 'val itemGap: Dp' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt' \
+  'design system must expose one semantic repeated-item gap'
+assert_contains 'val sectionContentGap: Dp' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt' \
+  'design system must expose one semantic section-to-content gap'
+assert_contains 'val screenBottom: Dp' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt' \
+  'design system must expose one semantic bottom breathing-room token'
+assert_contains 'fun PaddingValues.withScreenContentInsets()' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'design system must own top-level scroll content insets'
+assert_contains 'fun HikariSectionLead(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionLead.kt' \
+  'design system must own section-header to first-content rhythm'
+assert_contains '.heightIn(min = dimensions.minimumTouchTarget)' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariSearchBar.kt' \
+  'search bars must keep a minimum touch target while allowing large-font growth'
+assert_absent '[.]height\(dimensions[.]minimumTouchTarget\)' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariSearchBar.kt' \
+  'search bars must not clamp large-font content to a fixed touch-target height'
+for section_rhythm_owner in \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/updates/UpdatesScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt'; do
+  assert_contains 'HikariSectionLead(' \
+    "$section_rhythm_owner" \
+    "sectioned lists must use the shared 8/12/16 rhythm owner: $section_rhythm_owner"
+done
+for rhythm_owner in \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeContent.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryContent.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/updates/UpdatesScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt'; do
+  assert_contains 'withScreenContentInsets()' \
+    "$rhythm_owner" \
+    "scrolling destinations must consume the shared screen inset contract: $rhythm_owner"
+done
+assert_contains 'MaterialTheme.hikariSpacing.screenGutter' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySectionLayout.kt' \
+  'Story sections must align to the same semantic screen gutter'
+assert_absent 'hikariSpacing[.]space20' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeContent.kt' \
+  'Home list-level spacing must not fork the 16dp screen gutter with space20'
+assert_absent 'padding\\(horizontal = MaterialTheme[.]hikariSpacing[.]space20\\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardShelves.kt' \
+  'Home shelves must inherit the shared screen gutter instead of owning a 20dp outer inset'
+assert_absent 'padding\\(horizontal = MaterialTheme[.]hikariSpacing[.]space20\\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardSummary.kt' \
+  'Home summary must inherit the shared screen gutter instead of owning a 20dp outer inset'
+assert_absent 'padding\\(horizontal = MaterialTheme[.]hikariSpacing[.]space20\\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
+  'Discover shelves must inherit the shared screen gutter instead of owning a 20dp outer inset'
+assert_absent 'PaddingValues\\(horizontal = MaterialTheme[.]hikariSpacing[.]space20\\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover' \
+  'Discover horizontal strips must inherit the shared 16dp screen gutter'
+
 assert_absent 'private fun LibraryEmptyState\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library' \
   'Library must use HikariEmptyState instead of a local empty-state fork'
@@ -38,6 +107,12 @@ assert_absent 'private fun (FailureBanner|FailureCard)\(' \
 assert_absent 'import androidx\.compose\.material3\.FilterChip' \
   'feature' \
   'features must use HikariFilterChip so touch geometry has one owner'
+assert_absent 'import androidx\.compose\.material3\.AssistChip' \
+  'feature' \
+  'features must use a Hikari-owned suggestion chip instead of raw Material AssistChip'
+assert_absent 'import androidx\.compose\.material3\.Surface' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover' \
+  'Discover category affordances must use shared Hikari surface ownership instead of raw Material Surface'
 assert_absent 'private fun UpdateCard\(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui' \
   'catalog update cards must use the shared StoryUpdateCard component'
@@ -129,6 +204,36 @@ assert_contains 'keyboardActions: KeyboardActions = KeyboardActions.Default' \
 assert_contains 'fun HikariFilterChip(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariFilterChip.kt' \
   'design system must own the shared filter chip'
+assert_contains 'fun HikariSuggestionChip(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSuggestionChip.kt' \
+  'design system must own suggestion/recent-query chip presentation'
+assert_contains 'HikariSuggestionChip(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'Search recent queries must consume the shared suggestion chip'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverCategoryCard.kt' \
+  'Discover quick categories must reuse shared Hikari content-card chrome'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardSummary.kt' \
+  'Home summary must have shared surface hierarchy instead of a fixed empty feature block'
+assert_absent 'dashboardFeatureHeight' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardSummary.kt' \
+  'Home summary must size to content instead of reserving the legacy fixed feature height'
+assert_contains 'HikariContentCard(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
+  'Story catalog-source entries must use the same shared content-card language as adjacent story content'
+assert_absent 'Text\("Linked sources"' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
+  'Reading-source mapping must not add a redundant Linked sources heading below its section header'
+assert_contains 'HikariSectionHeader(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
+  'Reading-source mapping must use the shared story section-header hierarchy'
+assert_absent 'candidate[.]evidenceLabels[.]forEach' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingSheet.kt' \
+  'Mapping candidate evidence must stay compact instead of emitting one text row per evidence label'
+assert_absent 'contentType = "chapter-action"' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'Expanded chapter download action must stay attached to its summary card instead of becoming a loose list tier'
 assert_contains 'fun HikariPrimaryAction(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariPrimaryAction.kt' \
   'design system must own the shared filled primary action'
@@ -319,7 +424,7 @@ assert_absent 'import androidx\.compose\.material3\.TextButton|TextButton\(' \
 assert_absent 'import androidx\.compose\.material3\.TextButton|TextButton\(' \
   'app/src/main/kotlin' \
   'app actions must use shared Hikari action treatments'
-assert_contains 'HikariSectionHeader(title = "Details")' \
+assert_contains 'title = "Details"' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
   'Story Overview must use the shared Details mini-header'
 assert_contains 'HikariSectionHeader(' \
@@ -399,9 +504,18 @@ assert_contains 'HikariSafeDestinationViewport(' \
 assert_contains 'HikariStickyDestinationScaffold(' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariTopLevelScaffold.kt' \
   'top-level sticky layout must delegate safe-area and pinned-header mechanics to the shared primitive'
-assert_contains '.height(MaterialTheme.hikariSpacing.space16)' \
+assert_contains 'val destinationContentGap: Dp' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt' \
+  'design system must own one semantic header-to-content spacing role'
+assert_contains '.height(MaterialTheme.hikariSpacing.destinationContentGap)' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
-  'sticky destination body gap must remain fixed outside scrollable content padding'
+  'sticky destination scaffold must own the fixed header-to-content rhythm outside scroll content'
+assert_contains 'contentAlignment = Alignment.BottomCenter' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'sticky separation shadow must sit at the body edge after the header gap instead of before blank space'
+assert_absent 'top = spacing.screenGutter' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'screen content insets must not duplicate the scaffold-owned header-to-content gap inside scroll content'
 assert_contains 'headerScrolled: Boolean = false' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
   'shared sticky destination chrome must accept scroll state for conditional separation shadow'

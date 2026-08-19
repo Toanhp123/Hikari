@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +22,7 @@ import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariSearchBar
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.HikariTopLevelScaffold
-import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
 import app.openstory.designsystem.theme.hikariSpacing
@@ -98,15 +97,14 @@ fun DiscoverScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize().testTag("discover-list"),
-                        contentPadding = bodyPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
-                        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
+                        contentPadding = bodyPadding.withScreenContentInsets(),
+                        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.sectionGap),
                     ) {
                         state.featured?.let { featured ->
                             item("discover-featured") {
                                 DiscoverHero(
                                     entry = featured,
                                     onSelected = onStorySelected,
-                                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space16),
                                 )
                             }
                         }
@@ -130,7 +128,6 @@ fun DiscoverScreen(
                                     title = shelf.title,
                                     entries = shelf.entries,
                                     onSelected = onStorySelected,
-                                    modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20),
                                 )
                             }
                         }

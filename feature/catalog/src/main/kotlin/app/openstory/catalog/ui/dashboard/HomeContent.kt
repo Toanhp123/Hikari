@@ -3,7 +3,6 @@ package app.openstory.catalog.ui.dashboard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
@@ -13,7 +12,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.StoryId
-import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -30,13 +29,13 @@ internal fun HomeContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().testTag("home-list"),
-        contentPadding = contentPadding.plus(bottom = MaterialTheme.hikariSpacing.space24),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
+        contentPadding = contentPadding.withScreenContentInsets(),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.sectionGap),
     ) {
         item("home-summary") { HomeSummary(state.summary) }
         state.failure?.let { failure ->
             item("home-failure") {
-                ObservationFailure(failure, Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space20))
+                ObservationFailure(failure)
             }
         }
         continueReadingShelf(

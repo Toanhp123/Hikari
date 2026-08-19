@@ -89,7 +89,7 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
             Row(
                 modifier = Modifier.fillMaxSize().padding(MaterialTheme.hikariSpacing.space8),
                 horizontalArrangement = Arrangement.spacedBy(
-                    if (medium) MaterialTheme.hikariSpacing.space20 else MaterialTheme.hikariSpacing.space12,
+                    if (medium) MaterialTheme.hikariSpacing.space20 else MaterialTheme.hikariSpacing.itemGap,
                 ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

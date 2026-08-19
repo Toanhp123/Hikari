@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import app.openstory.designsystem.content.HikariMetadataGroup
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariSectionLead
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -41,28 +42,60 @@ private fun StoryOverviewList(
     compact: Boolean,
     modifier: Modifier,
 ) {
+    val description = story.description?.takeIf(String::isNotBlank)
+    val metadataGroups = listOf(
+        "Authors" to story.authors,
+        "Genres" to story.genres,
+        "Languages" to story.languageTags,
+        "Also known as" to story.aliases,
+    ).filter { (_, values) -> values.isNotEmpty() }
+
     LazyColumn(
         modifier = modifier,
         contentPadding = storySectionContentPadding(),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
     ) {
-        item(key = "story-overview-header") {
-            HikariSectionHeader(title = "Details")
-        }
-        story.description?.takeIf(String::isNotBlank)?.let { description ->
-            item {
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = if (compact) COMPACT_DESCRIPTION_LINES else Int.MAX_VALUE,
-                )
+        when {
+            description != null -> {
+                item(key = "story-overview-header") {
+                    HikariSectionLead(
+                        header = { OverviewHeader() },
+                        firstContent = {
+                            Text(
+                                description,
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = if (compact) COMPACT_DESCRIPTION_LINES else Int.MAX_VALUE,
+                            )
+                        },
+                    )
+                }
+                metadataGroups.forEach { (title, values) ->
+                    item(key = "story-overview-metadata-$title") { HikariMetadataGroup(title, values) }
+                }
             }
+            metadataGroups.isNotEmpty() -> {
+                val (firstTitle, firstValues) = metadataGroups.first()
+                item(key = "story-overview-header") {
+                    HikariSectionLead(
+                        header = { OverviewHeader() },
+                        firstContent = { HikariMetadataGroup(firstTitle, firstValues) },
+                    )
+                }
+                metadataGroups.drop(1).forEach { (title, values) ->
+                    item(key = "story-overview-metadata-$title") { HikariMetadataGroup(title, values) }
+                }
+            }
+            else -> item(key = "story-overview-header") { OverviewHeader() }
         }
-        item { HikariMetadataGroup("Authors", story.authors) }
-        item { HikariMetadataGroup("Genres", story.genres) }
-        item { HikariMetadataGroup("Languages", story.languageTags) }
-        item { HikariMetadataGroup("Also known as", story.aliases) }
     }
+}
+
+@Composable
+private fun OverviewHeader() {
+    HikariSectionHeader(
+        title = "Details",
+        subtitle = "Story information from the selected catalog source.",
+    )
 }
 
 private const val COMPACT_DESCRIPTION_LINES = 7

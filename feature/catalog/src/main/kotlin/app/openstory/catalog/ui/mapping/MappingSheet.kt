@@ -17,8 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
+import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariSectionLead
 import app.openstory.designsystem.content.HikariSectionTitle
-import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.control.HikariPrimaryAction
 import app.openstory.designsystem.control.HikariUtilityAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
@@ -32,47 +33,27 @@ import java.util.Locale
 fun LazyListScope.mappingItems(
     state: MappingUiState,
     actions: MappingActions,
+    separatedFromPreviousSection: Boolean = false,
 ) {
     item(key = "mapping-title", contentType = "mapping-header") {
-        HikariSectionTitle("Reading sources")
-    }
-    item(key = "mapping-description", contentType = "mapping-copy") {
-        Text(
-            "Linked sources stay protected until you explicitly approve a replacement.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        HikariSectionLead(
+            separatedFromPreviousSection = separatedFromPreviousSection,
+            header = {
+                HikariSectionHeader(
+                    title = "Reading sources",
+                    subtitle = "Linked sources stay protected until you explicitly approve a replacement.",
+                )
+            },
+            firstContent = { LinkedMappingLeadContent(state) },
         )
     }
-    item(key = "mapping-linked-title", contentType = "mapping-subheader") {
-        Text("Linked sources", style = MaterialTheme.typography.titleMedium)
-    }
-    when {
-        state.loading && state.mappings.isEmpty() -> {
-            item(key = "mapping-linked-loading", contentType = "mapping-progress") {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().testTag("mapping-loading"),
-                )
-            }
-        }
-        state.mappings.isEmpty() -> {
-            item(key = "mapping-linked-empty", contentType = "mapping-card") {
-                HikariContentCard(Modifier.fillMaxWidth()) {
-                    Text(
-                        "No reading source linked yet",
-                        modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-        else -> {
-            items(
-                items = state.mappings,
-                key = { mapping -> "mapping-linked:${mapping.pluginId.value}:${mapping.sourceStoryId}" },
-                contentType = { "mapping-card" },
-            ) { mapping ->
-                CurrentMappingCard(mapping)
-            }
+    if (state.mappings.isNotEmpty()) {
+        items(
+            items = state.mappings.drop(1),
+            key = { mapping -> "mapping-linked:${mapping.pluginId.value}:${mapping.sourceStoryId}" },
+            contentType = { "mapping-card" },
+        ) { mapping ->
+            CurrentMappingCard(mapping)
         }
     }
     item(key = "mapping-search", contentType = "mapping-action") {
@@ -97,17 +78,42 @@ fun LazyListScope.mappingItems(
     ) { _, failure ->
         HikariInlineFeedback(message = "Mapping issue: $failure")
     }
-    if (state.candidates.isNotEmpty()) {
+    state.candidates.firstOrNull()?.let { firstCandidate ->
         item(key = "mapping-candidates-title", contentType = "mapping-subheader") {
-            Text("Candidates", style = MaterialTheme.typography.titleMedium)
+            HikariSectionLead(
+                separatedFromPreviousSection = true,
+                header = { HikariSectionTitle("Candidates") },
+                firstContent = { MappingCandidateCard(firstCandidate, actions, enabled = !state.busy) },
+            )
+        }
+        items(
+            items = state.candidates.drop(1),
+            key = { candidate -> "mapping-candidate:${candidate.pluginId.value}:${candidate.sourceStoryId}" },
+            contentType = { "mapping-candidate" },
+        ) { candidate ->
+            MappingCandidateCard(candidate, actions, enabled = !state.busy)
         }
     }
-    items(
-        items = state.candidates,
-        key = { candidate -> "mapping-candidate:${candidate.pluginId.value}:${candidate.sourceStoryId}" },
-        contentType = { "mapping-candidate" },
-    ) { candidate ->
-        MappingCandidateCard(candidate, actions, enabled = !state.busy)
+}
+
+@Composable
+private fun LinkedMappingLeadContent(state: MappingUiState) {
+    when {
+        state.loading && state.mappings.isEmpty() -> {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().testTag("mapping-loading"),
+            )
+        }
+        state.mappings.isEmpty() -> {
+            HikariContentCard(Modifier.fillMaxWidth()) {
+                Text(
+                    "No reading source linked yet",
+                    modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        else -> CurrentMappingCard(state.mappings.first())
     }
 }
 
@@ -168,11 +174,13 @@ private fun MappingCandidateCard(
                     }
                 },
             )
-            candidate.evidenceLabels.forEach { label ->
+            candidate.evidenceLabels.takeIf { it.isNotEmpty() }?.let { labels ->
                 Text(
-                    "- $label",
+                    labels.joinToString(separator = " • "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             candidate.sourceUrl?.let { url ->
@@ -193,7 +201,7 @@ private fun MappingCandidateCard(
                     enabled = enabled,
                     modifier = Modifier.weight(1f),
                 ) { Text(candidate.approvalLabel()) }
-                HikariInlineAction(
+                HikariUtilityAction(
                     onClick = { actions.onReject(candidate.pluginId, candidate.sourceStoryId) },
                     enabled = enabled,
                     modifier = Modifier.weight(1f),

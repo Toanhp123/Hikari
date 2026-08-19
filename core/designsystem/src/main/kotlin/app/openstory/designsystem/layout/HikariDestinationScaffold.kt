@@ -101,8 +101,8 @@ fun HikariStickyDestinationScaffold(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(MaterialTheme.hikariSpacing.space16),
-                contentAlignment = Alignment.TopCenter,
+                    .height(MaterialTheme.hikariSpacing.destinationContentGap),
+                contentAlignment = Alignment.BottomCenter,
             ) {
                 HikariBottomSeparationShadow(enabled = headerScrolled)
             }
@@ -145,6 +145,16 @@ fun PaddingValues.plus(
 }
 
 @Composable
+fun PaddingValues.withScreenContentInsets(): PaddingValues {
+    val spacing = MaterialTheme.hikariSpacing
+    return plus(
+        start = spacing.screenGutter,
+        end = spacing.screenGutter,
+        bottom = spacing.screenBottom,
+    )
+}
+
+@Composable
 fun PaddingValues.withTop(top: Dp): PaddingValues {
     val layoutDirection = LocalLayoutDirection.current
     return PaddingValues(
@@ -172,7 +182,7 @@ fun HikariTopLevelHeader(
             .fillMaxWidth()
             .heightIn(min = MaterialTheme.hikariDimensions.topBarMinHeight)
             .padding(
-                horizontal = horizontalPadding ?: spacing.space16,
+                horizontal = horizontalPadding ?: spacing.screenGutter,
                 vertical = spacing.space8,
             ),
         verticalAlignment = Alignment.CenterVertically,

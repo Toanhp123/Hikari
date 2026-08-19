@@ -17,7 +17,14 @@ data class HikariSpacing(
     val space20: Dp = 20.dp,
     val space24: Dp = 24.dp,
     val space32: Dp = 32.dp,
-)
+) {
+    val screenGutter: Dp get() = space16
+    val destinationContentGap: Dp get() = space16
+    val sectionGap: Dp get() = space16
+    val itemGap: Dp get() = space12
+    val sectionContentGap: Dp get() = space8
+    val screenBottom: Dp get() = space24
+}
 
 val HikariDefaultSpacing = HikariSpacing()
 

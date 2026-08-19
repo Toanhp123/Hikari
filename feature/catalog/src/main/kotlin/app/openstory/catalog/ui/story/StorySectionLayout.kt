@@ -7,4 +7,4 @@ import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 internal fun storySectionContentPadding(): PaddingValues =
-    PaddingValues(MaterialTheme.hikariSpacing.space16)
+    PaddingValues(MaterialTheme.hikariSpacing.screenGutter)

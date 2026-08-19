@@ -93,8 +93,8 @@ internal fun NarrowHeroContent(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(MaterialTheme.hikariSpacing.space16),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+            .padding(MaterialTheme.hikariSpacing.screenGutter),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
         verticalAlignment = Alignment.Bottom,
     ) {
         HikariArtwork(

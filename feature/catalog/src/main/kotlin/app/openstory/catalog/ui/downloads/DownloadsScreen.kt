@@ -23,6 +23,7 @@ import app.openstory.catalog.ui.download.DownloadActionSheet
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariSectionLead
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
@@ -30,7 +31,7 @@ import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariStickyDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
-import app.openstory.designsystem.layout.plus
+import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
@@ -97,12 +98,8 @@ private fun DownloadsList(
 ) {
     LazyColumn(
         state = listState,
-        contentPadding = contentPadding.plus(
-            start = MaterialTheme.hikariSpacing.space16,
-            end = MaterialTheme.hikariSpacing.space16,
-            bottom = MaterialTheme.hikariSpacing.space16,
-        ),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        contentPadding = contentPadding.withScreenContentInsets(),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
     ) {
         val actions = DownloadListActions(
             onStorySelected,
@@ -112,9 +109,14 @@ private fun DownloadsList(
             onConfirmRemoval,
             onDismissRemoval,
         )
-        downloadSection("Active", state.active, state, actions)
-        downloadSection("Completed", state.completed, state, actions)
-        downloadSection("Failed", state.failed, state, actions)
+        listOf(
+            "Active" to state.active,
+            "Completed" to state.completed,
+            "Failed" to state.failed,
+        ).filter { (_, records) -> records.isNotEmpty() }
+            .forEachIndexed { sectionIndex, (title, records) ->
+                downloadSection(title, records, state, actions, separatedFromPrevious = sectionIndex > 0)
+            }
     }
 }
 
@@ -123,15 +125,19 @@ private fun androidx.compose.foundation.lazy.LazyListScope.downloadSection(
     records: List<DownloadItemUiModel>,
     state: DownloadsUiState,
     actions: DownloadListActions,
+    separatedFromPrevious: Boolean,
 ) {
-    if (records.isEmpty()) return
+    val firstRecord = records.first()
     item(key = "heading-$title") {
-        HikariSectionHeader(
-            title = title,
-            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8),
+        HikariSectionLead(
+            separatedFromPreviousSection = separatedFromPrevious,
+            header = { HikariSectionHeader(title = title) },
+            firstContent = {
+                DownloadCard(firstRecord, state.pendingRemoval == firstRecord.releaseId, actions)
+            },
         )
     }
-    items(records, key = { it.releaseId.value }) { item ->
+    items(records.drop(1), key = { it.releaseId.value }) { item ->
         DownloadCard(item, state.pendingRemoval == item.releaseId, actions)
     }
 }

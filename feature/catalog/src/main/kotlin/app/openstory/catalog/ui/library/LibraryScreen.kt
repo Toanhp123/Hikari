@@ -76,10 +76,9 @@ fun LibraryScreen(
         }
     }
     val chrome: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
+        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.sectionContentGap)) {
             HikariTopLevelHeader(
                 title = "Library",
-                horizontalPadding = MaterialTheme.hikariSpacing.space16,
                 onAction = onUtilityRequested,
                 focusRequester = utilityFocusRequester,
                 nextFocusRequester = utilityNextFocusRequester,
@@ -94,7 +93,7 @@ fun LibraryScreen(
                 filterFocusRequester = filterFocus,
                 viewFocusRequester = viewFocus,
                 contentFocusRequester = contentFocus,
-                horizontalPadding = MaterialTheme.hikariSpacing.space16,
+                horizontalPadding = MaterialTheme.hikariSpacing.screenGutter,
             )
         }
     }
