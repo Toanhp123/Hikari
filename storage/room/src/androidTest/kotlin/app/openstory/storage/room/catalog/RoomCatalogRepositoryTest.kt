@@ -5,9 +5,12 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
@@ -36,6 +39,67 @@ class RoomCatalogRepositoryTest {
             assertEquals(listOf("a", "b"), homes.map { it.pluginId.value })
             assertEquals(listOf("a-2"), homes.first().sections.single().items.map { it.sourceId })
             assertEquals("a-1", repository.observeStory(StoryId("story:a-1")).first()!!.entries.single().sourceId)
+        }
+    }
+
+    @Test
+    fun semanticMetadataRoundTripsAndSparseRefreshPreservesNewerValues() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val base = mutation("a", listOf("a-1"), 1)
+            val richEntry = base.entries.single().copy(
+                publicationStatus = PublicationStatus.ONGOING,
+                latestUpdate = CatalogLatestUpdate(500L, "128"),
+            )
+            repository.commitHomeRefresh(
+                base.copy(
+                    entries = listOf(richEntry),
+                    sections = listOf(
+                        CatalogHomeSection(
+                            "section",
+                            "Section",
+                            listOf(richEntry),
+                            CatalogFeedKind.TOP_RATED,
+                        ),
+                    ),
+                ),
+            )
+
+            val home = repository.observeHomes().first().single()
+            assertEquals(CatalogFeedKind.TOP_RATED, home.sections.single().kind)
+            assertEquals(PublicationStatus.ONGOING, home.sections.single().items.single().publicationStatus)
+            assertEquals(CatalogLatestUpdate(500L, "128"), home.sections.single().items.single().latestUpdate)
+
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 2))
+            var stored = repository.observeStory(StoryId("story:a-1")).first()!!.entries.single()
+            assertEquals(PublicationStatus.ONGOING, stored.publicationStatus)
+            assertEquals(CatalogLatestUpdate(500L, "128"), stored.latestUpdate)
+
+            val older = mutation("a", listOf("a-1"), 3)
+            val olderEntry = older.entries.single().copy(latestUpdate = CatalogLatestUpdate(400L, "120"))
+            repository.commitHomeRefresh(
+                older.copy(
+                    entries = listOf(olderEntry),
+                    sections = listOf(older.sections.single().copy(items = listOf(olderEntry))),
+                ),
+            )
+            stored = repository.observeStory(StoryId("story:a-1")).first()!!.entries.single()
+            assertEquals(CatalogLatestUpdate(500L, "128"), stored.latestUpdate)
+
+            val newer = mutation("a", listOf("a-1"), 4)
+            val newerEntry = newer.entries.single().copy(
+                publicationStatus = PublicationStatus.COMPLETED,
+                latestUpdate = CatalogLatestUpdate(600L, "130"),
+            )
+            repository.commitHomeRefresh(
+                newer.copy(
+                    entries = listOf(newerEntry),
+                    sections = listOf(newer.sections.single().copy(items = listOf(newerEntry))),
+                ),
+            )
+            stored = repository.observeStory(StoryId("story:a-1")).first()!!.entries.single()
+            assertEquals(PublicationStatus.COMPLETED, stored.publicationStatus)
+            assertEquals(CatalogLatestUpdate(600L, "130"), stored.latestUpdate)
         }
     }
 

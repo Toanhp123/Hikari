@@ -7,8 +7,11 @@ import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.repository.CatalogHomeMutation
@@ -17,8 +20,10 @@ import app.openstory.catalog.source.CatalogSource
 import app.openstory.catalog.source.CatalogSourceRegistry
 import app.openstory.catalog.source.CatalogSourceResult
 import app.openstory.catalog.source.SourceContentType
+import app.openstory.catalog.source.SourceFeedKind
 import app.openstory.catalog.source.SourceHomeRequest
 import app.openstory.catalog.source.SourceItem
+import app.openstory.catalog.source.SourcePublicationStatus
 import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.StoryId
@@ -144,7 +149,6 @@ class CatalogRefreshService @Inject constructor(
             item.sourceId to item.toEntry(source, story.id)
         }
 
-
     private data class CommitAttempt(
         val result: CatalogRefreshResult,
         val committedIndex: CatalogMatchIndex?,
@@ -170,9 +174,10 @@ private fun List<app.openstory.catalog.source.SourceSection>.toCatalogSections(
     resolved: Map<String, CatalogEntry>,
 ): List<CatalogHomeSection> = map { section ->
     CatalogHomeSection(
-        section.sourceId,
-        section.title,
-        section.items.map { resolved.getValue(it.sourceId) },
+        sourceId = section.sourceId,
+        title = section.title,
+        items = section.items.map { resolved.getValue(it.sourceId) },
+        kind = section.kind.toModel(),
     )
 }
 
@@ -195,6 +200,10 @@ private fun SourceItem.toEntry(source: CatalogSource, storyId: StoryId) = Catalo
     contentType = contentType.toModel(),
     coverUrl = coverUrl,
     score = if (scoreValue != null && scoreScale != null) Score(scoreValue, scoreScale) else null,
+    genres = genres,
+    popularityRank = popularityRank,
+    publicationStatus = publicationStatus?.toModel(),
+    latestUpdate = latestUpdate?.let { CatalogLatestUpdate(it.atEpochMillis, it.releaseLabel) },
 )
 
 private fun String.stableHash(): String = hashCode().toUInt().toString(HEX_RADIX)
@@ -206,4 +215,19 @@ internal fun SourceContentType.toModel(): ContentType = when (this) {
     SourceContentType.WEB_NOVEL -> ContentType.WEB_NOVEL
     SourceContentType.MANGA -> ContentType.MANGA
     SourceContentType.ANIME -> ContentType.ANIME
+}
+
+private fun SourceFeedKind.toModel(): CatalogFeedKind = when (this) {
+    SourceFeedKind.POPULAR -> CatalogFeedKind.POPULAR
+    SourceFeedKind.LATEST_UPDATES -> CatalogFeedKind.LATEST_UPDATES
+    SourceFeedKind.TOP_RATED -> CatalogFeedKind.TOP_RATED
+    SourceFeedKind.OTHER -> CatalogFeedKind.OTHER
+}
+
+internal fun SourcePublicationStatus.toModel(): PublicationStatus = when (this) {
+    SourcePublicationStatus.ONGOING -> PublicationStatus.ONGOING
+    SourcePublicationStatus.COMPLETED -> PublicationStatus.COMPLETED
+    SourcePublicationStatus.HIATUS -> PublicationStatus.HIATUS
+    SourcePublicationStatus.CANCELLED -> PublicationStatus.CANCELLED
+    SourcePublicationStatus.UPCOMING -> PublicationStatus.UPCOMING
 }

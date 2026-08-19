@@ -4,9 +4,12 @@ import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchEvidence
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.common.id.PluginId
@@ -30,6 +33,9 @@ internal fun CatalogEntry.toEntity(pluginVersion: String, fetchedAtEpochMillis: 
     scoreValue = score?.value,
     scoreScale = score?.scale,
     popularityRank = popularityRank,
+    publicationStatus = publicationStatus?.name,
+    latestUpdateAtEpochMillis = latestUpdate?.atEpochMillis,
+    latestUpdateReleaseLabel = latestUpdate?.releaseLabel,
     pluginVersion = pluginVersion,
     fetchedAtEpochMillis = fetchedAtEpochMillis,
 )
@@ -51,6 +57,7 @@ internal fun CatalogHomeSnapshotEntity.toModel(
                 items = sectionsById[section.sectionId].orEmpty().sortedBy { it.position }.mapNotNull { item ->
                     entries[pluginId to item.sourceId]
                 },
+                kind = CatalogFeedKind.valueOf(section.feedKind),
             )
         },
     )
@@ -73,6 +80,10 @@ internal fun CatalogEntryEntity.toModel() = CatalogEntry(
     sourceUrl = sourceUrl,
     score = if (scoreValue != null && scoreScale != null) Score(scoreValue, scoreScale) else null,
     popularityRank = popularityRank,
+    publicationStatus = publicationStatus?.let { PublicationStatus.valueOf(it) },
+    latestUpdate = latestUpdateAtEpochMillis?.let { atEpochMillis ->
+        CatalogLatestUpdate(atEpochMillis, latestUpdateReleaseLabel)
+    },
 )
 
 internal fun List<CatalogEntryEntity>.toCandidate(story: StoryEntity): CatalogMatchCandidate {

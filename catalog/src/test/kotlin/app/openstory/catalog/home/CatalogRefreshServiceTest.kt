@@ -2,7 +2,10 @@ package app.openstory.catalog.home
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.CatalogLatestUpdate
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
@@ -15,8 +18,11 @@ import app.openstory.catalog.source.CatalogSourceResult
 import app.openstory.catalog.source.SourceContentType
 import app.openstory.catalog.source.SourceDetails
 import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceFeedKind
 import app.openstory.catalog.source.SourceHomeRequest
 import app.openstory.catalog.source.SourceItem
+import app.openstory.catalog.source.SourceLatestUpdate
+import app.openstory.catalog.source.SourcePublicationStatus
 import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceSection
@@ -50,6 +56,43 @@ class CatalogRefreshServiceTest {
 
         assertEquals(listOf("b"), repository.mutations.map { it.pluginId.value })
         assertEquals(2, results.size)
+    }
+
+    @Test
+    fun semanticHomeMetadataIsCommittedWithoutDetailsFetch() = runTest {
+        val repository = RecordingRepository()
+        val sourceItem = SourceItem(
+            sourceId = "manga-1",
+            title = "Manga One",
+            contentType = SourceContentType.MANGA,
+            authors = emptySet(),
+            coverUrl = "https://example.test/one.jpg",
+            scoreValue = 9.2,
+            scoreScale = 10.0,
+            genres = setOf("Action", "Fantasy"),
+            popularityRank = 2,
+            publicationStatus = SourcePublicationStatus.ONGOING,
+            latestUpdate = SourceLatestUpdate(500L, "128"),
+        )
+        val registry = Registry(
+            listOf(
+                Source(
+                    "a",
+                    CatalogSourceResult.Success(
+                        listOf(SourceSection("popular", "Popular", listOf(sourceItem), SourceFeedKind.POPULAR)),
+                    ),
+                ),
+            ),
+        )
+
+        service(registry, repository, 999L).refresh()
+
+        val mutation = repository.mutations.single()
+        assertEquals(CatalogFeedKind.POPULAR, mutation.sections.single().kind)
+        assertEquals(setOf("Action", "Fantasy"), mutation.entries.single().genres)
+        assertEquals(2, mutation.entries.single().popularityRank)
+        assertEquals(PublicationStatus.ONGOING, mutation.entries.single().publicationStatus)
+        assertEquals(CatalogLatestUpdate(500L, "128"), mutation.entries.single().latestUpdate)
     }
 
     @Test

@@ -43,6 +43,9 @@ internal data class CatalogEntryEntity(
     @ColumnInfo(name = "score_value") val scoreValue: Double?,
     @ColumnInfo(name = "score_scale") val scoreScale: Double?,
     @ColumnInfo(name = "popularity_rank") val popularityRank: Long?,
+    @ColumnInfo(name = "publication_status") val publicationStatus: String?,
+    @ColumnInfo(name = "latest_update_at_epoch_millis") val latestUpdateAtEpochMillis: Long?,
+    @ColumnInfo(name = "latest_update_release_label") val latestUpdateReleaseLabel: String?,
     @ColumnInfo(name = "plugin_version") val pluginVersion: String,
     @ColumnInfo(name = "fetched_at_epoch_millis") val fetchedAtEpochMillis: Long,
 )
@@ -73,6 +76,7 @@ internal data class CatalogHomeSectionEntity(
     @ColumnInfo(name = "section_id") val sectionId: String,
     val title: String,
     val position: Int,
+    @ColumnInfo(name = "feed_kind", defaultValue = "OTHER") val feedKind: String,
 )
 
 @Entity(

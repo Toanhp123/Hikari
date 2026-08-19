@@ -7,6 +7,7 @@ import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.repository.CatalogDetailsMutation
@@ -192,6 +193,8 @@ private fun SourceDetails.toEntry(pluginId: PluginId, storyId: StoryId) = Catalo
     sourceUrl = sourceUrl,
     score = if (scoreValue != null && scoreScale != null) Score(scoreValue, scoreScale) else null,
     popularityRank = popularityRank,
+    publicationStatus = publicationStatus?.toModel(),
+    latestUpdate = latestUpdate?.let { CatalogLatestUpdate(it.atEpochMillis, it.releaseLabel) },
 )
 
 private const val HEX_RADIX = 16

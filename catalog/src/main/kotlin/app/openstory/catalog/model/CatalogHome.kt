@@ -13,6 +13,7 @@ data class CatalogHomeSection(
     val sourceId: String,
     val title: String,
     val items: List<CatalogEntry>,
+    val kind: CatalogFeedKind = CatalogFeedKind.OTHER,
 ) {
     init {
         require(sourceId.isNotBlank()) { "Source identity must not be blank" }

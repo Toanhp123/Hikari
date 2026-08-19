@@ -3,6 +3,8 @@ package app.openstory.catalog.details
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.CatalogLatestUpdate
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
@@ -15,6 +17,8 @@ import app.openstory.catalog.source.SourceContentType
 import app.openstory.catalog.source.SourceDetails
 import app.openstory.catalog.source.SourceFilter
 import app.openstory.catalog.source.SourceHomeRequest
+import app.openstory.catalog.source.SourceLatestUpdate
+import app.openstory.catalog.source.SourcePublicationStatus
 import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceSection
@@ -58,6 +62,24 @@ class CatalogDetailsServiceTest {
             (result as CatalogDetailsResult.Success).story.id,
         )
         assertEquals(StoryId("story:durable"), result.entry.storyId)
+    }
+
+    @Test
+    fun detailsEnrichmentCarriesPublicationStatusAndLatestUpdate() = runTest {
+        val repository = FakeRepository()
+        val source = Source(
+            "a",
+            details("source").copy(
+                publicationStatus = SourcePublicationStatus.COMPLETED,
+                latestUpdate = SourceLatestUpdate(700L, "200"),
+            ),
+        )
+
+        service(source, repository).load(PluginId("a"), "source")
+
+        val entry = requireNotNull(repository.lastMutation).entry
+        assertEquals(PublicationStatus.COMPLETED, entry.publicationStatus)
+        assertEquals(CatalogLatestUpdate(700L, "200"), entry.latestUpdate)
     }
 
     @Test
@@ -164,6 +186,7 @@ class CatalogDetailsServiceTest {
         private val storeFailure: CatalogStoreFailure? = null,
     ) : CatalogRepository {
         var detailCommits = 0
+        var lastMutation: CatalogDetailsMutation? = null
         val homes = MutableStateFlow<List<CatalogHomeSnapshot>>(emptyList())
 
         override fun observeHomes() = homes
@@ -177,6 +200,7 @@ class CatalogDetailsServiceTest {
             mutation: CatalogDetailsMutation,
         ): Outcome<StoryId, CatalogStoreFailure> {
             detailCommits++
+            lastMutation = mutation
             return storeFailure?.let { Outcome.Failure(it) }
                 ?: Outcome.Success(durableStoryId ?: mutation.storyId)
         }

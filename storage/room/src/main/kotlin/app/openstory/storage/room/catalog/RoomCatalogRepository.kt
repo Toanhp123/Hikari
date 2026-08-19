@@ -92,7 +92,13 @@ class RoomCatalogRepository internal constructor(
                     ),
                 )
                 homeDao.upsertSections(mutation.sections.mapIndexed { index, section ->
-                    CatalogHomeSectionEntity(mutation.pluginId.value, section.sourceId, section.title, index)
+                    CatalogHomeSectionEntity(
+                        pluginId = mutation.pluginId.value,
+                        sectionId = section.sourceId,
+                        title = section.title,
+                        position = index,
+                        feedKind = section.kind.name,
+                    )
                 })
                 homeDao.upsertItems(mutation.sections.flatMap { section ->
                     section.items.mapIndexed { index, entry ->
@@ -128,44 +134,50 @@ class RoomCatalogRepository internal constructor(
         }
 
     private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogHomeMutation) =
-        entry.toEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis).let { incoming ->
-            existing?.copy(
-                storyId = incoming.storyId,
-                title = incoming.title,
-                aliases = incoming.aliases.ifEmpty { existing.aliases },
-                authors = incoming.authors.ifEmpty { existing.authors },
-                description = incoming.description ?: existing.description,
-                genres = incoming.genres.ifEmpty { existing.genres },
-                contentType = incoming.contentType,
-                languageTags = incoming.languageTags.ifEmpty { existing.languageTags },
-                coverUrl = incoming.coverUrl ?: existing.coverUrl,
-                sourceUrl = incoming.sourceUrl ?: existing.sourceUrl,
-                scoreValue = incoming.scoreValue ?: existing.scoreValue,
-                scoreScale = incoming.scoreScale ?: existing.scoreScale,
-                popularityRank = incoming.popularityRank ?: existing.popularityRank,
-                pluginVersion = incoming.pluginVersion,
-                fetchedAtEpochMillis = incoming.fetchedAtEpochMillis,
-            ) ?: incoming
-        }
+        merge(existing, entry.toEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis))
 
     private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogDetailsMutation) =
-        entry.toEntity(mutation.pluginVersion, mutation.fetchedAtEpochMillis).let { incoming ->
-            existing?.copy(
-                storyId = incoming.storyId,
-                title = incoming.title,
-                aliases = incoming.aliases.ifEmpty { existing.aliases },
-                authors = incoming.authors.ifEmpty { existing.authors },
-                description = incoming.description ?: existing.description,
-                genres = incoming.genres.ifEmpty { existing.genres },
-                contentType = incoming.contentType,
-                languageTags = incoming.languageTags.ifEmpty { existing.languageTags },
-                coverUrl = incoming.coverUrl ?: existing.coverUrl,
-                sourceUrl = incoming.sourceUrl ?: existing.sourceUrl,
-                scoreValue = incoming.scoreValue ?: existing.scoreValue,
-                scoreScale = incoming.scoreScale ?: existing.scoreScale,
-                popularityRank = incoming.popularityRank ?: existing.popularityRank,
-                pluginVersion = incoming.pluginVersion,
-                fetchedAtEpochMillis = incoming.fetchedAtEpochMillis,
-            ) ?: incoming
-        }
+        merge(existing, entry.toEntity(mutation.pluginVersion, mutation.fetchedAtEpochMillis))
+
+    private fun merge(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
+        if (existing == null) return incoming
+        val latestUpdate = mergeLatestUpdate(
+            existing.latestUpdateAtEpochMillis,
+            existing.latestUpdateReleaseLabel,
+            incoming.latestUpdateAtEpochMillis,
+            incoming.latestUpdateReleaseLabel,
+        )
+        return existing.copy(
+            storyId = incoming.storyId,
+            title = incoming.title,
+            aliases = incoming.aliases.ifEmpty { existing.aliases },
+            authors = incoming.authors.ifEmpty { existing.authors },
+            description = incoming.description ?: existing.description,
+            genres = incoming.genres.ifEmpty { existing.genres },
+            contentType = incoming.contentType,
+            languageTags = incoming.languageTags.ifEmpty { existing.languageTags },
+            coverUrl = incoming.coverUrl ?: existing.coverUrl,
+            sourceUrl = incoming.sourceUrl ?: existing.sourceUrl,
+            scoreValue = incoming.scoreValue ?: existing.scoreValue,
+            scoreScale = incoming.scoreScale ?: existing.scoreScale,
+            popularityRank = incoming.popularityRank ?: existing.popularityRank,
+            publicationStatus = incoming.publicationStatus ?: existing.publicationStatus,
+            latestUpdateAtEpochMillis = latestUpdate.first,
+            latestUpdateReleaseLabel = latestUpdate.second,
+            pluginVersion = incoming.pluginVersion,
+            fetchedAtEpochMillis = incoming.fetchedAtEpochMillis,
+        )
+    }
+
+    private fun mergeLatestUpdate(
+        existingAt: Long?,
+        existingLabel: String?,
+        incomingAt: Long?,
+        incomingLabel: String?,
+    ): Pair<Long?, String?> = when {
+        incomingAt == null -> existingAt to existingLabel
+        existingAt == null -> incomingAt to incomingLabel
+        incomingAt > existingAt -> incomingAt to incomingLabel
+        else -> existingAt to existingLabel
+    }
 }

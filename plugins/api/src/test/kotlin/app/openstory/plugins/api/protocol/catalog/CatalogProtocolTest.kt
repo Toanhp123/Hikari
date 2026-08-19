@@ -5,10 +5,15 @@ import app.openstory.plugins.api.protocol.PluginProtocolValidator
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class CatalogProtocolTest {
+    private val json = Json
+
     @Test
     fun catalogSectionRejectsDuplicateSourceIds() {
         val item = CatalogItemDto(sourceId = "1", title = "One", contentType = WireContentType.MANGA)
@@ -20,6 +25,46 @@ class CatalogProtocolTest {
     @Test
     fun scoreMustCarryPositiveScale() {
         assertFailsWith<IllegalArgumentException> { ScoreDto(value = 8.0, scale = 0.0) }
+    }
+
+    @Test
+    fun oldHomeSectionDefaultsToOtherAndMissingMetadata() {
+        val section = json.decodeFromString<CatalogSectionDto>(
+            """{"sourceId":"top","title":"Top","items":[{"sourceId":"1","title":"One","contentType":"MANGA"}]}""",
+        )
+
+        assertEquals(WireCatalogFeedKind.OTHER, section.kind)
+        assertTrue(section.items.single().genres.isEmpty())
+        assertNull(section.items.single().popularityRank)
+        assertNull(section.items.single().publicationStatus)
+        assertNull(section.items.single().latestUpdate)
+    }
+
+    @Test
+    fun richHomeMetadataRoundTrips() {
+        val item = CatalogItemDto(
+            sourceId = "manga-1",
+            title = "Manga One",
+            contentType = WireContentType.MANGA,
+            genres = setOf("Action", "Fantasy"),
+            popularityRank = 3,
+            publicationStatus = WirePublicationStatus.ONGOING,
+            latestUpdate = CatalogLatestUpdateDto(1234L, "128"),
+        )
+        val section = CatalogSectionDto(
+            sourceId = "popular",
+            title = "Popular",
+            items = listOf(item),
+            kind = WireCatalogFeedKind.POPULAR,
+        )
+
+        assertEquals(section, json.decodeFromString(json.encodeToString(section)))
+    }
+
+    @Test
+    fun latestUpdateRejectsInvalidValues() {
+        assertFailsWith<IllegalArgumentException> { CatalogLatestUpdateDto(-1L, "128") }
+        assertFailsWith<IllegalArgumentException> { CatalogLatestUpdateDto(1L, " ") }
     }
 
     @Test
