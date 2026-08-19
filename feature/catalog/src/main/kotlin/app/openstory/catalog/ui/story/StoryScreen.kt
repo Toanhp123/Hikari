@@ -17,6 +17,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariResponsiveContent
+import app.openstory.designsystem.layout.HikariSafeDestinationViewport
 import app.openstory.designsystem.layout.HikariWindowClass
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariErrorState
@@ -42,21 +43,23 @@ fun StoryScreen(
     val story = state.story
     if (story == null) {
         HikariDestinationScaffold(modifier) {
-            if (state.refreshing && state.failure == null) {
-                HikariLoadingState("Loading story", Modifier.fillMaxSize().padding(contentPadding))
-            } else {
-                HikariPullToRefresh(
-                    refreshing = state.refreshing,
-                    onRefresh = onRefresh,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(contentPadding)
-                        .testTag("story-empty-pull-refresh"),
-                ) {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        item {
-                            Box(Modifier.fillParentMaxSize()) {
-                                EmptyStory(state, onRefresh, Modifier.fillMaxSize())
+            HikariSafeDestinationViewport(contentPadding) { safeBodyPadding ->
+                if (state.refreshing && state.failure == null) {
+                    HikariLoadingState("Loading story", Modifier.fillMaxSize().padding(safeBodyPadding))
+                } else {
+                    HikariPullToRefresh(
+                        refreshing = state.refreshing,
+                        onRefresh = onRefresh,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(safeBodyPadding)
+                            .testTag("story-empty-pull-refresh"),
+                    ) {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            item {
+                                Box(Modifier.fillParentMaxSize()) {
+                                    EmptyStory(state, onRefresh, Modifier.fillMaxSize())
+                                }
                             }
                         }
                     }
@@ -77,22 +80,24 @@ fun StoryScreen(
         chapterState?.downloadableTargets?.any { target -> target.releaseId == selectedReleaseId } == true
     }
     HikariDestinationScaffold(modifier) {
-        HikariResponsiveContent(Modifier.fillMaxSize().padding(contentPadding)) {
-            if (windowClass == HikariWindowClass.MEDIUM) {
-                MediumStoryLayout(
-                    state, story, readerTarget, validatedResumeTarget != null,
-                    downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
-                    onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
-                    onDownload, mappingState, mappingActions, chapterState, chapterActions,
-                )
-            } else {
-                CompactStoryLayout(
-                    state, story, readerTarget, validatedResumeTarget != null,
-                    downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
-                    onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
-                    onDownload, mappingState, mappingActions, chapterState, chapterActions,
-                    narrowHero = windowClass == HikariWindowClass.COMPACT,
-                )
+        HikariSafeDestinationViewport(contentPadding) { safeBodyPadding ->
+            HikariResponsiveContent(Modifier.fillMaxSize().padding(safeBodyPadding)) {
+                if (windowClass == HikariWindowClass.MEDIUM) {
+                    MediumStoryLayout(
+                        state, story, readerTarget, validatedResumeTarget != null,
+                        downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
+                        onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
+                        onDownload, mappingState, mappingActions, chapterState, chapterActions,
+                    )
+                } else {
+                    CompactStoryLayout(
+                        state, story, readerTarget, validatedResumeTarget != null,
+                        downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
+                        onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
+                        onDownload, mappingState, mappingActions, chapterState, chapterActions,
+                        narrowHero = windowClass == HikariWindowClass.COMPACT,
+                    )
+                }
             }
         }
     }

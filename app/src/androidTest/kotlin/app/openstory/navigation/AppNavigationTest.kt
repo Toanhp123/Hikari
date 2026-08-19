@@ -79,11 +79,13 @@ class AppNavigationTest {
         lateinit var navigationState: AppNavigationState
         var homeViewModel: RetainedNavigationViewModel? = null
         var libraryViewModel: RetainedNavigationViewModel? = null
+        val homeRecompositionProbe = mutableStateOf(0)
         composeRule.setContent {
             navigationState = rememberAppNavigationState()
             val provider = entryProvider<NavKey> {
                 entry<AppRoute.Discover> {}
                 entry<AppRoute.Home> {
+                    homeRecompositionProbe.value
                     homeViewModel = viewModel { RetainedNavigationViewModel() }
                 }
                 entry<AppRoute.Library> {
@@ -109,6 +111,7 @@ class AppNavigationTest {
         composeRule.runOnIdle {
             homeViewModel = null
             navigationState.topLevelRoute = AppRoute.Home
+            homeRecompositionProbe.value += 1
         }
         composeRule.waitForIdle()
 

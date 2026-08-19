@@ -1,19 +1,30 @@
 package app.openstory.designsystem.layout
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.theme.HikariTheme
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,11 +38,12 @@ class HikariScrollableHeaderTest {
     val compose = createComposeRule()
 
     @Test
-    fun topLevelHeaderScrollsAwayWithItsContent() {
+    fun topLevelHeaderStaysPinnedWhileItsContentScrolls() {
         compose.setContent {
             HikariTheme {
-                LazyColumn(Modifier.fillMaxSize().testTag("scrolling-content")) {
-                    item {
+                HikariTopLevelScaffold(
+                    contentPadding = PaddingValues(top = 24.dp),
+                    header = {
                         HikariTopLevelHeader(
                             title = "Home",
                             action = {
@@ -41,17 +53,103 @@ class HikariScrollableHeaderTest {
                                 )
                             },
                         )
+                    },
+                ) { bodyPadding ->
+                    LazyColumn(
+                        Modifier.fillMaxSize().testTag("scrolling-content"),
+                        contentPadding = bodyPadding,
+                    ) {
+                        items((1..30).toList()) { Text("Story $it") }
                     }
-                    items((1..30).toList()) { Text("Story $it") }
                 }
             }
         }
 
-        compose.onNodeWithText("Home").assertExists()
-        compose.onNodeWithContentDescription("Open quick access").assertExists()
-        compose.onNodeWithTag("scrolling-content").performScrollToIndex(30)
-        compose.onNodeWithText("Home").assertDoesNotExist()
-        compose.onNodeWithContentDescription("Open quick access").assertDoesNotExist()
+        val headerTop = compose.onNodeWithText("Home").fetchSemanticsNode().boundsInRoot.top
+        assertTrue(headerTop >= 24f)
+        compose.onNodeWithTag("scrolling-content").performScrollToIndex(29)
+        compose.onNodeWithText("Home").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Open quick access").assertIsDisplayed()
+    }
+
+
+    @Test
+    fun topLevelBodyKeepsSharedGapBelowPinnedHeaderAfterDeepScroll() {
+        compose.setContent {
+            HikariTheme {
+                HikariTopLevelScaffold(
+                    contentPadding = PaddingValues.Zero,
+                    header = {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("pinned-header"),
+                        )
+                    },
+                ) { bodyPadding ->
+                    LazyColumn(
+                        Modifier.fillMaxSize().testTag("gap-scroll-content"),
+                        contentPadding = bodyPadding,
+                    ) {
+                        items((1..30).toList()) { index ->
+                            Text(
+                                text = "Gap story $index",
+                                modifier = Modifier.height(48.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithTag("gap-scroll-content").performScrollToIndex(10)
+        val headerBottom = compose.onNodeWithTag("pinned-header").fetchSemanticsNode().boundsInRoot.bottom
+        val scrolledItemTop = compose.onNodeWithText("Gap story 11").fetchSemanticsNode().boundsInRoot.top
+        assertTrue(
+            "Scrollable body must keep a visible gap below sticky chrome after deep scroll",
+            scrolledItemTop > headerBottom,
+        )
+    }
+
+    @Test
+    fun bottomSeparationShadowAppearsOnlyAfterStickyContentScrolls() {
+        val scrolled = mutableStateOf(false)
+        compose.setContent {
+            HikariTheme {
+                HikariStickyDestinationScaffold(
+                    contentPadding = PaddingValues.Zero,
+                    header = { HikariTopLevelHeader(title = "Home") },
+                    headerScrolled = scrolled.value,
+                ) {
+                    Box(Modifier.fillMaxSize())
+                }
+            }
+        }
+
+        compose.onNodeWithTag("hikari-bottom-separation-shadow").assertDoesNotExist()
+        compose.runOnIdle { scrolled.value = true }
+        compose.onNodeWithTag("hikari-bottom-separation-shadow").assertIsDisplayed()
+    }
+
+    @Test
+    fun scrollToTopActionIsSharedChromeAndInvokesItsCallback() {
+        var calls = 0
+        compose.setContent {
+            HikariTheme {
+                HikariTopLevelScaffold(
+                    contentPadding = PaddingValues.Zero,
+                    header = { HikariTopLevelHeader(title = "Home") },
+                    showScrollToTop = true,
+                    onScrollToTop = { calls += 1 },
+                ) {
+                    Box(Modifier.fillMaxSize())
+                }
+            }
+        }
+
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
+        assertEquals(1, calls)
     }
 
     @Test

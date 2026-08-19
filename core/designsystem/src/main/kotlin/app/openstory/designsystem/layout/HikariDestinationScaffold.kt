@@ -4,12 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,7 +31,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import app.openstory.designsystem.control.HikariIconAction
+import app.openstory.designsystem.control.HikariScrollToTopAction
 import app.openstory.designsystem.icon.HikariBackGlyph
+import app.openstory.designsystem.surface.HikariBottomSeparationShadow
 import app.openstory.designsystem.theme.HikariDefaultDimensions
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
@@ -45,6 +49,82 @@ fun HikariDestinationScaffold(
             modifier = modifier.fillMaxSize().background(containerColor),
             content = content,
         )
+    }
+}
+
+
+@Composable
+fun HikariSafeDestinationViewport(
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.(PaddingValues) -> Unit,
+) {
+    val layoutDirection = LocalLayoutDirection.current
+    val topInset = contentPadding.calculateTopPadding()
+    val safeBodyPadding = PaddingValues(
+        start = contentPadding.calculateStartPadding(layoutDirection),
+        end = contentPadding.calculateEndPadding(layoutDirection),
+        bottom = contentPadding.calculateBottomPadding(),
+    )
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(top = topInset),
+    ) {
+        content(safeBodyPadding)
+    }
+}
+
+@Composable
+fun HikariStickyDestinationScaffold(
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+    header: @Composable () -> Unit,
+    headerScrolled: Boolean = false,
+    showScrollToTop: Boolean = false,
+    onScrollToTop: () -> Unit = {},
+    content: @Composable BoxScope.(PaddingValues) -> Unit,
+) {
+    HikariSafeDestinationViewport(contentPadding, modifier) { safeBodyPadding ->
+        val layoutDirection = LocalLayoutDirection.current
+        val startInset = safeBodyPadding.calculateStartPadding(layoutDirection)
+        val endInset = safeBodyPadding.calculateEndPadding(layoutDirection)
+        val bottomInset = safeBodyPadding.calculateBottomPadding()
+        Column(Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = startInset, end = endInset),
+            ) {
+                header()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(MaterialTheme.hikariSpacing.space16),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                HikariBottomSeparationShadow(enabled = headerScrolled)
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                content(safeBodyPadding)
+                if (showScrollToTop) {
+                    HikariScrollToTopAction(
+                        onClick = onScrollToTop,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = endInset + MaterialTheme.hikariSpacing.space16,
+                                bottom = bottomInset + MaterialTheme.hikariSpacing.space16,
+                            ),
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -362,9 +362,101 @@ assert_contains 'HikariPullToRefresh(' \
 assert_contains 'topInset: Dp = HikariDefaultDimensions.zero' \
   'core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt' \
   'shared pull-to-refresh must support a safe-area top inset'
+assert_contains 'fun HikariTopLevelScaffold(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariTopLevelScaffold.kt' \
+  'design system must own shared sticky top-level safe-area layout'
 assert_contains 'contentPadding.calculateTopPadding()' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'shared safe destination viewport must consume the shell safe top inset outside scroll content'
+for top_level_screen in \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
-  'Discover must place the pull indicator below the shell safe top inset'
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryScreen.kt'; do
+  assert_contains 'HikariTopLevelScaffold(' \
+    "$top_level_screen" \
+    "top-level browse destinations must share sticky safe-area chrome: $top_level_screen"
+done
+for top_level_screen in \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboard/HomeDashboardScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryScreen.kt'; do
+  assert_contains 'headerScrolled =' \
+    "$top_level_screen" \
+    "top-level sticky chrome must expose scroll-driven separation shadow: $top_level_screen"
+done
+assert_contains 'HikariScrollToTopAction(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'shared sticky destination layout must own the reusable back-to-top action'
+assert_contains 'fun HikariSafeDestinationViewport(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'design system must own one safe destination viewport primitive'
+assert_contains 'fun HikariStickyDestinationScaffold(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'design system must own one sticky destination chrome primitive'
+assert_contains 'HikariSafeDestinationViewport(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'sticky destination chrome must build on the shared safe destination viewport'
+assert_contains 'HikariStickyDestinationScaffold(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariTopLevelScaffold.kt' \
+  'top-level sticky layout must delegate safe-area and pinned-header mechanics to the shared primitive'
+assert_contains '.height(MaterialTheme.hikariSpacing.space16)' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'sticky destination body gap must remain fixed outside scrollable content padding'
+assert_contains 'headerScrolled: Boolean = false' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'shared sticky destination chrome must accept scroll state for conditional separation shadow'
+assert_contains 'HikariBottomSeparationShadow(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'sticky destination chrome must use a shared bottom-only separation shadow'
+assert_contains 'fun HikariBottomSeparationShadow(' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariBottomSeparationShadow.kt' \
+  'design system must own the bottom-only sticky chrome separation shadow'
+assert_contains 'MaterialTheme.hikariDimensions.surfaceShadowRadius' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariBottomSeparationShadow.kt' \
+  'sticky separation shadow must reuse the semantic surface shadow radius token'
+assert_contains 'MaterialTheme.hikariColors.surfaceShadow' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariBottomSeparationShadow.kt' \
+  'sticky separation shadow must reuse the semantic surface shadow color token'
+assert_contains 'MaterialTheme.hikariOpacity.surfaceShadow' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/surface/HikariBottomSeparationShadow.kt' \
+  'sticky separation shadow must reuse the semantic surface shadow opacity token'
+assert_contains 'showScrollToTop: Boolean = false' \
+  'core/designsystem/src/main/kotlin/app/openstory/designsystem/layout/HikariDestinationScaffold.kt' \
+  'shared sticky destination chrome must own optional back-to-top chrome'
+assert_absent 'text = "HIKARI"' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverScreen.kt' \
+  'Discover must not keep a redundant HIKARI label below its sticky search header'
+for sticky_screen in \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/updates/UpdatesScreen.kt'; do
+  assert_contains 'HikariStickyDestinationScaffold(' \
+    "$sticky_screen" \
+    "scrolling destinations with persistent chrome must share the sticky destination scaffold: $sticky_screen"
+done
+for sticky_screen in \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/downloads/DownloadsScreen.kt' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/updates/UpdatesScreen.kt'; do
+  assert_contains 'headerScrolled =' \
+    "$sticky_screen" \
+    "persistent destination chrome must expose scroll-driven separation shadow: $sticky_screen"
+done
+assert_contains 'HikariSafeDestinationViewport(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt' \
+  'Story must retain safe top viewport handling around its hero/tab composition'
+assert_contains 'item(key = "search-intro")' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'Search guidance must remain scroll content instead of becoming part of sticky chrome'
+assert_contains 'showScrollToTop = showScrollToTop.value' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'Search must expose the shared back-to-top affordance after deep scrolling'
+assert_contains 'onScrollToTop = { coroutineScope.launch { listState.animateScrollToItem(0) } }' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'Search back-to-top must animate the existing search list state to its first item'
+assert_absent 'contentPadding = contentPadding[.]plus' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
+  'Search must not encode the shell top safe inset as scrollable LazyColumn content padding'
 assert_contains 'HikariPullToRefresh(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryOverview.kt' \
   'Story Overview must expose shared pull-to-refresh'

@@ -2,13 +2,15 @@ package app.openstory.catalog.ui.updates
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.StoryUpdateCard
@@ -20,7 +22,9 @@ import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.layout.HikariStickyDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
+import app.openstory.designsystem.layout.plus
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -31,16 +35,27 @@ fun UpdatesScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
+    val listState = rememberLazyListState()
+    val headerScrolled = remember {
+        derivedStateOf { listState.canScrollBackward }
+    }
     HikariDestinationScaffold(modifier) {
-        Column(Modifier.fillMaxSize().padding(contentPadding)) {
-            HikariTopLevelHeader(title = "Updates")
+        HikariStickyDestinationScaffold(
+            contentPadding = contentPadding,
+            header = { HikariTopLevelHeader(title = "Updates") },
+            headerScrolled = headerScrolled.value,
+        ) { bodyPadding ->
             when {
-                state.loading -> HikariLoadingState("Loading updates")
+                state.loading -> HikariLoadingState(
+                    "Loading updates",
+                    Modifier.padding(bodyPadding),
+                )
                 state.isEmpty -> HikariEmptyState(
                     "No reading updates",
+                    modifier = Modifier.padding(bodyPadding),
                     message = "New mapped releases for stories in your Library will appear here.",
                 )
-                else -> UpdateGroups(state.groups, onStorySelected, onRead)
+                else -> UpdateGroups(state.groups, onStorySelected, onRead, bodyPadding, listState)
             }
         }
     }
@@ -51,9 +66,16 @@ private fun UpdateGroups(
     groups: List<UpdatesGroupUiModel>,
     onStorySelected: (StoryId) -> Unit,
     onRead: (ReaderTarget) -> Unit,
+    contentPadding: PaddingValues,
+    listState: LazyListState,
 ) {
     LazyColumn(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(MaterialTheme.hikariSpacing.space16),
+        state = listState,
+        contentPadding = contentPadding.plus(
+            start = MaterialTheme.hikariSpacing.space16,
+            end = MaterialTheme.hikariSpacing.space16,
+            bottom = MaterialTheme.hikariSpacing.space16,
+        ),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         groups.forEach { group ->

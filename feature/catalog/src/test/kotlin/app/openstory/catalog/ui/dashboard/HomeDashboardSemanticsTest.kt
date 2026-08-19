@@ -9,7 +9,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.onNodeWithText
 import app.openstory.designsystem.theme.HikariTheme
@@ -38,6 +40,27 @@ class HomeDashboardSemanticsTest {
             .fetchSemanticsNode().boundsInRoot
 
         assertTrue(titleBounds.top < utilityBounds.bottom && utilityBounds.top < titleBounds.bottom)
+    }
+
+    @Test
+    fun topLevelHeaderStaysPinnedAndBackToTopReturnsToTheStart() {
+        val base = fixture()
+        val seed = base.reading.single()
+        val state = base.copy(
+            paused = listOf(seed.copy(storyId = app.openstory.common.id.StoryId("story-paused"))),
+            completed = listOf(seed.copy(storyId = app.openstory.common.id.StoryId("story-completed"))),
+        )
+        compose.setContent {
+            HikariTheme {
+                HomeDashboardScreen(state, {}, {}, {}, onUtilityRequested = {})
+            }
+        }
+
+        compose.onNodeWithTag("home-list").performScrollToIndex(6)
+        compose.onNodeWithText("Home").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Back to top").assertDoesNotExist()
     }
 
     @Test

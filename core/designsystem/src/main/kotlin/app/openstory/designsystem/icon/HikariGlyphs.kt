@@ -211,3 +211,29 @@ fun HikariMoreGlyph(modifier: Modifier = Modifier) {
         }
     }
 }
+
+@Composable
+fun HikariUpGlyph(modifier: Modifier = Modifier) {
+    val color = LocalContentColor.current
+    val dimensions = MaterialTheme.hikariDimensions
+    val geometry = MaterialTheme.hikariGlyphGeometry.back
+    Canvas(modifier) {
+        val strokePx = dimensions.glyphStroke.toPx()
+        val tip = Offset(size.width * geometry.centerY, size.height * geometry.innerX)
+        val baseY = size.height * geometry.outerX
+        drawLine(
+            color = color,
+            start = Offset(size.width * geometry.upperY, baseY),
+            end = tip,
+            strokeWidth = strokePx,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = color,
+            start = tip,
+            end = Offset(size.width * geometry.lowerY, baseY),
+            strokeWidth = strokePx,
+            cap = StrokeCap.Round,
+        )
+    }
+}

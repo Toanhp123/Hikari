@@ -4,14 +4,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -25,7 +28,9 @@ import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
+import app.openstory.designsystem.layout.HikariStickyDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
+import app.openstory.designsystem.layout.plus
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
@@ -42,13 +47,24 @@ fun DownloadsScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
+    val listState = rememberLazyListState()
+    val headerScrolled = remember {
+        derivedStateOf { listState.canScrollBackward }
+    }
     HikariDestinationScaffold(modifier) {
-        Column(Modifier.fillMaxSize().padding(contentPadding)) {
-            HikariTopLevelHeader(title = "Downloads")
+        HikariStickyDestinationScaffold(
+            contentPadding = contentPadding,
+            header = { HikariTopLevelHeader(title = "Downloads") },
+            headerScrolled = headerScrolled.value,
+        ) { bodyPadding ->
             when {
-                state.loading -> HikariLoadingState("Loading downloads")
+                state.loading -> HikariLoadingState(
+                    "Loading downloads",
+                    Modifier.padding(bodyPadding),
+                )
                 state.isEmpty -> HikariEmptyState(
                     "No downloads yet",
+                    modifier = Modifier.padding(bodyPadding),
                     message = "Downloaded chapters will appear here.",
                 )
                 else -> DownloadsList(
@@ -59,6 +75,8 @@ fun DownloadsScreen(
                     onRemove,
                     onConfirmRemoval,
                     onDismissRemoval,
+                    bodyPadding,
+                    listState,
                 )
             }
         }
@@ -74,9 +92,16 @@ private fun DownloadsList(
     onRemove: (ChapterReleaseId) -> Unit,
     onConfirmRemoval: () -> Unit,
     onDismissRemoval: () -> Unit,
+    contentPadding: PaddingValues,
+    listState: LazyListState,
 ) {
     LazyColumn(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(MaterialTheme.hikariSpacing.space16),
+        state = listState,
+        contentPadding = contentPadding.plus(
+            start = MaterialTheme.hikariSpacing.space16,
+            end = MaterialTheme.hikariSpacing.space16,
+            bottom = MaterialTheme.hikariSpacing.space16,
+        ),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         val actions = DownloadListActions(

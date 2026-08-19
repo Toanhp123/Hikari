@@ -4,7 +4,11 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
@@ -60,10 +64,58 @@ class SearchScreenshotTest {
             }
         }
 
+        val content = compose.onNodeWithTag("search-content")
+        assertTrue(
+            content.fetchSemanticsNode().boundsInRoot.top >= 40f,
+            "Search scroll viewport must begin below shell-provided top safe inset",
+        )
         val back = compose.onNodeWithContentDescription("Back")
         assertTrue(back.fetchSemanticsNode().boundsInRoot.top >= 40f)
         back.performClick()
         assertTrue(backRequested)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun deepSearchScrollShowsBackToTopAndReturnsToStart() {
+        compose.setContent {
+            HikariTheme(darkTheme = true) {
+                SearchScreen(
+                    state = scrollFixture(),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        val content = compose.onNodeWithTag("search-content")
+        content.performScrollToIndex(20)
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Find your next story").assertIsDisplayed()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun backTitleAndSearchStayPinnedWhileGuidanceScrollsAway() {
+        compose.setContent {
+            HikariTheme(darkTheme = true) {
+                SearchScreen(
+                    state = scrollFixture(),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("search-content").performScrollToIndex(20)
+        compose.onNodeWithContentDescription("Back").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Search stories").assertIsDisplayed()
+        compose.onNodeWithText("Find your next story").assertDoesNotExist()
     }
 
     private fun capture(state: SearchUiState, fileName: String) {
@@ -75,6 +127,16 @@ class SearchScreenshotTest {
         compose.waitForIdle()
         compose.onRoot().captureRoboImage("src/test/snapshots/search/$fileName")
     }
+}
+
+private fun scrollFixture(): SearchUiState {
+    val base = fixture()
+    val result = base.stories.single()
+    return base.copy(
+        stories = (1..30).map { index ->
+            result.copy(story = result.story.copy(id = StoryId("moonlit-$index")))
+        },
+    )
 }
 
 private fun fixture(): SearchUiState {
