@@ -244,7 +244,8 @@ class StoryScreenTest {
         setStoryContent(state = fixtureState(failed = true))
 
         compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
-        compose.onNodeWithText("Source detail refresh failed: catalog.offline").assertIsDisplayed()
+        compose.onNodeWithText("Couldn't refresh story details.").assertIsDisplayed()
+        compose.onNodeWithText("catalog.offline").assertDoesNotExist()
     }
 
     @Test

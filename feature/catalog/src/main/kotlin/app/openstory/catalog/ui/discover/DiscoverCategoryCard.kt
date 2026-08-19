@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import app.openstory.catalog.ui.components.catalogDisplayName
 import app.openstory.designsystem.icon.HikariChevronGlyph
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.surface.HikariContentCardStyle
@@ -40,7 +41,7 @@ internal fun DiscoverCategoryCard(
             .heightIn(min = MaterialTheme.hikariDimensions.topBarMinHeight)
             .semantics {
                 contentDescription =
-                    "Category ${category.label} from ${category.pluginId.discoverDisplayName()}"
+                    "Category ${category.label} from ${category.pluginId.catalogDisplayName()}"
                 traversalIndex = CATEGORY_TRAVERSAL_INDEX
                 this.selected = selected
             },
@@ -74,7 +75,7 @@ private fun DiscoverCategoryCardContent(category: DiscoverQuickCategory, selecte
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                category.pluginId.discoverDisplayName(),
+                category.pluginId.catalogDisplayName(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,

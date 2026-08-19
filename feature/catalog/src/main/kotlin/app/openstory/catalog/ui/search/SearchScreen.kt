@@ -26,6 +26,8 @@ import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
+import app.openstory.catalog.ui.components.catalogDisplayName
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.content.HikariSectionTitle
@@ -159,15 +161,15 @@ private fun LazyListScope.searchResultItems(
         item(key = "search-global-failure") {
             HikariInlineFeedback(
                 message = "Search unavailable",
-                supportingText = failure.code,
+                supportingText = catalogFailureMessage(failure.code, "Try again in a moment."),
             )
         }
     }
     state.failures.forEach { failure ->
         item(key = "search-failure-${failure.pluginId.value}") {
             HikariInlineFeedback(
-                message = "${failure.pluginId.value} unavailable",
-                supportingText = failure.code,
+                message = "${failure.pluginId.catalogDisplayName()} unavailable",
+                supportingText = catalogFailureMessage(failure.code, "Results from this source may be missing."),
             )
         }
     }

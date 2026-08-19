@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
+import app.openstory.catalog.ui.components.catalogDisplayName
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariSpacing
@@ -16,7 +18,10 @@ internal fun LazyListScope.discoverFeedbackItems(
     state.globalFailure?.let { failure ->
         item("discover-global-failure") {
             HikariInlineFeedback(
-                message = failure.code,
+                message = catalogFailureMessage(
+                    failure.code,
+                    "Couldn't refresh Discover. Cached content is still available.",
+                ),
                 modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
                 actionLabel = if (failure.retryable) "Retry" else null,
                 actionEnabled = !state.refreshing,
@@ -28,7 +33,7 @@ internal fun LazyListScope.discoverFeedbackItems(
         val showRetry = !globalRetryVisible && index == 0
         item("discover-failure-${pluginId.value}") {
             HikariInlineFeedback(
-                message = "${pluginId.discoverDisplayName()} refresh failed; cached content is still available.",
+                message = "${pluginId.catalogDisplayName()} refresh failed; cached content is still available.",
                 modifier = Modifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
                 actionLabel = if (showRetry) "Retry" else null,
                 actionEnabled = !state.refreshing,

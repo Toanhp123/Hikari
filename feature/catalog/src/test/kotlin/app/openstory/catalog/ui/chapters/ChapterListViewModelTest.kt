@@ -12,10 +12,21 @@ import app.openstory.chapters.repository.ChapterGraphSnapshot
 import app.openstory.chapters.repository.ChapterMutation
 import app.openstory.chapters.repository.ChapterRepository
 import app.openstory.chapters.repository.ChapterSyncState
+import app.openstory.chapters.sync.ChapterSyncService
+import app.openstory.chapters.aggregation.ChapterAggregationEngine
+import app.openstory.chapters.normalization.ChapterLabelParser
+import app.openstory.chapters.source.ChapterSource
+import app.openstory.chapters.source.ChapterSourceRegistry
+import app.openstory.common.FakeClock
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.library.mapping.ContentMapping
+import app.openstory.library.mapping.ContentMappingOrigin
+import app.openstory.library.mapping.ContentMappingRejection
+import app.openstory.library.mapping.ContentMappingRepository
+import app.openstory.library.mapping.ContentMappingWriteResult
 import app.openstory.reader.content.ReaderSourceAvailability
 import java.math.BigDecimal
 import kotlin.test.AfterTest
@@ -29,6 +40,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -187,6 +200,57 @@ class ChapterListViewModelTest {
         )
     }
 
+    @Test
+    fun refreshRunsChapterSyncAndExposesRefreshingState() = runTest(dispatcher.scheduler) {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val viewModel = chapterViewModel(
+            FakeChapterRepository(listOf(group("1"))),
+            syncService = chapterSyncService(
+                mappings = object : ContentMappingRepository by EmptyMappingRepository {
+                    override fun observe(storyId: StoryId): Flow<List<ContentMapping>> = flow {
+                        gate.await()
+                        emit(emptyList())
+                    }
+                },
+            ),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.refreshing)
+
+        gate.complete(Unit)
+        runCurrent()
+
+        assertFalse(viewModel.state.value.refreshing)
+        assertEquals(null, viewModel.state.value.failure)
+    }
+
+    @Test
+    fun refreshFailureKeepsChaptersAndExposesNonBlockingFailure() = runTest(dispatcher.scheduler) {
+        val repository = FakeChapterRepository(listOf(group("1")))
+        val viewModel = chapterViewModel(
+            repository,
+            syncService = chapterSyncService(
+                sources = object : ChapterSourceRegistry {
+                    override suspend fun enabled(): List<ChapterSource> = error("registry unavailable")
+                },
+            ),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertFalse(viewModel.state.value.refreshing)
+        assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.chapters.map { it.id })
+        assertEquals("chapter.sync_failed", viewModel.state.value.failure)
+    }
+
     private fun TestScope.observe(state: StateFlow<ChapterListUiState>) {
         backgroundScope.launch(dispatcher) { state.collect {} }
     }
@@ -196,6 +260,7 @@ private fun chapterViewModel(
     repository: ChapterRepository,
     readerPlugins: Set<PluginId> = setOf(PluginId("content.0"), PluginId("content.1")),
     offlineDownloadPlugins: Set<PluginId> = readerPlugins,
+    syncService: ChapterSyncService = chapterSyncService(),
 ) = ChapterListViewModel(
     ChapterListAssistedArgs(STORY_ID),
     repository,
@@ -203,7 +268,39 @@ private fun chapterViewModel(
         override suspend fun enabledPluginIds(): Set<PluginId> = readerPlugins
         override suspend fun offlineDownloadPluginIds(): Set<PluginId> = offlineDownloadPlugins
     },
+    syncService,
 )
+
+private fun chapterSyncService(
+    mappings: ContentMappingRepository = EmptyMappingRepository,
+    sources: ChapterSourceRegistry = object : ChapterSourceRegistry {
+        override suspend fun enabled(): List<ChapterSource> = emptyList()
+    },
+    repository: ChapterRepository = FakeChapterRepository(emptyList()),
+) = ChapterSyncService(
+    mappings = mappings,
+    sources = sources,
+    chapters = repository,
+    aggregation = ChapterAggregationEngine(),
+    parser = ChapterLabelParser(),
+    clock = FakeClock(1_000L),
+)
+
+private object EmptyMappingRepository : ContentMappingRepository {
+    override fun observe(storyId: StoryId): Flow<List<ContentMapping>> = flowOf(emptyList())
+    override fun observeAll(): Flow<List<ContentMapping>> = flowOf(emptyList())
+    override suspend fun compareAndWrite(
+        mapping: ContentMapping,
+        replaceableOrigins: Set<ContentMappingOrigin>,
+    ): ContentMappingWriteResult = error("not used")
+    override suspend fun reject(rejection: ContentMappingRejection) = Unit
+    override suspend fun isRejected(
+        storyId: StoryId,
+        pluginId: PluginId,
+        sourceStoryId: String,
+        policyVersion: Int,
+    ): Boolean = false
+}
 
 private class FakeChapterRepository(initial: List<CanonicalChapterGroup>) : ChapterRepository {
     private val groups = MutableStateFlow(initial)

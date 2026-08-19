@@ -455,6 +455,9 @@ assert_contains 'overviewPullGestureRefreshesSourceDetails' \
 assert_contains 'sourcesPullGestureRefreshesSourceDetails' \
   'feature/catalog/src/test/kotlin/app/openstory/catalog/ui/story/StoryScreenshotTest.kt' \
   'Story Sources must retain real pull gesture integration coverage'
+assert_contains 'chaptersExposeSharedPullToRefreshAction' \
+  'feature/catalog/src/test/kotlin/app/openstory/catalog/ui/chapters/ChapterListScreenshotTest.kt' \
+  'Story Chapters must retain shared pull-to-refresh accessibility integration coverage'
 assert_absent 'PullToRefreshBox\(|[.]pullToRefresh\(' \
   'feature' \
   'features must consume HikariPullToRefresh instead of owning pull-to-refresh mechanics'
@@ -577,9 +580,18 @@ assert_contains 'HikariPullToRefresh(' \
 assert_contains 'HikariPullToRefresh(' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StorySources.kt' \
   'Story Sources must expose shared pull-to-refresh'
-assert_absent 'HikariPullToRefresh\(' \
-  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters' \
-  'Story Chapters must not expose pull-to-refresh before a chapter-sync pipeline exists'
+assert_contains 'HikariPullToRefresh(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterList.kt' \
+  'Story Chapters must expose shared pull-to-refresh'
+assert_contains 'private val syncService: ChapterSyncService' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterListViewModel.kt' \
+  'Story Chapters pull-to-refresh must be backed by the chapter-sync pipeline'
+assert_contains 'fun refresh()' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterListViewModel.kt' \
+  'Story Chapters must expose a ViewModel-owned chapter refresh command'
+assert_contains 'onRefresh = viewModel::refresh' \
+  'app/src/main/kotlin/app/openstory/navigation/StorySectionDependencies.kt' \
+  'Story Chapters pull-to-refresh must be wired to the chapter ViewModel refresh command'
 assert_absent 'Refresh sources' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover' \
   'Discover must not keep a space-consuming manual refresh button'
@@ -837,3 +849,20 @@ assert_contains 'diskCachePolicy(CachePolicy.DISABLED)' \
 assert_absent 'SubcomposeAsyncImage' \
   'feature/reader/src/main/kotlin/app/openstory/reader/ui' \
   'Reader LazyColumn must not use subcomposition for image loading states'
+
+# Failure-presentation contract: machine/plugin/domain codes stay diagnostic state, never user-facing copy.
+assert_contains 'fun catalogFailureMessage(' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/feedback/CatalogFailureMessage.kt' \
+  'catalog UI must own one failure-code presentation boundary'
+assert_absent 'message[[:space:]]*=[[:space:]]*failure[.]code' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui' \
+  'catalog UI must not render machine failure codes directly as feedback messages'
+assert_absent 'supportingText[[:space:]]*=[[:space:]]*failure[.]code' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui' \
+  'catalog UI must not render machine failure codes directly as supporting text'
+assert_absent '[$][{][^}]*[.]code[}]' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui' \
+  'catalog UI must not interpolate diagnostic failure codes into user-facing copy'
+assert_absent 'HikariInlineFeedback\(message = failure\)' \
+  'feature/catalog/src/main/kotlin/app/openstory/catalog/ui' \
+  'raw string failures must pass through the catalog failure presenter before rendering'

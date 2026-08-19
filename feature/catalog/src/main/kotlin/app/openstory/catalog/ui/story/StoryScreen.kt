@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.testTag
 import app.openstory.catalog.ui.chapters.ChapterListActions
 import app.openstory.catalog.ui.chapters.ChapterListUiState
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.ChapterReleaseId
@@ -108,7 +109,9 @@ private fun EmptyStory(state: StoryUiState, onRefresh: () -> Unit, modifier: Mod
     val retryable = state.failure?.retryable == true
     HikariErrorState(
         title = "Story unavailable",
-        message = state.failure?.let { "Source detail refresh failed: ${it.code}" },
+        message = state.failure?.let { failure ->
+            catalogFailureMessage(failure.code, "Couldn't refresh story details.")
+        },
         actionLabel = if (retryable) "Retry" else null,
         onAction = if (retryable) onRefresh else null,
         modifier = modifier.fillMaxSize(),

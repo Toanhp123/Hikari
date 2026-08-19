@@ -51,9 +51,104 @@ class ChapterSyncServiceTest {
 
         assertEquals(listOf("recent-10", "full-1"), repository.commits.map { it.releases.single().sourceReleaseId })
         assertEquals(
-            listOf(ChapterSyncPhase.FULL, ChapterSyncPhase.INCREMENTAL),
+            listOf(ChapterSyncPhase.FULL, ChapterSyncPhase.FULL),
             repository.commits.map { it.syncState!!.phase },
         )
+    }
+
+    @Test
+    fun completedFullSyncKeepsFingerprintInternalAndLeavesCheckpointEmpty() = runTest {
+        val repository = RecordingChapterRepository()
+        val source = RecordingSource { request ->
+            when (request.mode) {
+                ChapterListMode.RECENT -> page("recent-10", "10")
+                ChapterListMode.FULL -> page("full-1", "1")
+                ChapterListMode.INCREMENTAL -> error("incremental requires a source checkpoint")
+            }
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val state = repository.syncState(STORY_ID, PLUGIN_ID, SOURCE_STORY_ID)!!
+        assertEquals(null, state.checkpoint)
+        assertEquals(ChapterSyncPhase.FULL, state.phase)
+        assertEquals(64, state.fingerprint?.length)
+    }
+
+    @Test
+    fun refreshWithoutSourceCheckpointRunsSafeFullSyncAgain() = runTest {
+        val repository = RecordingChapterRepository()
+        val source = RecordingSource { request ->
+            when (request.mode) {
+                ChapterListMode.RECENT -> page("recent-10", "10")
+                ChapterListMode.FULL -> page("full-${request.nextToken ?: "start"}", "1")
+                ChapterListMode.INCREMENTAL -> error("incremental requires a source checkpoint")
+            }
+        }
+        val service = service(repository, source)
+
+        assertIs<ChapterSyncReport.Success>(service.sync(STORY_ID))
+        source.requests.clear()
+        assertIs<ChapterSyncReport.Success>(service.sync(STORY_ID))
+
+        assertEquals(listOf(ChapterListMode.FULL), source.requests.map(ChapterSourceRequest::mode))
+        assertEquals(listOf<String?>(null), source.requests.map(ChapterSourceRequest::checkpoint))
+    }
+
+    @Test
+    fun legacyFingerprintCheckpointFallsBackToFullSync() = runTest {
+        val fingerprint = "a".repeat(64)
+        val repository = RecordingChapterRepository(
+            initialState = ChapterSyncState(
+                STORY_ID,
+                PLUGIN_ID,
+                SOURCE_STORY_ID,
+                ChapterSyncPhase.INCREMENTAL,
+                cursor = "incremental-page-2",
+                checkpoint = fingerprint,
+                fingerprint = fingerprint,
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+        val source = RecordingSource { request ->
+            assertEquals(ChapterListMode.FULL, request.mode)
+            assertEquals(null, request.checkpoint)
+            assertEquals(null, request.nextToken)
+            page("full-1", "1")
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val state = repository.syncState(STORY_ID, PLUGIN_ID, SOURCE_STORY_ID)!!
+        assertEquals(null, state.checkpoint)
+        assertEquals(ChapterSyncPhase.FULL, state.phase)
+    }
+
+    @Test
+    fun incrementalSyncUsesOpaqueSourceCheckpointWhenItIsDistinctFromFingerprint() = runTest {
+        val repository = RecordingChapterRepository(
+            initialState = ChapterSyncState(
+                STORY_ID,
+                PLUGIN_ID,
+                SOURCE_STORY_ID,
+                ChapterSyncPhase.INCREMENTAL,
+                cursor = null,
+                checkpoint = "2026-08-19T00:00:00Z",
+                fingerprint = "a".repeat(64),
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+        val source = RecordingSource { request ->
+            assertEquals(ChapterListMode.INCREMENTAL, request.mode)
+            assertEquals("2026-08-19T00:00:00Z", request.checkpoint)
+            page("delta-2", "2")
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val state = repository.syncState(STORY_ID, PLUGIN_ID, SOURCE_STORY_ID)!!
+        assertEquals(ChapterSyncPhase.INCREMENTAL, state.phase)
+        assertEquals("2026-08-19T00:00:00Z", state.checkpoint)
     }
 
     @Test
@@ -79,7 +174,7 @@ class ChapterSyncServiceTest {
 
         assertEquals(listOf(ChapterListMode.FULL), source.requests.map(ChapterSourceRequest::mode))
         val advanced = repository.commits.single().syncState!!
-        assertEquals(ChapterSyncPhase.INCREMENTAL, advanced.phase)
+        assertEquals(ChapterSyncPhase.FULL, advanced.phase)
         assertEquals(null, advanced.cursor)
         assertEquals(false, advanced.fingerprint == "old-fingerprint")
     }

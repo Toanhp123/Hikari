@@ -31,6 +31,8 @@ class DownloadsScreenTest {
         compose.onNodeWithContentDescription(
             "A Garden Made of Glass, Chapter 4, failed download",
         ).assertIsDisplayed()
+        compose.onNodeWithText("This download failed. Try again.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("network.timeout").assertDoesNotExist()
         compose.onNodeWithText("Retry").performScrollTo().performClick()
 
         assertEquals(ChapterReleaseId("failed"), retried)

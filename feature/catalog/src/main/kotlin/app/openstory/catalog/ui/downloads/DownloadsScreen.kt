@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.openstory.catalog.ui.download.DownloadActionSheet
 import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.content.HikariSectionLead
@@ -177,7 +178,7 @@ private fun DownloadCard(
                     ),
                 )
                 item.failureReason?.let { failure ->
-                    HikariInlineFeedback(message = failure)
+                    HikariInlineFeedback(message = catalogFailureMessage(failure, "This download failed. Try again."))
                 }
             }
             DownloadActionSheet(

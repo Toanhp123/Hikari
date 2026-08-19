@@ -1,7 +1,9 @@
 package app.openstory.catalog.ui.chapters
 
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.semantics.SemanticsActions
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
@@ -17,6 +19,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -28,6 +32,26 @@ class ChapterListScreenshotTest {
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun offlineCachedChapters() = capture(true, "offline-cached-chapters.png")
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun chaptersExposeSharedPullToRefreshAction() {
+        var refreshes = 0
+        compose.setContent {
+            HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
+                ChapterList(
+                    state = ChapterListUiState(storyId = StoryId("moonlit"), loading = false),
+                    actions = ChapterListActions(onRefresh = { refreshes += 1 }),
+                )
+            }
+        }
+
+        val refreshAction = compose.onNodeWithTag("chapter-pull-refresh")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { action -> action.label == "Refresh" }
+
+        assertTrue(refreshAction.action())
+        assertEquals(1, refreshes)
+    }
 
     private fun capture(offline: Boolean, fileName: String) {
         val releaseId = ChapterReleaseId("release-12")

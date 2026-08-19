@@ -75,7 +75,7 @@ class ChapterSyncService(
             }
         }
         val currentState = pageSync.state(storyId, mapping)
-        val mode = if (currentState?.phase == ChapterSyncPhase.INCREMENTAL) {
+        val mode = if (currentState?.phase == ChapterSyncPhase.INCREMENTAL && currentState.sourceCheckpoint() != null) {
             ChapterListMode.INCREMENTAL
         } else {
             ChapterListMode.FULL

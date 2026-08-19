@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextOverflow
+import app.openstory.catalog.ui.components.catalogDisplayName
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.common.id.StoryId
@@ -52,7 +53,7 @@ fun DiscoverHero(entry: CatalogEntry, onSelected: (StoryId) -> Unit, modifier: M
                 "${it.value.toAccessibleNumber()} out of ${it.scale.toAccessibleNumber()}"
             } ?: "unavailable"
             contentDescription =
-                "Featured ${entry.title}. Score $score from ${entry.pluginId.discoverDisplayName()}."
+                "Featured ${entry.title}. Score $score from ${entry.pluginId.catalogDisplayName()}."
             traversalIndex = FEATURED_TRAVERSAL_INDEX
         },
     ) {
@@ -152,7 +153,7 @@ private fun HeroDetails(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
             HikariMetadataBadge(
-                entry.pluginId.discoverDisplayName(),
+                entry.pluginId.catalogDisplayName(),
                 containerColor = MaterialTheme.hikariColors.onArtwork.copy(
                     alpha = MaterialTheme.hikariOpacity.onArtworkBadge,
                 ),

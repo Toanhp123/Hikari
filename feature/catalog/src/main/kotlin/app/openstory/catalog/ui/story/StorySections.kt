@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.stateDescription
 import app.openstory.catalog.ui.chapters.ChapterList
 import app.openstory.catalog.ui.chapters.ChapterListActions
 import app.openstory.catalog.ui.chapters.ChapterListUiState
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.PluginId
@@ -84,7 +85,7 @@ internal fun StorySectionContent(
 @Composable
 internal fun StoryFailureBanner(failure: StoryRefreshFailure, refreshing: Boolean, onRefresh: () -> Unit) {
     HikariInlineFeedback(
-        message = "Source detail refresh failed: ${failure.code}",
+        message = catalogFailureMessage(failure.code, "Couldn't refresh story details."),
         actionLabel = if (failure.retryable) "Retry" else null,
         actionEnabled = !refreshing,
         onAction = if (failure.retryable) onRefresh else null,

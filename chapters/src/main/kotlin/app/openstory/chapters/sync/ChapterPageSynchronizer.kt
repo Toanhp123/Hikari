@@ -37,7 +37,11 @@ internal class ChapterPageSynchronizer(
         mode: ChapterListMode,
         initialState: ChapterSyncState?,
     ): PageSyncResult {
-        var cursor = initialState?.cursor
+        var cursor = if (mode == ChapterListMode.FULL && initialState?.phase == ChapterSyncPhase.INCREMENTAL) {
+            null
+        } else {
+            initialState?.cursor
+        }
         var graph: ChapterGraphSnapshot? = null
         val startedFromBeginning = mode == ChapterListMode.FULL && cursor == null
         val fullReleaseIds = linkedSetOf<ChapterReleaseId>()
@@ -88,7 +92,7 @@ internal class ChapterPageSynchronizer(
         ChapterSourceRequest(
             sourceStoryId = mapping.sourceStoryId,
             mode = mode,
-            checkpoint = state?.checkpoint ?: state?.fingerprint,
+            checkpoint = state?.sourceCheckpoint(),
             nextToken = cursor,
         ),
     )) {
@@ -161,11 +165,13 @@ internal class ChapterPageSynchronizer(
         previous: ChapterSyncState?,
     ): ChapterSyncState {
         val completed = page.nextToken == null
+        val sourceCheckpoint = previous?.sourceCheckpoint()
         val phase = when {
             mode == ChapterListMode.RECENT -> ChapterSyncPhase.FULL
-            mode == ChapterListMode.FULL && completed -> ChapterSyncPhase.INCREMENTAL
+            mode == ChapterListMode.FULL && completed && sourceCheckpoint != null -> ChapterSyncPhase.INCREMENTAL
             mode == ChapterListMode.FULL -> ChapterSyncPhase.FULL
-            else -> ChapterSyncPhase.INCREMENTAL
+            sourceCheckpoint != null -> ChapterSyncPhase.INCREMENTAL
+            else -> ChapterSyncPhase.FULL
         }
         return ChapterSyncState(
             storyId = storyId,
@@ -173,7 +179,7 @@ internal class ChapterPageSynchronizer(
             sourceStoryId = mapping.sourceStoryId,
             phase = phase,
             cursor = if (mode == ChapterListMode.RECENT) null else page.nextToken,
-            checkpoint = if (completed && mode != ChapterListMode.RECENT) fingerprint else previous?.checkpoint,
+            checkpoint = if (mode == ChapterListMode.RECENT) previous?.sourceCheckpoint() else sourceCheckpoint,
             fingerprint = if (mode == ChapterListMode.RECENT) previous?.fingerprint else fingerprint,
             updatedAtEpochMillis = clock.nowEpochMillis(),
         )
@@ -278,3 +284,5 @@ private fun fingerprint(releases: Collection<ChapterRelease>): String = sha256(
 private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
     .digest(value.toByteArray(Charsets.UTF_8))
     .joinToString("") { byte -> "%02x".format(byte) }
+
+internal fun ChapterSyncState.sourceCheckpoint(): String? = checkpoint?.takeUnless { it == fingerprint }

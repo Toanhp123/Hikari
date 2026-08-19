@@ -6,6 +6,8 @@ import app.openstory.chapters.model.ChapterAggregationOverride
 import app.openstory.chapters.model.ChapterOverrideKind
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.chapters.repository.ChapterRepository
+import app.openstory.chapters.sync.ChapterSyncReport
+import app.openstory.chapters.sync.ChapterSyncService
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.download.DownloadActions
 import app.openstory.common.id.CanonicalChapterId
@@ -20,6 +22,7 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
@@ -33,12 +36,15 @@ class ChapterListViewModel @AssistedInject constructor(
     @Assisted assistedArgs: ChapterListAssistedArgs,
     private val repository: ChapterRepository,
     private val readerSources: ReaderSourceAvailability,
+    private val syncService: ChapterSyncService,
 ) : ViewModel() {
     private val storyId = assistedArgs.storyId
     private val expanded = MutableStateFlow<Set<CanonicalChapterId>>(emptySet())
     private val filter = MutableStateFlow(ChapterListFilter.ALL)
     private val tombstonesVisible = MutableStateFlow(false)
+    private val refreshing = MutableStateFlow(false)
     private val failure = MutableStateFlow<String?>(null)
+    private var refreshJob: Job? = null
 
     private val groupsWithReaderSources = combine(
         repository.observe(storyId).catch {
@@ -55,13 +61,17 @@ class ChapterListViewModel @AssistedInject constructor(
         }.catch { emit(ReaderAvailability()) },
     ) { groups, availability -> groups to availability }
 
+    private val refreshState = combine(refreshing, failure) { isRefreshing, currentFailure ->
+        RefreshState(isRefreshing, currentFailure)
+    }
+
     val state = combine(
         groupsWithReaderSources,
         expanded,
         filter,
         tombstonesVisible,
-        failure,
-    ) { (groups, availability), expandedIds, selectedFilter, showTombstones, currentFailure ->
+        refreshState,
+    ) { (groups, availability), expandedIds, selectedFilter, showTombstones, refresh ->
         val activeGroups = groups.filterNot { group -> group.chapter.tombstoned }
         val visible = groups
             .filter { group -> showTombstones || !group.chapter.tombstoned }
@@ -87,7 +97,8 @@ class ChapterListViewModel @AssistedInject constructor(
             unreadCount = activeGroups.size,
             selectedFilter = selectedFilter,
             showTombstones = showTombstones,
-            failure = currentFailure,
+            refreshing = refresh.refreshing,
+            failure = refresh.failure,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -105,6 +116,28 @@ class ChapterListViewModel @AssistedInject constructor(
 
     fun setTombstonesVisible(visible: Boolean) {
         tombstonesVisible.value = visible
+    }
+
+    fun refresh() {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            refreshing.value = true
+            failure.value = null
+            try {
+                when (val report = syncService.sync(storyId)) {
+                    is ChapterSyncReport.Success -> Unit
+                    is ChapterSyncReport.Failure -> {
+                        failure.value = report.failures.firstOrNull()?.code ?: SYNC_FAILED
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                failure.value = SYNC_FAILED
+            } finally {
+                refreshing.value = false
+            }
+        }
     }
 
     fun keepGrouped(releaseId: ChapterReleaseId, chapterId: CanonicalChapterId) {
@@ -137,8 +170,14 @@ class ChapterListViewModel @AssistedInject constructor(
         const val STOP_TIMEOUT_MILLIS = 5_000L
         const val OBSERVE_FAILED = "chapter.list.observe_failed"
         const val CORRECTION_FAILED = "chapter.list.correction_failed"
+        const val SYNC_FAILED = "chapter.sync_failed"
     }
 }
+
+private data class RefreshState(
+    val refreshing: Boolean,
+    val failure: String?,
+)
 
 data class ChapterListAssistedArgs(val storyId: StoryId)
 
@@ -156,6 +195,7 @@ enum class ChapterListFilter {
 data class ChapterListUiState(
     val storyId: StoryId? = null,
     val loading: Boolean = true,
+    val refreshing: Boolean = false,
     val chapters: List<ChapterItemUiModel> = emptyList(),
     val readableTargets: List<ReaderTarget> = emptyList(),
     val downloadableTargets: List<ReaderTarget> = readableTargets,
@@ -185,6 +225,7 @@ data class ChapterReleaseUiModel(
 )
 
 data class ChapterListActions(
+    val onRefresh: () -> Unit = {},
     val onToggleExpanded: (CanonicalChapterId) -> Unit = {},
     val onFilterSelected: (ChapterListFilter) -> Unit = {},
     val onTombstonesVisible: (Boolean) -> Unit = {},

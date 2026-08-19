@@ -19,12 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariMetadataBadge
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.content.HikariSectionLead
 import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.surface.HikariContentCardStyle
@@ -38,11 +40,17 @@ fun ChapterList(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues? = null,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth().testTag("chapter-list"),
-        contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.screenGutter),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
-    ) { chapterListItems(state, actions) }
+    HikariPullToRefresh(
+        refreshing = state.refreshing,
+        onRefresh = actions.onRefresh,
+        modifier = modifier.testTag("chapter-pull-refresh"),
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().testTag("chapter-list"),
+            contentPadding = contentPadding ?: PaddingValues(MaterialTheme.hikariSpacing.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
+        ) { chapterListItems(state, actions) }
+    }
 }
 
 fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterListActions) {
@@ -68,7 +76,7 @@ fun LazyListScope.chapterListItems(state: ChapterListUiState, actions: ChapterLi
     }
     state.failure?.let { failure ->
         item(key = "chapter-failure", contentType = "chapter-feedback") {
-            HikariInlineFeedback(message = failure)
+            HikariInlineFeedback(message = catalogFailureMessage(failure, "Couldn't refresh chapters."))
         }
     }
     if (state.loading && state.chapters.isEmpty()) {

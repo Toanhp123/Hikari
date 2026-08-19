@@ -35,6 +35,24 @@ class MappingSheetTest {
     val compose = createComposeRule()
 
     @Test
+    fun mappingFailureHidesMachineCode() {
+        compose.setContent {
+            HikariTheme {
+                MappingItemsTestHost(
+                    state = MappingUiState(
+                        loading = false,
+                        failures = listOf("plugin.mangadex_http_status"),
+                    ),
+                    actions = MappingActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Couldn't update reading sources.").assertIsDisplayed()
+        compose.onNodeWithText("plugin.mangadex_http_status").assertDoesNotExist()
+    }
+
+    @Test
     fun evidenceAndApprovalRejectionActionsAreVisible() {
         var approved: Pair<PluginId, String>? = null
         var rejected: Pair<PluginId, String>? = null

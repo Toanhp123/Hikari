@@ -88,6 +88,7 @@ private fun chapterDependencies(
     return StorySectionDependencies(
         chapterState = state,
         chapterActions = ChapterListActions(
+            onRefresh = viewModel::refresh,
             onToggleExpanded = viewModel::toggleExpanded,
             onFilterSelected = viewModel::selectFilter,
             onTombstonesVisible = viewModel::setTombstonesVisible,

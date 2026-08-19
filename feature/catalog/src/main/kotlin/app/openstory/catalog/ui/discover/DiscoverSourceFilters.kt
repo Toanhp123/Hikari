@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import app.openstory.catalog.ui.components.catalogDisplayName
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.control.HikariFilterChip
 import app.openstory.designsystem.theme.hikariSpacing
@@ -45,26 +46,9 @@ internal fun LazyListScope.sourceFilterItem(
             HikariFilterChip(
                 selected = state.selectedCatalogId == catalog.pluginId,
                 onClick = { onCatalogSelected(catalog.pluginId) },
-                label = { Text(catalog.pluginId.discoverDisplayName()) },
+                label = { Text(catalog.pluginId.catalogDisplayName()) },
                 modifier = Modifier.semantics { traversalIndex = CATALOG_TRAVERSAL_INDEX },
             )
-        }
-    }
-}
-
-internal fun PluginId.discoverDisplayName(): String {
-    val segments = value.split('.')
-    val key = segments.last().lowercase()
-    return when (key) {
-        "mangadex" -> "MangaDex"
-        "myanimelist", "mal" -> "MyAnimeList"
-        else -> if (segments.size == 2 && segments.first().equals("catalog", ignoreCase = true)) {
-            "Catalog ${key.uppercase()}"
-        } else {
-            key
-                .split('-', '_')
-                .filter(String::isNotBlank)
-                .joinToString(" ") { part -> part.replaceFirstChar(Char::uppercase) }
         }
     }
 }

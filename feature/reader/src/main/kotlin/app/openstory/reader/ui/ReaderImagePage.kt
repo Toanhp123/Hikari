@@ -56,6 +56,7 @@ internal fun ReaderImagePage(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = MaterialTheme.hikariDimensions.readerImagePlaceholderHeight)
+            .then(sizeResolver)
             .testTag("reader-image-${block.id}"),
         contentAlignment = Alignment.Center,
     ) {
@@ -66,7 +67,6 @@ internal fun ReaderImagePage(
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(sizeResolver)
                     .onSizeChanged { size ->
                         if (size.height > 0) onImageMeasured(size.height)
                     },

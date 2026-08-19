@@ -57,6 +57,28 @@ class DiscoverScreenTest {
     }
 
     @Test
+    fun globalFailureHidesMachineCode() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = fixtureState().copy(
+                        globalFailure = DiscoverUiFailure("catalog.refresh_failed", true),
+                    ),
+                    onRefresh = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onCatalogSelected = {},
+                    onCombinedSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Couldn't refresh Discover. Cached content is still available.")
+            .assertIsDisplayed()
+        compose.onNodeWithText("catalog.refresh_failed").assertDoesNotExist()
+    }
+
+    @Test
     fun pullRefreshReplacesManualDiscoverRefreshAction() {
         var refreshCalls = 0
         compose.setContent {

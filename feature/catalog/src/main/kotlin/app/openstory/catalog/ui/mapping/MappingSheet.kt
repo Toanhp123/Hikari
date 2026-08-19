@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.designsystem.content.HikariMetadataBadgeGroup
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.content.HikariSectionLead
@@ -76,7 +77,7 @@ fun LazyListScope.mappingItems(
         key = { index, failure -> "mapping-failure:$index:$failure" },
         contentType = { _, _ -> "mapping-feedback" },
     ) { _, failure ->
-        HikariInlineFeedback(message = "Mapping issue: $failure")
+        HikariInlineFeedback(message = catalogFailureMessage(failure, "Couldn't update reading sources."))
     }
     state.candidates.firstOrNull()?.let { firstCandidate ->
         item(key = "mapping-candidates-title", contentType = "mapping-subheader") {

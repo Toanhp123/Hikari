@@ -113,9 +113,8 @@ class HomeDashboardScreenTest {
             }
         }
 
-        compose.onNodeWithText(
-            "Some reading data could not be refreshed (home.catalog.observe_exception).",
-        ).assertIsDisplayed()
+        compose.onNodeWithText("Some reading data could not be refreshed.").assertIsDisplayed()
+        compose.onNodeWithText("home.catalog.observe_exception").assertDoesNotExist()
     }
 }
 

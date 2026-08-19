@@ -51,7 +51,8 @@ class SearchScreenTest {
         }
 
         compose.onNodeWithText("Fixture Novel").assertIsDisplayed()
-        compose.onNodeWithText("catalog.offline").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Results from this source may be missing.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("catalog.offline").assertDoesNotExist()
     }
 
     @Test

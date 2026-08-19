@@ -29,6 +29,21 @@ class ChapterListTest {
     val compose = createComposeRule()
 
     @Test
+    fun chapterFailureHidesMachineCode() {
+        compose.setContent {
+            HikariTheme {
+                ChapterList(
+                    state = fixtureState().copy(failure = "plugin.mangadex_http_status"),
+                    actions = ChapterListActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Couldn't refresh chapters.").assertIsDisplayed()
+        compose.onNodeWithText("plugin.mangadex_http_status").assertDoesNotExist()
+    }
+
+    @Test
     fun canonicalRowsExpandReleasesAndExposeAccessibility() {
         var state by mutableStateOf(fixtureState())
         compose.setContent {
