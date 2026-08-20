@@ -462,7 +462,7 @@ private class StoryRepository(
         val full = key.sourceId.takeIf { it in fullResolved }?.let {
             CatalogMetadataStamp("1.0.0", resolvedAtEpochMillis)
         }
-        return CatalogMetadataSnapshot(entry, summary, artwork = full, full = full)
+        return CatalogMetadataSnapshot(entry, summary, full = full)
     }
 
     override suspend fun commitDetails(

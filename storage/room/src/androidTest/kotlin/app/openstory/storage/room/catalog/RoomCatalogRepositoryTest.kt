@@ -105,7 +105,7 @@ class RoomCatalogRepositoryTest {
     }
 
     @Test
-    fun homeCommitWritesSummaryAndArtworkWithoutRefreshingFull() = runTest {
+    fun homeCommitWritesSummaryWithoutRefreshingFull() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
             val key = CatalogMetadataKey(PluginId("a"), "a-1")
@@ -121,8 +121,6 @@ class RoomCatalogRepositoryTest {
             var snapshot = requireNotNull(repository.metadataSnapshot(key))
             assertEquals("1.0.0", snapshot.summary.pluginVersion)
             assertEquals(10L, snapshot.summary.resolvedAtEpochMillis)
-            assertEquals("1.0.0", snapshot.artwork?.pluginVersion)
-            assertEquals(10L, snapshot.artwork?.resolvedAtEpochMillis)
             assertEquals(null, snapshot.full)
 
             repository.commitDetails(
@@ -140,14 +138,13 @@ class RoomCatalogRepositoryTest {
             snapshot = requireNotNull(repository.metadataSnapshot(key))
             assertEquals(30L, snapshot.summary.resolvedAtEpochMillis)
             assertEquals("cover-10", snapshot.entry.coverUrl)
-            assertEquals(20L, snapshot.artwork?.resolvedAtEpochMillis)
             assertEquals(20L, snapshot.full?.resolvedAtEpochMillis)
             assertEquals("details", snapshot.entry.description)
         }
     }
 
     @Test
-    fun detailsCommitResolvesArtworkAndFullEvenWhenCoverIsNull() = runTest {
+    fun detailsCommitResolvesFullEvenWhenCoverIsNull() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
             repository.commitHomeRefresh(mutation("a", listOf("a-1"), 1))
@@ -166,8 +163,6 @@ class RoomCatalogRepositoryTest {
             val snapshot = requireNotNull(repository.metadataSnapshot(key))
             assertEquals("2.0.0", snapshot.summary.pluginVersion)
             assertEquals(50L, snapshot.summary.resolvedAtEpochMillis)
-            assertEquals("2.0.0", snapshot.artwork?.pluginVersion)
-            assertEquals(50L, snapshot.artwork?.resolvedAtEpochMillis)
             assertEquals("2.0.0", snapshot.full?.pluginVersion)
             assertEquals(50L, snapshot.full?.resolvedAtEpochMillis)
         }
@@ -230,6 +225,35 @@ class RoomCatalogRepositoryTest {
                 homeStoryId,
                 requireNotNull(repository.metadataSnapshot(CatalogMetadataKey(pluginId, sourceId))).entry.storyId,
             )
+        }
+    }
+
+    @Test
+    fun homeCommitPreservesDurableDetailsIdentityWhenStaleHomeCommitsLater() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val pluginId = PluginId("a")
+            val sourceId = "a-1"
+            val detailsStoryId = StoryId("story:details")
+            val staleHomeStoryId = StoryId("story:home")
+            val detailsEntry = CatalogEntry(
+                storyId = detailsStoryId,
+                pluginId = pluginId,
+                sourceId = sourceId,
+                title = "details",
+                description = "resolved",
+                contentType = ContentType.MANGA,
+            )
+
+            repository.commitDetails(
+                CatalogDetailsMutation(detailsStoryId, detailsEntry, "2.0.0", 2),
+            )
+            repository.commitHomeRefresh(mutation("a", listOf(sourceId), 3, staleHomeStoryId))
+
+            val snapshot = requireNotNull(repository.metadataSnapshot(CatalogMetadataKey(pluginId, sourceId)))
+            assertEquals(detailsStoryId, snapshot.entry.storyId)
+            assertEquals("resolved", snapshot.entry.description)
+            assertEquals(null, database.catalogDao().findStory(staleHomeStoryId.value))
         }
     }
 

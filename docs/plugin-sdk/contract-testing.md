@@ -26,6 +26,16 @@ counterpart is `bundled-plugins/myanimelist-catalog`, whose `main.js` implements
 `catalog.home`, `catalog.search`, `catalog.details`, and `catalog.filters` through the same
 protocol and `host.http` capability available to third-party packages.
 
+## Catalog listing ownership
+
+`catalog.home` and `catalog.search` own the presentation payload they return. The host requires
+stable `sourceId`, non-blank `title`, and `contentType`; artwork, authors, scores, genres, and the
+other nullable/empty item fields remain optional. A plugin should populate those optional fields
+when its source can provide them, but omission is a valid degraded result. Hikari renders the
+placeholder/omitted state and **does not call `catalog.details` to repair or enrich a listing**.
+If a plugin needs extra requests, batching, or caching to produce richer Home/Search cards, that is
+plugin implementation policy behind the catalog operation contract.
+
 A contract test should cover:
 
 1. strict manifest decoding and protocol-major compatibility;

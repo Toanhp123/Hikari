@@ -42,7 +42,7 @@ import kotlin.test.assertTrue
 class CatalogMetadataCoordinatorTest {
     @Test
     fun summaryCachedReturnsReadyWithoutDetails() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = null), scope = backgroundScope)
 
         val result = fixture.coordinator.require(KEY, CatalogMetadataLevel.Summary)
 
@@ -59,10 +59,9 @@ class CatalogMetadataCoordinatorTest {
     }
 
     @Test
-    fun freshArtworkAndFullReturnCacheWithoutDetails() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = NOW, artworkAt = NOW), scope = backgroundScope)
+    fun freshFullReturnsCacheWithoutDetails() = runTest {
+        val fixture = fixture(snapshot = snapshot(fullAt = NOW), scope = backgroundScope)
 
-        assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Artwork))
         assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
         runCurrent()
 
@@ -70,40 +69,23 @@ class CatalogMetadataCoordinatorTest {
     }
 
     @Test
-    fun unresolvedArtworkAndFullAwaitDetailsAndBecomeReady() = runTest {
-        val artworkFixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
-        assertIs<CatalogMetadataResult.Ready>(
-            artworkFixture.coordinator.require(KEY, CatalogMetadataLevel.Artwork),
-        )
-        assertEquals(1, artworkFixture.source.detailsCalls)
+    fun unresolvedFullAwaitsDetailsAndBecomesReady() = runTest {
+        val fixture = fixture(snapshot = snapshot(fullAt = null), scope = backgroundScope)
 
-        val fullFixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
-        assertIs<CatalogMetadataResult.Ready>(fullFixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
-        assertEquals(1, fullFixture.source.detailsCalls)
-    }
-
-    @Test
-    fun nullArtworkDetailsIsNegativeCachedInsideArtworkTtl() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
-
-        assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Artwork))
-        assertEquals(null, fixture.repository.snapshot?.entry?.coverUrl)
-        assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Artwork))
-        runCurrent()
+        assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
 
         assertEquals(1, fixture.source.detailsCalls)
     }
 
     @Test
-    fun staleArtworkAndFullReturnCacheBeforeBackgroundLoadCompletes() = runTest {
+    fun staleFullReturnsCacheBeforeBackgroundLoadCompletes() = runTest {
         val gate = CompletableDeferred<Unit>()
         val fixture = fixture(
-            snapshot = snapshot(fullAt = 1, artworkAt = 1),
+            snapshot = snapshot(fullAt = 1),
             scope = backgroundScope,
             detailsGate = gate,
         )
 
-        assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Artwork))
         assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
         runCurrent()
 
@@ -115,7 +97,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun pluginVersionChangeRevalidatesInsideTtl() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = NOW, artworkAt = NOW), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = NOW), scope = backgroundScope)
         fixture.source.versionValue = "2.0.0"
 
         assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
@@ -126,7 +108,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun explicitRefreshBypassesFreshness() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = NOW, artworkAt = NOW), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = NOW), scope = backgroundScope)
 
         assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.refresh(KEY, CatalogMetadataLevel.Full))
 
@@ -135,7 +117,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun retryableFailureIsSuppressedForFiveMinutesAndRefreshBypassesIt() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = null), scope = backgroundScope)
         fixture.source.result = CatalogSourceResult.Failure(CatalogSourceFailure("temporary", true))
 
         assertIs<CatalogMetadataResult.Failure>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
@@ -152,7 +134,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun sourceUnavailableUsesCooldownAndRecoversAfterBoundary() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = null), scope = backgroundScope)
         fixture.registry.current = null
 
         assertIs<CatalogMetadataResult.Failure>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
@@ -167,7 +149,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun nonRetryableSourceFailureIsSuppressedUntilPluginVersionChanges() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = null), scope = backgroundScope)
         fixture.source.result = CatalogSourceResult.Failure(CatalogSourceFailure("permanent", false))
 
         assertIs<CatalogMetadataResult.Failure>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
@@ -181,7 +163,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun sourceIdMismatchIsVersionBoundSuppression() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = null), scope = backgroundScope)
         fixture.source.result = CatalogSourceResult.Success(details("wrong"))
 
         assertIs<CatalogMetadataResult.Failure>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
@@ -195,7 +177,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun nonRetryableStoreFailureUsesBoundedCooldown() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = null, artworkAt = null), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = null), scope = backgroundScope)
         fixture.repository.storeFailure = CatalogStoreFailure("store.locked", false)
 
         assertIs<CatalogMetadataResult.Failure>(fixture.coordinator.require(KEY, CatalogMetadataLevel.Full))
@@ -211,20 +193,20 @@ class CatalogMetadataCoordinatorTest {
     fun threeConcurrentCallersShareOneDetailsRequest() = runTest {
         val gate = CompletableDeferred<Unit>()
         val fixture = fixture(
-            snapshot = snapshot(fullAt = null, artworkAt = null),
+            snapshot = snapshot(fullAt = null),
             scope = backgroundScope,
             detailsGate = gate,
         )
 
-        val artwork = async { fixture.coordinator.require(KEY, CatalogMetadataLevel.Artwork) }
-        val full = async { fixture.coordinator.require(KEY, CatalogMetadataLevel.Full) }
+        val first = async { fixture.coordinator.require(KEY, CatalogMetadataLevel.Full) }
+        val second = async { fixture.coordinator.require(KEY, CatalogMetadataLevel.Full) }
         val refresh = async { fixture.coordinator.refresh(KEY, CatalogMetadataLevel.Full) }
         runCurrent()
         assertEquals(1, fixture.source.detailsCalls)
 
         gate.complete(Unit)
-        assertIs<CatalogMetadataResult.Ready>(artwork.await())
-        assertIs<CatalogMetadataResult.Ready>(full.await())
+        assertIs<CatalogMetadataResult.Ready>(first.await())
+        assertIs<CatalogMetadataResult.Ready>(second.await())
         assertIs<CatalogMetadataResult.Ready>(refresh.await())
         assertEquals(1, fixture.source.detailsCalls)
     }
@@ -233,13 +215,13 @@ class CatalogMetadataCoordinatorTest {
     fun cancellingOneWaiterDoesNotCancelSharedLoad() = runTest {
         val gate = CompletableDeferred<Unit>()
         val fixture = fixture(
-            snapshot = snapshot(fullAt = null, artworkAt = null),
+            snapshot = snapshot(fullAt = null),
             scope = backgroundScope,
             detailsGate = gate,
         )
 
         val cancelled = async { fixture.coordinator.require(KEY, CatalogMetadataLevel.Full) }
-        val survivor = async { fixture.coordinator.require(KEY, CatalogMetadataLevel.Artwork) }
+        val survivor = async { fixture.coordinator.require(KEY, CatalogMetadataLevel.Full) }
         runCurrent()
         assertEquals(1, fixture.source.detailsCalls)
         cancelled.cancel()
@@ -254,7 +236,7 @@ class CatalogMetadataCoordinatorTest {
     @Test
     fun queuedStaleVerificationUsesLatestPersistedStampAfterRefresh() = runTest {
         val fixture = fixture(
-            snapshot = snapshot(fullAt = 1, artworkAt = 1),
+            snapshot = snapshot(fullAt = 1),
             scope = backgroundScope,
         )
 
@@ -270,7 +252,7 @@ class CatalogMetadataCoordinatorTest {
     fun explicitRefreshJoinsRunningBackgroundRevalidation() = runTest {
         val gate = CompletableDeferred<Unit>()
         val fixture = fixture(
-            snapshot = snapshot(fullAt = 1, artworkAt = 1),
+            snapshot = snapshot(fullAt = 1),
             scope = backgroundScope,
             detailsGate = gate,
         )
@@ -288,7 +270,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun completedInFlightEntryIsRemovedBeforeNextRefresh() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = NOW, artworkAt = NOW), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = NOW), scope = backgroundScope)
 
         assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.refresh(KEY, CatalogMetadataLevel.Full))
         assertIs<CatalogMetadataResult.Ready>(fixture.coordinator.refresh(KEY, CatalogMetadataLevel.Full))
@@ -298,7 +280,7 @@ class CatalogMetadataCoordinatorTest {
 
     @Test
     fun refreshRejectsSummary() = runTest {
-        val fixture = fixture(snapshot = snapshot(fullAt = NOW, artworkAt = NOW), scope = backgroundScope)
+        val fixture = fixture(snapshot = snapshot(fullAt = NOW), scope = backgroundScope)
         var failed = false
         try {
             fixture.coordinator.refresh(KEY, CatalogMetadataLevel.Summary)
@@ -337,7 +319,7 @@ class CatalogMetadataCoordinatorTest {
         val coordinator: CatalogMetadataCoordinator,
     )
 
-    private fun snapshot(fullAt: Long?, artworkAt: Long?) = CatalogMetadataSnapshot(
+    private fun snapshot(fullAt: Long?) = CatalogMetadataSnapshot(
         entry = CatalogEntry(
             storyId = StoryId("story:source"),
             pluginId = PluginId("a"),
@@ -346,7 +328,6 @@ class CatalogMetadataCoordinatorTest {
             contentType = ContentType.MANGA,
         ),
         summary = CatalogMetadataStamp("1.0.0", NOW),
-        artwork = artworkAt?.let { CatalogMetadataStamp("1.0.0", it) },
         full = fullAt?.let { CatalogMetadataStamp("1.0.0", it) },
     )
 
@@ -426,8 +407,8 @@ class CatalogMetadataCoordinatorTest {
             storeFailure?.let { return Outcome.Failure(it) }
             val durableStoryId = snapshot?.entry?.storyId ?: mutation.storyId
             val entry = mutation.entry.copy(storyId = durableStoryId)
-            val stamp = CatalogMetadataStamp(mutation.pluginVersion, mutation.fetchedAtEpochMillis)
-            snapshot = CatalogMetadataSnapshot(entry, stamp, stamp, stamp)
+            val stamp = CatalogMetadataStamp(mutation.pluginVersion, mutation.resolvedAtEpochMillis)
+            snapshot = CatalogMetadataSnapshot(entry, stamp, stamp)
             return Outcome.Success(durableStoryId)
         }
     }

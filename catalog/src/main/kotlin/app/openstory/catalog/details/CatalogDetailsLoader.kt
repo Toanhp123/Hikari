@@ -130,7 +130,7 @@ class CatalogDetailsLoader @Inject constructor(
             storyId = story.id,
             entry = entry,
             pluginVersion = source.version,
-            fetchedAtEpochMillis = resolvedAt,
+            resolvedAtEpochMillis = resolvedAt,
         )
         store(source, entry, mutation, resolvedAt)
     } catch (cancellation: CancellationException) {

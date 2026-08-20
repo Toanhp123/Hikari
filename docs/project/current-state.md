@@ -25,11 +25,13 @@ Purpose: single source of truth for the implemented repository boundary.
   semantic-feed persistence introduced by that checkpoint. Manga is enabled/selected; Light Novel
   remains visible but disabled for this delivery.
 - Catalog metadata lifecycle unification: **IMPLEMENTED**. `:catalog` owns one
-  `CatalogMetadataCoordinator` for `Summary` / `Artwork` / `Full` requirements; Artwork freshness is
-  7 days, Full freshness is 24 hours, plugin-version mismatch invalidates resolved freshness, stale
-  resolved metadata stays cache-first while revalidating, and process-wide single-flight prevents
-  duplicate Details work. `CatalogDetailsLoader` is the sole production Details transport and Room
-  schema 8 stores separate Summary/Artwork/Full provenance while preserving persisted source identity.
+  `CatalogMetadataCoordinator` for `Summary` / `Full` requirements. Full freshness is 24 hours,
+  plugin-version mismatch invalidates resolved freshness, stale resolved metadata stays cache-first
+  while revalidating, and process-wide single-flight prevents duplicate Details work. Home/Search
+  listing payload quality belongs to the plugin operation: missing optional artwork or other
+  presentation metadata remains degraded and does not cause host-side Details enrichment.
+  `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
+  Summary/Full provenance while preserving persisted source identity.
 - Wave 10: **READY TO START; NOT IMPLEMENTED**. It enters on Room schema 8; the planned durable
   notification-delivery persistence is rebased to migration 8 -> 9.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
@@ -60,7 +62,7 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
 | `:core:designsystem` | Domain-neutral theme/tokens, artwork and glass primitives, adaptive layout/content chrome, pull-to-refresh, shared actions/states, equal-width segmented control, static skeleton, and screenshot rendering boundary |
-| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, and unified Summary/Artwork/Full metadata lifecycle |
+| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, and unified Summary/Full metadata lifecycle |
 | `:feature:catalog` | Discover, Home, Search, Story, Library, mapping-review, chapter-list, downloads/updates presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
@@ -95,8 +97,7 @@ runtime persistence SPI.
   considered provider-complete.
 - Catalog Home, Search, and Story metadata are source-preserving, cache-first, and exposed
   through catalog-owned repository/services. `CatalogMetadataCoordinator` is the single metadata
-  lifetime owner: `Summary` never triggers Details, `Artwork` uses a 7-day TTL, `Full` uses a
-  24-hour TTL, plugin-version mismatch invalidates freshness, and stale resolved data is returned
+  lifetime owner: `Summary` never triggers Details, `Full` uses a 24-hour TTL, plugin-version mismatch invalidates freshness, and stale resolved data is returned
   immediately while one process-owned revalidation runs in the background. `CatalogDetailsLoader`
   is the only production `CatalogSource.details(...)` caller. Home sections carry explicit
   `CatalogFeedKind` (`POPULAR`, `LATEST_UPDATES`, `TOP_RATED`, `OTHER`), while entries may carry
@@ -111,9 +112,9 @@ runtime persistence SPI.
 - Room schema 8 is current. It retains the Baseline-2 catalog/runtime state, metadata-only
   Library membership, protected content mappings, chapter graphs, aggregation overrides,
   synchronization state, canonical plus exact-release reading progress, Wave 09 cache/download
-  metadata, Discover semantic feed/status/latest-update fields, and separate Summary/Artwork/Full
+  metadata, Discover semantic feed/status/latest-update fields, and separate Summary/Full
   catalog metadata provenance. Migration 7 -> 8 is additive and intentionally leaves legacy
-  Artwork/Full stamps unresolved instead of inferring freshness from old fields. Schemas 1-7 remain
+  Full stamps unresolved instead of inferring Details freshness from old Summary fields. Schemas 1-7 remain
   historical exports and schema 1 remains byte-frozen. Room entities/DAOs stay private to
   `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,

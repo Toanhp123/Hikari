@@ -295,6 +295,5 @@ private fun CatalogMetadataSnapshot.ready() = CatalogMetadataResult.Ready(entry.
 
 private fun CatalogMetadataSnapshot.stamp(level: CatalogMetadataLevel): CatalogMetadataStamp? = when (level) {
     CatalogMetadataLevel.Summary -> summary
-    CatalogMetadataLevel.Artwork -> artwork
     CatalogMetadataLevel.Full -> full
 }

@@ -82,12 +82,16 @@ class RoomCatalogRepository internal constructor(
                     dao.entries(mutation.pluginId.value, sourceIds)
                         .associateBy { it.pluginId to it.sourceId }
                 }
-                dao.upsertStories(mutation.stories.map { it.toEntity() })
-                dao.upsertEntries(
-                    mutation.entries.map { entry ->
-                        merge(existing[entry.pluginId.value to entry.sourceId], entry, mutation)
-                    },
+                val durableEntries = mutation.entries.map { entry ->
+                    merge(existing[entry.pluginId.value to entry.sourceId], entry, mutation)
+                }
+                val durableStoryIds = durableEntries.mapTo(hashSetOf(), CatalogEntryEntity::storyId)
+                dao.upsertStories(
+                    mutation.stories
+                        .filter { it.id.value in durableStoryIds }
+                        .map { it.toEntity() },
                 )
+                dao.upsertEntries(durableEntries)
                 homeDao.deleteSections(mutation.pluginId.value)
                 homeDao.upsertSnapshot(
                     app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity(
@@ -148,34 +152,21 @@ class RoomCatalogRepository internal constructor(
         existing: CatalogEntryEntity?,
         entry: CatalogEntry,
         mutation: CatalogDetailsMutation,
-    ) = mergeDetails(existing, entry.toDetailsEntity(mutation.pluginVersion, mutation.fetchedAtEpochMillis))
+    ) = mergeDetails(existing, entry.toDetailsEntity(mutation.pluginVersion, mutation.resolvedAtEpochMillis))
 
     private fun mergeHome(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
         if (existing == null) return incoming
-        val merged = mergeContent(existing, incoming).copy(
-            storyId = incoming.storyId,
-            artworkPluginVersion = if (!incoming.coverUrl.isNullOrBlank()) {
-                incoming.artworkPluginVersion
-            } else {
-                existing.artworkPluginVersion
-            },
-            artworkResolvedAtEpochMillis = if (!incoming.coverUrl.isNullOrBlank()) {
-                incoming.artworkResolvedAtEpochMillis
-            } else {
-                existing.artworkResolvedAtEpochMillis
-            },
+        return mergeContent(existing, incoming).copy(
+            storyId = existing.storyId,
             fullPluginVersion = existing.fullPluginVersion,
             fullResolvedAtEpochMillis = existing.fullResolvedAtEpochMillis,
         )
-        return merged
     }
 
     private fun mergeDetails(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
         if (existing == null) return incoming
         return mergeContent(existing, incoming).copy(
             storyId = existing.storyId,
-            artworkPluginVersion = incoming.artworkPluginVersion,
-            artworkResolvedAtEpochMillis = incoming.artworkResolvedAtEpochMillis,
             fullPluginVersion = incoming.fullPluginVersion,
             fullResolvedAtEpochMillis = incoming.fullResolvedAtEpochMillis,
         )
@@ -204,8 +195,8 @@ class RoomCatalogRepository internal constructor(
             publicationStatus = incoming.publicationStatus ?: existing.publicationStatus,
             latestUpdateAtEpochMillis = latestUpdate.first,
             latestUpdateReleaseLabel = latestUpdate.second,
-            pluginVersion = incoming.pluginVersion,
-            fetchedAtEpochMillis = incoming.fetchedAtEpochMillis,
+            pluginVersion = incoming.summaryPluginVersion,
+            fetchedAtEpochMillis = incoming.summaryResolvedAtEpochMillis,
         )
     }
 

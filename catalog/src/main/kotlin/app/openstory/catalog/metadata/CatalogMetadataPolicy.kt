@@ -11,12 +11,12 @@ class CatalogMetadataPolicy @Inject constructor(
         stamp: CatalogMetadataStamp,
         currentPluginVersion: String,
     ): Boolean {
-        require(level != CatalogMetadataLevel.Summary) {
-            "Summary has no details TTL"
+        require(level == CatalogMetadataLevel.Full) {
+            "Only Full metadata has a Details TTL"
         }
         if (stamp.pluginVersion != currentPluginVersion) return false
         val age = (clock.nowEpochMillis() - stamp.resolvedAtEpochMillis).coerceAtLeast(0L)
-        return age <= ttlMillis(level)
+        return age <= FULL_TTL_MILLIS
     }
 
     fun isRetryCooldownActive(recordedAtEpochMillis: Long): Boolean {
@@ -24,14 +24,7 @@ class CatalogMetadataPolicy @Inject constructor(
         return age <= AUTO_RETRY_COOLDOWN_MILLIS
     }
 
-    private fun ttlMillis(level: CatalogMetadataLevel): Long = when (level) {
-        CatalogMetadataLevel.Artwork -> ARTWORK_TTL_MILLIS
-        CatalogMetadataLevel.Full -> FULL_TTL_MILLIS
-        CatalogMetadataLevel.Summary -> error("Summary has no details TTL")
-    }
-
     companion object {
-        const val ARTWORK_TTL_MILLIS = 604_800_000L
         const val FULL_TTL_MILLIS = 86_400_000L
         const val AUTO_RETRY_COOLDOWN_MILLIS = 300_000L
     }

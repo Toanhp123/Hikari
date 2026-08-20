@@ -7,6 +7,7 @@ import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.RoomMigrations
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Rule
@@ -127,7 +128,6 @@ class CatalogMigrationTest {
         ).use { database ->
             database.query(
                 "SELECT cover_url, description, plugin_version, fetched_at_epoch_millis, " +
-                    "artwork_plugin_version, artwork_resolved_at_epoch_millis, " +
                     "full_plugin_version, full_resolved_at_epoch_millis " +
                     "FROM catalog_entries WHERE plugin_id = 'catalog.example' AND source_id = 'source:legacy'",
             ).use { cursor ->
@@ -139,10 +139,19 @@ class CatalogMigrationTest {
                 )
                 assertEquals("1.7.0", cursor.getString(cursor.getColumnIndexOrThrow("plugin_version")))
                 assertEquals(1234L, cursor.getLong(cursor.getColumnIndexOrThrow("fetched_at_epoch_millis")))
-                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("artwork_plugin_version")))
-                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("artwork_resolved_at_epoch_millis")))
                 assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("full_plugin_version")))
                 assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("full_resolved_at_epoch_millis")))
+            }
+            database.query("PRAGMA table_info(catalog_entries)").use { cursor ->
+                val columns = buildSet {
+                    while (cursor.moveToNext()) {
+                        add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                    }
+                }
+                assertFalse("artwork_plugin_version" in columns)
+                assertFalse("artwork_resolved_at_epoch_millis" in columns)
+                assertTrue("full_plugin_version" in columns)
+                assertTrue("full_resolved_at_epoch_millis" in columns)
             }
         }
     }

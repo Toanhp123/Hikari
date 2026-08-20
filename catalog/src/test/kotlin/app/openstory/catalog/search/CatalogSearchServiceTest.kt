@@ -307,7 +307,6 @@ class CatalogSearchServiceTest {
             contentType = ContentType.MANGA,
         ),
         summary = CatalogMetadataStamp("1", TEST_NOW),
-        artwork = CatalogMetadataStamp("1", fullAt),
         full = CatalogMetadataStamp("1", fullAt),
     )
 
@@ -435,11 +434,10 @@ class CatalogSearchServiceTest {
         ): Outcome<StoryId, CatalogStoreFailure> {
             detailCommits++
             val key = CatalogMetadataKey(mutation.entry.pluginId, mutation.entry.sourceId)
-            val stamp = CatalogMetadataStamp(mutation.pluginVersion, mutation.fetchedAtEpochMillis)
+            val stamp = CatalogMetadataStamp(mutation.pluginVersion, mutation.resolvedAtEpochMillis)
             metadata[key] = CatalogMetadataSnapshot(
                 entry = mutation.entry,
                 summary = stamp,
-                artwork = stamp,
                 full = stamp,
             )
             return Outcome.Success(mutation.storyId)

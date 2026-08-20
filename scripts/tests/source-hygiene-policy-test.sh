@@ -67,7 +67,7 @@ grep -q 'tasks.registering(CanonicalPluginPackageTask::class)' "$app_build" ||
 ! grep -q 'skips `HikariBackdropHost` entirely' "$p5_checkpoint" || fail "P5 checkpoint still describes the retired focused-route backdrop branch"
 
 for profile in "$baseline_profile" "$startup_profile"; do
-  ! grep -Eq 'ReaderProgressNavigation|CatalogMatchExplanation|ContentTitleEvidence|TitleEvidence|bestTitleEvidence|AppRoute[$](Plugins|Settings)' "$profile" ||
+  ! grep -Eq 'ReaderProgressNavigation|CatalogMatchExplanation|ContentTitleEvidence|TitleEvidence|bestTitleEvidence|CatalogDetailsService|AppRoute[$](Plugins|Settings)' "$profile" ||
     fail "generated profile still references retired source symbols: $profile"
 
   stale_reader_profile_descriptors=(

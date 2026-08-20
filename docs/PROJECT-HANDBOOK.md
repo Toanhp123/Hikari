@@ -148,12 +148,15 @@ Light Novel remains visible but disabled in the current delivery.
 Targeted unit/instrumentation suites, app navigation/smoke tests, Roborazzi baselines, and
 the `discoverScroll` Macrobenchmark were rerun after the redesign. The 2026-08-20 catalog
 metadata-lifecycle unification then advanced Room from schema 7 to schema 8 without changing
-the module graph. `CatalogMetadataCoordinator` now owns `Summary` / `Artwork` / `Full`
-requirements, 7-day Artwork and 24-hour Full freshness, plugin-version invalidation,
-stale-while-revalidate, retry suppression, and process-wide single-flight. `CatalogDetailsLoader`
-is the sole production `CatalogSource.details(...)` call site, while persisted source identity is
-stable across metadata refreshes. Room schema 8 is now current. Wave 10 remains the next capability
-wave; its planned durable notification state must continue contiguously from schema 8 to schema 9.
+the module graph. `CatalogMetadataCoordinator` now owns only `Summary` / `Full` lifecycle
+requirements; Full uses 24-hour freshness, plugin-version invalidation, stale-while-revalidate,
+retry suppression, and process-wide single-flight. Home/Search listing payload quality remains a
+plugin-operation responsibility: missing optional artwork or other presentation metadata stays
+degraded and never triggers host-side Details enrichment. `CatalogDetailsLoader` is the sole
+production `CatalogSource.details(...)` call site, while persisted source identity is stable across
+metadata refreshes. Room schema 8 stores Summary/Full provenance and is now current. Wave 10
+remains the next capability wave; its planned durable notification state must continue contiguously
+from schema 8 to schema 9.
 
 ## 8. Roadmap
 

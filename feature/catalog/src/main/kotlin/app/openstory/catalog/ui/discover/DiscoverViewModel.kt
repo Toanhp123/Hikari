@@ -2,13 +2,8 @@ package app.openstory.catalog.ui.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.openstory.catalog.metadata.CatalogMetadataCoordinator
-import app.openstory.catalog.metadata.CatalogMetadataKey
-import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.home.CatalogRefreshResult
 import app.openstory.catalog.home.CatalogRefreshService
-import app.openstory.catalog.model.CatalogEntry
-import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.repository.CatalogRepository
@@ -31,7 +26,6 @@ import kotlinx.coroutines.launch
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
     refreshService: CatalogRefreshService,
-    private val metadata: CatalogMetadataCoordinator,
     projection: DiscoverProjectionPipeline,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
@@ -101,8 +95,6 @@ class DiscoverViewModel @Inject constructor(
             val cachedHomes = dependencies.homes.first()
             if (cachedHomes.isEmpty() && observationFailure.value == null) {
                 performRefresh()
-            } else if (cachedHomes.isNotEmpty()) {
-                scheduleLatestArtworkRequirements(cachedHomes)
             }
             initialLoading.value = false
         }
@@ -118,7 +110,6 @@ class DiscoverViewModel @Inject constructor(
         try {
             refreshReport.value = dependencies.refresh()
             refreshFailure.value = null
-            scheduleLatestArtworkRequirements(dependencies.homes.first())
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -131,41 +122,6 @@ class DiscoverViewModel @Inject constructor(
     fun selectContentType(contentType: ContentType) {
         if (contentType != ContentType.MANGA) return
         selectedContentType.value = contentType
-    }
-
-    private fun scheduleLatestArtworkRequirements(homes: List<CatalogHomeSnapshot>) {
-        val storyIdsWithArtwork = homes
-            .asSequence()
-            .flatMap { home -> home.sections.asSequence() }
-            .flatMap { section -> section.items.asSequence() }
-            .filter { entry -> !entry.coverUrl.isNullOrBlank() }
-            .map(CatalogEntry::storyId)
-            .toSet()
-        val candidates = homes
-            .asSequence()
-            .flatMap { home -> home.sections.asSequence() }
-            .filter { section -> section.kind == CatalogFeedKind.LATEST_UPDATES }
-            .flatMap { section -> section.items.asSequence() }
-            .filter { entry -> entry.storyId !in storyIdsWithArtwork }
-            .distinctBy { entry -> entry.pluginId to entry.sourceId }
-            .take(MAX_LATEST_ARTWORK_HYDRATIONS)
-            .toList()
-        if (candidates.isEmpty()) return
-
-        viewModelScope.launch {
-            candidates.forEach { entry ->
-                try {
-                    metadata.require(
-                        CatalogMetadataKey(entry.pluginId, entry.sourceId),
-                        CatalogMetadataLevel.Artwork,
-                    )
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (_: Exception) {
-                    // Artwork enrichment is best-effort; refresh failures remain source-scoped above.
-                }
-            }
-        }
     }
 
     private data class DiscoverDependencies(
@@ -196,7 +152,6 @@ class DiscoverViewModel @Inject constructor(
         const val HOME_OBSERVE_EXCEPTION_CODE = "catalog.home.observe_exception"
         const val RANKING_OBSERVE_EXCEPTION_CODE = "catalog.home.ranking_exception"
         const val REFRESH_EXCEPTION_CODE = "catalog.home.refresh_exception"
-        const val MAX_LATEST_ARTWORK_HYDRATIONS = 5
     }
 }
 

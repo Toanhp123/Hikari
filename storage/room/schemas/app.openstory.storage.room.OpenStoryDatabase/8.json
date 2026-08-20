@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 8,
-    "identityHash": "95faa896d07b6ae9d64c86a458a8d716",
+    "identityHash": "67ffd79283243c707259ce5a04079592",
     "entities": [
       {
         "tableName": "stories",
@@ -30,7 +30,7 @@
       },
       {
         "tableName": "catalog_entries",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `source_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, `title` TEXT NOT NULL, `aliases` TEXT NOT NULL, `authors` TEXT NOT NULL, `description` TEXT, `genres` TEXT NOT NULL, `content_type` TEXT NOT NULL, `language_tags` TEXT NOT NULL, `cover_url` TEXT, `source_url` TEXT, `score_value` REAL, `score_scale` REAL, `popularity_rank` INTEGER, `publication_status` TEXT, `latest_update_at_epoch_millis` INTEGER, `latest_update_release_label` TEXT, `plugin_version` TEXT NOT NULL, `fetched_at_epoch_millis` INTEGER NOT NULL, `artwork_plugin_version` TEXT, `artwork_resolved_at_epoch_millis` INTEGER, `full_plugin_version` TEXT, `full_resolved_at_epoch_millis` INTEGER, PRIMARY KEY(`plugin_id`, `source_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `source_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, `title` TEXT NOT NULL, `aliases` TEXT NOT NULL, `authors` TEXT NOT NULL, `description` TEXT, `genres` TEXT NOT NULL, `content_type` TEXT NOT NULL, `language_tags` TEXT NOT NULL, `cover_url` TEXT, `source_url` TEXT, `score_value` REAL, `score_scale` REAL, `popularity_rank` INTEGER, `publication_status` TEXT, `latest_update_at_epoch_millis` INTEGER, `latest_update_release_label` TEXT, `plugin_version` TEXT NOT NULL, `fetched_at_epoch_millis` INTEGER NOT NULL, `full_plugin_version` TEXT, `full_resolved_at_epoch_millis` INTEGER, PRIMARY KEY(`plugin_id`, `source_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "pluginId",
@@ -142,16 +142,6 @@
             "columnName": "fetched_at_epoch_millis",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "artworkPluginVersion",
-            "columnName": "artwork_plugin_version",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "artworkResolvedAtEpochMillis",
-            "columnName": "artwork_resolved_at_epoch_millis",
-            "affinity": "INTEGER"
           },
           {
             "fieldPath": "fullPluginVersion",
@@ -1453,7 +1443,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '95faa896d07b6ae9d64c86a458a8d716')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '67ffd79283243c707259ce5a04079592')"
     ]
   }
 }

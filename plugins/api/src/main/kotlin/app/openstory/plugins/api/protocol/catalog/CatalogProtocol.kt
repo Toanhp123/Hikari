@@ -36,6 +36,13 @@ data class ScoreDto(val value: Double, val scale: Double) {
     }
 }
 
+/**
+ * Plugin-owned presentation payload for `catalog.home` and `catalog.search`.
+ *
+ * `sourceId`, `title`, and `contentType` are required identity/presentation fields. Optional
+ * metadata such as `coverUrl`, authors, score, or genres may be omitted; the host must render
+ * that omission as a degraded state instead of issuing `catalog.details` as automatic enrichment.
+ */
 @Serializable
 data class CatalogItemDto(
     val sourceId: String,

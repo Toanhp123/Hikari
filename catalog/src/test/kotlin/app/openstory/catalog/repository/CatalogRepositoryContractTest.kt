@@ -52,7 +52,6 @@ class CatalogRepositoryContractTest {
         assertEquals(key.pluginId, snapshot?.entry?.pluginId)
         assertEquals(key.sourceId, snapshot?.entry?.sourceId)
         assertEquals("1.0.0", snapshot?.summary?.pluginVersion)
-        assertNull(snapshot?.artwork)
         assertNull(snapshot?.full)
     }
 
@@ -138,7 +137,6 @@ class CatalogRepositoryContractTest {
                         pluginVersion = mutation.pluginVersion,
                         resolvedAtEpochMillis = mutation.refreshedAtEpochMillis,
                     ),
-                    artwork = null,
                     full = null,
                 )
             }

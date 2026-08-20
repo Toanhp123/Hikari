@@ -9,11 +9,11 @@ data class CatalogDetailsMutation(
     val storyId: StoryId,
     val entry: CatalogEntry,
     val pluginVersion: String,
-    val fetchedAtEpochMillis: Long,
+    val resolvedAtEpochMillis: Long,
 ) {
     init {
         require(entry.storyId == storyId)
         require(pluginVersion.isNotBlank())
-        require(fetchedAtEpochMillis >= 0)
+        require(resolvedAtEpochMillis >= 0)
     }
 }

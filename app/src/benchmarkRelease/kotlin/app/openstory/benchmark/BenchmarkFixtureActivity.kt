@@ -79,7 +79,7 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                     languageTags = setOf("en"),
                 ),
                 pluginVersion = BENCHMARK_PLUGIN_VERSION,
-                fetchedAtEpochMillis = BENCHMARK_EPOCH_MILLIS,
+                resolvedAtEpochMillis = BENCHMARK_EPOCH_MILLIS,
             ),
         )
         check(catalogResult is Outcome.Success)

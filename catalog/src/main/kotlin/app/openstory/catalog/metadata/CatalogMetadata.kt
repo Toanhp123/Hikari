@@ -20,7 +20,6 @@ data class CatalogMetadataKey(
 
 enum class CatalogMetadataLevel {
     Summary,
-    Artwork,
     Full,
 }
 
@@ -37,7 +36,6 @@ data class CatalogMetadataStamp(
 data class CatalogMetadataSnapshot(
     val entry: CatalogEntry,
     val summary: CatalogMetadataStamp,
-    val artwork: CatalogMetadataStamp?,
     val full: CatalogMetadataStamp?,
 )
 

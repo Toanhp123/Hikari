@@ -7,69 +7,50 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class CatalogMetadataPolicyTest {
-    @Test
-    fun artworkIsFreshAtSevenDaysAndStaleAfterBoundary() {
-        val clock = MutableClock(1_000_000_000L)
-        val policy = CatalogMetadataPolicy(clock)
-        val stamp = CatalogMetadataStamp(
-            pluginVersion = "1.2.3",
-            resolvedAtEpochMillis = clock.now - CatalogMetadataPolicy.ARTWORK_TTL_MILLIS,
-        )
-
-        assertTrue(policy.isFresh(CatalogMetadataLevel.Artwork, stamp, "1.2.3"))
-        clock.now += 1
-        assertFalse(policy.isFresh(CatalogMetadataLevel.Artwork, stamp, "1.2.3"))
-    }
+    private val clock = MutableClock(1_000_000_000L)
+    private val policy = CatalogMetadataPolicy(clock)
 
     @Test
     fun fullIsFreshAtTwentyFourHoursAndStaleAfterBoundary() {
-        val clock = MutableClock(2_000_000_000L)
-        val policy = CatalogMetadataPolicy(clock)
         val stamp = CatalogMetadataStamp(
-            pluginVersion = "2.0.0",
+            pluginVersion = "1.2.3",
             resolvedAtEpochMillis = clock.now - CatalogMetadataPolicy.FULL_TTL_MILLIS,
         )
 
-        assertTrue(policy.isFresh(CatalogMetadataLevel.Full, stamp, "2.0.0"))
+        assertTrue(policy.isFresh(CatalogMetadataLevel.Full, stamp, "1.2.3"))
         clock.now += 1
+        assertFalse(policy.isFresh(CatalogMetadataLevel.Full, stamp, "1.2.3"))
+    }
+
+    @Test
+    fun pluginVersionMismatchIsImmediatelyStale() {
+        val stamp = CatalogMetadataStamp("1.2.3", clock.now)
+
         assertFalse(policy.isFresh(CatalogMetadataLevel.Full, stamp, "2.0.0"))
     }
 
     @Test
-    fun pluginVersionMismatchIsStaleInsideTtl() {
-        val clock = MutableClock(3_000_000_000L)
-        val policy = CatalogMetadataPolicy(clock)
-        val stamp = CatalogMetadataStamp("1", clock.now)
-
-        assertFalse(policy.isFresh(CatalogMetadataLevel.Full, stamp, "2"))
-    }
-
-    @Test
     fun futureTimestampUsesZeroAge() {
-        val clock = MutableClock(100L)
-        val policy = CatalogMetadataPolicy(clock)
-        val stamp = CatalogMetadataStamp("1", 200L)
+        val stamp = CatalogMetadataStamp("1", clock.now + 10_000L)
 
-        assertTrue(policy.isFresh(CatalogMetadataLevel.Artwork, stamp, "1"))
+        assertTrue(policy.isFresh(CatalogMetadataLevel.Full, stamp, "1"))
     }
 
     @Test
-    fun retryCooldownExpiresAfterFiveMinutes() {
-        val clock = MutableClock(10_000L)
-        val policy = CatalogMetadataPolicy(clock)
-        val recordedAt = clock.now
+    fun automaticRetryCooldownIsActiveThroughBoundary() {
+        val failedAt = clock.now
 
-        assertTrue(policy.isRetryCooldownActive(recordedAt))
-        clock.now += CatalogMetadataPolicy.AUTO_RETRY_COOLDOWN_MILLIS
-        assertTrue(policy.isRetryCooldownActive(recordedAt))
+        assertTrue(policy.isRetryCooldownActive(failedAt))
+        clock.now += CatalogMetadataPolicy.AUTO_RETRY_COOLDOWN_MILLIS - 1
+        assertTrue(policy.isRetryCooldownActive(failedAt))
         clock.now += 1
-        assertFalse(policy.isRetryCooldownActive(recordedAt))
+        assertTrue(policy.isRetryCooldownActive(failedAt))
+        clock.now += 1
+        assertFalse(policy.isRetryCooldownActive(failedAt))
     }
 
     @Test
-    fun summaryRejectsDetailsFreshnessCheck() {
-        val clock = MutableClock(10_000L)
-        val policy = CatalogMetadataPolicy(clock)
+    fun summaryDoesNotUseDetailsFreshnessPolicy() {
         val stamp = CatalogMetadataStamp("1", clock.now)
 
         assertFailsWith<IllegalArgumentException> {
@@ -77,9 +58,7 @@ class CatalogMetadataPolicyTest {
         }
     }
 
-    private class MutableClock(
-        var now: Long,
-    ) : Clock {
+    private class MutableClock(var now: Long) : Clock {
         override fun nowEpochMillis(): Long = now
     }
 }

@@ -46,10 +46,10 @@ internal data class CatalogEntryEntity(
     @ColumnInfo(name = "publication_status") val publicationStatus: String?,
     @ColumnInfo(name = "latest_update_at_epoch_millis") val latestUpdateAtEpochMillis: Long?,
     @ColumnInfo(name = "latest_update_release_label") val latestUpdateReleaseLabel: String?,
+    // Schema-8 legacy field names are intentionally retained so the exported Room fieldPath/identity stays stable.
+    // Outside this entity boundary, these columns represent Summary provenance.
     @ColumnInfo(name = "plugin_version") val pluginVersion: String,
     @ColumnInfo(name = "fetched_at_epoch_millis") val fetchedAtEpochMillis: Long,
-    @ColumnInfo(name = "artwork_plugin_version") val artworkPluginVersion: String?,
-    @ColumnInfo(name = "artwork_resolved_at_epoch_millis") val artworkResolvedAtEpochMillis: Long?,
     @ColumnInfo(name = "full_plugin_version") val fullPluginVersion: String?,
     @ColumnInfo(name = "full_resolved_at_epoch_millis") val fullResolvedAtEpochMillis: Long?,
 )

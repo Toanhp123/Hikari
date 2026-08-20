@@ -24,7 +24,7 @@ Design System Foundation and the full Product UI checkpoint are accepted, preser
 production graph. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
 it advanced Room from schema 6 to **schema 7** without changing module ownership. The 2026-08-20
 catalog metadata-lifecycle unification subsequently advanced Room to **schema 8**, centralized
-Summary/Artwork/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
+Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
 **Wave 10 is the next planned capability wave and has not started.** Its entry database is schema 8.
 The planned notification-delivery persistence in Wave 10 Task 5 must therefore migrate `8 -> 9`;
@@ -112,7 +112,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | UIF | Between-wave design-system foundation | **Completed; checkpoint accepted 2026-08-12** | `../internal/checkpoints/design-system-foundation.md` |
 | PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
 | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
-| CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Artwork/Full lifecycle** | `../project/current-state.md` |
+| CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
 | 10 | Background work, auth, notifications | **Ready to start; not implemented; enters on schema 8** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 

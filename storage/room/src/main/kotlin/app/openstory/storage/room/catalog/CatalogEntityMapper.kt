@@ -20,8 +20,8 @@ import app.openstory.common.id.StoryId
 internal fun Story.toEntity() = StoryEntity(id.value, contentType.name)
 
 internal fun CatalogEntry.toHomeEntity(
-    pluginVersion: String,
-    fetchedAtEpochMillis: Long,
+    summaryPluginVersion: String,
+    summaryResolvedAtEpochMillis: Long,
 ) = CatalogEntryEntity(
     pluginId = pluginId.value,
     sourceId = sourceId,
@@ -41,10 +41,8 @@ internal fun CatalogEntry.toHomeEntity(
     publicationStatus = publicationStatus?.name,
     latestUpdateAtEpochMillis = latestUpdate?.atEpochMillis,
     latestUpdateReleaseLabel = latestUpdate?.releaseLabel,
-    pluginVersion = pluginVersion,
-    fetchedAtEpochMillis = fetchedAtEpochMillis,
-    artworkPluginVersion = if (coverUrl.isNullOrBlank()) null else pluginVersion,
-    artworkResolvedAtEpochMillis = if (coverUrl.isNullOrBlank()) null else fetchedAtEpochMillis,
+    pluginVersion = summaryPluginVersion,
+    fetchedAtEpochMillis = summaryResolvedAtEpochMillis,
     fullPluginVersion = null,
     fullResolvedAtEpochMillis = null,
 )
@@ -73,8 +71,6 @@ internal fun CatalogEntry.toDetailsEntity(
     latestUpdateReleaseLabel = latestUpdate?.releaseLabel,
     pluginVersion = pluginVersion,
     fetchedAtEpochMillis = resolvedAtEpochMillis,
-    artworkPluginVersion = pluginVersion,
-    artworkResolvedAtEpochMillis = resolvedAtEpochMillis,
     fullPluginVersion = pluginVersion,
     fullResolvedAtEpochMillis = resolvedAtEpochMillis,
 )
@@ -125,10 +121,18 @@ internal fun CatalogEntryEntity.toModel() = CatalogEntry(
     },
 )
 
+// These aliases isolate schema-8 legacy field names at the Room entity boundary.
+// The SQL columns remain `plugin_version` / `fetched_at_epoch_millis`; lifecycle code
+// must treat them as Summary provenance, not generic Details freshness.
+internal val CatalogEntryEntity.summaryPluginVersion: String
+    get() = pluginVersion
+
+internal val CatalogEntryEntity.summaryResolvedAtEpochMillis: Long
+    get() = fetchedAtEpochMillis
+
 internal fun CatalogEntryEntity.toMetadataSnapshot(): CatalogMetadataSnapshot = CatalogMetadataSnapshot(
     entry = toModel(),
-    summary = CatalogMetadataStamp(pluginVersion, fetchedAtEpochMillis),
-    artwork = metadataStamp(artworkPluginVersion, artworkResolvedAtEpochMillis),
+    summary = CatalogMetadataStamp(summaryPluginVersion, summaryResolvedAtEpochMillis),
     full = metadataStamp(fullPluginVersion, fullResolvedAtEpochMillis),
 )
 

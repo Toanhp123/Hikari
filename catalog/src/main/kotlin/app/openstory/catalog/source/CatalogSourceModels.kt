@@ -29,6 +29,13 @@ data class SourceSection(
     val kind: SourceFeedKind = SourceFeedKind.OTHER,
 )
 
+/**
+ * Presentation data supplied by a catalog listing operation (`home` or `search`).
+ *
+ * Optional fields stay optional at the host boundary: when a plugin omits artwork or other
+ * presentation metadata, Hikari renders the degraded/placeholder state and does not call
+ * `details()` to enrich the listing on the plugin's behalf.
+ */
 data class SourceItem(
     val sourceId: String,
     val title: String,

@@ -214,7 +214,6 @@ class CatalogDetailsLoaderTest {
             contentType = ContentType.MANGA,
         ),
         summary = CatalogMetadataStamp("1.0.0", 1),
-        artwork = null,
         full = null,
     )
 
