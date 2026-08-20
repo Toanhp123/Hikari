@@ -8,6 +8,9 @@ import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
+import app.openstory.catalog.metadata.CatalogMetadataStamp
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -18,6 +21,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class CatalogRepositoryContractTest {
     @Test
@@ -35,6 +39,21 @@ class CatalogRepositoryContractTest {
         assertFailsWith<IllegalArgumentException> {
             valid.copy(sections = emptyList(), orderedSourceItemIds = emptyMap())
         }
+    }
+
+    @Test
+    fun metadataSnapshotReturnsContentWithIndependentLifecycleStamps() = runTest {
+        val repository = FakeRepository()
+        repository.commitHomeRefresh(mutation("catalog.test", "source-1"))
+        val key = CatalogMetadataKey(PluginId("catalog.test"), "source-1")
+
+        val snapshot = repository.metadataSnapshot(key)
+
+        assertEquals(key.pluginId, snapshot?.entry?.pluginId)
+        assertEquals(key.sourceId, snapshot?.entry?.sourceId)
+        assertEquals("1.0.0", snapshot?.summary?.pluginVersion)
+        assertNull(snapshot?.artwork)
+        assertNull(snapshot?.full)
     }
 
     @Test
@@ -88,11 +107,13 @@ class CatalogRepositoryContractTest {
     private class FakeRepository : CatalogRepository {
         private val homes = MutableStateFlow<List<CatalogHomeSnapshot>>(emptyList())
         private val history = linkedMapOf<StoryId, StoryCatalogSnapshot>()
+        private val metadata = linkedMapOf<CatalogMetadataKey, CatalogMetadataSnapshot>()
 
         override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = homes
         override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> =
             MutableStateFlow(history[storyId])
         override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+        override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = metadata[key]
 
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
@@ -110,6 +131,15 @@ class CatalogRepositoryContractTest {
                 history[entry.storyId] = StoryCatalogSnapshot(
                     mutation.stories.first { it.id == entry.storyId },
                     listOf(entry),
+                )
+                metadata[CatalogMetadataKey(entry.pluginId, entry.sourceId)] = CatalogMetadataSnapshot(
+                    entry = entry,
+                    summary = CatalogMetadataStamp(
+                        pluginVersion = mutation.pluginVersion,
+                        resolvedAtEpochMillis = mutation.refreshedAtEpochMillis,
+                    ),
+                    artwork = null,
+                    full = null,
                 )
             }
             return Outcome.Success(Unit)

@@ -1,8 +1,10 @@
 package app.openstory.catalog.search
 
-import app.openstory.catalog.details.CatalogDetailsFailure
-import app.openstory.catalog.details.CatalogDetailsResult
-import app.openstory.catalog.details.CatalogDetailsService
+import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataFailure
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataLevel
+import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchIndex
 import app.openstory.catalog.matching.SourceKey
@@ -28,7 +30,7 @@ class CatalogSearchService @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,
-    private val details: CatalogDetailsService,
+    private val metadata: CatalogMetadataCoordinator,
     private val filterCache: CatalogFilterCache,
 ) {
     suspend fun filters(): List<CatalogSearchFilterGroup> = supervisorScope {
@@ -104,7 +106,10 @@ class CatalogSearchService @Inject constructor(
         val source = story.sources.firstOrNull()
             ?: return CatalogSearchSelectionResult.Failure(EMPTY_SELECTION_CODE, retryable = false)
         return try {
-            details.ensure(source.pluginId, source.sourceId).toSelectionResult()
+            metadata.require(
+                CatalogMetadataKey(source.pluginId, source.sourceId),
+                CatalogMetadataLevel.Full,
+            ).toSelectionResult()
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -155,26 +160,30 @@ class CatalogSearchService @Inject constructor(
     }
 }
 
-private fun CatalogDetailsResult.toSelectionResult(): CatalogSearchSelectionResult = when (this) {
-    is CatalogDetailsResult.Success -> CatalogSearchSelectionResult.Success(story.id)
-    is CatalogDetailsResult.Failure -> CatalogSearchSelectionResult.Failure(
+private fun CatalogMetadataResult.toSelectionResult(): CatalogSearchSelectionResult = when (this) {
+    is CatalogMetadataResult.Ready -> CatalogSearchSelectionResult.Success(storyId)
+    is CatalogMetadataResult.Failure -> CatalogSearchSelectionResult.Failure(
         code = failure.code(),
         retryable = failure.retryable(),
     )
+    CatalogMetadataResult.Missing -> CatalogSearchSelectionResult.Failure(
+        code = "catalog.search.selection_missing",
+        retryable = false,
+    )
 }
 
-private fun CatalogDetailsFailure.code(): String = when (this) {
-    is CatalogDetailsFailure.SourceUnavailable -> "catalog.source_unavailable"
-    is CatalogDetailsFailure.SourceFailure -> code
-    is CatalogDetailsFailure.SourceIdMismatch -> "catalog.details_source_mismatch"
-    is CatalogDetailsFailure.StoreFailure -> code
+private fun CatalogMetadataFailure.code(): String = when (this) {
+    is CatalogMetadataFailure.SourceUnavailable -> "catalog.source_unavailable"
+    is CatalogMetadataFailure.SourceFailure -> code
+    is CatalogMetadataFailure.SourceIdMismatch -> "catalog.details_source_mismatch"
+    is CatalogMetadataFailure.StoreFailure -> code
 }
 
-private fun CatalogDetailsFailure.retryable(): Boolean = when (this) {
-    is CatalogDetailsFailure.SourceUnavailable -> false
-    is CatalogDetailsFailure.SourceFailure -> retryable
-    is CatalogDetailsFailure.SourceIdMismatch -> false
-    is CatalogDetailsFailure.StoreFailure -> retryable
+private fun CatalogMetadataFailure.retryable(): Boolean = when (this) {
+    is CatalogMetadataFailure.SourceUnavailable -> false
+    is CatalogMetadataFailure.SourceFailure -> retryable
+    is CatalogMetadataFailure.SourceIdMismatch -> false
+    is CatalogMetadataFailure.StoreFailure -> retryable
 }
 
 private fun SourceItem.toCandidate(pluginId: app.openstory.common.id.PluginId) = CatalogMatchCandidate(

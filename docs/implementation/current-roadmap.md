@@ -22,11 +22,13 @@ acceptance remain separate states.
 Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
 Design System Foundation and the full Product UI checkpoint are accepted, preserving the 14-module
 production graph. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
-it advances Room from schema 6 to **schema 7** without changing module ownership.
+it advanced Room from schema 6 to **schema 7** without changing module ownership. The 2026-08-20
+catalog metadata-lifecycle unification subsequently advanced Room to **schema 8**, centralized
+Summary/Artwork/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
-**Wave 10 is the next planned capability wave and has not started.** Its entry database is schema 7.
-The planned notification-delivery persistence in Wave 10 Task 5 must therefore migrate `7 -> 8`;
-Wave 11 enters on schema 8 unless a separately reviewed migration is introduced.
+**Wave 10 is the next planned capability wave and has not started.** Its entry database is schema 8.
+The planned notification-delivery persistence in Wave 10 Task 5 must therefore migrate `8 -> 9`;
+Wave 11 enters on schema 9 unless a separately reviewed migration is introduced.
 
 The completed Product UI and Discover implementation plans are execution records, not active next-work
 instructions. Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
@@ -110,7 +112,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | UIF | Between-wave design-system foundation | **Completed; checkpoint accepted 2026-08-12** | `../internal/checkpoints/design-system-foundation.md` |
 | PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
 | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
-| 10 | Background work, auth, notifications | **Ready to start; not implemented; enters on schema 7** | `waves/wave-10-background-sync-auth-and-notifications.md` |
+| CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Artwork/Full lifecycle** | `../project/current-state.md` |
+| 10 | Background work, auth, notifications | **Ready to start; not implemented; enters on schema 8** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -187,14 +190,15 @@ architecture
                   -> UI foundation
                     -> Product UI redesign
                       -> semantic Discover redesign + Room schema 7
-                        -> local background/auth/notifications (Wave 10, planned schema 8)
+                        -> unified catalog metadata lifecycle + Room schema 8
+                          -> local background/auth/notifications (Wave 10, planned schema 9)
                       -> release hardening
 ```
 
 ## Execution rule
 
 1. Use the current 14-module graph, accepted Product UI checkpoint, and accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline.
-2. Treat Room schema 7 as current. Any Wave 10 Room persistence must continue contiguously from 7; the planned notification-delivery table is `7 -> 8`.
+2. Treat Room schema 8 as current. Any Wave 10 Room persistence must continue contiguously from 8; the planned notification-delivery table is `8 -> 9`.
 3. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 4. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
 5. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.

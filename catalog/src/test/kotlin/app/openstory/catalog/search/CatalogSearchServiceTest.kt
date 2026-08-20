@@ -1,8 +1,16 @@
 package app.openstory.catalog.search
 
 import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataPolicy
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
+import app.openstory.catalog.metadata.CatalogMetadataStamp
+import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
@@ -25,13 +33,17 @@ import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CatalogSearchServiceTest {
 
     @Test
@@ -94,8 +106,66 @@ class CatalogSearchServiceTest {
 
         val selection = service.select(result)
 
+        assertEquals(1, source.detailsCalls)
         assertEquals(1, repository.detailCommits)
         assertEquals(result.story.id, assertIs<CatalogSearchSelectionResult.Success>(selection).storyId)
+    }
+
+    @Test
+    fun searchQueryDoesNotLoadDetails() = runTest {
+        val source = Source("a", page(item("source-a", "Fresh Story", setOf("Author"))))
+        val service = service(Registry(listOf(source)), FakeRepository())
+
+        service.search(CatalogSearchRequest("fresh"))
+
+        assertEquals(0, source.detailsCalls)
+    }
+
+    @Test
+    fun selectingFreshPersistedFullReturnsCanonicalStoryWithoutDetails() = runTest {
+        val key = CatalogMetadataKey(PluginId("a"), "source-a")
+        val canonical = StoryId("canonical:source-a")
+        val repository = FakeRepository(mapOf(key to metadataSnapshot(key, canonical, fullAt = TEST_NOW)))
+        val source = Source("a", page(item("source-a", "Fresh Story", setOf("Author"))))
+        val service = service(Registry(listOf(source)), repository)
+        val result = service.search(CatalogSearchRequest("fresh")).stories.single()
+
+        val selection = service.select(result)
+        runCurrent()
+
+        assertEquals(canonical, assertIs<CatalogSearchSelectionResult.Success>(selection).storyId)
+        assertEquals(0, source.detailsCalls)
+    }
+
+    @Test
+    fun selectingStalePersistedFullReturnsCanonicalStoryAndRevalidatesInBackground() = runTest {
+        val key = CatalogMetadataKey(PluginId("a"), "source-a")
+        val canonical = StoryId("canonical:source-a")
+        val repository = FakeRepository(mapOf(key to metadataSnapshot(key, canonical, fullAt = 0L)))
+        val source = Source("a", page(item("source-a", "Fresh Story", setOf("Author"))))
+        val service = service(Registry(listOf(source)), repository)
+        val result = service.search(CatalogSearchRequest("fresh")).stories.single()
+
+        val selection = service.select(result)
+        assertEquals(canonical, assertIs<CatalogSearchSelectionResult.Success>(selection).storyId)
+        assertEquals(0, source.detailsCalls)
+
+        runCurrent()
+        assertEquals(1, source.detailsCalls)
+    }
+
+    @Test
+    fun selectionMapsCoordinatorFailureToExistingSearchFailure() = runTest {
+        val source = Source("a", page(item("source-a", "Fresh Story", setOf("Author")))).apply {
+            detailsResult = CatalogSourceResult.Failure(CatalogSourceFailure("catalog.offline", true))
+        }
+        val service = service(Registry(listOf(source)), FakeRepository())
+        val result = service.search(CatalogSearchRequest("fresh")).stories.single()
+
+        val selection = assertIs<CatalogSearchSelectionResult.Failure>(service.select(result))
+
+        assertEquals("catalog.offline", selection.code)
+        assertEquals(true, selection.retryable)
     }
 
     @Test
@@ -192,19 +262,25 @@ class CatalogSearchServiceTest {
         assertEquals(filtersB, sourceB.request?.filterValues)
     }
 
-    private fun service(sources: CatalogSourceRegistry, repository: CatalogRepository) =
-        CatalogSearchService(
+    private fun TestScope.service(sources: CatalogSourceRegistry, repository: CatalogRepository): CatalogSearchService {
+        val clock = Clock { TEST_NOW }
+        val matcher = StoryMatcher()
+        val metadata = CatalogMetadataCoordinator(
+            repository = repository,
+            sources = sources,
+            loader = CatalogDetailsLoader(sources, repository, matcher, clock),
+            policy = CatalogMetadataPolicy(clock),
+            clock = clock,
+            processScope = backgroundScope,
+        )
+        return CatalogSearchService(
             sources,
             repository,
-            StoryMatcher(),
-            app.openstory.catalog.details.CatalogDetailsService(
-                sources,
-                repository,
-                StoryMatcher(),
-                Clock { 100L },
-            ),
+            matcher,
+            metadata,
             CatalogFilterCache(),
         )
+    }
 
     private fun page(item: SourceItem) = SourceSearchPage(listOf(item), null)
 
@@ -217,6 +293,27 @@ class CatalogSearchServiceTest {
         null,
         null,
     )
+
+    private fun metadataSnapshot(
+        key: CatalogMetadataKey,
+        storyId: StoryId,
+        fullAt: Long,
+    ) = CatalogMetadataSnapshot(
+        entry = CatalogEntry(
+            storyId = storyId,
+            pluginId = key.pluginId,
+            sourceId = key.sourceId,
+            title = "Cached",
+            contentType = ContentType.MANGA,
+        ),
+        summary = CatalogMetadataStamp("1", TEST_NOW),
+        artwork = CatalogMetadataStamp("1", fullAt),
+        full = CatalogMetadataStamp("1", fullAt),
+    )
+
+    private companion object {
+        const val TEST_NOW = CatalogMetadataPolicy.FULL_TTL_MILLIS + 1L
+    }
 
     private class Registry(
         private val values: List<CatalogSource>,
@@ -232,13 +329,16 @@ class CatalogSearchServiceTest {
     ) : CatalogSource {
         override val pluginId = PluginId(id)
         override val version = "1"
+        var detailsCalls = 0
+        var detailsResult: CatalogSourceResult<SourceDetails>? = null
         override suspend fun home(request: SourceHomeRequest): CatalogSourceResult<List<SourceSection>> =
             error("unused")
         override suspend fun search(request: SourceSearchRequest) = page
             ?.let { CatalogSourceResult.Success(it) }
             ?: CatalogSourceResult.Failure(CatalogSourceFailure("down", true))
-        override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> =
-            CatalogSourceResult.Success(
+        override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> {
+            detailsCalls++
+            return detailsResult ?: CatalogSourceResult.Success(
                 SourceDetails(
                     sourceId = sourceId,
                     sourceUrl = "https://example.test/$sourceId",
@@ -255,6 +355,7 @@ class CatalogSearchServiceTest {
                     popularityRank = null,
                 ),
             )
+        }
         override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
     }
 
@@ -313,12 +414,16 @@ class CatalogSearchServiceTest {
         }
     }
 
-    private class FakeRepository : CatalogRepository {
+    private class FakeRepository(
+        initialMetadata: Map<CatalogMetadataKey, CatalogMetadataSnapshot> = emptyMap(),
+    ) : CatalogRepository {
+        private val metadata = initialMetadata.toMutableMap()
         var homeCommits = 0
         var detailCommits = 0
         override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
         override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
         override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+        override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = metadata[key]
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
         ): Outcome<Unit, CatalogStoreFailure> {
@@ -329,6 +434,14 @@ class CatalogSearchServiceTest {
             mutation: CatalogDetailsMutation,
         ): Outcome<StoryId, CatalogStoreFailure> {
             detailCommits++
+            val key = CatalogMetadataKey(mutation.entry.pluginId, mutation.entry.sourceId)
+            val stamp = CatalogMetadataStamp(mutation.pluginVersion, mutation.fetchedAtEpochMillis)
+            metadata[key] = CatalogMetadataSnapshot(
+                entry = mutation.entry,
+                summary = stamp,
+                artwork = stamp,
+                full = stamp,
+            )
             return Outcome.Success(mutation.storyId)
         }
     }

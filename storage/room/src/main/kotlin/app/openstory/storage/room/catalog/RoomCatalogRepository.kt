@@ -3,6 +3,8 @@ package app.openstory.storage.room.catalog
 import androidx.room.withTransaction
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
@@ -67,6 +69,9 @@ class RoomCatalogRepository internal constructor(
         CatalogMatchSnapshot(candidates)
     }
 
+    override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? =
+        dao.findEntry(key.pluginId.value, key.sourceId)?.toMetadataSnapshot()
+
     override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
         try {
             database.withTransaction {
@@ -115,18 +120,21 @@ class RoomCatalogRepository internal constructor(
 
     override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> =
         try {
-            database.withTransaction {
-                if (dao.findStory(mutation.storyId.value) == null) {
+            val durableStoryId = database.withTransaction {
+                val existing = dao.findEntry(mutation.entry.pluginId.value, mutation.entry.sourceId)
+                val durableStoryId = StoryId(existing?.storyId ?: mutation.storyId.value)
+                if (existing == null && dao.findStory(durableStoryId.value) == null) {
                     dao.upsertStories(
-                        listOf(StoryEntity(mutation.storyId.value, mutation.entry.contentType.name)),
+                        listOf(StoryEntity(durableStoryId.value, mutation.entry.contentType.name)),
                     )
                 }
-                val existing = dao.findEntry(mutation.entry.pluginId.value, mutation.entry.sourceId)
+                val durableEntry = mutation.entry.copy(storyId = durableStoryId)
                 dao.upsertEntries(
-                    listOf(merge(existing, mutation.entry, mutation)),
+                    listOf(mergeDetails(existing, durableEntry, mutation)),
                 )
+                durableStoryId
             }
-            Outcome.Success(mutation.storyId)
+            Outcome.Success(durableStoryId)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -134,13 +142,46 @@ class RoomCatalogRepository internal constructor(
         }
 
     private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogHomeMutation) =
-        merge(existing, entry.toEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis))
+        mergeHome(existing, entry.toHomeEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis))
 
-    private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogDetailsMutation) =
-        merge(existing, entry.toEntity(mutation.pluginVersion, mutation.fetchedAtEpochMillis))
+    private fun mergeDetails(
+        existing: CatalogEntryEntity?,
+        entry: CatalogEntry,
+        mutation: CatalogDetailsMutation,
+    ) = mergeDetails(existing, entry.toDetailsEntity(mutation.pluginVersion, mutation.fetchedAtEpochMillis))
 
-    private fun merge(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
+    private fun mergeHome(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
         if (existing == null) return incoming
+        val merged = mergeContent(existing, incoming).copy(
+            storyId = incoming.storyId,
+            artworkPluginVersion = if (!incoming.coverUrl.isNullOrBlank()) {
+                incoming.artworkPluginVersion
+            } else {
+                existing.artworkPluginVersion
+            },
+            artworkResolvedAtEpochMillis = if (!incoming.coverUrl.isNullOrBlank()) {
+                incoming.artworkResolvedAtEpochMillis
+            } else {
+                existing.artworkResolvedAtEpochMillis
+            },
+            fullPluginVersion = existing.fullPluginVersion,
+            fullResolvedAtEpochMillis = existing.fullResolvedAtEpochMillis,
+        )
+        return merged
+    }
+
+    private fun mergeDetails(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
+        if (existing == null) return incoming
+        return mergeContent(existing, incoming).copy(
+            storyId = existing.storyId,
+            artworkPluginVersion = incoming.artworkPluginVersion,
+            artworkResolvedAtEpochMillis = incoming.artworkResolvedAtEpochMillis,
+            fullPluginVersion = incoming.fullPluginVersion,
+            fullResolvedAtEpochMillis = incoming.fullResolvedAtEpochMillis,
+        )
+    }
+
+    private fun mergeContent(existing: CatalogEntryEntity, incoming: CatalogEntryEntity): CatalogEntryEntity {
         val latestUpdate = mergeLatestUpdate(
             existing.latestUpdateAtEpochMillis,
             existing.latestUpdateReleaseLabel,
@@ -148,7 +189,6 @@ class RoomCatalogRepository internal constructor(
             incoming.latestUpdateReleaseLabel,
         )
         return existing.copy(
-            storyId = incoming.storyId,
             title = incoming.title,
             aliases = incoming.aliases.ifEmpty { existing.aliases },
             authors = incoming.authors.ifEmpty { existing.authors },
@@ -156,7 +196,7 @@ class RoomCatalogRepository internal constructor(
             genres = incoming.genres.ifEmpty { existing.genres },
             contentType = incoming.contentType,
             languageTags = incoming.languageTags.ifEmpty { existing.languageTags },
-            coverUrl = incoming.coverUrl ?: existing.coverUrl,
+            coverUrl = incoming.coverUrl?.takeIf(String::isNotBlank) ?: existing.coverUrl,
             sourceUrl = incoming.sourceUrl ?: existing.sourceUrl,
             scoreValue = incoming.scoreValue ?: existing.scoreValue,
             scoreScale = incoming.scoreScale ?: existing.scoreScale,

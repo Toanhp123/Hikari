@@ -3,6 +3,8 @@ package app.openstory.storage.room.catalog
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchEvidence
 import app.openstory.catalog.matching.SourceKey
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
+import app.openstory.catalog.metadata.CatalogMetadataStamp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
@@ -17,7 +19,10 @@ import app.openstory.common.id.StoryId
 
 internal fun Story.toEntity() = StoryEntity(id.value, contentType.name)
 
-internal fun CatalogEntry.toEntity(pluginVersion: String, fetchedAtEpochMillis: Long) = CatalogEntryEntity(
+internal fun CatalogEntry.toHomeEntity(
+    pluginVersion: String,
+    fetchedAtEpochMillis: Long,
+) = CatalogEntryEntity(
     pluginId = pluginId.value,
     sourceId = sourceId,
     storyId = storyId.value,
@@ -28,7 +33,7 @@ internal fun CatalogEntry.toEntity(pluginVersion: String, fetchedAtEpochMillis: 
     genres = genres,
     contentType = contentType.name,
     languageTags = languageTags,
-    coverUrl = coverUrl,
+    coverUrl = coverUrl?.takeIf(String::isNotBlank),
     sourceUrl = sourceUrl,
     scoreValue = score?.value,
     scoreScale = score?.scale,
@@ -38,6 +43,40 @@ internal fun CatalogEntry.toEntity(pluginVersion: String, fetchedAtEpochMillis: 
     latestUpdateReleaseLabel = latestUpdate?.releaseLabel,
     pluginVersion = pluginVersion,
     fetchedAtEpochMillis = fetchedAtEpochMillis,
+    artworkPluginVersion = if (coverUrl.isNullOrBlank()) null else pluginVersion,
+    artworkResolvedAtEpochMillis = if (coverUrl.isNullOrBlank()) null else fetchedAtEpochMillis,
+    fullPluginVersion = null,
+    fullResolvedAtEpochMillis = null,
+)
+
+internal fun CatalogEntry.toDetailsEntity(
+    pluginVersion: String,
+    resolvedAtEpochMillis: Long,
+) = CatalogEntryEntity(
+    pluginId = pluginId.value,
+    sourceId = sourceId,
+    storyId = storyId.value,
+    title = title,
+    aliases = aliases,
+    authors = authors,
+    description = description,
+    genres = genres,
+    contentType = contentType.name,
+    languageTags = languageTags,
+    coverUrl = coverUrl?.takeIf(String::isNotBlank),
+    sourceUrl = sourceUrl,
+    scoreValue = score?.value,
+    scoreScale = score?.scale,
+    popularityRank = popularityRank,
+    publicationStatus = publicationStatus?.name,
+    latestUpdateAtEpochMillis = latestUpdate?.atEpochMillis,
+    latestUpdateReleaseLabel = latestUpdate?.releaseLabel,
+    pluginVersion = pluginVersion,
+    fetchedAtEpochMillis = resolvedAtEpochMillis,
+    artworkPluginVersion = pluginVersion,
+    artworkResolvedAtEpochMillis = resolvedAtEpochMillis,
+    fullPluginVersion = pluginVersion,
+    fullResolvedAtEpochMillis = resolvedAtEpochMillis,
 )
 
 internal fun CatalogHomeSnapshotEntity.toModel(
@@ -85,6 +124,21 @@ internal fun CatalogEntryEntity.toModel() = CatalogEntry(
         CatalogLatestUpdate(atEpochMillis, latestUpdateReleaseLabel)
     },
 )
+
+internal fun CatalogEntryEntity.toMetadataSnapshot(): CatalogMetadataSnapshot = CatalogMetadataSnapshot(
+    entry = toModel(),
+    summary = CatalogMetadataStamp(pluginVersion, fetchedAtEpochMillis),
+    artwork = metadataStamp(artworkPluginVersion, artworkResolvedAtEpochMillis),
+    full = metadataStamp(fullPluginVersion, fullResolvedAtEpochMillis),
+)
+
+private fun metadataStamp(pluginVersion: String?, resolvedAtEpochMillis: Long?): CatalogMetadataStamp? = when {
+    pluginVersion == null && resolvedAtEpochMillis == null -> null
+    else -> CatalogMetadataStamp(
+        pluginVersion = requireNotNull(pluginVersion),
+        resolvedAtEpochMillis = requireNotNull(resolvedAtEpochMillis),
+    )
+}
 
 internal fun List<CatalogEntryEntity>.toCandidate(story: StoryEntity): CatalogMatchCandidate {
     require(isNotEmpty())

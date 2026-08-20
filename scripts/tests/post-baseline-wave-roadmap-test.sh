@@ -58,8 +58,8 @@ grep -q 'schema `2 -> 3`' "${WAVES[0]}"
 grep -q 'schema `3 -> 4`' "${WAVES[1]}"
 grep -q 'schema `4 -> 5`' "${WAVES[2]}"
 grep -q 'schema `5 -> 6`' "${WAVES[3]}"
-grep -q 'schema `7 -> 8`' "${WAVES[4]}"
-grep -q 'Room schema 8 remains stable' "${WAVES[5]}"
+grep -q 'schema `8 -> 9`' "${WAVES[4]}"
+grep -q 'Room schema 9 remains stable' "${WAVES[5]}"
 
 for wave in "${WAVES[@]}"; do
   [[ "$(grep -c '^### Task ' "$wave")" -eq 6 ]]

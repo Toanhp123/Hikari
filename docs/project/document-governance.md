@@ -63,7 +63,7 @@ protocol, and tested fixtures.
 | Architecture Baseline 2 R0-R6 plans | Accepted one-time architecture reset record; not the active feature plan after R6 |
 | 2026-08-12 Product UI design/plan | Accepted/completed broader presentation baseline; Discover-specific source/category composition is superseded by the 2026-08-19 Discover spec |
 | 2026-08-19 Discover semantic-feed design/plan | Accepted implementation record and current Discover-specific contract; checkpoint evidence is `discover-semantic-feed-redesign.md` |
-| Wave 10 schema `6 -> 7` planning text | Superseded by current Room schema 7; Wave 10 notification persistence is rebased to `7 -> 8` |
+| Wave 10 schema `6 -> 7` / `7 -> 8` planning text | Superseded by current Room schema 8 after the catalog metadata-lifecycle migration; Wave 10 notification persistence is rebased to `8 -> 9` |
 
 ## Lifecycle labels
 

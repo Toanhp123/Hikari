@@ -10,8 +10,9 @@ whether it is already complete.
 
 Current boundary: Waves 06-09 are verified and complete. Architecture Baseline 2, the
 Design System Foundation, the Product UI checkpoint, and the Discover semantic-feed redesign
-are accepted. Room schema 7 is current. Wave 10 is ready to start but not implemented; its
-planned durable notification persistence is rebased to schema 7 -> 8.
+are accepted. Room schema 8 is current after the catalog metadata-lifecycle unification. Wave 10
+is ready to start but not implemented; its planned durable notification persistence is rebased to
+schema 8 -> 9.
 
 The matrix below preserves the approved 2026-08-03 requirement-to-wave mapping. Later
 architecture and product amendments may supersede implementation mechanics or presentation
@@ -26,7 +27,7 @@ those cases.
 | Discover feed identity | same | Explicit semantic feed kind; canonical `StoryId` dedupe before Compose; no provider/title inference |
 | Discover persistence | same + Room schema 7 | Feed kind, publication status, and coherent latest-update metadata are persisted in schema 7 |
 | Plugin execution mechanics | Architecture Baseline 2 + `../plugin-sdk/` | JavaScript-only protocol/runtime; historical selector/declarative-runtime rows are product-history, not active SDK mechanics |
-| Wave 10 persistence | `../implementation/waves/wave-10-background-sync-auth-and-notifications.md` | Enters on schema 7; planned notification delivery state migrates 7 -> 8 |
+| Wave 10 persistence | `../implementation/waves/wave-10-background-sync-auth-and-notifications.md` | Enters on schema 8; planned notification delivery state migrates 8 -> 9 |
 | Manga image Reader scope | `approved-product-design.md` + `current-state.md` | Original MVP exclusion remains normative; repository contains a bounded MangaDex image-page path that is implementation beyond that baseline until separately approved as product scope |
 
 ---

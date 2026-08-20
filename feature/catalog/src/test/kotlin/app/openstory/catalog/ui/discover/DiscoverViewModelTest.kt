@@ -2,8 +2,13 @@ package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.home.CatalogRefreshService
-import app.openstory.catalog.details.CatalogDetailsService
+import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataPolicy
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
+import app.openstory.catalog.metadata.CatalogMetadataStamp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
@@ -40,6 +45,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -152,6 +158,38 @@ class DiscoverViewModelTest {
             listOf("source-1", "source-2", "source-3", "source-4", "source-5"),
             source.detailSourceIds,
         )
+    }
+
+    @Test
+    fun negativeCachedArtworkDoesNotRefetchInsideArtworkTtl() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(latestHome(coverUrl = null))
+        val source = FakeSource().apply { detailsCoverUrl = null }
+        val first = viewModel(repository, source)
+        backgroundScope.launch { first.state.collect() }
+        runCurrent()
+        assertEquals(1, source.detailsCalls)
+
+        val second = viewModel(repository, source)
+        backgroundScope.launch { second.state.collect() }
+        runCurrent()
+
+        assertEquals(1, source.detailsCalls)
+        assertEquals(null, second.state.value.latestUpdates.single().coverUrl)
+    }
+
+    @Test
+    fun artworkFailureIsBestEffortAndKeepsCachedDiscoverContent() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(latestHome(coverUrl = null))
+        val source = FakeSource().apply {
+            detailsFailure = CatalogSourceFailure("catalog.details.offline", true)
+        }
+        val viewModel = viewModel(repository, source)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertEquals(1, source.detailsCalls)
+        assertEquals("Fixture Novel 1", viewModel.state.value.latestUpdates.single().title)
+        assertEquals(null, viewModel.state.value.globalFailure)
     }
 
     @Test
@@ -356,14 +394,27 @@ class DiscoverViewModelTest {
         assertEquals(null, viewModel.state.value.refreshFailure)
     }
 
-    private fun viewModel(repository: FakeRepository, source: FakeSource) = DiscoverViewModel(
-        repository,
-        CatalogRefreshService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
-        CatalogDetailsService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
-        DiscoverProjectionPipeline(
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-        ),
-    )
+    private fun TestScope.viewModel(repository: FakeRepository, source: FakeSource): DiscoverViewModel {
+        val registry = Registry(source)
+        val clock = FakeClock(200L)
+        val matcher = StoryMatcher()
+        val metadata = CatalogMetadataCoordinator(
+            repository = repository,
+            sources = registry,
+            loader = CatalogDetailsLoader(registry, repository, matcher, clock),
+            policy = CatalogMetadataPolicy(clock),
+            clock = clock,
+            processScope = backgroundScope,
+        )
+        return DiscoverViewModel(
+            repository,
+            CatalogRefreshService(registry, repository, matcher, clock),
+            metadata,
+            DiscoverProjectionPipeline(
+                FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+            ),
+        )
+    }
 }
 
 private class Registry(private val sourceValue: CatalogSource) : CatalogSourceRegistry {
@@ -377,6 +428,8 @@ private class FakeSource : CatalogSource {
     var homeCalls = 0
     var detailsCalls = 0
     val detailSourceIds = mutableListOf<String>()
+    var detailsCoverUrl: String? = "https://example.test/source.jpg"
+    var detailsFailure: CatalogSourceFailure? = null
     var homeAction: suspend () -> CatalogSourceResult<List<SourceSection>> = {
         CatalogSourceResult.Success(emptyList())
     }
@@ -391,6 +444,7 @@ private class FakeSource : CatalogSource {
     override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> {
         detailsCalls++
         detailSourceIds += sourceId
+        detailsFailure?.let { return CatalogSourceResult.Failure(it) }
         return CatalogSourceResult.Success(
             SourceDetails(
                 sourceId = sourceId,
@@ -402,7 +456,7 @@ private class FakeSource : CatalogSource {
                 genres = setOf("Fantasy"),
                 contentType = app.openstory.catalog.source.SourceContentType.MANGA,
                 languageTags = setOf("en"),
-                coverUrl = "https://example.test/$sourceId.jpg",
+                coverUrl = detailsCoverUrl?.let { "https://example.test/$sourceId.jpg" },
                 scoreValue = 8.4,
                 scoreScale = 10.0,
                 popularityRank = 1L,
@@ -419,6 +473,7 @@ private class FakeRepository(
     private val observeFailureAfterEmission: Boolean = false,
 ) : CatalogRepository {
     private val homes = MutableStateFlow(initialHomes)
+    private val detailStamps = mutableMapOf<CatalogMetadataKey, CatalogMetadataStamp>()
     var observeHomesSubscriptions = 0
         private set
 
@@ -441,12 +496,27 @@ private class FakeRepository(
         }
         return CatalogMatchSnapshot(emptyList())
     }
+    override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? {
+        val home = homes.value.firstOrNull { it.pluginId == key.pluginId } ?: return null
+        val entry = home.sections.asSequence()
+            .flatMap { it.items.asSequence() }
+            .firstOrNull { it.pluginId == key.pluginId && it.sourceId == key.sourceId }
+            ?: return null
+        val summary = CatalogMetadataStamp(home.pluginVersion, home.refreshedAtEpochMillis)
+        val detail = detailStamps[key]
+        val artwork = if (!entry.coverUrl.isNullOrBlank()) detail ?: summary else detail
+        return CatalogMetadataSnapshot(entry, summary, artwork = artwork, full = detail)
+    }
+
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
     ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
     ): Outcome<StoryId, CatalogStoreFailure> {
+        val key = CatalogMetadataKey(mutation.entry.pluginId, mutation.entry.sourceId)
+        detailStamps[key] = CatalogMetadataStamp(mutation.pluginVersion, mutation.fetchedAtEpochMillis)
+        var durableStoryId = mutation.storyId
         homes.value = homes.value.map { home ->
             home.copy(
                 sections = home.sections.map { section ->
@@ -456,6 +526,7 @@ private class FakeRepository(
                                 existing.pluginId == mutation.entry.pluginId &&
                                 existing.sourceId == mutation.entry.sourceId
                             ) {
+                                durableStoryId = existing.storyId
                                 mutation.entry.copy(
                                     storyId = existing.storyId,
                                     latestUpdate = mutation.entry.latestUpdate ?: existing.latestUpdate,
@@ -468,7 +539,7 @@ private class FakeRepository(
                 },
             )
         }
-        return Outcome.Success(mutation.storyId)
+        return Outcome.Success(durableStoryId)
     }
 }
 

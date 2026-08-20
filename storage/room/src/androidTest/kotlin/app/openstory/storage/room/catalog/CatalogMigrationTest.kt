@@ -8,6 +8,7 @@ import app.openstory.storage.room.RoomMigrations
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.runner.RunWith
 
@@ -81,7 +82,73 @@ class CatalogMigrationTest {
         }
     }
 
+    @Test
+    fun migrationSevenToEightPreservesCatalogRowsAndLeavesDetailLifecycleUnresolved() {
+        helper.createDatabase(TEST_DATABASE_7_8, 7).apply {
+            execSQL("INSERT INTO stories (story_id, content_type) VALUES ('story:legacy', 'MANGA')")
+            execSQL(
+                "INSERT INTO catalog_entries " +
+                    "(plugin_id, source_id, story_id, title, aliases, authors, description, genres, content_type, " +
+                    "language_tags, cover_url, source_url, score_value, score_scale, popularity_rank, " +
+                    "publication_status, latest_update_at_epoch_millis, latest_update_release_label, " +
+                    "plugin_version, fetched_at_epoch_millis) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                arrayOf<Any?>(
+                    "catalog.example",
+                    "source:legacy",
+                    "story:legacy",
+                    "Legacy title",
+                    "[]",
+                    "[]",
+                    "legacy-description",
+                    "[]",
+                    "MANGA",
+                    "[]",
+                    "legacy-cover",
+                    "https://example.test/legacy",
+                    8.0,
+                    10.0,
+                    7L,
+                    "ONGOING",
+                    1200L,
+                    "Chapter 12",
+                    "1.7.0",
+                    1234L,
+                ),
+            )
+            close()
+        }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE_7_8,
+            8,
+            true,
+            RoomMigrations.MIGRATION_7_8,
+        ).use { database ->
+            database.query(
+                "SELECT cover_url, description, plugin_version, fetched_at_epoch_millis, " +
+                    "artwork_plugin_version, artwork_resolved_at_epoch_millis, " +
+                    "full_plugin_version, full_resolved_at_epoch_millis " +
+                    "FROM catalog_entries WHERE plugin_id = 'catalog.example' AND source_id = 'source:legacy'",
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("legacy-cover", cursor.getString(cursor.getColumnIndexOrThrow("cover_url")))
+                assertEquals(
+                    "legacy-description",
+                    cursor.getString(cursor.getColumnIndexOrThrow("description")),
+                )
+                assertEquals("1.7.0", cursor.getString(cursor.getColumnIndexOrThrow("plugin_version")))
+                assertEquals(1234L, cursor.getLong(cursor.getColumnIndexOrThrow("fetched_at_epoch_millis")))
+                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("artwork_plugin_version")))
+                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("artwork_resolved_at_epoch_millis")))
+                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("full_plugin_version")))
+                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("full_resolved_at_epoch_millis")))
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DATABASE = "catalog-migration-test"
+        const val TEST_DATABASE_7_8 = "catalog-migration-7-8-test"
     }
 }

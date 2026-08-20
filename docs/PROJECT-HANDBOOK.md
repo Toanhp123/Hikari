@@ -146,9 +146,14 @@ cached Home emissions, and runs on the shared Default-dispatcher projection boun
 Light Novel remains visible but disabled in the current delivery.
 
 Targeted unit/instrumentation suites, app navigation/smoke tests, Roborazzi baselines, and
-the `discoverScroll` Macrobenchmark were rerun after the redesign. Room schema 7 is the
-current database baseline. Wave 10 remains the next capability wave; its planned durable
-notification state is rebased to schema 7 -> 8.
+the `discoverScroll` Macrobenchmark were rerun after the redesign. The 2026-08-20 catalog
+metadata-lifecycle unification then advanced Room from schema 7 to schema 8 without changing
+the module graph. `CatalogMetadataCoordinator` now owns `Summary` / `Artwork` / `Full`
+requirements, 7-day Artwork and 24-hour Full freshness, plugin-version invalidation,
+stale-while-revalidate, retry suppression, and process-wide single-flight. `CatalogDetailsLoader`
+is the sole production `CatalogSource.details(...)` call site, while persisted source identity is
+stable across metadata refreshes. Room schema 8 is now current. Wave 10 remains the next capability
+wave; its planned durable notification state must continue contiguously from schema 8 to schema 9.
 
 ## 8. Roadmap
 
@@ -163,8 +168,8 @@ notification state is rebased to schema 7 -> 8.
 | 07 | multi-source chapter synchronization and canonical release grouping |
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
-| UI | accepted design system + Product UI + semantic Discover presentation, Room schema 7 |
-| 10 | local scheduling, guarded source login and deduplicated notifications; planned schema 8 |
+| UI | accepted design system + Product UI + semantic Discover presentation |
+| 10 | local scheduling, guarded source login and deduplicated notifications; enters schema 8, notification persistence planned for schema 9 |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
 Detailed lifecycle/status: `implementation/current-roadmap.md`.
@@ -226,7 +231,7 @@ websites.
 
 Start Wave 10 from `implementation/waves/wave-10-background-sync-auth-and-notifications.md`
 only after choosing its first task boundary. The entry graph is the current 14-module graph
-with `:core:designsystem`; Room schema 7 is current and any planned notification-delivery
-persistence must migrate 7 -> 8. Product UI and Discover plans are completed records, not
+with `:core:designsystem`; Room schema 8 is current and any planned notification-delivery
+persistence must migrate 8 -> 9. Product UI and Discover plans are completed records, not
 active execution plans. During implementation use `./scripts/verify-fast.sh` for iteration
 and `./scripts/verify.sh` as the full host gate before closing a checkpoint.

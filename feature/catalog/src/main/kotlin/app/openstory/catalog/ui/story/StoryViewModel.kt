@@ -2,9 +2,11 @@ package app.openstory.catalog.ui.story
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.openstory.catalog.details.CatalogDetailsFailure
-import app.openstory.catalog.details.CatalogDetailsResult
-import app.openstory.catalog.details.CatalogDetailsService
+import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataFailure
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataLevel
+import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogRepository
@@ -34,7 +36,7 @@ import kotlinx.coroutines.launch
 class StoryViewModel @AssistedInject constructor(
     @Assisted private val assistedArgs: StoryAssistedArgs,
     private val repository: CatalogRepository,
-    private val details: CatalogDetailsService,
+    private val metadata: CatalogMetadataCoordinator,
     private val library: LibraryService,
     private val progress: ReadingProgressRepository,
 ) : ViewModel() {
@@ -85,10 +87,10 @@ class StoryViewModel @AssistedInject constructor(
     )
 
     init {
-        hydrateInitialSummary()
+        requireInitialMetadata()
     }
 
-    private fun hydrateInitialSummary() {
+    private fun requireInitialMetadata() {
         viewModelScope.launch {
             try {
                 val snapshot = repository.observeStory(storyId).first() ?: return@launch
@@ -96,11 +98,11 @@ class StoryViewModel @AssistedInject constructor(
                     .sortedWith(sourceOrder)
                     .selectedEntry(selectedSource.value)
                     ?: return@launch
-                details.ensure(source)
+                metadata.require(source.metadataKey(), CatalogMetadataLevel.Full)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
-                // Initial hydration is best-effort. Explicit refresh remains the surfaced retry path.
+                // Initial metadata resolution is best-effort. Explicit refresh remains the surfaced retry path.
             }
         }
     }
@@ -108,6 +110,22 @@ class StoryViewModel @AssistedInject constructor(
     fun selectSource(pluginId: PluginId, sourceId: String) {
         selectedSource.value = StorySourceIdentity(pluginId, sourceId)
         failure.value = null
+        requireSelectedSourceMetadata(pluginId, sourceId)
+    }
+
+    private fun requireSelectedSourceMetadata(pluginId: PluginId, sourceId: String) {
+        viewModelScope.launch {
+            try {
+                metadata.require(
+                    CatalogMetadataKey(pluginId, sourceId),
+                    CatalogMetadataLevel.Full,
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // Source switching stays cache-first; explicit refresh is the surfaced retry path.
+            }
+        }
     }
 
     fun selectSection(section: StorySection) {
@@ -137,7 +155,10 @@ class StoryViewModel @AssistedInject constructor(
                 failure.value = if (source == null) {
                     StoryRefreshFailure(SOURCE_UNAVAILABLE_CODE, retryable = false)
                 } else {
-                    details.load(source.pluginId, source.sourceId).failureOrNull()
+                    metadata.refresh(
+                        source.metadataKey(),
+                        CatalogMetadataLevel.Full,
+                    ).failureOrNull()
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -231,14 +252,17 @@ private fun List<ReadingProgress>.latestResumeTarget(storyId: StoryId): ReaderTa
         .maxWithOrNull(compareBy<ReadingProgress> { it.updatedAtEpochMillis }.thenBy { it.releaseId.value })
         ?.let { ReaderTarget(storyId, it.canonicalChapterId, it.releaseId) }
 
-private fun CatalogDetailsResult.failureOrNull(): StoryRefreshFailure? = when (this) {
-    is CatalogDetailsResult.Success -> null
-    is CatalogDetailsResult.Failure -> failure.toUiFailure()
+private fun CatalogEntry.metadataKey() = CatalogMetadataKey(pluginId, sourceId)
+
+private fun CatalogMetadataResult.failureOrNull(): StoryRefreshFailure? = when (this) {
+    is CatalogMetadataResult.Ready -> null
+    is CatalogMetadataResult.Failure -> failure.toUiFailure()
+    CatalogMetadataResult.Missing -> StoryRefreshFailure("catalog.story.source_unavailable", false)
 }
 
-private fun CatalogDetailsFailure.toUiFailure(): StoryRefreshFailure = when (this) {
-    is CatalogDetailsFailure.SourceUnavailable -> StoryRefreshFailure("catalog.source_unavailable", false)
-    is CatalogDetailsFailure.SourceFailure -> StoryRefreshFailure(code, retryable)
-    is CatalogDetailsFailure.SourceIdMismatch -> StoryRefreshFailure("catalog.details_source_mismatch", false)
-    is CatalogDetailsFailure.StoreFailure -> StoryRefreshFailure(code, retryable)
+private fun CatalogMetadataFailure.toUiFailure(): StoryRefreshFailure = when (this) {
+    is CatalogMetadataFailure.SourceUnavailable -> StoryRefreshFailure("catalog.source_unavailable", false)
+    is CatalogMetadataFailure.SourceFailure -> StoryRefreshFailure(code, retryable)
+    is CatalogMetadataFailure.SourceIdMismatch -> StoryRefreshFailure("catalog.details_source_mismatch", false)
+    is CatalogMetadataFailure.StoreFailure -> StoryRefreshFailure(code, retryable)
 }

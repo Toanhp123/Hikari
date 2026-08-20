@@ -10,7 +10,7 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 4. **[internal/checkpoints/discover-semantic-feed-redesign.md](internal/checkpoints/discover-semantic-feed-redesign.md)** — accepted Discover semantic-feed redesign evidence, including Room schema 7 and benchmark results.
 5. **[superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md](superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md)** — normative current Discover composition and semantic-feed contract.
 6. **[internal/checkpoints/product-ui-redesign.md](internal/checkpoints/product-ui-redesign.md)** — accepted Product UI checkpoint that established the current shell and broader presentation baseline.
-7. **[implementation/waves/wave-10-background-sync-auth-and-notifications.md](implementation/waves/wave-10-background-sync-auth-and-notifications.md)** — next planned capability wave; rebased to enter on Room schema 7.
+7. **[implementation/waves/wave-10-background-sync-auth-and-notifications.md](implementation/waves/wave-10-background-sync-auth-and-notifications.md)** — next planned capability wave; rebased to enter on Room schema 8.
 
 ## Normative product and architecture documents
 
@@ -31,8 +31,8 @@ use `implementation/current-roadmap.md`.
 
 Wave 01-09 plans are historical delivery records. Wave 10-11 remain planned future
 capability work under the approved post-Baseline-2 architecture. Wave 10 now enters on
-Room schema 7 and, if its notification-delivery persistence is implemented as planned,
-advances the database to schema 8.
+Room schema 8 and, if its notification-delivery persistence is implemented as planned,
+advances the database to schema 9.
 
 ## Public/plugin documentation
 

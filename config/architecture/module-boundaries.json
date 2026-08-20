@@ -78,6 +78,7 @@
         "app.openstory.catalog.details.",
         "app.openstory.catalog.home.",
         "app.openstory.catalog.matching.",
+        "app.openstory.catalog.metadata.",
         "app.openstory.catalog.repository.",
         "app.openstory.catalog.search.",
         "app.openstory.catalog.source.",

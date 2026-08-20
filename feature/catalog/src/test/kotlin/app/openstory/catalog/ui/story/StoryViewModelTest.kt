@@ -2,10 +2,15 @@ package app.openstory.catalog.ui.story
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.chapters.repository.ChapterRepository
-import app.openstory.catalog.details.CatalogDetailsService
+import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataPolicy
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
+import app.openstory.catalog.metadata.CatalogMetadataStamp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
@@ -39,6 +44,7 @@ import app.openstory.library.LibraryStatus
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +62,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoryViewModelTest {
@@ -80,12 +87,18 @@ class StoryViewModelTest {
                 },
             ),
         )
-        val source = DetailsSource("catalog.a")
+        val release = CompletableDeferred<Unit>()
+        val source = DetailsSource("catalog.a", release)
         val viewModel = viewModel(repository, source)
         runCurrent()
 
         assertEquals("Fixture Novel", viewModel.state.value.story?.preferredTitle)
         assertEquals(1, source.detailsCalls)
+        assertEquals(null, viewModel.state.value.story?.description)
+
+        release.complete(Unit)
+        runCurrent()
+
         assertEquals("Fixture description", viewModel.state.value.story?.description)
     }
 
@@ -99,7 +112,7 @@ class StoryViewModelTest {
                 )
             },
         )
-        val repository = StoryRepository(snapshot)
+        val repository = StoryRepository(snapshot, fullResolvedSourceIds = setOf("source-a"))
         val source = DetailsSource("catalog.a")
         val viewModel = viewModel(repository, source)
         runCurrent()
@@ -110,7 +123,10 @@ class StoryViewModelTest {
 
     @Test
     fun refreshUsesExactAvailableSourceSelectedByCatalogState() = runTest(dispatcher.scheduler) {
-        val repository = StoryRepository(fixtureSnapshot(includeSecondSource = true))
+        val repository = StoryRepository(
+            fixtureSnapshot(includeSecondSource = true),
+            fullResolvedSourceIds = setOf("source-a", "source-b"),
+        )
         val sourceA = DetailsSource("catalog.a")
         val sourceB = DetailsSource("catalog.b")
         val viewModel = viewModel(repository, sourceA, sourceB)
@@ -123,6 +139,75 @@ class StoryViewModelTest {
         assertEquals(0, sourceA.detailsCalls)
         assertEquals(1, sourceB.detailsCalls)
         assertEquals("source-b", sourceB.lastSourceId)
+    }
+
+    @Test
+    fun selectingSourceRequestsFullAndFailureRemainsNonBlocking() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(
+            fixtureSnapshot(includeSecondSource = true),
+            fullResolvedSourceIds = setOf("source-a"),
+        )
+        val sourceA = DetailsSource("catalog.a")
+        val sourceB = DetailsSource("catalog.b").apply {
+            result = CatalogSourceResult.Failure(CatalogSourceFailure("catalog.offline", true))
+        }
+        val viewModel = viewModel(repository, sourceA, sourceB)
+        runCurrent()
+        assertEquals(0, sourceA.detailsCalls)
+
+        viewModel.selectSource(PluginId("catalog.b"), "source-b")
+        runCurrent()
+
+        assertEquals(1, sourceB.detailsCalls)
+        assertEquals(StorySourceIdentity(PluginId("catalog.b"), "source-b"), viewModel.state.value.selectedSource)
+        assertEquals(null, viewModel.state.value.failure)
+    }
+
+    @Test
+    fun staleFullRendersCachedStoryAndRevalidatesInBackground() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(
+            fixtureSnapshot(),
+            fullResolvedSourceIds = setOf("source-a"),
+            resolvedAtEpochMillis = 0L,
+        )
+        val release = CompletableDeferred<Unit>()
+        val source = DetailsSource("catalog.a", release)
+        val viewModel = viewModel(repository, source)
+        runCurrent()
+
+        assertEquals("Fixture Novel", viewModel.state.value.story?.preferredTitle)
+        assertEquals(1, source.detailsCalls)
+        assertFalse(release.isCompleted)
+
+        release.complete(Unit)
+        runCurrent()
+    }
+
+    @Test
+    fun explicitRefreshJoinsStaleFullRevalidationWithoutDuplicateDetailsCall() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(
+            fixtureSnapshot(),
+            fullResolvedSourceIds = setOf("source-a"),
+            resolvedAtEpochMillis = 0L,
+        )
+        val release = CompletableDeferred<Unit>()
+        val source = DetailsSource("catalog.a", release)
+        val viewModel = viewModel(repository, source)
+        runCurrent()
+
+        assertEquals(1, source.detailsCalls)
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.refreshing)
+        assertEquals(1, source.detailsCalls)
+
+        release.complete(Unit)
+        runCurrent()
+
+        assertFalse(viewModel.state.value.refreshing)
+        assertEquals(1, source.detailsCalls)
     }
 
     @Test
@@ -144,15 +229,20 @@ class StoryViewModelTest {
     }
 
     @Test
-    fun repositoryExceptionDuringRefreshBecomesRetryableFailure() = runTest(dispatcher.scheduler) {
-        val repository = StoryRepository(fixtureSnapshot(), matchFailuresRemaining = 1)
+    fun storeFailureDuringRefreshBecomesRetryableFailure() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(
+            fixtureSnapshot(),
+            fullResolvedSourceIds = setOf("source-a"),
+            storeFailure = CatalogStoreFailure("catalog.store.locked", retryable = true),
+        )
         val viewModel = viewModel(repository, DetailsSource("catalog.a"))
         runCurrent()
 
         viewModel.refresh()
         runCurrent()
 
-        assertEquals("catalog.story.refresh_exception", viewModel.state.value.failure?.code)
+        assertEquals("catalog.store.locked", viewModel.state.value.failure?.code)
+        assertEquals(true, viewModel.state.value.failure?.retryable)
         assertFalse(viewModel.state.value.refreshing)
         assertEquals(StoryId("story-1"), viewModel.state.value.storyId)
     }
@@ -180,6 +270,7 @@ class StoryViewModelTest {
                     ),
                 ),
             ),
+            fullResolvedSourceIds = setOf("source-a", "source-b"),
         )
         val viewModel = viewModel(repository, DetailsSource("catalog.a"), DetailsSource("catalog.b"))
         runCurrent()
@@ -259,14 +350,19 @@ class StoryViewModelTest {
         libraryRepository: FakeLibraryRepository = FakeLibraryRepository(),
         progress: Flow<List<ReadingProgress>> = MutableStateFlow(emptyList()),
     ): StoryViewModel {
-        val details = CatalogDetailsService(
-            DetailsRegistry(sources.toList()),
-            repository,
-            StoryMatcher(),
-            Clock { 100L },
+        val registry = DetailsRegistry(sources.toList())
+        val clock = Clock { TEST_NOW }
+        val matcher = StoryMatcher()
+        val metadata = CatalogMetadataCoordinator(
+            repository = repository,
+            sources = registry,
+            loader = CatalogDetailsLoader(registry, repository, matcher, clock),
+            policy = CatalogMetadataPolicy(clock),
+            clock = clock,
+            processScope = backgroundScope,
         )
         return StoryViewModel(
-            StoryAssistedArgs(storyId), repository, details,
+            StoryAssistedArgs(storyId), repository, metadata,
             LibraryService(libraryRepository, Clock { 100L }, NoOpMappingScheduler),
             FakeProgressRepository(progress),
         ).also { viewModel ->
@@ -274,6 +370,8 @@ class StoryViewModelTest {
         }
     }
 }
+
+private const val TEST_NOW = CatalogMetadataPolicy.FULL_TTL_MILLIS + 1L
 
 private class FakeLibraryRepository : LibraryRepository {
     val entries = MutableStateFlow<List<LibraryEntry>>(emptyList())
@@ -307,7 +405,10 @@ private class DetailsRegistry(private val sources: List<CatalogSource>) : Catalo
     override suspend fun source(pluginId: PluginId) = sources.firstOrNull { it.pluginId == pluginId }
 }
 
-private class DetailsSource(id: String) : CatalogSource {
+private class DetailsSource(
+    id: String,
+    private val gate: CompletableDeferred<Unit>? = null,
+) : CatalogSource {
     override val pluginId = PluginId(id)
     override val version = "1.0.0"
     var detailsCalls = 0
@@ -317,6 +418,7 @@ private class DetailsSource(id: String) : CatalogSource {
     override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> {
         detailsCalls++
         lastSourceId = sourceId
+        gate?.await()
         return when (val current = result) {
             is CatalogSourceResult.Failure -> current
             is CatalogSourceResult.Success -> CatalogSourceResult.Success(current.value.copy(sourceId = sourceId))
@@ -330,17 +432,16 @@ private class DetailsSource(id: String) : CatalogSource {
 
 private class StoryRepository(
     initial: StoryCatalogSnapshot,
-    private var matchFailuresRemaining: Int = 0,
+    fullResolvedSourceIds: Set<String> = emptySet(),
+    private val resolvedAtEpochMillis: Long = TEST_NOW,
+    private val storeFailure: CatalogStoreFailure? = null,
 ) : CatalogRepository {
     private val story = MutableStateFlow<StoryCatalogSnapshot?>(initial)
+    private val fullResolved = fullResolvedSourceIds.toMutableSet()
 
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = story
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = error("unused")
     override suspend fun matchSnapshot(): CatalogMatchSnapshot {
-        if (matchFailuresRemaining > 0) {
-            matchFailuresRemaining--
-            error("catalog unavailable")
-        }
         val snapshot = assertNotNull(story.value)
         return CatalogMatchSnapshot(
             listOf(
@@ -353,16 +454,28 @@ private class StoryRepository(
             ),
         )
     }
+    override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? {
+        val entry = story.value?.entries?.firstOrNull {
+            it.pluginId == key.pluginId && it.sourceId == key.sourceId
+        } ?: return null
+        val summary = CatalogMetadataStamp("1.0.0", TEST_NOW)
+        val full = key.sourceId.takeIf { it in fullResolved }?.let {
+            CatalogMetadataStamp("1.0.0", resolvedAtEpochMillis)
+        }
+        return CatalogMetadataSnapshot(entry, summary, artwork = full, full = full)
+    }
 
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
     ): Outcome<StoryId, CatalogStoreFailure> {
+        storeFailure?.let { return Outcome.Failure(it) }
         val current = assertNotNull(story.value)
         story.value = current.copy(
             entries = current.entries.filterNot {
                 it.pluginId == mutation.entry.pluginId && it.sourceId == mutation.entry.sourceId
             } + mutation.entry.copy(storyId = current.story.id),
         )
+        fullResolved += mutation.entry.sourceId
         return Outcome.Success(current.story.id)
     }
 

@@ -1,8 +1,10 @@
 package app.openstory.catalog.ui.search
 
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.catalog.details.CatalogDetailsService
+import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataPolicy
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
@@ -36,6 +38,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -222,17 +225,28 @@ class SearchViewModelTest {
         assertEquals(10.0, snapRangeValue(raw = 11.0, minimum = 0.0, maximum = 10.0, step = 2.0))
     }
 
-    private fun viewModel(vararg sources: FakeSearchSource): SearchViewModel =
+    private fun TestScope.viewModel(vararg sources: FakeSearchSource): SearchViewModel =
         viewModel(EmptyRepository(), *sources)
 
-    private fun viewModel(repository: EmptyRepository, vararg sources: FakeSearchSource): SearchViewModel {
-        return viewModel(Registry(sources.toList()), repository)
-    }
+    private fun TestScope.viewModel(
+        repository: EmptyRepository,
+        vararg sources: FakeSearchSource,
+    ): SearchViewModel = viewModel(Registry(sources.toList()), repository)
 
-    private fun viewModel(registry: Registry, repository: EmptyRepository): SearchViewModel {
+    private fun TestScope.viewModel(registry: Registry, repository: EmptyRepository): SearchViewModel {
         val matcher = StoryMatcher()
-        val details = CatalogDetailsService(registry, repository, matcher, Clock { 100L })
-        return SearchViewModel(CatalogSearchService(registry, repository, matcher, details, CatalogFilterCache()))
+        val clock = Clock { 100L }
+        val metadata = CatalogMetadataCoordinator(
+            repository = repository,
+            sources = registry,
+            loader = CatalogDetailsLoader(registry, repository, matcher, clock),
+            policy = CatalogMetadataPolicy(clock),
+            clock = clock,
+            processScope = backgroundScope,
+        )
+        return SearchViewModel(
+            CatalogSearchService(registry, repository, matcher, metadata, CatalogFilterCache()),
+        )
     }
 
     private suspend fun kotlinx.coroutines.test.TestScope.advanceSearch() {
@@ -327,6 +341,10 @@ private class EmptyRepository(
         }
         return CatalogMatchSnapshot(emptyList())
     }
+    override suspend fun metadataSnapshot(
+        key: app.openstory.catalog.metadata.CatalogMetadataKey,
+    ): app.openstory.catalog.metadata.CatalogMetadataSnapshot? = null
+
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
     ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)

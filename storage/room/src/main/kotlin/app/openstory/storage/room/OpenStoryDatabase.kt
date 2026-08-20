@@ -52,7 +52,7 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         ReadingProgressEntity::class,
         ChapterStorageEntryEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -81,6 +81,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             RoomMigrations.MIGRATION_4_5,
             RoomMigrations.MIGRATION_5_6,
             RoomMigrations.MIGRATION_6_7,
+            RoomMigrations.MIGRATION_7_8,
         )
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()

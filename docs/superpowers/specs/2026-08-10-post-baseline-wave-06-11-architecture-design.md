@@ -35,13 +35,14 @@ matching policy update.
 
 ## 2026-08-20 Persistence Rebase
 
-The 2026-08-19 Discover semantic-feed redesign advanced Room from schema 6 to schema 7
-without changing the approved module graph or capability ownership in this design. Therefore
-future persistence numbering is rebased while the architecture decision remains unchanged:
+The 2026-08-19 Discover semantic-feed redesign advanced Room from schema 6 to schema 7,
+and the 2026-08-20 catalog metadata-lifecycle unification then advanced Room from schema 7 to
+schema 8. Neither change altered the approved module graph or capability ownership in this design.
+Future persistence numbering is therefore rebased while the architecture decision remains unchanged:
 
-- Wave 10 enters on Room schema 7.
-- The planned durable notification-delivery state in Wave 10 migrates `7 -> 8`.
-- Wave 11 treats schema 8 as stable unless a separately reviewed release-defect migration is required.
+- Wave 10 enters on Room schema 8.
+- The planned durable notification-delivery state in Wave 10 migrates `8 -> 9`.
+- Wave 11 treats schema 9 as stable unless a separately reviewed release-defect migration is required.
 
 This is a contiguous-schema rebase only; it does not reopen Waves 06-09 or add a new capability owner.
 

@@ -144,6 +144,15 @@ object RoomMigrations {
         }
     }
 
+    val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `artwork_plugin_version` TEXT")
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `artwork_resolved_at_epoch_millis` INTEGER")
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `full_plugin_version` TEXT")
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `full_resolved_at_epoch_millis` INTEGER")
+        }
+    }
+
     private fun createCanonicalChapters(db: SupportSQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE IF NOT EXISTS `canonical_chapters` (" +

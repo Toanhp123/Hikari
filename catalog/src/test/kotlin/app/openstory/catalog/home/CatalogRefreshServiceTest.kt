@@ -194,6 +194,9 @@ class CatalogRefreshServiceTest {
         override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
         override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
         override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+        override suspend fun metadataSnapshot(
+            key: app.openstory.catalog.metadata.CatalogMetadataKey,
+        ): app.openstory.catalog.metadata.CatalogMetadataSnapshot? = null
 
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
