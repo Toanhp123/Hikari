@@ -31,8 +31,20 @@ val packageMangaDexPlugin by tasks.registering(CanonicalPluginPackageTask::class
     )
 }
 
+val packageMangaUpdatesPlugin by tasks.registering(CanonicalPluginPackageTask::class) {
+    manifestFile.set(
+        layout.projectDirectory.file("../bundled-plugins/mangaupdates-catalog/manifest.json"),
+    )
+    mainScriptFile.set(
+        layout.projectDirectory.file("../bundled-plugins/mangaupdates-catalog/main.js"),
+    )
+    archiveFile.set(
+        layout.projectDirectory.file("src/main/assets/plugins/mangaupdates-catalog.osp"),
+    )
+}
+
 tasks.named("preBuild") {
-    dependsOn(packageMangaDexPlugin)
+    dependsOn(packageMangaDexPlugin, packageMangaUpdatesPlugin)
 }
 
 val myAnimeListClientId = providers.gradleProperty("openstory.malClientId")

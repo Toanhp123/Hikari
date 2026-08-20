@@ -104,7 +104,7 @@ class CatalogSearchService @Inject constructor(
         val source = story.sources.firstOrNull()
             ?: return CatalogSearchSelectionResult.Failure(EMPTY_SELECTION_CODE, retryable = false)
         return try {
-            details.load(source.pluginId, source.sourceId).toSelectionResult()
+            details.ensure(source.pluginId, source.sourceId).toSelectionResult()
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {

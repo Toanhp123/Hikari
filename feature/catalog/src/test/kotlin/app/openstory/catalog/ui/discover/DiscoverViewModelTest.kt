@@ -2,6 +2,7 @@ package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.home.CatalogRefreshService
+import app.openstory.catalog.details.CatalogDetailsService
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
@@ -113,6 +114,44 @@ class DiscoverViewModelTest {
         runCurrent()
 
         assertEquals(0, source.homeCalls)
+    }
+
+    @Test
+    fun cachedLatestWithoutArtworkHydratesDetailsAndUpdatesProjection() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(latestHome(coverUrl = null))
+        val source = FakeSource()
+        val viewModel = viewModel(repository, source)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertEquals(1, source.detailsCalls)
+        assertEquals("https://example.test/source-1.jpg", viewModel.state.value.latestUpdates.single().coverUrl)
+    }
+
+    @Test
+    fun cachedLatestWithArtworkDoesNotHydrateDetails() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(latestHome(coverUrl = "https://example.test/cached.jpg"))
+        val source = FakeSource()
+        val viewModel = viewModel(repository, source)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        assertEquals(0, source.detailsCalls)
+        assertEquals("https://example.test/cached.jpg", viewModel.state.value.latestUpdates.single().coverUrl)
+    }
+
+    @Test
+    fun latestArtworkHydrationIsBoundedToFiveEntries() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(latestHome(count = 6, coverUrl = null))
+        val source = FakeSource()
+        viewModel(repository, source)
+        runCurrent()
+
+        assertEquals(5, source.detailsCalls)
+        assertEquals(
+            listOf("source-1", "source-2", "source-3", "source-4", "source-5"),
+            source.detailSourceIds,
+        )
     }
 
     @Test
@@ -320,6 +359,7 @@ class DiscoverViewModelTest {
     private fun viewModel(repository: FakeRepository, source: FakeSource) = DiscoverViewModel(
         repository,
         CatalogRefreshService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
+        CatalogDetailsService(Registry(source), repository, StoryMatcher(), FakeClock(200L)),
         DiscoverProjectionPipeline(
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
         ),
@@ -335,6 +375,8 @@ private class FakeSource : CatalogSource {
     override val pluginId = PluginId("catalog.a")
     override val version = "1.0.0"
     var homeCalls = 0
+    var detailsCalls = 0
+    val detailSourceIds = mutableListOf<String>()
     var homeAction: suspend () -> CatalogSourceResult<List<SourceSection>> = {
         CatalogSourceResult.Success(emptyList())
     }
@@ -346,7 +388,27 @@ private class FakeSource : CatalogSource {
 
     override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> =
         error("unused")
-    override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> = error("unused")
+    override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> {
+        detailsCalls++
+        detailSourceIds += sourceId
+        return CatalogSourceResult.Success(
+            SourceDetails(
+                sourceId = sourceId,
+                sourceUrl = "https://example.test/$sourceId",
+                title = "Fixture Novel $sourceId",
+                aliases = emptySet(),
+                authors = setOf("Fixture Author"),
+                description = "Hydrated details",
+                genres = setOf("Fantasy"),
+                contentType = app.openstory.catalog.source.SourceContentType.MANGA,
+                languageTags = setOf("en"),
+                coverUrl = "https://example.test/$sourceId.jpg",
+                scoreValue = 8.4,
+                scoreScale = 10.0,
+                popularityRank = 1L,
+            ),
+        )
+    }
     override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
 }
 
@@ -384,7 +446,30 @@ private class FakeRepository(
     ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
-    ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+    ): Outcome<StoryId, CatalogStoreFailure> {
+        homes.value = homes.value.map { home ->
+            home.copy(
+                sections = home.sections.map { section ->
+                    section.copy(
+                        items = section.items.map { existing ->
+                            if (
+                                existing.pluginId == mutation.entry.pluginId &&
+                                existing.sourceId == mutation.entry.sourceId
+                            ) {
+                                mutation.entry.copy(
+                                    storyId = existing.storyId,
+                                    latestUpdate = mutation.entry.latestUpdate ?: existing.latestUpdate,
+                                )
+                            } else {
+                                existing
+                            }
+                        },
+                    )
+                },
+            )
+        }
+        return Outcome.Success(mutation.storyId)
+    }
 }
 
 private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot> {
@@ -410,6 +495,44 @@ private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot
                     title = "Trending",
                     items = listOf(entry),
                     kind = CatalogFeedKind.POPULAR,
+                ),
+            ),
+        ),
+    )
+}
+
+private fun latestHome(
+    pluginId: String = "catalog.a",
+    count: Int = 1,
+    coverUrl: String?,
+): List<CatalogHomeSnapshot> {
+    val pluginId = PluginId(pluginId)
+    val items = (1..count).map { index ->
+        CatalogEntry(
+            storyId = StoryId("story-$index"),
+            pluginId = pluginId,
+            sourceId = "source-$index",
+            title = "Fixture Novel $index",
+            authors = setOf("Fixture Author"),
+            contentType = ContentType.MANGA,
+            coverUrl = coverUrl,
+            latestUpdate = app.openstory.catalog.model.CatalogLatestUpdate(
+                atEpochMillis = 1_000L - index,
+                releaseLabel = index.toString(),
+            ),
+        )
+    }
+    return listOf(
+        CatalogHomeSnapshot(
+            pluginId = pluginId,
+            pluginVersion = "1.0.0",
+            refreshedAtEpochMillis = 100L,
+            sections = listOf(
+                CatalogHomeSection(
+                    sourceId = "latest",
+                    title = "Latest",
+                    items = items,
+                    kind = CatalogFeedKind.LATEST_UPDATES,
                 ),
             ),
         ),

@@ -91,7 +91,12 @@ fun DiscoverPopularPager(
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(MaterialTheme.hikariSpacing.space12)
+                    .padding(
+                        start = MaterialTheme.hikariSpacing.space12,
+                        top = MaterialTheme.hikariSpacing.space12,
+                        end = MaterialTheme.hikariSpacing.space16,
+                        bottom = MaterialTheme.hikariSpacing.space12,
+                    )
                     .testTag("discover-popular-page-indicator"),
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
             ) {

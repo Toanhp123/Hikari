@@ -9,6 +9,7 @@ internal fun PluginId.catalogDisplayName(): String {
     return when {
         "mangadex" in normalized -> "MangaDex"
         "myanimelist" in normalized || "mal" in normalized -> "MyAnimeList"
+        "mangaupdates" in normalized -> "MangaUpdates"
         segments.size == 2 && segments.first().equals("catalog", ignoreCase = true) -> "Catalog ${key.uppercase()}"
         else -> key
             .split('-', '_')

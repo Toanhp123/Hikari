@@ -72,13 +72,39 @@ class StoryViewModelTest {
     }
 
     @Test
-    fun cachedStoryRendersWithoutSourceRefresh() = runTest(dispatcher.scheduler) {
-        val repository = StoryRepository(fixtureSnapshot())
+    fun cachedSummaryStoryRendersImmediatelyThenHydratesDetails() = runTest(dispatcher.scheduler) {
+        val repository = StoryRepository(
+            fixtureSnapshot().copy(
+                entries = fixtureSnapshot().entries.map { entry ->
+                    entry.copy(sourceUrl = null, description = null)
+                },
+            ),
+        )
         val source = DetailsSource("catalog.a")
         val viewModel = viewModel(repository, source)
         runCurrent()
 
         assertEquals("Fixture Novel", viewModel.state.value.story?.preferredTitle)
+        assertEquals(1, source.detailsCalls)
+        assertEquals("Fixture description", viewModel.state.value.story?.description)
+    }
+
+    @Test
+    fun cachedDetailedStoryDoesNotRefetchOnEntry() = runTest(dispatcher.scheduler) {
+        val snapshot = fixtureSnapshot().copy(
+            entries = fixtureSnapshot().entries.map { entry ->
+                entry.copy(
+                    sourceUrl = "https://example.test/${entry.sourceId}",
+                    description = "Already hydrated",
+                )
+            },
+        )
+        val repository = StoryRepository(snapshot)
+        val source = DetailsSource("catalog.a")
+        val viewModel = viewModel(repository, source)
+        runCurrent()
+
+        assertEquals("Already hydrated", viewModel.state.value.story?.description)
         assertEquals(0, source.detailsCalls)
     }
 
@@ -367,6 +393,7 @@ private fun fixtureEntry(
     sourceId = sourceId,
     title = title,
     authors = setOf("Fixture Author"),
+    sourceUrl = "https://example.test/$sourceId",
     contentType = ContentType.WEB_NOVEL,
 )
 

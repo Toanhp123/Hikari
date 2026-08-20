@@ -153,6 +153,30 @@ class DiscoverSemanticsTest {
     }
 
     @Test
+    fun popularPagerIndicatorKeepsSixteenDpEndInset() {
+        var density = 1f
+        compose.setContent {
+            density = LocalDensity.current.density
+            HikariTheme {
+                DiscoverPopularPager(
+                    stories = listOf(story(1), story(2)),
+                    selectedContentType = ContentType.MANGA,
+                    onSelected = {},
+                )
+            }
+        }
+
+        compose.waitForIdle()
+        val pager = compose.onNodeWithTag("discover-popular-pager")
+            .fetchSemanticsNode().boundsInRoot
+        val indicator = compose.onNodeWithTag("discover-popular-page-indicator")
+            .fetchSemanticsNode().boundsInRoot
+        val endInset = pager.right - indicator.right
+
+        assertTrue(kotlin.math.abs(endInset - (16f * density)) <= 1.5f)
+    }
+
+    @Test
     fun singlePopularStoryDoesNotRenderPageDots() {
         compose.setContent {
             HikariTheme {

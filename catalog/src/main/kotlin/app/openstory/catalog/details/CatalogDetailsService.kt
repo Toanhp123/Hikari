@@ -40,6 +40,19 @@ class CatalogDetailsService @Inject constructor(
     private val matcher: StoryMatcher,
     private val clock: Clock,
 ) {
+    suspend fun ensure(pluginId: PluginId, sourceId: String): CatalogDetailsResult =
+        load(pluginId, sourceId)
+
+    suspend fun ensure(entry: CatalogEntry): CatalogDetailsResult =
+        if (entry.hasLoadedDetails()) {
+            CatalogDetailsResult.Success(
+                Story(entry.storyId, entry.contentType),
+                entry,
+            )
+        } else {
+            load(entry.pluginId, entry.sourceId)
+        }
+
     suspend fun load(pluginId: PluginId, sourceId: String): CatalogDetailsResult =
         when (val lookup = lookupSource(pluginId)) {
             is SourceLookup.Failure -> CatalogDetailsResult.Failure(lookup.failure)
@@ -167,6 +180,12 @@ class CatalogDetailsService @Inject constructor(
         const val STORE_EXCEPTION_CODE = "catalog.store.exception"
     }
 }
+
+private fun CatalogEntry.hasLoadedDetails(): Boolean =
+    !sourceUrl.isNullOrBlank() ||
+        !description.isNullOrBlank() ||
+        aliases.isNotEmpty() ||
+        languageTags.isNotEmpty()
 
 private fun SourceDetails.toCandidate(pluginId: PluginId) = CatalogMatchCandidate(
     Story(

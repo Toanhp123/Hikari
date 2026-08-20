@@ -2,8 +2,11 @@ package app.openstory.catalog.ui.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.openstory.catalog.details.CatalogDetailsService
 import app.openstory.catalog.home.CatalogRefreshResult
 import app.openstory.catalog.home.CatalogRefreshService
+import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.repository.CatalogRepository
@@ -27,6 +30,7 @@ import kotlinx.coroutines.launch
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
     refreshService: CatalogRefreshService,
+    private val details: CatalogDetailsService,
     projection: DiscoverProjectionPipeline,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
@@ -56,6 +60,7 @@ class DiscoverViewModel @Inject constructor(
     private val initialLoading = MutableStateFlow(true)
     private val refreshing = MutableStateFlow(false)
     private val refreshReport = MutableStateFlow<DiscoverRefreshReport?>(null)
+    private val latestHydrationInFlight = mutableSetOf<Pair<PluginId, String>>()
     private var bootstrapAttempted = false
 
     init {
@@ -96,6 +101,8 @@ class DiscoverViewModel @Inject constructor(
             val cachedHomes = dependencies.homes.first()
             if (cachedHomes.isEmpty() && observationFailure.value == null) {
                 performRefresh()
+            } else if (cachedHomes.isNotEmpty()) {
+                scheduleLatestArtworkHydration(cachedHomes)
             }
             initialLoading.value = false
         }
@@ -111,6 +118,7 @@ class DiscoverViewModel @Inject constructor(
         try {
             refreshReport.value = dependencies.refresh()
             refreshFailure.value = null
+            scheduleLatestArtworkHydration(dependencies.homes.first())
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -123,6 +131,43 @@ class DiscoverViewModel @Inject constructor(
     fun selectContentType(contentType: ContentType) {
         if (contentType != ContentType.MANGA) return
         selectedContentType.value = contentType
+    }
+
+    private fun scheduleLatestArtworkHydration(homes: List<CatalogHomeSnapshot>) {
+        val storyIdsWithArtwork = homes
+            .asSequence()
+            .flatMap { home -> home.sections.asSequence() }
+            .flatMap { section -> section.items.asSequence() }
+            .filter { entry -> !entry.coverUrl.isNullOrBlank() }
+            .map(CatalogEntry::storyId)
+            .toSet()
+        val candidates = homes
+            .asSequence()
+            .flatMap { home -> home.sections.asSequence() }
+            .filter { section -> section.kind == CatalogFeedKind.LATEST_UPDATES }
+            .flatMap { section -> section.items.asSequence() }
+            .filter { entry -> entry.storyId !in storyIdsWithArtwork }
+            .distinctBy { entry -> entry.pluginId to entry.sourceId }
+            .filter { entry -> (entry.pluginId to entry.sourceId) !in latestHydrationInFlight }
+            .take(MAX_LATEST_ARTWORK_HYDRATIONS)
+            .toList()
+        if (candidates.isEmpty()) return
+        candidates.forEach { entry -> latestHydrationInFlight += entry.pluginId to entry.sourceId }
+
+        viewModelScope.launch {
+            candidates.forEach { entry ->
+                val key = entry.pluginId to entry.sourceId
+                try {
+                    details.ensure(entry)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (_: Exception) {
+                    // Home enrichment is best-effort; refresh failures remain source-scoped above.
+                } finally {
+                    latestHydrationInFlight -= key
+                }
+            }
+        }
     }
 
     private data class DiscoverDependencies(
@@ -153,6 +198,7 @@ class DiscoverViewModel @Inject constructor(
         const val HOME_OBSERVE_EXCEPTION_CODE = "catalog.home.observe_exception"
         const val RANKING_OBSERVE_EXCEPTION_CODE = "catalog.home.ranking_exception"
         const val REFRESH_EXCEPTION_CODE = "catalog.home.refresh_exception"
+        const val MAX_LATEST_ARTWORK_HYDRATIONS = 5
     }
 }
 

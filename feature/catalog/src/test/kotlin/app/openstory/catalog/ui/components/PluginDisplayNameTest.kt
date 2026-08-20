@@ -9,6 +9,7 @@ class PluginDisplayNameTest {
     fun knownProviderNameIsStableAcrossCatalogAndContentPluginIds() {
         assertEquals("MangaDex", PluginId("org.openstory.catalog.mangadex").catalogDisplayName())
         assertEquals("MangaDex", PluginId("org.openstory.content.mangadex").catalogDisplayName())
+        assertEquals("MangaUpdates", PluginId("org.openstory.catalog.mangaupdates").catalogDisplayName())
     }
 
     @Test

@@ -84,6 +84,27 @@ class StoryViewModel @AssistedInject constructor(
         initialValue = StoryUiState(storyId),
     )
 
+    init {
+        hydrateInitialSummary()
+    }
+
+    private fun hydrateInitialSummary() {
+        viewModelScope.launch {
+            try {
+                val snapshot = repository.observeStory(storyId).first() ?: return@launch
+                val source = snapshot.entries.orEmpty()
+                    .sortedWith(sourceOrder)
+                    .selectedEntry(selectedSource.value)
+                    ?: return@launch
+                details.ensure(source)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // Initial hydration is best-effort. Explicit refresh remains the surfaced retry path.
+            }
+        }
+    }
+
     fun selectSource(pluginId: PluginId, sourceId: String) {
         selectedSource.value = StorySourceIdentity(pluginId, sourceId)
         failure.value = null

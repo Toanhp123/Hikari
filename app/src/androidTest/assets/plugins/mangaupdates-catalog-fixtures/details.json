@@ -1,0 +1,30 @@
+{
+  "series_id": 64897697818,
+  "title": "One Piece",
+  "url": "https://www.mangaupdates.com/series/ttaew4a/one-piece",
+  "description": "The story follows Monkey D. Luffy and his crew in search of the legendary treasure One Piece.",
+  "type": "Manga",
+  "year": "1997",
+  "bayesian_rating": 8.72,
+  "rating_votes": 16000,
+  "status": "Ongoing",
+  "completed": false,
+  "image": {
+    "url": {
+      "thumb": "https://cdn.mangaupdates.com/image/i999999.jpg",
+      "original": "https://cdn.mangaupdates.com/image/i999999.jpg"
+    }
+  },
+  "authors": [
+    {"name": "Oda Eiichiro", "type": "Author"}
+  ],
+  "genres": [
+    {"genre": "Action"},
+    {"genre": "Adventure"},
+    {"genre": "Comedy"}
+  ],
+  "associated": [
+    {"title": "ONE PIECE"},
+    {"title": "ワンピース"}
+  ]
+}
