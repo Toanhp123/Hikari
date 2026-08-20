@@ -3,6 +3,22 @@
 Date: 2026-08-12
 Status: APPROVED FOR IMPLEMENTATION
 
+
+## 2026-08-20 Status and Discover Supersession
+
+The Product UI checkpoint described by this spec is **implemented and accepted**. This file
+remains the broader visual/presentation baseline for the application shell, Home, Library,
+Story, Reader, utilities, responsive behavior, artwork, glass, and accessibility.
+
+The Discover-specific source/category composition in this 2026-08-12 design is superseded
+by `2026-08-19-discover-semantic-feed-redesign-design.md`. Current Discover is semantic:
+`Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`. Provider/category selectors,
+quick-category cards, and provider-named primary shelves are not current Discover requirements.
+
+Acceptance evidence for the broader Product UI remains
+`../../internal/checkpoints/product-ui-redesign.md`; Discover follow-up evidence is
+`../../internal/checkpoints/discover-semantic-feed-redesign.md`.
+
 ## Goal
 
 Redesign Hikari from a sparse functional catalog shell into a complete multi-source story

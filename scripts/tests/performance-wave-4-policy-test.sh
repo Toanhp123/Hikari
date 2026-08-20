@@ -27,14 +27,20 @@ fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
 [[ -f "$profile_test" ]] || fail "Baseline Profile generator is missing"
 [[ -f "$backdrop_mode" ]] || fail "benchmark backdrop mode owner is missing"
 
-# Discover must have one repository home observation and derive ranking/projection from that same emission.
+# Discover must have one repository home observation and derive semantic projection from that same emission.
 [[ $(grep -o 'repository\.observeHomes()' "$discover_vm" | wc -l) -eq 1 ]] ||
   fail "DiscoverViewModel must own exactly one repository.observeHomes() source"
 [[ -f "$discover_pipeline" ]] || fail "Discover projection pipeline is missing"
 grep -q 'map(projection::prepare)' "$discover_vm" ||
   fail "Discover homes are not projected through one prepared-content flow"
-grep -q 'query.rank(homes)' "$discover_pipeline" || fail "Discover ranking is not derived from the shared homes emission"
-grep -q 'projectDiscoverState' "$discover_pipeline" || fail "Discover ranking and UI projection do not share one main-safe pipeline"
+grep -q 'DiscoverPreparedContent(homes = homes)' "$discover_pipeline" ||
+  fail "Discover prepared content does not retain the shared homes emission"
+grep -q 'projectSemanticDiscoverState' "$discover_pipeline" ||
+  fail "Discover semantic projection is not computed inside the prepared-content pipeline"
+grep -q 'homes = content.homes' "$discover_pipeline" ||
+  fail "Discover semantic projection is not derived from the prepared homes emission"
+! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
+  fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
 ! grep -q 'rankedStories = homes' "$discover_vm" || fail "Discover still owns a second homes-derived ranking flow"
 ! grep -q 'val rankedStories: Flow' "$home_query" || fail "CatalogHomeQuery still owns a second cold repository observation"
 grep -q 'fun rank(homes: List<CatalogHomeSnapshot>)' "$home_query" || fail "CatalogHomeQuery is not a pure ranking projector"

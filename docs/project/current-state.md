@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-18
+Date: 2026-08-20
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -16,17 +16,22 @@ Purpose: single source of truth for the implemented repository boundary.
 - Wave 08 Tasks 01-06: **VERIFIED**; Wave 08 is complete.
 - Wave 09 Tasks 01-06: **VERIFIED**; Wave 09 is complete.
 - Design System Foundation: **ACCEPTED** on 2026-08-12.
-- ReDantotsu-inspired Product UI redesign: **IN PROGRESS**; Tasks 1-3 are **VERIFIED**.
-  Task 3 adds shared artwork state, one Coil request/cache identity for cover and backdrop,
-  deterministic stable fallbacks, and Roborazzi geometry coverage. Task 4 shared glass,
-  responsive, and content primitives is next before Wave 10 capability work.
+- ReDantotsu-inspired Product UI redesign: **ACCEPTED**. The responsive shell, artwork/glass system,
+  Discover/Home/Library top-level model, Story/Reader presentation, utility routes, and Roborazzi
+  baselines are established; its historical execution plan is no longer the active next-work entry point.
+- Discover semantic-feed redesign: **IMPLEMENTED AND VERIFIED**. The current Discover surface is
+  `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`, backed by explicit semantic feed
+  metadata, canonical `StoryId` deduplication, source-agnostic projection state, and Room schema 7.
+  Manga is enabled/selected; Light Novel remains visible but disabled for this delivery.
+- Wave 10: **READY TO START; NOT IMPLEMENTED**. It enters on Room schema 7; the planned durable
+  notification-delivery persistence is rebased to migration 7 -> 8.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
-- Performance Wave 4: **IMPLEMENTED; LOCAL STATIC VERIFIED; GRADLE/DEVICE VERIFICATION PENDING**. Discover now shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling.
-- Performance Wave P5: **IMPLEMENTED; STATIC VERIFIED; DEVICE A/B MEASUREMENT PENDING**. Top-level navigation avoids full-scene transitions, Story section data is deferred-then-prewarmed, Discover ranking/projection runs as one injected-Default-dispatcher pipeline, Reader progress is scroll-session sampled, and benchmark-only backdrop/shadow switches isolate remaining draw cost.
+- Performance Wave 4: **IMPLEMENTED AND RETAINED**. Discover shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling. The semantic Discover redesign preserves the single-emission projection contract.
+- Performance Wave P5: **IMPLEMENTED AND RETAINED**. Top-level navigation avoids full-scene transitions, Story section data is deferred-then-prewarmed, Discover semantic projection runs on the injected Default-dispatcher boundary, Reader progress is scroll-session sampled, and benchmark-only backdrop/shadow switches remain available for isolation.
 - Performance Wave P6: **PROMOTED TO PRODUCTION**. Device A/B confirmed that retaining visited top-level compositions with active-only measurement removes the repeatable ~90 ms Home/Discover rebuild spike: P6.1 reduced CPU P90 by about 68%, median maximum frame by about 59%, and median summed frame CPU by about 12.5% versus the same-build control, with no material RSS regression. Production now retains only visited top-level compositions and measures/places only the active route.
 
 ## Independent version spaces
@@ -34,7 +39,7 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 6 current; schemas 1-5 remain frozen historical exports |
+| Room database | schema 7 current; schemas 1-6 remain frozen historical exports |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -47,9 +52,9 @@ These versions are independent. A change in one does not imply a change in anoth
 |---|---|
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
-| `:core:designsystem` | Domain-neutral theme, shared UX states, Product UI artwork state/fallback primitives, and the screenshot rendering dependency boundary; glass/adaptive/content primitives arrive in later Product UI tasks |
+| `:core:designsystem` | Domain-neutral theme/tokens, artwork and glass primitives, adaptive layout/content chrome, pull-to-refresh, shared actions/states, equal-width segmented control, static skeleton, and screenshot rendering boundary |
 | `:catalog` | Story/catalog models, repository/source contracts, matching, ranking, refresh/search/details |
-| `:feature:catalog` | Home, Search, Story, Library, and mapping-review Compose presentation and UI state |
+| `:feature:catalog` | Discover, Home, Search, Story, Library, mapping-review, chapter-list, downloads/updates presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
@@ -82,16 +87,21 @@ runtime persistence SPI.
   provider load reporting remains a release-hardening follow-up before the MangaDex image path is
   considered provider-complete.
 - Catalog Home, Search, and Story details are source-preserving, cache-first, and exposed
-  through catalog-owned repository/services.
-- Matching and aggregate ranking are deterministic and preserve source scores/scales.
-- Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
+  through catalog-owned repository/services. Home sections now carry explicit `CatalogFeedKind`
+  (`POPULAR`, `LATEST_UPDATES`, `TOP_RATED`, `OTHER`), while entries may carry normalized
+  publication status and coherent source-reported latest-update metadata.
+- Matching and aggregate ranking remain deterministic and preserve source scores/scales. Discover
+  deduplicates semantic feeds by canonical `StoryId` before Compose and never infers feed meaning
+  from section titles or provider IDs.
+- Discover, Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
-  operation failures.
-- Room schema 6 is current. It retains the Baseline-2 catalog/runtime state, metadata-only
+  operation failures. Discover uses one outer `LazyColumn`; Popular is a manual pager (max 5),
+  Latest Updates is a bounded 3-column grid (max 9), and Top Rated is a ranked list (max 5).
+- Room schema 7 is current. It retains the Baseline-2 catalog/runtime state, metadata-only
   Library membership, protected content mappings, chapter graphs, aggregation overrides,
-  synchronization state, canonical plus exact-release reading progress, and Wave 09
-  cache/download metadata. Schemas 1-5 remain historical exports and schema 1 remains
-  byte-frozen. Room entities/DAOs stay private to `:storage:room`.
+  synchronization state, canonical plus exact-release reading progress, Wave 09 cache/download
+  metadata, and Discover semantic feed/status/latest-update fields. Schemas 1-6 remain historical
+  exports and schema 1 remains byte-frozen. Room entities/DAOs stay private to `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
   does not roll back the committed membership.
@@ -135,21 +145,19 @@ offline-first Reader resolution, bulk controls, low-space admission, and race-sa
 reconciliation. Periodic background sync, authentication, notifications, and release
 hardening remain outside the implemented boundary.
 
-The accepted Design System Foundation adds `:core:designsystem` without changing Room or
-capability ownership. The approved Product UI redesign is now the active between-wave
-presentation checkpoint. Task 1 verified the rendering/screenshot toolchain (Coil 3.5.0,
-Backdrop 2.0.0, Roborazzi 1.70.0, Robolectric 4.16.1) plus strict dependency metadata.
-Task 2 now verifies a production-code-independent, query-driven Edge-headless renderer that
-produces 34 deterministic 2x PNG targets across compact, large-phone, medium, UX-state,
-dark, and light matrices, plus ZIP packaging. The renderer uses a fixed target canvas
-rather than assuming Edge's `window.innerWidth`/`window.innerHeight` exactly match
-`--window-size`, and the pack gate rejects uniform/blank captures. Task 3 now verifies shared
-artwork state/fallback primitives in `:core:designsystem`: cover and backdrop reuse one remembered
-Coil request/cache identity, stable keys produce deterministic SHA-256 palette fallbacks, and
-Roborazzi covers loaded/loading/fallback geometry. The screenshot suite is pinned to Robolectric
-SDK 35 because the pinned Robolectric 4.16.1 cannot select the app's target SDK 37. Task 4 shared
-glass, responsive, and content primitives is the next boundary. Wave 10 capability work has not
-started.
+The accepted Design System Foundation and Product UI checkpoint add the current artwork/glass,
+responsive shell, shared content/action/state primitives, and screenshot baseline without changing
+capability ownership. The Product UI checkpoint is complete; its 2026-08-12 plan is retained as an
+implementation record. The screenshot suite remains pinned to Robolectric SDK 35 because the pinned
+Robolectric 4.16.1 cannot select target SDK 37.
+
+The 2026-08-19 Discover semantic-feed follow-up is also complete. It extends the generic catalog
+wire/source/domain contract, carries semantic metadata through Home/details ingestion, migrates Room
+6 -> 7 with sparse rich-metadata preservation, projects cached semantic feeds on the shared Default
+dispatcher, and replaces source/category controls with the current semantic UI. The shared design
+system now includes `HikariSegmentedControl` and static `HikariSkeleton` primitives. Search, Story
+navigation, pull-to-refresh, retained top-level composition, artwork/backdrop ownership, and the
+14-module graph remain unchanged. Wave 10 capability work has not started.
 
 ## Architecture Baseline 2 status
 
@@ -225,8 +233,20 @@ schema exports. Evidence is recorded in
 `./scripts/verify-fast.sh` for development feedback while `./scripts/verify.sh` remains the
 full acceptance gate; both preserve strict dependency verification.
 
+The Discover semantic-feed checkpoint then passed focused plugin/catalog/Room contract tests,
+Room migration/repository instrumentation (10/10), semantic projection/ViewModel/design-system
+suites, Discover Compose instrumentation (2/2), app launch/navigation instrumentation (14/14),
+Roborazzi compare/record/verify, and a 5-iteration `discoverScroll` Macrobenchmark on Redmi Note 9S
+(API 35 test environment). The benchmark snapshot recorded frame CPU P50 11.08 ms, P90 13.08 ms,
+P95 13.57 ms, and P99 18.41 ms under `run-from-apk` compilation. The full repository verifier was
+updated only where stale policy/schema assumptions still encoded the pre-redesign architecture;
+Detekt blockers introduced by the new segmented/skeleton code were fixed without suppressions.
+Acceptance details are in `../internal/checkpoints/discover-semantic-feed-redesign.md`.
+
 Evidence:
 
+- `../internal/checkpoints/discover-semantic-feed-redesign.md`
+- `../internal/checkpoints/product-ui-redesign.md`
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
 - `../internal/checkpoints/wave-06-task-03-content-story-matching.md`

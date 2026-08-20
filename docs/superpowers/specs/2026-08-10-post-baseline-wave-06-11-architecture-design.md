@@ -32,6 +32,19 @@ The UI foundation is an approved dedicated between-wave decision. No other
 production module is introduced without a dedicated architecture decision and
 matching policy update.
 
+
+## 2026-08-20 Persistence Rebase
+
+The 2026-08-19 Discover semantic-feed redesign advanced Room from schema 6 to schema 7
+without changing the approved module graph or capability ownership in this design. Therefore
+future persistence numbering is rebased while the architecture decision remains unchanged:
+
+- Wave 10 enters on Room schema 7.
+- The planned durable notification-delivery state in Wave 10 migrates `7 -> 8`.
+- Wave 11 treats schema 8 as stable unless a separately reviewed release-defect migration is required.
+
+This is a contiguous-schema rebase only; it does not reopen Waves 06-09 or add a new capability owner.
+
 ## Ownership
 
 ### `:catalog`

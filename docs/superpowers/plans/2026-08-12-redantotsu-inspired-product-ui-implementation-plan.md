@@ -1,5 +1,15 @@
 # Hikari ReDantotsu-Inspired Product UI Implementation Plan
 
+Status: **COMPLETED — implementation record**
+Acceptance: `docs/internal/checkpoints/product-ui-redesign.md`
+
+> This plan is retained for audit and implementation history. It is not the current execution
+> entry point. Discover-specific steps are superseded by the completed 2026-08-19 Discover
+> semantic-feed plan; current next work is owned by `docs/implementation/current-roadmap.md`.
+> References in this plan to Room schemas 1-6 describe the checkpoint-time baseline, not the
+> current database version.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace Hikari's sparse presentation with an artwork-first Discover/Home/Library product, rich Story and Reader flows, responsive target-pack assets, and roadmap-safe utility navigation inspired by ReDantotsu.

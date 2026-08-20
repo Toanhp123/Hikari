@@ -4,6 +4,17 @@ Hikari is the Android application repository for the OpenStory local-first
 novel library. The Android package namespace and application ID are
 `app.openstory`.
 
+## Current repository status
+
+The accepted Product UI and Discover semantic-feed redesigns are implemented. Discover is
+source-agnostic at the presentation boundary and renders `Popular`, a full-width
+`Manga | Light Novel` selector, `Latest Updates`, and `Top Rated` from cached semantic Home
+feeds. Room schema **7** is current; schemas 1-6 remain historical exports. The production
+capability graph remains at 14 modules, and Wave 10 is the next planned capability wave.
+
+See `docs/project/current-state.md` for the exact boundary and
+`docs/implementation/current-roadmap.md` for what comes next.
+
 ## Requirements
 
 - JDK 17
@@ -147,7 +158,7 @@ On Windows PowerShell:
 - `:downloads` — offline/cache state, quotas, integrity, and content-resolution policy
 - `:storage:room` — Room schema, migrations, and durable capability persistence
 - `:storage:files` — atomic app-private chapter blob storage
-- `:feature:catalog` — Home, Search, and Story presentation
+- `:feature:catalog` — Discover, Home, Search, Story, Library, mapping, and chapter-list presentation
 - `:feature:reader` — accessible structured-text Reader presentation
 
 The direct project dependency policy is stored in:

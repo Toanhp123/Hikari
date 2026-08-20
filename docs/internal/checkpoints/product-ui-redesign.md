@@ -97,3 +97,15 @@ Status: **IMPLEMENTED; FINAL VISUAL RE-RECORD PENDING**
 
 The product UI redesign checkpoint is accepted. The current product graph is ready to
 continue without claiming Wave 10 Settings or Wave 11 Plugin management as implemented.
+
+## Superseding Discover Follow-up — 2026-08-20
+
+This checkpoint remains accepted evidence for the broader Product UI shell and presentation
+baseline. Its Discover-specific source/category composition is no longer the current product
+contract. The accepted 2026-08-19 semantic-feed redesign supersedes only that Discover slice,
+advances Room from schema 6 to schema 7, and is recorded separately in
+`discover-semantic-feed-redesign.md`.
+
+Do not reinterpret the original screenshots or Task-16 evidence as requiring catalog selectors,
+quick-category cards, provider-named primary shelves, or the old single-featured-story composition
+in current Discover.

@@ -58,12 +58,12 @@ fun DiscoverLoadingContent(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap)) {
-                repeat(3) {
+                repeat(LATEST_SKELETON_ROWS) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
                     ) {
-                        repeat(3) {
+                        repeat(LATEST_SKELETON_COLUMNS) {
                             Column(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
@@ -91,7 +91,7 @@ fun DiscoverLoadingContent(
                     }
                 }
             }
-            repeat(5) {
+            repeat(TOP_RATED_SKELETON_ROWS) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
@@ -131,3 +131,7 @@ fun DiscoverLoadingContent(
         }
     }
 }
+
+private const val LATEST_SKELETON_ROWS = 3
+private const val LATEST_SKELETON_COLUMNS = 3
+private const val TOP_RATED_SKELETON_ROWS = 5

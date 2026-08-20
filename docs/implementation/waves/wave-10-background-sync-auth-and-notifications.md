@@ -10,12 +10,12 @@
 
 ## Global Constraints
 
-- Entry module graph: Wave 09 verified exit graph plus the approved `:core:designsystem` UI-foundation boundary.
+- Entry module graph: current 14-module graph = Wave 09 verified exit graph plus the approved `:core:designsystem` UI-foundation boundary; Product UI and Discover follow-ups add no production module.
 - Exit module graph: entry graph plus `:settings` and `:feature:settings`.
 - Introduces `:settings` and `:feature:settings` in Task 1.
-- Consumes from Wave 09: mapping/chapter/download commands, reconciliation, Reader preferences port, and quota state.
+- Consumes from Wave 09: mapping/chapter/download commands, reconciliation, Reader preferences port, and quota state. It also preserves the accepted Product UI/Discover presentation boundary and schema-7 semantic catalog metadata without taking ownership of them.
 - Produces for Wave 11: typed settings, schedulers, session controls, notification evidence, and release-ready platform behavior.
-- Room schema 6 enters; schema 7 stores durable notification delivery state.
+- Room schema 7 enters; schema 8 stores durable notification delivery state.
 - Android background work is local, unique, bounded, battery-aware, and idempotent.
 - No cloud service, push backend, unrestricted WebView, or plaintext credentials.
 - Wave 10 Settings enters through the avatar utility sheet and never top-level navigation.
@@ -100,7 +100,7 @@
 - Create: `app/src/main/kotlin/app/openstory/notification/AndroidChapterNotifier.kt`, `NotificationChannels.kt`
 - Test: `app/src/test/kotlin/app/openstory/notification/AndroidChapterNotifierTest.kt`
 
-- [ ] Write RED tests distinguishing new canonical chapters from added releases, preferred-language rules, duplicate suppression, permission denial, deep links, and schema `6 -> 7`.
+- [ ] Write RED tests distinguishing new canonical chapters from added releases, preferred-language rules, duplicate suppression, permission denial, deep links, and schema `7 -> 8`.
 - [ ] Implement pure classification in Chapters, atomic delivery state in Room, and platform notification delivery in app.
 - [ ] Run `./gradlew :chapters:test :storage:room:connectedDebugAndroidTest :app:testDebugUnitTest --stacktrace` and `./scripts/verify-room-schema-stability.sh`.
 - [ ] Commit `chapters: classify local update notifications`.
@@ -123,7 +123,7 @@
 
 ## Wave Checkpoint
 
-- [ ] Exact exit graph and schema 7 pass.
+- [ ] Exact exit graph and schema 8 pass.
 - [ ] All workers are unique/idempotent and delegate to capability engines.
 - [ ] Sessions remain plugin/host scoped and encrypted.
 - [ ] Notifications distinguish chapters from additional releases and deduplicate durably.

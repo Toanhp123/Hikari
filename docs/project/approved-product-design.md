@@ -1,10 +1,40 @@
 <!--
 CANONICAL PRODUCT BASELINE
 Source: approved planning package dated 2026-08-03.
-The text below is preserved verbatim. Repository-specific remediation and current
-implementation status are documented separately and do not silently rewrite this
-approved product scope.
+The original 2026-08-03 baseline section below the current-amendments block is preserved
+verbatim. Scoped amendments are explicit and dated; repository implementation status is
+documented separately and does not silently rewrite unrelated product scope.
 -->
+
+# Current Accepted Amendments
+
+## 2026-08-19 — Discover semantic-feed presentation
+
+The original 2026-08-03 baseline below is retained for domain/product provenance. The
+following scoped amendment is now authoritative for the **primary Discover surface** and
+supersedes older source/category-driven Discover presentation requirements:
+
+- Discover is source-agnostic at the user-facing composition boundary. Catalog/provider
+  identity remains preserved in data and source-preserving flows, but it is not the primary
+  Discover navigation model.
+- The visible order is `Search -> Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.
+- Popular is a manual full-width hero pager capped at 5 stories. Latest Updates is capped at
+  9 stories in a 3-column scan grid. Top Rated is capped at 5 ranked rows.
+- Feed identity is explicit (`POPULAR`, `LATEST_UPDATES`, `TOP_RATED`, `OTHER`) and is never
+  inferred from provider IDs or section titles. Canonical `StoryId` deduplication occurs before
+  Compose.
+- `MANGA` is currently enabled/selected; `LIGHT_NOVEL` remains visible but disabled for this
+  delivery. This presentation amendment does **not** silently rewrite unrelated reader, plugin,
+  Library, or release-scope decisions in the 2026-08-03 baseline. Any broader scope change must
+  be approved separately.
+- Separate per-catalog pages are no longer required as part of the current primary Discover
+  composition. A future optional source/catalog filter may be designed separately without
+  making provider identity the default information hierarchy.
+
+Normative details: `../superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md`.
+Acceptance evidence: `../internal/checkpoints/discover-semantic-feed-redesign.md`.
+
+---
 
 # Android Unified Novel Library Design
 

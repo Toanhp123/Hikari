@@ -1,0 +1,16 @@
+--- a/scripts/tests/architecture-baseline-2-state-test.sh
++++ b/scripts/tests/architecture-baseline-2-state-test.sh
+@@ -9,11 +9,11 @@
+ grep -q 'Wave 07 Tasks 01-06: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-state.md"
+ grep -q 'Wave 08 Tasks 01-06: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-state.md"
+ grep -q 'Wave 09 Tasks 01-06: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-state.md"
+-grep -q 'schema 6 current' "$ROOT_DIR/docs/project/current-state.md"
++grep -q 'schema 7 current' "$ROOT_DIR/docs/project/current-state.md"
+ grep -q 'Architecture Baseline 2' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+ grep -q 'Completed; Tasks 01-06 verified' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+ grep -q 'Completed; Tasks 01-06 and checkpoint verified' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+-grep -q 'Use the verified Wave 09 checkpoint' "$ROOT_DIR/docs/implementation/current-roadmap.md"
++grep -q 'accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline' "$ROOT_DIR/docs/implementation/current-roadmap.md"
+ grep -q 'Status: ACCEPTED' "$ROOT_DIR/docs/internal/checkpoints/architecture-baseline-2.md"
+ grep -q 'Status: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/internal/checkpoints/wave-06-task-01-metadata-only-library.md"
+ grep -q 'Status: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/internal/checkpoints/wave-06-task-02-library-presentation.md"

@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-13
+Date: 2026-08-20
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -12,26 +12,29 @@ acceptance remain separate states.
 - **Implementation present**: production code and tests exist for the boundary.
 - **Verification open**: required checkpoint evidence is missing or still `NOT RUN`.
 - **In progress**: some deliverables exist and some remain.
+- **Completed/accepted**: implementation and required checkpoint evidence for that boundary are closed.
 - **Ready to start**: entry checkpoint is accepted, but the next wave has no
   implementation yet.
 - **Planned**: approved work has not started in this repository.
 
 ## Current position
 
-Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The
-between-wave Design System Foundation is accepted, preserving the 14-module graph and Room
-schemas 1 through 6. Product UI Tasks 1-15 are implemented and verified; the active boundary is now
-**Task 16: product UI checkpoint and deep review**. Wave 10 capability work has not started.
-Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility with superseded
-development architecture.
+Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
+Design System Foundation and the full Product UI checkpoint are accepted, preserving the 14-module
+production graph. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
+it advances Room from schema 6 to **schema 7** without changing module ownership.
 
-Continue from Task 16 of
-`../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md`.
-Task 1 acceptance evidence is recorded in
-`../internal/checkpoints/product-ui-task-01-toolchain.md`; Task 2 acceptance evidence is
-recorded in `../internal/checkpoints/product-ui-task-02-target-pack.md`; Task 3 acceptance
-evidence is recorded in `../internal/checkpoints/product-ui-task-03-artwork.md`.
-Wave-06 task evidence is recorded in:
+**Wave 10 is the next planned capability wave and has not started.** Its entry database is schema 7.
+The planned notification-delivery persistence in Wave 10 Task 5 must therefore migrate `7 -> 8`;
+Wave 11 enters on schema 8 unless a separately reviewed migration is introduced.
+
+The completed Product UI and Discover implementation plans are execution records, not active next-work
+instructions. Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
+with superseded development architecture.
+
+Current Discover acceptance evidence is recorded in
+`../internal/checkpoints/discover-semantic-feed-redesign.md`. The accepted broader Product UI evidence
+remains in `../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
@@ -105,8 +108,9 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 08 | Reader and progress | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-09-cache-downloads-and-storage.md` |
 | UIF | Between-wave design-system foundation | **Completed; checkpoint accepted 2026-08-12** | `../internal/checkpoints/design-system-foundation.md` |
-| PUI | ReDantotsu-inspired Product UI redesign | **In progress; Tasks 1-15 verified, Task 16 next** | `../superpowers/plans/2026-08-12-redantotsu-inspired-product-ui-implementation-plan.md` |
-| 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
+| PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
+| DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
+| 10 | Background work, auth, notifications | **Ready to start; not implemented; enters on schema 7** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -182,27 +186,25 @@ architecture
                      ^ Wave 09 complete: cache, downloads, schema 6, reconciliation, and offline UI verified
                   -> UI foundation
                     -> Product UI redesign
-                      -> local background/auth/notifications
+                      -> semantic Discover redesign + Room schema 7
+                        -> local background/auth/notifications (Wave 10, planned schema 8)
                       -> release hardening
 ```
 
 ## Execution rule
 
-1. Use the verified Wave 09 checkpoint plus the accepted `:core:designsystem` foundation as the entry baseline for the Product UI redesign.
-2. Continue from Product UI Task 16; Tasks 1-15 are verified. Execute the final Product UI checkpoint
-   in order without changing the 14-module capability graph or Room schemas 1 through 6.
-3. Wave 10 remains the next capability wave after the between-wave Product UI checkpoint.
-4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
-5. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
-6. Require every wave to consume the prior wave's named contracts and contiguous Room schema.
-7. Update current state only after actual task/checkpoint evidence is reviewed.
+1. Use the current 14-module graph, accepted Product UI checkpoint, and accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline.
+2. Treat Room schema 7 as current. Any Wave 10 Room persistence must continue contiguously from 7; the planned notification-delivery table is `7 -> 8`.
+3. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
+4. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
+5. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.
+6. Update current state and checkpoints only after actual command/device evidence is reviewed.
 
-Discover / Home / Library remains the final top-level model. The current Product
-UI checkpoint intentionally ships Downloads and Updates through the avatar
-utility sheet first. Wave 10 Settings enters through that utility sheet and never
-top-level navigation; Wave 11 Plugin Management follows the same rule. Settings
-and Plugin Management remain planned capability-wave work, not completed Product
-UI routes.
+Discover / Home / Library remains the final top-level model. Discover itself is now semantic rather
+than catalog-selector driven: `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.
+Downloads and Updates remain avatar-utility routes. Wave 10 Settings enters through that utility sheet
+and never top-level navigation; Wave 11 Plugin Management follows the same rule. Settings and Plugin
+Management remain planned capability-wave work.
 
 ## Verification workflow
 

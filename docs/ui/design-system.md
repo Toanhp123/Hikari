@@ -1,5 +1,8 @@
 # Hikari Design System
 
+Date: 2026-08-20
+Status: **CANONICAL UI ownership and token policy**
+
 ## Ownership
 
 `:core:designsystem` owns the application Compose theme, visual tokens, and
@@ -110,6 +113,25 @@ and Sources are refreshable; Story Chapters is intentionally not refreshable unt
 synchronization has its own pipeline. Source-detail refresh failures render only in Overview/Sources,
 not above Chapters.
 
+## Segmented selection and skeleton loading
+
+`HikariSegmentedControl<T>` is the domain-neutral owner for equal-width single-choice
+segmented selection. Callers provide `HikariSegmentedOption<T>` values, the selected key,
+and selection callback. The control owns full-width layout, equal `weight(1f)` segments,
+Material 3 segmented-button shapes, minimum Hikari touch target, focus handoff for the first
+segment, selected semantics, and disabled-state behavior. Feature code owns the meaning of
+keys/options and must not fork the chrome to create content-sized pseudo-segments.
+
+`HikariSkeleton` is the shared static loading block. It deliberately has no shimmer or
+feature-local animation policy; callers supply semantic Hikari shapes and tokenized geometry.
+Initial screen loading may compose multiple skeleton blocks to mirror the final hierarchy,
+but cached refreshes keep real content visible instead of replacing it with skeletons.
+
+The current Discover implementation is the primary reference for both primitives: its media
+selector uses the shared segmented control, while initial loading mirrors the Popular hero,
+media selector, Latest grid, and Top Rated rows with static skeletons. Discover-specific labels,
+feed limits, and semantic ranking remain in `:feature:catalog`, not `:core:designsystem`.
+
 ## UI hierarchy and performance rules
 
 Scrollable collections must preserve real laziness. Repeated chapter releases, source mappings,
@@ -131,7 +153,11 @@ an overlay concern and must not relayout the document.
 sheet content/state but do not instantiate `ModalBottomSheet` directly. Reusable visual brushes are
 created once with the theme or remembered at the artwork boundary; composables should not allocate
 full-surface gradient brushes on every recomposition. Discover hero scrims are drawn by the artwork
-backdrop owner rather than stacked as extra full-size layout surfaces.
+backdrop owner rather than stacked as extra full-size layout surfaces. The current semantic
+Discover keeps one vertical `LazyColumn` owner: Popular may page horizontally, Latest is a
+bounded non-scrolling three-column composition, and Top Rated emits bounded rows. Provider
+identity and feed aggregation are resolved before Compose; the UI never infers semantic feed
+meaning from source titles or plugin IDs.
 
 Frame-sensitive UI paths are protected by Macrobenchmarks in addition to startup/navigation checks.
 The benchmark fixture provides deterministic long Reader content and populated Discover/Library

@@ -72,12 +72,18 @@ grep -q 'state.loading' "$chapter_ui" || fail "chapter UI does not distinguish l
 grep -q 'loading = false' "$mapping_vm" || fail "mapping repository emission does not clear loading"
 grep -q 'state.loading' "$mapping_ui" || fail "mapping UI does not distinguish loading from real empty state"
 
-# Discover ranking and projection must be one main-safe pipeline, not two homes-derived flows recombined later.
+# Discover preparation and semantic projection must be one main-safe pipeline, not multiple homes-derived flows recombined later.
 [[ -f "$discover_pipeline" ]] || fail "DiscoverProjectionPipeline owner is missing"
 grep -q 'AppDispatchers' "$discover_pipeline" || fail "Discover projection does not use the injected dispatcher boundary"
 grep -q 'dispatchers.default' "$discover_pipeline" || fail "Discover CPU projection is not routed to the Default dispatcher"
-grep -q 'query.rank(homes)' "$discover_pipeline" || fail "Discover ranking is not computed inside the projection pipeline"
-grep -q 'projectDiscoverState' "$discover_pipeline" || fail "Discover UI projection is not computed inside the same pipeline"
+grep -q 'DiscoverPreparedContent(homes = homes)' "$discover_pipeline" ||
+  fail "Discover prepared content does not retain the shared homes emission"
+grep -q 'projectSemanticDiscoverState' "$discover_pipeline" ||
+  fail "Discover semantic projection is not computed inside the same pipeline"
+grep -q 'homes = content.homes' "$discover_pipeline" ||
+  fail "Discover semantic projection is not derived from the prepared homes emission"
+! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
+  fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
 ! grep -q 'rankedStories = homes' "$discover_vm" || fail "DiscoverViewModel still owns a second homes-derived ranking flow"
 ! grep -q 'dependencies.rankedStories' "$discover_vm" || fail "DiscoverViewModel still combines homes with a separately-emitting ranked flow"
 

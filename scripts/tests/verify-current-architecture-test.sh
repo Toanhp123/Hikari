@@ -26,18 +26,8 @@ make_fixture() {
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room" \
     "$FIXTURE/app/src/main/assets/plugins" \
     "$FIXTURE/app/src/main/kotlin/app/openstory/di"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/4.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/4.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/5.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/5.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/6.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/6.json"
+  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/"*.json \
+    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/"
   cp "$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" \
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
   printf 'canonical plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/myanimelist-catalog.osp"
@@ -129,7 +119,12 @@ printf '\n' >> "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenSto
 expect_failure 'a changed frozen schema 1'
 make_fixture
 
-sed -i 's/version = 6,/version = 7,/' \
+current_database_version="$(
+  sed -nE 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*([0-9]+),[[:space:]]*$/\1/p' \
+    "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" | head -1
+)"
+next_database_version=$((current_database_version + 1))
+sed -i "s/version = ${current_database_version},/version = ${next_database_version},/" \
   "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
 expect_failure 'a database version without a contiguous exported schema'
 make_fixture

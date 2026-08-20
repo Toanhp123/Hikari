@@ -14,12 +14,6 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import app.openstory.designsystem.theme.hikariDimensions
 
-data class HikariSegmentedOption<T>(
-    val key: T,
-    val label: String,
-    val enabled: Boolean = true,
-)
-
 @Composable
 fun <T> HikariSegmentedControl(
     options: List<HikariSegmentedOption<T>>,
