@@ -24,18 +24,14 @@ class DiscoverProjectionPipelineTest {
         )
         val homes = listOf(snapshot())
 
-        val prepared = pipeline.prepare(homes)
         val projected = pipeline.project(
-            content = prepared,
+            homes = homes,
             selectedContentType = ContentType.MANGA,
-            loading = false,
-            refreshing = false,
-            refreshReport = null,
         )
 
-        assertEquals(homes, prepared.homes)
         assertEquals(listOf(StoryId("story:one")), projected.popular.map(DiscoverStoryItem::storyId))
         assertEquals(ContentType.MANGA, projected.selectedContentType)
+        assertEquals(false, projected.sourceEmpty)
     }
 }
 

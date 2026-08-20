@@ -237,10 +237,11 @@ class DiscoverSemanticsTest {
             }
         }
 
+        compose.onNodeWithTag("discover-list").performScrollToIndex(3)
         compose.onNodeWithTag("discover-latest-item-story-9", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("discover-latest-item-story-10", useUnmergedTree = true).assertDoesNotExist()
 
-        compose.onNodeWithTag("discover-list").performScrollToIndex(4)
+        compose.onNodeWithTag("discover-list").performScrollToIndex(8)
         compose.onNodeWithTag("discover-top-rated-rank-5", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("discover-top-rated-rank-6", useUnmergedTree = true).assertDoesNotExist()
     }

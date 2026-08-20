@@ -36,12 +36,13 @@ class DiscoverScreenTest {
 
         compose.onNodeWithTag("discover-popular-pager").assertIsDisplayed()
         compose.onNodeWithTag("discover-media-selector").assertIsDisplayed()
-        compose.onNodeWithTag("discover-latest-grid").assertIsDisplayed()
         compose.onNodeWithText("All sources").assertDoesNotExist()
         compose.onNodeWithText("Light Novel").assertIsNotEnabled()
         compose.onNodeWithContentDescription("Popular story 1 of 5: Story 1").assertIsDisplayed()
 
-        compose.onNodeWithTag("discover-list").performScrollToIndex(6)
+        compose.onNodeWithTag("discover-list").performScrollToIndex(2)
+        compose.onNodeWithTag("discover-latest-grid").assertIsDisplayed()
+        compose.onNodeWithTag("discover-list").performScrollToIndex(5)
         compose.onNodeWithTag("discover-top-rated").assertIsDisplayed()
     }
 
@@ -62,10 +63,11 @@ class DiscoverScreenTest {
             }
         }
 
+        compose.onNodeWithTag("discover-list").performScrollToIndex(4)
         compose.onNodeWithTag("discover-latest-item-story-9", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("discover-latest-item-story-10", useUnmergedTree = true).assertDoesNotExist()
 
-        compose.onNodeWithTag("discover-list").performScrollToIndex(6)
+        compose.onNodeWithTag("discover-list").performScrollToIndex(9)
         compose.onNodeWithTag("discover-top-rated-rank-5", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("discover-top-rated-rank-6", useUnmergedTree = true).assertDoesNotExist()
     }

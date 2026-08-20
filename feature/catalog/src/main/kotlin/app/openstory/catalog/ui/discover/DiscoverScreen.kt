@@ -19,7 +19,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import app.openstory.catalog.model.ContentType
 import app.openstory.common.id.StoryId
-import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariSearchBar
 import app.openstory.designsystem.layout.HikariTopLevelHeader
@@ -106,71 +105,17 @@ fun DiscoverScreen(
                             .testTag("discover-list"),
                         contentPadding = bodyPadding.withScreenContentInsets(),
                         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
-                            MaterialTheme.hikariSpacing.sectionGap,
+                            MaterialTheme.hikariSpacing.itemGap,
                         ),
                     ) {
-                        if (state.loading) {
-                            item("discover-loading") {
-                                DiscoverLoadingContent()
-                            }
-                        } else {
-                            if (state.popular.isNotEmpty()) {
-                                item("discover-popular-header") {
-                                    HikariSectionHeader(title = "POPULAR")
-                                }
-                                item("discover-popular") {
-                                    DiscoverPopularPager(
-                                        stories = state.popular,
-                                        selectedContentType = state.selectedContentType,
-                                        onSelected = onStorySelected,
-                                    )
-                                }
-                            }
-
-                            item("discover-media-selector") {
-                                DiscoverMediaTypeSelector(
-                                    options = state.mediaTypeOptions,
-                                    selectedContentType = state.selectedContentType,
-                                    onSelected = onContentTypeSelected,
-                                    focusRequester = mediaTypeFocusRequester,
-                                    nextFocusRequester = mediaTypeNextFocusRequester,
-                                )
-                            }
-
-                            if (state.latestUpdates.isNotEmpty()) {
-                                item("discover-latest-header") {
-                                    HikariSectionHeader(title = "LATEST UPDATES")
-                                }
-                                item("discover-latest") {
-                                    DiscoverLatestGrid(
-                                        items = state.latestUpdates,
-                                        onSelected = onStorySelected,
-                                    )
-                                }
-                            }
-
-                            if (state.topRated.isNotEmpty()) {
-                                item("discover-top-rated-header") {
-                                    HikariSectionHeader(title = "TOP RATED")
-                                }
-                                item("discover-top-rated") {
-                                    DiscoverTopRatedList(
-                                        items = state.topRated,
-                                        onSelected = onStorySelected,
-                                    )
-                                }
-                            }
-
-                            discoverFeedbackItems(state, onRefresh)
-
-                            if (!state.hasContent) {
-                                item("discover-empty") {
-                                    DiscoverEmptyContent(
-                                        modifier = Modifier.fillParentMaxSize(),
-                                    )
-                                }
-                            }
-                        }
+                        discoverContentItems(
+                            state = state,
+                            onRefresh = onRefresh,
+                            onStorySelected = onStorySelected,
+                            onContentTypeSelected = onContentTypeSelected,
+                            mediaTypeFocusRequester = mediaTypeFocusRequester,
+                            mediaTypeNextFocusRequester = mediaTypeNextFocusRequester,
+                        )
                     }
                 }
             }

@@ -9,13 +9,43 @@ import app.openstory.catalog.ranking.AggregateRanking
 import app.openstory.catalog.ranking.CatalogEntryWithStory
 import app.openstory.common.id.StoryId
 
-internal fun projectSemanticDiscoverState(
+internal data class DiscoverSemanticContent(
+    val selectedContentType: ContentType,
+    val popular: List<DiscoverStoryItem>,
+    val latestUpdates: List<DiscoverStoryItem>,
+    val topRated: List<DiscoverStoryItem>,
+    val sourceEmpty: Boolean,
+) {
+    fun toUiState(
+        loading: Boolean,
+        refreshing: Boolean,
+        refreshReport: DiscoverRefreshReport?,
+    ) = DiscoverUiState(
+        selectedContentType = selectedContentType,
+        mediaTypeOptions = defaultDiscoverMediaTypeOptions,
+        popular = popular,
+        latestUpdates = latestUpdates,
+        topRated = topRated,
+        loading = loading && sourceEmpty,
+        refreshing = refreshing,
+        refreshReport = refreshReport,
+    )
+
+    companion object {
+        fun empty(contentType: ContentType) = DiscoverSemanticContent(
+            selectedContentType = contentType,
+            popular = emptyList(),
+            latestUpdates = emptyList(),
+            topRated = emptyList(),
+            sourceEmpty = true,
+        )
+    }
+}
+
+internal fun projectSemanticDiscoverContent(
     homes: List<CatalogHomeSnapshot>,
     selectedContentType: ContentType,
-    loading: Boolean,
-    refreshing: Boolean,
-    refreshReport: DiscoverRefreshReport?,
-): DiscoverUiState {
+): DiscoverSemanticContent {
     val entriesByStory = selectedEntriesByStory(homes, selectedContentType)
     val popular = projectPopular(homes, selectedContentType)
         .mapNotNull { storyId -> entriesByStory[storyId]?.toPresentationItem() }
@@ -24,17 +54,29 @@ internal fun projectSemanticDiscoverState(
     val topRated = projectTopRated(homes, selectedContentType)
         .mapNotNull { storyId -> entriesByStory[storyId]?.toPresentationItem() }
 
-    return DiscoverUiState(
+    return DiscoverSemanticContent(
         selectedContentType = selectedContentType,
-        mediaTypeOptions = defaultDiscoverMediaTypeOptions,
         popular = popular,
         latestUpdates = latestUpdates,
         topRated = topRated,
-        loading = loading,
-        refreshing = refreshing,
-        refreshReport = refreshReport,
+        sourceEmpty = homes.isEmpty(),
     )
 }
+
+internal fun projectSemanticDiscoverState(
+    homes: List<CatalogHomeSnapshot>,
+    selectedContentType: ContentType,
+    loading: Boolean,
+    refreshing: Boolean,
+    refreshReport: DiscoverRefreshReport?,
+): DiscoverUiState = projectSemanticDiscoverContent(
+    homes = homes,
+    selectedContentType = selectedContentType,
+).toUiState(
+    loading = loading,
+    refreshing = refreshing,
+    refreshReport = refreshReport,
+)
 
 private data class FeedContribution(
     val entry: CatalogEntry,

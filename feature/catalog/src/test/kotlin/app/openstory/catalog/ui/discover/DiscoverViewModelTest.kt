@@ -32,6 +32,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.dispatchers.FixedAppDispatchers
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -51,6 +53,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -230,6 +233,32 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun refreshFlagsDoNotReprojectSemanticLists() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val source = FakeSource()
+        val release = CompletableDeferred<Unit>()
+        source.homeAction = {
+            release.await()
+            CatalogSourceResult.Success(emptyList())
+        }
+        val viewModel = viewModel(repository, source)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+        val popular = viewModel.state.value.popular
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.refreshing)
+        assertSame(popular, viewModel.state.value.popular)
+
+        release.complete(Unit)
+        runCurrent()
+
+        assertSame(popular, viewModel.state.value.popular)
+    }
+
+    @Test
     fun cachedContentNeverReturnsToSkeletonDuringManualRefresh() = runTest(dispatcher.scheduler) {
         val repository = FakeRepository(cachedHome())
         val source = FakeSource()
@@ -299,6 +328,29 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun refreshWorkUsesFeatureDefaultSchedulingBoundary() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome())
+        val source = FakeSource()
+        val refreshScheduler = TestCoroutineScheduler()
+        val refreshDispatcher = StandardTestDispatcher(refreshScheduler)
+        val viewModel = viewModel(repository, source, refreshDispatcher)
+        backgroundScope.launch { viewModel.state.collect() }
+        runCurrent()
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.refreshing)
+        assertEquals(0, source.homeCalls)
+
+        refreshScheduler.runCurrent()
+        runCurrent()
+
+        assertEquals(1, source.homeCalls)
+        assertFalse(viewModel.state.value.refreshing)
+    }
+
+    @Test
     fun refreshActionInvokesCatalogRefreshServiceExactlyOnce() = runTest(dispatcher.scheduler) {
         val repository = FakeRepository(cachedHome())
         val source = FakeSource()
@@ -360,12 +412,20 @@ class DiscoverViewModelTest {
         assertEquals(null, viewModel.state.value.refreshFailure)
     }
 
-    private fun TestScope.viewModel(repository: FakeRepository, source: FakeSource): DiscoverViewModel {
+    private fun TestScope.viewModel(
+        repository: FakeRepository,
+        source: FakeSource,
+        refreshDispatcher: CoroutineDispatcher = dispatcher,
+    ): DiscoverViewModel {
         val registry = Registry(source)
         val clock = FakeClock(200L)
+        val refreshService = CatalogRefreshService(registry, repository, StoryMatcher(), clock)
         return DiscoverViewModel(
             repository,
-            CatalogRefreshService(registry, repository, StoryMatcher(), clock),
+            DiscoverRefreshPipeline(
+                refreshService,
+                FixedAppDispatchers(dispatcher, refreshDispatcher, dispatcher),
+            ),
             DiscoverProjectionPipeline(
                 FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
             ),

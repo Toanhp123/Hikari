@@ -5037,7 +5037,7 @@ SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementatio
 SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->elementsIdentityEquals(Landroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;)Z
 SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->entryCount$runtime()I
 SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->entryKeyIndex$runtime(I)I
-SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->get(ILjava/lang/Object;I)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->get(ILjava/lang/Object;I)Ljava/lang/Object;
 SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->getBuffer$runtime()[Ljava/lang/Object;
 SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->hasEntryAt$runtime(I)Z
 SPLandroidx/compose/runtime/external/kotlinx/collections/immutable/implementations/immutableMap/TrieNode;->hasNodeAt(I)Z
@@ -7966,7 +7966,7 @@ SPLandroidx/compose/ui/layout/Placeable;->getMeasuredSize-YbymL2g()J
 SPLandroidx/compose/ui/layout/Placeable;->getMeasuredWidth()I
 SPLandroidx/compose/ui/layout/Placeable;->getMeasurementConstraints-msEJaDk()J
 SPLandroidx/compose/ui/layout/Placeable;->getWidth()I
-HSPLandroidx/compose/ui/layout/Placeable;->onMeasuredSizeChanged()V
+SPLandroidx/compose/ui/layout/Placeable;->onMeasuredSizeChanged()V
 SPLandroidx/compose/ui/layout/Placeable;->setMeasuredSize-ozmzZPI(J)V
 SPLandroidx/compose/ui/layout/Placeable;->setMeasurementConstraints-BRTryo0(J)V
 Landroidx/compose/ui/layout/Placeable$PlacementScope;
@@ -12081,7 +12081,7 @@ HSPLandroidx/emoji2/text/flatbuffer/Table;->__indirect(I)I
 HSPLandroidx/emoji2/text/flatbuffer/Table;->__offset(I)I
 SPLandroidx/emoji2/text/flatbuffer/Table;->__reset(ILjava/nio/ByteBuffer;)V
 HSPLandroidx/emoji2/text/flatbuffer/Table;->__vector(I)I
-HSPLandroidx/emoji2/text/flatbuffer/Table;->__vector_len(I)I
+SPLandroidx/emoji2/text/flatbuffer/Table;->__vector_len(I)I
 Landroidx/emoji2/text/flatbuffer/Utf8;
 SPLandroidx/emoji2/text/flatbuffer/Utf8;-><init>()V
 SPLandroidx/emoji2/text/flatbuffer/Utf8;->getDefault()Landroidx/emoji2/text/flatbuffer/Utf8;
@@ -16492,7 +16492,7 @@ Lapp/openstory/storage/room/catalog/CatalogEntityMapperKt;
 SPLapp/openstory/storage/room/catalog/CatalogEntityMapperKt;->toModel(Lapp/openstory/storage/room/catalog/CatalogEntryEntity;)Lapp/openstory/catalog/model/CatalogEntry;
 SPLapp/openstory/storage/room/catalog/CatalogEntityMapperKt;->toModel(Lapp/openstory/storage/room/catalog/StoryEntity;)Lapp/openstory/catalog/model/Story;
 Lapp/openstory/storage/room/catalog/CatalogEntryEntity;
-SPLapp/openstory/storage/room/catalog/CatalogEntryEntity;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/Long;)V
+SPLapp/openstory/storage/room/catalog/CatalogEntryEntity;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/Long;)V
 SPLapp/openstory/storage/room/catalog/CatalogEntryEntity;->getAliases()Ljava/util/Set;
 SPLapp/openstory/storage/room/catalog/CatalogEntryEntity;->getAuthors()Ljava/util/Set;
 SPLapp/openstory/storage/room/catalog/CatalogEntryEntity;->getContentType()Ljava/lang/String;
@@ -18235,7 +18235,7 @@ SPLkotlin/coroutines/AbstractCoroutineContextKey;-><init>(Lkotlin/coroutines/Cor
 Lkotlin/coroutines/CombinedContext;
 SPLkotlin/coroutines/CombinedContext;-><init>(Lkotlin/coroutines/CoroutineContext;Lkotlin/coroutines/CoroutineContext$Element;)V
 SPLkotlin/coroutines/CombinedContext;->fold(Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
-SPLkotlin/coroutines/CombinedContext;->get(Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext$Element;
+HSPLkotlin/coroutines/CombinedContext;->get(Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext$Element;
 SPLkotlin/coroutines/CombinedContext;->minusKey(Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext;
 SPLkotlin/coroutines/CombinedContext;->plus(Lkotlin/coroutines/CoroutineContext;)Lkotlin/coroutines/CoroutineContext;
 Lkotlin/coroutines/Continuation;

@@ -2,8 +2,6 @@ package app.openstory.catalog.ui.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.openstory.catalog.home.CatalogRefreshResult
-import app.openstory.catalog.home.CatalogRefreshService
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.repository.CatalogRepository
@@ -17,7 +15,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -25,7 +22,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
-    refreshService: CatalogRefreshService,
+    refreshPipeline: DiscoverRefreshPipeline,
     projection: DiscoverProjectionPipeline,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
@@ -38,20 +35,17 @@ class DiscoverViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
             replay = 1,
         )
+    private val selectedContentType = MutableStateFlow(ContentType.MANGA)
     private val dependencies = DiscoverDependencies(
         homes = homes,
-        content = homes
-            .map(projection::prepare)
-            .preserveLatestOnFailure(
-                RANKING_OBSERVE_EXCEPTION_CODE,
-                DiscoverPreparedContent(emptyList()),
-            ),
-        refresh = {
-            val cachedHomes = homes.first()
-            refreshService.refresh().toReport(cachedHomes)
-        },
+        content = combine(homes, selectedContentType) { currentHomes, contentType ->
+            projection.project(currentHomes, contentType)
+        }.preserveLatestOnFailure(
+            RANKING_OBSERVE_EXCEPTION_CODE,
+            DiscoverSemanticContent.empty(selectedContentType.value),
+        ),
+        refresh = refreshPipeline::refresh,
     )
-    private val selectedContentType = MutableStateFlow(ContentType.MANGA)
     private val initialLoading = MutableStateFlow(true)
     private val refreshing = MutableStateFlow(false)
     private val refreshReport = MutableStateFlow<DiscoverRefreshReport?>(null)
@@ -63,15 +57,12 @@ class DiscoverViewModel @Inject constructor(
 
     private val contentState = combine(
         dependencies.content,
-        selectedContentType,
         initialLoading,
         refreshing,
         refreshReport,
-    ) { content, contentType, loading, busy, report ->
-        projection.project(
-            content = content,
-            selectedContentType = contentType,
-            loading = loading && content.homes.isEmpty(),
+    ) { content, loading, busy, report ->
+        content.toUiState(
+            loading = loading,
             refreshing = busy,
             refreshReport = report,
         )
@@ -108,7 +99,8 @@ class DiscoverViewModel @Inject constructor(
         if (refreshing.value) return
         refreshing.value = true
         try {
-            refreshReport.value = dependencies.refresh()
+            val cachedHomes = dependencies.homes.first()
+            refreshReport.value = dependencies.refresh(cachedHomes)
             refreshFailure.value = null
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -126,11 +118,9 @@ class DiscoverViewModel @Inject constructor(
 
     private data class DiscoverDependencies(
         val homes: Flow<List<CatalogHomeSnapshot>>,
-        val content: Flow<DiscoverPreparedContent>,
-        val refresh: suspend () -> DiscoverRefreshReport,
+        val content: Flow<DiscoverSemanticContent>,
+        val refresh: suspend (List<CatalogHomeSnapshot>) -> DiscoverRefreshReport,
     )
-
-
 
     private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {
         var latest = initial
@@ -152,26 +142,5 @@ class DiscoverViewModel @Inject constructor(
         const val HOME_OBSERVE_EXCEPTION_CODE = "catalog.home.observe_exception"
         const val RANKING_OBSERVE_EXCEPTION_CODE = "catalog.home.ranking_exception"
         const val REFRESH_EXCEPTION_CODE = "catalog.home.refresh_exception"
-    }
-}
-
-private fun List<CatalogRefreshResult>.toReport(
-    homes: List<CatalogHomeSnapshot>,
-): DiscoverRefreshReport {
-    val refreshedAt = homes.associate { it.pluginId to it.refreshedAtEpochMillis }
-    return fold(DiscoverRefreshReport(refreshedAtEpochMillis = refreshedAt)) { report, result ->
-        when (result) {
-            is CatalogRefreshResult.Success -> report.copy(
-                succeeded = report.succeeded + result.pluginId,
-                refreshedAtEpochMillis = report.refreshedAtEpochMillis +
-                    (result.pluginId to result.refreshedAtEpochMillis),
-            )
-            is CatalogRefreshResult.SourceFailure -> report.copy(
-                failed = report.failed + (result.pluginId to result.failure.code),
-            )
-            is CatalogRefreshResult.StoreFailure -> report.copy(
-                failed = report.failed + (result.pluginId to result.failure.code),
-            )
-        }
     }
 }

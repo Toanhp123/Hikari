@@ -5,6 +5,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 discover_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt"
 discover_pipeline="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipeline.kt"
+discover_refresh_pipeline="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverRefreshPipeline.kt"
+discover_latest="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverLatestGrid.kt"
+discover_top_rated="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverTopRatedList.kt"
 home_query="$root/catalog/src/main/kotlin/app/openstory/catalog/home/CatalogHomeQuery.kt"
 search_service="$root/catalog/src/main/kotlin/app/openstory/catalog/search/CatalogSearchService.kt"
 filter_cache="$root/catalog/src/main/kotlin/app/openstory/catalog/search/CatalogFilterCache.kt"
@@ -31,16 +34,33 @@ fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
 [[ $(grep -o 'repository\.observeHomes()' "$discover_vm" | wc -l) -eq 1 ]] ||
   fail "DiscoverViewModel must own exactly one repository.observeHomes() source"
 [[ -f "$discover_pipeline" ]] || fail "Discover projection pipeline is missing"
-grep -q 'map(projection::prepare)' "$discover_vm" ||
-  fail "Discover homes are not projected through one prepared-content flow"
-grep -q 'DiscoverPreparedContent(homes = homes)' "$discover_pipeline" ||
-  fail "Discover prepared content does not retain the shared homes emission"
-grep -q 'projectSemanticDiscoverState' "$discover_pipeline" ||
-  fail "Discover semantic projection is not computed inside the prepared-content pipeline"
-grep -q 'homes = content.homes' "$discover_pipeline" ||
-  fail "Discover semantic projection is not derived from the prepared homes emission"
+[[ -f "$discover_refresh_pipeline" ]] || fail "Discover refresh scheduling pipeline is missing"
+grep -q 'combine(homes, selectedContentType)' "$discover_vm" ||
+  fail "Discover semantic projection is not keyed only by homes plus content type"
+grep -q 'projection.project(currentHomes, contentType)' "$discover_vm" ||
+  fail "Discover homes are not projected from the shared repository emission"
+grep -q 'projectSemanticDiscoverContent' "$discover_pipeline" ||
+  fail "Discover semantic content is not computed inside the projection pipeline"
+grep -q 'homes = homes' "$discover_pipeline" ||
+  fail "Discover semantic projection is not derived from the shared homes emission"
+! grep -Eq 'loading|refreshing|refreshReport' "$discover_pipeline" ||
+  fail "Discover projection pipeline still depends on transient UI flags"
+grep -q 'content.toUiState' "$discover_vm" ||
+  fail "Discover transient UI flags are not assembled after semantic projection"
+! grep -q 'AppDispatchers' "$discover_vm" ||
+  fail "DiscoverViewModel must not own platform scheduling"
+grep -q 'withContext(dispatcher)' "$discover_refresh_pipeline" ||
+  fail "Discover refresh CPU work is not isolated behind the feature scheduling boundary"
 ! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
   fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
+grep -q 'LazyListScope.discoverLatestItems' "$discover_latest" ||
+  fail "Discover Latest is not emitted as real lazy rows"
+grep -q 'LazyListScope.discoverTopRatedItems' "$discover_top_rated" ||
+  fail "Discover Top Rated is not emitted as real lazy rows"
+! grep -q 'Column(' "$discover_latest" ||
+  fail "Discover Latest regressed to one eager Column item"
+! grep -q 'Column(' "$discover_top_rated" ||
+  fail "Discover Top Rated regressed to one eager Column item"
 ! grep -q 'rankedStories = homes' "$discover_vm" || fail "Discover still owns a second homes-derived ranking flow"
 ! grep -q 'val rankedStories: Flow' "$home_query" || fail "CatalogHomeQuery still owns a second cold repository observation"
 grep -q 'fun rank(homes: List<CatalogHomeSnapshot>)' "$home_query" || fail "CatalogHomeQuery is not a pure ranking projector"
