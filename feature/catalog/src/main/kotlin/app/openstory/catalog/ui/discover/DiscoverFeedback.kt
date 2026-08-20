@@ -1,0 +1,65 @@
+package app.openstory.catalog.ui.discover
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import app.openstory.catalog.ui.components.catalogDisplayName
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
+import app.openstory.common.id.PluginId
+import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.theme.hikariSpacing
+
+internal fun LazyListScope.discoverFeedbackItems(
+    state: DiscoverUiState,
+    onRefresh: () -> Unit,
+    separatedFromPreviousSection: Boolean,
+) {
+    val globalRetryVisible = state.globalFailure?.retryable == true
+    var firstFeedback = true
+    state.globalFailure?.let { failure ->
+        val separated = separatedFromPreviousSection && firstFeedback
+        item("discover-global-failure") {
+            val sectionModifier = feedbackSectionModifier(separated)
+            HikariInlineFeedback(
+                message = catalogFailureMessage(
+                    failure.code,
+                    "Couldn't refresh Discover. Cached content is still available.",
+                ),
+                modifier = sectionModifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
+                actionLabel = if (failure.retryable) "Retry" else null,
+                actionEnabled = !state.refreshing,
+                onAction = if (failure.retryable) onRefresh else null,
+            )
+        }
+        firstFeedback = false
+    }
+    state.failedPluginIds().forEachIndexed { index, pluginId ->
+        val showRetry = !globalRetryVisible && index == 0
+        val separated = separatedFromPreviousSection && firstFeedback
+        item("discover-failure-${pluginId.value}") {
+            val sectionModifier = feedbackSectionModifier(separated)
+            HikariInlineFeedback(
+                message = "${pluginId.catalogDisplayName()} refresh failed; cached content is still available.",
+                modifier = sectionModifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
+                actionLabel = if (showRetry) "Retry" else null,
+                actionEnabled = !state.refreshing,
+                onAction = if (showRetry) onRefresh else null,
+            )
+        }
+        firstFeedback = false
+    }
+}
+
+@Composable
+private fun feedbackSectionModifier(separated: Boolean): Modifier = if (separated) {
+    Modifier.padding(
+        top = MaterialTheme.hikariSpacing.sectionGap - MaterialTheme.hikariSpacing.itemGap,
+    )
+} else {
+    Modifier
+}
+
+private fun DiscoverUiState.failedPluginIds(): List<PluginId> =
+    refreshReport?.failed?.keys?.sortedBy(PluginId::value).orEmpty()

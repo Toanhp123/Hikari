@@ -20,7 +20,7 @@
         ":feature:catalog",
         ":feature:reader"
       ],
-      "testDependencies": [],
+      "testDependencies": [":benchmark"],
       "forbiddenProductionImports": []
     },
     ":core:common": {
@@ -78,6 +78,7 @@
         "app.openstory.catalog.details.",
         "app.openstory.catalog.home.",
         "app.openstory.catalog.matching.",
+        "app.openstory.catalog.metadata.",
         "app.openstory.catalog.repository.",
         "app.openstory.catalog.search.",
         "app.openstory.catalog.source.",
@@ -153,7 +154,7 @@
       "path": "feature/catalog",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":core:designsystem", ":catalog", ":library", ":chapters", ":downloads"],
+      "productionDependencies": [":core:common", ":core:designsystem", ":catalog", ":library", ":chapters", ":reader", ":downloads"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
     },
@@ -218,6 +219,14 @@
       "productionDependencies": [":core:common", ":plugins:api"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.catalog.", "app.openstory.storage."]
+    },
+    ":benchmark": {
+      "path": "benchmark",
+      "platform": "android-test",
+      "dependencyMode": "allowlist",
+      "productionDependencies": [],
+      "testDependencies": [":app"],
+      "forbiddenProductionImports": []
     }
   }
 }

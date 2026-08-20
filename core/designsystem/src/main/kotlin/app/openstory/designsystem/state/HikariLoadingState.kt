@@ -27,7 +27,7 @@ fun HikariLoadingState(
         verticalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator()
-        Spacer(modifier = Modifier.height(MaterialTheme.hikariSpacing.small))
+        Spacer(modifier = Modifier.height(MaterialTheme.hikariSpacing.space8))
         Text(text = label)
     }
 }

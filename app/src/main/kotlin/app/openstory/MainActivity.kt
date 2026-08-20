@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import app.openstory.designsystem.glass.HikariBackdropMode
+import app.openstory.designsystem.surface.HikariSurfaceShadowMode
 import app.openstory.ui.OpenStoryApp
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -16,8 +18,34 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
+        val backdropMode = if (intent.getBooleanExtra(BENCHMARK_DISABLE_BACKDROP_EXTRA, false)) {
+            HikariBackdropMode.DISABLED_FOR_BENCHMARK
+        } else {
+            HikariBackdropMode.ENABLED
+        }
+        val surfaceShadowMode = if (
+            intent.getBooleanExtra(BENCHMARK_DISABLE_SURFACE_SHADOWS_EXTRA, false)
+        ) {
+            HikariSurfaceShadowMode.DISABLED_FOR_BENCHMARK
+        } else {
+            HikariSurfaceShadowMode.ENABLED
+        }
+        val useLegacyNavigationTransitions = intent.getBooleanExtra(
+            BENCHMARK_LEGACY_NAVIGATION_TRANSITIONS_EXTRA,
+            false,
+        )
         setContent {
-            OpenStoryApp()
+            OpenStoryApp(
+                backdropMode = backdropMode,
+                surfaceShadowMode = surfaceShadowMode,
+                useLegacyNavigationTransitions = useLegacyNavigationTransitions,
+            )
         }
     }
 }
+
+private const val BENCHMARK_DISABLE_BACKDROP_EXTRA = "app.openstory.benchmark.DISABLE_BACKDROP"
+private const val BENCHMARK_DISABLE_SURFACE_SHADOWS_EXTRA =
+    "app.openstory.benchmark.DISABLE_SURFACE_SHADOWS"
+private const val BENCHMARK_LEGACY_NAVIGATION_TRANSITIONS_EXTRA =
+    "app.openstory.benchmark.LEGACY_NAVIGATION_TRANSITIONS"

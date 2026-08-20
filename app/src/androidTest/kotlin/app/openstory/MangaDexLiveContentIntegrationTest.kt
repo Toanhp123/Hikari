@@ -84,7 +84,7 @@ private suspend fun verifyMappingFlow(
                 contentType = ContentType.MANGA,
             ),
             pluginVersion = E2E_CATALOG_PLUGIN_VERSION,
-            fetchedAtEpochMillis = nonce,
+            resolvedAtEpochMillis = nonce,
         ),
     )
     assertTrue("Canonical story seed failed", committed is Outcome.Success<*>)

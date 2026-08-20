@@ -13,6 +13,12 @@ interface ReaderDocumentSourceRegistry {
     suspend fun enabled(): List<ReaderDocumentSource>
 }
 
+fun interface ReaderSourceAvailability {
+    suspend fun enabledPluginIds(): Set<PluginId>
+
+    suspend fun offlineDownloadPluginIds(): Set<PluginId> = enabledPluginIds()
+}
+
 sealed interface ReaderSourceResult {
     data class Success(val document: ReaderDocument) : ReaderSourceResult
     data class Failure(val code: String, val retryable: Boolean) : ReaderSourceResult

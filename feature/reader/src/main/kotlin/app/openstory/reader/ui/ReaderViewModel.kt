@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.openstory.chapters.model.ChapterRelease
 import app.openstory.chapters.repository.CanonicalChapterGroup
+import app.openstory.chapters.repository.ChapterGraphSnapshot
 import app.openstory.chapters.repository.ChapterRepository
 import app.openstory.common.Clock
 import app.openstory.common.id.CanonicalChapterId
@@ -24,11 +25,14 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltViewModel(assistedFactory = ReaderViewModel.Factory::class)
 class ReaderViewModel @AssistedInject constructor(
@@ -40,9 +44,10 @@ class ReaderViewModel @AssistedInject constructor(
     clock: Clock,
 ) : ViewModel() {
     private val storyId = StoryId(assistedArgs.storyId)
-    private val chapterId = CanonicalChapterId(assistedArgs.chapterId)
+    private var chapterId = CanonicalChapterId(savedState[CHAPTER_ID_KEY] ?: assistedArgs.chapterId)
     private val initialReleaseId = assistedArgs.releaseId?.let(::ChapterReleaseId)
     private val progressService = ReadingProgressService(progress, clock, viewModelScope)
+    private var cachedChapterGroups: List<CanonicalChapterGroup>? = null
     private var loadJob: Job? = null
     private val mutableState = MutableStateFlow(
         ReaderUiState(fontScale = savedState[FONT_SCALE_KEY] ?: 1f),
@@ -60,6 +65,21 @@ class ReaderViewModel @AssistedInject constructor(
         load(releaseId, flushProgress = true)
     }
 
+    fun openChapter(chapterId: CanonicalChapterId) {
+        if (chapterId == this.chapterId) return
+        mutableState.value = mutableState.value.copy(
+            loading = true,
+            document = null,
+            selectedReleaseId = null,
+            failure = null,
+            failureRetryable = true,
+        )
+        this.chapterId = chapterId
+        savedState[CHAPTER_ID_KEY] = chapterId.value
+        savedState.remove<String>(RELEASE_ID_KEY)
+        load(explicitReleaseId = null, flushProgress = true)
+    }
+
     fun increaseFont() = setFontScale(mutableState.value.fontScale + FONT_SCALE_STEP)
     fun decreaseFont() = setFontScale(mutableState.value.fontScale - FONT_SCALE_STEP)
 
@@ -73,26 +93,28 @@ class ReaderViewModel @AssistedInject constructor(
     }
 
     fun flushProgress() {
-        viewModelScope.launch { progressService.flush() }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            withContext(NonCancellable) { progressService.flush() }
+        }
     }
 
     private fun load(explicitReleaseId: ChapterReleaseId?, flushProgress: Boolean = false) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             if (flushProgress) progressService.flush()
-            mutableState.value = mutableState.value.copy(loading = true, failure = null)
+            mutableState.value = mutableState.value.copy(loading = true, failure = null, failureRetryable = true)
             try {
-                val groups = chapters.observeOnce(storyId)
+                val groups = chapterGroups()
                 val index = groups.indexOfFirst { it.chapter.id == chapterId }
                 if (index < 0) {
-                    fail(READER_CHAPTER_NOT_FOUND)
+                    fail(READER_CHAPTER_NOT_FOUND, retryable = false)
                     return@launch
                 }
                 loadGroup(groups, index, explicitReleaseId)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                fail(READER_LOAD_FAILED)
+                fail(READER_LOAD_FAILED, retryable = true)
             }
         }
     }
@@ -114,7 +136,14 @@ class ReaderViewModel @AssistedInject constructor(
         )
         val fingerprints = restored?.let { mapOf(it.releaseId to it.contentFingerprint) }.orEmpty()
         when (val result = documents.load(ReaderLoadRequest(candidates, policy, fingerprints))) {
-            is ReaderLoadResult.Failure -> fail(result.attempts.joinToString { it.code }.ifBlank { READER_EMPTY })
+            is ReaderLoadResult.Failure -> {
+                val failure = result.attempts.firstOrNull { attempt -> attempt.retryable }
+                    ?: result.attempts.firstOrNull()
+                fail(
+                    code = failure?.code ?: READER_EMPTY,
+                    retryable = failure?.retryable ?: false,
+                )
+            }
             is ReaderLoadResult.Success -> show(groups, index, group, result, restored)
         }
     }
@@ -127,6 +156,7 @@ class ReaderViewModel @AssistedInject constructor(
         restored: app.openstory.reader.progress.ReadingProgress?,
     ) {
         val releaseId = result.release.release.id
+        val restoredForRelease = restored?.takeIf { it.releaseId == releaseId }
         savedState[RELEASE_ID_KEY] = releaseId.value
         mutableState.value = mutableState.value.copy(
             loading = false,
@@ -136,15 +166,27 @@ class ReaderViewModel @AssistedInject constructor(
             selectedReleaseId = releaseId,
             previousChapterId = groups.getOrNull(index - 1)?.chapter?.id,
             nextChapterId = groups.getOrNull(index + 1)?.chapter?.id,
-            restoredBlockId = restored?.takeIf { it.releaseId == releaseId }?.position?.blockId,
-            restoredCharacterOffset = restored?.takeIf { it.releaseId == releaseId }?.position?.characterOffset ?: 0,
+            restoredBlockId = restoredForRelease?.position?.blockId,
+            restoredCharacterOffset = restoredForRelease?.position?.characterOffset ?: 0,
+            restoredProgressFraction = restoredForRelease?.position?.fraction ?: 0f,
             availableOffline = result.fromStore,
             failure = null,
+            failureRetryable = true,
         )
     }
 
-    private fun fail(code: String) {
-        mutableState.value = mutableState.value.copy(loading = false, document = null, failure = code)
+    private suspend fun chapterGroups(): List<CanonicalChapterGroup> =
+        cachedChapterGroups ?: chapters.snapshot(storyId).toReaderGroups().also { groups ->
+            cachedChapterGroups = groups
+        }
+
+    private fun fail(code: String, retryable: Boolean) {
+        mutableState.value = mutableState.value.copy(
+            loading = false,
+            document = null,
+            failure = code,
+            failureRetryable = retryable,
+        )
     }
 
     private fun setFontScale(value: Float) {
@@ -160,6 +202,7 @@ class ReaderViewModel @AssistedInject constructor(
 
     private companion object {
         const val RELEASE_ID_KEY = "reader.release-id"
+        const val CHAPTER_ID_KEY = "reader.chapter-id"
         const val FONT_SCALE_KEY = "reader.font-scale"
         const val READER_CHAPTER_NOT_FOUND = "reader.chapter_not_found"
         const val READER_LOAD_FAILED = "reader.load_failed"
@@ -167,12 +210,12 @@ class ReaderViewModel @AssistedInject constructor(
     }
 }
 
-private suspend fun ChapterRepository.observeOnce(storyId: StoryId): List<CanonicalChapterGroup> =
-    snapshot(storyId).let { snapshot ->
-        snapshot.chapters.filterNot { it.tombstoned }.map { chapter ->
-            CanonicalChapterGroup(chapter, snapshot.releases.filter { it.canonicalChapterId == chapter.id })
-        }
+internal fun ChapterGraphSnapshot.toReaderGroups(): List<CanonicalChapterGroup> {
+    val releasesByChapter = releases.groupBy { release -> release.canonicalChapterId }
+    return chapters.filterNot { chapter -> chapter.tombstoned }.map { chapter ->
+        CanonicalChapterGroup(chapter, releasesByChapter[chapter.id].orEmpty())
     }
+}
 
 private fun ChapterRelease.toUiModel() = ReaderReleaseUiModel(
     id,

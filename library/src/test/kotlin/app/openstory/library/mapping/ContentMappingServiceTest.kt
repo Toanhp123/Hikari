@@ -15,7 +15,6 @@ import app.openstory.library.matching.ContentMatchDecision
 import app.openstory.library.matching.ContentMatchExplanation
 import app.openstory.library.matching.ContentMatchResult
 import app.openstory.library.matching.ContentStoryMatcher
-import app.openstory.library.matching.ContentTitleEvidence
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -75,6 +74,30 @@ class ContentMappingServiceTest {
         repository.rejections += rejected.rejectionKey(STORY_ID).copy(policyVersion = 2)
         val otherPolicy = service.searchForReview(STORY_ID)
         assertTrue(otherPolicy.candidates.any { it.sourceStoryId == rejected.sourceStoryId })
+    }
+
+    @Test
+    fun searchForReviewExcludesAlreadyLinkedCandidateButKeepsAlternativeFromSamePlugin() = runTest {
+        val repository = RecordingRepository(
+            currentMappings = listOf(
+                ContentMapping(
+                    storyId = STORY_ID,
+                    pluginId = PLUGIN_ID,
+                    sourceStoryId = "source-1",
+                    origin = ContentMappingOrigin.USER_APPROVED,
+                    policyVersion = 1,
+                    updatedAt = 5L,
+                ),
+            ),
+        )
+        val service = service(
+            repository = repository,
+            stories = listOf(contentStory("source-1"), contentStory("source-2")),
+        )
+
+        val report = service.searchForReview(STORY_ID)
+
+        assertEquals(listOf("source-2"), report.candidates.map(ContentMappingCandidate::sourceStoryId))
     }
 
     @Test
@@ -146,14 +169,17 @@ private data class RecordedWrite(
     val replaceableOrigins: Set<ContentMappingOrigin>,
 )
 
-private class RecordingRepository : ContentMappingRepository {
+private class RecordingRepository(
+    private val currentMappings: List<ContentMapping> = emptyList(),
+) : ContentMappingRepository {
     val writes = mutableListOf<RecordedWrite>()
     val recordedRejections = mutableListOf<ContentMappingRejection>()
     val rejections = mutableSetOf<ContentMappingRejection>()
 
-    override fun observe(storyId: StoryId): Flow<List<ContentMapping>> = flowOf(emptyList())
+    override fun observe(storyId: StoryId): Flow<List<ContentMapping>> =
+        flowOf(currentMappings.filter { mapping -> mapping.storyId == storyId })
 
-    override fun observeAll(): Flow<List<ContentMapping>> = flowOf(emptyList())
+    override fun observeAll(): Flow<List<ContentMapping>> = flowOf(currentMappings)
 
     override suspend fun compareAndWrite(
         mapping: ContentMapping,
@@ -204,12 +230,11 @@ private fun candidate(policyVersion: Int) = ContentMappingCandidate(
         decision = ContentMatchDecision.AUTO_LINK,
         explanation = ContentMatchExplanation(
             directEvidence = false,
-            title = ContentTitleEvidence(1.0, "The Story", "The Story"),
+            titleSimilarity = 1.0,
             authorSimilarity = 1.0,
             authorConflict = false,
             contentTypeMatch = true,
             contentTypeConflict = false,
-            reasons = listOf("decision:auto_link"),
         ),
         policyVersion = policyVersion,
     ),

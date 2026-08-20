@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+loader="$root/catalog/src/main/kotlin/app/openstory/catalog/details/CatalogDetailsLoader.kt"
+discover="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt"
+story="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt"
+search="$root/catalog/src/main/kotlin/app/openstory/catalog/search/CatalogSearchService.kt"
+mutation="$root/catalog/src/main/kotlin/app/openstory/catalog/repository/CatalogDetailsMutation.kt"
+metadata_model="$root/catalog/src/main/kotlin/app/openstory/catalog/metadata/CatalogMetadata.kt"
+metadata_policy="$root/catalog/src/main/kotlin/app/openstory/catalog/metadata/CatalogMetadataPolicy.kt"
+room_entities="$root/storage/room/src/main/kotlin/app/openstory/storage/room/catalog/CatalogEntities.kt"
+room_migrations="$root/storage/room/src/main/kotlin/app/openstory/storage/room/RoomMigrations.kt"
+schema8="$root/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/8.json"
+
+fail() { echo "Catalog metadata lifecycle policy violation: $1" >&2; exit 1; }
+
+[[ -f "$loader" ]] || fail "CatalogDetailsLoader is missing"
+count="$(grep -R --include='*.kt' -n 'source\.details(' "$root/catalog/src/main/kotlin" | wc -l | tr -d ' ')"
+[[ "$count" == "1" ]] || fail "expected exactly one production source.details call site, found $count"
+grep -q 'source\.details(' "$loader" || fail "CatalogDetailsLoader is not the Details call site"
+! grep -R --include='*.kt' -q 'hasLoadedDetails' "$root/catalog/src/main/kotlin" || fail "field-based details completeness remains"
+! grep -q 'latestHydrationInFlight' "$discover" || fail "Discover still owns metadata in-flight state"
+! grep -q 'CatalogDetailsService' "$discover" || fail "Discover still depends on CatalogDetailsService"
+! grep -q 'CatalogDetailsService' "$story" || fail "Story still depends on CatalogDetailsService"
+! grep -q 'CatalogDetailsService' "$search" || fail "Search still depends on CatalogDetailsService"
+
+! grep -R --include='*.kt' -q 'CatalogMetadataLevel.Artwork' "$root/catalog/src/main/kotlin/app/openstory/catalog/metadata" || fail "metadata lifecycle still references Artwork level"
+! grep -q '^[[:space:]]*Artwork,' "$metadata_model" || fail "Artwork metadata level is still present"
+! grep -q 'val artwork:' "$metadata_model" || fail "metadata snapshot still carries Artwork provenance"
+! grep -q 'ARTWORK_TTL_MILLIS' "$metadata_policy" || fail "Artwork TTL is still present"
+! grep -q 'scheduleLatestArtworkRequirements' "$discover" || fail "Discover still schedules Details enrichment for missing artwork"
+! grep -q 'MAX_LATEST_ARTWORK_HYDRATIONS' "$discover" || fail "Discover still has an Artwork hydration budget"
+! grep -q 'CatalogMetadataCoordinator' "$discover" || fail "Discover must not depend on metadata lifecycle for listing enrichment"
+! grep -q 'metadata.require' "$discover" || fail "Discover must not request Details metadata"
+! grep -q 'artwork_plugin_version' "$room_entities" || fail "Room entity still persists Artwork provenance"
+! grep -q 'artwork_resolved_at_epoch_millis' "$room_entities" || fail "Room entity still persists Artwork resolution time"
+! grep -q 'artwork_plugin_version' "$room_migrations" || fail "schema 7 -> 8 migration still adds Artwork provenance"
+! grep -q 'artwork_resolved_at_epoch_millis' "$room_migrations" || fail "schema 7 -> 8 migration still adds Artwork resolution time"
+! grep -q 'artwork_plugin_version' "$schema8" || fail "schema 8 export still contains Artwork provenance"
+! grep -q 'artwork_resolved_at_epoch_millis' "$schema8" || fail "schema 8 export still contains Artwork resolution time"
+grep -q 'val resolvedAtEpochMillis: Long' "$mutation" || fail "Details mutation must expose resolution time semantics"
+! grep -q 'fetchedAtEpochMillis' "$mutation" || fail "Details mutation still exposes generic fetchedAt semantics"
+! grep -q 'CoroutineScope(' "$discover" || fail "Discover creates its own metadata scope"
+! grep -q 'CoroutineScope(' "$story" || fail "Story creates its own metadata scope"
+
+echo "Catalog metadata lifecycle policy verified."

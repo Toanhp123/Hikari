@@ -8,6 +8,7 @@ import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 class RoomReadingProgressRepository internal constructor(
@@ -15,6 +16,17 @@ class RoomReadingProgressRepository internal constructor(
     private val dao: ReadingProgressDao,
 ) : ReadingProgressRepository {
     constructor(database: OpenStoryDatabase) : this(database, database.readingProgressDao())
+
+    override fun observeAll(): Flow<List<ReadingProgress>> =
+        dao.observeAll().map { progress -> progress.map(ReadingProgressEntity::toModel) }
+
+    override fun observeForStories(storyIds: Set<StoryId>): Flow<List<ReadingProgress>> =
+        if (storyIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            dao.observeForStories(storyIds.map(StoryId::value))
+                .map { progress -> progress.map(ReadingProgressEntity::toModel) }
+        }
 
     override fun observe(
         storyId: StoryId,

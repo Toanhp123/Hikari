@@ -131,6 +131,7 @@ class ModuleGraphTest {
             val expectedPlugin = when (rule.platform.policyValue) {
                 "android-application" -> "id(\"openstory.android.application\")"
                 "android-library" -> "id(\"openstory.android.library\")"
+                "android-test" -> "alias(libs.plugins.android.test)"
                 "jvm" -> "id(\"openstory.kotlin.jvm\")"
                 else -> error("Unexpected platform ${rule.platform.policyValue}")
             }

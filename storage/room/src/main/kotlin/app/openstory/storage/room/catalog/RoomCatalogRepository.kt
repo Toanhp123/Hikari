@@ -3,6 +3,8 @@ package app.openstory.storage.room.catalog
 import androidx.room.withTransaction
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
@@ -33,14 +35,18 @@ class RoomCatalogRepository internal constructor(
         homeDao.observeSnapshots(),
         homeDao.observeSections(),
         homeDao.observeItems(),
-        dao.observeAllEntries(),
+        dao.observeHomeEntries(),
     ) { snapshots, sections, items, storedEntries ->
-        val entries = storedEntries.associateBy { it.pluginId to it.sourceId }
+        val sectionsByPlugin = sections.groupBy(CatalogHomeSectionEntity::pluginId)
+        val itemsByPlugin = items.groupBy(CatalogHomeItemEntity::pluginId)
+        val entries = storedEntries.associate { entry ->
+            (entry.pluginId to entry.sourceId) to entry.toModel()
+        }
         snapshots.map { snapshot ->
             snapshot.toModel(
-                sections.filter { it.pluginId == snapshot.pluginId },
-                items.filter { it.pluginId == snapshot.pluginId },
-                entries.mapValues { it.value.toModel() },
+                sectionsByPlugin[snapshot.pluginId].orEmpty(),
+                itemsByPlugin[snapshot.pluginId].orEmpty(),
+                entries,
             )
         }
     }
@@ -52,27 +58,40 @@ class RoomCatalogRepository internal constructor(
         story?.toModel()?.let { value -> StoryCatalogSnapshot(value, entries.map(CatalogEntryEntity::toModel)) }
     }
 
-    override suspend fun matchSnapshot(): CatalogMatchSnapshot = CatalogMatchSnapshot(
-        dao.entries().sortedWith(
-            compareBy<CatalogEntryEntity> { it.storyId }
-                .thenBy { it.pluginId }
-                .thenBy { it.sourceId },
-        )
-            .map(CatalogEntryEntity::toCandidate),
-    )
+    override suspend fun matchSnapshot(): CatalogMatchSnapshot = database.withTransaction {
+        val storiesById = dao.stories().associateBy(StoryEntity::storyId)
+        val candidates = dao.entries()
+            .groupBy(CatalogEntryEntity::storyId)
+            .toSortedMap()
+            .mapNotNull { (storyId, entries) ->
+                storiesById[storyId]?.let(entries::toCandidate)
+            }
+        CatalogMatchSnapshot(candidates)
+    }
+
+    override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? =
+        dao.findEntry(key.pluginId.value, key.sourceId)?.toMetadataSnapshot()
 
     override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
         try {
             database.withTransaction {
-                val existing = mutation.entries.mapNotNull { entry ->
-                    dao.findEntry(entry.pluginId.value, entry.sourceId)
-                }.associateBy { it.pluginId to it.sourceId }
-                dao.upsertStories(mutation.stories.map { it.toEntity() })
-                dao.upsertEntries(
-                    mutation.entries.map { entry ->
-                        merge(existing[entry.pluginId.value to entry.sourceId], entry, mutation)
-                    },
+                val sourceIds = mutation.entries.map(CatalogEntry::sourceId).distinct()
+                val existing = if (sourceIds.isEmpty()) {
+                    emptyMap()
+                } else {
+                    dao.entries(mutation.pluginId.value, sourceIds)
+                        .associateBy { it.pluginId to it.sourceId }
+                }
+                val durableEntries = mutation.entries.map { entry ->
+                    merge(existing[entry.pluginId.value to entry.sourceId], entry, mutation)
+                }
+                val durableStoryIds = durableEntries.mapTo(hashSetOf(), CatalogEntryEntity::storyId)
+                dao.upsertStories(
+                    mutation.stories
+                        .filter { it.id.value in durableStoryIds }
+                        .map { it.toEntity() },
                 )
+                dao.upsertEntries(durableEntries)
                 homeDao.deleteSections(mutation.pluginId.value)
                 homeDao.upsertSnapshot(
                     app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity(
@@ -82,7 +101,13 @@ class RoomCatalogRepository internal constructor(
                     ),
                 )
                 homeDao.upsertSections(mutation.sections.mapIndexed { index, section ->
-                    CatalogHomeSectionEntity(mutation.pluginId.value, section.sourceId, section.title, index)
+                    CatalogHomeSectionEntity(
+                        pluginId = mutation.pluginId.value,
+                        sectionId = section.sourceId,
+                        title = section.title,
+                        position = index,
+                        feedKind = section.kind.name,
+                    )
                 })
                 homeDao.upsertItems(mutation.sections.flatMap { section ->
                     section.items.mapIndexed { index, entry ->
@@ -99,18 +124,21 @@ class RoomCatalogRepository internal constructor(
 
     override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> =
         try {
-            database.withTransaction {
-                if (dao.findStory(mutation.storyId.value) == null) {
+            val durableStoryId = database.withTransaction {
+                val existing = dao.findEntry(mutation.entry.pluginId.value, mutation.entry.sourceId)
+                val durableStoryId = StoryId(existing?.storyId ?: mutation.storyId.value)
+                if (existing == null && dao.findStory(durableStoryId.value) == null) {
                     dao.upsertStories(
-                        listOf(StoryEntity(mutation.storyId.value, mutation.entry.contentType.name)),
+                        listOf(StoryEntity(durableStoryId.value, mutation.entry.contentType.name)),
                     )
                 }
-                val existing = dao.findEntry(mutation.entry.pluginId.value, mutation.entry.sourceId)
+                val durableEntry = mutation.entry.copy(storyId = durableStoryId)
                 dao.upsertEntries(
-                    listOf(merge(existing, mutation.entry, mutation)),
+                    listOf(mergeDetails(existing, durableEntry, mutation)),
                 )
+                durableStoryId
             }
-            Outcome.Success(mutation.storyId)
+            Outcome.Success(durableStoryId)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -118,44 +146,69 @@ class RoomCatalogRepository internal constructor(
         }
 
     private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogHomeMutation) =
-        entry.toEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis).let { incoming ->
-            existing?.copy(
-                storyId = incoming.storyId,
-                title = incoming.title,
-                aliases = incoming.aliases.ifEmpty { existing.aliases },
-                authors = incoming.authors.ifEmpty { existing.authors },
-                description = incoming.description ?: existing.description,
-                genres = incoming.genres.ifEmpty { existing.genres },
-                contentType = incoming.contentType,
-                languageTags = incoming.languageTags.ifEmpty { existing.languageTags },
-                coverUrl = incoming.coverUrl ?: existing.coverUrl,
-                sourceUrl = incoming.sourceUrl ?: existing.sourceUrl,
-                scoreValue = incoming.scoreValue ?: existing.scoreValue,
-                scoreScale = incoming.scoreScale ?: existing.scoreScale,
-                popularityRank = incoming.popularityRank ?: existing.popularityRank,
-                pluginVersion = incoming.pluginVersion,
-                fetchedAtEpochMillis = incoming.fetchedAtEpochMillis,
-            ) ?: incoming
-        }
+        mergeHome(existing, entry.toHomeEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis))
 
-    private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogDetailsMutation) =
-        entry.toEntity(mutation.pluginVersion, mutation.fetchedAtEpochMillis).let { incoming ->
-            existing?.copy(
-                storyId = incoming.storyId,
-                title = incoming.title,
-                aliases = incoming.aliases.ifEmpty { existing.aliases },
-                authors = incoming.authors.ifEmpty { existing.authors },
-                description = incoming.description ?: existing.description,
-                genres = incoming.genres.ifEmpty { existing.genres },
-                contentType = incoming.contentType,
-                languageTags = incoming.languageTags.ifEmpty { existing.languageTags },
-                coverUrl = incoming.coverUrl ?: existing.coverUrl,
-                sourceUrl = incoming.sourceUrl ?: existing.sourceUrl,
-                scoreValue = incoming.scoreValue ?: existing.scoreValue,
-                scoreScale = incoming.scoreScale ?: existing.scoreScale,
-                popularityRank = incoming.popularityRank ?: existing.popularityRank,
-                pluginVersion = incoming.pluginVersion,
-                fetchedAtEpochMillis = incoming.fetchedAtEpochMillis,
-            ) ?: incoming
-        }
+    private fun mergeDetails(
+        existing: CatalogEntryEntity?,
+        entry: CatalogEntry,
+        mutation: CatalogDetailsMutation,
+    ) = mergeDetails(existing, entry.toDetailsEntity(mutation.pluginVersion, mutation.resolvedAtEpochMillis))
+
+    private fun mergeHome(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
+        if (existing == null) return incoming
+        return mergeContent(existing, incoming).copy(
+            storyId = existing.storyId,
+            fullPluginVersion = existing.fullPluginVersion,
+            fullResolvedAtEpochMillis = existing.fullResolvedAtEpochMillis,
+        )
+    }
+
+    private fun mergeDetails(existing: CatalogEntryEntity?, incoming: CatalogEntryEntity): CatalogEntryEntity {
+        if (existing == null) return incoming
+        return mergeContent(existing, incoming).copy(
+            storyId = existing.storyId,
+            fullPluginVersion = incoming.fullPluginVersion,
+            fullResolvedAtEpochMillis = incoming.fullResolvedAtEpochMillis,
+        )
+    }
+
+    private fun mergeContent(existing: CatalogEntryEntity, incoming: CatalogEntryEntity): CatalogEntryEntity {
+        val latestUpdate = mergeLatestUpdate(
+            existing.latestUpdateAtEpochMillis,
+            existing.latestUpdateReleaseLabel,
+            incoming.latestUpdateAtEpochMillis,
+            incoming.latestUpdateReleaseLabel,
+        )
+        return existing.copy(
+            title = incoming.title,
+            aliases = incoming.aliases.ifEmpty { existing.aliases },
+            authors = incoming.authors.ifEmpty { existing.authors },
+            description = incoming.description ?: existing.description,
+            genres = incoming.genres.ifEmpty { existing.genres },
+            contentType = incoming.contentType,
+            languageTags = incoming.languageTags.ifEmpty { existing.languageTags },
+            coverUrl = incoming.coverUrl?.takeIf(String::isNotBlank) ?: existing.coverUrl,
+            sourceUrl = incoming.sourceUrl ?: existing.sourceUrl,
+            scoreValue = incoming.scoreValue ?: existing.scoreValue,
+            scoreScale = incoming.scoreScale ?: existing.scoreScale,
+            popularityRank = incoming.popularityRank ?: existing.popularityRank,
+            publicationStatus = incoming.publicationStatus ?: existing.publicationStatus,
+            latestUpdateAtEpochMillis = latestUpdate.first,
+            latestUpdateReleaseLabel = latestUpdate.second,
+            pluginVersion = incoming.summaryPluginVersion,
+            fetchedAtEpochMillis = incoming.summaryResolvedAtEpochMillis,
+        )
+    }
+
+    private fun mergeLatestUpdate(
+        existingAt: Long?,
+        existingLabel: String?,
+        incomingAt: Long?,
+        incomingLabel: String?,
+    ): Pair<Long?, String?> = when {
+        incomingAt == null -> existingAt to existingLabel
+        existingAt == null -> incomingAt to incomingLabel
+        incomingAt > existingAt -> incomingAt to incomingLabel
+        else -> existingAt to existingLabel
+    }
 }

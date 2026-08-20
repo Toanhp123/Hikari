@@ -13,7 +13,7 @@ import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
-import java.io.ByteArrayInputStream
+import app.openstory.reader.document.isLocalPersistable
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -71,7 +71,7 @@ class DownloadAwareReaderDocumentStore(
     override suspend fun write(releaseId: ChapterReleaseId, fingerprint: String, document: ReaderDocument) {
         require(document.fingerprint == fingerprint)
         val blob = ReaderDocumentBlobCodec.encode(document)
-        if (!writeAdmission.canStore(blob.bytes().size.toLong())) return
+        if (!writeAdmission.canStore(blob.sizeBytes.toLong())) return
         try {
             cache.store(
                 ChapterBlobKey(ChapterBlobNamespace.AUTOMATIC_CACHE, releaseId, fingerprint),
@@ -103,6 +103,7 @@ class DownloadAwareReaderDocumentStore(
 
 internal object ReaderDocumentBlobCodec {
     fun encode(document: ReaderDocument): ChapterBlob {
+        require(document.isLocalPersistable) { "Remote image documents cannot be stored as chapter blobs" }
         val output = ByteArrayOutputStream()
         DataOutputStream(output).use { data ->
             data.writeInt(FORMAT_VERSION)
@@ -115,7 +116,7 @@ internal object ReaderDocumentBlobCodec {
     }
 
     fun decode(blob: ChapterBlob): ReaderDocument? = runCatching {
-        DataInputStream(ByteArrayInputStream(blob.bytes())).use { data ->
+        DataInputStream(blob.inputStream()).use { data ->
             require(data.readInt() == FORMAT_VERSION)
             val title = data.readNullableString()
             val fingerprint = data.readString()
@@ -146,6 +147,7 @@ internal object ReaderDocumentBlobCodec {
                 writeString(block.id)
                 writeString(block.text)
             }
+            is ReaderBlock.ImagePage -> error("Remote image pages are not persistable")
         }
     }
 

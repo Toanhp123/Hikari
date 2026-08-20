@@ -9,6 +9,7 @@ import app.openstory.library.mapping.ContentMapping
 import app.openstory.library.mapping.ContentMappingCandidate
 import app.openstory.library.mapping.ContentMappingSearchReport
 import app.openstory.library.mapping.ContentMappingService
+import app.openstory.library.mapping.ContentMappingWriteResult
 import app.openstory.library.matching.ContentMatchExplanation
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -16,8 +17,10 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -34,6 +37,9 @@ class MappingViewModel @AssistedInject constructor(
     private val urlInput = MutableStateFlow("")
     private val busy = MutableStateFlow(false)
     private val failures = MutableStateFlow<List<String>>(emptyList())
+    private val mutableEvents = MutableSharedFlow<MappingEvent>()
+
+    val events = mutableEvents.asSharedFlow()
 
     val state = combine(
         mappings.observe(storyId).catch {
@@ -45,16 +51,25 @@ class MappingViewModel @AssistedInject constructor(
         busy,
         failures,
     ) { currentMappings, pending, url, isBusy, currentFailures ->
+        val mappingsByPlugin = currentMappings.associateBy(ContentMapping::pluginId)
         MappingUiState(
+            loading = false,
             mappings = currentMappings.map(ContentMapping::toUiModel),
-            candidates = pending.map(PendingCandidate::toUiModel),
+            candidates = pending
+                .filterNot { pendingCandidate ->
+                    mappingsByPlugin[pendingCandidate.candidate.pluginId]
+                        ?.sourceStoryId == pendingCandidate.candidate.sourceStoryId
+                }
+                .map { pendingCandidate ->
+                    pendingCandidate.toUiModel(mappingsByPlugin[pendingCandidate.candidate.pluginId])
+                },
             urlInput = url,
             busy = isBusy,
             failures = currentFailures,
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = MappingUiState(),
     )
 
@@ -73,22 +88,45 @@ class MappingViewModel @AssistedInject constructor(
     }
 
     fun approve(pluginId: PluginId, sourceStoryId: String) {
+        if (busy.value) return
         val pending = candidates.value.find(pluginId, sourceStoryId) ?: return
+        val replacing = state.value.mappings.any { mapping ->
+            mapping.pluginId == pluginId && mapping.sourceStoryId != sourceStoryId
+        }
+        busy.value = true
         viewModelScope.launch {
             runAction {
-                if (pending.fromUrl) {
+                val result = if (pending.fromUrl) {
                     mappings.acceptUrl(storyId, pending.candidate)
                 } else {
                     mappings.approve(storyId, pending.candidate)
                 }
-                chapterSync.schedule(storyId)
-                candidates.value = candidates.value - pending
+                when (result) {
+                    is ContentMappingWriteResult.Written -> {
+                        candidates.value = candidates.value.filterNot { candidate ->
+                            candidate.candidate.pluginId == pending.candidate.pluginId
+                        }
+                        if (result.changed) {
+                            chapterSync.schedule(storyId)
+                            mutableEvents.emit(
+                                if (replacing) MappingEvent.SOURCE_REPLACED else MappingEvent.SOURCE_LINKED,
+                            )
+                        } else {
+                            mutableEvents.emit(MappingEvent.SOURCE_ALREADY_LINKED)
+                        }
+                    }
+                    is ContentMappingWriteResult.Protected -> {
+                        failures.value = listOf(ACTION_FAILURE)
+                    }
+                }
             }
         }
     }
 
     fun reject(pluginId: PluginId, sourceStoryId: String) {
+        if (busy.value) return
         val pending = candidates.value.find(pluginId, sourceStoryId) ?: return
+        busy.value = true
         viewModelScope.launch {
             runAction {
                 mappings.reject(storyId, pending.candidate)
@@ -127,6 +165,8 @@ class MappingViewModel @AssistedInject constructor(
             throw cancelled
         } catch (_: Exception) {
             failures.value = listOf(ACTION_FAILURE)
+        } finally {
+            busy.value = false
         }
     }
 
@@ -136,6 +176,7 @@ class MappingViewModel @AssistedInject constructor(
     }
 
     private companion object {
+        const val STOP_TIMEOUT_MILLIS = 5_000L
         const val OBSERVE_FAILURE = "library.mapping.observe_failed"
         const val SEARCH_FAILURE = "library.mapping.search_failed"
         const val ACTION_FAILURE = "library.mapping.action_failed"
@@ -143,6 +184,12 @@ class MappingViewModel @AssistedInject constructor(
 }
 
 data class MappingAssistedArgs(val storyId: StoryId)
+
+enum class MappingEvent {
+    SOURCE_LINKED,
+    SOURCE_REPLACED,
+    SOURCE_ALREADY_LINKED,
+}
 
 private data class PendingCandidate(
     val candidate: ContentMappingCandidate,
@@ -162,7 +209,7 @@ private fun ContentMapping.toUiModel() = MappingItemUiModel(
     origin = origin,
 )
 
-private fun PendingCandidate.toUiModel() = MappingCandidateUiModel(
+private fun PendingCandidate.toUiModel(currentMapping: ContentMapping?) = MappingCandidateUiModel(
     pluginId = candidate.pluginId,
     sourceStoryId = candidate.sourceStoryId,
     title = candidate.title,
@@ -171,12 +218,15 @@ private fun PendingCandidate.toUiModel() = MappingCandidateUiModel(
     score = candidate.match.score,
     evidenceLabels = candidate.match.explanation.evidenceLabels(),
     fromUrl = fromUrl,
+    replacesSourceStoryId = currentMapping
+        ?.sourceStoryId
+        ?.takeIf { sourceStoryId -> sourceStoryId != candidate.sourceStoryId },
 )
 
 private fun ContentMatchExplanation.evidenceLabels(): List<String> = buildList {
     val currentAuthorSimilarity = authorSimilarity
     if (directEvidence) add("Direct mapping")
-    add("Title ${title.similarity.asPercent()}")
+    add("Title ${titleSimilarity.asPercent()}")
     when {
         authorConflict -> add("Author conflict")
         currentAuthorSimilarity == null -> add("Author evidence missing")

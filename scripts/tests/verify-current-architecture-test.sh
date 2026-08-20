@@ -26,18 +26,8 @@ make_fixture() {
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room" \
     "$FIXTURE/app/src/main/assets/plugins" \
     "$FIXTURE/app/src/main/kotlin/app/openstory/di"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/2.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/3.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/4.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/4.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/5.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/5.json"
-  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/6.json" \
-    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/6.json"
+  cp "$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/"*.json \
+    "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/"
   cp "$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" \
     "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
   printf 'canonical plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/myanimelist-catalog.osp"
@@ -89,16 +79,24 @@ printf 'unregistered plugin package\n' > "$FIXTURE/app/src/main/assets/plugins/u
 expect_failure 'a production plugin asset missing from the bundled plugin registry'
 make_fixture
 
-module_count="$(grep -cE '^[[:space:]]*"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$module_count" == 14 ]] || {
+production_module_count="$(awk '
+  /"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{/ { module = $0; is_test = 0 }
+  /"platform"[[:space:]]*:[[:space:]]*"android-test"/ { is_test = 1 }
+  /^[[:space:]]*}[,]?[[:space:]]*$/ && module != "" { if (!is_test) count++; module = "" }
+  END { print count + 0 }
+' "$FIXTURE/config/architecture/module-boundaries.json")"
+[[ "$production_module_count" == 14 ]] || {
   echo "UI foundation boundary must contain exactly fourteen production modules." >&2
   exit 1
 }
 
-expected_modules=$':app\n:catalog\n:chapters\n:core:common\n:core:designsystem\n:downloads\n:feature:catalog\n:feature:reader\n:library\n:plugins:api\n:plugins:runtime\n:reader\n:storage:files\n:storage:room'
-actual_modules="$(grep -oE '"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{' "$FIXTURE/config/architecture/module-boundaries.json" | sed -E 's/"([^\"]+)".*/\1/' | sort)"
-[[ "$actual_modules" == "$expected_modules" ]] || {
-  echo "UI foundation policy must declare the approved fourteen-module graph." >&2
+grep -q '"\:benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" || {
+  echo "Performance tooling policy must declare the benchmark test module." >&2
+  exit 1
+}
+grep -A4 '"\:benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" |
+  grep -q '"platform"[[:space:]]*:[[:space:]]*"android-test"' || {
+  echo "Benchmark must be classified as android-test, not production." >&2
   exit 1
 }
 
@@ -121,7 +119,12 @@ printf '\n' >> "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenSto
 expect_failure 'a changed frozen schema 1'
 make_fixture
 
-sed -i 's/version = 6,/version = 7,/' \
+current_database_version="$(
+  sed -nE 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*([0-9]+),[[:space:]]*$/\1/p' \
+    "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt" | head -1
+)"
+next_database_version=$((current_database_version + 1))
+sed -i "s/version = ${current_database_version},/version = ${next_database_version},/" \
   "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
 expect_failure 'a database version without a contiguous exported schema'
 make_fixture

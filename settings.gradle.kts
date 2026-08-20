@@ -50,3 +50,5 @@ include(":storage:room")
 include(":storage:files")
 include(":plugins:api")
 include(":plugins:runtime")
+
+include(":benchmark")

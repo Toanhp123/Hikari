@@ -55,6 +55,7 @@ class ContentStoryMatcherTest {
 
         assertEquals(1.0, result.score)
         assertEquals(ContentMatchDecision.AUTO_LINK, result.decision)
+        assertEquals(1.0, result.explanation.titleSimilarity)
         assertEquals(null, result.explanation.authorSimilarity)
         assertEquals(null, result.explanation.contentTypeMatch)
     }
@@ -74,6 +75,24 @@ class ContentStoryMatcherTest {
 
         assertEquals(ContentMatchDecision.REVIEW, review.decision)
         assertEquals(ContentMatchDecision.REJECT, reject.decision)
+    }
+
+    @Test
+    fun highestAliasSimilarityDrivesTheResult() {
+        val result = matcher.compare(
+            ContentStoryFeatures(
+                title = "Completely Different",
+                aliases = linkedSetOf("Exact Match", "Noise"),
+            ),
+            ContentStoryFeatures(
+                title = "Other",
+                aliases = linkedSetOf("Noise Two", "Exact Match"),
+            ),
+        )
+
+        assertEquals(1.0, result.score)
+        assertEquals(1.0, result.explanation.titleSimilarity)
+        assertEquals(ContentMatchDecision.AUTO_LINK, result.decision)
     }
 
     @Test

@@ -31,6 +31,30 @@ class ReaderDocumentRepositoryTest {
     }
 
     @Test
+    fun cacheHitSkipsSourceRegistryEnumeration() = runTest {
+        val document = document("fingerprint")
+        val store = FakeStore(readResult = document)
+        var enabledCalls = 0
+        val repository = ReaderDocumentRepository(
+            store,
+            object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> {
+                    enabledCalls += 1
+                    return listOf(FakeSource())
+                }
+            },
+            ReleaseSelector(),
+        )
+
+        val result = repository.load(
+            request(candidate("release"), mapOf(ChapterReleaseId("release") to "fingerprint")),
+        )
+
+        assertEquals(true, assertIs<ReaderLoadResult.Success>(result).fromStore)
+        assertEquals(0, enabledCalls)
+    }
+
+    @Test
     fun returnsCurrentStoreEntryWithoutProgressFingerprint() = runTest {
         val document = document("downloaded")
         val store = FakeStore(currentReadResult = document)
@@ -57,6 +81,25 @@ class ReaderDocumentRepositoryTest {
 
         assertEquals("second", assertIs<ReaderLoadResult.Success>(result).release.release.id.value)
         assertEquals(listOf("second" to "network"), store.writes)
+    }
+
+
+    @Test
+    fun remoteImageDocumentsStayOnlineAndAreNotWrittenToLocalStore() = runTest {
+        val store = FakeStore()
+        val imageDocument = ReaderDocument(
+            null,
+            listOf(ReaderBlock.ImagePage("image-1", "https://node.example/page.png")),
+            "image-fingerprint",
+        )
+        val source = FakeSource(
+            results = mutableMapOf("release" to ReaderSourceResult.Success(imageDocument)),
+        )
+
+        val result = repository(store, source).load(request(candidate("release")))
+
+        assertEquals(false, assertIs<ReaderLoadResult.Success>(result).fromStore)
+        assertEquals(emptyList(), store.writes)
     }
 
     @Test

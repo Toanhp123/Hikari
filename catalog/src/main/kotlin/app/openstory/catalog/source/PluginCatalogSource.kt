@@ -14,7 +14,9 @@ import app.openstory.plugins.api.protocol.catalog.CatalogSearchOutputDto
 import app.openstory.plugins.api.protocol.catalog.CatalogSearchRequestDto
 import app.openstory.plugins.api.protocol.catalog.CatalogSectionDto
 import app.openstory.plugins.api.protocol.catalog.CatalogTextFilterDto
+import app.openstory.plugins.api.protocol.catalog.WireCatalogFeedKind
 import app.openstory.plugins.api.protocol.catalog.WireContentType
+import app.openstory.plugins.api.protocol.catalog.WirePublicationStatus
 import app.openstory.plugins.runtime.InstalledPlugin
 import app.openstory.plugins.runtime.PluginCallResult
 import app.openstory.plugins.runtime.PluginRuntime
@@ -78,7 +80,12 @@ private fun SourceHomeRequest.toDto() = CatalogHomeRequestDto(
 
 private fun SourceSearchRequest.toDto() = CatalogSearchRequestDto(query, filterValues, nextToken)
 
-private fun CatalogSectionDto.toSource() = SourceSection(sourceId, title, items.map(CatalogItemDto::toSource))
+private fun CatalogSectionDto.toSource() = SourceSection(
+    sourceId = sourceId,
+    title = title,
+    items = items.map(CatalogItemDto::toSource),
+    kind = kind.toSource(),
+)
 
 private fun CatalogItemDto.toSource() = SourceItem(
     sourceId = sourceId,
@@ -88,6 +95,10 @@ private fun CatalogItemDto.toSource() = SourceItem(
     coverUrl = coverUrl,
     scoreValue = score?.value,
     scoreScale = score?.scale,
+    genres = genres,
+    popularityRank = popularityRank,
+    publicationStatus = publicationStatus?.toSource(),
+    latestUpdate = latestUpdate?.let { SourceLatestUpdate(it.atEpochMillis, it.releaseLabel) },
 )
 
 private fun CatalogDetailsOutputDto.toSource() = SourceDetails(
@@ -104,6 +115,8 @@ private fun CatalogDetailsOutputDto.toSource() = SourceDetails(
     scoreValue = score?.value,
     scoreScale = score?.scale,
     popularityRank = popularityRank,
+    publicationStatus = publicationStatus?.toSource(),
+    latestUpdate = latestUpdate?.let { SourceLatestUpdate(it.atEpochMillis, it.releaseLabel) },
 )
 
 private fun CatalogFilterDto.toSource(): SourceFilter = when (this) {
@@ -129,4 +142,19 @@ private fun SourceContentType.toWire(): WireContentType = when (this) {
     SourceContentType.WEB_NOVEL -> WireContentType.WEB_NOVEL
     SourceContentType.MANGA -> WireContentType.MANGA
     SourceContentType.ANIME -> WireContentType.ANIME
+}
+
+private fun WireCatalogFeedKind.toSource(): SourceFeedKind = when (this) {
+    WireCatalogFeedKind.POPULAR -> SourceFeedKind.POPULAR
+    WireCatalogFeedKind.LATEST_UPDATES -> SourceFeedKind.LATEST_UPDATES
+    WireCatalogFeedKind.TOP_RATED -> SourceFeedKind.TOP_RATED
+    WireCatalogFeedKind.OTHER -> SourceFeedKind.OTHER
+}
+
+private fun WirePublicationStatus.toSource(): SourcePublicationStatus = when (this) {
+    WirePublicationStatus.ONGOING -> SourcePublicationStatus.ONGOING
+    WirePublicationStatus.COMPLETED -> SourcePublicationStatus.COMPLETED
+    WirePublicationStatus.HIATUS -> SourcePublicationStatus.HIATUS
+    WirePublicationStatus.CANCELLED -> SourcePublicationStatus.CANCELLED
+    WirePublicationStatus.UPCOMING -> SourcePublicationStatus.UPCOMING
 }

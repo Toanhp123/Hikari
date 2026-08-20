@@ -2,7 +2,10 @@ package app.openstory.catalog.home
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.CatalogLatestUpdate
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
@@ -15,8 +18,11 @@ import app.openstory.catalog.source.CatalogSourceResult
 import app.openstory.catalog.source.SourceContentType
 import app.openstory.catalog.source.SourceDetails
 import app.openstory.catalog.source.SourceFilter
+import app.openstory.catalog.source.SourceFeedKind
 import app.openstory.catalog.source.SourceHomeRequest
 import app.openstory.catalog.source.SourceItem
+import app.openstory.catalog.source.SourceLatestUpdate
+import app.openstory.catalog.source.SourcePublicationStatus
 import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceSection
@@ -53,15 +59,69 @@ class CatalogRefreshServiceTest {
     }
 
     @Test
+    fun semanticHomeMetadataIsCommittedWithoutDetailsFetch() = runTest {
+        val repository = RecordingRepository()
+        val sourceItem = SourceItem(
+            sourceId = "manga-1",
+            title = "Manga One",
+            contentType = SourceContentType.MANGA,
+            authors = emptySet(),
+            coverUrl = "https://example.test/one.jpg",
+            scoreValue = 9.2,
+            scoreScale = 10.0,
+            genres = setOf("Action", "Fantasy"),
+            popularityRank = 2,
+            publicationStatus = SourcePublicationStatus.ONGOING,
+            latestUpdate = SourceLatestUpdate(500L, "128"),
+        )
+        val registry = Registry(
+            listOf(
+                Source(
+                    "a",
+                    CatalogSourceResult.Success(
+                        listOf(SourceSection("popular", "Popular", listOf(sourceItem), SourceFeedKind.POPULAR)),
+                    ),
+                ),
+            ),
+        )
+
+        service(registry, repository, 999L).refresh()
+
+        val mutation = repository.mutations.single()
+        assertEquals(CatalogFeedKind.POPULAR, mutation.sections.single().kind)
+        assertEquals(setOf("Action", "Fantasy"), mutation.entries.single().genres)
+        assertEquals(2, mutation.entries.single().popularityRank)
+        assertEquals(PublicationStatus.ONGOING, mutation.entries.single().publicationStatus)
+        assertEquals(CatalogLatestUpdate(500L, "128"), mutation.entries.single().latestUpdate)
+    }
+
+    @Test
     fun oneMutationCapturesOneTimestamp() = runTest {
         val repository = RecordingRepository()
         val registry = Registry(
             listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))),
         )
 
-        service(registry, repository, 99).refresh()
+        val results = service(registry, repository, 99).refresh()
 
         assertEquals(99, repository.mutations.single().refreshedAtEpochMillis)
+        assertEquals(99, (results.single() as CatalogRefreshResult.Success).refreshedAtEpochMillis)
+    }
+
+    @Test
+    fun storeFailureReturnsTypedFailureWithoutPublishingCommittedIndex() = runTest {
+        val failure = CatalogStoreFailure("store.down", retryable = true)
+        val repository = RecordingRepository(storeFailure = failure)
+        val registry = Registry(
+            listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))),
+        )
+
+        val result = service(registry, repository, 99).refresh().single()
+
+        assertEquals(
+            CatalogRefreshResult.StoreFailure(PluginId("a"), failure),
+            result,
+        )
     }
 
     @Test
@@ -126,18 +186,23 @@ class CatalogRefreshServiceTest {
         override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
     }
 
-    private class RecordingRepository : CatalogRepository {
+    private class RecordingRepository(
+        private val storeFailure: CatalogStoreFailure? = null,
+    ) : CatalogRepository {
         val mutations = mutableListOf<CatalogHomeMutation>()
 
         override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
         override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
         override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+        override suspend fun metadataSnapshot(
+            key: app.openstory.catalog.metadata.CatalogMetadataKey,
+        ): app.openstory.catalog.metadata.CatalogMetadataSnapshot? = null
 
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
         ): Outcome<Unit, CatalogStoreFailure> {
             mutations += mutation
-            return Outcome.Success(Unit)
+            return storeFailure?.let { Outcome.Failure(it) } ?: Outcome.Success(Unit)
         }
 
         override suspend fun commitDetails(

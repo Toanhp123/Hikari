@@ -18,6 +18,8 @@ data class CatalogEntry(
     val sourceUrl: String? = null,
     val score: Score? = null,
     val popularityRank: Long? = null,
+    val publicationStatus: PublicationStatus? = null,
+    val latestUpdate: CatalogLatestUpdate? = null,
 ) {
     init {
         require(sourceId.isNotBlank()) { "Source identity must not be blank" }

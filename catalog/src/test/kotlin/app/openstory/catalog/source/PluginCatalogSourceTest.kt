@@ -5,9 +5,12 @@ import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.catalog.CatalogHomeOutputDto
 import app.openstory.plugins.api.protocol.catalog.CatalogItemDto
+import app.openstory.plugins.api.protocol.catalog.CatalogLatestUpdateDto
 import app.openstory.plugins.api.protocol.catalog.CatalogSectionDto
 import app.openstory.plugins.api.protocol.catalog.ScoreDto
+import app.openstory.plugins.api.protocol.catalog.WireCatalogFeedKind
 import app.openstory.plugins.api.protocol.catalog.WireContentType
+import app.openstory.plugins.api.protocol.catalog.WirePublicationStatus
 import app.openstory.plugins.runtime.InstalledPlugin
 import app.openstory.plugins.runtime.PluginCallResult
 import app.openstory.plugins.runtime.PluginRuntime
@@ -22,7 +25,7 @@ import kotlin.test.assertTrue
 
 class PluginCatalogSourceTest {
     @Test
-    fun homeMapsWireDtoWithoutLosingSourceIdentity() = runTest {
+    fun homeMapsWireDtoWithoutLosingSemanticMetadata() = runTest {
         val runtime = FakePluginRuntime.success(
             operation = PluginOperation.CATALOG_HOME,
             payload = Json.encodeToJsonElement(
@@ -39,8 +42,13 @@ class PluginCatalogSourceTest {
                                     authors = listOf("Author"),
                                     coverUrl = "https://cdn.myanimelist.net/cover.jpg",
                                     score = ScoreDto(8.4, 10.0),
+                                    genres = setOf("Action", "Fantasy"),
+                                    popularityRank = 4,
+                                    publicationStatus = WirePublicationStatus.ONGOING,
+                                    latestUpdate = CatalogLatestUpdateDto(500L, "128"),
                                 ),
                             ),
+                            kind = WireCatalogFeedKind.POPULAR,
                         ),
                     ),
                 ),
@@ -51,9 +59,16 @@ class PluginCatalogSourceTest {
         val result = assertIs<CatalogSourceResult.Success<List<SourceSection>>>(
             source.home(SourceHomeRequest()),
         )
+        val section = result.value.single()
+        val item = section.items.single()
 
-        assertEquals("123", result.value.single().items.single().sourceId)
-        assertEquals(SourceContentType.MANGA, result.value.single().items.single().contentType)
+        assertEquals(SourceFeedKind.POPULAR, section.kind)
+        assertEquals("123", item.sourceId)
+        assertEquals(SourceContentType.MANGA, item.contentType)
+        assertEquals(setOf("Action", "Fantasy"), item.genres)
+        assertEquals(4, item.popularityRank)
+        assertEquals(SourcePublicationStatus.ONGOING, item.publicationStatus)
+        assertEquals(SourceLatestUpdate(500L, "128"), item.latestUpdate)
         assertEquals(PluginOperation.CATALOG_HOME, runtime.lastOperation)
     }
 

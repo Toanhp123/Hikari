@@ -1,0 +1,55 @@
+{
+  "page": 1,
+  "per_page": 100,
+  "total_hits": 2,
+  "results": [
+    {
+      "record": {
+        "id": 91000000001,
+        "title": "One Piece",
+        "volume": "112",
+        "chapter": "1152",
+        "release_date": "2026-08-20",
+        "time_added": {
+          "timestamp": 1787203200,
+          "as_rfc3339": "2026-08-20T05:20:00Z"
+        }
+      },
+      "metadata": {
+        "series": {
+          "series_id": 64897697818,
+          "title": "One Piece",
+          "type": "Manga",
+          "year": "1997",
+          "bayesian_rating": 8.72,
+          "image": {"url": {"thumb": "https://cdn.mangaupdates.com/image/i999999.jpg"}},
+          "genres": [{"genre": "Action"}, {"genre": "Adventure"}],
+          "rank": {"position": {"week": 1}}
+        }
+      }
+    },
+    {
+      "record": {
+        "id": 91000000002,
+        "title": "Naruto",
+        "volume": "72",
+        "chapter": "700",
+        "release_date": "2026-08-19",
+        "time_added": {
+          "timestamp": 1787116800,
+          "as_rfc3339": "2026-08-19T05:20:00Z"
+        }
+      },
+      "metadata": {
+        "series": {
+          "series_id": 17360452316,
+          "title": "Naruto",
+          "type": "Manga",
+          "year": "1999",
+          "bayesian_rating": 8.1,
+          "genres": [{"genre": "Action"}]
+        }
+      }
+    }
+  ]
+}

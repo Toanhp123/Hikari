@@ -2,22 +2,24 @@ package app.openstory.catalog.ui.search
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import app.openstory.catalog.search.CatalogSearchFilterGroup
 import app.openstory.catalog.source.SourceFilter
 import app.openstory.catalog.source.SourceOptionFilter
@@ -27,60 +29,52 @@ import app.openstory.common.id.PluginId
 import java.math.BigDecimal
 import kotlin.math.round
 import kotlin.math.roundToInt
+import app.openstory.designsystem.control.HikariInlineAction
+import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.theme.hikariDimensions
 
-@Composable
-fun SearchFilters(
+internal fun LazyListScope.searchFilterItems(
     groups: List<CatalogSearchFilterGroup>,
     selectedValues: Map<PluginId, Map<String, List<String>>>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
     onClear: (PluginId) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val visibleGroups = groups.filter { it.definitions.isNotEmpty() }
-    if (visibleGroups.isEmpty()) return
-
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        visibleGroups.forEach { group ->
-            FilterGroup(
-                group = group,
-                selectedValues = selectedValues[group.pluginId].orEmpty(),
-                onValuesChange = onValuesChange,
-                onClear = onClear,
-            )
+    visibleGroups.forEach { group ->
+        val groupValues = selectedValues[group.pluginId].orEmpty()
+        item(key = "search-filter-header-${group.pluginId.value}") {
+            FilterGroupHeader(group.pluginId, groupValues, onClear)
+        }
+        group.definitions.forEach { definition ->
+            item(key = "search-filter-${group.pluginId.value}-${definition.id}") {
+                FilterControl(
+                    pluginId = group.pluginId,
+                    definition = definition,
+                    selected = groupValues[definition.id].orEmpty(),
+                    onValuesChange = onValuesChange,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun FilterGroup(
-    group: CatalogSearchFilterGroup,
+private fun FilterGroupHeader(
+    pluginId: PluginId,
     selectedValues: Map<String, List<String>>,
-    onValuesChange: (PluginId, String, List<String>) -> Unit,
     onClear: (PluginId) -> Unit,
 ) {
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(group.pluginId.value)
-            if (selectedValues.isNotEmpty()) {
-                OutlinedButton(onClick = { onClear(group.pluginId) }) { Text("Clear") }
-            }
-        }
-        group.definitions.forEach { definition ->
-            FilterControl(
-                pluginId = group.pluginId,
-                definition = definition,
-                selected = selectedValues[definition.id].orEmpty(),
-                onValuesChange = onValuesChange,
-            )
+        Text(pluginId.value, style = MaterialTheme.typography.titleSmall)
+        if (selectedValues.isNotEmpty()) {
+            HikariInlineAction(
+                onClick = { onClear(pluginId) },
+                modifier = Modifier.heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget),
+            ) { Text("Clear") }
         }
     }
 }
@@ -92,10 +86,12 @@ private fun FilterControl(
     selected: List<String>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
 ) {
-    when (definition) {
-        is SourceOptionFilter -> OptionFilter(pluginId, definition, selected, onValuesChange)
-        is SourceRangeFilter -> RangeFilter(pluginId, definition, selected, onValuesChange)
-        is SourceTextFilter -> TextFilter(pluginId, definition, selected, onValuesChange)
+    Column {
+        when (definition) {
+            is SourceOptionFilter -> OptionFilter(pluginId, definition, selected, onValuesChange)
+            is SourceRangeFilter -> RangeFilter(pluginId, definition, selected, onValuesChange)
+            is SourceTextFilter -> TextFilter(pluginId, definition, selected, onValuesChange)
+        }
     }
 }
 
@@ -106,14 +102,13 @@ private fun OptionFilter(
     selected: List<String>,
     onValuesChange: (PluginId, String, List<String>) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text(definition.label)
         LazyRow(
-            contentPadding = PaddingValues(end = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.sectionContentGap),
         ) {
             items(definition.options, key = { it.value }) { option ->
-                FilterChip(
+                HikariFilterChip(
                     selected = option.value in selected,
                     onClick = {
                         onValuesChange(
@@ -165,15 +160,21 @@ private fun RangeFilter(
         return
     }
     val (minimum, maximum, step) = bounds
-    val current = selected.firstOrNull()?.toDoubleOrNull()?.coerceIn(minimum, maximum) ?: minimum
+    val committed = selected.firstOrNull()?.toDoubleOrNull()?.coerceIn(minimum, maximum) ?: minimum
+    var transient by remember(pluginId, definition.id, committed) {
+        mutableFloatStateOf(committed.toFloat())
+    }
+    val current = snapRangeValue(transient.toDouble(), minimum, maximum, step)
     val steps = ((maximum - minimum) / step).roundToInt().minus(1).coerceAtLeast(0)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Text("${definition.label}: ${formatRangeValue(current)}")
         Slider(
             value = current.toFloat(),
             onValueChange = { raw ->
-                val snapped = (minimum + round((raw - minimum) / step) * step).coerceIn(minimum, maximum)
-                onValuesChange(pluginId, definition.id, listOf(formatRangeValue(snapped)))
+                transient = snapRangeValue(raw.toDouble(), minimum, maximum, step).toFloat()
+            },
+            onValueChangeFinished = {
+                onValuesChange(pluginId, definition.id, listOf(formatRangeValue(current)))
             },
             modifier = Modifier.semantics { contentDescription = "${definition.label} range" },
             valueRange = minimum.toFloat()..maximum.toFloat(),
@@ -206,6 +207,13 @@ private fun nextOptionValues(multiple: Boolean, selected: List<String>, value: S
     } else {
         if (selected.singleOrNull() == value) emptyList() else listOf(value)
     }
+
+internal fun snapRangeValue(
+    raw: Double,
+    minimum: Double,
+    maximum: Double,
+    step: Double,
+): Double = (minimum + round((raw - minimum) / step) * step).coerceIn(minimum, maximum)
 
 private fun formatRangeValue(value: Double): String = BigDecimal.valueOf(value)
     .stripTrailingZeros()

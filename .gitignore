@@ -11,3 +11,7 @@
 .cxx
 local.properties
 .worktrees/
+.superpowers/
+
+/tools/ui-target/build/
+/.kotlin/

@@ -41,11 +41,9 @@ class ChapterAggregationEngine(
             links += ChapterReleaseLink(release.id, target)
         }
 
-        val activeReleaseIds = releases.mapTo(hashSetOf(), ChapterRelease::id)
+        val linkedChapterIds = links.mapTo(hashSetOf(), ChapterReleaseLink::canonicalChapterId)
         val tombstones = existing
-            .filter { chapter ->
-                chapter.releaseIds.isNotEmpty() && chapter.releaseIds.none(activeReleaseIds::contains)
-            }
+            .filter { chapter -> !chapter.tombstoned && chapter.id !in linkedChapterIds }
             .mapTo(sortedSetOf(compareBy(CanonicalChapterId::value)), CanonicalChapter::id)
 
         return AggregationPlan(
@@ -67,29 +65,59 @@ class ChapterAggregationEngine(
         creates: MutableMap<CanonicalChapterId, CanonicalChapter>,
         reviews: MutableList<ChapterReviewCandidate>,
     ): CanonicalChapterId {
-        val candidates = (existing + creates.values)
-            .map { chapter -> chapter to scorer.compare(release.parsedLabel, chapter.parsedLabel) }
-            .filterNot { (_, score) -> score.explicitConflict }
-            .sortedWith(compareByDescending<Pair<CanonicalChapter, ChapterMatchScore>> { it.second.score }
-                .thenBy { it.first.id.value })
-        val best = candidates.firstOrNull()
-        if (best != null && best.second.score >= policy.autoLinkThreshold) return best.first.id
+        val best = bestCandidate(release, existing, creates.values)
+        if (best != null && best.score.score >= policy.autoLinkThreshold) return best.chapter.id
 
         val proposed = if (release.parsedLabel.hasStrongIdentity()) {
             createShared(storyId, release, creates)
         } else {
             createUnique(storyId, release, creates)
         }
-        if (best != null && best.second.score >= policy.reviewThreshold) {
+        if (best != null && best.score.score >= policy.reviewThreshold) {
             reviews += ChapterReviewCandidate(
                 releaseId = release.id,
                 proposedChapterId = proposed,
-                candidateChapterId = best.first.id,
-                score = best.second.score,
+                candidateChapterId = best.chapter.id,
+                score = best.score.score,
                 policyVersion = policy.version,
             )
         }
         return proposed
+    }
+
+
+    private fun bestCandidate(
+        release: ChapterRelease,
+        existing: List<CanonicalChapter>,
+        creates: Collection<CanonicalChapter>,
+    ): RankedChapterCandidate? {
+        var best: RankedChapterCandidate? = null
+        existing.forEach { chapter -> best = betterCandidate(release, chapter, best) }
+        creates.forEach { chapter -> best = betterCandidate(release, chapter, best) }
+        return best
+    }
+
+    private fun betterCandidate(
+        release: ChapterRelease,
+        chapter: CanonicalChapter,
+        current: RankedChapterCandidate?,
+    ): RankedChapterCandidate? {
+        val score = scorer.compare(release.parsedLabel, chapter.parsedLabel)
+        return when {
+            score.explicitConflict -> current
+            current == null -> RankedChapterCandidate(chapter, score)
+            else -> betterScoredCandidate(chapter, score, current)
+        }
+    }
+
+    private fun betterScoredCandidate(
+        chapter: CanonicalChapter,
+        score: ChapterMatchScore,
+        current: RankedChapterCandidate,
+    ): RankedChapterCandidate {
+        val scoreOrder = score.score.compareTo(current.score.score)
+        val winsTieBreak = scoreOrder == 0 && chapter.id.value < current.chapter.id.value
+        return if (scoreOrder > 0 || winsTieBreak) RankedChapterCandidate(chapter, score) else current
     }
 
     private fun createShared(
@@ -117,6 +145,11 @@ class ChapterAggregationEngine(
         return id
     }
 }
+
+private data class RankedChapterCandidate(
+    val chapter: CanonicalChapter,
+    val score: ChapterMatchScore,
+)
 
 private fun ParsedChapterLabel.hasStrongIdentity(): Boolean = chapter != null || kind != ChapterKind.UNKNOWN
 

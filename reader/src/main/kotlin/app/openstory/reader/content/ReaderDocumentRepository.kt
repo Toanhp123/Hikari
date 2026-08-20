@@ -2,6 +2,7 @@ package app.openstory.reader.content
 
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.reader.document.ReaderDocument
+import app.openstory.reader.document.isLocalPersistable
 import app.openstory.reader.selection.ReleaseCandidate
 import app.openstory.reader.selection.ReleaseSelectionResult
 import app.openstory.reader.selection.ReleaseSelector
@@ -47,25 +48,27 @@ class ReaderDocumentRepository(
     ): ReaderLoadResult {
         val ordered = listOf(selection.candidate) + selection.alternates
         val failures = mutableListOf<ReaderLoadFailure>()
-        val sourceByPlugin = sources.enabled().associateBy(ReaderDocumentSource::pluginId)
+        var sourceByPlugin: Map<app.openstory.common.id.PluginId, ReaderDocumentSource>? = null
         var success: ReaderLoadResult.Success? = null
-        for (candidate in ordered) {
-            when (val attempt = loadCandidate(candidate, expectedFingerprints[candidate.release.id], sourceByPlugin)) {
-                is CandidateLoadResult.Success -> success = attempt.value
-                is CandidateLoadResult.Failure -> failures += attempt.value
+        val candidates = ordered.iterator()
+        while (success == null && candidates.hasNext()) {
+            val candidate = candidates.next()
+            val cached = loadCached(candidate, expectedFingerprints[candidate.release.id])
+            if (cached != null) {
+                success = cached
+            } else {
+                val enabledSources = sourceByPlugin ?: loadFromSources().also { sourceByPlugin = it }
+                when (val attempt = loadFromSource(candidate, enabledSources)) {
+                    is CandidateLoadResult.Success -> success = attempt.value
+                    is CandidateLoadResult.Failure -> failures += attempt.value
+                }
             }
-            if (success != null) break
         }
         return success ?: ReaderLoadResult.Failure(failures)
     }
 
-    private suspend fun loadCandidate(
-        candidate: ReleaseCandidate,
-        fingerprint: String?,
-        sourceByPlugin: Map<app.openstory.common.id.PluginId, ReaderDocumentSource>,
-    ): CandidateLoadResult = loadCached(candidate, fingerprint)
-        ?.let(CandidateLoadResult::Success)
-        ?: loadFromSource(candidate, sourceByPlugin)
+    private suspend fun loadFromSources(): Map<app.openstory.common.id.PluginId, ReaderDocumentSource> =
+        sources.enabled().associateBy(ReaderDocumentSource::pluginId)
 
     private suspend fun loadFromSource(
         candidate: ReleaseCandidate,
@@ -79,7 +82,9 @@ class ReaderDocumentRepository(
         } else {
             when (val fetched = fetch(source, candidate)) {
                 is ReaderSourceResult.Success -> {
-                    store.write(candidate.release.id, fetched.document.fingerprint, fetched.document)
+                    if (fetched.document.isLocalPersistable) {
+                        store.write(candidate.release.id, fetched.document.fingerprint, fetched.document)
+                    }
                     CandidateLoadResult.Success(ReaderLoadResult.Success(candidate, fetched.document, false))
                 }
                 is ReaderSourceResult.Failure -> CandidateLoadResult.Failure(

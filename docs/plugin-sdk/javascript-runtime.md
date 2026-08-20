@@ -48,10 +48,30 @@ Packages that declare the `CONTENT` service may implement these operations:
   optional HTTPS `sourceUrl`. The host caps candidate counts and validates any returned
   URL against the package's accepted network hosts.
 - `content.resolveUrl` receives `{url}` for a user-supplied HTTPS URL whose exact host is
-  already accepted by that package. It returns one content-story candidate. Packages may
-  omit this operation; unsupported URL resolution is a bounded source failure.
-- `content.story`, `content.chapters`, and `content.chapter` remain reserved for the later
-  content-reading waves.
+  already accepted by that package. It returns one content-story candidate.
+- `content.story` receives `{sourceStoryId}` and returns details for the mapped content story.
+- `content.chapters` receives `{sourceStoryId, mode, checkpoint, nextToken}` and returns chapter
+  release records plus paging/checkpoint state. Supporting chapter lists does not imply that a
+  package can provide reader documents.
+- `content.chapter` receives `{sourceReleaseId}` and returns a validated structured chapter
+  document. Blocks may be sanitized text blocks or remote image blocks of the form
+  `{type: "image", stableId, imageUrl}`. `stableId` must remain stable when an expiring delivery URL
+  changes; `imageUrl` must be HTTPS and is fetched by the host without plugin authentication headers.
+  Packages emitting image blocks must explicitly declare `capabilities.reader.remoteImages: true`; otherwise
+  the Reader rejects those blocks before any image request is created.
+  Read surfaces only treat releases from packages that support this operation as reader-capable.
+  Packages whose chapter documents depend on remote media that is not fully persisted must declare
+  `capabilities.reader.offlineDownload: false`; those releases remain readable online but are excluded
+  from explicit offline-download actions.
+
+Packages should declare their implemented wire operations in manifest `operations`. Protocol `1`
+packages without that field keep legacy service-level discovery for compatibility. The host uses
+operation declarations for capability discovery and returns `plugin.operation_unavailable` before
+script execution when an explicitly declared package does not support the requested operation.
+The bundled MangaDex package declares `content.search`, `content.resolveUrl`, `content.chapters`,
+and `content.chapter`. Its chapter operation returns MangaDex@Home image-page descriptors and declares
+`capabilities.reader.remoteImages: true` and `capabilities.reader.offlineDownload: false`, so it
+participates in online Reader flows without advertising incomplete offline support.
 
 ## Host capabilities
 

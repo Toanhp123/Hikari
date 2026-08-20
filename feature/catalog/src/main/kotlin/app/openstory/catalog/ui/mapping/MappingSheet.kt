@@ -5,69 +5,136 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
+import app.openstory.designsystem.content.HikariMetadataBadgeGroup
+import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariSectionLead
+import app.openstory.designsystem.content.HikariSectionTitle
+import app.openstory.designsystem.control.HikariPrimaryAction
+import app.openstory.designsystem.control.HikariUtilityAction
+import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.surface.HikariContentCard
+import app.openstory.designsystem.surface.HikariContentCardStyle
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 import java.util.Locale
 
-@Composable
-fun MappingSheet(
+fun LazyListScope.mappingItems(
     state: MappingUiState,
     actions: MappingActions,
-    modifier: Modifier = Modifier,
+    separatedFromPreviousSection: Boolean = false,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(MaterialTheme.hikariSpacing.large),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.medium),
-    ) {
-        Text("Reading sources", style = MaterialTheme.typography.titleLarge)
-        CurrentMappings(state.mappings)
-        Button(onClick = actions.onSearch, enabled = !state.busy) {
-            Text("Find reading sources")
-        }
-        UrlImport(state, actions)
-        if (state.busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        state.failures.forEach { failure ->
-            Text("Mapping issue: $failure", color = MaterialTheme.colorScheme.error)
-        }
-        state.candidates.forEach { candidate ->
-            MappingCandidateCard(candidate, actions)
-        }
-    }
-}
-
-@Composable
-private fun CurrentMappings(mappings: List<MappingItemUiModel>) {
-    if (mappings.isEmpty()) {
-        Text("No reading source linked yet")
-        return
-    }
-    mappings.forEach { mapping ->
-        Text(
-            "${mapping.pluginId.value}: ${mapping.sourceStoryId} · ${mapping.origin.displayName()}",
-            style = MaterialTheme.typography.bodyMedium,
+    item(key = "mapping-title", contentType = "mapping-header") {
+        HikariSectionLead(
+            separatedFromPreviousSection = separatedFromPreviousSection,
+            header = {
+                HikariSectionHeader(
+                    title = "Reading sources",
+                    subtitle = "Linked sources stay protected until you explicitly approve a replacement.",
+                )
+            },
+            firstContent = { LinkedMappingLeadContent(state) },
         )
     }
+    if (state.mappings.isNotEmpty()) {
+        items(
+            items = state.mappings.drop(1),
+            key = { mapping -> "mapping-linked:${mapping.pluginId.value}:${mapping.sourceStoryId}" },
+            contentType = { "mapping-card" },
+        ) { mapping ->
+            CurrentMappingCard(mapping)
+        }
+    }
+    item(key = "mapping-search", contentType = "mapping-action") {
+        HikariPrimaryAction(
+            onClick = actions.onSearch,
+            enabled = !state.busy,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Find reading sources") }
+    }
+    item(key = "mapping-url", contentType = "mapping-form") {
+        UrlImport(state, actions)
+    }
+    if (state.busy) {
+        item(key = "mapping-progress", contentType = "mapping-progress") {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+    }
+    itemsIndexed(
+        items = state.failures,
+        key = { index, failure -> "mapping-failure:$index:$failure" },
+        contentType = { _, _ -> "mapping-feedback" },
+    ) { _, failure ->
+        HikariInlineFeedback(message = catalogFailureMessage(failure, "Couldn't update reading sources."))
+    }
+    state.candidates.firstOrNull()?.let { firstCandidate ->
+        item(key = "mapping-candidates-title", contentType = "mapping-subheader") {
+            HikariSectionLead(
+                separatedFromPreviousSection = true,
+                header = { HikariSectionTitle("Candidates") },
+                firstContent = { MappingCandidateCard(firstCandidate, actions, enabled = !state.busy) },
+            )
+        }
+        items(
+            items = state.candidates.drop(1),
+            key = { candidate -> "mapping-candidate:${candidate.pluginId.value}:${candidate.sourceStoryId}" },
+            contentType = { "mapping-candidate" },
+        ) { candidate ->
+            MappingCandidateCard(candidate, actions, enabled = !state.busy)
+        }
+    }
 }
 
 @Composable
-private fun UrlImport(
-    state: MappingUiState,
-    actions: MappingActions,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small)) {
+private fun LinkedMappingLeadContent(state: MappingUiState) {
+    when {
+        state.loading && state.mappings.isEmpty() -> {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().testTag("mapping-loading"),
+            )
+        }
+        state.mappings.isEmpty() -> {
+            HikariContentCard(Modifier.fillMaxWidth()) {
+                Text(
+                    "No reading source linked yet",
+                    modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        else -> CurrentMappingCard(state.mappings.first())
+    }
+}
+
+@Composable
+private fun CurrentMappingCard(mapping: MappingItemUiModel) {
+    HikariContentCard(Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+        ) {
+            Text(mapping.pluginId.value, style = MaterialTheme.typography.titleSmall)
+            HikariMetadataBadgeGroup(listOf(mapping.origin.displayName(), mapping.sourceStoryId))
+        }
+    }
+}
+
+@Composable
+private fun UrlImport(state: MappingUiState, actions: MappingActions) {
+    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
+        Text("Resolve a known URL", style = MaterialTheme.typography.titleSmall)
         OutlinedTextField(
             value = state.urlInput,
             onValueChange = actions.onUrlChange,
@@ -75,12 +142,11 @@ private fun UrlImport(
             label = { Text("Reading source URL") },
             singleLine = true,
         )
-        Button(
+        HikariUtilityAction(
             onClick = actions.onResolveUrl,
             enabled = !state.busy && state.urlInput.isNotBlank(),
-        ) {
-            Text("Resolve URL")
-        }
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Resolve URL") }
     }
 }
 
@@ -88,19 +154,59 @@ private fun UrlImport(
 private fun MappingCandidateCard(
     candidate: MappingCandidateUiModel,
     actions: MappingActions,
+    enabled: Boolean,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        HorizontalDivider()
-        Text(candidate.title, style = MaterialTheme.typography.titleMedium)
-        Text("${candidate.pluginId.value} · ${candidate.decision.displayName()} · ${candidate.score.asPercent()}")
-        candidate.evidenceLabels.forEach { label -> Text(label, style = MaterialTheme.typography.bodySmall) }
-        candidate.sourceUrl?.let { url -> Text(url, style = MaterialTheme.typography.bodySmall) }
-        Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.small)) {
-            Button(onClick = { actions.onApprove(candidate.pluginId, candidate.sourceStoryId) }) {
-                Text(if (candidate.fromUrl) "Use URL source" else "Approve")
+    HikariContentCard(
+        modifier = Modifier.fillMaxWidth(),
+        style = HikariContentCardStyle.PROMINENT,
+    ) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
+        ) {
+            Text(candidate.title, style = MaterialTheme.typography.titleMedium)
+            HikariMetadataBadgeGroup(
+                buildList {
+                    add(candidate.pluginId.value)
+                    add(candidate.decision.displayName())
+                    add(candidate.score.asPercent())
+                    candidate.replacesSourceStoryId?.let { sourceStoryId ->
+                        add("Replaces $sourceStoryId")
+                    }
+                },
+            )
+            candidate.evidenceLabels.takeIf { it.isNotEmpty() }?.let { labels ->
+                Text(
+                    labels.joinToString(separator = " • "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            TextButton(onClick = { actions.onReject(candidate.pluginId, candidate.sourceStoryId) }) {
-                Text("Reject")
+            candidate.sourceUrl?.let { url ->
+                Text(
+                    url,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            ) {
+                HikariPrimaryAction(
+                    onClick = { actions.onApprove(candidate.pluginId, candidate.sourceStoryId) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                ) { Text(candidate.approvalLabel()) }
+                HikariUtilityAction(
+                    onClick = { actions.onReject(candidate.pluginId, candidate.sourceStoryId) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                ) { Text("Reject") }
             }
         }
     }
@@ -119,5 +225,11 @@ private fun ContentMatchDecision.displayName(): String = when (this) {
 }
 
 private const val PERCENT_MULTIPLIER = 100.0
-
 private fun Double.asPercent(): String = String.format(Locale.ROOT, "%.0f%%", this * PERCENT_MULTIPLIER)
+
+private fun MappingCandidateUiModel.approvalLabel(): String = when {
+    replacesSourceStoryId != null && fromUrl -> "Replace with URL"
+    replacesSourceStoryId != null -> "Replace"
+    fromUrl -> "Use URL source"
+    else -> "Approve"
+}

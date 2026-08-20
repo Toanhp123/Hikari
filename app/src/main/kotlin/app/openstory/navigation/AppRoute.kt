@@ -6,19 +6,22 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed interface AppRoute : NavKey {
     @Serializable
+    data object Discover : AppRoute
+
+    @Serializable
     data object Home : AppRoute
 
     @Serializable
     data object Search : AppRoute
 
     @Serializable
+    data object Downloads : AppRoute
+
+    @Serializable
+    data object Updates : AppRoute
+
+    @Serializable
     data object Library : AppRoute
-
-    @Serializable
-    data object Plugins : AppRoute
-
-    @Serializable
-    data object Settings : AppRoute
 
     @Serializable
     data class Story(val storyId: String) : AppRoute

@@ -1,7 +1,7 @@
 package app.openstory.chapters.source
 
 import app.openstory.common.id.PluginId
-import app.openstory.plugins.api.manifest.PluginService
+import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.InstalledPlugin
 import app.openstory.plugins.runtime.PluginRuntime
 import kotlinx.coroutines.sync.Mutex
@@ -20,7 +20,7 @@ class PluginChapterSourceRegistry(
     private val cache = mutableMapOf<SourceIdentity, PluginChapterSource>()
 
     override suspend fun enabled(): List<ChapterSource> = cacheMutex.withLock {
-        val installed = runtime.enabled(PluginService.CONTENT).sortedBy { plugin -> plugin.pluginId.value }
+        val installed = runtime.enabled(PluginOperation.CONTENT_CHAPTERS).sortedBy { plugin -> plugin.pluginId.value }
         val active = installed.map(InstalledPlugin::identity).toSet()
         cache.keys.retainAll(active)
         installed.map { plugin ->

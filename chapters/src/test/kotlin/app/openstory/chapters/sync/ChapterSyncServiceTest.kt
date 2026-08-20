@@ -30,6 +30,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 
@@ -50,9 +51,140 @@ class ChapterSyncServiceTest {
 
         assertEquals(listOf("recent-10", "full-1"), repository.commits.map { it.releases.single().sourceReleaseId })
         assertEquals(
-            listOf(ChapterSyncPhase.FULL, ChapterSyncPhase.INCREMENTAL),
+            listOf(ChapterSyncPhase.FULL, ChapterSyncPhase.FULL),
             repository.commits.map { it.syncState!!.phase },
         )
+    }
+
+    @Test
+    fun rawNumberDefinesChapterIdentityWhenSourceTitleIsDescriptive() = runTest {
+        val repository = RecordingChapterRepository()
+        val source = RecordingSource { request ->
+            when (request.mode) {
+                ChapterListMode.RECENT -> ChapterSourceResult.Success(
+                    ChapterSourcePage(
+                        releases = listOf(
+                            ChapterSourceRelease(
+                                sourceReleaseId = "release-12",
+                                title = "Volume 99: The Locked Constellation",
+                                rawNumber = "12",
+                                languageTag = "en",
+                                publishedAtEpochMillis = 100L,
+                            ),
+                        ),
+                        nextToken = null,
+                    ),
+                )
+                ChapterListMode.FULL -> page("full-12", "12")
+                ChapterListMode.INCREMENTAL -> error("not expected")
+            }
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val release = repository.commits.first().releases.single()
+        assertEquals(java.math.BigDecimal("12"), release.parsedLabel.chapter)
+        assertEquals(null, release.parsedLabel.volume)
+        assertEquals("Chapter 12 · Volume 99: The Locked Constellation", release.displayLabel)
+        assertEquals(
+            java.math.BigDecimal("12"),
+            repository.commits.first().plan.creates.single().parsedLabel.chapter,
+        )
+    }
+
+    @Test
+    fun completedFullSyncKeepsFingerprintInternalAndLeavesCheckpointEmpty() = runTest {
+        val repository = RecordingChapterRepository()
+        val source = RecordingSource { request ->
+            when (request.mode) {
+                ChapterListMode.RECENT -> page("recent-10", "10")
+                ChapterListMode.FULL -> page("full-1", "1")
+                ChapterListMode.INCREMENTAL -> error("incremental requires a source checkpoint")
+            }
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val state = repository.syncState(STORY_ID, PLUGIN_ID, SOURCE_STORY_ID)!!
+        assertEquals(null, state.checkpoint)
+        assertEquals(ChapterSyncPhase.FULL, state.phase)
+        assertEquals(64, state.fingerprint?.length)
+    }
+
+    @Test
+    fun refreshWithoutSourceCheckpointRunsSafeFullSyncAgain() = runTest {
+        val repository = RecordingChapterRepository()
+        val source = RecordingSource { request ->
+            when (request.mode) {
+                ChapterListMode.RECENT -> page("recent-10", "10")
+                ChapterListMode.FULL -> page("full-${request.nextToken ?: "start"}", "1")
+                ChapterListMode.INCREMENTAL -> error("incremental requires a source checkpoint")
+            }
+        }
+        val service = service(repository, source)
+
+        assertIs<ChapterSyncReport.Success>(service.sync(STORY_ID))
+        source.requests.clear()
+        assertIs<ChapterSyncReport.Success>(service.sync(STORY_ID))
+
+        assertEquals(listOf(ChapterListMode.FULL), source.requests.map(ChapterSourceRequest::mode))
+        assertEquals(listOf<String?>(null), source.requests.map(ChapterSourceRequest::checkpoint))
+    }
+
+    @Test
+    fun legacyFingerprintCheckpointFallsBackToFullSync() = runTest {
+        val fingerprint = "a".repeat(64)
+        val repository = RecordingChapterRepository(
+            initialState = ChapterSyncState(
+                STORY_ID,
+                PLUGIN_ID,
+                SOURCE_STORY_ID,
+                ChapterSyncPhase.INCREMENTAL,
+                cursor = "incremental-page-2",
+                checkpoint = fingerprint,
+                fingerprint = fingerprint,
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+        val source = RecordingSource { request ->
+            assertEquals(ChapterListMode.FULL, request.mode)
+            assertEquals(null, request.checkpoint)
+            assertEquals(null, request.nextToken)
+            page("full-1", "1")
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val state = repository.syncState(STORY_ID, PLUGIN_ID, SOURCE_STORY_ID)!!
+        assertEquals(null, state.checkpoint)
+        assertEquals(ChapterSyncPhase.FULL, state.phase)
+    }
+
+    @Test
+    fun incrementalSyncUsesOpaqueSourceCheckpointWhenItIsDistinctFromFingerprint() = runTest {
+        val repository = RecordingChapterRepository(
+            initialState = ChapterSyncState(
+                STORY_ID,
+                PLUGIN_ID,
+                SOURCE_STORY_ID,
+                ChapterSyncPhase.INCREMENTAL,
+                cursor = null,
+                checkpoint = "2026-08-19T00:00:00Z",
+                fingerprint = "a".repeat(64),
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+        val source = RecordingSource { request ->
+            assertEquals(ChapterListMode.INCREMENTAL, request.mode)
+            assertEquals("2026-08-19T00:00:00Z", request.checkpoint)
+            page("delta-2", "2")
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        val state = repository.syncState(STORY_ID, PLUGIN_ID, SOURCE_STORY_ID)!!
+        assertEquals(ChapterSyncPhase.INCREMENTAL, state.phase)
+        assertEquals("2026-08-19T00:00:00Z", state.checkpoint)
     }
 
     @Test
@@ -78,9 +210,36 @@ class ChapterSyncServiceTest {
 
         assertEquals(listOf(ChapterListMode.FULL), source.requests.map(ChapterSourceRequest::mode))
         val advanced = repository.commits.single().syncState!!
-        assertEquals(ChapterSyncPhase.INCREMENTAL, advanced.phase)
+        assertEquals(ChapterSyncPhase.FULL, advanced.phase)
         assertEquals(null, advanced.cursor)
         assertEquals(false, advanced.fingerprint == "old-fingerprint")
+    }
+
+    @Test
+    fun paginatedSyncLoadsChapterGraphOnlyOncePerRun() = runTest {
+        val initial = ChapterSyncState(
+            STORY_ID,
+            PLUGIN_ID,
+            SOURCE_STORY_ID,
+            ChapterSyncPhase.FULL,
+            cursor = null,
+            checkpoint = null,
+            fingerprint = "old-fingerprint",
+            updatedAtEpochMillis = 1L,
+        )
+        val repository = RecordingChapterRepository(initialState = initial)
+        val source = RecordingSource { request ->
+            when (request.nextToken) {
+                null -> page("full-1", "1", nextToken = "page-2")
+                "page-2" -> page("full-2", "2")
+                else -> error("unexpected cursor ${request.nextToken}")
+            }
+        }
+
+        assertIs<ChapterSyncReport.Success>(service(repository, source).sync(STORY_ID))
+
+        assertEquals(2, repository.commits.size)
+        assertEquals(1, repository.snapshotCalls)
     }
 
     @Test
@@ -197,16 +356,23 @@ private class RecordingChapterRepository(
     initialReleases: List<ChapterRelease> = emptyList(),
 ) : ChapterRepository {
     val commits = mutableListOf<ChapterMutation>()
+    var snapshotCalls = 0
+        private set
+    private val groups = MutableStateFlow<List<CanonicalChapterGroup>>(emptyList())
     private var state = initialState
     private val releases = initialReleases.associateByTo(linkedMapOf()) { release -> release.id.value }
 
-    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = flowOf(emptyList())
+    override fun observeAll(): Flow<List<CanonicalChapterGroup>> = groups
+    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = groups
 
-    override suspend fun snapshot(storyId: StoryId) = ChapterGraphSnapshot(
-        chapters = emptyList(),
-        releases = releases.values.toList(),
-        overrides = emptyList(),
-    )
+    override suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot {
+        snapshotCalls += 1
+        return ChapterGraphSnapshot(
+            chapters = emptyList(),
+            releases = releases.values.toList(),
+            overrides = emptyList(),
+        )
+    }
 
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult {
         commits += mutation

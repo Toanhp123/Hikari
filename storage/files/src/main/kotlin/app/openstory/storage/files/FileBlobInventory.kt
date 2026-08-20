@@ -8,11 +8,15 @@ import app.openstory.downloads.reconcile.StorageInventorySnapshot
 import app.openstory.downloads.reconcile.StorageReconciliationInventory
 import java.io.File
 import java.security.MessageDigest
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class FileBlobInventory internal constructor(
     private val rootDirectory: File,
     private val reserveBytes: Long,
     private val availableBytes: () -> Long,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : StorageReconciliationInventory {
     init {
         require(reserveBytes >= 0) { "Storage reserve must not be negative." }
@@ -25,12 +29,13 @@ class FileBlobInventory internal constructor(
         rootDirectory = ChapterBlobFileLayout.root(context),
         reserveBytes = reserveBytes,
         availableBytes = { context.filesDir.usableSpace },
+        ioDispatcher = Dispatchers.IO,
     )
 
     override suspend fun scan(
         expectedKeys: Set<ChapterBlobKey>,
         staleBeforeEpochMillis: Long,
-    ): StorageInventorySnapshot = synchronized(ChapterBlobFileLayout.operationLock) {
+    ): StorageInventorySnapshot = withContext(ioDispatcher) {
         val expectedByArtifact = expectedKeys.associateBy(::blobArtifactId)
         val present = mutableSetOf<ChapterBlobKey>()
         val orphans = mutableListOf<StorageArtifactId>()
@@ -54,14 +59,22 @@ class FileBlobInventory internal constructor(
     }
 
     override suspend fun delete(artifacts: List<StorageArtifactId>) {
-        synchronized(ChapterBlobFileLayout.operationLock) {
+        withContext(ioDispatcher) {
             artifacts.distinct().forEach { artifact ->
                 artifactFile(artifact)?.let { file ->
-                    if (file.exists() && !file.delete()) {
-                        error("Could not delete app-private storage artifact.")
+                    if (artifact.value.startsWith("$BLOB_ARTIFACT:")) {
+                        ChapterBlobFileLocks.withLock(file) { deleteArtifact(file) }
+                    } else {
+                        deleteArtifact(file)
                     }
                 }
             }
+        }
+    }
+
+    private fun deleteArtifact(file: File) {
+        if (file.exists() && !file.delete()) {
+            error("Could not delete app-private storage artifact.")
         }
     }
 
@@ -120,7 +133,6 @@ class FileBlobInventory internal constructor(
 
 internal object ChapterBlobFileLayout {
     const val ROOT_DIRECTORY_NAME = "chapter-blobs"
-    val operationLock = Any()
 
     fun root(context: Context): File = File(context.filesDir, ROOT_DIRECTORY_NAME)
 

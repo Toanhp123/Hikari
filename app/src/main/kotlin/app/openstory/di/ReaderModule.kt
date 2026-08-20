@@ -5,6 +5,7 @@ import app.openstory.reader.content.PluginReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentRepository
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
+import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.document.ReaderDocumentSanitizer
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.selection.ReleaseSelector
@@ -42,14 +43,24 @@ object ReaderModule {
 
     @Provides
     @Singleton
-    fun provideReaderDocumentSourceRegistry(
+    fun providePluginReaderDocumentSourceRegistry(
         runtime: PluginRuntime,
         json: Json,
-    ): ReaderDocumentSourceRegistry = PluginReaderDocumentSourceRegistry(
+    ): PluginReaderDocumentSourceRegistry = PluginReaderDocumentSourceRegistry(
         runtime,
         json,
         ReaderDocumentSanitizer(),
     )
+
+    @Provides
+    fun provideReaderDocumentSourceRegistry(
+        registry: PluginReaderDocumentSourceRegistry,
+    ): ReaderDocumentSourceRegistry = registry
+
+    @Provides
+    fun provideReaderSourceAvailability(
+        registry: PluginReaderDocumentSourceRegistry,
+    ): ReaderSourceAvailability = registry
 
     @Provides
     @Singleton

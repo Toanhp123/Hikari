@@ -7,6 +7,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 data class CanonicalChapterGroup(
     val chapter: CanonicalChapter,
@@ -37,6 +38,11 @@ data class ChapterSyncState(
 )
 
 interface ChapterRepository {
+    fun observeAll(): Flow<List<CanonicalChapterGroup>>
+
+    fun observeForStories(storyIds: Set<StoryId>): Flow<List<CanonicalChapterGroup>> =
+        observeAll().map { groups -> groups.filter { it.chapter.storyId in storyIds } }
+
     fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>>
 
     suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot

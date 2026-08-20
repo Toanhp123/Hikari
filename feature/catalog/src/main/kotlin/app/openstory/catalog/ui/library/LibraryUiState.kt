@@ -6,8 +6,14 @@ import app.openstory.library.LibraryStatus
 
 data class LibraryUiState(
     val items: List<LibraryItemUiModel> = emptyList(),
+    val totalCount: Int = 0,
+    val statusCounts: Map<LibraryStatus, Int> = emptyMap(),
     val selectedStatus: LibraryStatus? = null,
+    val query: String = "",
     val sort: LibrarySort = LibrarySort.LAST_ACTIVITY,
+    val displayMode: LibraryDisplayMode = LibraryDisplayMode.GRID,
+    val sourceFilter: LibrarySourceState? = null,
+    val loading: Boolean = true,
 )
 
 data class LibraryItemUiModel(
@@ -17,6 +23,7 @@ data class LibraryItemUiModel(
     val coverUrl: String?,
     val status: LibraryStatus,
     val sourceState: LibrarySourceState,
+    val progressFraction: Float? = null,
     val addedAt: Long,
     val updatedAt: Long,
 )
@@ -25,6 +32,11 @@ enum class LibrarySort {
     LAST_ACTIVITY,
     TITLE,
     DATE_ADDED,
+}
+
+enum class LibraryDisplayMode {
+    GRID,
+    LIST,
 }
 
 enum class LibrarySourceState {

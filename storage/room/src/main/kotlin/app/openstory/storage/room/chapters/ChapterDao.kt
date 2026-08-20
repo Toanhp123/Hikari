@@ -9,6 +9,17 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 internal interface ChapterDao {
     @Transaction
+    @Query("SELECT * FROM canonical_chapters ORDER BY story_id ASC, canonical_chapter_id ASC")
+    fun observeAllGroups(): Flow<List<CanonicalChapterWithReleases>>
+
+    @Transaction
+    @Query(
+        "SELECT * FROM canonical_chapters WHERE story_id IN (:storyIds) " +
+            "ORDER BY story_id ASC, canonical_chapter_id ASC",
+    )
+    fun observeGroups(storyIds: Collection<String>): Flow<List<CanonicalChapterWithReleases>>
+
+    @Transaction
     @Query("SELECT * FROM canonical_chapters WHERE story_id = :storyId")
     fun observeGroups(storyId: String): Flow<List<CanonicalChapterWithReleases>>
 
@@ -43,16 +54,16 @@ internal interface ChapterDao {
     @Query("UPDATE canonical_chapters SET tombstoned = 1 WHERE canonical_chapter_id IN (:chapterIds)")
     suspend fun tombstone(chapterIds: Collection<String>)
 
-    @Query("UPDATE canonical_chapters SET tombstoned = 0 WHERE canonical_chapter_id = :chapterId")
-    suspend fun restore(chapterId: String)
-
-    @Upsert
-    suspend fun upsertOverride(override: ChapterAggregationOverrideEntity)
+    @Query("UPDATE canonical_chapters SET tombstoned = 0 WHERE canonical_chapter_id IN (:chapterIds)")
+    suspend fun restore(chapterIds: Collection<String>)
 
 }
 
 @Dao
 internal interface ChapterSyncDao {
+    @Upsert
+    suspend fun upsertOverride(override: ChapterAggregationOverrideEntity)
+
     @Upsert
     suspend fun upsert(state: ChapterSyncStateEntity)
 

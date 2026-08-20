@@ -10,14 +10,16 @@
 
 ## Global Constraints
 
-- Entry module graph: Wave 09 verified exit graph plus the approved `:core:designsystem` UI-foundation boundary.
+- Entry module graph: current 14-module graph = Wave 09 verified exit graph plus the approved `:core:designsystem` UI-foundation boundary; Product UI and Discover follow-ups add no production module.
 - Exit module graph: entry graph plus `:settings` and `:feature:settings`.
 - Introduces `:settings` and `:feature:settings` in Task 1.
-- Consumes from Wave 09: mapping/chapter/download commands, reconciliation, Reader preferences port, and quota state.
+- Consumes from Wave 09: mapping/chapter/download commands, reconciliation, Reader preferences port, and quota state. It also preserves the accepted Product UI/Discover presentation boundary and schema-8 catalog metadata lifecycle state without taking ownership of them.
 - Produces for Wave 11: typed settings, schedulers, session controls, notification evidence, and release-ready platform behavior.
-- Room schema 6 enters; schema 7 stores durable notification delivery state.
+- Room schema 8 enters; Task 5 durable notification delivery state migrates 8 -> 9.
 - Android background work is local, unique, bounded, battery-aware, and idempotent.
 - No cloud service, push backend, unrestricted WebView, or plaintext credentials.
+- Wave 10 Settings enters through the avatar utility sheet and never top-level navigation.
+- Discover / Home / Library remains the final top-level model; Settings must not be added to `TopLevelDestination`.
 
 ### Task 1: Introduce typed settings and DataStore persistence
 
@@ -98,7 +100,7 @@
 - Create: `app/src/main/kotlin/app/openstory/notification/AndroidChapterNotifier.kt`, `NotificationChannels.kt`
 - Test: `app/src/test/kotlin/app/openstory/notification/AndroidChapterNotifierTest.kt`
 
-- [ ] Write RED tests distinguishing new canonical chapters from added releases, preferred-language rules, duplicate suppression, permission denial, deep links, and schema `6 -> 7`.
+- [ ] Write RED tests distinguishing new canonical chapters from added releases, preferred-language rules, duplicate suppression, permission denial, deep links, and schema `8 -> 9`.
 - [ ] Implement pure classification in Chapters, atomic delivery state in Room, and platform notification delivery in app.
 - [ ] Run `./gradlew :chapters:test :storage:room:connectedDebugAndroidTest :app:testDebugUnitTest --stacktrace` and `./scripts/verify-room-schema-stability.sh`.
 - [ ] Commit `chapters: classify local update notifications`.
@@ -109,16 +111,19 @@
 - Create: `feature/settings/src/main/kotlin/app/openstory/settings/ui/SettingsViewModel.kt`, `SettingsScreen.kt`, `SyncSettings.kt`, `NotificationSettings.kt`, `StorageSettings.kt`
 - Test: `feature/settings/src/test/kotlin/app/openstory/settings/ui/SettingsViewModelTest.kt`
 - Test: `feature/settings/src/androidTest/kotlin/app/openstory/settings/ui/SettingsScreenTest.kt`
-- Modify: `app/src/main/kotlin/app/openstory/navigation/AppRoute.kt`, `AppNavHost.kt`
+- Create: `feature/settings/src/test/kotlin/app/openstory/settings/ui/SettingsScreenshotTest.kt`
+- Modify: `app/src/main/kotlin/app/openstory/navigation/AppRoute.kt`, `AppNavHost.kt`, and the app-shell owner of `HikariUtilitySheet`
 
-- [ ] Write RED tests for policy persistence, rescheduling once through `SettingsWorkSchedulePort`, permission-request state, storage summary, accessibility, and process restoration. Session management UI remains Wave 11 ownership.
-- [ ] Implement feature-owned UI over `:settings` and `:downloads` services only; app supplies permission and scheduling port adapters through DI.
+- [ ] Write RED tests for policy persistence, rescheduling once through `SettingsWorkSchedulePort`, permission-request state, storage summary, accessibility, process restoration, `AppRoute.Settings` composition, Settings utility-row navigation, and the unchanged `TopLevelDestination` set. Session management UI remains Wave 11 ownership.
+- [ ] Implement feature-owned UI over `:settings` and `:downloads` services only; typed settings and mutation ownership remain in `:settings`, while app supplies permission and scheduling port adapters through DI.
+- [ ] Build the screen from `:core:designsystem` Hikari artwork, glass, and content-state primitives, matching the approved Settings target without copying policy into Compose state.
+- [ ] Add `AppRoute.Settings` to `AppNavHost` and a Settings row to `HikariUtilitySheet`; close the sheet before navigation and return to the originating top-level destination on back. Do not add Settings to `TopLevelDestination` or the floating navigation.
 - [ ] Run `./gradlew :feature:settings:testDebugUnitTest :feature:settings:connectedDebugAndroidTest :app:connectedDebugAndroidTest lintDebug detekt --stacktrace`.
 - [ ] Commit `settings: add background and notification controls`.
 
 ## Wave Checkpoint
 
-- [ ] Exact exit graph and schema 7 pass.
+- [ ] Exact exit graph and schema 8 pass.
 - [ ] All workers are unique/idempotent and delegate to capability engines.
 - [ ] Sessions remain plugin/host scoped and encrypted.
 - [ ] Notifications distinguish chapters from additional releases and deduplicate durably.

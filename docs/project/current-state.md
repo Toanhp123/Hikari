@@ -1,30 +1,54 @@
 # Repository Current State
 
-Date: 2026-08-11
+Date: 2026-08-20
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current production Gradle graph: 11 modules.
+- Current production Gradle graph: 14 modules.
+- Performance tooling graph: 1 `android-test` module (`:benchmark`), excluded from production capability ownership.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
 - Wave 06 Tasks 01-06: **VERIFIED**; Wave 06 is complete.
 - Wave 07 Tasks 01-06: **VERIFIED**; Wave 07 is complete.
 - Wave 08 Tasks 01-06: **VERIFIED**; Wave 08 is complete.
 - Wave 09 Tasks 01-06: **VERIFIED**; Wave 09 is complete.
-- Current active boundary: **Wave 10 entry baseline**.
+- Design System Foundation: **ACCEPTED** on 2026-08-12.
+- ReDantotsu-inspired Product UI redesign: **ACCEPTED**. The responsive shell, artwork/glass system,
+  Discover/Home/Library top-level model, Story/Reader presentation, utility routes, and Roborazzi
+  baselines are established; its historical execution plan is no longer the active next-work entry point.
+- Discover semantic-feed redesign: **IMPLEMENTED AND VERIFIED**. The current Discover surface is
+  `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`, backed by explicit semantic feed
+  metadata, canonical `StoryId` deduplication, source-agnostic projection state, and the schema-7
+  semantic-feed persistence introduced by that checkpoint. Manga is enabled/selected; Light Novel
+  remains visible but disabled for this delivery.
+- Catalog metadata lifecycle unification: **IMPLEMENTED**. `:catalog` owns one
+  `CatalogMetadataCoordinator` for `Summary` / `Full` requirements. Full freshness is 24 hours,
+  plugin-version mismatch invalidates resolved freshness, stale resolved metadata stays cache-first
+  while revalidating, and process-wide single-flight prevents duplicate Details work. Home/Search
+  listing payload quality belongs to the plugin operation: missing optional artwork or other
+  presentation metadata remains degraded and does not cause host-side Details enrichment.
+  `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
+  Summary/Full provenance while preserving persisted source identity.
+- Wave 10: **READY TO START; NOT IMPLEMENTED**. It enters on Room schema 8; the planned durable
+  notification-delivery persistence is rebased to migration 8 -> 9.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+
+- Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
+- Performance Wave 4: **IMPLEMENTED AND RETAINED**. Discover shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling. The semantic Discover redesign preserves the single-emission projection contract.
+- Performance Wave P5: **IMPLEMENTED AND RETAINED**. Top-level navigation avoids full-scene transitions, Story section data is deferred-then-prewarmed, Discover semantic projection runs on the injected Default-dispatcher boundary, Reader progress is scroll-session sampled, and benchmark-only backdrop/shadow switches remain available for isolation.
+- Performance Wave P6: **PROMOTED TO PRODUCTION**. Device A/B confirmed that retaining visited top-level compositions with active-only measurement removes the repeatable ~90 ms Home/Discover rebuild spike: P6.1 reduced CPU P90 by about 68%, median maximum frame by about 59%, and median summed frame CPU by about 12.5% versus the same-build control, with no material RSS regression. Production now retains only visited top-level compositions and measures/places only the active route.
 
 ## Independent version spaces
 
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 6 current; schemas 1-5 remain frozen historical exports |
+| Room database | schema 8 current; schemas 1-7 remain frozen historical exports |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -37,15 +61,16 @@ These versions are independent. A change in one does not imply a change in anoth
 |---|---|
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
-| `:catalog` | Story/catalog models, repository/source contracts, matching, ranking, refresh/search/details |
-| `:feature:catalog` | Home, Search, Story, Library, and mapping-review Compose presentation and UI state |
+| `:core:designsystem` | Domain-neutral theme/tokens, artwork and glass primitives, adaptive layout/content chrome, pull-to-refresh, shared actions/states, equal-width segmented control, static skeleton, and screenshot rendering boundary |
+| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, and unified Summary/Full metadata lifecycle |
+| `:feature:catalog` | Discover, Home, Search, Story, Library, mapping-review, chapter-list, downloads/updates presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
 | `:reader` | Sanitized document loading, deterministic release selection/fallback, and exact progress policy/contracts |
-| `:feature:reader` | Restorable Reader state and accessible structured-text Compose presentation |
+| `:feature:reader` | Restorable Reader state and accessible structured text / vertical image-page Compose presentation |
 | `:downloads` | Explicit download state, automatic-cache quota/eviction, Reader resolution, and reconciliation policy |
 | `:storage:files` | Atomic opaque chapter-blob persistence, inventory, and low-space admission |
 
@@ -62,17 +87,36 @@ runtime persistence SPI.
 - The bundled registry is an extensible distribution list, not a single-provider architecture
   invariant. Current architecture verification requires every production `.osp` asset to have a
   matching descriptor and rejects undeclared assets.
-- Catalog Home, Search, and Story details are source-preserving, cache-first, and exposed
-  through catalog-owned repository/services.
-- Matching and aggregate ranking are deterministic and preserve source scores/scales.
-- Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
+- MangaDex `1.3.0` exposes online image-page chapter bodies through `content.chapter`. Its manifest
+  explicitly opts into host-rendered remote images and disables offline download; Reader image requests
+  use bounded in-memory caching and do not bypass Hikari's managed storage quota through a separate
+  image disk cache.
+- MangaDex@Home image success/failure reporting to `api.mangadex.network/report` is not yet
+  implemented. Reader retry refreshes chapter delivery metadata and obtains a fresh base URL, but
+  provider load reporting remains a release-hardening follow-up before the MangaDex image path is
+  considered provider-complete.
+- Catalog Home, Search, and Story metadata are source-preserving, cache-first, and exposed
+  through catalog-owned repository/services. `CatalogMetadataCoordinator` is the single metadata
+  lifetime owner: `Summary` never triggers Details, `Full` uses a 24-hour TTL, plugin-version mismatch invalidates freshness, and stale resolved data is returned
+  immediately while one process-owned revalidation runs in the background. `CatalogDetailsLoader`
+  is the only production `CatalogSource.details(...)` caller. Home sections carry explicit
+  `CatalogFeedKind` (`POPULAR`, `LATEST_UPDATES`, `TOP_RATED`, `OTHER`), while entries may carry
+  normalized publication status and coherent source-reported latest-update metadata.
+- Matching and aggregate ranking remain deterministic and preserve source scores/scales. Discover
+  deduplicates semantic feeds by canonical `StoryId` before Compose and never infers feed meaning
+  from section titles or provider IDs.
+- Discover, Home, Search, and Story presentation is owned by `:feature:catalog` with Hilt ViewModels,
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
-  operation failures.
-- Room schema 5 stores the Baseline-2 catalog/runtime state, metadata-only Library
-  membership, protected content mappings, chapter graphs, aggregation overrides, and sync
-  state, and canonical plus exact-release reading progress; schemas 1-4 remain historical
-  exports and schema 1 remains byte-frozen. Room entities/DAOs stay
-  private to `:storage:room`.
+  operation failures. Discover uses one outer `LazyColumn`; Popular is a manual pager (max 5),
+  Latest Updates is a bounded 3-column grid (max 9), and Top Rated is a ranked list (max 5).
+- Room schema 8 is current. It retains the Baseline-2 catalog/runtime state, metadata-only
+  Library membership, protected content mappings, chapter graphs, aggregation overrides,
+  synchronization state, canonical plus exact-release reading progress, Wave 09 cache/download
+  metadata, Discover semantic feed/status/latest-update fields, and separate Summary/Full
+  catalog metadata provenance. Migration 7 -> 8 is additive and intentionally leaves legacy
+  Full stamps unresolved instead of inferring Details freshness from old Summary fields. Schemas 1-7 remain
+  historical exports and schema 1 remains byte-frozen. Room entities/DAOs stay private to
+  `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
   does not roll back the committed membership.
@@ -115,6 +159,21 @@ blob storage, schema-6 cache/download metadata, bounded cache eviction, explicit
 offline-first Reader resolution, bulk controls, low-space admission, and race-safe storage
 reconciliation. Periodic background sync, authentication, notifications, and release
 hardening remain outside the implemented boundary.
+
+The accepted Design System Foundation and Product UI checkpoint add the current artwork/glass,
+responsive shell, shared content/action/state primitives, and screenshot baseline without changing
+capability ownership. The Product UI checkpoint is complete; its 2026-08-12 plan is retained as an
+implementation record. The screenshot suite remains pinned to Robolectric SDK 35 because the pinned
+Robolectric 4.16.1 cannot select target SDK 37.
+
+The 2026-08-19 Discover semantic-feed follow-up is also complete. It extends the generic catalog
+wire/source/domain contract, carries semantic metadata through Home/details ingestion, migrates Room
+6 -> 7 with sparse rich-metadata preservation, projects cached semantic feeds on the shared Default
+dispatcher, and replaces source/category controls with the current semantic UI. The shared design
+system now includes `HikariSegmentedControl` and static `HikariSkeleton` primitives. The later
+catalog metadata-lifecycle unification preserved that presentation and the 14-module graph while
+advancing Room 7 -> 8 and moving Search, Story, and Discover metadata requirements behind the shared
+coordinator. Wave 10 capability work has not started.
 
 ## Architecture Baseline 2 status
 
@@ -173,8 +232,37 @@ Room plus the Wave 09 low-storage contract pass on API 37. Deep review verified 
 owns state/policy, Room owns metadata transactions, file storage owns bytes, Reader consumes
 only its store port, and WorkManager remains an app adapter.
 
+Product UI Task 1 then passed strict dependency-metadata bootstrap, the focused build-logic
+and screenshot-owner JVM suites, exact 14-module/current-architecture gates, the full
+repository Gradle gate, and Room schema stability. Evidence is recorded in
+`../internal/checkpoints/product-ui-task-01-toolchain.md`. Product UI Task 2 then passed its
+Windows PowerShell target-pack gate after correcting the Edge viewport/canvas mismatch and
+a too-strict blank-image heuristic; the final gate renders all 34 required PNGs at exact 2x
+dimensions and rejects truly uniform captures. Evidence is recorded in
+`../internal/checkpoints/product-ui-task-02-target-pack.md`. Product UI Task 3 then passed the
+focused `:core:designsystem:testDebugUnitTest recordRoborazziDebug` gate and the canonical full
+`./scripts/verify.sh` gate after two acceptance corrections: pinning Robolectric to SDK 35 for
+the screenshot class and replacing an unsigned-byte `0xFF` literal with a named constant for
+Detekt. The full gate completed `BUILD SUCCESSFUL` with 623 actionable tasks and stable Room
+schema exports. Evidence is recorded in
+`../internal/checkpoints/product-ui-task-03-artwork.md`. The repository also exposes
+`./scripts/verify-fast.sh` for development feedback while `./scripts/verify.sh` remains the
+full acceptance gate; both preserve strict dependency verification.
+
+The Discover semantic-feed checkpoint then passed focused plugin/catalog/Room contract tests,
+Room migration/repository instrumentation (10/10), semantic projection/ViewModel/design-system
+suites, Discover Compose instrumentation (2/2), app launch/navigation instrumentation (14/14),
+Roborazzi compare/record/verify, and a 5-iteration `discoverScroll` Macrobenchmark on Redmi Note 9S
+(API 35 test environment). The benchmark snapshot recorded frame CPU P50 11.08 ms, P90 13.08 ms,
+P95 13.57 ms, and P99 18.41 ms under `run-from-apk` compilation. The full repository verifier was
+updated only where stale policy/schema assumptions still encoded the pre-redesign architecture;
+Detekt blockers introduced by the new segmented/skeleton code were fixed without suppressions.
+Acceptance details are in `../internal/checkpoints/discover-semantic-feed-redesign.md`.
+
 Evidence:
 
+- `../internal/checkpoints/discover-semantic-feed-redesign.md`
+- `../internal/checkpoints/product-ui-redesign.md`
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
 - `../internal/checkpoints/wave-06-task-03-content-story-matching.md`
@@ -182,6 +270,9 @@ Evidence:
 - `../internal/checkpoints/wave-06-task-05-protected-content-mappings.md`
 - `../internal/checkpoints/wave-06-task-06-mapping-review-url-import.md`
 - `../internal/checkpoints/wave-08-reader-and-reading-progress.md`
+- `../internal/checkpoints/product-ui-task-01-toolchain.md`
+- `../internal/checkpoints/product-ui-task-02-target-pack.md`
+- `../internal/checkpoints/product-ui-task-03-artwork.md`
 
 ## Source-of-truth rule
 

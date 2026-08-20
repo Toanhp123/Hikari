@@ -15,8 +15,10 @@
 - Introduces `:feature:plugins` in Task 1.
 - Consumes from Wave 10: complete capability graph, typed settings, sessions, workers, notifications, downloads, and Reader.
 - Produces: reproducible signed APK evidence and an open-source release-ready repository.
-- Room schema 7 remains stable unless a proven release defect requires a reviewed migration.
+- Room schema 9 remains stable after Wave 10 notification persistence unless a proven release defect requires a reviewed migration.
 - No new product capability or generic architecture layer.
+- Wave 11 Plugin Management enters through the avatar utility sheet and never top-level navigation.
+- Discover / Home / Library remains the final top-level model; Plugins must not become a `TopLevelDestination`.
 
 ### Task 1: Complete plugin-management presentation
 
@@ -24,10 +26,13 @@
 - Create: `feature/plugins/build.gradle.kts`, `feature/plugins/src/main/kotlin/app/openstory/plugins/ui/PluginListScreen.kt`, `PluginDetailScreen.kt`, `InstallPluginViewModel.kt`, `PluginManagementViewModel.kt`
 - Test: `feature/plugins/src/test/kotlin/app/openstory/plugins/ui/PluginManagementViewModelTest.kt`
 - Test: `feature/plugins/src/androidTest/kotlin/app/openstory/plugins/ui/PluginManagementScreenTest.kt`
-- Modify: `settings.gradle.kts`, `config/architecture/module-boundaries.json`, `app/build.gradle.kts`, `app/src/main/kotlin/app/openstory/navigation/AppNavHost.kt`
+- Create: `feature/plugins/src/test/kotlin/app/openstory/plugins/ui/PluginManagementScreenshotTest.kt`
+- Modify: `settings.gradle.kts`, `config/architecture/module-boundaries.json`, `app/build.gradle.kts`, `app/src/main/kotlin/app/openstory/navigation/AppRoute.kt`, `AppNavHost.kt`, and the app-shell owner of `HikariUtilitySheet`
 
-- [ ] Write RED tests for URL/local/repository installs, capability/domain/signature confirmation, update diff, rollback, disable/remove, retained downloads, session clear, and exact exit graph.
-- [ ] Implement UI solely over public runtime management/package contracts.
+- [ ] Write RED tests for URL/local/repository installs, installed/detail/install/update/rollback flows, capability/domain/signature confirmation, update diff, disable/remove, retained downloads, session clear, Plugins utility-row navigation, the unchanged top-level destination set, and exact exit graph.
+- [ ] Implement installed/detail/install/update/rollback flows solely over the public `:plugins:runtime` management facade and package contracts; do not expose execution internals or duplicate runtime lifecycle state in the feature.
+- [ ] Consume `:core:designsystem` and match the approved Plugin target screen for installed health, details, install confirmation, update capability diff, and rollback status.
+- [ ] Add the Plugins focused route to `AppNavHost` and a Plugins row to `HikariUtilitySheet`; close the sheet before navigation and preserve Discover / Home / Library as the only three top-level routes.
 - [ ] Run `./gradlew :feature:plugins:testDebugUnitTest :feature:plugins:connectedDebugAndroidTest :plugins:runtime:testDebugUnitTest :app:connectedDebugAndroidTest --stacktrace`.
 - [ ] Commit `plugins: add management feature`.
 

@@ -32,6 +32,20 @@ The UI foundation is an approved dedicated between-wave decision. No other
 production module is introduced without a dedicated architecture decision and
 matching policy update.
 
+
+## 2026-08-20 Persistence Rebase
+
+The 2026-08-19 Discover semantic-feed redesign advanced Room from schema 6 to schema 7,
+and the 2026-08-20 catalog metadata-lifecycle unification then advanced Room from schema 7 to
+schema 8. Neither change altered the approved module graph or capability ownership in this design.
+Future persistence numbering is therefore rebased while the architecture decision remains unchanged:
+
+- Wave 10 enters on Room schema 8.
+- The planned durable notification-delivery state in Wave 10 migrates `8 -> 9`.
+- Wave 11 treats schema 9 as stable unless a separately reviewed release-defect migration is required.
+
+This is a contiguous-schema rebase only; it does not reopen Waves 06-09 or add a new capability owner.
+
 ## Ownership
 
 ### `:catalog`
@@ -89,6 +103,13 @@ chapter-list presentation because those surfaces share the canonical story flow.
 `:feature:plugins` begins only when full plugin-management UI starts in Wave 11.
 All presentation modules consume `:core:designsystem` for application theme,
 tokens, and domain-neutral shared states while retaining feature semantics.
+
+Discover / Home / Library remains the final top-level model. Focused capability
+screens enter through the avatar-owned `HikariUtilitySheet`: the current Product
+UI checkpoint intentionally exposes Downloads and Updates first, Wave 10 later
+adds Settings, and Wave 11 later adds Plugin Management. These reserved target
+screens do not make Wave 10 or Wave 11 implemented and never expand top-level
+navigation.
 
 ### Adapters
 
@@ -191,6 +212,13 @@ loading and progress contracts from Wave 08. The approved UI foundation then
 adds `:core:designsystem` without changing capability ownership. Wave 10
 schedules the same pure engines and consumes download/settings state. Wave 11
 hardens the complete graph without changing capability ownership.
+
+The Product UI checkpoint intentionally ships the supported Downloads and
+Updates utility flows before the capability waves that own Settings and Plugin
+Management. Wave 10 composes `AppRoute.Settings` from `:feature:settings` through
+the avatar utility sheet; Wave 11 composes Plugin Management from
+`:feature:plugins` over the public runtime facade through the same sheet. Neither
+reserved visual target changes capability ownership or completion status.
 
 ## Rejected Alternatives
 

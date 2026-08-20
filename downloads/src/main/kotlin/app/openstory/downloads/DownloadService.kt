@@ -17,7 +17,7 @@ class DownloadService(
     private val source: DownloadContentSource,
     private val writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
 ) {
-    fun observe(releaseId: ChapterReleaseId): Flow<DownloadRecord?> = repository.observe(releaseId)
+    fun observeAll(): Flow<List<DownloadRecord>> = repository.observeAll()
 
     suspend fun queue(releaseId: ChapterReleaseId, now: Long) {
         val existing = repository.find(releaseId)

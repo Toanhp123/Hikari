@@ -174,6 +174,33 @@ function mangaIdFromUrl(url) {
   return match ? requireMangaId(match[1]) : null;
 }
 
+function requireAtHomeDocument(payload) {
+  const baseUrl = typeof payload?.baseUrl === "string" ? payload.baseUrl.trim() : "";
+  const hash = typeof payload?.chapter?.hash === "string" ? payload.chapter.hash.trim() : "";
+  const filenames = Array.isArray(payload?.chapter?.data) ? payload.chapter.data : [];
+  if (!baseUrl.startsWith("https://") || !hash || filenames.length === 0) {
+    throw pluginError("plugin.mangadex_invalid_response", "Invalid MangaDex chapter image metadata");
+  }
+  const blocks = filenames.map(filename => {
+    const normalized = typeof filename === "string" ? filename.trim() : "";
+    if (!normalized || normalized.includes("/") || normalized.includes("\\")) {
+      throw pluginError("plugin.mangadex_invalid_response", "Invalid MangaDex chapter image filename");
+    }
+    return {
+      type: "image",
+      stableId: `${hash}/${normalized}`,
+      imageUrl: `${baseUrl.replace(/\/$/, "")}/data/${encodeURIComponent(hash)}/${encodeURIComponent(normalized)}`,
+    };
+  });
+  return {title: null, blocks};
+}
+
+async function fetchChapter(sourceReleaseId) {
+  const chapterId = requireMangaId(sourceReleaseId);
+  const payload = await getJson(`/at-home/server/${encodeURIComponent(chapterId)}`);
+  return requireAtHomeDocument(payload);
+}
+
 async function fetchManga(sourceStoryId) {
   const payload = await getJson(
     `/manga/${encodeURIComponent(sourceStoryId)}?includes%5B%5D=author&includes%5B%5D=artist`
@@ -217,5 +244,7 @@ globalThis.openstoryPlugin = Object.freeze({
         nextToken: nextOffsetToken(payload),
       };
     },
+
+    chapter: async input => fetchChapter(input?.sourceReleaseId),
   }),
 });

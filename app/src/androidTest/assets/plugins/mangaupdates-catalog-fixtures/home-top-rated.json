@@ -1,0 +1,29 @@
+{
+  "total_hits": 200000,
+  "page": 1,
+  "per_page": 25,
+  "results": [
+    {
+      "hit_title": "Berserk",
+      "record": {
+        "series_id": 20000000001,
+        "title": "Berserk",
+        "type": "Manga",
+        "year": "1989",
+        "bayesian_rating": 9.1,
+        "authors": [{"name": "Miura Kentarou", "type": "Author"}]
+      }
+    },
+    {
+      "hit_title": "Top Rated Fixture",
+      "record": {
+        "series_id": 40000000002,
+        "title": "Top Rated Fixture",
+        "type": "Manga",
+        "year": "2010",
+        "bayesian_rating": 8.95,
+        "authors": [{"name": "Fixture Artist", "type": "Author"}]
+      }
+    }
+  ]
+}

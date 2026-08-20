@@ -132,6 +132,25 @@ object RoomMigrations {
         }
     }
 
+    val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `catalog_home_sections` " +
+                    "ADD COLUMN `feed_kind` TEXT NOT NULL DEFAULT 'OTHER'",
+            )
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `publication_status` TEXT")
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `latest_update_at_epoch_millis` INTEGER")
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `latest_update_release_label` TEXT")
+        }
+    }
+
+    val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `full_plugin_version` TEXT")
+            db.execSQL("ALTER TABLE `catalog_entries` ADD COLUMN `full_resolved_at_epoch_millis` INTEGER")
+        }
+    }
+
     private fun createCanonicalChapters(db: SupportSQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE IF NOT EXISTS `canonical_chapters` (" +

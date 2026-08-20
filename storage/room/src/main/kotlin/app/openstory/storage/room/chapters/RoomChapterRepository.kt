@@ -23,6 +23,7 @@ import app.openstory.storage.room.OpenStoryDatabase
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 class RoomChapterRepository internal constructor(
@@ -35,6 +36,17 @@ class RoomChapterRepository internal constructor(
         database.chapterDao(),
         database.chapterSyncDao(),
     )
+
+    override fun observeAll(): Flow<List<CanonicalChapterGroup>> =
+        dao.observeAllGroups().map(List<CanonicalChapterWithReleases>::toModelsByIdentity)
+
+    override fun observeForStories(storyIds: Set<StoryId>): Flow<List<CanonicalChapterGroup>> =
+        if (storyIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            dao.observeGroups(storyIds.map(StoryId::value))
+                .map(List<CanonicalChapterWithReleases>::toModelsByIdentity)
+        }
 
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
         dao.observeGroups(storyId.value).map(List<CanonicalChapterWithReleases>::toModels)
@@ -63,11 +75,15 @@ class RoomChapterRepository internal constructor(
             if (mutation.plan.unlinks.isNotEmpty()) {
                 dao.unlink(mutation.plan.unlinks.map { it.value })
             }
+            val linkedChapterIds = linkedSetOf<String>()
             mutation.plan.links.forEach { link ->
                 check(dao.link(link.releaseId.value, link.canonicalChapterId.value) == 1) {
                     "Chapter release link target is missing"
                 }
-                dao.restore(link.canonicalChapterId.value)
+                linkedChapterIds += link.canonicalChapterId.value
+            }
+            if (linkedChapterIds.isNotEmpty()) {
+                dao.restore(linkedChapterIds)
             }
             if (mutation.plan.tombstones.isNotEmpty()) {
                 dao.tombstone(mutation.plan.tombstones.map { it.value })
@@ -82,7 +98,7 @@ class RoomChapterRepository internal constructor(
     }
 
     override suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride) {
-        dao.upsertOverride(override.toEntity(storyId))
+        syncDao.upsertOverride(override.toEntity(storyId))
     }
 
     override suspend fun syncState(
@@ -96,6 +112,12 @@ private fun List<CanonicalChapterWithReleases>.toModels(): List<CanonicalChapter
     val releases = group.releases.map(ChapterReleaseEntity::toModel).sortedWith(releaseComparator)
     CanonicalChapterGroup(group.chapter.toModel(releases.mapTo(linkedSetOf()) { it.id }), releases)
 }.sortedWith(groupComparator)
+
+private fun List<CanonicalChapterWithReleases>.toModelsByIdentity(): List<CanonicalChapterGroup> =
+    map { group ->
+        val releases = group.releases.map(ChapterReleaseEntity::toModel).sortedWith(releaseComparator)
+        CanonicalChapterGroup(group.chapter.toModel(releases.mapTo(linkedSetOf()) { it.id }), releases)
+    }
 
 private val groupComparator = compareBy<CanonicalChapterGroup> { it.chapter.parsedLabel.volume == null }
     .thenBy { it.chapter.parsedLabel.volume }

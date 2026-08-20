@@ -1,7 +1,9 @@
 package app.openstory.chapters.sync
 
+import app.openstory.chapters.aggregation.AggregationPlan
 import app.openstory.chapters.aggregation.ChapterAggregationEngine
 import app.openstory.chapters.model.ChapterRelease
+import app.openstory.chapters.repository.ChapterGraphSnapshot
 import app.openstory.chapters.normalization.ChapterLabelParser
 import app.openstory.chapters.repository.ChapterCommitResult
 import app.openstory.chapters.repository.ChapterMutation
@@ -25,6 +27,8 @@ internal class ChapterPageSynchronizer(
     private val parser: ChapterLabelParser,
     private val clock: Clock,
 ) {
+    private val releaseNormalizer = ChapterSourceReleaseNormalizer(parser)
+
     suspend fun state(storyId: StoryId, mapping: ContentMapping): ChapterSyncState? =
         chapters.syncState(storyId, mapping.pluginId, mapping.sourceStoryId)
 
@@ -35,7 +39,12 @@ internal class ChapterPageSynchronizer(
         mode: ChapterListMode,
         initialState: ChapterSyncState?,
     ): PageSyncResult {
-        var cursor = initialState?.cursor
+        var cursor = if (mode == ChapterListMode.FULL && initialState?.phase == ChapterSyncPhase.INCREMENTAL) {
+            null
+        } else {
+            initialState?.cursor
+        }
+        var graph: ChapterGraphSnapshot? = null
         val startedFromBeginning = mode == ChapterListMode.FULL && cursor == null
         val fullReleaseIds = linkedSetOf<ChapterReleaseId>()
         var releaseCount = 0
@@ -47,19 +56,22 @@ internal class ChapterPageSynchronizer(
                 is FetchedPage.Failed -> outcome = PageSyncResult.Failed(fetched.failure)
                 is FetchedPage.Success -> {
                     val releases = fetched.page.toReleases(storyId, mapping)
+                    val currentGraph = graph ?: chapters.snapshot(storyId)
                     fullReleaseIds += releases.map(ChapterRelease::id)
                     when (val committed = commitPage(
                         storyId,
                         mapping,
                         mode,
                         initialState,
+                        currentGraph,
                         fetched.page,
                         releases,
                         fullReleaseIds,
                         startedFromBeginning,
                     )) {
                         is PageCommit.Failed -> outcome = PageSyncResult.Failed(committed.failure)
-                        PageCommit.Success -> {
+                        is PageCommit.Success -> {
+                            graph = committed.graph
                             releaseCount += releases.size
                             outcome = pageOutcome(mapping, fetched.page.nextToken, cursor, releaseCount)
                             cursor = fetched.page.nextToken
@@ -82,7 +94,7 @@ internal class ChapterPageSynchronizer(
         ChapterSourceRequest(
             sourceStoryId = mapping.sourceStoryId,
             mode = mode,
-            checkpoint = state?.checkpoint ?: state?.fingerprint,
+            checkpoint = state?.sourceCheckpoint(),
             nextToken = cursor,
         ),
     )) {
@@ -97,13 +109,13 @@ internal class ChapterPageSynchronizer(
         mapping: ContentMapping,
         mode: ChapterListMode,
         previousState: ChapterSyncState?,
+        graph: ChapterGraphSnapshot,
         page: ChapterSourcePage,
         releases: List<ChapterRelease>,
         fullReleaseIds: Set<ChapterReleaseId>,
         startedFromBeginning: Boolean,
     ): PageCommit {
-        val snapshot = chapters.snapshot(storyId)
-        val merged = snapshot.releases.associateByTo(linkedMapOf(), ChapterRelease::id).apply {
+        val merged = graph.releases.associateByTo(linkedMapOf(), ChapterRelease::id).apply {
             releases.forEach { release -> put(release.id, release) }
         }
         val activeReleases = authoritativeReleases(
@@ -116,12 +128,12 @@ internal class ChapterPageSynchronizer(
         )
         val fingerprint = fingerprint(activeReleases.filter { release -> release.belongsTo(mapping) })
         val state = nextState(storyId, mapping, mode, page, fingerprint, previousState)
-        val plan = aggregation.plan(storyId, snapshot.chapters, activeReleases, snapshot.overrides)
+        val plan = aggregation.plan(storyId, graph.chapters, activeReleases, graph.overrides)
         return when (val commit = chapters.commit(ChapterMutation(storyId, releases, plan, state))) {
             is ChapterCommitResult.Failure -> PageCommit.Failed(
                 ChapterSyncFailure(mapping.pluginId, commit.code, commit.retryable),
             )
-            ChapterCommitResult.Success -> PageCommit.Success
+            ChapterCommitResult.Success -> PageCommit.Success(graph.afterCommit(activeReleases, plan))
         }
     }
 
@@ -129,17 +141,15 @@ internal class ChapterPageSynchronizer(
         storyId: StoryId,
         mapping: ContentMapping,
     ): List<ChapterRelease> = releases.map { sourceRelease ->
-        val displayLabel = sourceRelease.title?.takeIf(String::isNotBlank)
-            ?: sourceRelease.rawNumber?.takeIf(String::isNotBlank)
-            ?: sourceRelease.sourceReleaseId
+        val normalized = releaseNormalizer.normalize(sourceRelease)
         ChapterRelease(
             id = releaseId(mapping, sourceRelease.sourceReleaseId),
             storyId = storyId,
             pluginId = mapping.pluginId,
             sourceStoryId = mapping.sourceStoryId,
             sourceReleaseId = sourceRelease.sourceReleaseId,
-            displayLabel = displayLabel,
-            parsedLabel = parser.parse(displayLabel),
+            displayLabel = normalized.displayLabel,
+            parsedLabel = normalized.parsedLabel,
             languageTag = sourceRelease.languageTag?.takeIf(String::isNotBlank) ?: UNDETERMINED_LANGUAGE,
             publishedAtEpochMillis = sourceRelease.publishedAtEpochMillis,
             canonicalChapterId = null,
@@ -155,11 +165,13 @@ internal class ChapterPageSynchronizer(
         previous: ChapterSyncState?,
     ): ChapterSyncState {
         val completed = page.nextToken == null
+        val sourceCheckpoint = previous?.sourceCheckpoint()
         val phase = when {
             mode == ChapterListMode.RECENT -> ChapterSyncPhase.FULL
-            mode == ChapterListMode.FULL && completed -> ChapterSyncPhase.INCREMENTAL
+            mode == ChapterListMode.FULL && completed && sourceCheckpoint != null -> ChapterSyncPhase.INCREMENTAL
             mode == ChapterListMode.FULL -> ChapterSyncPhase.FULL
-            else -> ChapterSyncPhase.INCREMENTAL
+            sourceCheckpoint != null -> ChapterSyncPhase.INCREMENTAL
+            else -> ChapterSyncPhase.FULL
         }
         return ChapterSyncState(
             storyId = storyId,
@@ -167,7 +179,7 @@ internal class ChapterPageSynchronizer(
             sourceStoryId = mapping.sourceStoryId,
             phase = phase,
             cursor = if (mode == ChapterListMode.RECENT) null else page.nextToken,
-            checkpoint = if (completed && mode != ChapterListMode.RECENT) fingerprint else previous?.checkpoint,
+            checkpoint = if (mode == ChapterListMode.RECENT) previous?.sourceCheckpoint() else sourceCheckpoint,
             fingerprint = if (mode == ChapterListMode.RECENT) previous?.fingerprint else fingerprint,
             updatedAtEpochMillis = clock.nowEpochMillis(),
         )
@@ -192,7 +204,7 @@ internal class ChapterPageSynchronizer(
     }
 
     private sealed interface PageCommit {
-        data object Success : PageCommit
+        data class Success(val graph: ChapterGraphSnapshot) : PageCommit
         data class Failed(val failure: ChapterSyncFailure) : PageCommit
     }
 
@@ -226,6 +238,38 @@ private fun authoritativeReleases(
     merged.toList()
 }
 
+private fun ChapterGraphSnapshot.afterCommit(
+    activeReleases: List<ChapterRelease>,
+    plan: AggregationPlan,
+): ChapterGraphSnapshot {
+    val targetByRelease = plan.links.associate { link -> link.releaseId to link.canonicalChapterId }
+    val linkedReleases = activeReleases.map { release ->
+        targetByRelease[release.id]?.let { target -> release.copy(canonicalChapterId = target) } ?: release
+    }
+    val releaseIdsByChapter = linkedReleases
+        .mapNotNull { release -> release.canonicalChapterId?.let { it to release.id } }
+        .groupBy({ it.first }, { it.second })
+        .mapValues { (_, releaseIds) -> releaseIds.toSet() }
+    val chaptersById = linkedMapOf<
+        app.openstory.common.id.CanonicalChapterId,
+        app.openstory.chapters.model.CanonicalChapter,
+    >()
+    chapters.forEach { chapter -> chaptersById[chapter.id] = chapter }
+    plan.creates.forEach { chapter -> chaptersById[chapter.id] = chapter }
+    val linkedChapterIds = releaseIdsByChapter.keys
+    val updatedChapters = chaptersById.values.map { chapter ->
+        chapter.copy(
+            tombstoned = when {
+                chapter.id in linkedChapterIds -> false
+                chapter.id in plan.tombstones -> true
+                else -> chapter.tombstoned
+            },
+            releaseIds = releaseIdsByChapter[chapter.id].orEmpty(),
+        )
+    }
+    return ChapterGraphSnapshot(updatedChapters, linkedReleases, overrides)
+}
+
 private fun releaseId(mapping: ContentMapping, sourceReleaseId: String): ChapterReleaseId = ChapterReleaseId(
     "chapter-release:${sha256("${mapping.pluginId.value}|${mapping.sourceStoryId}|$sourceReleaseId")}",
 )
@@ -240,3 +284,5 @@ private fun fingerprint(releases: Collection<ChapterRelease>): String = sha256(
 private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
     .digest(value.toByteArray(Charsets.UTF_8))
     .joinToString("") { byte -> "%02x".format(byte) }
+
+internal fun ChapterSyncState.sourceCheckpoint(): String? = checkpoint?.takeUnless { it == fingerprint }

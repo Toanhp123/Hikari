@@ -4,17 +4,34 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import app.openstory.designsystem.motion.HikariDefaultMotionPolicy
+import app.openstory.designsystem.motion.HikariMotionPolicy
+import app.openstory.designsystem.motion.LocalHikariMotionPolicy
 
 @Composable
 fun HikariTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    motionPolicy: HikariMotionPolicy = HikariDefaultMotionPolicy,
     content: @Composable () -> Unit,
 ) {
+    val colorScheme = if (darkTheme) HikariDarkColorScheme else HikariLightColorScheme
+    val visualBrushes = if (darkTheme) HikariDarkVisualBrushes else HikariLightVisualBrushes
     CompositionLocalProvider(
-        LocalHikariSpacing provides HikariSpacing(),
+        LocalHikariSpacing provides HikariDefaultSpacing,
+        LocalHikariDimensions provides HikariDefaultDimensions,
+        LocalHikariBreakpoints provides HikariDefaultBreakpoints,
+        LocalHikariLayoutRatios provides HikariDefaultLayoutRatios,
+        LocalHikariLayoutPolicy provides HikariDefaultLayoutPolicy,
+        LocalHikariGlyphGeometry provides HikariDefaultGlyphGeometry,
+        LocalHikariSemanticShapes provides HikariDefaultSemanticShapes,
+        LocalHikariSemanticColors provides HikariDefaultSemanticColors,
+        LocalHikariOpacity provides HikariDefaultOpacity,
+        LocalHikariVisualBrushes provides visualBrushes,
+        LocalHikariSemanticTypography provides HikariDefaultSemanticTypography,
+        LocalHikariMotionPolicy provides motionPolicy,
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) HikariDarkColorScheme else HikariLightColorScheme,
+            colorScheme = colorScheme,
             typography = HikariTypography,
             shapes = HikariShapes,
             content = content,

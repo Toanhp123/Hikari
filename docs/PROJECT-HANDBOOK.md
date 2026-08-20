@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-10
+Date: 2026-08-20
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -36,16 +36,24 @@ The full approved baseline is `project/approved-product-design.md`.
 
 ## 3. MVP scope
 
-Included at completion: combined/per-catalog discovery, local Library, catalog/content
+Included at completion: semantic multi-catalog discovery, local Library, catalog/content
 plugin lifecycle, story matching, recent/full/incremental chapter sync, canonical chapter
 aggregation, text reader and source switching, exact progress, cache/downloads, local
 scheduled updates/notifications, guarded WebView source login, URL import/manual mapping,
-and open-source APK distribution.
+and open-source APK distribution. The 2026-08-19 Discover amendment replaces the old
+source/category-driven primary Discover composition; catalog identity remains available in
+data and source-preserving details rather than as the main Discover navigation model.
 
 Excluded from MVP: accounts/cloud sync, centralized plugin moderation, manga image reader,
 anime functionality, TTS/audiobook/translation/AI summaries, social features, native-code
 plugins, unrestricted JavaScript, automatic access-control bypass and cross-device download
 transfer.
+
+Implementation note: the current repository already contains a bounded MangaDex image-page
+Reader path. That is an implementation fact beyond the original 2026-08-03 MVP exclusion;
+it does not silently amend the release-scope decision. `project/current-state.md` records the
+capability, while any decision to make manga image reading normative MVP scope must be approved
+separately.
 
 ## 4. Repository implementation baseline
 
@@ -65,6 +73,9 @@ Coroutines              1.11.0
 kotlinx.serialization   1.11.0
 Hilt                    2.60.1
 JavaScript sandbox      AndroidX JavaScriptEngine 1.1.0
+Artwork loading         Coil 3.5.0
+Backdrop effect         Backdrop 2.0.0
+Screenshot testing      Roborazzi 1.70.0 + Robolectric 4.16.1
 ```
 
 Where an approved product document uses broader component terminology, these pins describe
@@ -118,18 +129,34 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Wave 09 complete; approved UI-foundation implementation in progress.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. Wave 10 is next and has not started.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
-Room, Compose, and final ownership verification.
+Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
+Wave 09 established the cache/download/offline boundary and Room schema 6. The between-wave
+Design System Foundation was accepted on 2026-08-12, and the Product UI checkpoint was
+accepted on 2026-08-14 while preserving the 14-module production graph.
 
-Wave 06 Tasks 01-06 are verified and Wave 06 is complete: metadata-only Library membership,
-Library presentation, pure explainable content-story matching, bounded quick/deferred plugin
-content search, protected Room-backed mappings/rejections, and mapping review/URL import.
-Wave 07 and Wave 08 are verified and complete. Wave 09 completed cache/download
-namespaces, quotas, integrity, reconciliation, offline reading, Room schema 6,
-and its checkpoint. The approved between-wave design-system foundation is the
-current work; Wave 10 remains next and has not started.
+The 2026-08-19 Discover semantic-feed redesign is now implemented on top of that UI
+baseline. It adds explicit `CatalogFeedKind` semantics, publication/latest-update metadata,
+Room migration 6 -> 7, source-agnostic `DiscoverUiState`, the `Manga | Light Novel` media
+selector, a manual Popular hero pager (max 5), Latest Updates 3-column grid (max 9), and
+Top Rated list (max 5). Discover projection deduplicates by canonical `StoryId`, reads only
+cached Home emissions, and runs on the shared Default-dispatcher projection boundary.
+Light Novel remains visible but disabled in the current delivery.
+
+Targeted unit/instrumentation suites, app navigation/smoke tests, Roborazzi baselines, and
+the `discoverScroll` Macrobenchmark were rerun after the redesign. The 2026-08-20 catalog
+metadata-lifecycle unification then advanced Room from schema 7 to schema 8 without changing
+the module graph. `CatalogMetadataCoordinator` now owns only `Summary` / `Full` lifecycle
+requirements; Full uses 24-hour freshness, plugin-version invalidation, stale-while-revalidate,
+retry suppression, and process-wide single-flight. Home/Search listing payload quality remains a
+plugin-operation responsibility: missing optional artwork or other presentation metadata stays
+degraded and never triggers host-side Details enrichment. `CatalogDetailsLoader` is the sole
+production `CatalogSource.details(...)` call site, while persisted source identity is stable across
+metadata refreshes. Room schema 8 stores Summary/Full provenance and is now current. Wave 10
+remains the next capability wave; its planned durable notification state must continue contiguously
+from schema 8 to schema 9.
 
 ## 8. Roadmap
 
@@ -139,12 +166,13 @@ current work; Wave 10 remains next and has not started.
 | 02 | canonical domain + durable local Room state |
 | 03 | historical plugin contracts and package/repository validation, superseded by Baseline 2 |
 | 04 | secure plugin execution, update/rollback, diagnostics and host facade |
-| 05 | combined/per-catalog Home, search, filters, rankings, story metadata |
+| 05 | catalog Home/search/story services and the historical source-preserving discovery baseline |
 | 06 | immediate local Library + explainable content-source matching |
 | 07 | multi-source chapter synchronization and canonical release grouping |
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
-| 10 | local scheduling, guarded source login and deduplicated notifications |
+| UI | accepted design system + Product UI + semantic Discover presentation |
+| 10 | local scheduling, guarded source login and deduplicated notifications; enters schema 8, notification persistence planned for schema 9 |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
 Detailed lifecycle/status: `implementation/current-roadmap.md`.
@@ -156,10 +184,16 @@ synchronization layers.
 
 ## 9. Verification model
 
-The repository separates fast verification, Android instrumentation, and acceptance
-checkpoints. `scripts/verify.sh` is the common repository gate;
-`scripts/verify-architecture-baseline-2.sh` asserts the exact retained architecture.
-Reusable device runners live in `scripts/instrumentation/`.
+The repository separates development feedback, full host verification, Android
+instrumentation, and acceptance checkpoints. `scripts/verify-fast.sh` is the local
+development loop: repository/static gates (including `verify-ui-tokens.sh`), architecture
+verification, local tests, Detekt, and Room schema stability. `scripts/verify.sh` remains the canonical full host
+gate and additionally runs Android lint plus app debug assembly. Both paths keep strict
+dependency verification; full verification owns `verifyArchitecture` in the same Gradle
+invocation to avoid a redundant Gradle startup. Local Gradle build caching and daemon
+reuse are enabled for repeated runs. `scripts/verify-architecture-baseline-2.sh` asserts
+the exact retained architecture. Reusable device runners live in
+`scripts/instrumentation/`.
 
 A requirement is not considered checkpoint-proven solely because implementation exists.
 Evidence files under `internal/checkpoints/` retain `PASS`, `FAIL`, `NOT RUN`, or
@@ -171,12 +205,14 @@ Read in this order:
 
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
-3. `project/approved-product-design.md` — complete product/domain baseline.
-4. Active implementation plan (`implementation/waves/wave-08-reader-and-reading-progress.md` now).
-5. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
-6. `plugin-sdk/` when changing public plugin contracts/packages.
-7. `internal/checkpoints/` when deciding whether a gate is proven.
-8. `internal/archive/` only for historical provenance.
+3. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
+4. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract.
+5. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
+6. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
+7. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
+8. `plugin-sdk/` when changing public plugin contracts/packages.
+9. `internal/checkpoints/` when deciding whether a gate is proven.
+10. `internal/archive/` only for historical provenance.
 
 `project/document-governance.md` defines precedence when documents disagree.
 
@@ -196,5 +232,9 @@ websites.
 
 ## 12. Next action
 
-Run and review the remaining commands in the Wave 08 checkpoint on the eleven-module,
-Room-schema-5 implementation boundary.
+Start Wave 10 from `implementation/waves/wave-10-background-sync-auth-and-notifications.md`
+only after choosing its first task boundary. The entry graph is the current 14-module graph
+with `:core:designsystem`; Room schema 8 is current and any planned notification-delivery
+persistence must migrate 8 -> 9. Product UI and Discover plans are completed records, not
+active execution plans. During implementation use `./scripts/verify-fast.sh` for iteration
+and `./scripts/verify.sh` as the full host gate before closing a checkpoint.

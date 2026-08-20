@@ -13,4 +13,6 @@ interface PluginRuntime {
     ): PluginCallResult<JsonElement>
 
     suspend fun enabled(service: PluginService): List<InstalledPlugin>
+
+    suspend fun enabled(operation: PluginOperation): List<InstalledPlugin> = enabled(operation.service)
 }

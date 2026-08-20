@@ -2,7 +2,6 @@ package app.openstory.reader.content
 
 import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.PluginId
-import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.content.ChapterDocumentDto
 import app.openstory.plugins.api.protocol.content.ContentChapterRequestDto
@@ -26,6 +25,7 @@ class PluginReaderDocumentSource(
 ) : ReaderDocumentSource {
     override val pluginId: PluginId = installed.pluginId
     private val invocationMutex = Mutex()
+    private val allowRemoteImages = installed.readerCapability?.remoteImages == true
 
     override suspend fun fetch(release: ChapterRelease): ReaderSourceResult = try {
         val input = json.encodeToJsonElement(ContentChapterRequestDto(release.sourceReleaseId))
@@ -43,7 +43,10 @@ class PluginReaderDocumentSource(
 
     private fun decode(result: PluginCallResult.Success<kotlinx.serialization.json.JsonElement>): ReaderSourceResult =
         try {
-            when (val sanitized = sanitizer.sanitize(json.decodeFromJsonElement<ChapterDocumentDto>(result.value))) {
+            when (val sanitized = sanitizer.sanitize(
+                json.decodeFromJsonElement<ChapterDocumentDto>(result.value),
+                allowRemoteImages = allowRemoteImages,
+            )) {
                 is DocumentValidationResult.Valid -> ReaderSourceResult.Success(sanitized.document)
                 is DocumentValidationResult.Invalid -> ReaderSourceResult.Failure(sanitized.code, false)
             }
@@ -56,9 +59,18 @@ class PluginReaderDocumentSourceRegistry(
     private val runtime: PluginRuntime,
     private val json: Json,
     private val sanitizer: ReaderDocumentSanitizer,
-) : ReaderDocumentSourceRegistry {
-    override suspend fun enabled(): List<ReaderDocumentSource> =
-        runtime.enabled(PluginService.CONTENT)
+) : ReaderDocumentSourceRegistry, ReaderSourceAvailability {
+    override suspend fun enabled(): List<ReaderDocumentSource> = enabledPlugins()
+        .map { plugin -> PluginReaderDocumentSource(plugin, runtime, json, sanitizer) }
+
+    override suspend fun enabledPluginIds(): Set<PluginId> = enabledPlugins()
+        .mapTo(linkedSetOf()) { plugin -> plugin.pluginId }
+
+    override suspend fun offlineDownloadPluginIds(): Set<PluginId> = enabledPlugins()
+        .filter { plugin -> plugin.readerCapability?.offlineDownload != false }
+        .mapTo(linkedSetOf()) { plugin -> plugin.pluginId }
+
+    private suspend fun enabledPlugins(): List<InstalledPlugin> =
+        runtime.enabled(PluginOperation.CONTENT_CHAPTER)
             .sortedBy { plugin -> plugin.pluginId.value }
-            .map { plugin -> PluginReaderDocumentSource(plugin, runtime, json, sanitizer) }
 }

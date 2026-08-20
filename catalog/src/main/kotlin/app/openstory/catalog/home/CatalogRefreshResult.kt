@@ -7,7 +7,10 @@ import app.openstory.common.id.PluginId
 sealed interface CatalogRefreshResult {
     val pluginId: PluginId
 
-    data class Success(override val pluginId: PluginId) : CatalogRefreshResult
+    data class Success(
+        override val pluginId: PluginId,
+        val refreshedAtEpochMillis: Long,
+    ) : CatalogRefreshResult
     data class SourceFailure(override val pluginId: PluginId, val failure: CatalogSourceFailure) : CatalogRefreshResult
     data class StoreFailure(override val pluginId: PluginId, val failure: CatalogStoreFailure) : CatalogRefreshResult
 }

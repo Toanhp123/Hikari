@@ -1,9 +1,12 @@
 package app.openstory.catalog.search
 
-import app.openstory.catalog.details.CatalogDetailsFailure
-import app.openstory.catalog.details.CatalogDetailsResult
-import app.openstory.catalog.details.CatalogDetailsService
+import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataFailure
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataLevel
+import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.matching.CatalogMatchIndex
 import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
@@ -27,30 +30,38 @@ class CatalogSearchService @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
     private val matcher: StoryMatcher,
-    private val details: CatalogDetailsService,
+    private val metadata: CatalogMetadataCoordinator,
+    private val filterCache: CatalogFilterCache,
 ) {
     suspend fun filters(): List<CatalogSearchFilterGroup> = supervisorScope {
-        sources.enabled().sortedBy { it.pluginId.value }
-            .map { source ->
-                async {
-                    val definitions = try {
-                        when (val result = source.filters()) {
-                            is CatalogSourceResult.Success -> result.value
-                            is CatalogSourceResult.Failure -> emptyList()
-                        }
-                    } catch (cancellation: CancellationException) {
-                        throw cancellation
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-                    CatalogSearchFilterGroup(source.pluginId, definitions)
-                }
+        val enabledSources = sources.enabled().sortedBy { it.pluginId.value }
+        val enabledKeys = enabledSources
+            .map { source -> CatalogFilterCacheKey(source.pluginId, source.version) }
+            .toSet()
+        filterCache.retainEnabled(enabledKeys)
+        enabledSources.map { source ->
+            async {
+                val key = CatalogFilterCacheKey(source.pluginId, source.version)
+                filterCache.get(key) ?: loadFilterGroup(source)?.also { group ->
+                    filterCache.put(key, group)
+                } ?: CatalogSearchFilterGroup(source.pluginId, emptyList())
             }
-            .awaitAll()
+        }.awaitAll()
+    }
+
+    private suspend fun loadFilterGroup(source: CatalogSource): CatalogSearchFilterGroup? = try {
+        when (val result = source.filters()) {
+            is CatalogSourceResult.Success -> CatalogSearchFilterGroup(source.pluginId, result.value)
+            is CatalogSourceResult.Failure -> null
+        }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
     }
 
     suspend fun search(request: CatalogSearchRequest): CatalogSearchResult {
-        val candidates = repository.matchSnapshot().candidates.toMutableList()
+        var matchIndex = CatalogMatchIndex(matcher, repository.matchSnapshot().candidates)
         val stories = linkedMapOf<StoryId, MutableList<CatalogSearchSourceCard>>()
         val failures = mutableListOf<CatalogSearchFailure>()
         supervisorScope {
@@ -65,9 +76,8 @@ class CatalogSearchService @Inject constructor(
                             result.failure.retryable,
                         )
                         is CatalogSourceResult.Success -> try {
-                            val projection = project(source.pluginId, result.value, candidates)
-                            candidates.clear()
-                            candidates += projection.candidates
+                            val projection = project(source.pluginId, result.value, matchIndex)
+                            matchIndex = projection.matchIndex
                             projection.cards.forEach { (storyId, cards) ->
                                 stories.getOrPut(storyId) { mutableListOf() } += cards
                             }
@@ -85,7 +95,7 @@ class CatalogSearchService @Inject constructor(
         }
         val canonicalStories = stories.map { (storyId, cards) ->
             CatalogSearchStory(
-                candidates.first { it.story.id == storyId }.story,
+                matchIndex.story(storyId),
                 cards.toList(),
             )
         }
@@ -96,7 +106,10 @@ class CatalogSearchService @Inject constructor(
         val source = story.sources.firstOrNull()
             ?: return CatalogSearchSelectionResult.Failure(EMPTY_SELECTION_CODE, retryable = false)
         return try {
-            details.load(source.pluginId, source.sourceId).toSelectionResult()
+            metadata.require(
+                CatalogMetadataKey(source.pluginId, source.sourceId),
+                CatalogMetadataLevel.Full,
+            ).toSelectionResult()
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -120,25 +133,23 @@ class CatalogSearchService @Inject constructor(
     private fun project(
         pluginId: app.openstory.common.id.PluginId,
         page: SourceSearchPage,
-        candidates: List<CatalogMatchCandidate>,
+        matchIndex: CatalogMatchIndex,
     ): SearchProjection {
-        val localCandidates = candidates.toMutableList()
+        val localIndex = matchIndex.fork()
         val cards = linkedMapOf<StoryId, MutableList<CatalogSearchSourceCard>>()
         page.items.sortedBy { it.sourceId }.forEach { item ->
             val incoming = item.toCandidate(pluginId)
-            val story = when (val resolution = matcher.resolve(incoming, localCandidates)) {
-                is StoryResolution.Existing -> localCandidates.first { it.story.id == resolution.storyId }.story
-                is StoryResolution.Create -> resolution.story.also { created ->
-                    localCandidates += incoming.copy(story = created)
-                }
+            val story = when (val resolution = localIndex.resolve(incoming)) {
+                is StoryResolution.Existing -> localIndex.story(resolution.storyId)
+                is StoryResolution.Create -> resolution.story
             }
             cards.getOrPut(story.id) { mutableListOf() } += item.toCard(pluginId)
         }
-        return SearchProjection(localCandidates, cards)
+        return SearchProjection(localIndex, cards)
     }
 
     private data class SearchProjection(
-        val candidates: List<CatalogMatchCandidate>,
+        val matchIndex: CatalogMatchIndex,
         val cards: Map<StoryId, List<CatalogSearchSourceCard>>,
     )
 
@@ -149,26 +160,30 @@ class CatalogSearchService @Inject constructor(
     }
 }
 
-private fun CatalogDetailsResult.toSelectionResult(): CatalogSearchSelectionResult = when (this) {
-    is CatalogDetailsResult.Success -> CatalogSearchSelectionResult.Success(story.id)
-    is CatalogDetailsResult.Failure -> CatalogSearchSelectionResult.Failure(
+private fun CatalogMetadataResult.toSelectionResult(): CatalogSearchSelectionResult = when (this) {
+    is CatalogMetadataResult.Ready -> CatalogSearchSelectionResult.Success(storyId)
+    is CatalogMetadataResult.Failure -> CatalogSearchSelectionResult.Failure(
         code = failure.code(),
         retryable = failure.retryable(),
     )
+    CatalogMetadataResult.Missing -> CatalogSearchSelectionResult.Failure(
+        code = "catalog.search.selection_missing",
+        retryable = false,
+    )
 }
 
-private fun CatalogDetailsFailure.code(): String = when (this) {
-    is CatalogDetailsFailure.SourceUnavailable -> "catalog.source_unavailable"
-    is CatalogDetailsFailure.SourceFailure -> code
-    is CatalogDetailsFailure.SourceIdMismatch -> "catalog.details_source_mismatch"
-    is CatalogDetailsFailure.StoreFailure -> code
+private fun CatalogMetadataFailure.code(): String = when (this) {
+    is CatalogMetadataFailure.SourceUnavailable -> "catalog.source_unavailable"
+    is CatalogMetadataFailure.SourceFailure -> code
+    is CatalogMetadataFailure.SourceIdMismatch -> "catalog.details_source_mismatch"
+    is CatalogMetadataFailure.StoreFailure -> code
 }
 
-private fun CatalogDetailsFailure.retryable(): Boolean = when (this) {
-    is CatalogDetailsFailure.SourceUnavailable -> false
-    is CatalogDetailsFailure.SourceFailure -> retryable
-    is CatalogDetailsFailure.SourceIdMismatch -> false
-    is CatalogDetailsFailure.StoreFailure -> retryable
+private fun CatalogMetadataFailure.retryable(): Boolean = when (this) {
+    is CatalogMetadataFailure.SourceUnavailable -> false
+    is CatalogMetadataFailure.SourceFailure -> retryable
+    is CatalogMetadataFailure.SourceIdMismatch -> false
+    is CatalogMetadataFailure.StoreFailure -> retryable
 }
 
 private fun SourceItem.toCandidate(pluginId: app.openstory.common.id.PluginId) = CatalogMatchCandidate(

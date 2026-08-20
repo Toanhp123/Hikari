@@ -11,6 +11,7 @@ import app.openstory.downloads.DownloadState
 import app.openstory.downloads.blob.ChapterBlob
 import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobStore
+import app.openstory.downloads.blob.ChapterBlobNamespace
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -19,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -48,6 +50,27 @@ class DownloadViewModelTest {
         assertEquals(listOf(first, first, second, second), scheduled)
         assertEquals(DownloadState.QUEUED, repository.find(first)?.state)
         assertEquals(DownloadState.QUEUED, repository.find(second)?.state)
+    }
+
+    @Test
+    fun `status observation uses one aggregate stream and no per release collectors`() = runTest(dispatcher) {
+        val repository = FakeUiDownloadRepository()
+        val viewModel = viewModel(repository, DownloadScheduler {})
+        val releaseId = ChapterReleaseId("release:1")
+
+        repository.save(
+            DownloadRecord(
+                ChapterBlobKey(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, releaseId, "pending"),
+                DownloadState.QUEUED,
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+
+        val statuses = viewModel.statuses.first()
+
+        assertEquals(1, repository.observeAllCalls)
+        assertEquals(0, repository.observeCalls)
+        assertEquals(DownloadState.QUEUED, statuses[releaseId])
     }
 
     @Test
@@ -98,11 +121,18 @@ class DownloadViewModelTest {
 
 private class FakeUiDownloadRepository : DownloadRepository {
     private val flows = mutableMapOf<ChapterReleaseId, MutableStateFlow<DownloadRecord?>>()
+    private val all = MutableStateFlow<List<DownloadRecord>>(emptyList())
+    var observeAllCalls = 0
+    var observeCalls = 0
+    override fun observeAll(): Flow<List<DownloadRecord>> = all.also { observeAllCalls++ }
     override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? = flows[releaseId]?.value
-    override fun observe(releaseId: ChapterReleaseId): Flow<DownloadRecord?> =
-        flows.getOrPut(releaseId) { MutableStateFlow(null) }
+    override fun observe(releaseId: ChapterReleaseId): Flow<DownloadRecord?> {
+        observeCalls++
+        return flows.getOrPut(releaseId) { MutableStateFlow(null) }
+    }
     override suspend fun save(record: DownloadRecord) {
         flows.getOrPut(record.key.releaseId) { MutableStateFlow(null) }.value = record
+        all.value = all.value.filterNot { it.key.releaseId == record.key.releaseId } + record
     }
 }
 

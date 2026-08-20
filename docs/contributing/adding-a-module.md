@@ -12,7 +12,7 @@ The same commit must include:
 3. One entry in `config/architecture/module-boundaries.json` containing:
    - module path;
    - repository directory;
-   - platform (`jvm`, `android-application`, or `android-library`);
+   - platform (`jvm`, `android-application`, `android-library`, or tooling-only `android-test`);
    - allowed direct production project dependencies;
    - allowed direct test project dependencies;
    - forbidden production import prefixes when applicable.

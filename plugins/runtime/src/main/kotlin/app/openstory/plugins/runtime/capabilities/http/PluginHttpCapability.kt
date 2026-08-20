@@ -49,7 +49,8 @@ class PluginHttpCapability(
         policy: PluginRequestPolicy,
     ): PluginCallResult<PluginHttpResponse> = try {
         withTimeout(policy.timeoutMillis) {
-            executeRedirectChain(request, policy)
+            val initialUri = requireAllowedUrl(request.url, policy.allowedHosts)
+            executeRedirectChain(request, initialUri, policy)
         }
     } catch (failure: CancellationException) {
         throw failure
@@ -63,56 +64,54 @@ class PluginHttpCapability(
         PluginCallResult.Failure("plugin.http_request_failed", retryable = true)
     }
 
-    internal fun validateTarget(
-        url: String,
-        allowedHosts: Set<String>,
-    ): PluginCallResult<Unit> = try {
-        requireAllowedUrl(url, allowedHosts)
-        PluginCallResult.Success(Unit)
-    } catch (failure: HttpCapabilityFailure) {
-        PluginCallResult.Failure(failure.code, failure.retryable)
-    }
-
     private suspend fun executeRedirectChain(
         initial: PluginHttpRequest,
+        initialUri: URI,
         policy: PluginRequestPolicy,
-    ): PluginCallResult<PluginHttpResponse> = withContext(Dispatchers.IO) {
-        var current = initial
-        var requests = 0
-        var redirects = 0
-        while (true) {
-            requests++
-            if (requests > policy.maxRequests) throw HttpCapabilityFailure("plugin.http_request_budget_exceeded")
-            val uri = requireAllowedUrl(current.url, policy.allowedHosts)
-            val response = client.newCall(
-                buildRequest(current, policy, uri.host.lowercase()) {
-                    tag(
-                        CompressedByteLimit::class.java,
-                        CompressedByteLimit(policy.maxCompressedResponseBytes),
-                    )
-                },
-            ).execute()
-            response.use {
-                if (it.isRedirect) {
-                    redirects++
-                    if (redirects > policy.maxRedirects) {
-                        throw HttpCapabilityFailure("plugin.http_redirect_budget_exceeded")
+    ): PluginCallResult<PluginHttpResponse> {
+        return withContext(Dispatchers.IO) {
+            var current = initial
+            var currentUri = initialUri
+            var redirects = 0
+            repeat(policy.maxRequests) {
+                val response = client.newCall(
+                    buildRequest(current, policy, currentUri.host.lowercase()) {
+                        tag(
+                            CompressedByteLimit::class.java,
+                            CompressedByteLimit(policy.maxCompressedResponseBytes),
+                        )
+                    },
+                ).execute()
+                response.use {
+                    if (it.isRedirect) {
+                        redirects++
+                        if (redirects > policy.maxRedirects) {
+                            return@withContext PluginCallResult.Failure(
+                                "plugin.http_redirect_budget_exceeded",
+                                retryable = false,
+                            )
+                        }
+                        val location = it.header("Location")
+                            ?: return@withContext PluginCallResult.Failure(
+                                "plugin.http_redirect_invalid",
+                                retryable = false,
+                            )
+                        val resolved = currentUri.resolve(location).toString()
+                        currentUri = requireAllowedUrl(resolved, policy.allowedHosts)
+                        current = PluginHttpRequest(url = resolved)
+                    } else {
+                        val bytes = BoundedResponseReader.read(it.body, policy.maxDecompressedResponseBytes)
+                        return@withContext PluginCallResult.Success(
+                            PluginHttpResponse(it.code, bytes.toString(Charsets.UTF_8)),
+                        )
                     }
-                    val location = it.header("Location")
-                        ?: throw HttpCapabilityFailure("plugin.http_redirect_invalid")
-                    val resolved = uri.resolve(location).toString()
-                    requireAllowedUrl(resolved, policy.allowedHosts)
-                    current = PluginHttpRequest(url = resolved)
-                } else {
-                    val bytes = BoundedResponseReader.read(it.body, policy.maxDecompressedResponseBytes)
-                    return@withContext PluginCallResult.Success(
-                        PluginHttpResponse(it.code, bytes.toString(Charsets.UTF_8)),
-                    )
                 }
             }
+            PluginCallResult.Failure(
+                "plugin.http_request_budget_exceeded",
+                retryable = false,
+            )
         }
-        @Suppress("UNREACHABLE_CODE")
-        PluginCallResult.Failure("plugin.http_request_failed", true)
     }
 
     internal suspend fun buildRequest(

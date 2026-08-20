@@ -28,7 +28,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -39,6 +38,7 @@ class AndroidxJavaScriptEngine(
 ) : JavaScriptEngine, AutoCloseable {
     private val context = context.applicationContext
     private val sandboxMutex = Mutex()
+    private val invocationScripts = InvocationScriptBuilder()
 
     @Volatile
     private var sandbox: JavaScriptSandbox? = null
@@ -61,7 +61,7 @@ class AndroidxJavaScriptEngine(
         return try {
             port = isolate.createBridgePort(callbackScope, bridge)
             val evaluation = isolate.evaluateJavaScriptAsync(
-                buildInvocationScript(source, operation, input),
+                invocationScripts.build(source, operation, input),
             ).await()
             decodeInvocationResult(evaluation)
         } finally {
@@ -135,65 +135,6 @@ private fun JavaScriptIsolate.createBridgePort(
     return port
 }
 
-private fun buildInvocationScript(
-    source: String,
-    operation: PluginOperation,
-    input: JsonElement,
-): String {
-    val segments = operation.wireName.split('.').joinToString(separator = ",") { JsonPrimitive(it).toString() }
-    return """
-        (async () => {
-          const port = await android.getNamedPort("$BRIDGE_PORT");
-          const pending = new Map();
-          const bridgeFailureMarker = Symbol("openstory.bridgeFailure");
-          let nextCallId = 0;
-          port.onmessage = event => {
-            const response = JSON.parse(event.data);
-            const callback = pending.get(response.id);
-            if (!callback) return;
-            pending.delete(response.id);
-            if (response.error) {
-              const failure = Object.assign(new Error(), response.error);
-              Object.defineProperty(failure, bridgeFailureMarker, {value: true});
-              callback.reject(failure);
-            } else {
-              callback.resolve(response.result);
-            }
-          };
-          const bridgeCall = (method, payload) => new Promise((resolve, reject) => {
-            const id = `call-${'$'}{++nextCallId}`;
-            pending.set(id, {resolve, reject});
-            port.postMessage(JSON.stringify({id, method, payload}));
-          });
-          Object.defineProperty(globalThis, "host", {
-            value: Object.freeze({
-              http: request => bridgeCall("http.execute", request),
-              html: Object.freeze({query: request => bridgeCall("html.query", request)}),
-              log: event => bridgeCall("log.safe", event),
-            }),
-            writable: false,
-            configurable: false,
-          });
-          try {
-            globalThis.eval(${JsonPrimitive(source)});
-            const path = [$segments];
-            let handler = globalThis.openstoryPlugin;
-            for (const segment of path) handler = handler?.[segment];
-            if (typeof handler !== "function") {
-              throw Object.assign(new Error(), {code: "plugin.operation_unavailable"});
-            }
-            return JSON.stringify({payload: JSON.stringify(await handler($input))});
-          } catch (failure) {
-            const code = failure && typeof failure.code === "string"
-              ? failure.code : "plugin.execution_failed";
-            const retryable = failure && failure[bridgeFailureMarker] === true
-              && failure.retryable === true;
-            return JSON.stringify({errorCode: code, retryable});
-          }
-        })()
-    """.trimIndent()
-}
-
 private suspend fun <T> ListenableFuture<T>.await(): T = suspendCancellableCoroutine { continuation ->
     addListener(
         {
@@ -213,7 +154,6 @@ private suspend fun <T> ListenableFuture<T>.await(): T = suspendCancellableCorou
     continuation.invokeOnCancellation { cancel(true) }
 }
 
-private const val BRIDGE_PORT = "openstoryHost"
 private const val SANDBOX_UNSUPPORTED = "plugin.javascript_sandbox_unsupported"
 private const val SANDBOX_UNAVAILABLE = "plugin.javascript_sandbox_unavailable"
 

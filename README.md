@@ -4,6 +4,17 @@ Hikari is the Android application repository for the OpenStory local-first
 novel library. The Android package namespace and application ID are
 `app.openstory`.
 
+## Current repository status
+
+The accepted Product UI and Discover semantic-feed redesigns are implemented. Discover is
+source-agnostic at the presentation boundary and renders `Popular`, a full-width
+`Manga | Light Novel` selector, `Latest Updates`, and `Top Rated` from cached semantic Home
+feeds. Room schema **7** is current; schemas 1-6 remain historical exports. The production
+capability graph remains at 14 modules, and Wave 10 is the next planned capability wave.
+
+See `docs/project/current-state.md` for the exact boundary and
+`docs/implementation/current-roadmap.md` for what comes next.
+
 ## Requirements
 
 - JDK 17
@@ -63,7 +74,25 @@ On Windows PowerShell:
 
     .\gradlew.bat --version
 
-## Fast verification
+## Verification
+
+For normal development iterations, use the fast host gate.
+
+Linux, macOS, and Git Bash:
+
+    ./scripts/verify-fast.sh
+
+Windows PowerShell with Git Bash installed:
+
+    & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify-fast.sh
+
+The fast gate runs repository/static contracts (including the fail-closed UI token
+policy), application identity and module architecture verification, build-logic tests,
+JVM/local Android unit tests, Detekt, strict dependency verification, and Room schema
+stability. It intentionally skips
+Android Lint and debug APK assembly to shorten the edit/verify loop.
+
+Before closing a task or checkpoint, run the canonical full host gate:
 
 Linux, macOS, and Git Bash:
 
@@ -73,19 +102,12 @@ Windows PowerShell with Git Bash installed:
 
     & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify.sh
 
-The shared fast verification command runs:
+The full gate adds Android Lint and `:app:assembleDebug`. Architecture verification is
+part of the same Gradle invocation as the rest of the full Gradle workload, avoiding a
+second Gradle startup. Gradle daemon reuse, configuration cache, parallel execution, and
+local build cache are enabled for repeated local runs.
 
-- versioned module dependency and platform-import policy;
-- `app.openstory` application identity verification;
-- build-logic tests;
-- JVM tests across all modules;
-- Android local unit tests across all Android modules;
-- Android Lint across all Android modules;
-- Detekt;
-- strict Gradle dependency verification;
-- debug APK assembly.
-
-CI executes the same `scripts/verify.sh` command.
+CI executes the full `scripts/verify.sh` command.
 
 ## Wave checkpoint verification
 
@@ -103,7 +125,7 @@ To run one device independently:
     ANDROID_SERIAL=emulator-5554 ./scripts/instrumentation/android.sh 26
 
 CI runs API 26 and API 37 as independent jobs. The Wave 01 checkpoint job is
-green only when fast verification and both instrumentation jobs succeed.
+green only when full host verification and both instrumentation jobs succeed.
 
 Run the Room storage instrumentation suite on each required API level when
 storage behavior changes:
@@ -136,7 +158,7 @@ On Windows PowerShell:
 - `:downloads` — offline/cache state, quotas, integrity, and content-resolution policy
 - `:storage:room` — Room schema, migrations, and durable capability persistence
 - `:storage:files` — atomic app-private chapter blob storage
-- `:feature:catalog` — Home, Search, and Story presentation
+- `:feature:catalog` — Discover, Home, Search, Story, Library, mapping, and chapter-list presentation
 - `:feature:reader` — accessible structured-text Reader presentation
 
 The direct project dependency policy is stored in:

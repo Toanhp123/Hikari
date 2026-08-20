@@ -1,11 +1,23 @@
 package app.openstory
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -18,27 +30,45 @@ class AppLaunchSmokeTest {
 
     @Test
     fun launchesHomeAndNavigatesTopLevelDestinations() {
-        composeRule.onAllNodesWithText("Home")
-            .assertCountEquals(2)
+        composeRule.onNode(hasText("Home") and hasClickAction()).assertIsSelected()
 
-        composeRule.onNodeWithText("Library")
+        composeRule.onNode(hasText("Discover") and hasClickAction())
             .performClick()
-        composeRule.onAllNodesWithText("Library")
-            .assertCountEquals(2)
+        composeRule.onNodeWithContentDescription("Search all stories")
+            .assertIsDisplayed()
 
-        composeRule.onNodeWithText("Plugins")
+        composeRule.onNode(hasText("Library") and hasClickAction())
             .performClick()
-        composeRule.onAllNodesWithText("Plugins")
-            .assertCountEquals(2)
+        composeRule.onNode(hasText("Library") and isHeading()).assertIsDisplayed()
     }
 
     @Test
-    fun wave05HomeOpensCatalogSearch() {
-        composeRule.onNodeWithText("Refresh")
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("Search")
+    fun homeUtilityFocusMovesToFirstHomeAction() {
+        val utility = composeRule.onNodeWithContentDescription("Open quick access")
+        val firstHomeAction = composeRule.onNodeWithText("Discover stories")
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Discover stories")
+                .fetchSemanticsNodes()
+                .size == 1
+        }
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.window.decorView.requestFocusFromTouch()
+        }
+        utility.performSemanticsAction(SemanticsActions.RequestFocus)
+        utility.assertIsFocused()
+        utility.performKeyInput { pressKey(Key.DirectionDown) }
+
+        firstHomeAction.assertIsFocused()
+    }
+
+    @Test
+    fun discoverOpensCatalogSearch() {
+        composeRule.onNode(hasText("Discover") and hasClickAction())
             .performClick()
-        composeRule.onNodeWithText("Search catalogs")
+        composeRule.onNodeWithContentDescription("Search all stories")
+            .performClick()
+        composeRule.onNodeWithTag("search-content")
             .assertIsDisplayed()
     }
 
@@ -52,19 +82,17 @@ class AppLaunchSmokeTest {
 
     @Test
     fun selectedTopLevelDestinationSurvivesActivityRecreation() {
-        composeRule.onNodeWithText("Library")
+        composeRule.onNode(hasText("Library") and hasClickAction())
             .performClick()
-        composeRule.onAllNodesWithText("Library")
-            .assertCountEquals(2)
+        composeRule.onNode(hasText("Library") and isHeading()).assertIsDisplayed()
 
         composeRule.activityRule.scenario.recreate()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Library")
+            composeRule.onAllNodes(hasText("Library") and isHeading())
                 .fetchSemanticsNodes()
-                .size == 2
+                .size == 1
         }
-        composeRule.onAllNodesWithText("Library")
-            .assertCountEquals(2)
+        composeRule.onNode(hasText("Library") and isHeading()).assertIsDisplayed()
     }
 }

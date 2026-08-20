@@ -15,6 +15,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 class DownloadAwareReaderDocumentStoreTest {
     @Test
@@ -168,6 +170,18 @@ private class ThrowingTouchCacheRepository : CacheRepository by FakeCacheReposit
 private class FakeDownloads(
     private val completedKey: ChapterBlobKey? = null,
 ) : app.openstory.downloads.DownloadRepository {
+    private val all = MutableStateFlow(
+        completedKey?.let { key ->
+            listOf(
+                app.openstory.downloads.DownloadRecord(
+                    key = key,
+                    state = app.openstory.downloads.DownloadState.COMPLETED,
+                    updatedAtEpochMillis = 1,
+                ),
+            )
+        }.orEmpty(),
+    )
+    override fun observeAll() = all
     override suspend fun find(releaseId: ChapterReleaseId) = completedKey?.let {
         app.openstory.downloads.DownloadRecord(
             key = it,
@@ -175,6 +189,9 @@ private class FakeDownloads(
             updatedAtEpochMillis = 1,
         )
     }
-    override fun observe(releaseId: ChapterReleaseId) = kotlinx.coroutines.flow.flowOf(null)
-    override suspend fun save(record: app.openstory.downloads.DownloadRecord) = Unit
+    override fun observe(releaseId: ChapterReleaseId) =
+        all.map { records -> records.lastOrNull { it.key.releaseId == releaseId } }
+    override suspend fun save(record: app.openstory.downloads.DownloadRecord) {
+        all.value = all.value.filterNot { it.key.releaseId == record.key.releaseId } + record
+    }
 }

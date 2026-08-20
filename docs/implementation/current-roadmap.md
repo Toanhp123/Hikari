@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-11
+Date: 2026-08-20
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -12,19 +12,31 @@ acceptance remain separate states.
 - **Implementation present**: production code and tests exist for the boundary.
 - **Verification open**: required checkpoint evidence is missing or still `NOT RUN`.
 - **In progress**: some deliverables exist and some remain.
+- **Completed/accepted**: implementation and required checkpoint evidence for that boundary are closed.
 - **Ready to start**: entry checkpoint is accepted, but the next wave has no
   implementation yet.
 - **Planned**: approved work has not started in this repository.
 
 ## Current position
 
-Architecture Baseline 2 is accepted. Wave 06 and Wave 07 Tasks 01-06 are verified and both
-waves are complete. Wave 08 Tasks 01-06 have implementation present; the active boundary is
-**Wave 08 checkpoint verification**. Wave 01-05 checkpoints remain historical delivery evidence and
-do not require compatibility with superseded development architecture.
+Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
+Design System Foundation and the full Product UI checkpoint are accepted, preserving the 14-module
+production graph. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
+it advanced Room from schema 6 to **schema 7** without changing module ownership. The 2026-08-20
+catalog metadata-lifecycle unification subsequently advanced Room to **schema 8**, centralized
+Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
-Continue from the checkpoint section of `waves/wave-08-reader-and-reading-progress.md`.
-Wave-06 task evidence is recorded in:
+**Wave 10 is the next planned capability wave and has not started.** Its entry database is schema 8.
+The planned notification-delivery persistence in Wave 10 Task 5 must therefore migrate `8 -> 9`;
+Wave 11 enters on schema 9 unless a separately reviewed migration is introduced.
+
+The completed Product UI and Discover implementation plans are execution records, not active next-work
+instructions. Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
+with superseded development architecture.
+
+Current Discover acceptance evidence is recorded in
+`../internal/checkpoints/discover-semantic-feed-redesign.md`. The accepted broader Product UI evidence
+remains in `../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
@@ -97,8 +109,11 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 07 | Chapter sync and aggregation | **Completed; Tasks 01-06 verified** | `waves/wave-07-chapter-sync-and-aggregation.md` |
 | 08 | Reader and progress | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-08-reader-and-reading-progress.md` |
 | 09 | Cache, downloads, storage | **Completed; Tasks 01-06 and checkpoint verified** | `waves/wave-09-cache-downloads-and-storage.md` |
-| UIF | Between-wave design-system foundation | Implementation in progress; Wave 10 not started | `../ui/design-system.md` |
-| 10 | Background work, auth, notifications | Planned; post-baseline plan approved | `waves/wave-10-background-sync-auth-and-notifications.md` |
+| UIF | Between-wave design-system foundation | **Completed; checkpoint accepted 2026-08-12** | `../internal/checkpoints/design-system-foundation.md` |
+| PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
+| DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
+| CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
+| 10 | Background work, auth, notifications | **Ready to start; not implemented; enters on schema 8** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -149,12 +164,12 @@ capability; WorkManager and notification adapters stay in `:app`.
 
 | Task | Outcome | State |
 |---|---|---|
-| 08.01 | Reader modules and bounded structured-document validation | Implementation present |
+| 08.01 | Reader modules and bounded structured text/image-document validation | Implementation present |
 | 08.02 | Pure deterministic release selection | Implementation present |
 | 08.03 | Store-first sanitized content loading and fallback | Implementation present |
 | 08.04 | Debounced exact progress and Room schema 5 | Implementation present |
 | 08.05 | Stable-ID navigation and process-restorable Reader state | Implementation present |
-| 08.06 | Accessible structured-text Compose Reader UI | Implementation present |
+| 08.06 | Accessible structured text / vertical image-page Compose Reader UI | Implementation present |
 
 ## Critical dependency chain
 
@@ -173,17 +188,38 @@ architecture
                 -> offline storage
                      ^ Wave 09 complete: cache, downloads, schema 6, reconciliation, and offline UI verified
                   -> UI foundation
-                    -> local background/auth/notifications
-                    -> release hardening
+                    -> Product UI redesign
+                      -> semantic Discover redesign + Room schema 7
+                        -> unified catalog metadata lifecycle + Room schema 8
+                          -> local background/auth/notifications (Wave 10, planned schema 9)
+                      -> release hardening
 ```
 
 ## Execution rule
 
-1. Use the verified Wave 09 checkpoint plus the approved `:core:designsystem` foundation as the entry baseline for Wave 10.
-2. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
-3. Treat Wave 01-05 checkpoints as historical evidence, not compatibility authority.
-4. Require every wave to consume the prior wave's named contracts and contiguous Room schema.
-5. Update current state only after actual task/checkpoint evidence is reviewed.
+1. Use the current 14-module graph, accepted Product UI checkpoint, and accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline.
+2. Treat Room schema 8 as current. Any Wave 10 Room persistence must continue contiguously from 8; the planned notification-delivery table is `8 -> 9`.
+3. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
+4. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
+5. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.
+6. Update current state and checkpoints only after actual command/device evidence is reviewed.
+
+Discover / Home / Library remains the final top-level model. Discover itself is now semantic rather
+than catalog-selector driven: `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.
+Downloads and Updates remain avatar-utility routes. Wave 10 Settings enters through that utility sheet
+and never top-level navigation; Wave 11 Plugin Management follows the same rule. Settings and Plugin
+Management remain planned capability-wave work.
+
+## Verification workflow
+
+Use `./scripts/verify-fast.sh` during implementation iterations. It runs repository/static
+contracts, exact architecture verification, local tests, Detekt, and Room schema stability
+without Android lint or app assembly. Before a task/checkpoint is accepted, run
+`./scripts/verify.sh`; it is still the canonical full host gate and additionally runs
+`lintDebug` and `:app:assembleDebug`. Both entry points use strict dependency verification.
+The full gate executes `verifyArchitecture` in the same Gradle invocation as the rest of the
+Gradle workload, while project-level daemon reuse, configuration cache, parallel execution,
+and local build cache reduce repeated verification cost without removing checks.
 
 ## Verification principle
 

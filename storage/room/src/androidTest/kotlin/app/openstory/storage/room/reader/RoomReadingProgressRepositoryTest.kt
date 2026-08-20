@@ -8,6 +8,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.storage.room.OpenStoryDatabase
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -62,20 +63,65 @@ class RoomReadingProgressRepositoryTest {
         assertEquals(original, repository.find(original.storyId, original.canonicalChapterId))
     }
 
+    @Test
+    fun storyScopedObservationExcludesUnrelatedProgress() = runTest {
+        seedGraph("story-a", "chapter-a", "release-a")
+        seedGraph("story-b", "chapter-b", "release-b")
+        val repository = RoomReadingProgressRepository(database)
+        repository.save(progress("story-a", "chapter-a", "release-a", updatedAt = 100))
+        repository.save(progress("story-b", "chapter-b", "release-b", updatedAt = 200))
+
+        val observed = repository.observeForStories(setOf(StoryId("story-a"))).first()
+
+        assertEquals(listOf("story-a"), observed.map { it.storyId.value })
+        assertEquals(emptyList(), repository.observeForStories(emptySet()).first())
+    }
+
+    @Test
+    fun observeAllOrdersByUpdateDescendingThenStoryAndChapterIdentity() = runTest {
+        seedGraph("story-b", "chapter-b", "release-b")
+        seedGraph("story-a", "chapter-z", "release-z")
+        seedGraph("story-a", "chapter-a", "release-a")
+        seedGraph()
+        val repository = RoomReadingProgressRepository(database)
+        repository.save(progress("story-b", "chapter-b", "release-b", updatedAt = 200))
+        repository.save(progress("story-a", "chapter-z", "release-z", updatedAt = 200))
+        repository.save(progress("story-a", "chapter-a", "release-a", updatedAt = 200))
+        repository.save(progress("story", "chapter", "release", updatedAt = 100))
+
+        val observed = repository.observeAll().first()
+
+        assertEquals(
+            listOf(
+                "story-a/chapter-a",
+                "story-a/chapter-z",
+                "story-b/chapter-b",
+                "story/chapter",
+            ),
+            observed.map { "${it.storyId.value}/${it.canonicalChapterId.value}" },
+        )
+    }
+
     private fun seedGraph() {
+        seedGraph("story", "chapter", "release")
+    }
+
+    private fun seedGraph(storyId: String, chapterId: String, releaseId: String) {
         database.openHelper.writableDatabase.apply {
-            execSQL("INSERT INTO stories (story_id, content_type) VALUES ('story', 'MANGA')")
+            execSQL("INSERT OR IGNORE INTO stories (story_id, content_type) VALUES (?, 'MANGA')", arrayOf(storyId))
             execSQL(
                 "INSERT INTO canonical_chapters " +
                     "(canonical_chapter_id, story_id, kind, display_label, tombstoned) " +
-                    "VALUES ('chapter', 'story', 'NUMBERED', 'Chapter', 0)",
+                    "VALUES (?, ?, 'NUMBERED', 'Chapter', 0)",
+                arrayOf(chapterId, storyId),
             )
             execSQL(
                 "INSERT INTO chapter_releases " +
                     "(chapter_release_id, story_id, plugin_id, source_story_id, source_release_id, " +
                     "display_label, kind, language_tag, canonical_chapter_id) " +
-                    "VALUES ('release', 'story', 'org.example.content', 'source-story', 'source-release', " +
-                    "'Chapter', 'NUMBERED', 'en', 'chapter')",
+                    "VALUES (?, ?, 'org.example.content', ?, ?, " +
+                    "'Chapter', 'NUMBERED', 'en', ?)",
+                arrayOf(releaseId, storyId, "source-$storyId", "source-$releaseId", chapterId),
             )
         }
     }
@@ -84,4 +130,13 @@ class RoomReadingProgressRepositoryTest {
         StoryId("story"), CanonicalChapterId("chapter"), ChapterReleaseId("release"),
         "fingerprint", app.openstory.reader.progress.ReadingPosition("block", 12, 0.75f), null, 100,
     )
+
+    private fun progress(storyId: String, chapterId: String, releaseId: String, updatedAt: Long) =
+        ReadingProgress(
+            StoryId(storyId), CanonicalChapterId(chapterId), ChapterReleaseId(releaseId),
+            "fingerprint-$releaseId",
+            app.openstory.reader.progress.ReadingPosition("block", 0, 0.5f),
+            null,
+            updatedAt,
+        )
 }

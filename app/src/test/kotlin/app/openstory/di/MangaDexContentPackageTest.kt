@@ -3,6 +3,7 @@ package app.openstory.di
 import app.openstory.plugins.api.manifest.PluginManifest
 import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.packageformat.PluginArtifact
+import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.PluginCallResult
 import app.openstory.plugins.runtime.install.PackageVerifier
 import java.io.ByteArrayOutputStream
@@ -13,6 +14,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
@@ -25,6 +27,7 @@ class MangaDexContentPackageTest {
         val descriptor = BundledPlugins.descriptors.single { it.pluginId == MANGADEX_PACKAGE_PLUGIN_ID }
         val actualSha256 = packageBytes.mangaDexSha256()
 
+        assertContentEquals(mangaDexPackageBytesForUnitTest(), packageBytes)
         assertEquals(MANGADEX_ASSET_PATH, descriptor.assetPath)
         assertEquals(MANGADEX_PACKAGE_VERSION, descriptor.version)
         assertEquals(actualSha256, descriptor.sha256)
@@ -59,7 +62,7 @@ class MangaDexContentPackageTest {
     }
 
     @Test
-    fun manifestAndScriptExposeChapterListsWithoutReaderBodies() {
+    fun manifestAndScriptExposeOnlineChapterImagesWithoutOfflineDownload() {
         val manifestSource = Files.readString(mangaDexRepositoryFile(MANGADEX_MANIFEST_RELATIVE_PATH))
         val mainSource = Files.readString(mangaDexRepositoryFile(MANGADEX_MAIN_JS_RELATIVE_PATH))
         val manifest = Json.decodeFromString<PluginManifest>(manifestSource)
@@ -67,20 +70,34 @@ class MangaDexContentPackageTest {
         assertEquals(MANGADEX_PACKAGE_PLUGIN_ID, manifest.id)
         assertEquals(MANGADEX_PACKAGE_VERSION, manifest.version)
         assertEquals(setOf(PluginService.CONTENT), manifest.provides)
+        assertEquals(
+            setOf(
+                PluginOperation.CONTENT_SEARCH,
+                PluginOperation.CONTENT_RESOLVE_URL,
+                PluginOperation.CONTENT_CHAPTERS,
+                PluginOperation.CONTENT_CHAPTER,
+            ),
+            manifest.operations,
+        )
+        assertTrue(manifest.supports(PluginOperation.CONTENT_CHAPTER))
+        assertEquals(false, manifest.capabilities.reader?.offlineDownload)
+        assertEquals(true, manifest.capabilities.reader?.remoteImages)
         assertEquals(setOf("api.mangadex.org", "mangadex.org"), manifest.capabilities.network?.hosts)
         assertTrue(mainSource.contains("content: Object.freeze"))
         assertTrue(mainSource.contains("search: async"))
         assertTrue(mainSource.contains("resolveUrl: async"))
         assertTrue(mainSource.contains("https://api.mangadex.org"))
         assertTrue(mainSource.contains("chapters: async"))
-        assertFalse(mainSource.contains("chapter: async"))
+        assertTrue(mainSource.contains("chapter: async"))
+        assertTrue(mainSource.contains("/at-home/server/"))
+        assertFalse(mainSource.contains("https://uploads.mangadex.org"))
         assertFalse(mainSource.contains("Authorization"))
         assertFalse(mainSource.contains("Cookie"))
     }
 
     private fun mangaDexPackageBytesForUnitTest(): ByteArray {
-        val manifest = Files.readAllBytes(mangaDexRepositoryFile(MANGADEX_MANIFEST_RELATIVE_PATH))
-        val script = Files.readAllBytes(mangaDexRepositoryFile(MANGADEX_MAIN_JS_RELATIVE_PATH))
+        val manifest = mangaDexRepositoryFile(MANGADEX_MANIFEST_RELATIVE_PATH).canonicalTextBytes()
+        val script = mangaDexRepositoryFile(MANGADEX_MAIN_JS_RELATIVE_PATH).canonicalTextBytes()
         return ByteArrayOutputStream().use { output ->
             ZipOutputStream(output).use { archive ->
                 listOf("manifest.json" to manifest, "main.js" to script).forEach { (name, bytes) ->
@@ -105,12 +122,17 @@ private fun mangaDexRepositoryFile(relativePath: String): Path {
     return checkNotNull(candidates.firstOrNull(Files::isRegularFile)) { "Missing repository fixture: $relativePath" }
 }
 
+private fun Path.canonicalTextBytes(): ByteArray = Files.readString(this)
+    .replace("\r\n", "\n")
+    .replace("\r", "\n")
+    .toByteArray(Charsets.UTF_8)
+
 private fun ByteArray.mangaDexSha256(): String = MessageDigest.getInstance("SHA-256")
     .digest(this)
     .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
 private const val MANGADEX_PACKAGE_PLUGIN_ID = "org.openstory.content.mangadex"
-private const val MANGADEX_PACKAGE_VERSION = "1.1.0"
+private const val MANGADEX_PACKAGE_VERSION = "1.3.0"
 private const val MANGADEX_ASSET_PATH = "plugins/mangadex-content.osp"
 private const val MANGADEX_ASSET_RELATIVE_PATH = "app/src/main/assets/plugins/mangadex-content.osp"
 private const val MANGADEX_MANIFEST_RELATIVE_PATH = "bundled-plugins/mangadex-content/manifest.json"

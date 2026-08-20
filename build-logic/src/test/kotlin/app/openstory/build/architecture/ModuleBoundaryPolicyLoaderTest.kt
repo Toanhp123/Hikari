@@ -61,6 +61,31 @@ class ModuleBoundaryPolicyLoaderTest {
     }
 
     @Test
+    fun loadsAndroidTestPlatform() {
+        val file = policyFile(
+            """
+            {
+              "schemaVersion": 2,
+              "modules": {
+                ":benchmark": {
+                  "path": "benchmark",
+                  "platform": "android-test",
+                  "dependencyMode": "allowlist",
+                  "productionDependencies": [],
+                  "testDependencies": [],
+                  "forbiddenProductionImports": []
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        val policy = ModuleBoundaryPolicyLoader.load(file)
+
+        assertEquals(ModulePlatform.ANDROID_TEST, policy.modules.getValue(":benchmark").platform)
+    }
+
+    @Test
     fun unsupportedSchemaVersionFailsClosed() {
         val file = policyFile(
             """

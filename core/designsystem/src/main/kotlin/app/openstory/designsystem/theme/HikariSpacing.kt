@@ -10,15 +10,25 @@ import androidx.compose.ui.unit.dp
 
 @Immutable
 data class HikariSpacing(
-    val extraSmall: Dp = 4.dp,
-    val small: Dp = 8.dp,
-    val medium: Dp = 12.dp,
-    val large: Dp = 16.dp,
-    val extraLarge: Dp = 24.dp,
-    val doubleExtraLarge: Dp = 32.dp,
-)
+    val space4: Dp = 4.dp,
+    val space8: Dp = 8.dp,
+    val space12: Dp = 12.dp,
+    val space16: Dp = 16.dp,
+    val space20: Dp = 20.dp,
+    val space24: Dp = 24.dp,
+    val space32: Dp = 32.dp,
+) {
+    val screenGutter: Dp get() = space16
+    val destinationContentGap: Dp get() = space16
+    val sectionGap: Dp get() = space16
+    val itemGap: Dp get() = space12
+    val sectionContentGap: Dp get() = space8
+    val screenBottom: Dp get() = space24
+}
 
-internal val LocalHikariSpacing = staticCompositionLocalOf { HikariSpacing() }
+val HikariDefaultSpacing = HikariSpacing()
+
+internal val LocalHikariSpacing = staticCompositionLocalOf { HikariDefaultSpacing }
 
 val MaterialTheme.hikariSpacing: HikariSpacing
     @Composable

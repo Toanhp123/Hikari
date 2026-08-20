@@ -25,6 +25,7 @@ are rejected. `manifest.json` and `main.js` are required.
   "protocol": 1,
   "entry": "main.js",
   "provides": ["CATALOG"],
+  "operations": ["catalog.home", "catalog.search", "catalog.details", "catalog.filters"],
   "languages": ["en"],
   "homepageUrl": "https://example.org/",
   "sourceUrl": "https://example.org/source",
@@ -41,9 +42,24 @@ are rejected. `manifest.json` and `main.js` are required.
 - `protocol` is the supported protocol major.
 - `entry` must be exactly `main.js`.
 - `provides` contains `CATALOG`, `CONTENT`, or both and cannot be empty.
+- `operations` optionally declares the exact wire operations implemented by `main.js`. Every
+  declared operation must belong to a service in `provides`. Protocol `1` packages that omit
+  `operations` keep the legacy service-level behavior for compatibility; new or updated packages
+  should declare the exact operations they implement.
 - language tags are normalized lowercase values.
 - metadata URLs are HTTPS.
 - network hosts are exact lowercase hostnames; wildcards, schemes, ports, and paths are invalid.
+- `capabilities.reader.offlineDownload` optionally declares whether a package that implements
+  `content.chapter` can safely persist complete chapter bodies for explicit offline use. It defaults
+  to `true` for backward compatibility. Set it to `false` for online-only documents such as remote
+  image-page descriptors.
+- `capabilities.reader.remoteImages` is an explicit opt-in for chapter documents that contain remote
+  image-page URLs fetched by the host Reader. It defaults to `false`; image blocks from packages that
+  do not declare this capability are rejected before rendering. This is deliberately separate from
+  the JavaScript network allowlist: plugin code still cannot fetch undeclared hosts, while the Reader
+  may retrieve only sanitized HTTPS image descriptors for a package that opted into remote images.
+  Remote-image capability currently requires `offlineDownload: false`, because the host does not yet
+  persist complete page assets. A reader capability is only valid when `content.chapter` is supported.
 
 The manifest describes execution permissions. It does not attest to its containing archive.
 The installer verifies the SHA-256 of the exact `.osp` bytes against detached provenance.

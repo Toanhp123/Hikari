@@ -20,6 +20,4 @@ data class CacheEvictionPlan(
     val keys: List<ChapterBlobKey>,
     val retainedBytes: Long,
     val quotaBytes: Long,
-) {
-    val protectedBytesExceedQuota: Boolean = retainedBytes > quotaBytes
-}
+)

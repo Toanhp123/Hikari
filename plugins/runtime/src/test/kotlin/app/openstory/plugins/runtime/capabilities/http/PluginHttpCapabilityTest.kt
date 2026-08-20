@@ -13,10 +13,10 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 
 class PluginHttpCapabilityTest {
     @Test
-    fun undeclaredHostFailsClosed() {
-        val result = capability().validateTarget(
-            "https://denied.example/x",
-            allowedHosts = setOf("allowed.example"),
+    fun undeclaredHostFailsClosedBeforeTransport() = runTest {
+        val result = capability().execute(
+            PluginHttpRequest("https://denied.example/x"),
+            policy(setOf("allowed.example")),
         )
         assertEquals("plugin.http_domain_denied", assertIs<PluginCallResult.Failure>(result).code)
     }
@@ -53,7 +53,11 @@ class PluginHttpCapabilityTest {
         }
     }
 
-    private fun capability() = PluginHttpCapability(OkHttpClient())
+    private fun capability() = PluginHttpCapability(
+        OkHttpClient.Builder()
+            .addInterceptor { error("Denied host must fail before HTTP transport") }
+            .build(),
+    )
 
     private fun policy(hosts: Set<String>, responseBytes: Long = 1024) = PluginRequestPolicy(
         pluginId = PluginId("org.example.plugin"),

@@ -12,6 +12,8 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 class DownloadServiceTest {
     @Test
@@ -152,14 +154,18 @@ private class FakeDownloadRepository(
     private var failCompletedSaveOnce: Boolean = false,
 ) : DownloadRepository {
     val saved = mutableListOf<DownloadRecord>()
+    private val all = MutableStateFlow<List<DownloadRecord>>(emptyList())
+    override fun observeAll() = all
     override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? = saved.lastOrNull { it.key.releaseId == releaseId }
-    override fun observe(releaseId: ChapterReleaseId) = kotlinx.coroutines.flow.flowOf(saved.lastOrNull { it.key.releaseId == releaseId })
+    override fun observe(releaseId: ChapterReleaseId) =
+        all.map { records -> records.lastOrNull { it.key.releaseId == releaseId } }
     override suspend fun save(record: DownloadRecord) {
         if (record.state == DownloadState.COMPLETED && failCompletedSaveOnce) {
             failCompletedSaveOnce = false
             error("database unavailable")
         }
         saved += record
+        all.value = saved.groupBy { it.key.releaseId }.values.map(List<DownloadRecord>::last)
     }
 
     override suspend fun completeUnlessCancelled(record: DownloadRecord): Boolean {

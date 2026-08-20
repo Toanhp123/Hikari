@@ -4,12 +4,13 @@ import app.openstory.common.Clock
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class ProgressUpdate(
     val storyId: StoryId,
@@ -23,34 +24,43 @@ data class ProgressUpdate(
 class ReadingProgressService(
     private val repository: ReadingProgressRepository,
     private val clock: Clock,
-    private val scope: CoroutineScope,
+    scope: CoroutineScope,
     private val debounceMillis: Long = DEFAULT_DEBOUNCE_MILLIS,
 ) {
-    private var pending: ProgressUpdate? = null
-    private var pendingWrite: Job? = null
+    private val pending = AtomicReference<ProgressUpdate?>(null)
+    private val updates = Channel<ProgressUpdate>(Channel.CONFLATED)
     private val writeMutex = Mutex()
 
-    fun update(value: ProgressUpdate) {
-        pending = value
-        pendingWrite?.cancel()
-        pendingWrite = scope.launch {
-            delay(debounceMillis)
-            pendingWrite = null
-            writePending()
+    init {
+        scope.launch {
+            while (true) {
+                updates.receive()
+                awaitQuietPeriod()
+                writePending()
+            }
         }
     }
 
+    fun update(value: ProgressUpdate) {
+        pending.set(value)
+        updates.trySend(value)
+    }
+
     suspend fun flush() {
-        pendingWrite?.cancel()
-        pendingWrite = null
         writePending()
     }
 
+    private suspend fun awaitQuietPeriod() {
+        while (withTimeoutOrNull(debounceMillis) { updates.receive() } != null) {
+            // Keep waiting until viewport updates have been quiet for the debounce interval.
+        }
+    }
+
     private suspend fun writePending() = writeMutex.withLock {
-        val update = pending ?: return@withLock
+        val update = pending.get() ?: return@withLock
         val existing = repository.find(update.storyId, update.canonicalChapterId)
         repository.save(update.merge(existing, clock.nowEpochMillis()))
-        if (pending == update) pending = null
+        pending.compareAndSet(update, null)
     }
 
     private fun ProgressUpdate.merge(existing: ReadingProgress?, now: Long): ReadingProgress {

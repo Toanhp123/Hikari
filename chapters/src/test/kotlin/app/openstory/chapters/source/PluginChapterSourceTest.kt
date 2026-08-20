@@ -26,6 +26,30 @@ import kotlinx.serialization.json.encodeToJsonElement
 
 class PluginChapterSourceTest {
     @Test
+    fun registryDiscoversOnlyChapterListProviders() = runTest {
+        var discovered: PluginOperation? = null
+        val runtime = object : PluginRuntime {
+            override suspend fun invoke(
+                pluginId: PluginId,
+                operation: PluginOperation,
+                input: JsonElement,
+            ): PluginCallResult<JsonElement> = error("unused")
+
+            override suspend fun enabled(service: PluginService): List<InstalledPlugin> =
+                error("unexpected service lookup")
+
+            override suspend fun enabled(operation: PluginOperation): List<InstalledPlugin> {
+                discovered = operation
+                return emptyList()
+            }
+        }
+
+        PluginChapterSourceRegistry(runtime, Json).enabled()
+
+        assertEquals(PluginOperation.CONTENT_CHAPTERS, discovered)
+    }
+
+    @Test
     fun chapterModesUseOneBoundedContentOperation() = runTest {
         val requests = mutableListOf<ContentChaptersRequestDto>()
         val runtime = runtime { _, operation, input ->

@@ -8,6 +8,26 @@ import kotlinx.serialization.Serializable
 enum class WireContentType { LIGHT_NOVEL, WEB_NOVEL, MANGA, ANIME }
 
 @Serializable
+enum class WireCatalogFeedKind { POPULAR, LATEST_UPDATES, TOP_RATED, OTHER }
+
+@Serializable
+enum class WirePublicationStatus { ONGOING, COMPLETED, HIATUS, CANCELLED, UPCOMING }
+
+@Serializable
+data class CatalogLatestUpdateDto(
+    val atEpochMillis: Long,
+    val releaseLabel: String? = null,
+) {
+    init {
+        require(atEpochMillis >= 0L) { "Latest update time must not be negative" }
+        require(releaseLabel == null || releaseLabel.isNotBlank()) {
+            "Latest update release label must be null or non-blank"
+        }
+        releaseLabel?.let { requireBoundedText(it, "latest update release label") }
+    }
+}
+
+@Serializable
 data class ScoreDto(val value: Double, val scale: Double) {
     init {
         require(value.isFinite()) { "Score value must be finite" }
@@ -16,6 +36,13 @@ data class ScoreDto(val value: Double, val scale: Double) {
     }
 }
 
+/**
+ * Plugin-owned presentation payload for `catalog.home` and `catalog.search`.
+ *
+ * `sourceId`, `title`, and `contentType` are required identity/presentation fields. Optional
+ * metadata such as `coverUrl`, authors, score, or genres may be omitted; the host must render
+ * that omission as a degraded state instead of issuing `catalog.details` as automatic enrichment.
+ */
 @Serializable
 data class CatalogItemDto(
     val sourceId: String,
@@ -24,6 +51,10 @@ data class CatalogItemDto(
     val authors: List<String> = emptyList(),
     val coverUrl: String? = null,
     val score: ScoreDto? = null,
+    val genres: Set<String> = emptySet(),
+    val popularityRank: Long? = null,
+    val publicationStatus: WirePublicationStatus? = null,
+    val latestUpdate: CatalogLatestUpdateDto? = null,
 ) {
     init {
         requireStableText(sourceId, "sourceId", MAX_ID_LENGTH)
@@ -31,6 +62,8 @@ data class CatalogItemDto(
         require(authors.size <= MAX_AUTHORS) { "Too many authors" }
         authors.forEach { requireBoundedText(it, "author") }
         requireHttpsUrl(coverUrl, "coverUrl")
+        requireBoundedCollection(genres, "genres")
+        require(popularityRank == null || popularityRank > 0) { "Popularity rank must be positive" }
     }
 }
 
@@ -39,6 +72,7 @@ data class CatalogSectionDto(
     val sourceId: String,
     val title: String,
     val items: List<CatalogItemDto>,
+    val kind: WireCatalogFeedKind = WireCatalogFeedKind.OTHER,
 ) {
     init {
         requireStableText(sourceId, "sourceId", MAX_ID_LENGTH)
@@ -125,6 +159,8 @@ data class CatalogDetailsOutputDto(
     val coverUrl: String?,
     val score: ScoreDto?,
     val popularityRank: Long?,
+    val publicationStatus: WirePublicationStatus? = null,
+    val latestUpdate: CatalogLatestUpdateDto? = null,
 ) {
     init {
         requireStableText(sourceId, "sourceId", MAX_ID_LENGTH)

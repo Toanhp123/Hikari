@@ -69,6 +69,21 @@ class ChapterAggregationEngineTest {
     }
 
     @Test
+    fun equalScoreTieBreakUsesLexicographicallySmallestChapterId() {
+        val parsed = numbered("10")
+        val later = chapter("chapter-z", parsed)
+        val earlier = chapter("chapter-a", parsed)
+        val incoming = release("release-10", parsed)
+
+        val plan = engine.plan(STORY_ID, listOf(later, earlier), listOf(incoming), emptyList())
+
+        assertEquals(
+            listOf(ChapterReleaseLink(incoming.id, earlier.id)),
+            plan.links,
+        )
+    }
+
+    @Test
     fun protectedLinkOverrideOutranksNumberConflict() {
         val existing = chapter("existing-10", numbered("10"))
         val release = release("release-11", numbered("11"))
@@ -82,6 +97,19 @@ class ChapterAggregationEngineTest {
 
         assertEquals(listOf(ChapterReleaseLink(release.id, existing.id)), plan.links)
         assertTrue(plan.creates.isEmpty())
+    }
+
+    @Test
+    fun chapterEmptiedByRelinkBecomesTombstone() {
+        val releaseId = ChapterReleaseId("release-12")
+        val legacy = chapter("legacy-title", named(ChapterKind.UNKNOWN, "the locked constellation"))
+            .copy(releaseIds = setOf(releaseId))
+        val normalized = release("release-12", numbered("12"))
+
+        val plan = engine.plan(STORY_ID, listOf(legacy), listOf(normalized), emptyList())
+
+        assertTrue(plan.links.none { it.canonicalChapterId == legacy.id })
+        assertEquals(setOf(legacy.id), plan.tombstones)
     }
 
     @Test

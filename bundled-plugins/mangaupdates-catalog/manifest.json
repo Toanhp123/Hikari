@@ -1,0 +1,33 @@
+{
+  "id": "org.openstory.catalog.mangaupdates",
+  "name": "MangaUpdates Catalog",
+  "version": "1.1.4",
+  "protocol": 1,
+  "entry": "main.js",
+  "provides": [
+    "CATALOG"
+  ],
+  "operations": [
+    "catalog.home",
+    "catalog.search",
+    "catalog.details",
+    "catalog.filters"
+  ],
+  "languages": [
+    "en",
+    "ja",
+    "ko",
+    "zh-hans"
+  ],
+  "homepageUrl": "https://www.mangaupdates.com/",
+  "capabilities": {
+    "network": {
+      "hosts": [
+        "api.mangaupdates.com",
+        "cdn.mangaupdates.com",
+        "mangaupdates.com",
+        "www.mangaupdates.com"
+      ]
+    }
+  }
+}

@@ -17,7 +17,7 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
-import app.openstory.reader.content.NoOpReaderDocumentStore
+import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderDocumentRepository
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
@@ -26,6 +26,7 @@ import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
+import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.selection.ReleaseSelector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -74,9 +75,77 @@ class ReaderViewModelTest {
         assertEquals("chapter-1", viewModel.state.value.previousChapterId?.value)
         assertEquals(null, viewModel.state.value.nextChapterId)
         assertEquals("block", viewModel.state.value.restoredBlockId)
+        assertEquals(0.5f, viewModel.state.value.restoredProgressFraction)
 
         viewModel.increaseFont()
         assertEquals(1.1f, savedState.get<Float>("reader.font-scale"))
+    }
+
+    @Test
+    fun nextChapterReloadsInsideTheSameViewModelAndPersistsCurrentChapter() = runTest(dispatcher.scheduler) {
+        val savedState = SavedStateHandle()
+        val chapters = FakeReaderChapterRepository(graph())
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter-1", null),
+            savedState,
+            chapters,
+            documents(),
+            FakeReaderProgressRepository(null),
+            FakeClock(100),
+        )
+        runCurrent()
+
+        viewModel.openChapter(CanonicalChapterId("chapter-2"))
+        runCurrent()
+
+        assertEquals("chapter-2", viewModel.state.value.chapterLabel)
+        assertEquals("chapter-1", viewModel.state.value.previousChapterId?.value)
+        assertEquals(null, viewModel.state.value.nextChapterId)
+        assertEquals("chapter-2", savedState.get<String>("reader.chapter-id"))
+        assertEquals(1, chapters.snapshotCalls)
+    }
+
+    @Test
+    fun chapterSwitchFlushesPendingProgressForThePreviousChapter() = runTest(dispatcher.scheduler) {
+        val progress = FakeReaderProgressRepository(null)
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter-1", null),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graph()),
+            documents(),
+            progress,
+            FakeClock(100),
+        )
+        runCurrent()
+
+        viewModel.updatePosition(ReadingPosition("block", 3, 0.25f), completed = false)
+        viewModel.openChapter(CanonicalChapterId("chapter-2"))
+        runCurrent()
+
+        assertEquals("chapter-1", progress.current()?.canonicalChapterId?.value)
+        assertEquals("chapter-2", viewModel.state.value.chapterLabel)
+    }
+
+    @Test
+    fun chapterGraphGroupingPreservesChapterAndReleaseOrder() {
+        val first = chapter("chapter-1", "release-a")
+        val firstAlternate = first.second.copy(
+            id = ChapterReleaseId("release-a-2"),
+            sourceReleaseId = "release-a-2",
+        )
+        val second = chapter("chapter-2", "release-b")
+        val groups = ChapterGraphSnapshot(
+            chapters = listOf(first.first, second.first),
+            releases = listOf(first.second, second.second, firstAlternate),
+            overrides = emptyList(),
+        ).toReaderGroups()
+
+        assertEquals(listOf("chapter-1", "chapter-2"), groups.map { it.chapter.id.value })
+        assertEquals(
+            listOf("release-a", "release-a-2"),
+            groups.first().releases.map { it.id.value },
+        )
+        assertEquals(listOf("release-b"), groups.last().releases.map { it.id.value })
     }
 
     @Test
@@ -121,6 +190,57 @@ class ReaderViewModelTest {
         assertEquals("release-b", viewModel.state.value.selectedReleaseId?.value)
     }
 
+
+    @Test
+    fun nonRetryableReaderSourceFailureIsProjectedWithoutRetry() = runTest(dispatcher.scheduler) {
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter", "release-a"),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graphForSingleChapter()),
+            failingDocuments("plugin.operation_unavailable", retryable = false),
+            FakeReaderProgressRepository(null),
+            FakeClock(100),
+        )
+        runCurrent()
+
+        assertEquals("plugin.operation_unavailable", viewModel.state.value.failure)
+        assertFalse(viewModel.state.value.failureRetryable)
+    }
+
+    @Test
+    fun flushStartsPersistenceBeforeNavigationCanClearTheViewModel() = runTest(dispatcher.scheduler) {
+        val repository = FakeReaderProgressRepository(null)
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter", "release-a"),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graphForSingleChapter()),
+            documents(),
+            repository,
+            FakeClock(100),
+        )
+        runCurrent()
+        viewModel.updatePosition(ReadingPosition("block", 4, 0.4f), completed = false)
+
+        viewModel.flushProgress()
+
+        assertEquals(ReadingPosition("block", 4, 0.4f), repository.current()?.position)
+    }
+
+
+    private fun failingDocuments(code: String, retryable: Boolean) = ReaderDocumentRepository(
+        NoOpReaderDocumentStore,
+        object : ReaderDocumentSourceRegistry {
+            override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                object : ReaderDocumentSource {
+                    override val pluginId = PluginId("plugin")
+                    override suspend fun fetch(release: ChapterRelease) =
+                        ReaderSourceResult.Failure(code, retryable)
+                },
+            )
+        },
+        ReleaseSelector(),
+    )
+
     private fun documents() = ReaderDocumentRepository(
         NoOpReaderDocumentStore,
         object : ReaderDocumentSourceRegistry {
@@ -144,9 +264,15 @@ class ReaderViewModelTest {
 private class FakeReaderChapterRepository(
     private val graph: ChapterGraphSnapshot,
 ) : ChapterRepository {
+    private val all = MutableStateFlow<List<CanonicalChapterGroup>>(emptyList())
+    var snapshotCalls = 0
+    override fun observeAll(): Flow<List<CanonicalChapterGroup>> = all
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
         error("Not used")
-    override suspend fun snapshot(storyId: StoryId) = graph
+    override suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot {
+        snapshotCalls++
+        return graph
+    }
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult = ChapterCommitResult.Success
     override suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride) = Unit
     override suspend fun syncState(
@@ -158,11 +284,15 @@ private class FakeReaderChapterRepository(
 
 private class FakeReaderProgressRepository(initial: ReadingProgress?) : ReadingProgressRepository {
     private val value = MutableStateFlow(initial)
+    private val all = MutableStateFlow(initial?.let(::listOf).orEmpty())
+    override fun observeAll(): Flow<List<ReadingProgress>> = all
     override fun observe(storyId: StoryId, chapterId: CanonicalChapterId): Flow<ReadingProgress?> = value
     override suspend fun find(storyId: StoryId, chapterId: CanonicalChapterId) = value.value
     override suspend fun save(progress: ReadingProgress) {
         value.value = progress
+        all.value = listOf(progress)
     }
+    fun current(): ReadingProgress? = value.value
 }
 
 private fun graph(): ChapterGraphSnapshot {
@@ -173,6 +303,11 @@ private fun graph(): ChapterGraphSnapshot {
         listOf(first.second, second.second),
         emptyList(),
     )
+}
+
+private fun graphForSingleChapter(): ChapterGraphSnapshot {
+    val chapter = chapter("chapter", "release-a")
+    return ChapterGraphSnapshot(listOf(chapter.first), listOf(chapter.second), emptyList())
 }
 
 private fun chapter(chapterId: String, releaseId: String): Pair<CanonicalChapter, ChapterRelease> {
@@ -189,3 +324,10 @@ private fun progress(chapterId: String, releaseId: String, fingerprint: String) 
     StoryId("story"), CanonicalChapterId(chapterId), ChapterReleaseId(releaseId), fingerprint,
     app.openstory.reader.progress.ReadingPosition("block", 5, 0.5f), null, 10,
 )
+
+private object NoOpReaderDocumentStore : ReaderDocumentStore {
+    override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? = null
+    override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? = null
+    override suspend fun write(releaseId: ChapterReleaseId, fingerprint: String, document: ReaderDocument) = Unit
+    override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) = Unit
+}

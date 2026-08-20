@@ -13,11 +13,34 @@ internal interface CatalogDao {
     @Query("SELECT * FROM stories ORDER BY story_id")
     fun observeStories(): Flow<List<StoryEntity>>
 
+    @Query("SELECT * FROM stories WHERE story_id IN (:storyIds) ORDER BY story_id")
+    fun observeStories(storyIds: Collection<String>): Flow<List<StoryEntity>>
+
     @Query("SELECT * FROM catalog_entries ORDER BY plugin_id, source_id")
     suspend fun entries(): List<CatalogEntryEntity>
 
     @Query("SELECT * FROM catalog_entries ORDER BY plugin_id, source_id")
     fun observeAllEntries(): Flow<List<CatalogEntryEntity>>
+
+    @Query(
+        "SELECT DISTINCT entry.* FROM catalog_entries AS entry " +
+            "INNER JOIN catalog_home_items AS item " +
+            "ON item.plugin_id = entry.plugin_id AND item.source_id = entry.source_id " +
+            "ORDER BY entry.plugin_id, entry.source_id",
+    )
+    fun observeHomeEntries(): Flow<List<CatalogEntryEntity>>
+
+    @Query(
+        "SELECT * FROM catalog_entries WHERE plugin_id = :pluginId AND source_id IN (:sourceIds) " +
+            "ORDER BY source_id",
+    )
+    suspend fun entries(pluginId: String, sourceIds: Collection<String>): List<CatalogEntryEntity>
+
+    @Query(
+        "SELECT * FROM catalog_entries WHERE story_id IN (:storyIds) " +
+            "ORDER BY plugin_id, source_id",
+    )
+    fun observeEntries(storyIds: Collection<String>): Flow<List<CatalogEntryEntity>>
 
     @Query("SELECT * FROM catalog_entries WHERE story_id = :storyId ORDER BY plugin_id, source_id")
     fun observeEntries(storyId: String): Flow<List<CatalogEntryEntity>>

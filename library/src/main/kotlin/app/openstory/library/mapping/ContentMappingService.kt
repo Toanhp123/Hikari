@@ -5,6 +5,7 @@ import app.openstory.common.id.StoryId
 import app.openstory.library.matching.ContentMatchDecision
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class ContentMappingService @Inject constructor(
     private val repository: ContentMappingRepository,
@@ -26,12 +27,12 @@ class ContentMappingService @Inject constructor(
     }
 
     suspend fun searchForReview(storyId: StoryId): ContentMappingSearchReport =
-        search.searchAll(storyId).withoutRejected(storyId)
+        search.searchAll(storyId).withoutRejectedOrLinked(storyId)
 
     suspend fun resolveUrl(
         storyId: StoryId,
         url: String,
-    ): ContentMappingSearchReport = search.resolveUrl(storyId, url).withoutRejected(storyId)
+    ): ContentMappingSearchReport = search.resolveUrl(storyId, url).withoutRejectedOrLinked(storyId)
 
     suspend fun approve(
         storyId: StoryId,
@@ -74,6 +75,18 @@ class ContentMappingService @Inject constructor(
         mapping = candidate.toMapping(storyId, origin, clock.nowEpochMillis()),
         replaceableOrigins = ContentMappingOrigin.entries.toSet(),
     )
+
+    private suspend fun ContentMappingSearchReport.withoutRejectedOrLinked(
+        storyId: StoryId,
+    ): ContentMappingSearchReport {
+        val linked = repository.observe(storyId).first()
+            .mapTo(mutableSetOf()) { mapping -> mapping.pluginId to mapping.sourceStoryId }
+        return copy(
+            candidates = candidates.filterNot { candidate ->
+                (candidate.pluginId to candidate.sourceStoryId) in linked
+            },
+        ).withoutRejected(storyId)
+    }
 
     private suspend fun ContentMappingSearchReport.withoutRejected(
         storyId: StoryId,

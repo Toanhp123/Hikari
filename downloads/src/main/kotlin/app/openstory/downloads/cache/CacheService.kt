@@ -25,7 +25,7 @@ class CacheService(
             CacheEntry(
                 key = key,
                 checksum = blob.checksum,
-                sizeBytes = blob.bytes().size.toLong(),
+                sizeBytes = blob.sizeBytes.toLong(),
                 lastAccessedAtEpochMillis = accessedAtEpochMillis,
                 pinned = pinned,
                 current = current,
@@ -37,8 +37,16 @@ class CacheService(
         quotaBytes: Long,
         progressProtectedReleaseIds: Set<ChapterReleaseId>,
     ): CacheEvictionPlan {
-        val plan = CacheEvictionPolicy.plan(repository.entries(), quotaBytes, progressProtectedReleaseIds)
-        repository.commitEviction(plan.keys).forEach { blobStore.delete(it) }
+        val snapshot = repository.quotaSnapshot(quotaBytes)
+        val plan = CacheEvictionPolicy.planOrdered(
+            entriesByLru = snapshot.entriesByLru,
+            usageBytes = snapshot.usageBytes,
+            quotaBytes = quotaBytes,
+            progressProtectedReleaseIds = progressProtectedReleaseIds,
+        )
+        if (plan.keys.isNotEmpty()) {
+            repository.commitEviction(plan.keys).forEach { blobStore.delete(it) }
+        }
         return plan
     }
 }

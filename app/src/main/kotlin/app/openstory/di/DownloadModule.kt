@@ -14,6 +14,7 @@ import app.openstory.downloads.reconcile.StorageReconciliationService
 import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.storage.files.AtomicFileChapterBlobStore
 import app.openstory.storage.files.FileBlobInventory
 import app.openstory.storage.room.OpenStoryDatabase
@@ -60,7 +61,8 @@ object DownloadModule {
     fun provideDownloadContentSource(
         chapters: ChapterReleaseLookup,
         sources: ReaderDocumentSourceRegistry,
-    ): DownloadContentSource = ReaderDownloadContentSource(chapters, sources)
+        availability: ReaderSourceAvailability,
+    ): DownloadContentSource = ReaderDownloadContentSource(chapters, sources, availability)
 
     @Provides @Singleton
     fun provideDownloadService(

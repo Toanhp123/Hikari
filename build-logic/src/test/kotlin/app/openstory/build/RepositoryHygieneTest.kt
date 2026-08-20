@@ -58,4 +58,14 @@ class RepositoryHygieneTest {
             assertTrue("$alias =" in versionCatalog, "Missing dependency alias: $alias")
         }
     }
+
+    @Test
+    fun productUiRenderingToolchainVersionsRemainPinned() {
+        val catalog = File(root, "gradle/libs.versions.toml").readText()
+
+        assertTrue(catalog.contains("coil = \"3.5.0\""))
+        assertTrue(catalog.contains("backdrop = \"2.0.0\""))
+        assertTrue(catalog.contains("roborazzi = \"1.70.0\""))
+        assertTrue(catalog.contains("robolectric = \"4.16.1\""))
+    }
 }

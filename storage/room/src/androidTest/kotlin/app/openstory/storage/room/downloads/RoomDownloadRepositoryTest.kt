@@ -2,6 +2,7 @@ package app.openstory.storage.room.downloads
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.openstory.common.id.ChapterReleaseId
@@ -10,6 +11,7 @@ import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.DownloadState
+import app.openstory.downloads.DownloadRecord
 import app.openstory.downloads.reconcile.StorageDownloadFailure
 import app.openstory.downloads.reconcile.StorageMetadataRepairPlan
 import app.openstory.storage.room.OpenStoryDatabase
@@ -19,8 +21,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.first
 import org.junit.runner.RunWith
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executor
 
 @RunWith(AndroidJUnit4::class)
 class RoomDownloadRepositoryTest {
@@ -121,6 +127,77 @@ class RoomDownloadRepositoryTest {
         assertNull(failed?.checksum)
     }
 
+    @Test
+    fun completedCountProjectsOnlyCompletedExplicitDownloads() = runTest {
+        repository.save(download("completed", updatedAt = 200, state = DownloadState.COMPLETED))
+        repository.save(download("queued", updatedAt = 100, state = DownloadState.QUEUED))
+        repository.upsert(entry(key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-only")))
+
+        assertEquals(1, repository.observeCompletedCount().first())
+    }
+
+    @Test
+    fun observeAllOrdersDownloadsByUpdateDescendingThenReleaseIdentity() = runTest {
+        repository.save(download("release-z", updatedAt = 200))
+        repository.save(download("release-a", updatedAt = 200))
+        repository.save(download("release-old", updatedAt = 100))
+        repository.upsert(entry(key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-only")))
+
+        val observed = repository.observeAll().first()
+
+        assertEquals(
+            listOf("release-a", "release-z", "release-old"),
+            observed.map { it.key.releaseId.value },
+        )
+    }
+
+    @Test
+    fun underQuotaSnapshotSkipsAutomaticCacheEntryMaterialization() = runTest {
+        val queries = CopyOnWriteArrayList<String>()
+        val queryDatabase = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext<Context>(),
+            OpenStoryDatabase::class.java,
+        ).setQueryCallback(
+            RoomDatabase.QueryCallback { sql, _ -> queries += sql },
+            Executor(Runnable::run),
+        ).build()
+        try {
+            val queryRepository = RoomDownloadRepository(queryDatabase)
+            queryRepository.upsert(
+                entry(key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-fast-path")).copy(sizeBytes = 4),
+            )
+            queries.clear()
+
+            val snapshot = queryRepository.quotaSnapshot(10)
+
+            assertEquals(4, snapshot.usageBytes)
+            assertTrue(snapshot.entriesByLru.isEmpty())
+            assertEquals(1, queries.count { sql -> sql.contains("SUM(size_bytes)", ignoreCase = true) })
+            assertTrue(
+                queries.none { sql ->
+                    sql.contains("SELECT * FROM chapter_storage_entries", ignoreCase = true) &&
+                        sql.contains("AUTOMATIC_CACHE", ignoreCase = true)
+                },
+            )
+        } finally {
+            queryDatabase.close()
+        }
+    }
+
+    @Test
+    fun quotaSnapshotIgnoresExplicitDownloadsAndKeepsLruOrder() = runTest {
+        val oldest = key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-old")
+        val newest = key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-new")
+        repository.upsert(entry(oldest).copy(sizeBytes = 4, lastAccessedAtEpochMillis = 1))
+        repository.upsert(entry(newest).copy(sizeBytes = 6, lastAccessedAtEpochMillis = 2))
+        repository.save(download("explicit", updatedAt = 3, state = DownloadState.COMPLETED))
+
+        val snapshot = repository.quotaSnapshot(0)
+
+        assertEquals(10, snapshot.usageBytes)
+        assertEquals(listOf(oldest, newest), snapshot.entriesByLru.map(CacheEntry::key))
+    }
+
     private fun key(namespace: ChapterBlobNamespace, id: String) = ChapterBlobKey(
         namespace,
         ChapterReleaseId(id),
@@ -132,5 +209,15 @@ class RoomDownloadRepositoryTest {
         checksum = BlobChecksum.sha256(key.releaseId.value.encodeToByteArray()),
         sizeBytes = 8,
         lastAccessedAtEpochMillis = 1,
+    )
+
+    private fun download(
+        id: String,
+        updatedAt: Long,
+        state: DownloadState = DownloadState.QUEUED,
+    ) = DownloadRecord(
+        key = key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, id),
+        state = state,
+        updatedAtEpochMillis = updatedAt,
     )
 }
