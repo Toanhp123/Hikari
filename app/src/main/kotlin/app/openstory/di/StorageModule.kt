@@ -6,10 +6,12 @@ import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.catalog.RoomCatalogRepository
+import app.openstory.storage.room.catalog.RoomReconciliationCaseRepository
 import app.openstory.storage.room.catalog.RoomCatalogStoryProjectionRepository
 import app.openstory.storage.room.catalog.RoomCanonicalCatalogRepository
 import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
@@ -50,6 +52,11 @@ object StorageModule {
     @Singleton
     fun provideCanonicalEngineWorkRepository(database: OpenStoryDatabase): CanonicalEngineWorkRepository =
         RoomCanonicalEngineWorkRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideReconciliationCaseRepository(database: OpenStoryDatabase): ReconciliationCaseRepository =
+        RoomReconciliationCaseRepository(database)
 
     @Provides
     @Singleton

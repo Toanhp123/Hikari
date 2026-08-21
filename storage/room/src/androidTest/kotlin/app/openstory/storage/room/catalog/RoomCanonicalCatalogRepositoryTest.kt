@@ -15,6 +15,13 @@ import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.reconciliation.ReconciliationAssessment
+import app.openstory.catalog.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
+import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
+import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
 import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.model.CatalogEntry
@@ -138,6 +145,95 @@ class RoomCanonicalCatalogRepositoryTest {
     }
 
     @Test
+    fun reconciliationReviewPersistsOneRevisionForSameFingerprintAndPolicy() = runTest {
+        withDatabase { database ->
+            val left = StoryId("story:a")
+            val right = StoryId("story:b")
+            seedStory(database, left)
+            seedStory(database, right)
+            val repository = RoomReconciliationCaseRepository(database)
+            val key = ReconciliationCaseKey.of(left, right)
+            val assessment = reconciliationAssessment("pair-fp", ReconciliationSemanticDecision.REVIEW)
+
+            val first = requireNotNull(repository.recordAssessment(key, assessment, 10))
+            val second = requireNotNull(repository.recordAssessment(key, assessment, 20))
+
+            assertEquals(first.id, second.id)
+            assertEquals(1L, second.revision)
+            assertEquals(ReconciliationCaseStatus.PENDING, second.status)
+            assertEquals(1, repository.observePending().first().size)
+        }
+    }
+
+    @Test
+    fun userKeepSeparateWithSameFingerprintDoesNotReopenOnRefresh() = runTest {
+        withDatabase { database ->
+            val left = StoryId("story:a")
+            val right = StoryId("story:b")
+            seedStory(database, left)
+            seedStory(database, right)
+            val repository = RoomReconciliationCaseRepository(database)
+            val key = ReconciliationCaseKey.of(left, right)
+            val assessment = reconciliationAssessment("pair-fp", ReconciliationSemanticDecision.REVIEW)
+            val pending = requireNotNull(repository.recordAssessment(key, assessment, 10))
+            assertTrue(repository.resolveSeparate(pending.id, pending.revision, ReconciliationResolutionOrigin.USER, 20))
+
+            val refreshed = requireNotNull(repository.recordAssessment(key, assessment, 30))
+
+            assertEquals(ReconciliationCaseStatus.RESOLVED_SEPARATE, refreshed.status)
+            assertEquals(ReconciliationResolutionOrigin.USER, refreshed.resolutionOrigin)
+            assertEquals(2L, refreshed.revision)
+            assertEquals(emptyList(), repository.observePending().first())
+        }
+    }
+
+    @Test
+    fun changedIdentityFingerprintCreatesNewRevisionAndCanReopenReview() = runTest {
+        withDatabase { database ->
+            val left = StoryId("story:a")
+            val right = StoryId("story:b")
+            seedStory(database, left)
+            seedStory(database, right)
+            val repository = RoomReconciliationCaseRepository(database)
+            val key = ReconciliationCaseKey.of(left, right)
+            val initial = requireNotNull(
+                repository.recordAssessment(key, reconciliationAssessment("fp:1", ReconciliationSemanticDecision.REVIEW), 10),
+            )
+            assertTrue(repository.resolveSeparate(initial.id, initial.revision, ReconciliationResolutionOrigin.USER, 20))
+
+            val reopened = requireNotNull(
+                repository.recordAssessment(key, reconciliationAssessment("fp:2", ReconciliationSemanticDecision.REVIEW), 30),
+            )
+
+            assertEquals(ReconciliationCaseStatus.PENDING, reopened.status)
+            assertEquals(null, reopened.resolutionOrigin)
+            assertEquals(3L, reopened.revision)
+        }
+    }
+
+    @Test
+    fun engineDifferentWorkPersistsResolvedSeparateRevision() = runTest {
+        withDatabase { database ->
+            val left = StoryId("story:a")
+            val right = StoryId("story:b")
+            seedStory(database, left)
+            seedStory(database, right)
+            val repository = RoomReconciliationCaseRepository(database)
+
+            val stored = requireNotNull(
+                repository.recordAssessment(
+                    ReconciliationCaseKey.of(left, right),
+                    reconciliationAssessment("fp:different", ReconciliationSemanticDecision.DIFFERENT_WORK),
+                    10,
+                ),
+            )
+
+            assertEquals(ReconciliationCaseStatus.RESOLVED_SEPARATE, stored.status)
+            assertEquals(ReconciliationResolutionOrigin.ENGINE, stored.resolutionOrigin)
+        }
+    }
+
+    @Test
     fun cleanupRetainsActiveAndImmediatelyPreviousSuccessfulGeneration() = runTest {
         withDatabase { database ->
             val storyId = StoryId("story:1")
@@ -169,6 +265,23 @@ class RoomCanonicalCatalogRepositoryTest {
             ),
         )
     }
+
+    private fun reconciliationAssessment(
+        fingerprint: String,
+        decision: ReconciliationSemanticDecision,
+    ) = ReconciliationAssessment(
+        policyVersion = 1,
+        semanticDecision = decision,
+        mergeEligibility = ReconciliationMergeEligibility.MERGEABLE,
+        confidence = if (decision == ReconciliationSemanticDecision.DIFFERENT_WORK) 1.0 else 0.9,
+        titleSimilarity = 1.0,
+        authorSimilarity = null,
+        winningLead = null,
+        matchedIdentifiers = emptySet(),
+        conflictingIdentifiers = emptySet(),
+        reasons = setOf(ReconciliationReasonCode.TITLE_EXACT),
+        identityEvidenceFingerprint = fingerprint,
+    )
 
     private fun canonicalState(storyId: StoryId) = StoryCanonicalStateEntity(
         storyId = storyId.value,

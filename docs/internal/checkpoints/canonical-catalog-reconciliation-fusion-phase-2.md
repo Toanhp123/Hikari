@@ -1,8 +1,8 @@
 # Canonical Catalog Reconciliation & Fusion Engine — Phase 2 Checkpoint
 
 Date: 2026-08-21
-Status: **PATCHED — VERIFICATION OPEN**
-Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 remains blocked until the Phase-2 developer-checkout gates below are reviewed green.
+Status: **VERIFIED — PHASE 2 CLOSED**
+Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 is the active next step after this accepted checkpoint.
 
 ## Normative sources
 
@@ -10,7 +10,7 @@ Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 remains blocked
 - Plan: `../../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
 - Prior accepted evidence: `canonical-catalog-reconciliation-fusion-phase-1.md`
 
-## Patched implementation boundary
+## Accepted implementation boundary
 
 ### Task 12 — provider-agnostic Fusion quality facts
 
@@ -80,9 +80,57 @@ Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 remains blocked
 - Reflection guards fail if participating feature ViewModels acquire `CatalogFusionEngine` or `CanonicalFusionService` dependencies.
 - The steady read path is constrained to active canonical generation/projection; raw source inspection is intentionally excluded from cross-feature presentation equality.
 
-## Sandbox verification evidence
+## Accepted verification evidence
 
-Fresh checks on the Phase-2 working tree reported:
+Developer-checkout acceptance on 2026-08-21 completed the Phase-2 gates:
+
+```text
+./gradlew :catalog:testDebugUnitTest :feature:catalog:testDebugUnitTest :app:testDebugUnitTest
+  BUILD SUCCESSFUL
+
+./gradlew :storage:room:assembleDebug
+  BUILD SUCCESSFUL
+  checked-in schema 9 export unchanged
+
+./gradlew :storage:room:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.catalog.RoomCanonicalCatalogRepositoryTest,app.openstory.storage.room.catalog.RoomCatalogRepositoryTest
+  22/22 tests PASS
+
+./gradlew :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.ui.search.SearchScreenTest
+  7/7 tests PASS on rerun
+
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.AppLaunchSmokeTest,app.openstory.navigation.AppNavigationTest
+  14/14 tests PASS
+
+./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#homeDiscoverHome'
+  BUILD SUCCESSFUL
+
+./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#storyTabs'
+  BUILD SUCCESSFUL
+
+./gradlew :detekt
+  PASS after the Phase-2 Fusion-policy style cleanup
+
+./scripts/verify.sh
+  PASS
+```
+
+The earlier Search instrumentation attempt that reported two `No compose hierarchies found` failures was not reproducible after rerun; the same seven-test class then completed 7/7, so no production Search behavior was changed to mask a host/test-lifecycle flake.
+
+The accepted macrobenchmark artifacts were recorded on Redmi Note 9S with `compilationMode = run-from-apk`:
+
+| Benchmark | frameDurationCpuMs P50 | P90 | P95 | frameOverrunMs P50 | P90 | P95 |
+|---|---:|---:|---:|---:|---:|---:|
+| `homeDiscoverHome` | 12.323 | 36.506 | 56.395 | 10.358 | 42.925 | 47.614 |
+| `storyTabs` | 9.613 | 11.745 | 22.995 | 4.709 | 22.219 | 59.554 |
+
+These runs prove the changed read paths execute successfully under the Phase-2 benchmark harness. They do **not** claim a performance improvement relative to an earlier paired baseline because this acceptance bundle did not include a controlled before/after comparison. The `homeDiscoverHome` build also emitted non-fatal stale startup-profile entry warnings for classes/signatures replaced by the canonical cutover; profile regeneration is follow-up hygiene for a future profile/performance release gate and did not fail this Phase-2 macrobenchmark.
+
+Repository/static acceptance also remains green with Room schema 9:
 
 ```text
 git diff --check
@@ -98,37 +146,7 @@ run_repository_static_gates
   a5e9f89676504c9a5596c314e72d2216bede87d5e449a71c55a8f502e28ef6a6
 ```
 
-Supplementary compile/test-oriented checks performed during implementation also compiled the pure Catalog/Fusion boundary and selected Room adapters with minimal framework stubs, and exercised the pure Fusion policy/engine/validator, Fusion service, and Search service test fixtures. Those are useful implementation evidence but **do not replace Gradle or device acceptance**.
-
-A fresh sandbox Gradle attempt remains blocked before project execution because the wrapper cannot resolve the distribution host:
-
-```text
-./gradlew :catalog:testDebugUnitTest --offline
-  Downloading https://services.gradle.org/distributions/gradle-9.5.0-bin.zip
-  java.net.UnknownHostException: services.gradle.org
-```
-
-Therefore this checkpoint deliberately does **not** claim the Phase-2 Gradle, connected, macrobenchmark, Detekt/lint/full-verify acceptance gates.
-
-## Required developer-checkout verification
-
-Run these after applying the Phase-2 patch:
-
-```bash
-./gradlew   :catalog:testDebugUnitTest   :feature:catalog:testDebugUnitTest   :app:testDebugUnitTest
-
-./gradlew :storage:room:connectedDebugAndroidTest   -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.catalog.RoomCanonicalCatalogRepositoryTest,app.openstory.storage.room.catalog.RoomCatalogRepositoryTest   --stacktrace
-
-./gradlew :app:connectedDebugAndroidTest   -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.AppLaunchSmokeTest,app.openstory.navigation.AppNavigationTest   --stacktrace
-
-./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest   '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#homeDiscoverHome'   --stacktrace
-
-./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest   '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#storyTabs'   --stacktrace
-
-./scripts/verify.sh
-```
-
-Record benchmark JSON/Perfetto paths if both macrobenchmarks run. If read-path performance regresses beyond normal device variance, inspect traces for repeated source reads/Fusion on steady UI paths before changing correctness policy.
+The Phase-2 Fusion Detekt cleanup was behavior-preserving: it replaced magic literals and excess early-return/complex-condition forms with named constants, expressions, and focused helpers without changing primary-selection, hysteresis, validation, or promotion policy.
 
 ## Explicit non-claims
 
@@ -143,4 +161,4 @@ This patch does **not** implement or enable:
 
 ## Closure condition
 
-Phase 2 remains **PATCHED — VERIFICATION OPEN**. Do not start Task 22 until the developer-checkout Phase-2 unit, Room connected, navigation smoke, both specified macrobenchmarks, and canonical `./scripts/verify.sh` evidence have been reviewed. After those are green, update this checkpoint/spec/plan to **VERIFIED — PHASE 2 CLOSED** and make Task 22 the active next step.
+Phase 2 is **VERIFIED — PHASE 2 CLOSED**. Tasks 12–21 are accepted on the developer checkout, Room remains schema 9, and Task 22 is now the active next implementation step. No reconciliation executor, destructive Story merge, or Phase-3 runtime behavior is enabled by this checkpoint.

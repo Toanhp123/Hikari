@@ -29,8 +29,8 @@ are complete. The active pre-Wave-10 workstream is the **Canonical Catalog Recon
 Engine** under `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
 Phase 0 Tasks 1-4 and Phase 1 Tasks 5-11 are verified and closed; use
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` for accepted Phase-1 evidence.
-Phase 2 Tasks 12-21 are patched with verification open; use
-`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` for the active checkpoint. Task 22 remains blocked.
+Phase 2 Tasks 12-21 and Phase 3 Tasks 22-25 are verified/closed. Use
+`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-3.md` for accepted Phase-3 evidence. Task 26 is now the active next task; destructive merge execution remains outside the Phase-3 boundary.
 Wave 10 remains planned and its notification migration is rebased to `9 -> 10`.
 
 Architecture Baseline 2 remains accepted. Its design and acceptance checkpoint own the architecture
@@ -39,7 +39,7 @@ post-baseline architecture design owns module evolution and cross-wave continuit
 The 2026-08-19 Discover spec owns the current Discover-specific semantic-feed contract. The
 2026-08-20 Canonical Catalog Reconciliation & Metadata Fusion Engine design now owns canonical
 catalog Story identity, reconciliation, source preference, and future canonical presentation truth.
-Phase 2 patches Discover/Search/Story/Library over to the canonical read path but that cutover remains verification-open until the Phase-2 checkpoint closes. The broader
+Phase 2 moved Discover/Search/Story/Library to the canonical read path and that cutover is accepted by the closed Phase-2 checkpoint. The broader
 architecture path remains `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
@@ -70,7 +70,7 @@ protocol, and tested fixtures.
 | Architecture Baseline 2 R0-R6 plans | Accepted one-time architecture reset record; not the active feature plan after R6 |
 | 2026-08-12 Product UI design/plan | Accepted/completed broader presentation baseline; Discover-specific source/category composition is superseded by the 2026-08-19 Discover spec |
 | 2026-08-19 Discover semantic-feed design/plan | Accepted implementation record and current Discover-specific contract; checkpoint evidence is `discover-semantic-feed-redesign.md` |
-| 2026-08-20 canonical catalog reconciliation/fusion design + 2026-08-21 implementation plan | Current authority for host-owned canonical catalog identity/fusion. Phase 0 and Phase 1 are verified/closed on schema 9; Phase 2 Tasks 12-21 are patched/verification-open without a schema change; Phase 3 reconciliation/merge remains unimplemented |
+| 2026-08-20 canonical catalog reconciliation/fusion design + 2026-08-21 implementation plan | Current authority for host-owned canonical catalog identity/fusion. Phase 0, Phase 1, Phase 2 Tasks 12-21, and Phase 3 Tasks 22-25 are verified/closed on schema 9; Phase 3 is accepted observe-only reconciliation with no schema change; Task 26 is next and destructive merge execution remains later work |
 | Wave 10 schema `6 -> 7` / `7 -> 8` / `8 -> 9` planning text | Superseded by the catalog metadata lifecycle through schema 8 and the canonical-engine Phase-1 foundation at schema 9. Wave 10 notification persistence is now rebased to `9 -> 10`; Wave 11 enters on schema 10 unless another reviewed migration intervenes |
 
 ## Lifecycle labels

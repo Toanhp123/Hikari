@@ -3,7 +3,6 @@ package app.openstory.catalog.metadata
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.details.CatalogDetailsLoader
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
@@ -299,7 +298,17 @@ class CatalogMetadataCoordinatorTest {
         val repository = FakeRepository(snapshot)
         val source = Source(detailsGate)
         val registry = Registry(source)
-        val loader = CatalogDetailsLoader(registry, repository, StoryMatcher(), clock)
+        val loader = CatalogDetailsLoader(
+            sources = registry,
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            reconciliation = app.openstory.catalog.testReconciliationService(repository, clock),
+            fusion = app.openstory.catalog.noOpCanonicalRebuilder,
+            clock = clock,
+        )
         val coordinator = CatalogMetadataCoordinator(
             repository = repository,
             sources = registry,
@@ -406,8 +415,8 @@ class CatalogMetadataCoordinatorTest {
 
         override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
 
-        override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
-            Outcome.Success(Unit)
+        override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> =
+            Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
 
 
         override suspend fun commitSearchSummaries(
@@ -416,13 +425,15 @@ class CatalogMetadataCoordinatorTest {
             app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
         )
 
-        override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> {
+        override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> {
             storeFailure?.let { return Outcome.Failure(it) }
             val durableStoryId = snapshot?.entry?.storyId ?: mutation.storyId
             val entry = mutation.entry.copy(storyId = durableStoryId)
             val stamp = CatalogMetadataStamp(mutation.pluginVersion, mutation.resolvedAtEpochMillis)
             snapshot = CatalogMetadataSnapshot(entry, stamp, stamp)
-            return Outcome.Success(durableStoryId)
+            return Outcome.Success(
+                app.openstory.catalog.repository.CatalogDetailsCommitResult(durableStoryId, emptyList()),
+            )
         }
     }
 

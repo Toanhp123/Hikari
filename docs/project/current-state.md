@@ -32,19 +32,19 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0 VERIFIED; PHASE 1 TASKS 5–11 VERIFIED/CLOSED; PHASE 2 TASKS 12–21 PATCHED — VERIFICATION OPEN**.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0 VERIFIED; PHASE 1 TASKS 5–11 VERIFIED/CLOSED; PHASE 2 TASKS 12–21 VERIFIED/CLOSED; PHASE 3 TASKS 22–25 VERIFIED/CLOSED; TASK 26 NEXT**.
   Phase 0 established opaque latest-update labels, bounded external identifiers, shared `SourceKey`,
   normalized evidence, independent fingerprints, and legacy-source characterization. Phase 1 now
   adds Room schema 9 with the canonical-engine persistence foundation, persists external identifiers,
   exposes lossless `CatalogSourceRecord` reads, persists canonical state/generations/provenance,
   resolves historical Story IDs through redirects, persists durable engine work/audit foundations,
   covers representative schema-8 graph migration, and provides local-only canonical bootstrap.
-  Phase 2 now patches the versioned Fusion policy, primary hysteresis/pinning, field provenance,
+  Phase 2 accepts the versioned Fusion policy, primary hysteresis/pinning, field provenance,
   canonical generation rebuild/promotion, canonical projection repository, and Story/Search/Discover/
   Library presentation cutover while preserving raw-source inspection and Discover feed/ranking semantics.
   Reconciliation policy and destructive Story merge remain disabled. Checkpoints: Phase 0 at
   `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`; accepted Phase 1 at
-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; active Phase 2 at
+  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; accepted Phase 2 at
   `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md`.
 - Wave 10: **PLANNED; NOT STARTED**. Canonical-engine work remains the active pre-Wave-10 track.
   The Phase-1 patch now owns `8 -> 9`, so Wave 10 notification persistence is rebased to `9 -> 10`.
@@ -52,6 +52,8 @@ Purpose: single source of truth for the implemented repository boundary.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+  Phase 3 closes observe-only reconciliation Tasks 22–25: symmetric reconciliation policy/evidence, candidate/lead safety, durable case revisions, persisted identity/fusion change facts, and Home/Search/Details ingest cutover away from the legacy matcher. Developer-checkout acceptance gates are green; there is still no destructive Story graph merge. Task 26 is now next. Room remains schema 9.
+
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
 - Performance Wave 4: **IMPLEMENTED AND RETAINED**. Discover shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling. The semantic Discover redesign preserves the single-emission projection contract.
@@ -124,7 +126,7 @@ runtime persistence SPI.
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures. Discover uses one outer `LazyColumn`; Popular is a manual pager (max 5),
   Latest Updates is a bounded 3-column grid (max 9), and Top Rated is a ranked list (max 5).
-- Room schema 9 is current in the Phase-1 patch. It retains the Baseline-2 catalog/runtime state, metadata-only
+- Room schema 9 is the current accepted persistence foundation; Phase 3 does not add a migration. It retains the Baseline-2 catalog/runtime state, metadata-only
   Library membership, protected content mappings, chapter graphs, aggregation overrides,
   synchronization state, canonical plus exact-release reading progress, Wave 09 cache/download
   metadata, Discover semantic feed/status/latest-update fields, and separate Summary/Full

@@ -122,7 +122,7 @@ class CatalogRepositoryContractTest {
 
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
-        ): Outcome<Unit, CatalogStoreFailure> {
+        ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> {
             val retained = homes.value.filterNot { it.pluginId == mutation.pluginId }
             homes.value = (
                 retained + CatalogHomeSnapshot(
@@ -146,7 +146,7 @@ class CatalogRepositoryContractTest {
                     full = null,
                 )
             }
-            return Outcome.Success(Unit)
+            return Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
         }
 
 
@@ -158,6 +158,6 @@ class CatalogRepositoryContractTest {
 
         override suspend fun commitDetails(
             mutation: CatalogDetailsMutation,
-        ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+        ): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogDetailsCommitResult(mutation.storyId, emptyList()))
     }
 }

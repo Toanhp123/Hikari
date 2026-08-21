@@ -136,6 +136,18 @@ internal interface CanonicalCatalogDao {
     suspend fun reconciliationCase(caseId: String): ReconciliationCaseEntity?
 
     @Query(
+        "SELECT * FROM reconciliation_cases WHERE status = 'PENDING' " +
+            "ORDER BY updated_at_epoch_millis DESC, case_id ASC",
+    )
+    fun observePendingReconciliationCases(): Flow<List<ReconciliationCaseEntity>>
+
+    @Query(
+        "SELECT * FROM reconciliation_cases WHERE left_story_id = :storyId OR right_story_id = :storyId " +
+            "ORDER BY updated_at_epoch_millis DESC, case_id ASC",
+    )
+    fun observeReconciliationCasesForStory(storyId: String): Flow<List<ReconciliationCaseEntity>>
+
+    @Query(
         "SELECT * FROM reconciliation_cases WHERE left_story_id = :leftStoryId AND right_story_id = :rightStoryId",
     )
     suspend fun reconciliationCase(leftStoryId: String, rightStoryId: String): ReconciliationCaseEntity?
@@ -154,6 +166,9 @@ internal interface CanonicalCatalogDao {
             "ORDER BY evaluated_at_epoch_millis, revision_id",
     )
     suspend fun reconciliationRevisions(caseId: String): List<ReconciliationCaseRevisionEntity>
+
+    @Query("SELECT * FROM reconciliation_case_revisions WHERE revision_id = :revisionId")
+    suspend fun reconciliationRevision(revisionId: String): ReconciliationCaseRevisionEntity?
 
     @Query("UPDATE reconciliation_case_revisions SET case_id = :targetCaseId WHERE case_id = :sourceCaseId")
     suspend fun moveReconciliationRevisions(sourceCaseId: String, targetCaseId: String)

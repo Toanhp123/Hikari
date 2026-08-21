@@ -18,9 +18,11 @@ interface CatalogRepository {
     suspend fun sourceRecord(key: CatalogMetadataKey): CatalogSourceRecord?
     suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord>
     suspend fun sourceRecords(): List<CatalogSourceRecord>
-    suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure>
+    suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<CatalogHomeCommitResult, CatalogStoreFailure>
     suspend fun commitSearchSummaries(
         mutation: CatalogSearchSummaryMutation,
     ): Outcome<CatalogSearchSummaryCommitResult, CatalogStoreFailure>
-    suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure>
+    suspend fun commitDetails(
+        mutation: CatalogDetailsMutation,
+    ): Outcome<CatalogDetailsCommitResult, CatalogStoreFailure>
 }

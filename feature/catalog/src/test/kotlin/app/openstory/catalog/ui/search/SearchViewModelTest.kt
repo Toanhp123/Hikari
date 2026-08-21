@@ -22,7 +22,6 @@ import app.openstory.catalog.repository.CatalogSearchSummaryCommitResult
 import app.openstory.catalog.repository.CatalogSearchSummaryMutation
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.details.CatalogDetailsLoader
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
 import app.openstory.catalog.model.CatalogHomeSnapshot
@@ -179,7 +178,7 @@ class SearchViewModelTest {
 
     @Test
     fun globalSearchFailureIsReportedAndLaterQueriesStillRun() = runTest(dispatcher.scheduler) {
-        val repository = EmptyRepository(matchFailuresRemaining = 1)
+        val repository = EmptyRepository(sourceRecordFailuresRemaining = 1)
         val source = FakeSearchSource("catalog.a")
         val viewModel = viewModel(repository, source)
 
@@ -254,9 +253,8 @@ class SearchViewModelTest {
     ): SearchViewModel = viewModel(Registry(sources.toList()), repository)
 
     private fun TestScope.viewModel(registry: Registry, repository: EmptyRepository): SearchViewModel {
-        val matcher = StoryMatcher()
         val clock = Clock { 100L }
-        val bootstrap = CanonicalBootstrapUseCase(repository.canonical) { storyId, _ ->
+        val rebuilder = app.openstory.catalog.fusion.CanonicalGenerationRebuilder { storyId, _ ->
             val ready = repository.canonical.state(storyId) as? CanonicalStoryState.Ready
             if (ready == null) {
                 CanonicalFusionResult.Failed(storyId, "test.canonical_missing", retryable = false)
@@ -264,8 +262,21 @@ class SearchViewModelTest {
                 CanonicalFusionResult.Unchanged(ready.generation)
             }
         }
+        val bootstrap = CanonicalBootstrapUseCase(repository.canonical, rebuilder)
         return SearchViewModel(
-            CatalogSearchService(registry, repository, matcher, clock, bootstrap, CatalogFilterCache()),
+            CatalogSearchService(
+                sources = registry,
+                repository = repository,
+                reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                    app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+                ),
+                storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+                reconciliation = app.openstory.catalog.featureTestReconciliationService(repository, clock),
+                fusion = rebuilder,
+                clock = clock,
+                bootstrap = bootstrap,
+                filterCache = CatalogFilterCache(),
+            ),
         )
     }
 
@@ -350,18 +361,12 @@ private fun successPage(title: String): CatalogSourceResult<SourceSearchPage> = 
 )
 
 private class EmptyRepository(
-    private var matchFailuresRemaining: Int = 0,
+    private var sourceRecordFailuresRemaining: Int = 0,
 ) : CatalogRepository {
     val canonical = SearchCanonicalRepository()
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = flowOf(emptyList())
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
-    override suspend fun matchSnapshot(): CatalogMatchSnapshot {
-        if (matchFailuresRemaining > 0) {
-            matchFailuresRemaining--
-            error("catalog unavailable")
-        }
-        return CatalogMatchSnapshot(emptyList())
-    }
+    override suspend fun matchSnapshot(): CatalogMatchSnapshot = CatalogMatchSnapshot(emptyList())
     override suspend fun metadataSnapshot(
         key: app.openstory.catalog.metadata.CatalogMetadataKey,
     ): app.openstory.catalog.metadata.CatalogMetadataSnapshot? = null
@@ -370,11 +375,17 @@ private class EmptyRepository(
 
     override suspend fun sourceRecords(storyId: StoryId): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
 
-    override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+    override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> {
+        if (sourceRecordFailuresRemaining > 0) {
+            sourceRecordFailuresRemaining--
+            error("catalog unavailable")
+        }
+        return emptyList()
+    }
 
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
-    ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
+    ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
     override suspend fun commitSearchSummaries(
         mutation: CatalogSearchSummaryMutation,
     ): Outcome<CatalogSearchSummaryCommitResult, CatalogStoreFailure> {
@@ -388,7 +399,7 @@ private class EmptyRepository(
 
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
-    ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+    ): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogDetailsCommitResult(mutation.storyId, emptyList()))
 
 }
 

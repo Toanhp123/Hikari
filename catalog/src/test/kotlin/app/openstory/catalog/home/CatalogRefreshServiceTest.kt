@@ -1,13 +1,14 @@
 package app.openstory.catalog.home
 
 import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.catalog.repository.CatalogCommitChange
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
@@ -143,11 +144,51 @@ class CatalogRefreshServiceTest {
         assertEquals(resolve(items), resolve(items.reversed()))
     }
 
+    @Test
+    fun durableOwnerFromCommittedForkControlsLaterProviderResolution() = runTest {
+        val durable = StoryId("story:durable")
+        val firstKey = SourceKey(PluginId("a"), "a-1")
+        val repository = RecordingRepository(durableOwners = mutableMapOf(firstKey to durable))
+        val registry = Registry(
+            listOf(
+                Source(
+                    "a",
+                    CatalogSourceResult.Success(
+                        listOf(SourceSection("s", "S", listOf(item("a-1", "Same", setOf("Same Author"))))),
+                    ),
+                ),
+                Source(
+                    "b",
+                    CatalogSourceResult.Success(
+                        listOf(SourceSection("s", "S", listOf(item("b-1", "Same", setOf("Same Author"))))),
+                    ),
+                ),
+            ),
+        )
+
+        service(registry, repository, 10).refresh()
+
+        assertEquals(durable, repository.mutations[1].entries.single().storyId)
+    }
+
     private fun service(
         registry: CatalogSourceRegistry,
         repository: CatalogRepository,
         epochMillis: Long,
-    ) = CatalogRefreshService(registry, repository, StoryMatcher(), Clock { epochMillis })
+    ): CatalogRefreshService {
+        val clock = Clock { epochMillis }
+        return CatalogRefreshService(
+            sources = registry,
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            reconciliation = app.openstory.catalog.testReconciliationService(repository, clock),
+            fusion = app.openstory.catalog.noOpCanonicalRebuilder,
+            clock = clock,
+        )
+    }
 
     private fun section(id: String) = SourceSection(
         "section",
@@ -155,11 +196,15 @@ class CatalogRefreshServiceTest {
         listOf(item(id, id)),
     )
 
-    private fun item(id: String, title: String) = SourceItem(
+    private fun item(
+        id: String,
+        title: String,
+        authors: Set<String> = emptySet(),
+    ) = SourceItem(
         id,
         title,
         SourceContentType.MANGA,
-        emptySet(),
+        authors,
         null,
         null,
         null,
@@ -189,6 +234,7 @@ class CatalogRefreshServiceTest {
 
     private class RecordingRepository(
         private val storeFailure: CatalogStoreFailure? = null,
+        private val durableOwners: MutableMap<SourceKey, StoryId> = mutableMapOf(),
     ) : CatalogRepository {
         val mutations = mutableListOf<CatalogHomeMutation>()
 
@@ -207,9 +253,20 @@ class CatalogRefreshServiceTest {
 
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
-        ): Outcome<Unit, CatalogStoreFailure> {
+        ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> {
             mutations += mutation
-            return storeFailure?.let { Outcome.Failure(it) } ?: Outcome.Success(Unit)
+            storeFailure?.let { return Outcome.Failure(it) }
+            val changes = mutation.entries.map { entry ->
+                val key = SourceKey(entry.pluginId, entry.sourceId)
+                val owner = durableOwners.getOrPut(key) { entry.storyId }
+                CatalogCommitChange(
+                    storyId = owner,
+                    sourceKey = key,
+                    identityFingerprintChanged = false,
+                    fusionFingerprintChanged = false,
+                )
+            }
+            return Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(changes))
         }
 
 
@@ -221,6 +278,6 @@ class CatalogRefreshServiceTest {
 
         override suspend fun commitDetails(
             mutation: CatalogDetailsMutation,
-        ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+        ): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogDetailsCommitResult(mutation.storyId, emptyList()))
     }
 }

@@ -244,6 +244,96 @@ class RoomCatalogRepositoryTest {
     }
 
     @Test
+    fun timestampOnlySummaryRefreshReportsNoSemanticFingerprintChange() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 10))
+
+            val second = assertIs<Outcome.Success<app.openstory.catalog.repository.CatalogHomeCommitResult>>(
+                repository.commitHomeRefresh(mutation("a", listOf("a-1"), 20)),
+            ).value.changes.single()
+
+            assertEquals(false, second.identityFingerprintChanged)
+            assertEquals(false, second.fusionFingerprintChanged)
+        }
+    }
+
+    @Test
+    fun presentationOnlySummaryChangeReportsFusionWithoutIdentity() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val first = mutation("a", listOf("a-1"), 10)
+            repository.commitHomeRefresh(first)
+            val changedEntry = first.entries.single().copy(
+                coverUrl = "cover-2",
+                publicationStatus = PublicationStatus.ONGOING,
+                latestUpdate = CatalogLatestUpdate(99L, "99"),
+            )
+            val changed = first.copy(
+                refreshedAtEpochMillis = 20,
+                entries = listOf(changedEntry),
+                sections = listOf(first.sections.single().copy(items = listOf(changedEntry))),
+            )
+
+            val change = assertIs<Outcome.Success<app.openstory.catalog.repository.CatalogHomeCommitResult>>(
+                repository.commitHomeRefresh(changed),
+            ).value.changes.single()
+
+            assertEquals(false, change.identityFingerprintChanged)
+            assertEquals(true, change.fusionFingerprintChanged)
+        }
+    }
+
+    @Test
+    fun identityEvidenceChangeIsReportedIndependently() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val first = mutation("a", listOf("a-1"), 10)
+            repository.commitHomeRefresh(first)
+            val changedEntry = first.entries.single().copy(
+                aliases = setOf("Alias"),
+                authors = setOf("Author"),
+                externalIdentifiers = setOf(ExternalIdentifier("work", "W-1", ExternalIdentifierScope.WORK)),
+            )
+            val changed = first.copy(
+                refreshedAtEpochMillis = 20,
+                entries = listOf(changedEntry),
+                sections = listOf(first.sections.single().copy(items = listOf(changedEntry))),
+            )
+
+            val change = assertIs<Outcome.Success<app.openstory.catalog.repository.CatalogHomeCommitResult>>(
+                repository.commitHomeRefresh(changed),
+            ).value.changes.single()
+
+            assertEquals(true, change.identityFingerprintChanged)
+        }
+    }
+
+    @Test
+    fun richerFullMetadataCanReportIdentityChangeForExistingOwner() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 10))
+            val key = CatalogMetadataKey(PluginId("a"), "a-1")
+            val summary = requireNotNull(repository.metadataSnapshot(key)).entry
+
+            val result = assertIs<Outcome.Success<app.openstory.catalog.repository.CatalogDetailsCommitResult>>(
+                repository.commitDetails(
+                    CatalogDetailsMutation(
+                        summary.storyId,
+                        summary.copy(aliases = setOf("Richer Alias"), authors = setOf("Richer Author")),
+                        "2.0.0",
+                        20,
+                    ),
+                ),
+            ).value
+
+            assertEquals(summary.storyId, result.storyId)
+            assertEquals(true, result.changes.single().identityFingerprintChanged)
+        }
+    }
+
+    @Test
     fun detailsCommitResolvesFullEvenWhenCoverIsNull() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
@@ -288,7 +378,7 @@ class RoomCatalogRepositoryTest {
                 ),
             )
 
-            assertEquals(existingStoryId, assertIs<Outcome.Success<StoryId>>(result).value)
+            assertEquals(existingStoryId, assertIs<Outcome.Success<app.openstory.catalog.repository.CatalogDetailsCommitResult>>(result).value.storyId)
             val snapshot = requireNotNull(
                 repository.metadataSnapshot(CatalogMetadataKey(PluginId("a"), "a-1")),
             )
@@ -320,7 +410,7 @@ class RoomCatalogRepositoryTest {
                 CatalogDetailsMutation(proposedStoryId, detailsEntry, "2.0.0", 2),
             )
 
-            assertEquals(homeStoryId, assertIs<Outcome.Success<StoryId>>(result).value)
+            assertEquals(homeStoryId, assertIs<Outcome.Success<app.openstory.catalog.repository.CatalogDetailsCommitResult>>(result).value.storyId)
             assertEquals(
                 homeStoryId,
                 requireNotNull(repository.metadataSnapshot(CatalogMetadataKey(pluginId, sourceId))).entry.storyId,
@@ -395,7 +485,7 @@ class RoomCatalogRepositoryTest {
                 ),
             )
 
-            assertIs<Outcome.Success<StoryId>>(result)
+            assertIs<Outcome.Success<app.openstory.catalog.repository.CatalogDetailsCommitResult>>(result)
             assertEquals(
                 before.single().sections.flatMap { it.items }.map { it.pluginId to it.sourceId },
                 repository.observeHomes().first().single().sections.flatMap { it.items }
@@ -524,6 +614,8 @@ class RoomCatalogRepositoryTest {
 
             val committed = assertIs<Outcome.Success<CatalogSearchSummaryCommitResult>>(result).value
             assertEquals(durable, committed.sourceStoryIds.getValue(key))
+            assertEquals(true, committed.changes.single().identityFingerprintChanged)
+            assertEquals(true, committed.changes.single().fusionFingerprintChanged)
             val snapshot = requireNotNull(repository.metadataSnapshot(CatalogMetadataKey(plugin, key.sourceId)))
             assertEquals(durable, snapshot.entry.storyId)
             assertEquals("Search title", snapshot.entry.title)

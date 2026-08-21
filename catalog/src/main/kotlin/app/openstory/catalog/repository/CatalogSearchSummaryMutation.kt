@@ -24,4 +24,5 @@ data class CatalogSearchSummaryMutation(
 
 data class CatalogSearchSummaryCommitResult(
     val sourceStoryIds: Map<SourceKey, StoryId>,
+    val changes: List<CatalogCommitChange> = emptyList(),
 )

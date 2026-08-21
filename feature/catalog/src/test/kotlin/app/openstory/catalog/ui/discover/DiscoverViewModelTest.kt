@@ -2,7 +2,6 @@ package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.home.CatalogRefreshService
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogEntry
@@ -368,7 +367,7 @@ class DiscoverViewModelTest {
 
     @Test
     fun refreshBoundaryExceptionBecomesNonBlockingFailure() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(cachedHome(), matchFailuresRemaining = 1)
+        val repository = FakeRepository(cachedHome(), sourceRecordFailuresRemaining = 1)
         val viewModel = viewModel(repository, FakeSource())
         backgroundScope.launch { viewModel.state.collect() }
         runCurrent()
@@ -432,7 +431,17 @@ class DiscoverViewModelTest {
     ): DiscoverViewModel {
         val registry = Registry(source)
         val clock = FakeClock(200L)
-        val refreshService = CatalogRefreshService(registry, repository, StoryMatcher(), clock)
+        val refreshService = CatalogRefreshService(
+            sources = registry,
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            reconciliation = app.openstory.catalog.featureTestReconciliationService(repository, clock),
+            fusion = app.openstory.catalog.featureNoOpCanonicalRebuilder,
+            clock = clock,
+        )
         return DiscoverViewModel(
             repository,
             FakeProjectionRepository(repository.projections()),
@@ -493,7 +502,7 @@ private class FakeSource : CatalogSource {
 
 private class FakeRepository(
     initialHomes: List<CatalogHomeSnapshot>,
-    private var matchFailuresRemaining: Int = 0,
+    private var sourceRecordFailuresRemaining: Int = 0,
     private val observeFailure: Boolean = false,
     private val observeFailureAfterEmission: Boolean = false,
 ) : CatalogRepository {
@@ -532,24 +541,24 @@ private class FakeRepository(
         }
     }
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
-    override suspend fun matchSnapshot(): CatalogMatchSnapshot {
-        if (matchFailuresRemaining > 0) {
-            matchFailuresRemaining--
-            error("catalog unavailable")
-        }
-        return CatalogMatchSnapshot(emptyList())
-    }
+    override suspend fun matchSnapshot(): CatalogMatchSnapshot = CatalogMatchSnapshot(emptyList())
     override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = null
 
     override suspend fun sourceRecord(key: CatalogMetadataKey): app.openstory.catalog.evidence.CatalogSourceRecord? = null
 
     override suspend fun sourceRecords(storyId: StoryId): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
 
-    override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+    override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> {
+        if (sourceRecordFailuresRemaining > 0) {
+            sourceRecordFailuresRemaining--
+            error("catalog unavailable")
+        }
+        return emptyList()
+    }
 
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
-    ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
+    ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
 
     override suspend fun commitSearchSummaries(
         mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
@@ -559,7 +568,7 @@ private class FakeRepository(
 
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
-    ): Outcome<StoryId, CatalogStoreFailure> = error("Discover must not commit Details")
+    ): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> = error("Discover must not commit Details")
 }
 
 private class FakeProjectionRepository(

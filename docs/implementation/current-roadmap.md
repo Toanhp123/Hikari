@@ -28,8 +28,7 @@ catalog metadata-lifecycle unification subsequently advanced Room to **schema 8*
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
 The **Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream**.
-Its Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are verified and closed. Phase 2 Tasks 12–21 are
-patched with developer verification open while Room remains schema 9. The canonical feature read-path cutover is present in the patch but not accepted until Phase-2 gates close; reconciliation and destructive Story merge remain unimplemented. The active design/plan are:
+Its Phase 0 Tasks 1–4, Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are verified and closed while Room remains schema 9. Phase 3 is accepted as observe-only reconciliation; destructive Story merge remains unimplemented and Task 26 is now the active next task. The active design/plan are:
 
 - `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 - `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
@@ -43,7 +42,8 @@ The completed Product UI and Discover implementation plans are execution records
 instructions. Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
 with superseded development architecture.
 
-Current Canonical Engine Phase-2 patch/verification evidence is recorded in
+Current Canonical Engine Phase-3 acceptance evidence is recorded in
+`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-3.md`; Phase-2 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md`; accepted Phase-1 evidence remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; Phase-0 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`. Current Discover acceptance
@@ -127,7 +127,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
 | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
 | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
-| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phase 0 + Phase 1 verified/closed; Phase 2 Tasks 12–21 patched/verification open; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` |
+| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phase 0/1/2/3 Tasks 22–25 verified/closed; observe-only reconciliation accepted; Task 26 next; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-3.md` |
 | 10 | Background work, auth, notifications | **Planned; not started; schema entry will be rebased by CCE Task 6 if that foundation lands first** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
@@ -208,8 +208,9 @@ architecture
                         -> unified catalog metadata lifecycle + Room schema 8
                           -> canonical catalog reconciliation/fusion engine (Phase 1 verified/closed)
                             -> canonical schema foundation (schema 9 accepted)
-                              -> metadata fusion/read-path cutover (Phase 2 Tasks 12-21 patched; verification open)
-                                -> reconciliation observe-only (Phase 3 / Task 22 blocked)
+                              -> metadata fusion/read-path cutover (Phase 2 Tasks 12-21 verified/closed)
+                                -> reconciliation observe-only (Phase 3 Tasks 22-25 verified/closed)
+                                  -> survivor/user-state-footprint policy (Task 26 next)
                                   -> local background/auth/notifications (Wave 10; schema 9 -> 10)
                       -> release hardening
 ```
@@ -217,7 +218,7 @@ architecture
 ## Execution rule
 
 1. Use the current 14-module graph, Room schema 9, and the Canonical Engine design/plan as the active execution baseline.
-2. Phase 1 Tasks 5–11 are verified and closed; Phase 2 Tasks 12–21 are patched with verification open. Close the Phase-2 gate before Task 22. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
+2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are verified and closed. Phase 3 remains observe-only; Task 26 is the active next task. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
 3. Wave 10 notification persistence is rebased to `MIGRATION_9_10`; never reintroduce another meaning for `MIGRATION_8_9`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.

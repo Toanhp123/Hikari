@@ -7,7 +7,15 @@ import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.fusion.CanonicalGenerationValidator
 import app.openstory.catalog.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
-import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.identity.CatalogStoryIdFactory
+import app.openstory.catalog.identity.StoryIdentityRepository
+import app.openstory.catalog.reconciliation.CatalogCandidateIndex
+import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.reconciliation.CatalogReconciliationService
+import app.openstory.catalog.reconciliation.InMemoryCatalogCandidateIndex
+import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
+import app.openstory.catalog.reconciliation.ReconciliationPolicy
+import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.ranking.AggregateRanking
@@ -30,7 +38,37 @@ object CatalogModule {
     fun provideClock(): Clock = SystemClock
 
     @Provides
-    fun provideStoryMatcher(): StoryMatcher = StoryMatcher()
+    fun provideReconciliationPolicy(): ReconciliationPolicy = ReconciliationPolicy()
+
+    @Provides
+    @Singleton
+    fun provideCatalogCandidateIndex(): CatalogCandidateIndex = InMemoryCatalogCandidateIndex()
+
+    @Provides
+    fun provideCatalogReconciliationEngine(
+        policy: ReconciliationPolicy,
+    ): CatalogReconciliationEngine = CatalogReconciliationEngine(policy)
+
+    @Provides
+    fun provideCatalogStoryIdFactory(): CatalogStoryIdFactory = CatalogStoryIdFactory()
+
+    @Provides
+    @Singleton
+    fun provideCatalogReconciliationService(
+        catalog: CatalogRepository,
+        identity: StoryIdentityRepository,
+        candidateIndex: CatalogCandidateIndex,
+        engine: CatalogReconciliationEngine,
+        cases: ReconciliationCaseRepository,
+        clock: Clock,
+    ): CatalogReconciliationService = CatalogReconciliationService(
+        catalog,
+        identity,
+        candidateIndex,
+        engine,
+        cases,
+        clock,
+    )
 
     @Provides
     fun provideAggregateRanking(): AggregateRanking = AggregateRanking()

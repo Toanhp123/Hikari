@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are **VERIFIED** on the developer checkout. Phase 2 Tasks 12–21 are now **PATCHED — VERIFICATION OPEN**: versioned provider-agnostic Fusion policy, primary selection/hysteresis/pinning, field Fusion/provenance, canonical generation validation/promotion/retry, canonical projection cutover, Story/Search/Discover/Library presentation cutover, and cross-feature read-path guards are present while Room remains schema 9. Sandbox static gates and Room schema stability are green, but Gradle cannot start because the wrapper distribution host is unreachable; Phase-2 RED/Gradle/connected/macrobenchmark/full-verify steps therefore remain unchecked rather than being retroactively falsified. Phase 3 / Task 22 is blocked until developer-checkout acceptance closes Phase 2.
+**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4, Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are **VERIFIED / CLOSED** on the developer checkout. Phase 3 acceptance includes the focused Catalog reconciliation/Home/Search/Details/StoryId/repository unit gate, selected Discover/Search/Story ViewModel tests, app `CompositionPolicyTest`, 30/30 selected Room connected tests, green Detekt after behavior-preserving reconciliation cleanup, and green canonical `./scripts/verify.sh`. The accepted Phase-3 boundary is still observe-only: Home/Search/Details use the reconciliation ingest path, durable case revisions are persisted on schema 9, and no destructive Story graph merge executor is enabled. Sandbox artifact checks additionally keep repository static gates, Room schema-stability, broad Catalog production compile, and selected Task-22–25 compile-oriented test checks green. Historical RED-watch steps remain unchecked where no RED runtime evidence was captured; per-task commit steps remain unchecked because Tasks 22–25 close as one Phase-3 checkpoint commit. **Task 26 is now the active next task.**
 
 ## Global Constraints
 
@@ -1808,7 +1808,7 @@ Developer checkout: PASS. Room schema 9 is the single current export, current do
 
 ### Task 12: Define source usability/freshness and versioned fusion policy facts
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/FusionPolicy.kt`
@@ -1926,7 +1926,7 @@ fun CatalogSourceFreshness.rank(): Int = when (this) {
 
 It maps objective facts only. It does not contain plugin IDs.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest
@@ -1945,7 +1945,7 @@ git commit -m "catalog: define provider agnostic fusion quality"
 
 ### Task 13: Implement automatic primary selection, hysteresis, and Story-level source pin
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CatalogFusionEngine.kt`
@@ -2048,7 +2048,7 @@ val effectivePrimary = selectPinnedPrimary(input, ranked)
 
 Pin writes never edit raw `catalog_entries`.
 
-- [ ] **Step 7: Verify Catalog + Room**
+- [x] **Step 7: Verify Catalog + Room**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -2068,7 +2068,7 @@ git commit -m "catalog: add stable primary selection and source pin"
 
 ### Task 14: Implement field-specific fusion and immutable provenance
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CatalogFusionEngine.kt`
@@ -2173,7 +2173,7 @@ Required private-function split is exactly `selectPrimaryScalar`, `selectCover`,
 
 Every contributor stores the contributor's **current `fusionFingerprint` used by this candidate**, not a pointer that later resolves to a newer raw state.
 
-- [ ] **Step 10: Verify all pure fusion tests**
+- [x] **Step 10: Verify all pure fusion tests**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -2193,7 +2193,7 @@ git commit -m "catalog: fuse canonical metadata by field policy"
 
 ### Task 15: Validate, persist, promote, retain, and recover canonical generations
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CanonicalGenerationValidator.kt`
@@ -2287,11 +2287,11 @@ On load, a persisted invalid/in-progress candidate never becomes active; it may 
 
 In `CatalogModule.kt`, bind `CanonicalGenerationRebuilder` to the singleton `CanonicalFusionService`. Provide/inject `CanonicalBootstrapUseCase` from `CanonicalCatalogRepository + CanonicalGenerationRebuilder`. No bootstrap binding exists before this task, so Phase 1 has no fake production implementation.
 
-- [ ] **Step 8: Verify Room atomicity**
+- [x] **Step 8: Verify Room atomicity**
 
 Add an instrumentation test that intentionally throws between candidate insert and promotion inside a test-only transaction hook; assert active pointer remains old and `PRAGMA foreign_key_check` remains empty.
 
-- [ ] **Step 9: Verify**
+- [x] **Step 9: Verify**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest
@@ -2310,7 +2310,7 @@ git commit -m "catalog: atomically build canonical generations"
 
 ### Task 16: Cut a canonical projection/read API for multi-Story consumers
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/projection/CatalogStoryProjection.kt`
@@ -2367,7 +2367,7 @@ Join/read canonical active generations through `CanonicalCatalogDao`, not `catal
 
 Preparing Stories are omitted from projection lists until their priority/background bootstrap creates a generation; caller ViewModels may represent preparing counts separately if product-relevant.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest
@@ -2389,7 +2389,7 @@ git commit -m "catalog: project stories from canonical generations"
 
 ### Task 17: Migrate Story AUTO presentation to canonical state while preserving raw source inspection
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt`
@@ -2461,7 +2461,7 @@ Do not add per-field pin UI.
 
 Refreshing a selected raw source may call the existing metadata lifecycle for that source. AUTO display does not fan out network calls merely because a canonical field is absent.
 
-- [ ] **Step 6: Update snapshots/semantics and verify**
+- [x] **Step 6: Update snapshots/semantics and verify**
 
 ```bash
 ./gradlew :feature:catalog:testDebugUnitTest \
@@ -2484,7 +2484,7 @@ git commit -m "story: consume canonical catalog presentation"
 
 ### Task 18: Persist Search Summary facts, build canonical cards, and make selection navigation-only
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/repository/CatalogSearchSummaryMutation.kt`
@@ -2649,7 +2649,7 @@ The Story route/lifecycle owns any explicit Full requirement after navigation.
 
 Title, cover, score, status, and other canonical fields come from `CatalogStoryProjection`. Raw `sources` remain available only for source inspection/debug semantics; their list order is not presentation truth.
 
-- [ ] **Step 9: Verify Catalog + Room + feature**
+- [x] **Step 9: Verify Catalog + Room + feature**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -2680,7 +2680,7 @@ git commit -m "search: persist summaries and navigate canonical stories"
 
 ### Task 19: Replace Discover's feature-local fusion with canonical projections
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverSemanticContent.kt`
@@ -2730,7 +2730,7 @@ Keep only feed contribution selection/ranking and join with canonical projection
 
 Add a constructor-boundary test in `DiscoverViewModelTest` that inspects `DiscoverViewModel::class.java.declaredConstructors` and fails if any parameter type is `CatalogMetadataCoordinator`, `CatalogDetailsLoader`, `CatalogFusionEngine`, or `CanonicalFusionService`. The production Discover pipeline must receive canonical projections only; it cannot own a Full/fusion dependency to fill card fields.
 
-- [ ] **Step 6: Verify visual/semantic regression**
+- [x] **Step 6: Verify visual/semantic regression**
 
 ```bash
 ./gradlew :feature:catalog:testDebugUnitTest \
@@ -2751,7 +2751,7 @@ git commit -m "discover: read canonical story presentation"
 
 ### Task 20: Migrate Library/Home/Downloads shared projections to canonical generation truth
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryViewModel.kt`
@@ -2788,7 +2788,7 @@ For each consumer:
 
 Where projection consumers need a score, use `CanonicalScore.normalizedValue`; presentation may format `normalizedValue * 10.0` as `/10` consistently. The domain value remains normalized.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 ./gradlew :feature:catalog:testDebugUnitTest \
@@ -2808,7 +2808,7 @@ git commit -m "catalog-ui: unify shared canonical projections"
 
 ### Task 21: Add phase-2 canonical consistency and UI-read-path performance gates
 
-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+**Execution status:** `VERIFIED — PHASE 2 CLOSED`
 
 **Files:**
 - Create: `feature/catalog/src/test/kotlin/app/openstory/catalog/ui/CanonicalPresentationConsistencyTest.kt`
@@ -2838,7 +2838,7 @@ not:
 UI -> all source entries -> fuse
 ```
 
-- [ ] **Step 3: Run full Phase-2 unit gates**
+- [x] **Step 3: Run full Phase-2 unit gates**
 
 ```bash
 ./gradlew \
@@ -2847,7 +2847,7 @@ UI -> all source entries -> fuse
   :app:testDebugUnitTest
 ```
 
-- [ ] **Step 4: Run connected navigation smoke**
+- [x] **Step 4: Run connected navigation smoke**
 
 ```bash
 ./gradlew :app:connectedDebugAndroidTest \
@@ -2855,7 +2855,7 @@ UI -> all source entries -> fuse
   --stacktrace
 ```
 
-- [ ] **Step 5: Run the two existing macrobenchmarks whose read paths changed in Phase 2**
+- [x] **Step 5: Run the two existing macrobenchmarks whose read paths changed in Phase 2**
 
 ```bash
 ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
@@ -2868,7 +2868,7 @@ UI -> all source entries -> fuse
 
 Record the benchmark JSON/trace locations with phase verification evidence. If results regress beyond normal device variance, inspect the trace for repeated source reads/fusion before changing correctness policy.
 
-- [ ] **Step 6: Phase-2 gate**
+- [x] **Step 6: Phase-2 gate**
 
 ```bash
 ./scripts/verify.sh
@@ -2888,6 +2888,8 @@ git commit -m "test: gate canonical presentation consistency"
 ## Phase 3 — Reconciliation Engine in Observe-Only Mode
 
 ### Task 22: Define versioned reconciliation policy, symmetric evidence, decisions, and reason codes
+
+**Execution status (2026-08-21): `VERIFIED — PHASE 3 CLOSED`.** Developer-checkout acceptance gates are green. The per-task commit checkbox remains open because Tasks 22–25 close together in one Phase-3 checkpoint commit.
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/reconciliation/ReconciliationPolicy.kt`
@@ -3002,7 +3004,7 @@ class CatalogStoryIdFactory {
 
 `CatalogStoryIdFactory` keeps the current SHA-256/8-byte deterministic semantic hash inputs—content type, normalized title signature, normalized author signature, and sorted SourceKey identity—so this architecture change does not casually churn unlinked Story IDs. It adds numeric suffixes (`:2`, then `:3`, continuing monotonically) only on an actual ID collision.
 
-- [ ] **Step 1: Write RED model-invariant tests**
+- [x] **Step 1: Write RED model-invariant tests**
 
 Add tests proving:
 
@@ -3038,15 +3040,15 @@ Also require `ReconciliationCaseKey.of(a, a)` to fail because self-pairs are not
 
 Expected: FAIL because reconciliation contracts do not exist.
 
-- [ ] **Step 3: Write RED deterministic StoryId factory tests**
+- [x] **Step 3: Write RED deterministic StoryId factory tests**
 
 Use the same content type/title/author/SourceKey fixture currently covered by `StoryMatcher` and assert the new factory returns the same base `catalog:<16-hex>` ID; pre-populate that ID and assert the next result is `catalog:<16-hex>:2`. Also assert provider-input ordering does not alter the ID.
 
-- [ ] **Step 4: Implement contracts, evidence conversion, and StoryId creation while keeping normalization helpers in their current package**
+- [x] **Step 4: Implement contracts, evidence conversion, and StoryId creation while keeping normalization helpers in their current package**
 
 Reuse `app.openstory.catalog.matching.TitleNormalizer` from the new reconciliation code; do not move it. `ReconciliationEvidenceFactory.fromRecord()` must use the persisted comparison values/fingerprints from `CatalogSourceRecord`, while `incoming()` normalizes only the supplied incoming facts. Leave `StoryMatcher.kt` production behavior unchanged in this task; it remains characterization-only until Task 25 cuts the runtime ingest path over.
 
-- [ ] **Step 5: Run GREEN plus legacy matcher tests**
+- [x] **Step 5: Run GREEN plus legacy matcher tests**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -3070,6 +3072,8 @@ git commit -m "feat: define canonical reconciliation contracts"
 ---
 
 ### Task 23: Implement candidate discovery, hard conflict gates, symmetric assessment, and winning-candidate lead
+
+**Execution status (2026-08-21): `VERIFIED — PHASE 3 CLOSED`.** Developer-checkout acceptance gates are green. The per-task commit checkbox remains open because Tasks 22–25 close together in one Phase-3 checkpoint commit.
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/reconciliation/CatalogCandidateIndex.kt`
@@ -3151,7 +3155,7 @@ Candidate discovery is high recall only. `CatalogCandidateIndex` is keyed by `So
 
 `CatalogReconciliationEngine.rankCandidates()` must collapse multiple source-level evidence records that currently resolve to the same candidate Story into **one** `RankedReconciliationCandidate` for that Story. It assesses all incoming↔candidate-source pairs, keeps the strongest deterministic assessment for that Story, then applies best-vs-runner-up lead across distinct Story IDs. A Story with three catalog sources must not appear as three competing candidates and artificially reduce the winning lead.
 
-- [ ] **Step 1: Write RED candidate-index tests**
+- [x] **Step 1: Write RED candidate-index tests**
 
 Cover:
 
@@ -3178,7 +3182,7 @@ fork + resolve in one page lets a later item see the earlier local resolution
 discarding a fork leaves the parent index unchanged
 ```
 
-- [ ] **Step 2: Write RED engine fixtures for hard gates and title-only safety**
+- [x] **Step 2: Write RED engine fixtures for hard gates and title-only safety**
 
 At minimum:
 
@@ -3199,7 +3203,7 @@ fun contradictoryWorkIdentifiersCannotBeOutvotedByTitleAndAuthor() { /* blocked 
 fun clearDifferentContentTypeWithoutPositiveIdentityEvidenceSeparates() { /* DIFFERENT_WORK */ }
 ```
 
-- [ ] **Step 3: Add symmetry and provider-order invariance tests**
+- [x] **Step 3: Add symmetry and provider-order invariance tests**
 
 ```kotlin
 @Test
@@ -3215,7 +3219,7 @@ fun pairAssessmentIsSymmetric() {
 
 The test fixture must use different plugin IDs and then swap them; provider names must never affect result.
 
-- [ ] **Step 4: Add winning-lead tests**
+- [x] **Step 4: Add winning-lead tests**
 
 Construct incoming X with:
 
@@ -3239,7 +3243,7 @@ Also test a clear lead such as 0.96 vs 0.80 preserves an otherwise eligible auto
 
 Expected: FAIL.
 
-- [ ] **Step 6: Implement minimal deterministic index and engine**
+- [x] **Step 6: Implement minimal deterministic index and engine**
 
 Use the current title similarity implementation as the fallback baseline instead of inventing a new metric. Required decision ordering is:
 
@@ -3256,7 +3260,7 @@ Use the current title similarity implementation as the fallback baseline instead
 
 Tier-4 metadata such as genres must not appear in an auto predicate.
 
-- [ ] **Step 7: Run GREEN and legacy index tests**
+- [x] **Step 7: Run GREEN and legacy index tests**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -3278,6 +3282,8 @@ git commit -m "feat: add deterministic catalog reconciliation engine"
 ---
 
 ### Task 24: Add durable case/revision semantics and an observe-only reconciliation service
+
+**Execution status (2026-08-21): `VERIFIED — PHASE 3 CLOSED`.** Developer-checkout acceptance gates are green. The per-task commit checkbox remains open because Tasks 22–25 close together in one Phase-3 checkpoint commit.
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/reconciliation/ReconciliationCaseRepository.kt`
@@ -3357,7 +3363,7 @@ class CatalogReconciliationService(
 
 Incoming/unowned source `AUTO_LINK` is handled before persistence by `CatalogIngestReconciliationIndex`; this service handles **already persisted source evidence** and therefore observes `AUTO_MERGE` between two existing Stories. In this phase that merge action is observe-only: the service records diagnostics/case state but never invokes destructive merge.
 
-- [ ] **Step 1: Write RED persistence-semantic tests in service fakes**
+- [x] **Step 1: Write RED persistence-semantic tests in service fakes**
 
 Required cases:
 
@@ -3383,7 +3389,7 @@ multiple source records resolving to one candidate Story -> one ranked candidate
   --tests app.openstory.catalog.reconciliation.CatalogReconciliationServiceTest
 ```
 
-- [ ] **Step 3: Implement service without a merge executor path**
+- [x] **Step 3: Implement service without a merge executor path**
 
 Pseudo-flow must remain explicit:
 
@@ -3435,11 +3441,11 @@ suspend fun invalidateCandidateIndex() {
 
 Do not call Details/Home/Search from this service. The global `CatalogRepository.sourceRecords()` call is allowed only for the lazy in-memory candidate-index rebuild after process start or explicit invalidation; normal evidence events shortlist through `CatalogCandidateIndex` and then load records only for shortlisted canonical Story IDs. `SourceUnlinked` and `StoryMerged` invalidation wiring is added in Tasks 36 and 38.
 
-- [ ] **Step 4: Implement Room revision behavior and duplicate suppression**
+- [x] **Step 4: Implement Room revision behavior and duplicate suppression**
 
 Room writes must use the normalized unordered pair key. Historical revisions preserve the historical pair and assessment; active pair state can later be re-keyed during merge.
 
-- [ ] **Step 5: Run unit + Room GREEN**
+- [x] **Step 5: Run unit + Room GREEN**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -3461,6 +3467,8 @@ git commit -m "feat: persist observe-only reconciliation cases"
 ---
 
 ### Task 25: Route Summary/Full evidence revisions through observe-only reconciliation and prove adversarial safety
+
+**Execution status (2026-08-21): `VERIFIED — PHASE 3 CLOSED`.** Developer-checkout acceptance gates are green. The per-task commit checkbox remains open because Tasks 22–25 close together in one Phase-3 checkpoint commit.
 
 **Files:**
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/home/CatalogRefreshService.kt`
@@ -3526,7 +3534,7 @@ Home, Details, and Search services consume these reports. In this task they temp
 
 Production **incoming source ownership** also cuts over in this task: Home, Search, and the unowned-Details path construct incoming evidence through `ReconciliationEvidenceFactory.incoming` and resolve it through a forked `CatalogIngestReconciliationIndex`. `DIRECT_OWNER`/`AUTO_LINK` reuse an existing Story immediately; `CREATE_FOR_REVIEW`/`CREATE_SEPARATE` create the deterministic host Story before persistence. The old `StoryMatcher`/`CatalogMatchIndex` may remain only as compatibility/characterization code after this cutover and must have zero runtime call sites in these three services.
 
-- [ ] **Step 1: Extend repository-contract RED tests for independent fingerprint change reporting**
+- [x] **Step 1: Extend repository-contract RED tests for independent fingerprint change reporting**
 
 Verify:
 
@@ -3539,7 +3547,7 @@ Search Summary commit reports the same change facts as Home Summary commit
 ```
 
 
-- [ ] **Step 2: Write RED incoming-source ownership tests that enforce §14.7**
+- [x] **Step 2: Write RED incoming-source ownership tests that enforce §14.7**
 
 In Home/Search/Details tests, use synthetic providers and assert:
 
@@ -3555,13 +3563,13 @@ invalid page/failed commit discards the fork and does not poison the parent inge
 
 Add a source-call-site guard in the same tests so `CatalogRefreshService`, `CatalogSearchService`, and the unowned branch of `CatalogDetailsLoader` no longer depend on `StoryMatcher.resolve()`/legacy `CatalogMatchIndex.resolve()`. This is the gate that prevents creating a temporary duplicate Story merely to merge it later.
 
-- [ ] **Step 3: Add Details regression test for the current retroactive-link bug**
+- [x] **Step 3: Add Details regression test for the current retroactive-link bug**
 
 Create two persistent Stories that were split on sparse Summary. Persist richer Full metadata for one. Assert observe-only reconciliation reconciles the changed source under its **existing owner** and records `AutoMergeObserved`/review instead of bypassing matching because `metadataSnapshot(key)` exists.
 
 No graph merge should happen in this task.
 
-- [ ] **Step 4: Add adversarial reconciliation fixtures**
+- [x] **Step 4: Add adversarial reconciliation fixtures**
 
 Cover at least:
 
@@ -3590,7 +3598,7 @@ For every fixture assert semantic decision, merge eligibility, winning lead wher
   --tests app.openstory.catalog.reconciliation.ReconciliationAdversarialFixtureTest
 ```
 
-- [ ] **Step 6: Implement incoming ownership cutover plus persisted change reporting for Home, Details, and Search**
+- [x] **Step 6: Implement incoming ownership cutover plus persisted change reporting for Home, Details, and Search**
 
 First replace runtime incoming ownership in Home/Search/unowned Details with `CatalogIngestReconciliationIndex`; preserve the existing fork/commit discipline so a failed provider page cannot mutate the parent ingest session. `CatalogMatchIndex`/`StoryMatcher` stay only for legacy characterization tests after runtime call sites are removed.
 
@@ -3607,7 +3615,7 @@ if (change.fusionFingerprintChanged) {
 
 This temporary direct routing is replaced by Task 36's orchestrator; do not make it fetch anything.
 
-- [ ] **Step 7: Run Phase-3 catalog gate**
+- [x] **Step 7: Run Phase-3 catalog gate**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -3623,7 +3631,7 @@ This temporary direct routing is replaced by Task 36's orchestrator; do not make
 
 Expected: observe-only decisions are durable; no destructive Story merge exists yet.
 
-- [ ] **Step 8: Run full phase gate**
+- [x] **Step 8: Run full phase gate**
 
 ```bash
 ./scripts/verify.sh
@@ -3642,6 +3650,8 @@ git commit -m "feat: observe retroactive catalog reconciliation"
 ## Phase 4 — Atomic Canonical Story Graph Merge
 
 ### Task 26: Define meaningful user-state footprint and deterministic survivor selection
+
+**Execution status (2026-08-21): `NEXT — PHASE 3 VERIFIED/CLOSED`.** Task 26 may now begin. It defines survivor/user-state-footprint policy; destructive graph mutation remains governed by the later atomic-merge tasks.
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/identity/StoryMergeModels.kt`

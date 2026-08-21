@@ -16,7 +16,6 @@ import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.matching.CatalogMatchCandidate
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.metadata.CatalogMetadataStamp
@@ -164,14 +163,22 @@ class CatalogSearchServiceTest {
         repository: FakeRepository,
         canonical: FakeCanonicalRepository,
         rebuilder: FakeRebuilder = FakeRebuilder(canonical, promote = true),
-    ) = CatalogSearchService(
-        sources = Registry(sourceList),
-        repository = repository,
-        matcher = StoryMatcher(),
-        clock = Clock { 100L },
-        bootstrap = CanonicalBootstrapUseCase(canonical, rebuilder),
-        filterCache = CatalogFilterCache(),
-    )
+    ): CatalogSearchService {
+        val clock = Clock { 100L }
+        return CatalogSearchService(
+            sources = Registry(sourceList),
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            reconciliation = app.openstory.catalog.testReconciliationService(repository, clock),
+            fusion = rebuilder,
+            clock = clock,
+            bootstrap = CanonicalBootstrapUseCase(canonical, rebuilder),
+            filterCache = CatalogFilterCache(),
+        )
+    }
 
     private fun item(id: String, title: String, authors: Set<String> = emptySet()) = SourceItem(
         sourceId = id,
@@ -245,10 +252,10 @@ private class FakeRepository(
     override suspend fun sourceRecord(key: CatalogMetadataKey): CatalogSourceRecord? = null
     override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> = emptyList()
     override suspend fun sourceRecords(): List<CatalogSourceRecord> = emptyList()
-    override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
-        Outcome.Success(Unit)
-    override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> =
-        Outcome.Success(mutation.storyId)
+    override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> =
+        Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
+    override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> =
+        Outcome.Success(app.openstory.catalog.repository.CatalogDetailsCommitResult(mutation.storyId, emptyList()))
 }
 
 private class FakeCanonicalRepository : CanonicalCatalogRepository {

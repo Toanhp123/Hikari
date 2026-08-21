@@ -20,7 +20,6 @@ import app.openstory.catalog.fusion.CanonicalFusionReason
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.SourceKey
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataLevel
@@ -178,7 +177,17 @@ class StoryViewModelTest {
         val metadata = CatalogMetadataCoordinator(
             repository = legacy,
             sources = registry,
-            loader = CatalogDetailsLoader(registry, legacy, StoryMatcher(), clock),
+            loader = CatalogDetailsLoader(
+                sources = registry,
+                repository = legacy,
+                reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                    app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+                ),
+                storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+                reconciliation = app.openstory.catalog.featureTestReconciliationService(legacy, clock),
+                fusion = app.openstory.catalog.featureNoOpCanonicalRebuilder,
+                clock = clock,
+            ),
             policy = CatalogMetadataPolicy(clock),
             clock = clock,
             processScope = backgroundScope,
@@ -263,8 +272,8 @@ private class EmptyCatalogRepository : CatalogRepository {
     override suspend fun sourceRecord(key: CatalogMetadataKey): CatalogSourceRecord? = null
     override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> = emptyList()
     override suspend fun sourceRecords(): List<CatalogSourceRecord> = emptyList()
-    override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
-        Outcome.Success(Unit)
+    override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> =
+        Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
 
     override suspend fun commitSearchSummaries(
         mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
@@ -272,8 +281,8 @@ private class EmptyCatalogRepository : CatalogRepository {
         app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
     )
 
-    override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> =
-        Outcome.Success(mutation.storyId)
+    override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> =
+        Outcome.Success(app.openstory.catalog.repository.CatalogDetailsCommitResult(mutation.storyId, emptyList()))
 }
 
 private object EmptySourceRegistry : CatalogSourceRegistry {

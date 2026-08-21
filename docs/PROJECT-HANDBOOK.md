@@ -129,7 +129,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0 and Phase 1 are verified/closed, while Phase 2 Tasks 12–21 are patched with developer verification open.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0, Phase 1, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are verified/closed. Phase 3 remains observe-only and Task 26 is now the active next task.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
@@ -163,7 +163,7 @@ immutable generation persistence with atomic promotion, redirect-aware identity 
 engine work/audit foundations, migration graph coverage, and local-only canonical bootstrap contracts.
 The Phase-1 checkpoint is verified: Catalog unit tests, Room schema export/build, the selected
 27-test Room migration/repository suite, app composition policy, and the canonical `./scripts/verify.sh`
-gate all passed on the developer checkout. Phase 2 now patches the provider-agnostic Fusion policy,
+gate all passed on the developer checkout. Phase 2 accepted the provider-agnostic Fusion policy,
 primary hysteresis/pinning, field provenance, canonical rebuild/promotion, and canonical presentation
 read-path cutover for Story/Search/Discover/Library while retaining raw source inspection and Discover
 feed/ranking semantics. Phase-2 Gradle/device/macrobenchmark acceptance remains open, so reconciliation
@@ -184,7 +184,7 @@ and destructive Story merge are still blocked. Wave 10 notification persistence 
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0/1 verified on schema 9; Phase 2 Tasks 12–21 patched/verification-open; Task 22 blocked |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0/1/2/3 Tasks 22-25 verified on schema 9; observe-only reconciliation closed; Task 26 next |
 | 10 | local scheduling, guarded source login and deduplicated notifications; planned after CCE reaches a compatible schema boundary |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
@@ -220,7 +220,7 @@ Read in this order:
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` — current canonical catalog identity/fusion architecture.
 4. `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md` — active task-by-task execution record.
-5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` — active Phase-2 Tasks 12–21 patch/verification-open evidence.
+5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` — verified Phase-2 Tasks 12–21 evidence.
 6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` — verified Phase-1 Tasks 5–11 evidence.
 6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` — verified Phase-0 Tasks 1–4 evidence.
 7. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
@@ -252,9 +252,8 @@ websites.
 
 Continue the Canonical Catalog Reconciliation & Fusion Engine from
 `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
-Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are verified and accepted. Phase 2 Tasks 12–21 are patched
-with acceptance verification open; finish the Phase-2 developer gates and close that checkpoint before
-starting Task 22. Room schema 9 is the current canonical-engine foundation, and Wave 10
+Phase 0 Tasks 1–4, Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are verified and accepted.
+Continue with Task 26 survivor/user-state-footprint policy; destructive merge execution is still outside the accepted Phase-3 boundary. Room schema 9 is the current canonical-engine foundation, and Wave 10
 notification persistence is rebased to `MIGRATION_9_10`; never reintroduce a second meaning for `MIGRATION_8_9`.
 During implementation use `./scripts/verify-fast.sh` for iteration and `./scripts/verify.sh` as the
 full host gate before promoting a checkpoint to verified/accepted.
