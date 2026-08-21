@@ -129,7 +129,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0 Tasks 1–4 are verified and closed; Task 5 is next.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are verified and closed; Phase 2 starts at Task 12.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
@@ -157,13 +157,15 @@ production `CatalogSource.details(...)` call site, while persisted source identi
 metadata refreshes. Room schema 8 stores Summary/Full provenance and is now current.
 
 The Canonical Catalog Reconciliation & Fusion Engine now owns the active next-work boundary.
-Phase 0 introduces the opaque latest-update-label contract, bounded external-identifier facts,
-shared catalog `SourceKey`, deterministic evidence normalization, independent identity/fusion
-fingerprints, `CatalogSourceRecord`, and characterization tests for the legacy Search/Story/Discover
-source-choice paths. It does **not** yet add canonical generations, durable reconciliation state,
-redirects, graph merge, or Room schema changes. The Phase-0 checkpoint is verified and closed.
-The design intends its Task 6 schema foundation to consume the next reviewed `8 -> 9` migration;
-that task must rebase Wave 10 notification persistence to `9 -> 10` in the same reviewed change.
+Phase 0 established the provider/evidence contracts. Phase 1 Tasks 5–11 now add the schema-9
+foundation, persisted external identifiers and lossless source evidence reads, canonical state and
+immutable generation persistence with atomic promotion, redirect-aware identity resolution, durable
+engine work/audit foundations, migration graph coverage, and local-only canonical bootstrap contracts.
+No reconciliation engine, destructive Story merge, feature canonical read-path cutover, or Phase-2
+fusion policy is enabled by this foundation. The Phase-1 checkpoint is verified: Catalog unit tests, Room schema export/build, the selected
+27-test Room migration/repository suite, app composition policy, and the canonical `./scripts/verify.sh`
+gate all passed on the developer checkout. Phase 2 therefore starts at Task 12. Wave 10 notification persistence is
+now rebased to `9 -> 10`; Wave 11 enters on schema 10 unless another reviewed migration intervenes.
 
 ## 8. Roadmap
 
@@ -179,7 +181,7 @@ that task must rebase Wave 10 notification persistence to `9 -> 10` in the same 
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0 Tasks 1–4 verified, schema 8 unchanged |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0 and Phase 1 Tasks 5–11 verified/closed on schema 9; Phase 2 starts at Task 12 |
 | 10 | local scheduling, guarded source login and deduplicated notifications; planned after CCE reaches a compatible schema boundary |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
@@ -215,15 +217,16 @@ Read in this order:
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
 3. `superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` — current canonical catalog identity/fusion architecture.
 4. `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md` — active task-by-task execution record.
-5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` — Phase-0 patch evidence and open verification status.
-6. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
-7. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract until canonical read-path cutover.
-8. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
-9. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
-7. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
-8. `plugin-sdk/` when changing public plugin contracts/packages.
-9. `internal/checkpoints/` when deciding whether a gate is proven.
-10. `internal/archive/` only for historical provenance.
+5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` — verified Phase-1 Tasks 5–11 evidence.
+6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` — verified Phase-0 Tasks 1–4 evidence.
+7. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
+8. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract until canonical read-path cutover.
+9. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
+10. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
+11. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
+12. `plugin-sdk/` when changing public plugin contracts/packages.
+13. `internal/checkpoints/` when deciding whether a gate is proven.
+14. `internal/archive/` only for historical provenance.
 
 `project/document-governance.md` defines precedence when documents disagree.
 
@@ -245,8 +248,8 @@ websites.
 
 Continue the Canonical Catalog Reconciliation & Fusion Engine from
 `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
-Phase 0 Tasks 1–4 are verified and accepted. Room schema 8 remains current. Continue with Task 5;
-do not begin the schema-changing Task 6 or Wave 10 schema work out of order, and never create two
-meanings for `MIGRATION_8_9`.
+Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are verified and accepted. Task 12 is now the active
+next implementation step. Room schema 9 is the current canonical-engine foundation, and Wave 10
+notification persistence is rebased to `MIGRATION_9_10`; never reintroduce a second meaning for `MIGRATION_8_9`.
 During implementation use `./scripts/verify-fast.sh` for iteration and `./scripts/verify.sh` as the
 full host gate before promoting a checkpoint to verified/accepted.

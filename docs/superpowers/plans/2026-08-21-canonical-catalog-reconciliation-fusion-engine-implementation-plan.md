@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4 are **VERIFIED** on the developer checkout. Focused protocol/catalog/feature tests passed, the combined `:plugins:api:test :catalog:testDebugUnitTest :feature:catalog:testDebugUnitTest :storage:room:testDebugUnitTest` gate passed, and `./scripts/verify.sh` passed after the fingerprint hex encoder replaced Detekt-rejected magic literals with named constants. Room remains schema 8. The patch was applied as one Phase-0 integration unit rather than preserving four separate historical commits; the closing Phase-0 commit satisfies the per-task commit checkpoints. Runtime RED observations could not be reconstructed after applying the prepared patch, so RED-run checkboxes remain intentionally open as process-evidence gaps rather than being retroactively falsified. Task 5 is the next implementation boundary.
+**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are **VERIFIED** on the developer checkout. Phase 1 established the schema-9 canonical persistence foundation, lossless external-identifier/source-record persistence, canonical generation/redirect repositories, durable work/audit foundations, representative graph migration coverage, and local-only bootstrap contracts. Final developer evidence is green: `:catalog:testDebugUnitTest`; `:storage:room:assembleDebug` with no unexpected schema-9 export diff; the selected 27-test Room migration/repository connected suite (27/27); `CompositionPolicyTest`; and the canonical `./scripts/verify.sh` gate after fixing the observer-test subscription race and Phase-1 Detekt line-length findings. Runtime RED observations that were unavailable in the offline implementation sandbox remain intentionally unchecked rather than being retroactively falsified, and per-task commit checkboxes remain open because Tasks 5–11 are being closed as one Phase-1 checkpoint commit. Phase 2 now starts at Task 12.
 
 ## Global Constraints
 
@@ -759,6 +759,8 @@ The prepared patch workflow did not preserve executable pre-fix RED runs, so the
 
 ### Task 5: Define canonical domain/read contracts before Room persistence
 
+**Patch status (2026-08-21): VERIFIED on the developer checkout; Phase-1 acceptance gates are green. Per-task commit checkboxes remain open because Tasks 5–11 are closed as one Phase-1 checkpoint commit.**
+
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/canonical/CanonicalModels.kt`
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/canonical/CanonicalCatalogRepository.kt`
@@ -884,7 +886,7 @@ sealed interface CanonicalStoryState {
 
 `CanonicalScore.normalizedValue` is constrained to `0.0..1.0`, and `contributorCount > 0`.
 
-- [ ] **Step 1: Write RED model-invariant tests**
+- [x] **Step 1: Write RED model-invariant tests**
 
 Add tests for:
 - PINNED requires a non-null source; AUTO requires null pinned source.
@@ -902,11 +904,11 @@ Add tests for:
 
 Expected: compile failure because canonical types do not exist.
 
-- [ ] **Step 3: Implement canonical models and invariants**
+- [x] **Step 3: Implement canonical models and invariants**
 
 Keep models Android-free and Room-free. Use only Catalog/core/common types.
 
-- [ ] **Step 4: Define repository contracts**
+- [x] **Step 4: Define repository contracts**
 
 `CanonicalCatalogRepository.kt`:
 
@@ -966,6 +968,8 @@ git commit -m "catalog: define canonical read and identity contracts"
 ---
 
 ### Task 6: Add the complete Room schema-9 foundation and rebase current roadmap governance
+
+**Patch status (2026-08-21): VERIFIED on the developer checkout; Phase-1 acceptance gates are green. Per-task commit checkboxes remain open because Tasks 5–11 are closed as one Phase-1 checkpoint commit.**
 
 **Files:**
 - Create: `storage/room/src/main/kotlin/app/openstory/storage/room/catalog/CanonicalCatalogEntities.kt`
@@ -1128,7 +1132,7 @@ canonical_engine_work
 
 `canonical_field_provenance.reason_codes` and reconciliation reason/conflict collections may use the repository's existing deterministic Set converter format; they must remain bounded host-owned strings, never arbitrary plugin JSON.
 
-- [ ] **Step 1: Write RED migration test first**
+- [x] **Step 1: Write RED migration test first**
 
 Create a schema-8 database using Room's migration-test helper, insert at least one Story and one `catalog_entries` row, then migrate with `MIGRATION_8_9`.
 
@@ -1161,16 +1165,16 @@ Also assert `canonical_engine_work` contains one `FUSION_REBUILD` row for that S
 
 Expected: compile failure because schema 9/migration do not exist.
 
-- [ ] **Step 3: Add Room entities and DAO declarations**
+- [x] **Step 3: Add Room entities and DAO declarations**
 
 Use Room entities matching the exact table shapes above. `StoryCanonicalStateEntity.activeGenerationId` intentionally has no circular Room FK to `canonical_generations`; promotion logic validates the referenced valid generation transactionally.
 
 Expose `canonicalCatalogDao()` from `OpenStoryDatabase`.
 
-- [ ] **Step 4: Implement one `MIGRATION_8_9`**
+- [x] **Step 4: Implement one `MIGRATION_8_9`**
 
 Migration must:
-1. create all nine foundation tables/indexes;
+1. create all ten foundation tables/indexes;
 2. insert one `story_canonical_state` row per existing Story with:
    - `health='REEVALUATING'`
    - `preference_mode='AUTO'`
@@ -1181,7 +1185,7 @@ Migration must:
 4. not run matching/fusion SQL;
 5. not alter existing Story IDs or existing catalog/domain rows.
 
-- [ ] **Step 5: Bump database version and migration registration**
+- [x] **Step 5: Bump database version and migration registration**
 
 Change:
 
@@ -1197,7 +1201,7 @@ RoomMigrations.MIGRATION_8_9
 
 to `OpenStoryDatabase.open()`.
 
-- [ ] **Step 6: Rebase every current normative schema reference and its static contract test in the same commit**
+- [x] **Step 6: Rebase every current normative schema reference and its static contract test in the same commit**
 
 Update these current authorities together:
 
@@ -1255,6 +1259,8 @@ git commit -m "storage: add canonical engine schema foundation"
 
 ### Task 7: Persist external identifiers and expose lossless `CatalogSourceRecord` reads
 
+**Patch status (2026-08-21): VERIFIED on the developer checkout; Phase-1 acceptance gates are green. Per-task commit checkboxes remain open because Tasks 5–11 are closed as one Phase-1 checkpoint commit.**
+
 **Files:**
 - Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/catalog/CatalogDao.kt`
 - Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/catalog/CatalogEntityMapper.kt`
@@ -1283,7 +1289,7 @@ suspend fun sourceRecords(): List<CatalogSourceRecord>
 
 Existing `metadataSnapshot()` remains while metadata lifecycle callers still use it.
 
-- [ ] **Step 1: Write RED Room repository test**
+- [x] **Step 1: Write RED Room repository test**
 
 Commit one Home entry carrying two identifiers, then assert:
 - identifiers round-trip;
@@ -1302,7 +1308,7 @@ Then commit Details for the same source with a changed identifier set and assert
 
 Expected: compile failure because repository methods/identifier persistence are missing.
 
-- [ ] **Step 3: Add DAO identifier operations**
+- [x] **Step 3: Add DAO identifier operations**
 
 Add:
 
@@ -1329,7 +1335,7 @@ suspend fun allEntries(): List<CatalogEntryEntity>
 
 Load identifier rows for each returned SourceKey in deterministic order. Keep this implementation simple in Phase 1; Task 42 performance gates decide whether batching is necessary without changing the repository contract.
 
-- [ ] **Step 4: Persist identifiers in the same existing Home/Details transaction**
+- [x] **Step 4: Persist identifiers in the same existing Home/Details transaction**
 
 For every committed source record:
 1. upsert raw entry;
@@ -1338,11 +1344,11 @@ For every committed source record:
 
 Never union stale identifiers from an older payload when the newer payload explicitly omits them; raw source facts must reflect the latest valid payload at that metadata level.
 
-- [ ] **Step 5: Build `CatalogSourceRecord` from Room**
+- [x] **Step 5: Build `CatalogSourceRecord` from Room**
 
 The mapper must use the already-persisted Summary/Full provenance columns plus identifier rows, then compute fingerprints through the Catalog pure helper. Do not persist a second conflicting fingerprint copy in `catalog_entries`.
 
-- [ ] **Step 6: Update fake repositories and contract tests**
+- [x] **Step 6: Update fake repositories and contract tests**
 
 Every `CatalogRepository` fake in Catalog/feature tests must implement the new methods using deterministic in-memory data. Do not return empty records silently where the test expects source evidence.
 
@@ -1365,6 +1371,8 @@ git commit -m "catalog: persist source identifiers and evidence"
 
 ### Task 8: Implement canonical state, generation persistence, atomic promotion, and redirect resolution
 
+**Patch status (2026-08-21): VERIFIED on the developer checkout; Phase-1 acceptance gates are green. Per-task commit checkboxes remain open because Tasks 5–11 are closed as one Phase-1 checkpoint commit.**
+
 **Files:**
 - Create: `storage/room/src/main/kotlin/app/openstory/storage/room/catalog/RoomCanonicalCatalogRepository.kt`
 - Create: `storage/room/src/main/kotlin/app/openstory/storage/room/catalog/RoomStoryIdentityResolver.kt`
@@ -1377,7 +1385,7 @@ git commit -m "catalog: persist source identifiers and evidence"
 - Implements `CanonicalCatalogRepository`.
 - Implements `StoryIdentityRepository` through `RoomStoryIdentityResolver`.
 
-- [ ] **Step 1: Write RED generation-visibility test**
+- [x] **Step 1: Write RED generation-visibility test**
 
 Test sequence:
 
@@ -1393,7 +1401,7 @@ observe/state -> Ready with that generation
 
 The test must assert no observer-visible active pointer can reference `valid=0`.
 
-- [ ] **Step 2: Write RED failed-promotion and retention tests**
+- [x] **Step 2: Write RED failed-promotion and retention tests**
 
 Cover:
 - wrong expected active generation ID -> `persistCandidate()` returns false and active generation remains unchanged;
@@ -1401,7 +1409,7 @@ Cover:
 - third older successful generation becomes cleanup-eligible;
 - provenance contributors map to known SourceKeys owned by the Story.
 
-- [ ] **Step 3: Write RED redirect tests**
+- [x] **Step 3: Write RED redirect tests**
 
 Insert:
 
@@ -1421,7 +1429,7 @@ A -> C
 
 Assert resolver follows to `C`, while production merge code in Phase 4 will flatten at write time. Add a cycle fixture and assert resolver fails with a typed invariant exception/result rather than looping. Also subscribe to `observeResolved(B)` before replacing/flattening B's target and assert the Flow emits the new canonical target once, proving redirect-aware observers can follow a later merge.
 
-- [ ] **Step 4: Implement DAO queries and repository mapper**
+- [x] **Step 4: Implement DAO queries and repository mapper**
 
 Use a `@Transaction` Room DAO read to fetch:
 - active Story;
@@ -1432,7 +1440,7 @@ Use a `@Transaction` Room DAO read to fetch:
 
 `RoomStoryIdentityResolver.observeResolved(storyId)` observes the redirect rows needed for that requested historical ID and emits the currently resolved active StoryId with `distinctUntilChanged()`. `RoomCanonicalCatalogRepository.observeStory(storyId)` must implement redirected observation exactly as `identity.observeResolved(storyId).flatMapLatest { canonicalId -> dao.observeCanonicalStory(canonicalId) }`, so an observer opened before a later merge follows the survivor without feature-side resubscription.
 
-- [ ] **Step 5: Implement atomic promotion**
+- [x] **Step 5: Implement atomic promotion**
 
 Use `database.withTransaction`:
 1. read current active ID;
@@ -1445,7 +1453,7 @@ Use `database.withTransaction`:
 
 A failure before commit leaves the previous active generation unchanged.
 
-- [ ] **Step 6: Bind repositories in Hilt**
+- [x] **Step 6: Bind repositories in Hilt**
 
 Add providers in `StorageModule.kt` for:
 - `CanonicalCatalogRepository`
@@ -1472,6 +1480,8 @@ git commit -m "storage: persist canonical generations and redirects"
 ---
 
 ### Task 9: Implement durable reconciliation cases, merge-audit foundation, and dirty-work persistence
+
+**Patch status (2026-08-21): VERIFIED on the developer checkout; Phase-1 acceptance gates are green. Per-task commit checkboxes remain open because Tasks 5–11 are closed as one Phase-1 checkpoint commit.**
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/orchestration/CanonicalEngineWork.kt`
@@ -1520,7 +1530,7 @@ interface CanonicalEngineWorkRepository {
 }
 ```
 
-- [ ] **Step 1: Write RED dirty-work coalescing tests**
+- [x] **Step 1: Write RED dirty-work coalescing tests**
 
 Assert:
 
@@ -1533,7 +1543,7 @@ leaves exactly one row for `(story-1, FUSION_REBUILD)`, resets it to executable-
 
 Assert `retry()` updates attempt/next-run/error without creating a duplicate.
 
-- [ ] **Step 2: Write RED case-history persistence test using a local test entity fixture**
+- [x] **Step 2: Write RED case-history persistence test using a local test entity fixture**
 
 Until Phase 3 domain types arrive, test DAO-level invariants:
 - unordered pair stored as lexical `left < right`;
@@ -1542,11 +1552,11 @@ Until Phase 3 domain types arrive, test DAO-level invariants:
 - historical revision Story IDs remain after an active Story row is removed in a transaction that first moves children;
 - current case can later be re-keyed.
 
-- [ ] **Step 3: Write RED merge-audit durability test**
+- [x] **Step 3: Write RED merge-audit durability test**
 
 Insert a merge event whose survivor later becomes historical text. Confirm merge-event history is not cascade-deleted when active Story rows change; only redirect target retains a live Story FK.
 
-- [ ] **Step 4: Implement work repository**
+- [x] **Step 4: Implement work repository**
 
 `claimReady(nowEpochMillis, limit)` orders by:
 
@@ -1558,7 +1568,7 @@ work_type ASC
 
 to keep worker behavior deterministic.
 
-- [ ] **Step 5: Add narrow DAO methods for future Phase-4 audit**
+- [x] **Step 5: Add narrow DAO methods for future Phase-4 audit**
 
 Add:
 - insert merge event;
@@ -1572,7 +1582,7 @@ The reversal DAO is foundation-only here; no reverse behavior is enabled until T
 
 Do not execute graph merge yet.
 
-- [ ] **Step 6: Bind work repository**
+- [x] **Step 6: Bind work repository**
 
 Provide `CanonicalEngineWorkRepository` in `StorageModule.kt`.
 
@@ -1595,6 +1605,8 @@ git commit -m "storage: persist canonical engine work and audit state"
 
 ### Task 10: Build a representative schema-8 graph migration fixture and run FK integrity checks
 
+**Patch status (2026-08-21): VERIFIED on the developer checkout; Phase-1 acceptance gates are green. Per-task commit checkboxes remain open because Tasks 5–11 are closed as one Phase-1 checkpoint commit.**
+
 **Files:**
 - Expand: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/catalog/CanonicalEngineMigrationTest.kt`
 
@@ -1602,7 +1614,7 @@ git commit -m "storage: persist canonical engine work and audit state"
 - Produces one migration fixture proving schema-8 graph survival across all Story-owned domains.
 - Reuse the schema-8 fixture patterns already present in `CatalogMigrationTest.kt`, `LibraryMigrationTest.kt`, `ContentMappingMigrationTest.kt`, `ChapterMigrationTest.kt`, `ReadingProgressMigrationTest.kt`, and `DownloadMigrationTest.kt`; those reference tests are not modified by this task.
 
-- [ ] **Step 1: Insert a complete schema-8 fixture**
+- [x] **Step 1: Insert a complete schema-8 fixture**
 
 Fixture must contain:
 - two Stories;
@@ -1619,15 +1631,15 @@ Fixture must contain:
 
 Use stable literal IDs so post-migration assertions can query every row.
 
-- [ ] **Step 2: Migrate 8 -> 9**
+- [x] **Step 2: Migrate 8 -> 9**
 
 Use only `RoomMigrations.MIGRATION_8_9`.
 
-- [ ] **Step 3: Assert every preexisting row is unchanged**
+- [x] **Step 3: Assert every preexisting row is unchanged**
 
 Assert exact Story IDs, SourceKeys, chapter/release IDs, mapping origins, progress location, and Home links remain.
 
-- [ ] **Step 4: Assert canonical bootstrap foundation**
+- [x] **Step 4: Assert canonical bootstrap foundation**
 
 For each Story:
 - canonical state row exists;
@@ -1639,7 +1651,7 @@ For each Story:
 
 Also assert migration does **not** fabricate evidence/history: `catalog_entry_identifiers`, `reconciliation_cases`, `reconciliation_case_revisions`, `story_merge_events`, `story_merge_reversal_events`, and `story_redirects` all start empty for the schema-8 fixture.
 
-- [ ] **Step 5: Run SQLite FK check**
+- [x] **Step 5: Run SQLite FK check**
 
 Execute:
 
@@ -1667,6 +1679,8 @@ git commit -m "test: cover canonical schema graph migration"
 ---
 
 ### Task 11: Add local-only canonical bootstrap and one-Story priority build
+
+**Patch status (2026-08-21): VERIFIED on the developer checkout; Phase-1 acceptance gates are green. Per-task commit checkboxes remain open because Tasks 5–11 are closed as one Phase-1 checkpoint commit.**
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CanonicalFusionContract.kt`
@@ -1710,7 +1724,7 @@ class CanonicalBootstrapUseCase(
 
 `ensureReady` reads only persisted local evidence and never asks any catalog source for network metadata.
 
-- [ ] **Step 1: Write RED bootstrap tests with a fake canonical store/fusion service**
+- [x] **Step 1: Write RED bootstrap tests with a fake canonical store/fusion service**
 
 Required scenarios:
 
@@ -1740,7 +1754,7 @@ assertFalse(
 
 Expected: compile failure before use case exists.
 
-- [ ] **Step 3: Implement local-only bootstrap**
+- [x] **Step 3: Implement local-only bootstrap**
 
 `ensureReady`:
 1. resolve canonical state through repository;
@@ -1751,7 +1765,7 @@ Expected: compile failure before use case exists.
 
 No network dependency is added.
 
-- [ ] **Step 4: Add canonical-state creation for newly created Stories**
+- [x] **Step 4: Add canonical-state creation for newly created Stories**
 
 When `RoomCatalogRepository` inserts a genuinely new Story after schema 9, insert `story_canonical_state` in the same transaction with:
 - AUTO preference;
@@ -1780,13 +1794,13 @@ git add catalog/src/main/kotlin/app/openstory/catalog/fusion/CanonicalFusionCont
 git commit -m "catalog: add local canonical bootstrap"
 ```
 
-- [ ] **Step 7: Phase-1 gate**
+- [x] **Step 7: Phase-1 gate**
 
 ```bash
 ./scripts/verify.sh
 ```
 
-Also confirm only one current schema-9 export exists and current docs no longer claim Wave 10 owns `8 -> 9`.
+Developer checkout: PASS. Room schema 9 is the single current export, current docs assign `8 -> 9` exclusively to the canonical-engine foundation, and Wave 10 is rebased to `9 -> 10`.
 
 ---
 

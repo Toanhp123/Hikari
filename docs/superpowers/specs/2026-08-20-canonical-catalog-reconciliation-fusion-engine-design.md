@@ -1,9 +1,11 @@
 # Canonical Catalog Reconciliation and Metadata Fusion Engine Design
 
 Date: 2026-08-20
-Status: **NORMATIVE IMPLEMENTATION BASIS — Phase 0 Tasks 1–4 VERIFIED on 2026-08-21; Phase 1 Task 5 is the next implementation boundary**
+Status: **NORMATIVE IMPLEMENTATION BASIS — Phase 0 VERIFIED; Phase 1 Tasks 5–11 VERIFIED AND CLOSED on 2026-08-21; Phase 2 / Task 12 is the active next implementation step**
 Scope: host-owned canonical Story identity across multiple catalog providers, explainable reconciliation, metadata fusion, materialized canonical generations, durable review/lineage, atomic Story graph merge, source preference, event orchestration, retry/background safety, and integration with existing Catalog/Library/Chapters/Reader/Room boundaries
-Baseline: current repository snapshot on Room schema 8 after the 2026-08-20 catalog metadata-lifecycle unification
+Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 catalog metadata-lifecycle unification; verified Phase 1 advances the current persistence foundation to Room schema 9 through `MIGRATION_8_9`.
+
+> **Implementation checkpoint (2026-08-21):** Tasks 5–11 are VERIFIED and Phase 1 is closed. The accepted boundary includes canonical read/identity contracts, the schema-9 persistence foundation, external-identifier/source-record persistence, canonical generation/redirect storage, durable work/audit foundations, representative 8→9 graph migration coverage, and local-only bootstrap. Developer-checkout evidence includes a green Catalog unit suite, Room schema build/export validation, 27/27 selected Room migration/repository connected tests, a green app composition-policy test, and a green canonical `./scripts/verify.sh` after the observer-race and Detekt line-length cleanup patches. Reconciliation policy, destructive Story merge, feature canonical read-path cutover, and Phase-2 fusion policy are still not enabled; Phase 2 now starts at Task 12.
 
 ### 2026-08-21 implementation checkpoint
 
@@ -14,7 +16,22 @@ The first Phase-0 slice is now represented in source and tests without advancing
 - Task 3: deterministic evidence normalization plus independent identity/fusion SHA-256 fingerprints and `CatalogSourceRecord` are implemented.
 - Task 4: current Search/Story/Discover/catalog-projection source-selection behavior is locked by characterization tests and explicitly marked for Phase-2 replacement.
 
-This checkpoint does **not** claim canonical generations, durable reconciliation cases, retroactive merge, redirects, Story graph merge, or feature canonical-read cutover. Those remain future tasks in the implementation plan. Repository static gates and Room schema-stability checks pass in the sandbox, but the sandbox cannot download Gradle 9.5.0, so Gradle-backed test/build/lint gates remain pending. Pure Kotlin compile/smoke checks were also run for the new protocol syntax, matching contracts, and evidence/fingerprint domain code.
+That Phase-0 checkpoint did **not** claim canonical generations, durable reconciliation cases, retroactive merge, redirects, Story graph merge, or feature canonical-read cutover. Phase 0 was later verified on the developer checkout and remains historical evidence in its checkpoint.
+
+### 2026-08-21 Phase-1 verified checkpoint
+
+Tasks 5–11 now provide the non-destructive persistence/bootstrap foundation required before the Fusion and Reconciliation phases:
+
+- canonical Story/read/identity domain contracts are Android-free and Room-free;
+- `MIGRATION_8_9` creates the complete canonical-engine persistence foundation and bootstraps existing Stories as `REEVALUATING` + AUTO with coalesced Fusion rebuild work;
+- external identifiers are persisted losslessly and source-record reads preserve Summary/Full provenance plus deterministic fingerprints;
+- canonical generation persistence uses validated source ownership and one atomic candidate/provenance/valid/active-pointer transaction;
+- redirect resolution is centralized below features and supports observers opened on historical Story IDs;
+- durable work, reconciliation-case revision storage, merge/reversal audit foundation, and retired-Story re-key helpers are present without enabling merge execution;
+- representative schema-8 graph fixtures exercise the 8→9 migration contract and FK integrity;
+- canonical bootstrap depends only on canonical persistence plus a rebuild port and never on catalog fetching/network boundaries.
+
+Verified Phase 1 still does **not** enable reconciliation policy, destructive auto-merge, Review UI, feature canonical presentation cutover, or the Phase-2 Fusion Engine. Offline pure/adapter compilation and exact migration-SQL replay remain supplementary evidence; acceptance is based on the developer-checkout Gradle/Room/connected/composition and canonical `./scripts/verify.sh` results recorded in the Phase-1 checkpoint.
 
 ## 1. Purpose
 

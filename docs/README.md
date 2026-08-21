@@ -9,11 +9,12 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — current execution position.
 4. **[superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md](superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md)** — normative canonical catalog identity/fusion architecture.
 5. **[superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md](superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md)** — active task-by-task implementation plan.
-6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md)** — verified Phase-0 Tasks 1–4 checkpoint evidence; Phase 0 is closed.
-7. **[internal/checkpoints/discover-semantic-feed-redesign.md](internal/checkpoints/discover-semantic-feed-redesign.md)** — accepted Discover semantic-feed redesign evidence, including Room schema 7 and benchmark results.
-8. **[superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md](superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md)** — normative current Discover composition and semantic-feed contract until the later canonical-read cutover tasks replace feature-local provider selection.
-9. **[internal/checkpoints/product-ui-redesign.md](internal/checkpoints/product-ui-redesign.md)** — accepted Product UI checkpoint that established the current shell and broader presentation baseline.
-10. **[implementation/waves/wave-10-background-sync-auth-and-notifications.md](implementation/waves/wave-10-background-sync-auth-and-notifications.md)** — planned capability wave after the active canonical-engine track reaches a compatible boundary.
+6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md)** — verified Phase-1 Tasks 5–11 checkpoint evidence; Phase 1 is closed.
+7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md)** — verified Phase-0 Tasks 1–4 checkpoint evidence; Phase 0 is closed.
+8. **[internal/checkpoints/discover-semantic-feed-redesign.md](internal/checkpoints/discover-semantic-feed-redesign.md)** — accepted Discover semantic-feed redesign evidence, including Room schema 7 and benchmark results.
+9. **[superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md](superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md)** — normative current Discover composition and semantic-feed contract until the later canonical-read cutover tasks replace feature-local provider selection.
+10. **[internal/checkpoints/product-ui-redesign.md](internal/checkpoints/product-ui-redesign.md)** — accepted Product UI checkpoint that established the current shell and broader presentation baseline.
+11. **[implementation/waves/wave-10-background-sync-auth-and-notifications.md](implementation/waves/wave-10-background-sync-auth-and-notifications.md)** — planned capability wave after the active canonical-engine track reaches a compatible boundary.
 
 ## Normative product and architecture documents
 
@@ -31,13 +32,13 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 The ReDantotsu-inspired Product UI plan is completed and retained as an implementation
 record. The 2026-08-19 Discover semantic-feed plan is also completed and retained as the
 execution record for the current Discover screen. The active next-work entry is now the
-2026-08-21 Canonical Catalog Reconciliation & Fusion Engine plan; its Phase 0 Tasks 1–4 are
-verified and closed; Task 5 is next.
+2026-08-21 Canonical Catalog Reconciliation & Fusion Engine plan; Phase 0 Tasks 1–4 and
+Phase 1 Tasks 5–11 are verified and closed. The active next task is Phase 2 / Task 12.
 
 Wave 01-09 plans are historical delivery records. Wave 10-11 remain planned future
-capability work under the approved post-Baseline-2 architecture. Room is still schema 8.
-The canonical-engine Task 6 schema foundation is intended to consume the next `8 -> 9`
-migration and rebase Wave 10 notification persistence to `9 -> 10` when that migration lands.
+capability work under the approved post-Baseline-2 architecture. The canonical-engine
+Phase-1 foundation owns Room schema 9 via `8 -> 9`; Wave 10 notification persistence is therefore
+rebased to `9 -> 10`, and Wave 11 enters on schema 10 unless another reviewed migration intervenes.
 
 ## Public/plugin documentation
 

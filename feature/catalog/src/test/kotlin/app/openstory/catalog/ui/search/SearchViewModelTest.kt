@@ -1,5 +1,6 @@
 package app.openstory.catalog.ui.search
 
+import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.matching.StoryMatcher
@@ -344,6 +345,12 @@ private class EmptyRepository(
     override suspend fun metadataSnapshot(
         key: app.openstory.catalog.metadata.CatalogMetadataKey,
     ): app.openstory.catalog.metadata.CatalogMetadataSnapshot? = null
+
+    override suspend fun sourceRecord(key: CatalogMetadataKey): app.openstory.catalog.evidence.CatalogSourceRecord? = null
+
+    override suspend fun sourceRecords(storyId: StoryId): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
+    override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
 
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,

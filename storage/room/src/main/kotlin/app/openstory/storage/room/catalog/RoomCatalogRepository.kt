@@ -2,7 +2,13 @@ package app.openstory.storage.room.catalog
 
 import androidx.room.withTransaction
 import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
+import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.evidence.CatalogSourceRecord
+import app.openstory.catalog.evidence.toSourceRecord
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogHomeSnapshot
@@ -24,11 +30,13 @@ class RoomCatalogRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: CatalogDao,
     private val homeDao: CatalogHomeDao,
+    private val canonicalDao: CanonicalCatalogDao,
 ) : CatalogRepository {
     constructor(database: OpenStoryDatabase) : this(
         database,
         database.catalogDao(),
         database.catalogHomeDao(),
+        database.canonicalCatalogDao(),
     )
 
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = combine(
@@ -60,17 +68,44 @@ class RoomCatalogRepository internal constructor(
 
     override suspend fun matchSnapshot(): CatalogMatchSnapshot = database.withTransaction {
         val storiesById = dao.stories().associateBy(StoryEntity::storyId)
-        val candidates = dao.entries()
+        val entries = dao.entries()
+        val identifiersBySource = entries.associate { entry ->
+            (entry.pluginId to entry.sourceId) to dao.identifiers(entry.pluginId, entry.sourceId)
+                .map(CatalogEntryIdentifierEntity::toModel)
+                .toSet()
+        }
+        val candidates = entries
             .groupBy(CatalogEntryEntity::storyId)
             .toSortedMap()
-            .mapNotNull { (storyId, entries) ->
-                storiesById[storyId]?.let(entries::toCandidate)
+            .mapNotNull { (storyId, sourceEntries) ->
+                storiesById[storyId]?.let { story -> sourceEntries.toCandidate(story, identifiersBySource) }
             }
         CatalogMatchSnapshot(candidates)
     }
 
-    override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? =
-        dao.findEntry(key.pluginId.value, key.sourceId)?.toMetadataSnapshot()
+    override suspend fun metadataSnapshot(
+        key: CatalogMetadataKey,
+    ): CatalogMetadataSnapshot? = database.withTransaction {
+        val entry = dao.findEntry(key.pluginId.value, key.sourceId) ?: return@withTransaction null
+        entry.toMetadataSnapshot(identifierModels(entry))
+    }
+
+    override suspend fun sourceRecord(key: CatalogMetadataKey): CatalogSourceRecord? = database.withTransaction {
+        val entry = dao.findEntry(key.pluginId.value, key.sourceId) ?: return@withTransaction null
+        entry.toMetadataSnapshot(identifierModels(entry)).toSourceRecord()
+    }
+
+    override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> = database.withTransaction {
+        dao.entriesForStory(storyId.value).map { entry ->
+            entry.toMetadataSnapshot(identifierModels(entry)).toSourceRecord()
+        }
+    }
+
+    override suspend fun sourceRecords(): List<CatalogSourceRecord> = database.withTransaction {
+        dao.allEntries().map { entry ->
+            entry.toMetadataSnapshot(identifierModels(entry)).toSourceRecord()
+        }
+    }
 
     override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
         try {
@@ -86,12 +121,19 @@ class RoomCatalogRepository internal constructor(
                     merge(existing[entry.pluginId.value to entry.sourceId], entry, mutation)
                 }
                 val durableStoryIds = durableEntries.mapTo(hashSetOf(), CatalogEntryEntity::storyId)
+                val newStoryIds = durableStoryIds.filterTo(linkedSetOf()) { storyId ->
+                    dao.findStory(storyId) == null
+                }
                 dao.upsertStories(
                     mutation.stories
                         .filter { it.id.value in durableStoryIds }
                         .map { it.toEntity() },
                 )
+                newStoryIds.forEach { storyId ->
+                    ensureCanonicalStateForNewStory(storyId, mutation.refreshedAtEpochMillis)
+                }
                 dao.upsertEntries(durableEntries)
+                for (entry in mutation.entries) replaceIdentifiers(entry)
                 homeDao.deleteSections(mutation.pluginId.value)
                 homeDao.upsertSnapshot(
                     app.openstory.storage.room.catalog.CatalogHomeSnapshotEntity(
@@ -131,11 +173,13 @@ class RoomCatalogRepository internal constructor(
                     dao.upsertStories(
                         listOf(StoryEntity(durableStoryId.value, mutation.entry.contentType.name)),
                     )
+                    ensureCanonicalStateForNewStory(durableStoryId.value, mutation.resolvedAtEpochMillis)
                 }
                 val durableEntry = mutation.entry.copy(storyId = durableStoryId)
                 dao.upsertEntries(
                     listOf(mergeDetails(existing, durableEntry, mutation)),
                 )
+                replaceIdentifiers(durableEntry)
                 durableStoryId
             }
             Outcome.Success(durableStoryId)
@@ -144,6 +188,46 @@ class RoomCatalogRepository internal constructor(
         } catch (_: Exception) {
             Outcome.Failure(CatalogStoreFailure("catalog.details.commit_failed", retryable = true))
         }
+
+    private suspend fun ensureCanonicalStateForNewStory(storyId: String, createdAtEpochMillis: Long) {
+        if (canonicalDao.canonicalState(storyId) != null) return
+        canonicalDao.upsertCanonicalState(
+            StoryCanonicalStateEntity(
+                storyId = storyId,
+                activeGenerationId = null,
+                health = CanonicalHealth.REEVALUATING.name,
+                preferenceMode = CanonicalSourcePreferenceMode.AUTO.name,
+                pinnedPluginId = null,
+                pinnedSourceId = null,
+                preferenceRevision = 0,
+                identityRevision = 0,
+                createdAtEpochMillis = createdAtEpochMillis,
+            ),
+        )
+        canonicalDao.upsertWork(
+            CanonicalEngineWorkEntity(
+                storyId = storyId,
+                workType = CanonicalEngineWorkType.FUSION_REBUILD.name,
+                reason = "story-created",
+                attemptCount = 0,
+                nextAttemptAtEpochMillis = 0,
+                lastErrorCode = null,
+                requiredPolicyVersion = null,
+            ),
+        )
+    }
+
+    private suspend fun identifierModels(entry: CatalogEntryEntity) =
+        dao.identifiers(entry.pluginId, entry.sourceId).map(CatalogEntryIdentifierEntity::toModel).toSet()
+
+    private suspend fun replaceIdentifiers(entry: CatalogEntry) {
+        val key = SourceKey(entry.pluginId, entry.sourceId)
+        dao.deleteIdentifiers(entry.pluginId.value, entry.sourceId)
+        val identifiers = entry.externalIdentifiers
+            .sortedWith(compareBy({ it.namespace }, { it.scope.name }, { it.value }))
+            .map { it.toEntity(key) }
+        if (identifiers.isNotEmpty()) dao.insertIdentifiers(identifiers)
+    }
 
     private fun merge(existing: CatalogEntryEntity?, entry: CatalogEntry, mutation: CatalogHomeMutation) =
         mergeHome(existing, entry.toHomeEntity(mutation.pluginVersion, mutation.refreshedAtEpochMillis))

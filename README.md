@@ -9,10 +9,9 @@ novel library. The Android package namespace and application ID are
 The accepted Product UI and Discover semantic-feed redesigns are implemented. Discover is
 source-agnostic at the presentation boundary and renders `Popular`, a full-width
 `Manga | Light Novel` selector, `Latest Updates`, and `Top Rated` from cached semantic Home
-feeds. Room schema **8** is current. The production capability graph remains at 14 modules.
+feeds. Room schema **9** is current after the Canonical Catalog Reconciliation & Fusion Engine Phase-1 foundation. The production capability graph remains at 14 modules.
 The active pre-Wave-10 workstream is the Canonical Catalog Reconciliation & Fusion Engine;
-Phase 0 Tasks 1-4 are verified and closed. Task 5 is the next canonical-engine boundary. Wave 10 remains planned
-and no schema-9 migration is claimed by this checkpoint.
+Phase 0 Tasks 1-4 and Phase 1 Tasks 5-11 are verified and closed. Phase 2 begins at Task 12; Wave 10 remains planned and its notification migration is rebased to `9 -> 10`.
 
 See `docs/project/current-state.md` for the exact boundary and
 `docs/implementation/current-roadmap.md` for what comes next.

@@ -28,22 +28,24 @@ catalog metadata-lifecycle unification subsequently advanced Room to **schema 8*
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
 The **Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream**.
-Its Phase 0 Tasks 1–4 are verified and closed; Task 5 is next. Room remains schema 8 and no canonical
-generation/reconciliation persistence or Story merge path exists yet. The active design/plan are:
+Its Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are verified and closed. Room schema 9 contains
+the accepted canonical-engine persistence foundation; Phase 2 starts at Task 12. No reconciliation engine,
+destructive Story merge, or feature canonical read-path cutover exists yet. The active design/plan are:
 
 - `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 - `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
 
-Wave 10 remains planned and has not started. The canonical-engine design intends Task 6 to own the next
-reviewed `8 -> 9` schema foundation and to rebase Wave 10 notification persistence to `9 -> 10` in the
-same schema-changing change. Until Task 6 actually lands, the implemented database version remains 8.
-Do not create a second, competing `MIGRATION_8_9`.
+Wave 10 remains planned and has not started. Canonical-engine Task 6 now owns the reviewed `8 -> 9`
+schema foundation in this Phase-1 patch. Wave 10 notification persistence is rebased to `9 -> 10`, and
+Wave 11 enters on schema 10 unless another separately reviewed migration intervenes. Do not create a
+second, competing `MIGRATION_8_9`.
 
 The completed Product UI and Discover implementation plans are execution records, not active next-work
 instructions. Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
 with superseded development architecture.
 
-Current Canonical Engine Phase-0 verification evidence is recorded in
+Current Canonical Engine Phase-1 patch/verification evidence is recorded in
+`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; Phase-0 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`. Current Discover acceptance
 evidence remains in `../internal/checkpoints/discover-semantic-feed-redesign.md`; keep the accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline
 for its completed feed/UI behavior while CCE remains
@@ -125,7 +127,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
 | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
 | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
-| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phase 0 Tasks 1–4 verified and closed; Task 5 next; Room schema 8 unchanged** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` |
+| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phase 0 + Phase 1 Tasks 5–11 verified/closed; Room schema 9; Phase 2 Task 12 next** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` |
 | 10 | Background work, auth, notifications | **Planned; not started; schema entry will be rebased by CCE Task 6 if that foundation lands first** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
@@ -204,17 +206,18 @@ architecture
                     -> Product UI redesign
                       -> semantic Discover redesign + Room schema 7
                         -> unified catalog metadata lifecycle + Room schema 8
-                          -> canonical catalog reconciliation/fusion engine (active Phase 0)
-                            -> canonical schema foundation (planned Task 6, intended schema 9)
-                              -> local background/auth/notifications (Wave 10; rebase to schema 10 if CCE Task 6 lands first)
+                          -> canonical catalog reconciliation/fusion engine (Phase 1 verified/closed)
+                            -> canonical schema foundation (schema 9 patched)
+                              -> metadata fusion engine (Phase 2 / Task 12 active next)
+                                -> local background/auth/notifications (Wave 10; schema 9 -> 10)
                       -> release hardening
 ```
 
 ## Execution rule
 
-1. Use the current 14-module graph, Room schema 8, and the Canonical Engine design/plan as the active execution baseline.
-2. Continue Canonical Engine work task-by-task. Task 6 is the only approved place in this workstream to consume `MIGRATION_8_9`; when it lands, it must rebase current Wave 10 schema planning to `9 -> 10` in the same reviewed change.
-3. Do not start Wave 10 schema work while the active Canonical Engine schema foundation is unresolved; never create two meanings for `MIGRATION_8_9`.
+1. Use the current 14-module graph, Room schema 9, and the Canonical Engine design/plan as the active execution baseline.
+2. Phase 1 Tasks 5–11 are verified and closed; start Phase 2 at Task 12. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
+3. Wave 10 notification persistence is rebased to `MIGRATION_9_10`; never reintroduce another meaning for `MIGRATION_8_9`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
 6. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.

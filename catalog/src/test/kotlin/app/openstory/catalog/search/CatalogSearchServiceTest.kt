@@ -438,6 +438,12 @@ class CatalogSearchServiceTest {
         override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
         override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
         override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = metadata[key]
+        override suspend fun sourceRecord(key: CatalogMetadataKey): app.openstory.catalog.evidence.CatalogSourceRecord? = null
+
+        override suspend fun sourceRecords(storyId: StoryId): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
+        override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
         ): Outcome<Unit, CatalogStoreFailure> {

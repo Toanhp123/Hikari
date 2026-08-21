@@ -5,6 +5,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
@@ -28,6 +31,92 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RoomCatalogRepositoryTest {
+    @Test
+    fun sourceRecordsPersistCurrentExternalIdentifiersAndMetadataProvenance() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val key = CatalogMetadataKey(PluginId("a"), "a-1")
+            val first = mutation("a", listOf("a-1"), 10)
+            val identifiers = setOf(
+                ExternalIdentifier("work", "work-1", ExternalIdentifierScope.WORK),
+                ExternalIdentifier("edition", "edition-1", ExternalIdentifierScope.EDITION),
+            )
+            val entry = first.entries.single().copy(externalIdentifiers = identifiers)
+            repository.commitHomeRefresh(
+                first.copy(
+                    entries = listOf(entry),
+                    sections = listOf(first.sections.single().copy(items = listOf(entry))),
+                ),
+            )
+
+            val summaryRecord = requireNotNull(repository.sourceRecord(key))
+            assertEquals(identifiers, summaryRecord.entry.externalIdentifiers)
+            assertEquals(10L, summaryRecord.summary.resolvedAtEpochMillis)
+            assertEquals(null, summaryRecord.full)
+            assertEquals(CatalogEvidenceFingerprints.identity(summaryRecord.entry), summaryRecord.identityFingerprint)
+            assertEquals(
+                CatalogEvidenceFingerprints.fusion(requireNotNull(repository.metadataSnapshot(key))),
+                summaryRecord.fusionFingerprint,
+            )
+
+            val fullIdentifiers = setOf(
+                ExternalIdentifier("work", "work-2", ExternalIdentifierScope.WORK),
+            )
+            repository.commitDetails(
+                CatalogDetailsMutation(
+                    summaryRecord.storyId,
+                    summaryRecord.entry.copy(externalIdentifiers = fullIdentifiers, description = "full"),
+                    "2.0.0",
+                    20,
+                ),
+            )
+
+            val fullRecord = requireNotNull(repository.sourceRecord(key))
+            assertEquals(fullIdentifiers, fullRecord.entry.externalIdentifiers)
+            assertEquals(20L, fullRecord.full?.resolvedAtEpochMillis)
+            assertEquals(listOf(fullRecord), repository.sourceRecords(fullRecord.storyId))
+            assertEquals(listOf(fullRecord), repository.sourceRecords())
+        }
+    }
+
+    @Test
+    fun newHomeStoryCreatesCanonicalStateAndFusionWorkInSameCommit() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 42))
+
+            val state = requireNotNull(database.canonicalCatalogDao().canonicalState("story:a-1"))
+            assertEquals("AUTO", state.preferenceMode)
+            assertEquals("REEVALUATING", state.health)
+            assertEquals(42L, state.createdAtEpochMillis)
+            assertEquals(0L, state.identityRevision)
+            val work = requireNotNull(database.canonicalCatalogDao().work("story:a-1", "FUSION_REBUILD"))
+            assertEquals("story-created", work.reason)
+        }
+    }
+
+    @Test
+    fun newDetailsStoryCreatesCanonicalStateWithDetailsResolutionTime() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val storyId = StoryId("story:details-new")
+            val entry = CatalogEntry(
+                storyId = storyId,
+                pluginId = PluginId("details"),
+                sourceId = "source-1",
+                title = "Details",
+                contentType = ContentType.MANGA,
+            )
+
+            repository.commitDetails(CatalogDetailsMutation(storyId, entry, "1.0.0", 77))
+
+            val state = requireNotNull(database.canonicalCatalogDao().canonicalState(storyId.value))
+            assertEquals(77L, state.createdAtEpochMillis)
+            assertEquals("AUTO", state.preferenceMode)
+            assertEquals("story-created", database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD")?.reason)
+        }
+    }
+
     @Test
     fun semanticHomeCommitReplacesOnlyOnePluginAndKeepsRemovedEntry() = runTest {
         withDatabase { database ->

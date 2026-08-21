@@ -2,12 +2,18 @@ package app.openstory.di
 
 import android.content.Context
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
+import app.openstory.catalog.canonical.CanonicalCatalogRepository
+import app.openstory.catalog.identity.StoryIdentityRepository
+import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.catalog.RoomCatalogRepository
 import app.openstory.storage.room.catalog.RoomCatalogStoryProjectionRepository
+import app.openstory.storage.room.catalog.RoomCanonicalCatalogRepository
+import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
+import app.openstory.storage.room.catalog.RoomCanonicalEngineWorkRepository
 import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
 import app.openstory.storage.room.plugins.RoomPluginStateStore
 import dagger.Module
@@ -29,6 +35,21 @@ object StorageModule {
     @Singleton
     fun provideCatalogRepository(database: OpenStoryDatabase): CatalogRepository =
         RoomCatalogRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideCanonicalCatalogRepository(database: OpenStoryDatabase): CanonicalCatalogRepository =
+        RoomCanonicalCatalogRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideStoryIdentityRepository(database: OpenStoryDatabase): StoryIdentityRepository =
+        RoomStoryIdentityResolver(database)
+
+    @Provides
+    @Singleton
+    fun provideCanonicalEngineWorkRepository(database: OpenStoryDatabase): CanonicalEngineWorkRepository =
+        RoomCanonicalEngineWorkRepository(database)
 
     @Provides
     @Singleton

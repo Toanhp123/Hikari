@@ -2,6 +2,8 @@ package app.openstory.storage.room.catalog
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -18,6 +20,12 @@ internal interface CatalogDao {
 
     @Query("SELECT * FROM catalog_entries ORDER BY plugin_id, source_id")
     suspend fun entries(): List<CatalogEntryEntity>
+
+    @Query("SELECT * FROM catalog_entries WHERE story_id = :storyId ORDER BY plugin_id, source_id")
+    suspend fun entriesForStory(storyId: String): List<CatalogEntryEntity>
+
+    @Query("SELECT * FROM catalog_entries ORDER BY story_id, plugin_id, source_id")
+    suspend fun allEntries(): List<CatalogEntryEntity>
 
     @Query("SELECT * FROM catalog_entries ORDER BY plugin_id, source_id")
     fun observeAllEntries(): Flow<List<CatalogEntryEntity>>
@@ -47,6 +55,19 @@ internal interface CatalogDao {
 
     @Query("SELECT * FROM catalog_entries WHERE plugin_id = :pluginId AND source_id = :sourceId")
     suspend fun findEntry(pluginId: String, sourceId: String): CatalogEntryEntity?
+
+    @Query(
+        "SELECT * FROM catalog_entry_identifiers " +
+            "WHERE plugin_id = :pluginId AND source_id = :sourceId " +
+            "ORDER BY namespace, scope, value",
+    )
+    suspend fun identifiers(pluginId: String, sourceId: String): List<CatalogEntryIdentifierEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertIdentifiers(identifiers: List<CatalogEntryIdentifierEntity>)
+
+    @Query("DELETE FROM catalog_entry_identifiers WHERE plugin_id = :pluginId AND source_id = :sourceId")
+    suspend fun deleteIdentifiers(pluginId: String, sourceId: String)
 
     @Query("SELECT * FROM stories WHERE story_id = :storyId")
     fun observeStory(storyId: String): Flow<StoryEntity?>
