@@ -3,7 +3,7 @@ package app.openstory.catalog.home
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchIndex
-import app.openstory.catalog.matching.SourceKey
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
 import app.openstory.catalog.model.CatalogEntry
@@ -189,6 +189,7 @@ private fun SourceItem.toCandidate(source: CatalogSource) = CatalogMatchCandidat
     titles = setOf(title),
     authors = authors,
     sourceKeys = setOf(SourceKey(source.pluginId, sourceId)),
+    externalIdentifiers = externalIdentifiers,
 )
 
 private fun SourceItem.toEntry(source: CatalogSource, storyId: StoryId) = CatalogEntry(
@@ -204,6 +205,7 @@ private fun SourceItem.toEntry(source: CatalogSource, storyId: StoryId) = Catalo
     popularityRank = popularityRank,
     publicationStatus = publicationStatus?.toModel(),
     latestUpdate = latestUpdate?.let { CatalogLatestUpdate(it.atEpochMillis, it.releaseLabel) },
+    externalIdentifiers = externalIdentifiers,
 )
 
 private fun String.stableHash(): String = hashCode().toUInt().toString(HEX_RADIX)

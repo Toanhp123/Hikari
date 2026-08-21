@@ -1,14 +1,19 @@
 package app.openstory.catalog.source
 
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.common.id.PluginId
 import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.protocol.PluginOperation
+import app.openstory.plugins.api.protocol.catalog.CatalogDetailsOutputDto
+import app.openstory.plugins.api.protocol.catalog.CatalogExternalIdentifierDto
 import app.openstory.plugins.api.protocol.catalog.CatalogHomeOutputDto
 import app.openstory.plugins.api.protocol.catalog.CatalogItemDto
 import app.openstory.plugins.api.protocol.catalog.CatalogLatestUpdateDto
 import app.openstory.plugins.api.protocol.catalog.CatalogSectionDto
 import app.openstory.plugins.api.protocol.catalog.ScoreDto
 import app.openstory.plugins.api.protocol.catalog.WireCatalogFeedKind
+import app.openstory.plugins.api.protocol.catalog.WireCatalogIdentifierScope
 import app.openstory.plugins.api.protocol.catalog.WireContentType
 import app.openstory.plugins.api.protocol.catalog.WirePublicationStatus
 import app.openstory.plugins.runtime.InstalledPlugin
@@ -46,6 +51,13 @@ class PluginCatalogSourceTest {
                                     popularityRank = 4,
                                     publicationStatus = WirePublicationStatus.ONGOING,
                                     latestUpdate = CatalogLatestUpdateDto(500L, "128"),
+                                    externalIdentifiers = setOf(
+                                        CatalogExternalIdentifierDto(
+                                            namespace = "openlibrary.work",
+                                            value = "OL123W",
+                                            scope = WireCatalogIdentifierScope.WORK,
+                                        ),
+                                    ),
                                 ),
                             ),
                             kind = WireCatalogFeedKind.POPULAR,
@@ -69,7 +81,48 @@ class PluginCatalogSourceTest {
         assertEquals(4, item.popularityRank)
         assertEquals(SourcePublicationStatus.ONGOING, item.publicationStatus)
         assertEquals(SourceLatestUpdate(500L, "128"), item.latestUpdate)
+        assertEquals(
+            setOf(ExternalIdentifier("openlibrary.work", "OL123W", ExternalIdentifierScope.WORK)),
+            item.externalIdentifiers,
+        )
         assertEquals(PluginOperation.CATALOG_HOME, runtime.lastOperation)
+    }
+
+    @Test
+    fun detailsMapsExternalIdentifiersWithoutLoss() = runTest {
+        val identifier = CatalogExternalIdentifierDto(
+            namespace = "isbn",
+            value = "9780000000000",
+            scope = WireCatalogIdentifierScope.EDITION,
+        )
+        val runtime = FakePluginRuntime.success(
+            operation = PluginOperation.CATALOG_DETAILS,
+            payload = Json.encodeToJsonElement(
+                CatalogDetailsOutputDto(
+                    sourceId = "123",
+                    sourceUrl = "https://example.test/story/123",
+                    title = "Example",
+                    aliases = emptySet(),
+                    authors = setOf("Author"),
+                    description = null,
+                    genres = emptySet(),
+                    contentType = WireContentType.MANGA,
+                    languageTags = setOf("en"),
+                    coverUrl = null,
+                    score = null,
+                    popularityRank = null,
+                    externalIdentifiers = setOf(identifier),
+                ),
+            ),
+        )
+        val source = PluginCatalogSource(hostedPlugin("org.example.catalog"), runtime, Json)
+
+        val result = assertIs<CatalogSourceResult.Success<SourceDetails>>(source.details("123"))
+
+        assertEquals(
+            setOf(ExternalIdentifier("isbn", "9780000000000", ExternalIdentifierScope.EDITION)),
+            result.value.externalIdentifiers,
+        )
     }
 
     @Test

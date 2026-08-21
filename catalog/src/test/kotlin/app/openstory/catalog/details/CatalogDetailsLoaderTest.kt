@@ -1,9 +1,11 @@
 package app.openstory.catalog.details
 
 import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.ExternalIdentifierScope
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchEvidence
-import app.openstory.catalog.matching.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.metadata.CatalogMetadataFailure
 import app.openstory.catalog.metadata.CatalogMetadataKey
@@ -184,6 +186,26 @@ class CatalogDetailsLoaderTest {
         val entry = requireNotNull(repository.lastMutation).entry
         assertEquals(PublicationStatus.COMPLETED, entry.publicationStatus)
         assertEquals(CatalogLatestUpdate(700L, "200"), entry.latestUpdate)
+    }
+
+    @Test
+    fun normalizedDetailsCarryExternalIdentifiersIntoCatalogEntry() = runTest {
+        val repository = FakeRepository()
+        val identifier = ExternalIdentifier(
+            namespace = "openlibrary.work",
+            value = "OL123W",
+            scope = ExternalIdentifierScope.WORK,
+        )
+        val source = Source(
+            "a",
+            details("source").copy(externalIdentifiers = setOf(identifier)),
+        )
+
+        loader(Registry(source), repository)
+            .load(CatalogMetadataKey(PluginId("a"), "source"))
+
+        val entry = requireNotNull(repository.lastMutation).entry
+        assertEquals(setOf(identifier), entry.externalIdentifiers)
     }
 
     private fun loader(registry: CatalogSourceRegistry, repository: CatalogRepository) =

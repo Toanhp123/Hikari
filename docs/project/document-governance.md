@@ -1,6 +1,6 @@
 # Documentation Governance and Precedence
 
-Date: 2026-08-20
+Date: 2026-08-21
 Status: **CANONICAL documentation policy**
 
 ## Purpose
@@ -23,17 +23,23 @@ code exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active owning-wave plan. Waves 06-09,
+Use `../implementation/current-roadmap.md`, then the active owning plan. Waves 06-09,
 the Design System Foundation, the Product UI checkpoint, and the Discover semantic-feed redesign
-are complete. The next capability boundary is **Wave 10** in
-`../implementation/waves/wave-10-background-sync-auth-and-notifications.md`; it has not started.
+are complete. The active pre-Wave-10 workstream is the **Canonical Catalog Reconciliation & Fusion
+Engine** under `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
+Phase 0 Tasks 1-4 are verified and closed; use
+`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` for evidence. Wave 10
+remains planned and must not start its schema migration in parallel with the canonical-engine
+foundation.
 
 Architecture Baseline 2 remains accepted. Its design and acceptance checkpoint own the architecture
 foundation, while Wave 01-09 and Product UI plans/checkpoints are retained as delivery records. The
 post-baseline architecture design owns module evolution and cross-wave continuity for Waves 06-11.
-The 2026-08-19 Discover spec owns the current Discover-specific presentation/data contract without
-changing capability ownership. Its canonical architecture path remains
-`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+The 2026-08-19 Discover spec owns the current Discover-specific semantic-feed contract. The
+2026-08-20 Canonical Catalog Reconciliation & Metadata Fusion Engine design now owns canonical
+catalog Story identity, reconciliation, source preference, and future canonical presentation truth.
+Phase 0 has not yet cut Discover/Search/Story/Library over to that canonical read path. The broader
+architecture path remains `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
 that retain development-only database migrations or selector generations.
@@ -63,7 +69,8 @@ protocol, and tested fixtures.
 | Architecture Baseline 2 R0-R6 plans | Accepted one-time architecture reset record; not the active feature plan after R6 |
 | 2026-08-12 Product UI design/plan | Accepted/completed broader presentation baseline; Discover-specific source/category composition is superseded by the 2026-08-19 Discover spec |
 | 2026-08-19 Discover semantic-feed design/plan | Accepted implementation record and current Discover-specific contract; checkpoint evidence is `discover-semantic-feed-redesign.md` |
-| Wave 10 schema `6 -> 7` / `7 -> 8` planning text | Superseded by current Room schema 8 after the catalog metadata-lifecycle migration; Wave 10 notification persistence is rebased to `8 -> 9` |
+| 2026-08-20 canonical catalog reconciliation/fusion design + 2026-08-21 implementation plan | Current authority for host-owned canonical catalog identity/fusion. Phase 0 Tasks 1-4 are verified and closed; later schema/fusion/reconciliation phases are not implemented yet |
+| Wave 10 schema `6 -> 7` / `7 -> 8` planning text | Superseded by current Room schema 8 after the catalog metadata-lifecycle migration. The canonical-engine plan intends Task 6 to consume `8 -> 9`; only after that migration lands may current Wave 10 docs be rebased to `9 -> 10` |
 
 ## Lifecycle labels
 

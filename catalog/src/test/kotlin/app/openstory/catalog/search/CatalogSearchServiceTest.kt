@@ -112,6 +112,21 @@ class CatalogSearchServiceTest {
     }
 
     @Test
+    fun selectionCurrentlyRequestsOnlyTheFirstSearchSource() = runTest {
+        // Characterization only: Phase 2 replaces this with CanonicalGeneration policy.
+        val repository = FakeRepository()
+        val first = Source("a", page(item("a-source", "Same", setOf("Author"))))
+        val second = Source("b", page(item("b-source", "Same", setOf("Author"))))
+        val service = service(Registry(listOf(second, first)), repository)
+        val story = service.search(CatalogSearchRequest("same")).stories.single()
+
+        service.select(story)
+
+        assertEquals(1, first.detailsCalls)
+        assertEquals(0, second.detailsCalls)
+    }
+
+    @Test
     fun searchQueryDoesNotLoadDetails() = runTest {
         val source = Source("a", page(item("source-a", "Fresh Story", setOf("Author"))))
         val service = service(Registry(listOf(source)), FakeRepository())

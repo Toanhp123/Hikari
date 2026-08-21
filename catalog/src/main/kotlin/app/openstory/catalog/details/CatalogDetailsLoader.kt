@@ -3,7 +3,7 @@ package app.openstory.catalog.details
 import app.openstory.catalog.home.toModel
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchIndex
-import app.openstory.catalog.matching.SourceKey
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
 import app.openstory.catalog.metadata.CatalogMetadataFailure
@@ -198,6 +198,7 @@ private fun SourceDetails.toCandidate(pluginId: PluginId) = CatalogMatchCandidat
     setOf(title) + aliases,
     authors,
     setOf(SourceKey(pluginId, sourceId)),
+    externalIdentifiers,
 )
 
 private fun SourceDetails.toEntry(pluginId: PluginId, storyId: StoryId) = CatalogEntry(
@@ -217,6 +218,7 @@ private fun SourceDetails.toEntry(pluginId: PluginId, storyId: StoryId) = Catalo
     popularityRank = popularityRank,
     publicationStatus = publicationStatus?.toModel(),
     latestUpdate = latestUpdate?.let { CatalogLatestUpdate(it.atEpochMillis, it.releaseLabel) },
+    externalIdentifiers = externalIdentifiers,
 )
 
 private const val HEX_RADIX = 16

@@ -10,7 +10,8 @@ import kotlin.test.assertEquals
 
 class CatalogStoryProjectionTest {
     @Test
-    fun projectionUsesDeterministicCatalogSourceOrder() {
+    fun projectionCurrentlyUsesFirstSortedCatalogSource() {
+        // Characterization only: Phase 2 replaces this with CanonicalGeneration policy.
         val story = Story(StoryId("story-1"), ContentType.WEB_NOVEL)
         val projection = projectCatalogStory(
             story,

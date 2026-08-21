@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-20
+Date: 2026-08-21
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -10,6 +10,7 @@ acceptance remain separate states.
 ## Status vocabulary
 
 - **Implementation present**: production code and tests exist for the boundary.
+- **Patched / verification open**: source/test changes exist, but the required repository gate has not yet been reviewed.
 - **Verification open**: required checkpoint evidence is missing or still `NOT RUN`.
 - **In progress**: some deliverables exist and some remain.
 - **Completed/accepted**: implementation and required checkpoint evidence for that boundary are closed.
@@ -26,17 +27,28 @@ it advanced Room from schema 6 to **schema 7** without changing module ownership
 catalog metadata-lifecycle unification subsequently advanced Room to **schema 8**, centralized
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
-**Wave 10 is the next planned capability wave and has not started.** Its entry database is schema 8.
-The planned notification-delivery persistence in Wave 10 Task 5 must therefore migrate `8 -> 9`;
-Wave 11 enters on schema 9 unless a separately reviewed migration is introduced.
+The **Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream**.
+Its Phase 0 Tasks 1–4 are verified and closed; Task 5 is next. Room remains schema 8 and no canonical
+generation/reconciliation persistence or Story merge path exists yet. The active design/plan are:
+
+- `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
+- `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
+
+Wave 10 remains planned and has not started. The canonical-engine design intends Task 6 to own the next
+reviewed `8 -> 9` schema foundation and to rebase Wave 10 notification persistence to `9 -> 10` in the
+same schema-changing change. Until Task 6 actually lands, the implemented database version remains 8.
+Do not create a second, competing `MIGRATION_8_9`.
 
 The completed Product UI and Discover implementation plans are execution records, not active next-work
 instructions. Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
 with superseded development architecture.
 
-Current Discover acceptance evidence is recorded in
-`../internal/checkpoints/discover-semantic-feed-redesign.md`. The accepted broader Product UI evidence
-remains in `../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
+Current Canonical Engine Phase-0 verification evidence is recorded in
+`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`. Current Discover acceptance
+evidence remains in `../internal/checkpoints/discover-semantic-feed-redesign.md`; keep the accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline
+for its completed feed/UI behavior while CCE remains
+the active pre-Wave-10 engineering track. The accepted broader Product UI evidence remains in
+`../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
 - `../internal/checkpoints/wave-06-task-02-library-presentation.md`
@@ -113,7 +125,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
 | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
 | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
-| 10 | Background work, auth, notifications | **Ready to start; not implemented; enters on schema 8** | `waves/wave-10-background-sync-auth-and-notifications.md` |
+| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phase 0 Tasks 1–4 verified and closed; Task 5 next; Room schema 8 unchanged** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` |
+| 10 | Background work, auth, notifications | **Planned; not started; schema entry will be rebased by CCE Task 6 if that foundation lands first** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -191,18 +204,21 @@ architecture
                     -> Product UI redesign
                       -> semantic Discover redesign + Room schema 7
                         -> unified catalog metadata lifecycle + Room schema 8
-                          -> local background/auth/notifications (Wave 10, planned schema 9)
+                          -> canonical catalog reconciliation/fusion engine (active Phase 0)
+                            -> canonical schema foundation (planned Task 6, intended schema 9)
+                              -> local background/auth/notifications (Wave 10; rebase to schema 10 if CCE Task 6 lands first)
                       -> release hardening
 ```
 
 ## Execution rule
 
-1. Use the current 14-module graph, accepted Product UI checkpoint, and accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline.
-2. Treat Room schema 8 as current. Any Wave 10 Room persistence must continue contiguously from 8; the planned notification-delivery table is `8 -> 9`.
-3. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
-4. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
-5. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.
-6. Update current state and checkpoints only after actual command/device evidence is reviewed.
+1. Use the current 14-module graph, Room schema 8, and the Canonical Engine design/plan as the active execution baseline.
+2. Continue Canonical Engine work task-by-task. Task 6 is the only approved place in this workstream to consume `MIGRATION_8_9`; when it lands, it must rebase current Wave 10 schema planning to `9 -> 10` in the same reviewed change.
+3. Do not start Wave 10 schema work while the active Canonical Engine schema foundation is unresolved; never create two meanings for `MIGRATION_8_9`.
+4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
+5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
+6. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.
+7. Update current state and checkpoints only after actual command/device evidence is reviewed.
 
 Discover / Home / Library remains the final top-level model. Discover itself is now semantic rather
 than catalog-selector driven: `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.

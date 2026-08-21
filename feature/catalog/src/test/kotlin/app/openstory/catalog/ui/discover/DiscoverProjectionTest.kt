@@ -163,7 +163,49 @@ class DiscoverProjectionTest {
     }
 
     @Test
+    fun legacyPresentationCurrentlyUsesCompletenessAndFieldSpecificSelection() {
+        // Characterization only: Phase 2 replaces this with CanonicalGeneration policy.
+        val storyId = StoryId("story:legacy-shared")
+        val sparse = entry("catalog.a", "shared-a", "Sparse", storyId = storyId).copy(
+            genres = setOf("Action", "Fantasy"),
+            publicationStatus = PublicationStatus.ONGOING,
+            score = Score(8.0, 10.0),
+            latestUpdate = CatalogLatestUpdate(700L, "Ch. 7"),
+        )
+        val complete = entry("catalog.b", "shared-b", "Complete", storyId = storyId).copy(
+            coverUrl = "https://example.test/shared.jpg",
+            score = Score(95.0, 100.0),
+            latestUpdate = CatalogLatestUpdate(900L, "Vol. 2 Ch. 9"),
+        )
+        val state = projectSemanticDiscoverState(
+            homes = listOf(
+                snapshot(
+                    "catalog.a",
+                    listOf(section(CatalogFeedKind.POPULAR, listOf(sparse))),
+                ),
+                snapshot(
+                    "catalog.b",
+                    listOf(section(CatalogFeedKind.POPULAR, listOf(complete))),
+                ),
+            ),
+            selectedContentType = ContentType.MANGA,
+            loading = false,
+            refreshing = false,
+            refreshReport = null,
+        )
+
+        val item = state.popular.single()
+        assertEquals("Complete", item.title)
+        assertEquals("https://example.test/shared.jpg", item.coverUrl)
+        assertEquals(listOf("Action", "Fantasy"), item.genres)
+        assertEquals(PublicationStatus.ONGOING, item.publicationStatus)
+        assertEquals(Score(95.0, 100.0), item.score)
+        assertEquals(CatalogLatestUpdate(900L, "Vol. 2 Ch. 9"), item.latestUpdate)
+    }
+
+    @Test
     fun canonicalStoryDedupesAndMetadataMergeIsDeterministic() {
+        // Characterization only: Phase 2 replaces this with CanonicalGeneration policy.
         val storyId = StoryId("story:shared")
         val sparse = entry("catalog.a", "shared-a", "Shared A", storyId = storyId).copy(
             genres = setOf("Action", "Fantasy"),

@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-20
+Date: 2026-08-21
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -129,7 +129,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. Wave 10 is next and has not started.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0 Tasks 1–4 are verified and closed; Task 5 is next.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
@@ -154,9 +154,16 @@ retry suppression, and process-wide single-flight. Home/Search listing payload q
 plugin-operation responsibility: missing optional artwork or other presentation metadata stays
 degraded and never triggers host-side Details enrichment. `CatalogDetailsLoader` is the sole
 production `CatalogSource.details(...)` call site, while persisted source identity is stable across
-metadata refreshes. Room schema 8 stores Summary/Full provenance and is now current. Wave 10
-remains the next capability wave; its planned durable notification state must continue contiguously
-from schema 8 to schema 9.
+metadata refreshes. Room schema 8 stores Summary/Full provenance and is now current.
+
+The Canonical Catalog Reconciliation & Fusion Engine now owns the active next-work boundary.
+Phase 0 introduces the opaque latest-update-label contract, bounded external-identifier facts,
+shared catalog `SourceKey`, deterministic evidence normalization, independent identity/fusion
+fingerprints, `CatalogSourceRecord`, and characterization tests for the legacy Search/Story/Discover
+source-choice paths. It does **not** yet add canonical generations, durable reconciliation state,
+redirects, graph merge, or Room schema changes. The Phase-0 checkpoint is verified and closed.
+The design intends its Task 6 schema foundation to consume the next reviewed `8 -> 9` migration;
+that task must rebase Wave 10 notification persistence to `9 -> 10` in the same reviewed change.
 
 ## 8. Roadmap
 
@@ -172,7 +179,8 @@ from schema 8 to schema 9.
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| 10 | local scheduling, guarded source login and deduplicated notifications; enters schema 8, notification persistence planned for schema 9 |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0 Tasks 1–4 verified, schema 8 unchanged |
+| 10 | local scheduling, guarded source login and deduplicated notifications; planned after CCE reaches a compatible schema boundary |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
 Detailed lifecycle/status: `implementation/current-roadmap.md`.
@@ -205,10 +213,13 @@ Read in this order:
 
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
-3. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
-4. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract.
-5. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
-6. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
+3. `superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` — current canonical catalog identity/fusion architecture.
+4. `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md` — active task-by-task execution record.
+5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` — Phase-0 patch evidence and open verification status.
+6. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
+7. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract until canonical read-path cutover.
+8. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
+9. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
 7. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
 8. `plugin-sdk/` when changing public plugin contracts/packages.
 9. `internal/checkpoints/` when deciding whether a gate is proven.
@@ -232,9 +243,10 @@ websites.
 
 ## 12. Next action
 
-Start Wave 10 from `implementation/waves/wave-10-background-sync-auth-and-notifications.md`
-only after choosing its first task boundary. The entry graph is the current 14-module graph
-with `:core:designsystem`; Room schema 8 is current and any planned notification-delivery
-persistence must migrate 8 -> 9. Product UI and Discover plans are completed records, not
-active execution plans. During implementation use `./scripts/verify-fast.sh` for iteration
-and `./scripts/verify.sh` as the full host gate before closing a checkpoint.
+Continue the Canonical Catalog Reconciliation & Fusion Engine from
+`superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
+Phase 0 Tasks 1–4 are verified and accepted. Room schema 8 remains current. Continue with Task 5;
+do not begin the schema-changing Task 6 or Wave 10 schema work out of order, and never create two
+meanings for `MIGRATION_8_9`.
+During implementation use `./scripts/verify-fast.sh` for iteration and `./scripts/verify.sh` as the
+full host gate before promoting a checkpoint to verified/accepted.

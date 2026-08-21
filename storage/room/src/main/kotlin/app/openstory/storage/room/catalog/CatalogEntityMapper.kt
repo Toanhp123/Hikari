@@ -2,7 +2,7 @@ package app.openstory.storage.room.catalog
 
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchEvidence
-import app.openstory.catalog.matching.SourceKey
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.metadata.CatalogMetadataStamp
 import app.openstory.catalog.model.CatalogEntry
@@ -160,5 +160,12 @@ internal fun List<CatalogEntryEntity>.toCandidate(story: StoryEntity): CatalogMa
             ContentType.valueOf(entry.contentType),
         )
     }
-    return CatalogMatchCandidate(story.toModel(), titles, authors, sourceKeys, evidence)
+    return CatalogMatchCandidate(
+        story = story.toModel(),
+        titles = titles,
+        authors = authors,
+        sourceKeys = sourceKeys,
+        externalIdentifiers = emptySet(),
+        evidence = evidence,
+    )
 }

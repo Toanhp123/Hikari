@@ -1,5 +1,7 @@
 package app.openstory.catalog.source
 
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.catalog.CatalogDetailsOutputDto
 import app.openstory.plugins.api.protocol.catalog.CatalogDetailsRequestDto
@@ -15,6 +17,7 @@ import app.openstory.plugins.api.protocol.catalog.CatalogSearchRequestDto
 import app.openstory.plugins.api.protocol.catalog.CatalogSectionDto
 import app.openstory.plugins.api.protocol.catalog.CatalogTextFilterDto
 import app.openstory.plugins.api.protocol.catalog.WireCatalogFeedKind
+import app.openstory.plugins.api.protocol.catalog.WireCatalogIdentifierScope
 import app.openstory.plugins.api.protocol.catalog.WireContentType
 import app.openstory.plugins.api.protocol.catalog.WirePublicationStatus
 import app.openstory.plugins.runtime.InstalledPlugin
@@ -99,6 +102,9 @@ private fun CatalogItemDto.toSource() = SourceItem(
     popularityRank = popularityRank,
     publicationStatus = publicationStatus?.toSource(),
     latestUpdate = latestUpdate?.let { SourceLatestUpdate(it.atEpochMillis, it.releaseLabel) },
+    externalIdentifiers = externalIdentifiers.map { identifier ->
+        ExternalIdentifier(identifier.namespace, identifier.value, identifier.scope.toSource())
+    }.toSet(),
 )
 
 private fun CatalogDetailsOutputDto.toSource() = SourceDetails(
@@ -117,6 +123,9 @@ private fun CatalogDetailsOutputDto.toSource() = SourceDetails(
     popularityRank = popularityRank,
     publicationStatus = publicationStatus?.toSource(),
     latestUpdate = latestUpdate?.let { SourceLatestUpdate(it.atEpochMillis, it.releaseLabel) },
+    externalIdentifiers = externalIdentifiers.map { identifier ->
+        ExternalIdentifier(identifier.namespace, identifier.value, identifier.scope.toSource())
+    }.toSet(),
 )
 
 private fun CatalogFilterDto.toSource(): SourceFilter = when (this) {
@@ -149,6 +158,13 @@ private fun WireCatalogFeedKind.toSource(): SourceFeedKind = when (this) {
     WireCatalogFeedKind.LATEST_UPDATES -> SourceFeedKind.LATEST_UPDATES
     WireCatalogFeedKind.TOP_RATED -> SourceFeedKind.TOP_RATED
     WireCatalogFeedKind.OTHER -> SourceFeedKind.OTHER
+}
+
+private fun WireCatalogIdentifierScope.toSource(): ExternalIdentifierScope = when (this) {
+    WireCatalogIdentifierScope.WORK -> ExternalIdentifierScope.WORK
+    WireCatalogIdentifierScope.PUBLICATION -> ExternalIdentifierScope.PUBLICATION
+    WireCatalogIdentifierScope.EDITION -> ExternalIdentifierScope.EDITION
+    WireCatalogIdentifierScope.PROVIDER_RECORD -> ExternalIdentifierScope.PROVIDER_RECORD
 }
 
 private fun WirePublicationStatus.toSource(): SourcePublicationStatus = when (this) {

@@ -7,7 +7,7 @@ import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchIndex
-import app.openstory.catalog.matching.SourceKey
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.matching.StoryResolution
 import app.openstory.catalog.home.toModel
@@ -194,6 +194,7 @@ private fun SourceItem.toCandidate(pluginId: app.openstory.common.id.PluginId) =
     titles = setOf(title),
     authors = authors,
     sourceKeys = setOf(SourceKey(pluginId, sourceId)),
+    externalIdentifiers = externalIdentifiers,
 )
 
 private fun SourceItem.toCard(pluginId: app.openstory.common.id.PluginId) = CatalogSearchSourceCard(

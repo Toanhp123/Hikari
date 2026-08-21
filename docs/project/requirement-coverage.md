@@ -1,6 +1,6 @@
 # Requirement Coverage — Canonical Index
 
-Date: 2026-08-20
+Date: 2026-08-21
 Status: approved requirement mapping plus current execution annotation and scoped amendments
 
 The requirement-to-wave mapping below is the approved 2026-08-03 matrix and is
@@ -10,9 +10,11 @@ whether it is already complete.
 
 Current boundary: Waves 06-09 are verified and complete. Architecture Baseline 2, the
 Design System Foundation, the Product UI checkpoint, and the Discover semantic-feed redesign
-are accepted. Room schema 8 is current after the catalog metadata-lifecycle unification. Wave 10
-is ready to start but not implemented; its planned durable notification persistence is rebased to
-schema 8 -> 9.
+are accepted. Room schema 8 is current after the catalog metadata-lifecycle unification. The
+Canonical Catalog Reconciliation & Fusion Engine is the active pre-Wave-10 workstream; Phase 0
+Tasks 1-4 are verified and Phase 0 is closed; Task 5 is next. Wave 10 is not implemented. Its
+current `8 -> 9` notification-migration text remains prospective until canonical-engine Task 6 is
+verified; if Task 6 lands first, that task owns `8 -> 9` and Wave 10 must rebase to `9 -> 10`.
 
 The matrix below preserves the approved 2026-08-03 requirement-to-wave mapping. Later
 architecture and product amendments may supersede implementation mechanics or presentation
@@ -26,8 +28,9 @@ those cases.
 | Primary Discover composition | `../superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` | Semantic `Popular -> media selector -> Latest Updates -> Top Rated`; no default catalog/source selector or per-catalog page in the primary Discover UI |
 | Discover feed identity | same | Explicit semantic feed kind; canonical `StoryId` dedupe before Compose; no provider/title inference |
 | Discover persistence | same + Room schema 7 | Feed kind, publication status, and coherent latest-update metadata are persisted in schema 7 |
+| Canonical catalog identity/fusion | `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` + active implementation plan | Phase 0 Tasks 1-4 only: opaque latest labels, bounded external-identifier contracts, normalized identity/fusion fingerprints, and legacy source-selection characterization. No canonical generation, reconciliation engine, graph merge, redirect, or feature read-path cutover is implemented yet |
 | Plugin execution mechanics | Architecture Baseline 2 + `../plugin-sdk/` | JavaScript-only protocol/runtime; historical selector/declarative-runtime rows are product-history, not active SDK mechanics |
-| Wave 10 persistence | `../implementation/waves/wave-10-background-sync-auth-and-notifications.md` | Enters on schema 8; planned notification delivery state migrates 8 -> 9 |
+| Wave 10 persistence | `../implementation/waves/wave-10-background-sync-auth-and-notifications.md` | Still planned. Current text assumes schema 8 -> 9; canonical-engine Task 6 is the approved point that may consume 8 -> 9 first and then rebase Wave 10 to 9 -> 10 in the same reviewed change |
 | Manga image Reader scope | `approved-product-design.md` + `current-state.md` | Original MVP exclusion remains normative; repository contains a bounded MangaDex image-page path that is implementation beyond that baseline until separately approved as product scope |
 
 ---

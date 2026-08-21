@@ -4,7 +4,7 @@ import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.chapters.repository.ChapterRepository
 import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.matching.CatalogMatchCandidate
-import app.openstory.catalog.matching.SourceKey
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
 import app.openstory.catalog.metadata.CatalogMetadataKey
@@ -119,6 +119,29 @@ class StoryViewModelTest {
 
         assertEquals("Already hydrated", viewModel.state.value.story?.description)
         assertEquals(0, source.detailsCalls)
+    }
+
+    @Test
+    fun autoPresentationCurrentlyUsesAlphabeticallyFirstCatalogSource() = runTest(dispatcher.scheduler) {
+        // Characterization only: Phase 2 replaces this with CanonicalGeneration policy.
+        val storyId = StoryId("story-1")
+        val repository = StoryRepository(
+            StoryCatalogSnapshot(
+                story = Story(storyId, ContentType.WEB_NOVEL),
+                entries = listOf(
+                    fixtureEntry(storyId, "catalog.b", "source-b", "Input First B"),
+                    fixtureEntry(storyId, "catalog.a", "source-a", "Alphabetical A"),
+                ),
+            ),
+        )
+        val sourceA = DetailsSource("catalog.a")
+        val sourceB = DetailsSource("catalog.b")
+        val viewModel = viewModel(repository, sourceB, sourceA)
+        runCurrent()
+
+        assertEquals(StorySourceIdentity(PluginId("catalog.a"), "source-a"), viewModel.state.value.selectedSource)
+        assertEquals(1, sourceA.detailsCalls)
+        assertEquals(0, sourceB.detailsCalls)
     }
 
     @Test

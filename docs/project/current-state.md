@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-20
+Date: 2026-08-21
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -32,8 +32,19 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Wave 10: **READY TO START; NOT IMPLEMENTED**. It enters on Room schema 8; the planned durable
-  notification-delivery persistence is rebased to migration 8 -> 9.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0 TASKS 1–4 VERIFIED; PHASE 0 CLOSED**.
+  The provider contract now treats latest-update labels as opaque complete presentation text and
+  carries bounded typed external identifiers. `SourceKey` is a catalog-identity contract rather
+  than a matcher-internal type. `:catalog` also contains deterministic evidence normalization plus
+  independent identity/fusion fingerprints and `CatalogSourceRecord`. Search/Story/Discover and
+  catalog projection legacy source-choice behavior is characterized for later replacement. No
+  canonical generation, durable reconciliation state, Story redirect/merge, or feature read-path
+  cutover exists yet. Room remains schema 8 and schema-8 rows do not yet persist external identifiers.
+  Checkpoint: `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`.
+- Wave 10: **PLANNED; NOT STARTED**. Canonical-engine work is now the active pre-Wave-10 track.
+  Room is still schema 8; the canonical-engine schema foundation has not landed yet. If Task 6
+  proceeds as designed, it will own the next reviewed `8 -> 9` migration and rebase Wave 10
+  notification persistence to `9 -> 10` in the same schema-foundation change.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -49,7 +60,7 @@ Purpose: single source of truth for the implemented repository boundary.
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
 | Room database | schema 8 current; schemas 1-7 remain frozen historical exports |
-| Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
+| Plugin protocol | major 1, JavaScript-only Baseline 2 protocol; optional bounded catalog external-identifier facts added in canonical-engine Phase 0 |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
 
@@ -62,10 +73,10 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
 | `:core:designsystem` | Domain-neutral theme/tokens, artwork and glass primitives, adaptive layout/content chrome, pull-to-refresh, shared actions/states, equal-width segmented control, static skeleton, and screenshot rendering boundary |
-| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, and unified Summary/Full metadata lifecycle |
+| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, unified Summary/Full metadata lifecycle, and Phase-0 canonical evidence/fingerprint contracts |
 | `:feature:catalog` | Discover, Home, Search, Story, Library, mapping-review, chapter-list, downloads/updates presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
-| `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
+| `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts, including bounded optional catalog external identifiers and opaque latest-update labels |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
