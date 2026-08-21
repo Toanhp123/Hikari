@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
+    projections: CatalogStoryProjectionRepository,
     refreshPipeline: DiscoverRefreshPipeline,
     projection: DiscoverProjectionPipeline,
 ) : ViewModel() {
@@ -38,8 +40,8 @@ class DiscoverViewModel @Inject constructor(
     private val selectedContentType = MutableStateFlow(ContentType.MANGA)
     private val dependencies = DiscoverDependencies(
         homes = homes,
-        content = combine(homes, selectedContentType) { currentHomes, contentType ->
-            projection.project(currentHomes, contentType)
+        content = combine(homes, projections.observe(), selectedContentType) { currentHomes, canonical, contentType ->
+            projection.project(currentHomes, canonical, contentType)
         }.preserveLatestOnFailure(
             RANKING_OBSERVE_EXCEPTION_CODE,
             DiscoverSemanticContent.empty(selectedContentType.value),

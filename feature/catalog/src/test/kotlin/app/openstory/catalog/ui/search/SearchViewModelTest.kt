@@ -1,6 +1,25 @@
 package app.openstory.catalog.ui.search
 
 import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
+import app.openstory.catalog.canonical.CanonicalCatalogRepository
+import app.openstory.catalog.canonical.CanonicalGeneration
+import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.canonical.CanonicalMetadata
+import app.openstory.catalog.canonical.CanonicalSourcePreference
+import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
+import app.openstory.catalog.canonical.CanonicalSourceSummary
+import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.evidence.CatalogSourceRecord
+import app.openstory.catalog.fusion.CanonicalFusionReason
+import app.openstory.catalog.fusion.CanonicalFusionResult
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.metadata.CatalogMetadataStamp
+import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.Story
+import app.openstory.catalog.repository.CatalogSearchSummaryCommitResult
+import app.openstory.catalog.repository.CatalogSearchSummaryMutation
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.matching.StoryMatcher
@@ -204,7 +223,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun selectingFreshResultResolvesStoryBeforeNavigation() = runTest(dispatcher.scheduler) {
+    fun selectingFreshResultNavigatesWithoutDetailsEnrichment() = runTest(dispatcher.scheduler) {
         val source = FakeSearchSource("catalog.a")
         val viewModel = viewModel(source)
         viewModel.updateQuery("novel")
@@ -216,7 +235,7 @@ class SearchViewModelTest {
         runCurrent()
 
         assertEquals(result.story.id, selectedStoryId)
-        assertEquals(1, source.detailsCalls)
+        assertEquals(0, source.detailsCalls)
     }
 
 
@@ -237,16 +256,16 @@ class SearchViewModelTest {
     private fun TestScope.viewModel(registry: Registry, repository: EmptyRepository): SearchViewModel {
         val matcher = StoryMatcher()
         val clock = Clock { 100L }
-        val metadata = CatalogMetadataCoordinator(
-            repository = repository,
-            sources = registry,
-            loader = CatalogDetailsLoader(registry, repository, matcher, clock),
-            policy = CatalogMetadataPolicy(clock),
-            clock = clock,
-            processScope = backgroundScope,
-        )
+        val bootstrap = CanonicalBootstrapUseCase(repository.canonical) { storyId, _ ->
+            val ready = repository.canonical.state(storyId) as? CanonicalStoryState.Ready
+            if (ready == null) {
+                CanonicalFusionResult.Failed(storyId, "test.canonical_missing", retryable = false)
+            } else {
+                CanonicalFusionResult.Unchanged(ready.generation)
+            }
+        }
         return SearchViewModel(
-            CatalogSearchService(registry, repository, matcher, metadata, CatalogFilterCache()),
+            CatalogSearchService(registry, repository, matcher, clock, bootstrap, CatalogFilterCache()),
         )
     }
 
@@ -333,6 +352,7 @@ private fun successPage(title: String): CatalogSourceResult<SourceSearchPage> = 
 private class EmptyRepository(
     private var matchFailuresRemaining: Int = 0,
 ) : CatalogRepository {
+    val canonical = SearchCanonicalRepository()
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = flowOf(emptyList())
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
     override suspend fun matchSnapshot(): CatalogMatchSnapshot {
@@ -355,8 +375,66 @@ private class EmptyRepository(
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
     ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
+    override suspend fun commitSearchSummaries(
+        mutation: CatalogSearchSummaryMutation,
+    ): Outcome<CatalogSearchSummaryCommitResult, CatalogStoreFailure> {
+        val mapping = mutation.entries.associate { entry ->
+            val key = SourceKey(entry.pluginId, entry.sourceId)
+            canonical.put(searchReadyState(entry))
+            key to entry.storyId
+        }
+        return Outcome.Success(CatalogSearchSummaryCommitResult(mapping))
+    }
+
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
     ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
 
+}
+
+private class SearchCanonicalRepository : CanonicalCatalogRepository {
+    private val states = mutableMapOf<StoryId, CanonicalStoryState.Ready>()
+
+    fun put(state: CanonicalStoryState.Ready) { states[state.story.id] = state }
+    override fun observeStory(storyId: StoryId): Flow<CanonicalStoryState?> = flowOf(states[storyId])
+    override fun observeReadyStories(): Flow<List<CanonicalStoryState.Ready>> = flowOf(states.values.toList())
+    override suspend fun state(storyId: StoryId): CanonicalStoryState? = states[storyId]
+    override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> = emptyList()
+    override suspend fun activeGeneration(storyId: StoryId): CanonicalGeneration? = states[storyId]?.generation
+    override suspend fun sourcePreference(storyId: StoryId): CanonicalSourcePreference =
+        requireNotNull(states[storyId]).preference
+    override suspend fun setSourcePreference(preference: CanonicalSourcePreference) = Unit
+    override suspend fun persistCandidate(candidate: CanonicalGeneration, expectedActiveGenerationId: String?) = false
+    override suspend fun markHealth(storyId: StoryId, health: CanonicalHealth) = Unit
+    override suspend fun cleanupObsoleteGenerations(storyId: StoryId) = Unit
+}
+
+private fun searchReadyState(entry: CatalogEntry): CanonicalStoryState.Ready {
+    val key = SourceKey(entry.pluginId, entry.sourceId)
+    val source = CanonicalSourceSummary(
+        key, entry, CatalogMetadataStamp("1.0.0", 100L), null,
+        "identity:${key.pluginId.value}:${key.sourceId}", "fusion:${key.pluginId.value}:${key.sourceId}",
+    )
+    val generation = CanonicalGeneration(
+        id = "gen:${entry.storyId.value}",
+        storyId = entry.storyId,
+        fusionPolicyVersion = 1,
+        primarySelectionPolicyVersion = 1,
+        fusionFingerprint = "fusion:${entry.storyId.value}",
+        effectivePrimary = key,
+        metadata = CanonicalMetadata(
+            entry.title, null, entry.coverUrl, null, null, emptyList(), entry.authors.toList(),
+            emptyList(), emptyList(), null, null, null,
+        ),
+        health = CanonicalHealth.FRESH,
+        provenance = emptyMap(),
+        createdAtEpochMillis = 100L,
+    )
+    return CanonicalStoryState.Ready(
+        Story(entry.storyId, entry.contentType),
+        CanonicalHealth.FRESH,
+        CanonicalSourcePreference(entry.storyId, CanonicalSourcePreferenceMode.AUTO, null, 0),
+        listOf(source),
+        generation,
+    )
 }

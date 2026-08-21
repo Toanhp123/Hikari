@@ -17,6 +17,7 @@ import app.openstory.catalog.search.CatalogSearchFailure
 import app.openstory.catalog.search.CatalogSearchFilterGroup
 import app.openstory.catalog.search.CatalogSearchSourceCard
 import app.openstory.catalog.search.CatalogSearchStory
+import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.source.SourceFilterOption
 import app.openstory.catalog.source.SourceOptionFilter
 import app.openstory.common.id.PluginId
@@ -163,7 +164,19 @@ private fun fixture(): SearchUiState {
             ),
         ),
         filterValues = mapOf(plugin to mapOf("language" to listOf("en"))),
-        stories = listOf(CatalogSearchStory(Story(StoryId("moonlit"), ContentType.MANGA), listOf(source))),
+        stories = listOf(
+            CatalogSearchStory(
+                Story(StoryId("moonlit"), ContentType.MANGA),
+                CatalogStoryProjection(
+                    StoryId("moonlit"),
+                    "The Fox of the Moonlit Archive",
+                    ContentType.MANGA,
+                    null,
+                    authors = setOf("Mira Hoshino"),
+                ),
+                listOf(source),
+            ),
+        ),
         recentQueries = listOf("quiet stars", "winter index"),
     )
 }

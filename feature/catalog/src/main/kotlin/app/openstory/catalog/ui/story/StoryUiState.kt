@@ -1,7 +1,10 @@
 package app.openstory.catalog.ui.story
 
+import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.catalog.model.Score
@@ -31,6 +34,10 @@ data class StoryUiModel(
     val genres: Set<String> = emptySet(),
     val languageTags: Set<String> = emptySet(),
     val sources: List<CatalogEntry>,
+    val effectivePrimary: SourceKey? = null,
+    val preferenceMode: CanonicalSourcePreferenceMode = CanonicalSourcePreferenceMode.AUTO,
+    val pinnedSource: SourceKey? = null,
+    val publicationStatus: PublicationStatus? = null,
 )
 
 enum class StorySection { OVERVIEW, CHAPTERS, SOURCES }

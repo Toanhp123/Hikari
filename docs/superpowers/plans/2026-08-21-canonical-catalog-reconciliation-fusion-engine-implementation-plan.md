@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are **VERIFIED** on the developer checkout. Phase 1 established the schema-9 canonical persistence foundation, lossless external-identifier/source-record persistence, canonical generation/redirect repositories, durable work/audit foundations, representative graph migration coverage, and local-only bootstrap contracts. Final developer evidence is green: `:catalog:testDebugUnitTest`; `:storage:room:assembleDebug` with no unexpected schema-9 export diff; the selected 27-test Room migration/repository connected suite (27/27); `CompositionPolicyTest`; and the canonical `./scripts/verify.sh` gate after fixing the observer-test subscription race and Phase-1 Detekt line-length findings. Runtime RED observations that were unavailable in the offline implementation sandbox remain intentionally unchecked rather than being retroactively falsified, and per-task commit checkboxes remain open because Tasks 5–11 are being closed as one Phase-1 checkpoint commit. Phase 2 now starts at Task 12.
+**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are **VERIFIED** on the developer checkout. Phase 2 Tasks 12–21 are now **PATCHED — VERIFICATION OPEN**: versioned provider-agnostic Fusion policy, primary selection/hysteresis/pinning, field Fusion/provenance, canonical generation validation/promotion/retry, canonical projection cutover, Story/Search/Discover/Library presentation cutover, and cross-feature read-path guards are present while Room remains schema 9. Sandbox static gates and Room schema stability are green, but Gradle cannot start because the wrapper distribution host is unreachable; Phase-2 RED/Gradle/connected/macrobenchmark/full-verify steps therefore remain unchecked rather than being retroactively falsified. Phase 3 / Task 22 is blocked until developer-checkout acceptance closes Phase 2.
 
 ## Global Constraints
 
@@ -1808,6 +1808,8 @@ Developer checkout: PASS. Room schema 9 is the single current export, current do
 
 ### Task 12: Define source usability/freshness and versioned fusion policy facts
 
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/FusionPolicy.kt`
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CatalogSourceAvailabilityResolver.kt`
@@ -1872,7 +1874,7 @@ latestUpdate
 score
 ```
 
-- [ ] **Step 1: Write RED quality-vector tests**
+- [x] **Step 1: Write RED quality-vector tests**
 
 Add tests asserting:
 - exact enum ordering through explicit comparator functions, not enum ordinal;
@@ -1890,7 +1892,7 @@ Add tests asserting:
 
 Expected: compile failure.
 
-- [ ] **Step 3: Implement explicit comparators**
+- [x] **Step 3: Implement explicit comparators**
 
 Do not depend on enum declaration ordinal. Add functions:
 
@@ -1915,7 +1917,7 @@ fun CatalogSourceFreshness.rank(): Int = when (this) {
 }
 ```
 
-- [ ] **Step 4: Implement runtime availability adapter without provider-specific rules**
+- [x] **Step 4: Implement runtime availability adapter without provider-specific rules**
 
 `CatalogSourceAvailabilityResolver` consumes:
 - `CatalogSourceRegistry` enabled/source availability;
@@ -1942,6 +1944,8 @@ git commit -m "catalog: define provider agnostic fusion quality"
 ---
 
 ### Task 13: Implement automatic primary selection, hysteresis, and Story-level source pin
+
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CatalogFusionEngine.kt`
@@ -1979,14 +1983,14 @@ class CatalogFusionEngine {
 }
 ```
 
-- [ ] **Step 1: Write RED initial-primary tests**
+- [x] **Step 1: Write RED initial-primary tests**
 
 Required exact cases:
 - no prior primary/pin -> highest `PrimaryQuality` vector wins;
 - equal vectors -> stable `SourceKey(pluginId.value, sourceId)` ascending wins;
 - provider list order does not change the result.
 
-- [ ] **Step 2: Write RED hysteresis tests**
+- [x] **Step 2: Write RED hysteresis tests**
 
 Encode all five spec switch rules:
 
@@ -2003,7 +2007,7 @@ And negative cases:
 - fresher challenger with lower coverage -> keep current;
 - fresh-selection tie would prefer challenger by SourceKey but current remains due hysteresis.
 
-- [ ] **Step 3: Write RED pin tests**
+- [x] **Step 3: Write RED pin tests**
 
 Required:
 - usable pinned source becomes effective primary;
@@ -2021,7 +2025,7 @@ Required:
 
 Expected: compile failure before engine exists.
 
-- [ ] **Step 5: Implement primary selection before field fusion**
+- [x] **Step 5: Implement primary selection before field fusion**
 
 Implementation sequence inside `fuse()`:
 
@@ -2034,7 +2038,7 @@ val effectivePrimary = selectPinnedPrimary(input, ranked)
 
 `selectAutomaticPrimary` must compare the current primary against the best challenger using the five explicit hysteresis rules, not a floating aggregate provider score.
 
-- [ ] **Step 6: Implement persistence of preference revisions**
+- [x] **Step 6: Implement persistence of preference revisions**
 
 `setSourcePreference()` must:
 - resolve StoryId first;
@@ -2064,6 +2068,8 @@ git commit -m "catalog: add stable primary selection and source pin"
 
 ### Task 14: Implement field-specific fusion and immutable provenance
 
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+
 **Files:**
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CatalogFusionEngine.kt`
 - Create: `catalog/src/test/kotlin/app/openstory/catalog/fusion/CatalogFusionEngineFieldsTest.kt`
@@ -2073,14 +2079,14 @@ git commit -m "catalog: add stable primary selection and source pin"
 - Consumes `FusionInput` and selected effective primary.
 - Produces complete `CanonicalMetadata` plus field-level provenance.
 
-- [ ] **Step 1: Write RED primary-oriented scalar tests**
+- [x] **Step 1: Write RED primary-oriented scalar tests**
 
 Test `TITLE`, `DESCRIPTION`, `SOURCE_URL`, `POPULARITY_RANK`:
 - qualified effective-primary value wins;
 - missing primary value falls back to best qualified ranked source;
 - contributor/provenance points to the actual fallback source.
 
-- [ ] **Step 2: Write RED cover tests**
+- [x] **Step 2: Write RED cover tests**
 
 Cover:
 - valid primary cover wins;
@@ -2088,7 +2094,7 @@ Cover:
 - provider ordering does not affect outcome except stable final tie-break;
 - no provider-ID artwork preset.
 
-- [ ] **Step 3: Write RED normalized-union tests**
+- [x] **Step 3: Write RED normalized-union tests**
 
 Aliases:
 - include each source title plus explicit aliases;
@@ -2101,7 +2107,7 @@ Authors/genres/language tags:
 - do not fuzzy-collapse distinct authors such as `"John Smith"` vs `"Jon Smith"`;
 - provenance includes all contributors.
 
-- [ ] **Step 4: Write RED status tests**
+- [x] **Step 4: Write RED status tests**
 
 Exact precedence:
 1. currently usable Full;
@@ -2111,7 +2117,7 @@ Exact precedence:
 
 Stale-only/historical values may remain while generation health becomes stale/degraded.
 
-- [ ] **Step 5: Write RED latest-update coherence tests**
+- [x] **Step 5: Write RED latest-update coherence tests**
 
 Use test-local builders `source(pluginId: String, latestUpdate: CatalogLatestUpdate?)` and `input(sources: List<FusionSource>, primary: SourceKey)` in this test file, then add:
 
@@ -2136,7 +2142,7 @@ Also:
 - equal timestamp -> effective primary -> SourceKey;
 - output label remains opaque.
 
-- [ ] **Step 6: Write RED canonical-score tests**
+- [x] **Step 6: Write RED canonical-score tests**
 
 Use:
 - `8/10 -> 0.8`
@@ -2159,11 +2165,11 @@ Filter invalid/unusable score sources according to `FusionSource` qualification.
   --tests app.openstory.catalog.fusion.CatalogFusionEngineFieldsTest
 ```
 
-- [ ] **Step 8: Implement each field strategy as a focused private function**
+- [x] **Step 8: Implement each field strategy as a focused private function**
 
 Required private-function split is exactly `selectPrimaryScalar`, `selectCover`, `unionTextCollection`, `selectPublicationStatus`, `selectLatestUpdate`, and `aggregateScore`. Each function receives only the ranked/qualified `FusionSource` data and effective-primary context needed for its field and returns both selected value/contributors through a file-private field-selection helper; do not build one monolithic `fuse()` body.
 
-- [ ] **Step 9: Build provenance with source revision fingerprints**
+- [x] **Step 9: Build provenance with source revision fingerprints**
 
 Every contributor stores the contributor's **current `fusionFingerprint` used by this candidate**, not a pointer that later resolves to a newer raw state.
 
@@ -2186,6 +2192,8 @@ git commit -m "catalog: fuse canonical metadata by field policy"
 ---
 
 ### Task 15: Validate, persist, promote, retain, and recover canonical generations
+
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CanonicalGenerationValidator.kt`
@@ -2216,7 +2224,7 @@ class CanonicalFusionService(
 }
 ```
 
-- [ ] **Step 1: Write RED validation tests**
+- [x] **Step 1: Write RED validation tests**
 
 Validator rejects:
 - candidate StoryId mismatch;
@@ -2227,7 +2235,7 @@ Validator rejects:
 - canonical score out of range/count zero;
 - missing TITLE provenance.
 
-- [ ] **Step 2: Write RED service tests**
+- [x] **Step 2: Write RED service tests**
 
 Required:
 - no local sources -> mark DEGRADED/Preparing, no fetch;
@@ -2245,7 +2253,7 @@ Required:
   --tests app.openstory.catalog.fusion.CanonicalFusionServiceTest
 ```
 
-- [ ] **Step 4: Implement deterministic generation ID**
+- [x] **Step 4: Implement deterministic generation ID**
 
 Use a host-generated stable unique ID such as:
 
@@ -2255,7 +2263,7 @@ Use a host-generated stable unique ID such as:
 
 If the same ID already exists from a crash/retry, repository insertion must be idempotent and promotion must reuse/validate it rather than create a duplicate.
 
-- [ ] **Step 5: Implement meaningful-change suppression**
+- [x] **Step 5: Implement meaningful-change suppression**
 
 Compare:
 - canonical metadata;
@@ -2266,7 +2274,7 @@ Compare:
 
 If all are semantically equal, complete dirty work without promoting a new generation.
 
-- [ ] **Step 6: Implement retention/recovery**
+- [x] **Step 6: Implement retention/recovery**
 
 After promotion:
 - keep active successful generation;
@@ -2275,7 +2283,7 @@ After promotion:
 
 On load, a persisted invalid/in-progress candidate never becomes active; it may be deleted/rebuilt.
 
-- [ ] **Step 7: Bind the concrete rebuilder and bootstrap in app DI**
+- [x] **Step 7: Bind the concrete rebuilder and bootstrap in app DI**
 
 In `CatalogModule.kt`, bind `CanonicalGenerationRebuilder` to the singleton `CanonicalFusionService`. Provide/inject `CanonicalBootstrapUseCase` from `CanonicalCatalogRepository + CanonicalGenerationRebuilder`. No bootstrap binding exists before this task, so Phase 1 has no fake production implementation.
 
@@ -2301,6 +2309,8 @@ git commit -m "catalog: atomically build canonical generations"
 ---
 
 ### Task 16: Cut a canonical projection/read API for multi-Story consumers
+
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
 
 **Files:**
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/projection/CatalogStoryProjection.kt`
@@ -2332,7 +2342,7 @@ interface CatalogStoryProjectionRepository {
 }
 ```
 
-- [ ] **Step 1: Replace legacy projection characterization with RED canonical expectations**
+- [x] **Step 1: Replace legacy projection characterization with RED canonical expectations**
 
 Build two raw source entries where alphabetical first differs from canonical generation. Assert projection follows the active generation, not raw entry sort.
 
@@ -2343,7 +2353,7 @@ Build two raw source entries where alphabetical first differs from canonical gen
   --tests app.openstory.catalog.projection.CatalogStoryProjectionTest
 ```
 
-- [ ] **Step 3: Reimplement projection from `CanonicalStoryState.Ready`**
+- [x] **Step 3: Reimplement projection from `CanonicalStoryState.Ready`**
 
 `projectCatalogStory(story, entries)` must no longer be the authoritative production path. Remove it once all compile-time callers are migrated in this task; if tests still require a pure helper, replace it with:
 
@@ -2351,7 +2361,7 @@ Build two raw source entries where alphabetical first differs from canonical gen
 fun CanonicalStoryState.Ready.toProjection(): CatalogStoryProjection
 ```
 
-- [ ] **Step 4: Reimplement Room projection repository**
+- [x] **Step 4: Reimplement Room projection repository**
 
 Join/read canonical active generations through `CanonicalCatalogDao`, not `catalog_entries` alphabetical ordering.
 
@@ -2379,6 +2389,8 @@ git commit -m "catalog: project stories from canonical generations"
 
 ### Task 17: Migrate Story AUTO presentation to canonical state while preserving raw source inspection
 
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+
 **Files:**
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt`
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryUiState.kt`
@@ -2402,7 +2414,7 @@ fun useAutomaticPrimary()
 
 Inspection selection is not the same as source preference.
 
-- [ ] **Step 1: Rewrite Story ViewModel tests to RED canonical behavior**
+- [x] **Step 1: Rewrite Story ViewModel tests to RED canonical behavior**
 
 Required:
 - two source entries + active canonical generation -> title/description/score/cover from generation;
@@ -2421,7 +2433,7 @@ Required:
   --tests app.openstory.catalog.ui.story.StoryViewModelTest
 ```
 
-- [ ] **Step 3: Replace legacy source ordering**
+- [x] **Step 3: Replace legacy source ordering**
 
 Delete logic equivalent to:
 
@@ -2433,7 +2445,7 @@ for canonical AUTO metadata choice.
 
 Keep a stable SourceKey order only for the **inspection list**, not canonical truth.
 
-- [ ] **Step 4: Add explicit source-inspection/pin UI semantics**
+- [x] **Step 4: Add explicit source-inspection/pin UI semantics**
 
 Story Sources UI must distinguish:
 - `Automatic` canonical mode;
@@ -2445,7 +2457,7 @@ Story Sources UI must distinguish:
 
 Do not add per-field pin UI.
 
-- [ ] **Step 5: Keep explicit refresh behavior source-scoped**
+- [x] **Step 5: Keep explicit refresh behavior source-scoped**
 
 Refreshing a selected raw source may call the existing metadata lifecycle for that source. AUTO display does not fan out network calls merely because a canonical field is absent.
 
@@ -2471,6 +2483,8 @@ git commit -m "story: consume canonical catalog presentation"
 ---
 
 ### Task 18: Persist Search Summary facts, build canonical cards, and make selection navigation-only
+
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
 
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/repository/CatalogSearchSummaryMutation.kt`
@@ -2530,7 +2544,7 @@ data class CatalogSearchStory(
 - `CatalogSearchService` additionally consumes `Clock`, `CanonicalBootstrapUseCase`, and the canonical projection/state types from Tasks 11/16.
 - `select(story)` is navigation-only and returns the already canonical `StoryId`; it performs no Details/Full request.
 
-- [ ] **Step 1: Write RED Room tests for Search Summary persistence**
+- [x] **Step 1: Write RED Room tests for Search Summary persistence**
 
 Add exact repository cases:
 
@@ -2545,7 +2559,7 @@ commit result returns authoritative SourceKey -> StoryId mapping
 
 Use two providers whose proposed Story IDs converge through the existing host matcher and assert the committed source-owner mapping is deterministic.
 
-- [ ] **Step 2: Write RED Search service tests for canonical cards**
+- [x] **Step 2: Write RED Search service tests for canonical cards**
 
 Required cases:
 
@@ -2567,7 +2581,7 @@ CatalogDetailsLoader
 
 for card decoration.
 
-- [ ] **Step 3: Write RED selection test that forbids network enrichment**
+- [x] **Step 3: Write RED selection test that forbids network enrichment**
 
 Given a ready `CatalogSearchStory`:
 
@@ -2590,7 +2604,7 @@ Delete the old expectation that first-source failure/second-source success is pa
   --tests app.openstory.catalog.ui.search.SearchViewModelTest
 ```
 
-- [ ] **Step 5: Implement `commitSearchSummaries()` by reusing Summary merge semantics**
+- [x] **Step 5: Implement `commitSearchSummaries()` by reusing Summary merge semantics**
 
 Do not copy a second metadata merge policy into Search SQL. Extract/reuse the same source-entry Summary merge primitive already used by Home so:
 
@@ -2606,7 +2620,7 @@ No Home section/snapshot row is created by Search.
 
 Update every existing `CatalogRepository` test fake (`CatalogMetadataCoordinatorTest`, Home/Details/Search service tests, `CatalogRepositoryContractTest`, and Discover/Search/Story ViewModel tests) with a deterministic `commitSearchSummaries()` implementation. Fakes not exercising Search return an explicit bounded test failure/empty mutation result chosen by that test fixture; none may silently skip required owner mapping in a test that calls Search.
 
-- [ ] **Step 6: Rework Search projection around the committed canonical IDs**
+- [x] **Step 6: Rework Search projection around the committed canonical IDs**
 
 For each provider page, keep the existing deterministic host matching/index flow to form proposed `Story`/`CatalogEntry` facts, commit those facts, then regroup source cards using the commit result's durable Story IDs.
 
@@ -2620,7 +2634,7 @@ CanonicalBootstrapUseCase.ensureReady(storyId)
 
 Do not build a feature-local transient provider-first presentation and do not call Details to make a card prettier.
 
-- [ ] **Step 7: Make selection navigation-only**
+- [x] **Step 7: Make selection navigation-only**
 
 Replace the old `story.sources.firstOrNull() -> metadata.require(Full)` path with:
 
@@ -2631,7 +2645,7 @@ suspend fun select(story: CatalogSearchStory): CatalogSearchSelectionResult =
 
 The Story route/lifecycle owns any explicit Full requirement after navigation.
 
-- [ ] **Step 8: Make SearchResultCard consume only canonical presentation**
+- [x] **Step 8: Make SearchResultCard consume only canonical presentation**
 
 Title, cover, score, status, and other canonical fields come from `CatalogStoryProjection`. Raw `sources` remain available only for source inspection/debug semantics; their list order is not presentation truth.
 
@@ -2666,6 +2680,8 @@ git commit -m "search: persist summaries and navigate canonical stories"
 
 ### Task 19: Replace Discover's feature-local fusion with canonical projections
 
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+
 **Files:**
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverSemanticContent.kt`
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverProjectionPipeline.kt`
@@ -2679,11 +2695,11 @@ git commit -m "search: persist summaries and navigate canonical stories"
 - Presentation metadata for Story IDs comes from canonical projection/generation.
 - Discover never invokes Details to repair cards.
 
-- [ ] **Step 1: Write RED test showing local `presentationOrder` no longer owns title/cover/status/score**
+- [x] **Step 1: Write RED test showing local `presentationOrder` no longer owns title/cover/status/score**
 
 Construct Home contributions where local legacy order would pick source A but canonical projection says source B/title and aggregated score. Expected Discover item uses canonical projection.
 
-- [ ] **Step 2: Write RED test preserving feed semantics**
+- [x] **Step 2: Write RED test preserving feed semantics**
 
 Verify:
 - POPULAR ranking still uses Home feed/popularity semantics;
@@ -2701,7 +2717,7 @@ This prevents accidental loss of Discover semantic feed behavior while removing 
   --tests app.openstory.catalog.ui.discover.DiscoverProjectionPipelineTest
 ```
 
-- [ ] **Step 4: Remove local field fusion**
+- [x] **Step 4: Remove local field fusion**
 
 Delete/reduce:
 - `presentationOrder` as canonical metadata selector;
@@ -2710,7 +2726,7 @@ Delete/reduce:
 
 Keep only feed contribution selection/ranking and join with canonical projections keyed by `StoryId`.
 
-- [ ] **Step 5: Assert no Details enrichment dependency**
+- [x] **Step 5: Assert no Details enrichment dependency**
 
 Add a constructor-boundary test in `DiscoverViewModelTest` that inspects `DiscoverViewModel::class.java.declaredConstructors` and fails if any parameter type is `CatalogMetadataCoordinator`, `CatalogDetailsLoader`, `CatalogFusionEngine`, or `CanonicalFusionService`. The production Discover pipeline must receive canonical projections only; it cannot own a Full/fusion dependency to fill card fields.
 
@@ -2735,6 +2751,8 @@ git commit -m "discover: read canonical story presentation"
 
 ### Task 20: Migrate Library/Home/Downloads shared projections to canonical generation truth
 
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+
 **Files:**
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryViewModel.kt`
 - Modify: `feature/catalog/src/test/kotlin/app/openstory/catalog/ui/library/LibraryViewModelTest.kt`
@@ -2749,11 +2767,11 @@ git commit -m "discover: read canonical story presentation"
 - Consumers continue to use `CatalogStoryProjectionRepository`; Task 16 has made it canonical-generation based.
 - No feature imports raw Room entities or reconstructs source choice.
 
-- [ ] **Step 1: Add RED cross-source Library test**
+- [x] **Step 1: Add RED cross-source Library test**
 
 Library contains Story A; raw source order says title A1/cover A1 while canonical generation says title A2/cover A2/status. Expected Library UI uses canonical projection.
 
-- [ ] **Step 2: Audit shared projection consumers**
+- [x] **Step 2: Audit shared projection consumers**
 
 Run:
 
@@ -2766,7 +2784,7 @@ For each consumer:
 - keep canonical projection use;
 - remove any subsequent provider-source recomputation.
 
-- [ ] **Step 3: Update canonical score formatting**
+- [x] **Step 3: Update canonical score formatting**
 
 Where projection consumers need a score, use `CanonicalScore.normalizedValue`; presentation may format `normalizedValue * 10.0` as `/10` consistently. The domain value remains normalized.
 
@@ -2790,19 +2808,21 @@ git commit -m "catalog-ui: unify shared canonical projections"
 
 ### Task 21: Add phase-2 canonical consistency and UI-read-path performance gates
 
+**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
+
 **Files:**
 - Create: `feature/catalog/src/test/kotlin/app/openstory/catalog/ui/CanonicalPresentationConsistencyTest.kt`
 
 **Interfaces:**
 - Produces acceptance gate that one active generation yields the same title/cover/status/score semantics across Story/Search/Discover/Library.
 
-- [ ] **Step 1: Write a pure/feature consistency test**
+- [x] **Step 1: Write a pure/feature consistency test**
 
 Build one canonical fixture and feed it through the four feature projectors/ViewModels. Assert identical canonical presentation fields.
 
 Source inspection is explicitly excluded from this equality because it intentionally shows raw provider values.
 
-- [ ] **Step 2: Add a UI-read-path guard**
+- [x] **Step 2: Add a UI-read-path guard**
 
 In `CanonicalPresentationConsistencyTest`, reflect over constructors of the Story/Search/Discover/Library ViewModels/projectors participating in the fixture and fail if any parameter type is `CatalogFusionEngine` or `CanonicalFusionService`. Then build the fixture with only `CatalogStoryProjection`/`CanonicalStoryState.Ready` inputs; if a projector tries to require raw source records for presentation, the test setup cannot satisfy it.
 
@@ -5899,4 +5919,3 @@ Do not add provider-specific priority to get a test passing.
 Do not introduce WorkManager below :app.
 Do not change schema-9 ownership without updating current roadmap docs in the same change.
 ```
-

@@ -80,14 +80,18 @@ grep -q 'projectSemanticDiscoverContent' "$discover_pipeline" ||
   fail "Discover semantic content is not computed inside the same pipeline"
 grep -q 'homes = homes' "$discover_pipeline" ||
   fail "Discover semantic projection is not derived from the shared homes emission"
+grep -q 'projections = projections' "$discover_pipeline" ||
+  fail "Discover presentation is not derived from canonical projections"
 ! grep -Eq 'loading|refreshing|refreshReport' "$discover_pipeline" ||
   fail "Discover projection pipeline still recomputes semantic content for transient UI flags"
-grep -q 'combine(homes, selectedContentType)' "$discover_vm" ||
-  fail "Discover semantic projection is not keyed only by homes plus content type"
+grep -q 'combine(homes, projections.observe(), selectedContentType)' "$discover_vm" ||
+  fail "Discover semantic projection must combine Home feed semantics with canonical presentation"
 grep -q 'content.toUiState' "$discover_vm" ||
   fail "Discover transient UI flags are not assembled after semantic projection"
 ! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
   fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
+! grep -Eq 'CatalogFusionEngine|CanonicalFusionService|CatalogDetailsLoader|CatalogMetadataCoordinator' "$discover_vm" "$discover_pipeline" ||
+  fail "Discover owns Details or canonical fusion instead of consuming canonical presentation"
 ! grep -q 'rankedStories = homes' "$discover_vm" || fail "DiscoverViewModel still owns a second homes-derived ranking flow"
 ! grep -q 'dependencies.rankedStories' "$discover_vm" || fail "DiscoverViewModel still combines homes with a separately-emitting ranked flow"
 

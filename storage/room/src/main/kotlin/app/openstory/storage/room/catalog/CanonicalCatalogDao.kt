@@ -19,6 +19,9 @@ internal interface CanonicalCatalogDao {
     @Query("SELECT * FROM story_canonical_state ORDER BY story_id")
     fun observeCanonicalStates(): Flow<List<StoryCanonicalStateEntity>>
 
+    @Query("SELECT * FROM story_canonical_state WHERE story_id IN (:storyIds) ORDER BY story_id")
+    fun observeCanonicalStates(storyIds: List<String>): Flow<List<StoryCanonicalStateEntity>>
+
     suspend fun upsertCanonicalState(state: StoryCanonicalStateEntity) {
         val hasPinnedPair = state.pinnedPluginId != null && state.pinnedSourceId != null
         val hasNoPin = state.pinnedPluginId == null && state.pinnedSourceId == null

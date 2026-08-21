@@ -2,14 +2,20 @@ package app.openstory.catalog.ui.story
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
+import app.openstory.catalog.canonical.CanonicalCatalogRepository
+import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
+import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.fusion.CanonicalFusionReason
+import app.openstory.catalog.fusion.CanonicalFusionResult
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
 import app.openstory.catalog.metadata.CatalogMetadataFailure
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.model.CatalogEntry
-import app.openstory.catalog.model.StoryCatalogSnapshot
-import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.model.Score
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -27,7 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -35,13 +41,13 @@ import kotlinx.coroutines.launch
 @HiltViewModel(assistedFactory = StoryViewModel.Factory::class)
 class StoryViewModel @AssistedInject constructor(
     @Assisted private val assistedArgs: StoryAssistedArgs,
-    private val repository: CatalogRepository,
+    private val canonical: CanonicalCatalogRepository,
+    private val bootstrap: CanonicalBootstrapUseCase,
     private val metadata: CatalogMetadataCoordinator,
     private val library: LibraryService,
     private val progress: ReadingProgressRepository,
 ) : ViewModel() {
-    private val storyId = assistedArgs.storyId
-    private val selectedSource = MutableStateFlow<StorySourceIdentity?>(null)
+    private val selectedSource = MutableStateFlow<SourceKey?>(null)
     private val refreshing = MutableStateFlow(false)
     private val failure = MutableStateFlow<StoryRefreshFailure?>(null)
     private val selectedSection = MutableStateFlow(StorySection.OVERVIEW)
@@ -51,80 +57,79 @@ class StoryViewModel @AssistedInject constructor(
     ) { entries, records -> StoryPersonalState(entries, records) }
 
     private val catalogState = combine(
-        repository.observeStory(storyId).catch {
+        canonical.observeStory(assistedArgs.storyId).catch {
             failure.value = StoryRefreshFailure(OBSERVE_EXCEPTION_CODE, retryable = true)
             emit(null)
         },
         selectedSource,
         refreshing,
         failure,
-    ) { snapshot, selected, busy, currentFailure ->
-        val sources = snapshot?.entries.orEmpty().sortedWith(sourceOrder)
-        val selectedIdentity = selected?.takeIf { identity -> sources.any { it.matches(identity) } }
-            ?: sources.firstOrNull()?.identity()
-        StoryCatalogState(snapshot, sources, selectedIdentity, busy, currentFailure)
+    ) { state, selected, busy, currentFailure ->
+        val rawSources = state?.sources.orEmpty().map { it.entry }.sortedWith(sourceOrder)
+        val inspection = selected?.takeIf { key -> rawSources.any { it.matches(key) } }
+        StoryCatalogState(state, rawSources, inspection, busy, currentFailure)
     }
 
-    val state = combine(
-        catalogState,
-        personal,
-        selectedSection,
-    ) { catalog, personal, section ->
+    val state = combine(catalogState, personal, selectedSection) { catalog, personal, section ->
+        val model = (catalog.canonical as? CanonicalStoryState.Ready)?.toStoryUiModel(catalog.sources)
+        val resolvedId = catalog.canonical?.story?.id ?: assistedArgs.storyId
         StoryUiState(
-            storyId = storyId,
-            story = catalog.snapshot?.toUiModel(catalog.sources, catalog.selectedIdentity),
-            selectedSource = catalog.selectedIdentity,
+            storyId = resolvedId,
+            story = model,
+            selectedSource = catalog.inspection?.toIdentity(),
             refreshing = catalog.refreshing,
             failure = catalog.failure,
-            libraryStatus = personal.entries.firstOrNull { it.storyId == storyId }?.status,
-            resumeTarget = personal.records.latestResumeTarget(storyId),
+            libraryStatus = personal.entries.firstOrNull { it.storyId == resolvedId }?.status,
+            resumeTarget = personal.records.latestResumeTarget(resolvedId),
             selectedSection = section,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
-        initialValue = StoryUiState(storyId),
+        initialValue = StoryUiState(assistedArgs.storyId),
     )
 
     init {
-        requireInitialMetadata()
-    }
-
-    private fun requireInitialMetadata() {
         viewModelScope.launch {
             try {
-                val snapshot = repository.observeStory(storyId).first() ?: return@launch
-                val source = snapshot.entries.orEmpty()
-                    .sortedWith(sourceOrder)
-                    .selectedEntry(selectedSource.value)
-                    ?: return@launch
-                metadata.require(source.metadataKey(), CatalogMetadataLevel.Full)
+                bootstrap.ensureReady(assistedArgs.storyId)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
-                // Initial metadata resolution is best-effort. Explicit refresh remains the surfaced retry path.
+                failure.value = StoryRefreshFailure(BOOTSTRAP_FAILURE_CODE, retryable = true)
             }
         }
     }
 
-    fun selectSource(pluginId: PluginId, sourceId: String) {
-        selectedSource.value = StorySourceIdentity(pluginId, sourceId)
+    fun selectInspectionSource(sourceKey: SourceKey?) {
+        selectedSource.value = sourceKey
         failure.value = null
-        requireSelectedSourceMetadata(pluginId, sourceId)
     }
 
-    private fun requireSelectedSourceMetadata(pluginId: PluginId, sourceId: String) {
-        viewModelScope.launch {
-            try {
-                metadata.require(
-                    CatalogMetadataKey(pluginId, sourceId),
-                    CatalogMetadataLevel.Full,
-                )
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                // Source switching stays cache-first; explicit refresh is the surfaced retry path.
-            }
+    fun selectSource(pluginId: PluginId, sourceId: String) {
+        selectInspectionSource(SourceKey(pluginId, sourceId))
+    }
+
+    fun pinPrimary(sourceKey: SourceKey) {
+        viewModelScope.launch { updatePreference(CanonicalSourcePreferenceMode.PINNED, sourceKey) }
+    }
+
+    fun pinPrimary(pluginId: PluginId, sourceId: String) {
+        pinPrimary(SourceKey(pluginId, sourceId))
+    }
+
+    fun useAutomaticPrimary() {
+        viewModelScope.launch { updatePreference(CanonicalSourcePreferenceMode.AUTO, null) }
+    }
+
+    private suspend fun updatePreference(mode: CanonicalSourcePreferenceMode, pinned: SourceKey?) {
+        val current = canonical.state(assistedArgs.storyId) ?: return
+        canonical.setSourcePreference(
+            current.preference.copy(mode = mode, pinnedSource = pinned),
+        )
+        when (val result = bootstrap.rebuild(current.story.id, CanonicalFusionReason.SOURCE_PREFERENCE_CHANGED)) {
+            is CanonicalFusionResult.Failed -> failure.value = StoryRefreshFailure(result.code, result.retryable)
+            else -> failure.value = null
         }
     }
 
@@ -134,11 +139,12 @@ class StoryViewModel @AssistedInject constructor(
 
     fun changeLibraryStatus(status: LibraryStatus?) {
         viewModelScope.launch {
+            val resolvedId = canonical.state(assistedArgs.storyId)?.story?.id ?: assistedArgs.storyId
             val current = state.value.libraryStatus
             when {
-                status == null -> library.remove(storyId)
-                current == null -> library.add(storyId, status)
-                current != status -> library.changeStatus(storyId, status)
+                status == null -> library.remove(resolvedId)
+                current == null -> library.add(resolvedId, status)
+                current != status -> library.changeStatus(resolvedId, status)
             }
         }
     }
@@ -148,17 +154,29 @@ class StoryViewModel @AssistedInject constructor(
         refreshing.value = true
         viewModelScope.launch {
             try {
-                val snapshot = repository.observeStory(storyId).first()
-                val source = snapshot?.entries.orEmpty()
-                    .sortedWith(sourceOrder)
-                    .selectedEntry(selectedSource.value)
-                failure.value = if (source == null) {
+                val currentState = canonical.state(assistedArgs.storyId)
+                val source = currentState?.sources.orEmpty().firstOrNull { it.sourceKey == selectedSource.value }
+                    ?: (currentState as? CanonicalStoryState.Ready)?.let { ready ->
+                        ready.sources.firstOrNull { it.sourceKey == ready.generation.effectivePrimary }
+                    }
+                failure.value = if (currentState == null || source == null) {
                     StoryRefreshFailure(SOURCE_UNAVAILABLE_CODE, retryable = false)
                 } else {
-                    metadata.refresh(
-                        source.metadataKey(),
+                    val refreshFailure = metadata.refresh(
+                        CatalogMetadataKey(source.sourceKey.pluginId, source.sourceKey.sourceId),
                         CatalogMetadataLevel.Full,
                     ).failureOrNull()
+                    if (refreshFailure == null) {
+                        when (val result = bootstrap.rebuild(
+                            currentState.story.id,
+                            CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED,
+                        )) {
+                            is CanonicalFusionResult.Failed -> StoryRefreshFailure(result.code, result.retryable)
+                            else -> null
+                        }
+                    } else {
+                        refreshFailure
+                    }
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -192,6 +210,7 @@ class StoryViewModel @AssistedInject constructor(
         const val SOURCE_UNAVAILABLE_CODE = "catalog.story.source_unavailable"
         const val OBSERVE_EXCEPTION_CODE = "catalog.story.observe_exception"
         const val REFRESH_EXCEPTION_CODE = "catalog.story.refresh_exception"
+        const val BOOTSTRAP_FAILURE_CODE = "catalog.story.canonical_bootstrap_failed"
         val sourceOrder = compareBy<CatalogEntry> { it.pluginId.value }.thenBy { it.sourceId }
     }
 }
@@ -202,57 +221,45 @@ private data class StoryPersonalState(
 )
 
 private data class StoryCatalogState(
-    val snapshot: StoryCatalogSnapshot?,
+    val canonical: CanonicalStoryState?,
     val sources: List<CatalogEntry>,
-    val selectedIdentity: StorySourceIdentity?,
+    val inspection: SourceKey?,
     val refreshing: Boolean,
     val failure: StoryRefreshFailure?,
 )
 
 data class StoryAssistedArgs(val storyId: StoryId)
 
-private fun List<CatalogEntry>.selectedEntry(identity: StorySourceIdentity?): CatalogEntry? =
-    firstOrNull { identity != null && it.matches(identity) } ?: firstOrNull()
+private fun CatalogEntry.matches(key: SourceKey): Boolean = pluginId == key.pluginId && sourceId == key.sourceId
+private fun SourceKey.toIdentity() = StorySourceIdentity(pluginId, sourceId)
 
-private fun CatalogEntry.matches(identity: StorySourceIdentity): Boolean =
-    pluginId == identity.pluginId && sourceId == identity.sourceId
-
-private fun CatalogEntry.identity() = StorySourceIdentity(pluginId, sourceId)
-
-private fun StoryCatalogSnapshot.toUiModel(
-    sortedSources: List<CatalogEntry>,
-    selectedIdentity: StorySourceIdentity?,
-): StoryUiModel {
-    val selected = sortedSources.firstOrNull { selectedIdentity != null && it.matches(selectedIdentity) }
-    val artwork = selected?.takeIf { it.coverUrl != null } ?: sortedSources
-        .filter { it.coverUrl != null }
-        .maxWithOrNull(compareBy<CatalogEntry> { it.normalizedScore() }
-            .thenByDescending { it.pluginId.value }
-            .thenByDescending { it.sourceId })
-    val metadata = selected ?: sortedSources.firstOrNull()
+internal fun CanonicalStoryState.Ready.toStoryUiModel(rawSources: List<CatalogEntry>): StoryUiModel {
+    val canonicalScore = generation.metadata.score
     return StoryUiModel(
         storyId = story.id,
-        preferredTitle = metadata?.title ?: story.id.value,
+        preferredTitle = generation.metadata.title,
         contentType = story.contentType,
-        aliases = sortedSources.flatMap { it.aliases }.toSet(),
-        description = metadata?.description ?: sortedSources.firstNotNullOfOrNull { it.description },
-        coverUrl = artwork?.coverUrl,
-        score = metadata?.score ?: sortedSources.mapNotNull { it.score }.maxByOrNull { it.value / it.scale },
-        authors = sortedSources.flatMap { it.authors }.toSet(),
-        genres = sortedSources.flatMap { it.genres }.toSet(),
-        languageTags = sortedSources.flatMap { it.languageTags }.toSet(),
-        sources = sortedSources,
+        aliases = generation.metadata.aliases.toSet(),
+        description = generation.metadata.description,
+        coverUrl = generation.metadata.coverUrl,
+        score = canonicalScore?.let { Score(it.normalizedValue * PRESENTATION_SCORE_SCALE, PRESENTATION_SCORE_SCALE) },
+        authors = generation.metadata.authors.toSet(),
+        genres = generation.metadata.genres.toSet(),
+        languageTags = generation.metadata.languageTags.toSet(),
+        sources = rawSources,
+        effectivePrimary = generation.effectivePrimary,
+        preferenceMode = preference.mode,
+        pinnedSource = preference.pinnedSource,
+        publicationStatus = generation.metadata.publicationStatus,
     )
 }
 
-private fun CatalogEntry.normalizedScore(): Double = score?.let { it.value / it.scale } ?: Double.NEGATIVE_INFINITY
+private const val PRESENTATION_SCORE_SCALE = 10.0
 
 private fun List<ReadingProgress>.latestResumeTarget(storyId: StoryId): ReaderTarget? =
     asSequence().filter { it.storyId == storyId && it.completedAtEpochMillis == null }
         .maxWithOrNull(compareBy<ReadingProgress> { it.updatedAtEpochMillis }.thenBy { it.releaseId.value })
         ?.let { ReaderTarget(storyId, it.canonicalChapterId, it.releaseId) }
-
-private fun CatalogEntry.metadataKey() = CatalogMetadataKey(pluginId, sourceId)
 
 private fun CatalogMetadataResult.failureOrNull(): StoryRefreshFailure? = when (this) {
     is CatalogMetadataResult.Ready -> null

@@ -1,11 +1,13 @@
 # Canonical Catalog Reconciliation and Metadata Fusion Engine Design
 
 Date: 2026-08-20
-Status: **NORMATIVE IMPLEMENTATION BASIS — Phase 0 VERIFIED; Phase 1 Tasks 5–11 VERIFIED AND CLOSED on 2026-08-21; Phase 2 / Task 12 is the active next implementation step**
+Status: **NORMATIVE IMPLEMENTATION BASIS — Phase 0 VERIFIED; Phase 1 Tasks 5–11 VERIFIED/CLOSED; Phase 2 Tasks 12–21 PATCHED with developer verification open on 2026-08-21**
 Scope: host-owned canonical Story identity across multiple catalog providers, explainable reconciliation, metadata fusion, materialized canonical generations, durable review/lineage, atomic Story graph merge, source preference, event orchestration, retry/background safety, and integration with existing Catalog/Library/Chapters/Reader/Room boundaries
 Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 catalog metadata-lifecycle unification; verified Phase 1 advances the current persistence foundation to Room schema 9 through `MIGRATION_8_9`.
 
 > **Implementation checkpoint (2026-08-21):** Tasks 5–11 are VERIFIED and Phase 1 is closed. The accepted boundary includes canonical read/identity contracts, the schema-9 persistence foundation, external-identifier/source-record persistence, canonical generation/redirect storage, durable work/audit foundations, representative 8→9 graph migration coverage, and local-only bootstrap. Developer-checkout evidence includes a green Catalog unit suite, Room schema build/export validation, 27/27 selected Room migration/repository connected tests, a green app composition-policy test, and a green canonical `./scripts/verify.sh` after the observer-race and Detekt line-length cleanup patches. Reconciliation policy, destructive Story merge, feature canonical read-path cutover, and Phase-2 fusion policy are still not enabled; Phase 2 now starts at Task 12.
+
+> **Phase-2 patch checkpoint (2026-08-21):** Tasks 12–21 are now represented in source/tests and remain **VERIFICATION OPEN**. The patch adds versioned source usability/freshness and Fusion policy, deterministic primary selection with hysteresis/pinning, field-specific canonical Fusion with immutable contributor fingerprints, candidate validation/promotion/change suppression/retry, canonical projection materialization, and Story/Search/Discover/Library canonical presentation cutover with a cross-feature no-Fusion-on-UI-read guard. Search persists Summary facts before canonical presentation; Discover preserves Home feed/ranking semantics while canonical projection owns presentation fields. Room remains schema 9 and reconciliation/merge execution is still disabled. Sandbox static/schema gates are green; Gradle/device/macrobenchmark acceptance is pending because the sandbox cannot resolve the Gradle wrapper distribution.
 
 ### 2026-08-21 implementation checkpoint
 

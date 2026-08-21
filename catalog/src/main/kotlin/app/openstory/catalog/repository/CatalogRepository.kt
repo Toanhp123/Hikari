@@ -19,5 +19,8 @@ interface CatalogRepository {
     suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord>
     suspend fun sourceRecords(): List<CatalogSourceRecord>
     suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure>
+    suspend fun commitSearchSummaries(
+        mutation: CatalogSearchSummaryMutation,
+    ): Outcome<CatalogSearchSummaryCommitResult, CatalogStoreFailure>
     suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure>
 }

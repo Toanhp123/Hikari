@@ -199,6 +199,8 @@ internal fun StoryDestination(
         state = state,
         onRefresh = viewModel::refresh,
         onSourceSelected = viewModel::selectSource,
+        onPinPrimary = viewModel::pinPrimary,
+        onUseAutomaticPrimary = viewModel::useAutomaticPrimary,
         onSectionSelected = viewModel::selectSection,
         onLibraryStatusSelected = viewModel::changeLibraryStatus,
         onRead = navigateToReader,

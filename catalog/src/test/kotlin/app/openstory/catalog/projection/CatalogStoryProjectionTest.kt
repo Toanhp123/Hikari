@@ -1,7 +1,16 @@
 package app.openstory.catalog.projection
 
-import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.canonical.CanonicalGeneration
+import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.canonical.CanonicalMetadata
+import app.openstory.catalog.canonical.CanonicalScore
+import app.openstory.catalog.canonical.CanonicalSourcePreference
+import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
+import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Story
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -10,56 +19,45 @@ import kotlin.test.assertEquals
 
 class CatalogStoryProjectionTest {
     @Test
-    fun projectionCurrentlyUsesFirstSortedCatalogSource() {
-        // Characterization only: Phase 2 replaces this with CanonicalGeneration policy.
-        val story = Story(StoryId("story-1"), ContentType.WEB_NOVEL)
-        val projection = projectCatalogStory(
-            story,
-            listOf(
-                entry("catalog.b", "source-1", "Second"),
-                entry("catalog.a", "source-2", "Preferred"),
+    fun projectionUsesActiveCanonicalGenerationRatherThanRawSourceOrder() {
+        val storyId = StoryId("story-1")
+        val state = CanonicalStoryState.Ready(
+            story = Story(storyId, ContentType.WEB_NOVEL),
+            health = CanonicalHealth.STALE,
+            preference = CanonicalSourcePreference(storyId, CanonicalSourcePreferenceMode.AUTO, null, 0),
+            sources = emptyList(),
+            generation = CanonicalGeneration(
+                id = "gen:1",
+                storyId = storyId,
+                fusionPolicyVersion = 1,
+                primarySelectionPolicyVersion = 1,
+                fusionFingerprint = "fusion",
+                effectivePrimary = SourceKey(PluginId("catalog.b"), "source-b"),
+                metadata = CanonicalMetadata(
+                    title = "Canonical B",
+                    description = "Description",
+                    coverUrl = "https://example.test/b.jpg",
+                    sourceUrl = "https://example.test/b",
+                    popularityRank = 4,
+                    aliases = listOf("Alias"),
+                    authors = listOf("Author"),
+                    genres = listOf("Drama"),
+                    languageTags = listOf("en"),
+                    publicationStatus = PublicationStatus.ONGOING,
+                    latestUpdate = CatalogLatestUpdate(10L, "Ch. 1"),
+                    score = CanonicalScore(0.8, 2),
+                ),
+                health = CanonicalHealth.STALE,
+                provenance = emptyMap(),
+                createdAtEpochMillis = 10L,
             ),
         )
 
-        assertEquals("Preferred", projection.title)
-        assertEquals(StoryId("story-1"), projection.storyId)
+        val projection = state.toProjection()
+        assertEquals("Canonical B", projection.title)
+        assertEquals("https://example.test/b.jpg", projection.coverUrl)
+        assertEquals(PublicationStatus.ONGOING, projection.publicationStatus)
+        assertEquals(0.8, projection.score?.normalizedValue)
+        assertEquals(CanonicalHealth.STALE, projection.health)
     }
-
-    @Test
-    fun projectionAggregatesAliasesAndAuthorsForLibraryMatching() {
-        val story = Story(StoryId("story-1"), ContentType.WEB_NOVEL)
-        val projection = projectCatalogStory(
-            story,
-            listOf(
-                entry("catalog.b", "source-1", "Second", setOf("Alias B"), setOf("Author B")),
-                entry("catalog.a", "source-2", "Preferred", setOf("Alias A"), setOf("Author A")),
-            ),
-        )
-
-        assertEquals(setOf("Alias A", "Alias B"), projection.aliases)
-        assertEquals(setOf("Author A", "Author B"), projection.authors)
-    }
-
-    @Test
-    fun projectionFallsBackToStableStoryIdWithoutCatalogEntry() {
-        val story = Story(StoryId("story-orphan"), ContentType.MANGA)
-
-        assertEquals("story-orphan", projectCatalogStory(story, emptyList()).title)
-    }
-
-    private fun entry(
-        pluginId: String,
-        sourceId: String,
-        title: String,
-        aliases: Set<String> = emptySet(),
-        authors: Set<String> = emptySet(),
-    ) = CatalogEntry(
-        storyId = StoryId("story-1"),
-        pluginId = PluginId(pluginId),
-        sourceId = sourceId,
-        title = title,
-        aliases = aliases,
-        authors = authors,
-        contentType = ContentType.WEB_NOVEL,
-    )
 }

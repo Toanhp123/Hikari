@@ -149,6 +149,13 @@ class CatalogRepositoryContractTest {
             return Outcome.Success(Unit)
         }
 
+
+        override suspend fun commitSearchSummaries(
+            mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
+        ) = app.openstory.common.Outcome.Failure(
+            app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
+        )
+
         override suspend fun commitDetails(
             mutation: CatalogDetailsMutation,
         ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)

@@ -16,6 +16,8 @@ import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
 import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.projection.CatalogStoryProjection
+import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.source.CatalogSource
 import app.openstory.catalog.source.CatalogSourceFailure
 import app.openstory.catalog.source.CatalogSourceRegistry
@@ -412,6 +414,17 @@ class DiscoverViewModelTest {
         assertEquals(null, viewModel.state.value.refreshFailure)
     }
 
+    @Test
+    fun discoverReadPathHasNoDetailsOrFusionDependency() {
+        val dependencies = DiscoverViewModel::class.java.declaredConstructors
+            .flatMap { it.parameterTypes.toList() }
+            .map { it.name }
+        assertFalse(dependencies.any { it.endsWith("CatalogMetadataCoordinator") })
+        assertFalse(dependencies.any { it.endsWith("CatalogDetailsLoader") })
+        assertFalse(dependencies.any { it.endsWith("CatalogFusionEngine") })
+        assertFalse(dependencies.any { it.endsWith("CanonicalFusionService") })
+    }
+
     private fun TestScope.viewModel(
         repository: FakeRepository,
         source: FakeSource,
@@ -422,6 +435,7 @@ class DiscoverViewModelTest {
         val refreshService = CatalogRefreshService(registry, repository, StoryMatcher(), clock)
         return DiscoverViewModel(
             repository,
+            FakeProjectionRepository(repository.projections()),
             DiscoverRefreshPipeline(
                 refreshService,
                 FixedAppDispatchers(dispatcher, refreshDispatcher, dispatcher),
@@ -487,6 +501,25 @@ private class FakeRepository(
     var observeHomesSubscriptions = 0
         private set
 
+    fun projections(): List<CatalogStoryProjection> = homes.value
+        .flatMap { it.sections }
+        .flatMap { it.items }
+        .distinctBy { it.storyId }
+        .map { entry ->
+            CatalogStoryProjection(
+                storyId = entry.storyId,
+                title = entry.title,
+                contentType = entry.contentType,
+                coverUrl = entry.coverUrl,
+                authors = entry.authors,
+                publicationStatus = entry.publicationStatus,
+                latestUpdate = entry.latestUpdate,
+                score = entry.score?.let { score ->
+                    app.openstory.catalog.canonical.CanonicalScore(score.value / score.scale, 1)
+                },
+            )
+        }
+
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = flow {
         observeHomesSubscriptions++
         when {
@@ -517,9 +550,22 @@ private class FakeRepository(
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
     ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
+
+    override suspend fun commitSearchSummaries(
+        mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
+    ) = app.openstory.common.Outcome.Failure(
+        app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
+    )
+
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
     ): Outcome<StoryId, CatalogStoreFailure> = error("Discover must not commit Details")
+}
+
+private class FakeProjectionRepository(
+    private val projections: List<CatalogStoryProjection>,
+) : CatalogStoryProjectionRepository {
+    override fun observe(): Flow<List<CatalogStoryProjection>> = flowOf(projections)
 }
 
 private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot> {

@@ -16,8 +16,11 @@ import app.openstory.catalog.model.StoryCatalogSnapshot
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
+import app.openstory.catalog.repository.CatalogSearchSummaryCommitResult
+import app.openstory.catalog.repository.CatalogSearchSummaryMutation
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.common.Outcome
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
@@ -163,6 +166,53 @@ class RoomCatalogRepository internal constructor(
         } catch (_: Exception) {
             Outcome.Failure(CatalogStoreFailure("catalog.home.commit_failed", retryable = true))
         }
+
+
+    override suspend fun commitSearchSummaries(
+        mutation: CatalogSearchSummaryMutation,
+    ): Outcome<CatalogSearchSummaryCommitResult, CatalogStoreFailure> = try {
+        val result = database.withTransaction {
+            val ownership = linkedMapOf<SourceKey, StoryId>()
+            val affectedStoryIds = linkedSetOf<StoryId>()
+            val storiesById = mutation.stories.associateBy { it.id }
+            mutation.entries.sortedWith(compareBy({ it.sourceId })).forEach { proposedEntry ->
+                val key = SourceKey(proposedEntry.pluginId, proposedEntry.sourceId)
+                val existing = dao.findEntry(key.pluginId.value, key.sourceId)
+                val durableStoryId = StoryId(existing?.storyId ?: proposedEntry.storyId.value)
+                if (dao.findStory(durableStoryId.value) == null) {
+                    val story = storiesById[proposedEntry.storyId]
+                        ?: error("Missing proposed Story for ${proposedEntry.storyId.value}")
+                    dao.upsertStories(listOf(story.copy(id = durableStoryId).toEntity()))
+                    ensureCanonicalStateForNewStory(durableStoryId.value, mutation.resolvedAtEpochMillis)
+                }
+                val durableEntry = proposedEntry.copy(storyId = durableStoryId)
+                val incoming = durableEntry.toHomeEntity(mutation.pluginVersion, mutation.resolvedAtEpochMillis)
+                dao.upsertEntries(listOf(mergeHome(existing, incoming)))
+                replaceIdentifiers(durableEntry)
+                ownership[key] = durableStoryId
+                affectedStoryIds += durableStoryId
+            }
+            affectedStoryIds.forEach { storyId ->
+                canonicalDao.upsertWork(
+                    CanonicalEngineWorkEntity(
+                        storyId = storyId.value,
+                        workType = CanonicalEngineWorkType.FUSION_REBUILD.name,
+                        reason = "search-summary-changed",
+                        attemptCount = 0,
+                        nextAttemptAtEpochMillis = 0,
+                        lastErrorCode = null,
+                        requiredPolicyVersion = FUSION_POLICY_VERSION,
+                    ),
+                )
+            }
+            CatalogSearchSummaryCommitResult(ownership)
+        }
+        Outcome.Success(result)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        Outcome.Failure(CatalogStoreFailure("catalog.search.commit_failed", retryable = true))
+    }
 
     override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> =
         try {

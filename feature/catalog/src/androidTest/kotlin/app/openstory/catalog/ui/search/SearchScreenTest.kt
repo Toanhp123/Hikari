@@ -20,6 +20,7 @@ import app.openstory.catalog.search.CatalogSearchFailure
 import app.openstory.catalog.search.CatalogSearchFilterGroup
 import app.openstory.catalog.search.CatalogSearchSourceCard
 import app.openstory.catalog.search.CatalogSearchStory
+import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.source.SourceFilterOption
 import app.openstory.catalog.source.SourceOptionFilter
 import app.openstory.catalog.source.SourceTextFilter
@@ -236,6 +237,14 @@ private fun fixtureState(failed: Boolean = false): SearchUiState {
         stories = listOf(
             CatalogSearchStory(
                 story = Story(StoryId("story-1"), ContentType.WEB_NOVEL),
+                presentation = CatalogStoryProjection(
+                    storyId = StoryId("story-1"),
+                    title = "Fixture Novel",
+                    contentType = ContentType.WEB_NOVEL,
+                    coverUrl = null,
+                    authors = setOf("Fixture Author"),
+                    score = app.openstory.catalog.canonical.CanonicalScore(0.84, 1),
+                ),
                 sources = listOf(
                     CatalogSearchSourceCard(
                         pluginId = pluginId,

@@ -11,9 +11,11 @@ import app.openstory.catalog.canonical.CanonicalFieldStrategy
 import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalMetadata
+import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSection
@@ -29,6 +31,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import org.junit.runner.RunWith
 
@@ -65,6 +68,72 @@ class RoomCanonicalCatalogRepositoryTest {
 
             assertFalse(repository.persistCandidate(generation(storyId, "gen:2", 20), "wrong"))
             assertEquals("gen:1", repository.activeGeneration(storyId)?.id)
+        }
+    }
+
+    @Test
+    fun sourcePreferenceRevisionIsHostOwnedAndFusionWorkIsCoalesced() = runTest {
+        withDatabase { database ->
+            val storyId = StoryId("story:1")
+            seedStory(database, storyId)
+            val repository = RoomCanonicalCatalogRepository(database)
+            val source = SourceKey(PluginId("plugin:one"), "source-1")
+
+            repository.setSourcePreference(
+                CanonicalSourcePreference(
+                    storyId,
+                    CanonicalSourcePreferenceMode.PINNED,
+                    source,
+                    revision = 999,
+                ),
+            )
+            repository.setSourcePreference(
+                CanonicalSourcePreference(
+                    storyId,
+                    CanonicalSourcePreferenceMode.AUTO,
+                    null,
+                    revision = 999,
+                ),
+            )
+
+            val state = requireNotNull(database.canonicalCatalogDao().canonicalState(storyId.value))
+            assertEquals(2L, state.preferenceRevision)
+            assertEquals(CanonicalSourcePreferenceMode.AUTO.name, state.preferenceMode)
+            assertEquals(null, state.pinnedPluginId)
+            assertEquals(null, state.pinnedSourceId)
+            val work = database.canonicalCatalogDao().workForStory(storyId.value)
+                .filter { it.workType == "FUSION_REBUILD" }
+            assertEquals(1, work.size)
+            assertEquals("source-preference-changed", work.single().reason)
+            assertEquals(FUSION_POLICY_VERSION, work.single().requiredPolicyVersion)
+        }
+    }
+
+    @Test
+    fun promotionHookFailureRollsBackCandidateAndKeepsOldGenerationActive() = runTest {
+        withDatabase { database ->
+            val storyId = StoryId("story:1")
+            seedStory(database, storyId)
+            val stable = RoomCanonicalCatalogRepository(database)
+            assertTrue(stable.persistCandidate(generation(storyId, "gen:1", 10), null))
+            val failing = RoomCanonicalCatalogRepository(
+                database = database,
+                canonicalDao = database.canonicalCatalogDao(),
+                catalogDao = database.catalogDao(),
+                identity = RoomStoryIdentityResolver(database),
+                beforePromotion = { error("forced promotion failure") },
+            )
+
+            assertFailsWith<IllegalStateException> {
+                failing.persistCandidate(generation(storyId, "gen:2", 20), "gen:1")
+            }
+
+            assertEquals("gen:1", stable.activeGeneration(storyId)?.id)
+            assertEquals(null, database.canonicalCatalogDao().generation("gen:2"))
+            assertEquals(emptyList(), database.canonicalCatalogDao().provenance("gen:2"))
+            database.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { cursor ->
+                assertEquals(0, cursor.count)
+            }
         }
     }
 

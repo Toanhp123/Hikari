@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
+import app.openstory.catalog.model.Score
 import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryService
 import app.openstory.library.LibraryStatus
@@ -145,7 +146,11 @@ private fun projectLibrary(
         records.maxWith(compareBy<ReadingProgress> { it.updatedAtEpochMillis }.thenBy { it.releaseId.value })
     }
     val allItems = entries.map { entry ->
-        entry.toUiModel(catalog[entry.storyId], entry.storyId in mappedStories, latestProgress[entry.storyId])
+        entry.toLibraryItemUiModel(
+            catalog[entry.storyId],
+            entry.storyId in mappedStories,
+            latestProgress[entry.storyId],
+        )
     }
     val normalizedQuery = controls.query.trim().lowercase(Locale.ROOT)
     val visible = allItems.asSequence()
@@ -167,7 +172,7 @@ private fun projectLibrary(
     )
 }
 
-private fun LibraryEntry.toUiModel(
+internal fun LibraryEntry.toLibraryItemUiModel(
     projection: CatalogStoryProjection?,
     mapped: Boolean,
     progress: ReadingProgress?,
@@ -181,7 +186,13 @@ private fun LibraryEntry.toUiModel(
     progressFraction = progress?.position?.fraction,
     addedAt = addedAt,
     updatedAt = maxOf(updatedAt, progress?.updatedAtEpochMillis ?: updatedAt),
+    publicationStatus = projection?.publicationStatus,
+    score = projection?.score?.let { canonical ->
+        Score(canonical.normalizedValue * PRESENTATION_SCORE_SCALE, PRESENTATION_SCORE_SCALE)
+    },
 )
+
+private const val PRESENTATION_SCORE_SCALE = 10.0
 
 private fun LibrarySort.comparator(): Comparator<LibraryItemUiModel> = when (this) {
     LibrarySort.LAST_ACTIVITY -> compareByDescending<LibraryItemUiModel> { it.updatedAt }.thenBy { it.storyId.value }

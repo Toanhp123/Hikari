@@ -4,7 +4,15 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.openstory.catalog.canonical.CanonicalFieldContributor
+import app.openstory.catalog.canonical.CanonicalFieldKey
+import app.openstory.catalog.canonical.CanonicalFieldProvenance
+import app.openstory.catalog.canonical.CanonicalFieldStrategy
+import app.openstory.catalog.canonical.CanonicalGeneration
+import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.canonical.CanonicalMetadata
 import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
@@ -18,6 +26,9 @@ import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
+import app.openstory.catalog.repository.CatalogSearchSummaryMutation
+import app.openstory.catalog.repository.CatalogSearchSummaryCommitResult
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -347,16 +358,22 @@ class RoomCatalogRepositoryTest {
     }
 
     @Test
-    fun storyProjectionObservationScopesRowsToRequestedStories() = runTest {
+    fun storyProjectionObservationOmitsPreparingAndScopesReadyStories() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
             repository.commitHomeRefresh(mutation("a", listOf("a-1"), 1))
             repository.commitHomeRefresh(mutation("b", listOf("b-1"), 2))
             val projections = RoomCatalogStoryProjectionRepository(database)
+            val storyId = StoryId("story:a-1")
 
-            val observed = projections.observeForStories(setOf(StoryId("story:a-1"))).first()
+            assertEquals(emptyList(), projections.observeForStories(setOf(storyId)).first())
 
-            assertEquals(listOf("story:a-1"), observed.map { it.storyId.value })
+            val canonical = RoomCanonicalCatalogRepository(database)
+            assertEquals(true, canonical.persistCandidate(projectionGeneration(storyId), null))
+
+            val observed = projections.observeForStories(setOf(storyId)).first()
+            assertEquals(listOf(storyId), observed.map { it.storyId })
+            assertEquals("Canonical A", observed.single().title)
             assertEquals(emptyList(), projections.observeForStories(emptySet()).first())
         }
     }
@@ -473,6 +490,115 @@ class RoomCatalogRepositoryTest {
             entries = entries,
             sections = listOf(CatalogHomeSection("section", "Section", entries)),
             orderedSourceItemIds = mapOf("section" to sourceIds),
+        )
+    }
+
+    @Test
+    fun searchSummaryCommitKeepsDurableOwnerAndFullProvenanceAndPersistsIdentifiers() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val plugin = PluginId("search")
+            val key = SourceKey(plugin, "source-1")
+            val durable = StoryId("story:durable")
+            val fullEntry = CatalogEntry(
+                durable, plugin, key.sourceId, "Full title", description = "Full description",
+                contentType = ContentType.MANGA,
+            )
+            repository.commitDetails(CatalogDetailsMutation(durable, fullEntry, "full-1", 20L))
+
+            val proposed = StoryId("story:proposed")
+            val identifiers = setOf(ExternalIdentifier("work", "search-1", ExternalIdentifierScope.WORK))
+            val summary = fullEntry.copy(
+                storyId = proposed,
+                title = "Search title",
+                description = null,
+                externalIdentifiers = identifiers,
+            )
+            val result = repository.commitSearchSummaries(
+                CatalogSearchSummaryMutation(
+                    plugin, "search-2", 30L,
+                    stories = listOf(Story(proposed, ContentType.MANGA)),
+                    entries = listOf(summary),
+                ),
+            )
+
+            val committed = assertIs<Outcome.Success<CatalogSearchSummaryCommitResult>>(result).value
+            assertEquals(durable, committed.sourceStoryIds.getValue(key))
+            val snapshot = requireNotNull(repository.metadataSnapshot(CatalogMetadataKey(plugin, key.sourceId)))
+            assertEquals(durable, snapshot.entry.storyId)
+            assertEquals("Search title", snapshot.entry.title)
+            assertEquals("Full description", snapshot.entry.description)
+            assertEquals(30L, snapshot.summary.resolvedAtEpochMillis)
+            assertEquals(20L, snapshot.full?.resolvedAtEpochMillis)
+            assertEquals(identifiers, snapshot.entry.externalIdentifiers)
+            assertEquals("search-summary-changed", database.canonicalCatalogDao().work(durable.value, "FUSION_REBUILD")?.reason)
+            assertEquals(emptyList(), repository.observeHomes().first())
+        }
+    }
+
+    @Test
+    fun newSearchSummaryCreatesCanonicalStateAndAuthoritativeOwnershipWithoutHomeRows() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val storyId = StoryId("story:search-new")
+            val plugin = PluginId("search")
+            val entry = CatalogEntry(storyId, plugin, "new", "Search new", contentType = ContentType.MANGA)
+
+            val result = repository.commitSearchSummaries(
+                CatalogSearchSummaryMutation(
+                    plugin, "1.0.0", 44L,
+                    stories = listOf(Story(storyId, ContentType.MANGA)),
+                    entries = listOf(entry),
+                ),
+            )
+
+            val committed = assertIs<Outcome.Success<CatalogSearchSummaryCommitResult>>(result).value
+            assertEquals(storyId, committed.sourceStoryIds.getValue(SourceKey(plugin, "new")))
+            val state = requireNotNull(database.canonicalCatalogDao().canonicalState(storyId.value))
+            assertEquals("AUTO", state.preferenceMode)
+            assertEquals("REEVALUATING", state.health)
+            assertEquals(44L, state.createdAtEpochMillis)
+            assertEquals("search-summary-changed", database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD")?.reason)
+            assertEquals(emptyList(), repository.observeHomes().first())
+        }
+    }
+
+    private fun projectionGeneration(storyId: StoryId): CanonicalGeneration {
+        val source = SourceKey(PluginId("a"), "a-1")
+        return CanonicalGeneration(
+            id = "gen:projection-a",
+            storyId = storyId,
+            fusionPolicyVersion = 1,
+            primarySelectionPolicyVersion = 1,
+            fusionFingerprint = "fusion:projection-a",
+            effectivePrimary = source,
+            metadata = CanonicalMetadata(
+                title = "Canonical A",
+                description = null,
+                coverUrl = "https://example.test/canonical-a.jpg",
+                sourceUrl = null,
+                popularityRank = null,
+                aliases = emptyList(),
+                authors = emptyList(),
+                genres = emptyList(),
+                languageTags = emptyList(),
+                publicationStatus = PublicationStatus.ONGOING,
+                latestUpdate = null,
+                score = null,
+            ),
+            health = CanonicalHealth.FRESH,
+            provenance = mapOf(
+                CanonicalFieldKey.TITLE to CanonicalFieldProvenance(
+                    field = CanonicalFieldKey.TITLE,
+                    strategy = CanonicalFieldStrategy.PRIMARY_WITH_FALLBACK,
+                    contributors = listOf(
+                        CanonicalFieldContributor(source, "source-fusion", CatalogMetadataLevel.Summary),
+                    ),
+                    reasonCodes = listOf("primary"),
+                    policyVersion = 1,
+                ),
+            ),
+            createdAtEpochMillis = 10L,
         )
     }
 

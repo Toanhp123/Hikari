@@ -1,6 +1,7 @@
 package app.openstory.catalog.canonical
 
 import app.openstory.catalog.fusion.CanonicalFusionReason
+import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.common.id.StoryId
 
@@ -19,6 +20,9 @@ class CanonicalBootstrapUseCase(
             "Canonical Story state disappeared during bootstrap for ${storyId.value}"
         }
     }
+
+    suspend fun rebuild(storyId: StoryId, reason: CanonicalFusionReason): CanonicalFusionResult =
+        rebuilder.rebuild(storyId, reason)
 
     suspend fun prewarm(storyIds: List<StoryId>, limit: Int) {
         require(limit >= 0)

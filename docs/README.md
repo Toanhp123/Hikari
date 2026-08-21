@@ -9,7 +9,8 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — current execution position.
 4. **[superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md](superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md)** — normative canonical catalog identity/fusion architecture.
 5. **[superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md](superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md)** — active task-by-task implementation plan.
-6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md)** — verified Phase-1 Tasks 5–11 checkpoint evidence; Phase 1 is closed.
+6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md)** — active Phase-2 Tasks 12–21 patch/verification-open checkpoint.
+7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md)** — verified Phase-1 Tasks 5–11 checkpoint evidence; Phase 1 is closed.
 7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md)** — verified Phase-0 Tasks 1–4 checkpoint evidence; Phase 0 is closed.
 8. **[internal/checkpoints/discover-semantic-feed-redesign.md](internal/checkpoints/discover-semantic-feed-redesign.md)** — accepted Discover semantic-feed redesign evidence, including Room schema 7 and benchmark results.
 9. **[superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md](superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md)** — normative current Discover composition and semantic-feed contract until the later canonical-read cutover tasks replace feature-local provider selection.
@@ -33,7 +34,7 @@ The ReDantotsu-inspired Product UI plan is completed and retained as an implemen
 record. The 2026-08-19 Discover semantic-feed plan is also completed and retained as the
 execution record for the current Discover screen. The active next-work entry is now the
 2026-08-21 Canonical Catalog Reconciliation & Fusion Engine plan; Phase 0 Tasks 1–4 and
-Phase 1 Tasks 5–11 are verified and closed. The active next task is Phase 2 / Task 12.
+Phase 1 Tasks 5–11 are verified and closed. Phase 2 Tasks 12–21 are patched with developer Gradle/device/macrobenchmark verification open; Task 22 must not start until Phase 2 is closed.
 
 Wave 01-09 plans are historical delivery records. Wave 10-11 remain planned future
 capability work under the approved post-Baseline-2 architecture. The canonical-engine

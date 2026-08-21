@@ -1,7 +1,9 @@
 package app.openstory.catalog.ui.library
 
 import androidx.lifecycle.SavedStateHandle
+import app.openstory.catalog.canonical.CanonicalScore
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.common.Clock
@@ -123,6 +125,32 @@ class LibraryViewModelTest {
         runCurrent()
 
         assertEquals(0.8f, viewModel.state.value.items.single().progressFraction)
+    }
+
+    @Test
+    fun canonicalProjectionOwnsLibraryPresentationFields() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.catalog.value = listOf(
+            CatalogStoryProjection(
+                storyId = StoryId("a"),
+                title = "Canonical title",
+                contentType = ContentType.MANGA,
+                coverUrl = "https://example.test/canonical.jpg",
+                publicationStatus = PublicationStatus.COMPLETED,
+                score = CanonicalScore(0.82, 2),
+            ),
+        )
+        val viewModel = fixtures.viewModel(this)
+        runCurrent()
+
+        val item = viewModel.state.value.items.single()
+        assertEquals("Canonical title", item.title)
+        assertEquals("https://example.test/canonical.jpg", item.coverUrl)
+        assertEquals(PublicationStatus.COMPLETED, item.publicationStatus)
+        assertEquals(8.2, item.score?.value)
+        assertEquals(10.0, item.score?.scale)
+        assertEquals(LibraryStatus.READING, item.status)
     }
 
     @Test

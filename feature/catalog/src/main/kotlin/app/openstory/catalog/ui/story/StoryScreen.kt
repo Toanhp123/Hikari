@@ -30,6 +30,8 @@ fun StoryScreen(
     state: StoryUiState,
     onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onPinPrimary: (PluginId, String) -> Unit = { _, _ -> },
+    onUseAutomaticPrimary: () -> Unit = {},
     onSectionSelected: (StorySection) -> Unit = {},
     onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
     onRead: (ReaderTarget) -> Unit = {},
@@ -86,15 +88,17 @@ fun StoryScreen(
                 if (windowClass == HikariWindowClass.MEDIUM) {
                     MediumStoryLayout(
                         state, story, readerTarget, validatedResumeTarget != null,
-                        downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
-                        onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
+                        downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
+                        onUseAutomaticPrimary, onSectionSelected, onLibraryStatusSelected, onRead,
+                        { onSectionSelected(StorySection.SOURCES) },
                         onDownload, mappingState, mappingActions, chapterState, chapterActions,
                     )
                 } else {
                     CompactStoryLayout(
                         state, story, readerTarget, validatedResumeTarget != null,
-                        downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
-                        onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
+                        downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
+                        onUseAutomaticPrimary, onSectionSelected, onLibraryStatusSelected, onRead,
+                        { onSectionSelected(StorySection.SOURCES) },
                         onDownload, mappingState, mappingActions, chapterState, chapterActions,
                         narrowHero = windowClass == HikariWindowClass.COMPACT,
                     )

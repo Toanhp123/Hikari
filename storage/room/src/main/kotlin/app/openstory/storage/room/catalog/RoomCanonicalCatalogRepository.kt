@@ -18,9 +18,11 @@ import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.evidence.toSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
+import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.PublicationStatus
+import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.catalog.model.Story
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -37,12 +39,14 @@ class RoomCanonicalCatalogRepository internal constructor(
     private val canonicalDao: CanonicalCatalogDao,
     private val catalogDao: CatalogDao,
     private val identity: StoryIdentityRepository,
+    private val beforePromotion: suspend () -> Unit = {},
 ) : CanonicalCatalogRepository {
     constructor(database: OpenStoryDatabase) : this(
         database = database,
         canonicalDao = database.canonicalCatalogDao(),
         catalogDao = database.catalogDao(),
         identity = RoomStoryIdentityResolver(database),
+        beforePromotion = {},
     )
 
     override fun observeStory(storyId: StoryId): Flow<CanonicalStoryState?> =
@@ -63,6 +67,19 @@ class RoomCanonicalCatalogRepository internal constructor(
         .mapLatest { storyIds ->
             storyIds.mapNotNull { readResolvedState(it) as? CanonicalStoryState.Ready }
         }
+
+    override fun observeReadyStories(storyIds: Set<StoryId>): Flow<List<CanonicalStoryState.Ready>> {
+        if (storyIds.isEmpty()) return kotlinx.coroutines.flow.flowOf(emptyList())
+        val ids = storyIds.map(StoryId::value)
+        return combine(
+            canonicalDao.observeCanonicalStates(ids),
+            catalogDao.observeStories(ids),
+            catalogDao.observeEntries(ids),
+        ) { states, _, _ -> states.map { StoryId(it.storyId) } }
+            .mapLatest { readyIds ->
+                readyIds.mapNotNull { readResolvedState(it) as? CanonicalStoryState.Ready }
+            }
+    }
 
     override suspend fun state(storyId: StoryId): CanonicalStoryState? =
         readResolvedState(identity.resolve(storyId))
@@ -95,10 +112,22 @@ class RoomCanonicalCatalogRepository internal constructor(
             val current = requireNotNull(canonicalDao.canonicalState(resolved.value))
             canonicalDao.upsertCanonicalState(
                 current.copy(
+                    health = CanonicalHealth.REEVALUATING.name,
                     preferenceMode = preference.mode.name,
                     pinnedPluginId = preference.pinnedSource?.pluginId?.value,
                     pinnedSourceId = preference.pinnedSource?.sourceId,
-                    preferenceRevision = preference.revision,
+                    preferenceRevision = current.preferenceRevision + 1,
+                ),
+            )
+            canonicalDao.upsertWork(
+                CanonicalEngineWorkEntity(
+                    storyId = resolved.value,
+                    workType = CanonicalEngineWorkType.FUSION_REBUILD.name,
+                    reason = "source-preference-changed",
+                    attemptCount = 0,
+                    nextAttemptAtEpochMillis = 0,
+                    lastErrorCode = null,
+                    requiredPolicyVersion = FUSION_POLICY_VERSION,
                 ),
             )
         }
@@ -124,6 +153,7 @@ class RoomCanonicalCatalogRepository internal constructor(
             canonicalDao.upsertGeneration(candidate.toEntity(valid = false))
             canonicalDao.deleteProvenance(candidate.id)
             canonicalDao.insertProvenance(candidate.toProvenanceEntities())
+            beforePromotion()
             canonicalDao.markGenerationValid(candidate.id)
             check(canonicalDao.activateGeneration(candidate.storyId.value, candidate.id, candidate.health.name) == 1)
             true

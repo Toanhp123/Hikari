@@ -1,6 +1,8 @@
 package app.openstory.catalog.ui.library
 
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.PublicationStatus
+import app.openstory.catalog.model.Score
 import app.openstory.common.id.StoryId
 import app.openstory.library.LibraryStatus
 
@@ -26,6 +28,8 @@ data class LibraryItemUiModel(
     val progressFraction: Float? = null,
     val addedAt: Long,
     val updatedAt: Long,
+    val publicationStatus: PublicationStatus? = null,
+    val score: Score? = null,
 )
 
 enum class LibrarySort {

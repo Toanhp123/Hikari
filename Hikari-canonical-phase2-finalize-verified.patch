@@ -1,0 +1,579 @@
+diff --git a/README.md b/README.md
+index b40ad16..c854735 100644
+--- a/README.md
++++ b/README.md
+@@ -11,7 +11,7 @@ source-agnostic at the presentation boundary and renders `Popular`, a full-width
+ `Manga | Light Novel` selector, `Latest Updates`, and `Top Rated` from cached semantic Home
+ feeds. Room schema **9** remains current after the Canonical Catalog Reconciliation & Fusion Engine Phase-1 foundation; Phase 2 does not add a migration. The production capability graph remains at 14 modules.
+ The active pre-Wave-10 workstream is the Canonical Catalog Reconciliation & Fusion Engine;
+-Phase 0 Tasks 1-4 and Phase 1 Tasks 5-11 are verified and closed. Phase 2 Tasks 12-21 are patched with Gradle/device verification open; Phase 3 / Task 22 is blocked until that checkpoint closes. Wave 10 remains planned and its notification migration is rebased to `9 -> 10`.
++Phase 0 Tasks 1-4, Phase 1 Tasks 5-11, and Phase 2 Tasks 12-21 are verified and closed. Phase 3 / Task 22 is now the active canonical-engine step. Wave 10 remains planned and its notification migration is rebased to `9 -> 10`.
+ 
+ See `docs/project/current-state.md` for the exact boundary and
+ `docs/implementation/current-roadmap.md` for what comes next.
+diff --git a/docs/PROJECT-HANDBOOK.md b/docs/PROJECT-HANDBOOK.md
+index 5644d23..976e5e9 100644
+--- a/docs/PROJECT-HANDBOOK.md
++++ b/docs/PROJECT-HANDBOOK.md
+@@ -129,7 +129,7 @@ URLs or raw cursor values.
+ 
+ ## 7. Current execution position
+ 
+-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0 and Phase 1 are verified/closed, while Phase 2 Tasks 12–21 are patched with developer verification open.**
++**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0, Phase 1, and Phase 2 Tasks 12–21 are verified/closed; Phase 3 starts at Task 22.**
+ 
+ Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
+ Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
+@@ -163,7 +163,7 @@ immutable generation persistence with atomic promotion, redirect-aware identity
+ engine work/audit foundations, migration graph coverage, and local-only canonical bootstrap contracts.
+ The Phase-1 checkpoint is verified: Catalog unit tests, Room schema export/build, the selected
+ 27-test Room migration/repository suite, app composition policy, and the canonical `./scripts/verify.sh`
+-gate all passed on the developer checkout. Phase 2 now patches the provider-agnostic Fusion policy,
++gate all passed on the developer checkout. Phase 2 accepted the provider-agnostic Fusion policy,
+ primary hysteresis/pinning, field provenance, canonical rebuild/promotion, and canonical presentation
+ read-path cutover for Story/Search/Discover/Library while retaining raw source inspection and Discover
+ feed/ranking semantics. Phase-2 Gradle/device/macrobenchmark acceptance remains open, so reconciliation
+@@ -184,7 +184,7 @@ and destructive Story merge are still blocked. Wave 10 notification persistence
+ | 08 | text reader, release selection/switching and exact progress |
+ | 09 | cache/download namespaces, quotas, integrity and offline reading |
+ | UI | accepted design system + Product UI + semantic Discover presentation |
+-| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0/1 verified on schema 9; Phase 2 Tasks 12–21 patched/verification-open; Task 22 blocked |
++| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0/1/2 verified on schema 9; Task 22 active next |
+ | 10 | local scheduling, guarded source login and deduplicated notifications; planned after CCE reaches a compatible schema boundary |
+ | 11 | security/performance/accessibility/docs/reproducible APK hardening |
+ 
+@@ -220,7 +220,7 @@ Read in this order:
+ 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
+ 3. `superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` — current canonical catalog identity/fusion architecture.
+ 4. `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md` — active task-by-task execution record.
+-5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` — active Phase-2 Tasks 12–21 patch/verification-open evidence.
++5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` — verified Phase-2 Tasks 12–21 evidence.
+ 6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` — verified Phase-1 Tasks 5–11 evidence.
+ 6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` — verified Phase-0 Tasks 1–4 evidence.
+ 7. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
+diff --git a/docs/README.md b/docs/README.md
+index e2fc0ed..080e098 100644
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -9,7 +9,7 @@ Use this directory instead of hunting through dated plans or checkpoint history.
+ 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — current execution position.
+ 4. **[superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md](superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md)** — normative canonical catalog identity/fusion architecture.
+ 5. **[superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md](superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md)** — active task-by-task implementation plan.
+-6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md)** — active Phase-2 Tasks 12–21 patch/verification-open checkpoint.
++6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md)** — verified Phase-2 Tasks 12–21 checkpoint evidence; Phase 2 is closed.
+ 7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md)** — verified Phase-1 Tasks 5–11 checkpoint evidence; Phase 1 is closed.
+ 7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md)** — verified Phase-0 Tasks 1–4 checkpoint evidence; Phase 0 is closed.
+ 8. **[internal/checkpoints/discover-semantic-feed-redesign.md](internal/checkpoints/discover-semantic-feed-redesign.md)** — accepted Discover semantic-feed redesign evidence, including Room schema 7 and benchmark results.
+@@ -34,7 +34,7 @@ The ReDantotsu-inspired Product UI plan is completed and retained as an implemen
+ record. The 2026-08-19 Discover semantic-feed plan is also completed and retained as the
+ execution record for the current Discover screen. The active next-work entry is now the
+ 2026-08-21 Canonical Catalog Reconciliation & Fusion Engine plan; Phase 0 Tasks 1–4 and
+-Phase 1 Tasks 5–11 are verified and closed. Phase 2 Tasks 12–21 are patched with developer Gradle/device/macrobenchmark verification open; Task 22 must not start until Phase 2 is closed.
++Phase 1 Tasks 5–11 and Phase 2 Tasks 12–21 are verified and closed. Phase 3 begins at Task 22, which is now the active next canonical-engine step.
+ 
+ Wave 01-09 plans are historical delivery records. Wave 10-11 remain planned future
+ capability work under the approved post-Baseline-2 architecture. The canonical-engine
+diff --git a/docs/implementation/current-roadmap.md b/docs/implementation/current-roadmap.md
+index 5c15490..eceb6e1 100644
+--- a/docs/implementation/current-roadmap.md
++++ b/docs/implementation/current-roadmap.md
+@@ -28,8 +28,7 @@ catalog metadata-lifecycle unification subsequently advanced Room to **schema 8*
+ Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
+ 
+ The **Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream**.
+-Its Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are verified and closed. Phase 2 Tasks 12–21 are
+-patched with developer verification open while Room remains schema 9. The canonical feature read-path cutover is present in the patch but not accepted until Phase-2 gates close; reconciliation and destructive Story merge remain unimplemented. The active design/plan are:
++Its Phase 0 Tasks 1–4, Phase 1 Tasks 5–11, and Phase 2 Tasks 12–21 are verified and closed while Room remains schema 9. The canonical feature read-path cutover is accepted; reconciliation and destructive Story merge remain unimplemented. Task 22 is now active. The active design/plan are:
+ 
+ - `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
+ - `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
+@@ -127,7 +126,7 @@ capability; WorkManager and notification adapters stay in `:app`.
+ | PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
+ | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
+ | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
+-| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phase 0 + Phase 1 verified/closed; Phase 2 Tasks 12–21 patched/verification open; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` |
++| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phase 0 + Phase 1 + Phase 2 Tasks 12–21 verified/closed; Task 22 next; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` |
+ | 10 | Background work, auth, notifications | **Planned; not started; schema entry will be rebased by CCE Task 6 if that foundation lands first** | `waves/wave-10-background-sync-auth-and-notifications.md` |
+ | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
+ 
+@@ -208,8 +207,8 @@ architecture
+                         -> unified catalog metadata lifecycle + Room schema 8
+                           -> canonical catalog reconciliation/fusion engine (Phase 1 verified/closed)
+                             -> canonical schema foundation (schema 9 accepted)
+-                              -> metadata fusion/read-path cutover (Phase 2 Tasks 12-21 patched; verification open)
+-                                -> reconciliation observe-only (Phase 3 / Task 22 blocked)
++                              -> metadata fusion/read-path cutover (Phase 2 Tasks 12-21 verified/closed)
++                                -> reconciliation observe-only (Phase 3 / Task 22 active)
+                                   -> local background/auth/notifications (Wave 10; schema 9 -> 10)
+                       -> release hardening
+ ```
+@@ -217,7 +216,7 @@ architecture
+ ## Execution rule
+ 
+ 1. Use the current 14-module graph, Room schema 9, and the Canonical Engine design/plan as the active execution baseline.
+-2. Phase 1 Tasks 5–11 are verified and closed; Phase 2 Tasks 12–21 are patched with verification open. Close the Phase-2 gate before Task 22. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
++2. Phase 1 Tasks 5–11 and Phase 2 Tasks 12–21 are verified and closed. Task 22 is the active next implementation step. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
+ 3. Wave 10 notification persistence is rebased to `MIGRATION_9_10`; never reintroduce another meaning for `MIGRATION_8_9`.
+ 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
+ 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
+diff --git a/docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md b/docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md
+index 16a197c..af2b08d 100644
+--- a/docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md
++++ b/docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md
+@@ -1,8 +1,8 @@
+ # Canonical Catalog Reconciliation & Fusion Engine — Phase 2 Checkpoint
+ 
+ Date: 2026-08-21
+-Status: **PATCHED — VERIFICATION OPEN**
+-Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 remains blocked until the Phase-2 developer-checkout gates below are reviewed green.
++Status: **VERIFIED — PHASE 2 CLOSED**
++Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 is the active next step after this accepted checkpoint.
+ 
+ ## Normative sources
+ 
+@@ -10,7 +10,7 @@ Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 remains blocked
+ - Plan: `../../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
+ - Prior accepted evidence: `canonical-catalog-reconciliation-fusion-phase-1.md`
+ 
+-## Patched implementation boundary
++## Accepted implementation boundary
+ 
+ ### Task 12 — provider-agnostic Fusion quality facts
+ 
+@@ -80,55 +80,73 @@ Scope: implementation-plan Tasks 12–21 only. Phase 3 / Task 22 remains blocked
+ - Reflection guards fail if participating feature ViewModels acquire `CatalogFusionEngine` or `CanonicalFusionService` dependencies.
+ - The steady read path is constrained to active canonical generation/projection; raw source inspection is intentionally excluded from cross-feature presentation equality.
+ 
+-## Sandbox verification evidence
++## Accepted verification evidence
+ 
+-Fresh checks on the Phase-2 working tree reported:
++Developer-checkout acceptance on 2026-08-21 completed the Phase-2 gates:
+ 
+ ```text
+-git diff --check
+-  PASS
++./gradlew :catalog:testDebugUnitTest :feature:catalog:testDebugUnitTest :app:testDebugUnitTest
++  BUILD SUCCESSFUL
+ 
+-source ./scripts/verification-common.sh
+-run_repository_static_gates
+-  PASS
+-  Current architecture: 14 production modules, 1 android-test module, Room schema 1..9
++./gradlew :storage:room:assembleDebug
++  BUILD SUCCESSFUL
++  checked-in schema 9 export unchanged
+ 
+-./scripts/verify-room-schema-stability.sh
+-  PASS
+-  a5e9f89676504c9a5596c314e72d2216bede87d5e449a71c55a8f502e28ef6a6
+-```
++./gradlew :storage:room:connectedDebugAndroidTest \
++  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.catalog.RoomCanonicalCatalogRepositoryTest,app.openstory.storage.room.catalog.RoomCatalogRepositoryTest
++  22/22 tests PASS
+ 
+-Supplementary compile/test-oriented checks performed during implementation also compiled the pure Catalog/Fusion boundary and selected Room adapters with minimal framework stubs, and exercised the pure Fusion policy/engine/validator, Fusion service, and Search service test fixtures. Those are useful implementation evidence but **do not replace Gradle or device acceptance**.
++./gradlew :feature:catalog:connectedDebugAndroidTest \
++  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.ui.search.SearchScreenTest
++  7/7 tests PASS on rerun
+ 
+-A fresh sandbox Gradle attempt remains blocked before project execution because the wrapper cannot resolve the distribution host:
++./gradlew :app:connectedDebugAndroidTest \
++  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.AppLaunchSmokeTest,app.openstory.navigation.AppNavigationTest
++  14/14 tests PASS
+ 
+-```text
+-./gradlew :catalog:testDebugUnitTest --offline
+-  Downloading https://services.gradle.org/distributions/gradle-9.5.0-bin.zip
+-  java.net.UnknownHostException: services.gradle.org
+-```
++./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
++  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#homeDiscoverHome'
++  BUILD SUCCESSFUL
++
++./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
++  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#storyTabs'
++  BUILD SUCCESSFUL
++
++./gradlew :detekt
++  PASS after the Phase-2 Fusion-policy style cleanup
+ 
+-Therefore this checkpoint deliberately does **not** claim the Phase-2 Gradle, connected, macrobenchmark, Detekt/lint/full-verify acceptance gates.
++./scripts/verify.sh
++  PASS
++```
+ 
+-## Required developer-checkout verification
++The earlier Search instrumentation attempt that reported two `No compose hierarchies found` failures was not reproducible after rerun; the same seven-test class then completed 7/7, so no production Search behavior was changed to mask a host/test-lifecycle flake.
+ 
+-Run these after applying the Phase-2 patch:
++The accepted macrobenchmark artifacts were recorded on Redmi Note 9S with `compilationMode = run-from-apk`:
+ 
+-```bash
+-./gradlew   :catalog:testDebugUnitTest   :feature:catalog:testDebugUnitTest   :app:testDebugUnitTest
++| Benchmark | frameDurationCpuMs P50 | P90 | P95 | frameOverrunMs P50 | P90 | P95 |
++|---|---:|---:|---:|---:|---:|---:|
++| `homeDiscoverHome` | 12.323 | 36.506 | 56.395 | 10.358 | 42.925 | 47.614 |
++| `storyTabs` | 9.613 | 11.745 | 22.995 | 4.709 | 22.219 | 59.554 |
+ 
+-./gradlew :storage:room:connectedDebugAndroidTest   -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.catalog.RoomCanonicalCatalogRepositoryTest,app.openstory.storage.room.catalog.RoomCatalogRepositoryTest   --stacktrace
++These runs prove the changed read paths execute successfully under the Phase-2 benchmark harness. They do **not** claim a performance improvement relative to an earlier paired baseline because this acceptance bundle did not include a controlled before/after comparison. The `homeDiscoverHome` build also emitted non-fatal stale startup-profile entry warnings for classes/signatures replaced by the canonical cutover; profile regeneration is follow-up hygiene for a future profile/performance release gate and did not fail this Phase-2 macrobenchmark.
+ 
+-./gradlew :app:connectedDebugAndroidTest   -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.AppLaunchSmokeTest,app.openstory.navigation.AppNavigationTest   --stacktrace
++Repository/static acceptance also remains green with Room schema 9:
+ 
+-./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest   '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#homeDiscoverHome'   --stacktrace
++```text
++git diff --check
++  PASS
+ 
+-./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest   '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#storyTabs'   --stacktrace
++source ./scripts/verification-common.sh
++run_repository_static_gates
++  PASS
++  Current architecture: 14 production modules, 1 android-test module, Room schema 1..9
+ 
+-./scripts/verify.sh
++./scripts/verify-room-schema-stability.sh
++  PASS
++  a5e9f89676504c9a5596c314e72d2216bede87d5e449a71c55a8f502e28ef6a6
+ ```
+ 
+-Record benchmark JSON/Perfetto paths if both macrobenchmarks run. If read-path performance regresses beyond normal device variance, inspect traces for repeated source reads/Fusion on steady UI paths before changing correctness policy.
++The Phase-2 Fusion Detekt cleanup was behavior-preserving: it replaced magic literals and excess early-return/complex-condition forms with named constants, expressions, and focused helpers without changing primary-selection, hysteresis, validation, or promotion policy.
+ 
+ ## Explicit non-claims
+ 
+@@ -143,4 +161,4 @@ This patch does **not** implement or enable:
+ 
+ ## Closure condition
+ 
+-Phase 2 remains **PATCHED — VERIFICATION OPEN**. Do not start Task 22 until the developer-checkout Phase-2 unit, Room connected, navigation smoke, both specified macrobenchmarks, and canonical `./scripts/verify.sh` evidence have been reviewed. After those are green, update this checkpoint/spec/plan to **VERIFIED — PHASE 2 CLOSED** and make Task 22 the active next step.
++Phase 2 is **VERIFIED — PHASE 2 CLOSED**. Tasks 12–21 are accepted on the developer checkout, Room remains schema 9, and Task 22 is now the active next implementation step. No reconciliation executor, destructive Story merge, or Phase-3 runtime behavior is enabled by this checkpoint.
+diff --git a/docs/project/current-state.md b/docs/project/current-state.md
+index c1b7a1e..f8b7572 100644
+--- a/docs/project/current-state.md
++++ b/docs/project/current-state.md
+@@ -32,19 +32,19 @@ Purpose: single source of truth for the implemented repository boundary.
+   presentation metadata remains degraded and does not cause host-side Details enrichment.
+   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
+   Summary/Full provenance while preserving persisted source identity.
+-- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0 VERIFIED; PHASE 1 TASKS 5–11 VERIFIED/CLOSED; PHASE 2 TASKS 12–21 PATCHED — VERIFICATION OPEN**.
++- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0 VERIFIED; PHASE 1 TASKS 5–11 VERIFIED/CLOSED; PHASE 2 TASKS 12–21 VERIFIED/CLOSED; TASK 22 NEXT**.
+   Phase 0 established opaque latest-update labels, bounded external identifiers, shared `SourceKey`,
+   normalized evidence, independent fingerprints, and legacy-source characterization. Phase 1 now
+   adds Room schema 9 with the canonical-engine persistence foundation, persists external identifiers,
+   exposes lossless `CatalogSourceRecord` reads, persists canonical state/generations/provenance,
+   resolves historical Story IDs through redirects, persists durable engine work/audit foundations,
+   covers representative schema-8 graph migration, and provides local-only canonical bootstrap.
+-  Phase 2 now patches the versioned Fusion policy, primary hysteresis/pinning, field provenance,
++  Phase 2 accepts the versioned Fusion policy, primary hysteresis/pinning, field provenance,
+   canonical generation rebuild/promotion, canonical projection repository, and Story/Search/Discover/
+   Library presentation cutover while preserving raw-source inspection and Discover feed/ranking semantics.
+   Reconciliation policy and destructive Story merge remain disabled. Checkpoints: Phase 0 at
+   `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`; accepted Phase 1 at
+-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; active Phase 2 at
++  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; accepted Phase 2 at
+   `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md`.
+ - Wave 10: **PLANNED; NOT STARTED**. Canonical-engine work remains the active pre-Wave-10 track.
+   The Phase-1 patch now owns `8 -> 9`, so Wave 10 notification persistence is rebased to `9 -> 10`.
+diff --git a/docs/project/document-governance.md b/docs/project/document-governance.md
+index 71fcf62..aef49f0 100644
+--- a/docs/project/document-governance.md
++++ b/docs/project/document-governance.md
+@@ -29,8 +29,8 @@ are complete. The active pre-Wave-10 workstream is the **Canonical Catalog Recon
+ Engine** under `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
+ Phase 0 Tasks 1-4 and Phase 1 Tasks 5-11 are verified and closed; use
+ `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` for accepted Phase-1 evidence.
+-Phase 2 Tasks 12-21 are patched with verification open; use
+-`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` for the active checkpoint. Task 22 remains blocked.
++Phase 2 Tasks 12-21 are verified/closed; use
++`../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` for the accepted checkpoint. Task 22 is now active next.
+ Wave 10 remains planned and its notification migration is rebased to `9 -> 10`.
+ 
+ Architecture Baseline 2 remains accepted. Its design and acceptance checkpoint own the architecture
+@@ -39,7 +39,7 @@ post-baseline architecture design owns module evolution and cross-wave continuit
+ The 2026-08-19 Discover spec owns the current Discover-specific semantic-feed contract. The
+ 2026-08-20 Canonical Catalog Reconciliation & Metadata Fusion Engine design now owns canonical
+ catalog Story identity, reconciliation, source preference, and future canonical presentation truth.
+-Phase 2 patches Discover/Search/Story/Library over to the canonical read path but that cutover remains verification-open until the Phase-2 checkpoint closes. The broader
++Phase 2 moved Discover/Search/Story/Library to the canonical read path and that cutover is accepted by the closed Phase-2 checkpoint. The broader
+ architecture path remains `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+ 
+ The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
+@@ -70,7 +70,7 @@ protocol, and tested fixtures.
+ | Architecture Baseline 2 R0-R6 plans | Accepted one-time architecture reset record; not the active feature plan after R6 |
+ | 2026-08-12 Product UI design/plan | Accepted/completed broader presentation baseline; Discover-specific source/category composition is superseded by the 2026-08-19 Discover spec |
+ | 2026-08-19 Discover semantic-feed design/plan | Accepted implementation record and current Discover-specific contract; checkpoint evidence is `discover-semantic-feed-redesign.md` |
+-| 2026-08-20 canonical catalog reconciliation/fusion design + 2026-08-21 implementation plan | Current authority for host-owned canonical catalog identity/fusion. Phase 0 and Phase 1 are verified/closed on schema 9; Phase 2 Tasks 12-21 are patched/verification-open without a schema change; Phase 3 reconciliation/merge remains unimplemented |
++| 2026-08-20 canonical catalog reconciliation/fusion design + 2026-08-21 implementation plan | Current authority for host-owned canonical catalog identity/fusion. Phase 0, Phase 1, and Phase 2 Tasks 12-21 are verified/closed on schema 9 without a Phase-2 schema change; Phase 3 reconciliation/merge remains unimplemented and starts at Task 22 |
+ | Wave 10 schema `6 -> 7` / `7 -> 8` / `8 -> 9` planning text | Superseded by the catalog metadata lifecycle through schema 8 and the canonical-engine Phase-1 foundation at schema 9. Wave 10 notification persistence is now rebased to `9 -> 10`; Wave 11 enters on schema 10 unless another reviewed migration intervenes |
+ 
+ ## Lifecycle labels
+diff --git a/docs/project/requirement-coverage.md b/docs/project/requirement-coverage.md
+index c4a540e..f0a81cd 100644
+--- a/docs/project/requirement-coverage.md
++++ b/docs/project/requirement-coverage.md
+@@ -12,7 +12,7 @@ Current boundary: Waves 06-09 are verified and complete. Architecture Baseline 2
+ Design System Foundation, the Product UI checkpoint, and the Discover semantic-feed redesign
+ are accepted. The Canonical Catalog Reconciliation & Fusion Engine is the active pre-Wave-10
+ workstream. Phase 0 Tasks 1-4 and Phase 1 Tasks 5-11 are verified and closed; Phase 1 owns Room
+-schema 9 through `8 -> 9`. Phase 2 Tasks 12-21 are patched/verification-open and do not change schema 9. Wave 10 is not implemented; its notification persistence
++schema 9 through `8 -> 9`. Phase 2 Tasks 12-21 are verified/closed and do not change schema 9. Wave 10 is not implemented; its notification persistence
+ is now rebased to `9 -> 10`, and Wave 11 enters on schema 10 unless another reviewed migration intervenes.
+ 
+ The matrix below preserves the approved 2026-08-03 requirement-to-wave mapping. Later
+@@ -27,7 +27,7 @@ those cases.
+ | Primary Discover composition | `../superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` | Semantic `Popular -> media selector -> Latest Updates -> Top Rated`; no default catalog/source selector or per-catalog page in the primary Discover UI |
+ | Discover feed identity | same | Explicit semantic feed kind; canonical `StoryId` dedupe before Compose; no provider/title inference |
+ | Discover persistence | same + Room schema 7 | Feed kind, publication status, and coherent latest-update metadata are persisted in schema 7 |
+-| Canonical catalog identity/fusion | `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` + active implementation plan | Phase 0 and Phase 1 are verified. Phase 2 Tasks 12-21 are patched/verification-open: versioned Fusion policy, primary hysteresis/pinning, field provenance, atomic generation rebuild, canonical projection/read cutover, Search Summary persistence, Discover feed/canonical-presentation split, shared consumer cutover, and cross-feature consistency guards. Room remains schema 9. Reconciliation/merge begins only after Phase 2 closes |
++| Canonical catalog identity/fusion | `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` + active implementation plan | Phase 0, Phase 1, and Phase 2 Tasks 12-21 are verified/closed: versioned Fusion policy, primary hysteresis/pinning, field provenance, atomic generation rebuild, canonical projection/read cutover, Search Summary persistence, Discover feed/canonical-presentation split, shared consumer cutover, and cross-feature consistency guards. Room remains schema 9. Reconciliation/merge remains unimplemented; Phase 3 begins at Task 22 |
+ | Plugin execution mechanics | Architecture Baseline 2 + `../plugin-sdk/` | JavaScript-only protocol/runtime; historical selector/declarative-runtime rows are product-history, not active SDK mechanics |
+ | Wave 10 persistence | `../implementation/waves/wave-10-background-sync-auth-and-notifications.md` | Still planned. Canonical-engine Task 6 now owns schema 8 -> 9, so Wave 10 durable notification state is rebased to 9 -> 10 |
+ | Manga image Reader scope | `approved-product-design.md` + `current-state.md` | Original MVP exclusion remains normative; repository contains a bounded MangaDex image-page path that is implementation beyond that baseline until separately approved as product scope |
+diff --git a/docs/superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md b/docs/superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md
+index 1c1ee6a..7d486d5 100644
+--- a/docs/superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md
++++ b/docs/superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md
+@@ -10,7 +10,7 @@
+ 
+ **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
+ 
+-**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4 and Phase 1 Tasks 5–11 are **VERIFIED** on the developer checkout. Phase 2 Tasks 12–21 are now **PATCHED — VERIFICATION OPEN**: versioned provider-agnostic Fusion policy, primary selection/hysteresis/pinning, field Fusion/provenance, canonical generation validation/promotion/retry, canonical projection cutover, Story/Search/Discover/Library presentation cutover, and cross-feature read-path guards are present while Room remains schema 9. Sandbox static gates and Room schema stability are green, but Gradle cannot start because the wrapper distribution host is unreachable; Phase-2 RED/Gradle/connected/macrobenchmark/full-verify steps therefore remain unchecked rather than being retroactively falsified. Phase 3 / Task 22 is blocked until developer-checkout acceptance closes Phase 2.
++**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4, Phase 1 Tasks 5–11, and Phase 2 Tasks 12–21 are **VERIFIED / CLOSED** on the developer checkout. Phase 2 acceptance includes the full Catalog/feature/app unit gate, unchanged Room schema-9 export, 22/22 selected Room connected tests, Search 7/7, app smoke/navigation 14/14, successful `homeDiscoverHome` and `storyTabs` macrobenchmarks, green Detekt after behavior-preserving Fusion style cleanup, and green canonical `./scripts/verify.sh`. The historical RED-watch steps remain unchecked where no RED runtime evidence was captured; they are not retroactively falsified. Room remains schema 9. Phase 3 / Task 22 is now the active next step.
+ 
+ ## Global Constraints
+ 
+@@ -1808,7 +1808,7 @@ Developer checkout: PASS. Room schema 9 is the single current export, current do
+ 
+ ### Task 12: Define source usability/freshness and versioned fusion policy facts
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/FusionPolicy.kt`
+@@ -1926,7 +1926,7 @@ fun CatalogSourceFreshness.rank(): Int = when (this) {
+ 
+ It maps objective facts only. It does not contain plugin IDs.
+ 
+-- [ ] **Step 5: Verify**
++- [x] **Step 5: Verify**
+ 
+ ```bash
+ ./gradlew :catalog:testDebugUnitTest
+@@ -1945,7 +1945,7 @@ git commit -m "catalog: define provider agnostic fusion quality"
+ 
+ ### Task 13: Implement automatic primary selection, hysteresis, and Story-level source pin
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CatalogFusionEngine.kt`
+@@ -2048,7 +2048,7 @@ val effectivePrimary = selectPinnedPrimary(input, ranked)
+ 
+ Pin writes never edit raw `catalog_entries`.
+ 
+-- [ ] **Step 7: Verify Catalog + Room**
++- [x] **Step 7: Verify Catalog + Room**
+ 
+ ```bash
+ ./gradlew :catalog:testDebugUnitTest \
+@@ -2068,7 +2068,7 @@ git commit -m "catalog: add stable primary selection and source pin"
+ 
+ ### Task 14: Implement field-specific fusion and immutable provenance
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Modify: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CatalogFusionEngine.kt`
+@@ -2173,7 +2173,7 @@ Required private-function split is exactly `selectPrimaryScalar`, `selectCover`,
+ 
+ Every contributor stores the contributor's **current `fusionFingerprint` used by this candidate**, not a pointer that later resolves to a newer raw state.
+ 
+-- [ ] **Step 10: Verify all pure fusion tests**
++- [x] **Step 10: Verify all pure fusion tests**
+ 
+ ```bash
+ ./gradlew :catalog:testDebugUnitTest \
+@@ -2193,7 +2193,7 @@ git commit -m "catalog: fuse canonical metadata by field policy"
+ 
+ ### Task 15: Validate, persist, promote, retain, and recover canonical generations
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Create: `catalog/src/main/kotlin/app/openstory/catalog/fusion/CanonicalGenerationValidator.kt`
+@@ -2287,11 +2287,11 @@ On load, a persisted invalid/in-progress candidate never becomes active; it may
+ 
+ In `CatalogModule.kt`, bind `CanonicalGenerationRebuilder` to the singleton `CanonicalFusionService`. Provide/inject `CanonicalBootstrapUseCase` from `CanonicalCatalogRepository + CanonicalGenerationRebuilder`. No bootstrap binding exists before this task, so Phase 1 has no fake production implementation.
+ 
+-- [ ] **Step 8: Verify Room atomicity**
++- [x] **Step 8: Verify Room atomicity**
+ 
+ Add an instrumentation test that intentionally throws between candidate insert and promotion inside a test-only transaction hook; assert active pointer remains old and `PRAGMA foreign_key_check` remains empty.
+ 
+-- [ ] **Step 9: Verify**
++- [x] **Step 9: Verify**
+ 
+ ```bash
+ ./gradlew :catalog:testDebugUnitTest
+@@ -2310,7 +2310,7 @@ git commit -m "catalog: atomically build canonical generations"
+ 
+ ### Task 16: Cut a canonical projection/read API for multi-Story consumers
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Modify: `catalog/src/main/kotlin/app/openstory/catalog/projection/CatalogStoryProjection.kt`
+@@ -2367,7 +2367,7 @@ Join/read canonical active generations through `CanonicalCatalogDao`, not `catal
+ 
+ Preparing Stories are omitted from projection lists until their priority/background bootstrap creates a generation; caller ViewModels may represent preparing counts separately if product-relevant.
+ 
+-- [ ] **Step 5: Verify**
++- [x] **Step 5: Verify**
+ 
+ ```bash
+ ./gradlew :catalog:testDebugUnitTest
+@@ -2389,7 +2389,7 @@ git commit -m "catalog: project stories from canonical generations"
+ 
+ ### Task 17: Migrate Story AUTO presentation to canonical state while preserving raw source inspection
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt`
+@@ -2461,7 +2461,7 @@ Do not add per-field pin UI.
+ 
+ Refreshing a selected raw source may call the existing metadata lifecycle for that source. AUTO display does not fan out network calls merely because a canonical field is absent.
+ 
+-- [ ] **Step 6: Update snapshots/semantics and verify**
++- [x] **Step 6: Update snapshots/semantics and verify**
+ 
+ ```bash
+ ./gradlew :feature:catalog:testDebugUnitTest \
+@@ -2484,7 +2484,7 @@ git commit -m "story: consume canonical catalog presentation"
+ 
+ ### Task 18: Persist Search Summary facts, build canonical cards, and make selection navigation-only
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Create: `catalog/src/main/kotlin/app/openstory/catalog/repository/CatalogSearchSummaryMutation.kt`
+@@ -2649,7 +2649,7 @@ The Story route/lifecycle owns any explicit Full requirement after navigation.
+ 
+ Title, cover, score, status, and other canonical fields come from `CatalogStoryProjection`. Raw `sources` remain available only for source inspection/debug semantics; their list order is not presentation truth.
+ 
+-- [ ] **Step 9: Verify Catalog + Room + feature**
++- [x] **Step 9: Verify Catalog + Room + feature**
+ 
+ ```bash
+ ./gradlew :catalog:testDebugUnitTest \
+@@ -2680,7 +2680,7 @@ git commit -m "search: persist summaries and navigate canonical stories"
+ 
+ ### Task 19: Replace Discover's feature-local fusion with canonical projections
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverSemanticContent.kt`
+@@ -2730,7 +2730,7 @@ Keep only feed contribution selection/ranking and join with canonical projection
+ 
+ Add a constructor-boundary test in `DiscoverViewModelTest` that inspects `DiscoverViewModel::class.java.declaredConstructors` and fails if any parameter type is `CatalogMetadataCoordinator`, `CatalogDetailsLoader`, `CatalogFusionEngine`, or `CanonicalFusionService`. The production Discover pipeline must receive canonical projections only; it cannot own a Full/fusion dependency to fill card fields.
+ 
+-- [ ] **Step 6: Verify visual/semantic regression**
++- [x] **Step 6: Verify visual/semantic regression**
+ 
+ ```bash
+ ./gradlew :feature:catalog:testDebugUnitTest \
+@@ -2751,7 +2751,7 @@ git commit -m "discover: read canonical story presentation"
+ 
+ ### Task 20: Migrate Library/Home/Downloads shared projections to canonical generation truth
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryViewModel.kt`
+@@ -2788,7 +2788,7 @@ For each consumer:
+ 
+ Where projection consumers need a score, use `CanonicalScore.normalizedValue`; presentation may format `normalizedValue * 10.0` as `/10` consistently. The domain value remains normalized.
+ 
+-- [ ] **Step 4: Verify**
++- [x] **Step 4: Verify**
+ 
+ ```bash
+ ./gradlew :feature:catalog:testDebugUnitTest \
+@@ -2808,7 +2808,7 @@ git commit -m "catalog-ui: unify shared canonical projections"
+ 
+ ### Task 21: Add phase-2 canonical consistency and UI-read-path performance gates
+ 
+-**Execution status:** `PATCHED — GRADLE/DEVICE VERIFICATION PENDING`
++**Execution status:** `VERIFIED — PHASE 2 CLOSED`
+ 
+ **Files:**
+ - Create: `feature/catalog/src/test/kotlin/app/openstory/catalog/ui/CanonicalPresentationConsistencyTest.kt`
+@@ -2838,7 +2838,7 @@ not:
+ UI -> all source entries -> fuse
+ ```
+ 
+-- [ ] **Step 3: Run full Phase-2 unit gates**
++- [x] **Step 3: Run full Phase-2 unit gates**
+ 
+ ```bash
+ ./gradlew \
+@@ -2847,7 +2847,7 @@ UI -> all source entries -> fuse
+   :app:testDebugUnitTest
+ ```
+ 
+-- [ ] **Step 4: Run connected navigation smoke**
++- [x] **Step 4: Run connected navigation smoke**
+ 
+ ```bash
+ ./gradlew :app:connectedDebugAndroidTest \
+@@ -2855,7 +2855,7 @@ UI -> all source entries -> fuse
+   --stacktrace
+ ```
+ 
+-- [ ] **Step 5: Run the two existing macrobenchmarks whose read paths changed in Phase 2**
++- [x] **Step 5: Run the two existing macrobenchmarks whose read paths changed in Phase 2**
+ 
+ ```bash
+ ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
+@@ -2868,7 +2868,7 @@ UI -> all source entries -> fuse
+ 
+ Record the benchmark JSON/trace locations with phase verification evidence. If results regress beyond normal device variance, inspect the trace for repeated source reads/fusion before changing correctness policy.
+ 
+-- [ ] **Step 6: Phase-2 gate**
++- [x] **Step 6: Phase-2 gate**
+ 
+ ```bash
+ ./scripts/verify.sh
+diff --git a/docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md b/docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md
+index 46b8d32..96785b8 100644
+--- a/docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md
++++ b/docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md
+@@ -1,13 +1,13 @@
+ # Canonical Catalog Reconciliation and Metadata Fusion Engine Design
+ 
+ Date: 2026-08-20
+-Status: **NORMATIVE IMPLEMENTATION BASIS — Phase 0 VERIFIED; Phase 1 Tasks 5–11 VERIFIED/CLOSED; Phase 2 Tasks 12–21 PATCHED with developer verification open on 2026-08-21**
++Status: **NORMATIVE IMPLEMENTATION BASIS — Phase 0 VERIFIED; Phase 1 Tasks 5–11 VERIFIED/CLOSED; Phase 2 Tasks 12–21 VERIFIED/CLOSED on 2026-08-21; Phase 3 starts at Task 22**
+ Scope: host-owned canonical Story identity across multiple catalog providers, explainable reconciliation, metadata fusion, materialized canonical generations, durable review/lineage, atomic Story graph merge, source preference, event orchestration, retry/background safety, and integration with existing Catalog/Library/Chapters/Reader/Room boundaries
+ Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 catalog metadata-lifecycle unification; verified Phase 1 advances the current persistence foundation to Room schema 9 through `MIGRATION_8_9`.
+ 
+ > **Implementation checkpoint (2026-08-21):** Tasks 5–11 are VERIFIED and Phase 1 is closed. The accepted boundary includes canonical read/identity contracts, the schema-9 persistence foundation, external-identifier/source-record persistence, canonical generation/redirect storage, durable work/audit foundations, representative 8→9 graph migration coverage, and local-only bootstrap. Developer-checkout evidence includes a green Catalog unit suite, Room schema build/export validation, 27/27 selected Room migration/repository connected tests, a green app composition-policy test, and a green canonical `./scripts/verify.sh` after the observer-race and Detekt line-length cleanup patches. Reconciliation policy, destructive Story merge, feature canonical read-path cutover, and Phase-2 fusion policy are still not enabled; Phase 2 now starts at Task 12.
+ 
+-> **Phase-2 patch checkpoint (2026-08-21):** Tasks 12–21 are now represented in source/tests and remain **VERIFICATION OPEN**. The patch adds versioned source usability/freshness and Fusion policy, deterministic primary selection with hysteresis/pinning, field-specific canonical Fusion with immutable contributor fingerprints, candidate validation/promotion/change suppression/retry, canonical projection materialization, and Story/Search/Discover/Library canonical presentation cutover with a cross-feature no-Fusion-on-UI-read guard. Search persists Summary facts before canonical presentation; Discover preserves Home feed/ranking semantics while canonical projection owns presentation fields. Room remains schema 9 and reconciliation/merge execution is still disabled. Sandbox static/schema gates are green; Gradle/device/macrobenchmark acceptance is pending because the sandbox cannot resolve the Gradle wrapper distribution.
++> **Phase-2 acceptance checkpoint (2026-08-21):** Tasks 12–21 are **VERIFIED / CLOSED**. The accepted boundary includes versioned source usability/freshness and Fusion policy, deterministic primary selection with hysteresis/pinning, field-specific canonical Fusion with immutable contributor fingerprints, candidate validation/promotion/change suppression/retry, canonical projection materialization, and Story/Search/Discover/Library canonical presentation cutover with a cross-feature no-Fusion-on-UI-read guard. Search persists Summary facts before canonical presentation; Discover preserves Home feed/ranking semantics while canonical projection owns presentation fields. Developer-checkout evidence includes the full Phase-2 unit gate, unchanged schema-9 export, 22/22 selected Room connected tests, Search 7/7, app smoke/navigation 14/14, successful `homeDiscoverHome` and `storyTabs` macrobenchmarks, green Detekt, and green canonical `./scripts/verify.sh`. Room remains schema 9 and reconciliation/merge execution is still disabled. Task 22 is now the active next step.
+ 
+ ### 2026-08-21 implementation checkpoint
+ 

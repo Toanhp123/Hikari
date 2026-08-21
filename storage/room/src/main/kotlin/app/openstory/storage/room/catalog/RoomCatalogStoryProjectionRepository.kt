@@ -1,45 +1,29 @@
 package app.openstory.storage.room.catalog
 
+import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
-import app.openstory.catalog.projection.projectCatalogStory
+import app.openstory.catalog.projection.toProjection
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 class RoomCatalogStoryProjectionRepository internal constructor(
-    private val dao: CatalogDao,
+    private val canonical: CanonicalCatalogRepository,
 ) : CatalogStoryProjectionRepository {
-    constructor(database: OpenStoryDatabase) : this(database.catalogDao())
+    constructor(database: OpenStoryDatabase) : this(RoomCanonicalCatalogRepository(database))
 
-    override fun observe(): Flow<List<CatalogStoryProjection>> = project(
-        stories = dao.observeStories(),
-        entries = dao.observeAllEntries(),
-    )
+    override fun observe(): Flow<List<CatalogStoryProjection>> = canonical.observeReadyStories()
+        .map { states -> states.map { it.toProjection() } }
 
     override fun observeForStories(storyIds: Set<StoryId>): Flow<List<CatalogStoryProjection>> =
         if (storyIds.isEmpty()) {
             flowOf(emptyList())
         } else {
-            val ids = storyIds.map(StoryId::value)
-            project(
-                stories = dao.observeStories(ids),
-                entries = dao.observeEntries(ids),
-            )
+            canonical.observeReadyStories(storyIds).map { states ->
+                states.map { it.toProjection() }
+            }
         }
-
-    private fun project(
-        stories: Flow<List<StoryEntity>>,
-        entries: Flow<List<CatalogEntryEntity>>,
-    ): Flow<List<CatalogStoryProjection>> = combine(stories, entries) { storyRows, entryRows ->
-        val entriesByStory = entryRows.groupBy(CatalogEntryEntity::storyId)
-        storyRows.map { story ->
-            projectCatalogStory(
-                story = story.toModel(),
-                entries = entriesByStory[story.storyId].orEmpty().map(CatalogEntryEntity::toModel),
-            )
-        }
-    }
 }
