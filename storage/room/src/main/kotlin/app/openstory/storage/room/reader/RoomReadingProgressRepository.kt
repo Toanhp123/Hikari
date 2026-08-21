@@ -7,15 +7,25 @@ import app.openstory.common.id.StoryId
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.storage.room.OpenStoryDatabase
+import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
+import app.openstory.storage.room.catalog.observeResolvedSet
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RoomReadingProgressRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: ReadingProgressDao,
+    private val identity: RoomStoryIdentityResolver,
 ) : ReadingProgressRepository {
-    constructor(database: OpenStoryDatabase) : this(database, database.readingProgressDao())
+    constructor(database: OpenStoryDatabase) : this(
+        database,
+        database.readingProgressDao(),
+        RoomStoryIdentityResolver(database),
+    )
 
     override fun observeAll(): Flow<List<ReadingProgress>> =
         dao.observeAll().map { progress -> progress.map(ReadingProgressEntity::toModel) }
@@ -24,20 +34,27 @@ class RoomReadingProgressRepository internal constructor(
         if (storyIds.isEmpty()) {
             flowOf(emptyList())
         } else {
-            dao.observeForStories(storyIds.map(StoryId::value))
-                .map { progress -> progress.map(ReadingProgressEntity::toModel) }
+            identity.observeResolvedSet(storyIds).flatMapLatest { resolved ->
+                dao.observeForStories(resolved.map(StoryId::value))
+                    .map { progress -> progress.map(ReadingProgressEntity::toModel) }
+            }
         }
 
     override fun observe(
         storyId: StoryId,
         chapterId: CanonicalChapterId,
-    ): Flow<ReadingProgress?> = dao.observe(storyId.value, chapterId.value).map { it?.toModel() }
+    ): Flow<ReadingProgress?> = identity.observeResolved(storyId).flatMapLatest { resolved ->
+        dao.observe(resolved.value, chapterId.value).map { it?.toModel() }
+    }
 
     override suspend fun find(storyId: StoryId, chapterId: CanonicalChapterId): ReadingProgress? =
-        dao.find(storyId.value, chapterId.value)?.toModel()
+        dao.find(identity.resolve(storyId).value, chapterId.value)?.toModel()
 
     override suspend fun save(progress: ReadingProgress) {
-        database.withTransaction { dao.upsert(progress.toEntity()) }
+        database.withTransaction {
+            val resolved = identity.resolve(progress.storyId)
+            dao.upsert(progress.copy(storyId = resolved).toEntity())
+        }
     }
 }
 

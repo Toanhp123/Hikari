@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-21:** Phase 0 Tasks 1–4, Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are **VERIFIED / CLOSED** on the developer checkout. Phase 3 acceptance includes the focused Catalog reconciliation/Home/Search/Details/StoryId/repository unit gate, selected Discover/Search/Story ViewModel tests, app `CompositionPolicyTest`, 30/30 selected Room connected tests, green Detekt after behavior-preserving reconciliation cleanup, and green canonical `./scripts/verify.sh`. The accepted Phase-3 boundary is still observe-only: Home/Search/Details use the reconciliation ingest path, durable case revisions are persisted on schema 9, and no destructive Story graph merge executor is enabled. Sandbox artifact checks additionally keep repository static gates, Room schema-stability, broad Catalog production compile, and selected Task-22–25 compile-oriented test checks green. Historical RED-watch steps remain unchecked where no RED runtime evidence was captured; per-task commit steps remain unchecked because Tasks 22–25 close as one Phase-3 checkpoint commit. **Task 26 is now the active next task.**
+**Execution checkpoint — 2026-08-21:** Phases 0–4, Tasks 1–32, are **VERIFIED / CLOSED** on the developer checkout and Room remains schema 9. Phase 4 adds deterministic survivor/user-state selection, conservative cross-domain merge policies, authoritative stale-plan fingerprints, one Room-owned atomic Story graph merge coordinator, redirect/audit/re-key handling, durable post-merge work, and reconciliation-to-merge-executor integration. The required pre-enable gate was green before production switched to guarded `APPLY_ELIGIBLE_AUTO_MERGES`; the required post-enable Catalog/Library/Chapters/Reader unit gate, full Room connected suite, and canonical `./scripts/verify.sh` were then reported green on the enabled tree. The accepted Phase-4 checkpoint is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-4.md`. Historical RED-watch and per-task commit checkboxes remain execution-record details rather than current acceptance blockers. **Phase 5 Task 33 is now the active next task.**
 
 ## Global Constraints
 
@@ -4097,6 +4097,8 @@ git commit -m "feat: define safe reading progress merge policy"
 data class StoryGraphVersion(
     val survivorIdentityRevision: Long,
     val retiredIdentityRevision: Long,
+    val survivorAuthoritativeFingerprint: String,
+    val retiredAuthoritativeFingerprint: String,
 )
 
 data class PreparedStoryGraphMerge(
@@ -4160,7 +4162,9 @@ After every preparation attempt, query the involved tables and assert domain-equ
 
 Prepare the same request twice over unchanged data and assert equal survivor/retired IDs, equal domain plans, and equal captured `StoryGraphVersion`.
 
-Then mutate only one Story's `identity_revision` and prepare again. Assert the new plan captures the new revision. Do **not** attempt commit in this task; stale-plan rejection belongs to Task 31 where the writer exists.
+Then mutate only one Story's `identity_revision` and prepare again. Assert the new plan captures the new revision. Also mutate Library, protected mapping, chapter/sync, or reading-progress state without changing `identity_revision`; assert the corresponding authoritative fingerprint changes. Do **not** attempt commit in this task; stale-plan rejection belongs to Task 31 where the writer exists.
+
+The authoritative fingerprint is a deterministic digest of every authoritative/planner input that can change merge semantics for that Story: source ownership keys, canonical source preference + creation/identity revision, Library row, mappings/rejections, chapter/release/override/sync ownership state, and reading progress. It deliberately excludes derived canonical generations and caches. Task 31 recomputes the same fingerprint inside the transaction before the first write so non-identity user-state edits cannot be overwritten by a stale prepared plan.
 
 Also resolve inputs before planning:
 
@@ -4260,7 +4264,7 @@ class RoomStoryGraphMergeCoordinator(
 The authoritative transaction ordering is fixed semantically:
 
 ```text
-1. resolve current IDs and re-check identity revisions
+1. resolve current IDs, re-check identity revisions + authoritative fingerprints, and revalidate any merge-authorizing reconciliation case/fingerprint/policy
 2. apply prepared conflict-resolution deletes/coalesces
 3. move catalog source ownership
 4. merge/move canonical source preference
@@ -4274,9 +4278,10 @@ The authoritative transaction ordering is fixed semantically:
 12. flatten/create redirects to survivor
 13. re-key/coalesce active reconciliation cases
 14. re-key/coalesce dirty work and mark survivor Fusion dirty
-15. retire losing Story/canonical state
-16. bump survivor identity revision
-17. commit
+15. enqueue/coalesce `POST_MERGE_DERIVED` when mapping recompute, sync invalidation, or chapter reaggregation is required
+16. retire losing Story/canonical state
+17. bump survivor identity revision
+18. commit
 ```
 
 SQL statement order may differ to satisfy FKs, but no externally valid redirect may survive a rolled-back graph.
@@ -4300,6 +4305,7 @@ reversal payload records retired Story content type, trustworthy creation time w
 retired Story owns no active authoritative state
 survivor identity revision incremented
 Fusion dirty work exists once for survivor
+`POST_MERGE_DERIVED` exists exactly once when the prepared mapping/chapter plan requests recompute/resync/reaggregation, and is absent for a merge with no such derived work
 PRAGMA foreign_key_check returns zero rows
 ```
 
@@ -4367,7 +4373,7 @@ attempt redirect cycle -> invariant failure, no write
 
 - [ ] **Step 7: Implement `RoomStoryMergeWriter` inside `withTransaction`**
 
-Do not embed domain choice logic in SQL. The writer applies already-prepared values and validates uniqueness/FKs/current revisions.
+Do not embed domain choice logic in SQL. The writer applies already-prepared values and validates uniqueness/FKs/current revisions. Before the first write it re-resolves both historical request IDs, recomputes both authoritative fingerprints from current rows, and rejects a stale plan if either revision/fingerprint differs. If `reconciliationCaseId` is present, the same transaction also verifies that the current case revision still matches the request evidence fingerprint/policy and still authorizes merge; a stale/changed case cannot be force-committed.
 
 Use one merge-event ID generated before redirect insertion because redirect rows reference that event, but insert event + redirect within the same transaction so rollback removes both.
 

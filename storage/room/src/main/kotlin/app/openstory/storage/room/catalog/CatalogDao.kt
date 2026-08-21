@@ -77,4 +77,10 @@ internal interface CatalogDao {
 
     @Upsert suspend fun upsertStories(stories: List<StoryEntity>)
     @Upsert suspend fun upsertEntries(entries: List<CatalogEntryEntity>)
+
+    @Query("UPDATE catalog_entries SET story_id = :survivorStoryId WHERE story_id = :retiredStoryId")
+    suspend fun moveEntries(retiredStoryId: String, survivorStoryId: String): Int
+
+    @Query("DELETE FROM stories WHERE story_id = :storyId")
+    suspend fun deleteStory(storyId: String): Int
 }

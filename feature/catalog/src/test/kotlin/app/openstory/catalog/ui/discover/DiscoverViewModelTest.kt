@@ -1,6 +1,9 @@
 package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
+import app.openstory.catalog.fusion.CanonicalFusionResult
+import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.home.CatalogRefreshService
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
@@ -32,7 +35,6 @@ import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.dispatchers.FixedAppDispatchers
 import app.openstory.common.id.StoryId
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -121,6 +123,38 @@ class DiscoverViewModelTest {
 
         assertEquals(0, source.homeCalls)
     }
+
+    @Test
+    fun populatedMigratedCacheBootstrapsVisibleCanonicalStoriesWithoutNetwork() =
+        runTest(dispatcher.scheduler) {
+            val repository = FakeRepository(cachedHome())
+            val source = FakeSource()
+            val projections = MutableProjectionRepository(emptyList())
+            val canonical = DiscoverCanonicalRepository(preparingDiscoverState(StoryId("story-1")))
+            val rebuildCalls = mutableListOf<StoryId>()
+            val bootstrap = CanonicalBootstrapUseCase(
+                canonical,
+                CanonicalGenerationRebuilder { storyId, _ ->
+                    rebuildCalls += storyId
+                    projections.replace(repository.projections())
+                    CanonicalFusionResult.Preparing(storyId)
+                },
+            )
+            val viewModel = viewModel(
+                repository = repository,
+                source = source,
+                bootstrap = bootstrap,
+                projections = projections,
+            )
+            backgroundScope.launch { viewModel.state.collect() }
+
+            runCurrent()
+
+            assertEquals(listOf(StoryId("story-1")), rebuildCalls)
+            assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
+            assertEquals(0, source.homeCalls)
+            assertEquals(0, source.detailsCalls)
+        }
 
     @Test
     fun cachedLatestWithoutArtworkDoesNotCallDetailsAndKeepsMissingArtwork() = runTest(dispatcher.scheduler) {
@@ -428,6 +462,8 @@ class DiscoverViewModelTest {
         repository: FakeRepository,
         source: FakeSource,
         refreshDispatcher: CoroutineDispatcher = dispatcher,
+        bootstrap: CanonicalBootstrapUseCase = readyBootstrap(repository),
+        projections: CatalogStoryProjectionRepository = FakeProjectionRepository(repository.projections()),
     ): DiscoverViewModel {
         val registry = Registry(source)
         val clock = FakeClock(200L)
@@ -444,7 +480,7 @@ class DiscoverViewModelTest {
         )
         return DiscoverViewModel(
             repository,
-            FakeProjectionRepository(repository.projections()),
+            projections,
             DiscoverRefreshPipeline(
                 refreshService,
                 FixedAppDispatchers(dispatcher, refreshDispatcher, dispatcher),
@@ -452,6 +488,21 @@ class DiscoverViewModelTest {
             DiscoverProjectionPipeline(
                 FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
             ),
+            DiscoverCanonicalBootstrapPipeline(
+                bootstrap,
+                FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+            ),
+        )
+    }
+
+    private fun readyBootstrap(repository: FakeRepository): CanonicalBootstrapUseCase {
+        val states = repository.projections().map { projection ->
+            readyDiscoverState(projection.storyId)
+        }
+        val canonical = DiscoverCanonicalRepository(states)
+        return CanonicalBootstrapUseCase(
+            canonical,
+            CanonicalGenerationRebuilder { storyId, _ -> CanonicalFusionResult.Preparing(storyId) },
         )
     }
 }

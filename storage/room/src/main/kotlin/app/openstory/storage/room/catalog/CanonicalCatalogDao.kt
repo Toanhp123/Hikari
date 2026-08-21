@@ -101,6 +101,15 @@ internal interface CanonicalCatalogDao {
     @Upsert
     suspend fun upsertMergeEvent(event: StoryMergeEventEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMergeEvent(event: StoryMergeEventEntity)
+
+    @Query(
+        "UPDATE story_redirects SET canonical_story_id = :survivorStoryId " +
+            "WHERE canonical_story_id = :retiredStoryId",
+    )
+    suspend fun flattenRedirectTargets(retiredStoryId: String, survivorStoryId: String): Int
+
     @Upsert
     suspend fun upsertWork(item: CanonicalEngineWorkEntity)
 
@@ -176,6 +185,12 @@ internal interface CanonicalCatalogDao {
     @Query("DELETE FROM reconciliation_cases WHERE case_id = :caseId")
     suspend fun deleteReconciliationCase(caseId: String)
 
+    @Query(
+        "UPDATE reconciliation_cases SET status = :status, updated_at_epoch_millis = :updatedAt " +
+            "WHERE case_id = :caseId",
+    )
+    suspend fun markReconciliationCaseStatus(caseId: String, status: String, updatedAt: Long): Int
+
     @Query("SELECT * FROM story_merge_events WHERE merge_event_id = :mergeEventId")
     suspend fun mergeEvent(mergeEventId: String): StoryMergeEventEntity?
 
@@ -205,7 +220,9 @@ internal interface CanonicalCatalogDao {
     @Transaction
     suspend fun rekeyRetiredStoryState(retiredStoryId: String, survivorStoryId: String) {
         require(retiredStoryId != survivorStoryId)
-        reconciliationCasesForStory(retiredStoryId).forEach { sourceCase ->
+        reconciliationCasesForStory(retiredStoryId)
+            .filter { it.status == "PENDING" }
+            .forEach { sourceCase ->
             val replacedLeft = if (sourceCase.leftStoryId == retiredStoryId) survivorStoryId else sourceCase.leftStoryId
             val replacedRight = if (sourceCase.rightStoryId == retiredStoryId) {
                 survivorStoryId
@@ -222,10 +239,10 @@ internal interface CanonicalCatalogDao {
                     upsertReconciliationCaseRow(sourceCase.copy(leftStoryId = left, rightStoryId = right))
                 } else {
                     moveReconciliationRevisions(sourceCase.caseId, target.caseId)
-                    val winner = if (sourceCase.updatedAtEpochMillis > target.updatedAtEpochMillis) {
-                        sourceCase
-                    } else {
-                        target
+                    val winner = when {
+                        target.status != "PENDING" -> target
+                        sourceCase.updatedAtEpochMillis > target.updatedAtEpochMillis -> sourceCase
+                        else -> target
                     }
                     upsertReconciliationCaseRow(
                         target.copy(

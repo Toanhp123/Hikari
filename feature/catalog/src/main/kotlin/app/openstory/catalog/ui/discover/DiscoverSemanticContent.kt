@@ -68,6 +68,15 @@ internal fun projectSemanticDiscoverContent(
     )
 }
 
+internal fun discoverCanonicalBootstrapStoryIds(
+    homes: List<CatalogHomeSnapshot>,
+    selectedContentType: ContentType,
+): List<StoryId> = buildList {
+    addAll(projectPopular(homes, selectedContentType))
+    addAll(projectLatest(homes, selectedContentType))
+    addAll(projectTopRated(homes, selectedContentType))
+}.distinct()
+
 internal fun projectSemanticDiscoverState(
     homes: List<CatalogHomeSnapshot>,
     projections: List<CatalogStoryProjection>,

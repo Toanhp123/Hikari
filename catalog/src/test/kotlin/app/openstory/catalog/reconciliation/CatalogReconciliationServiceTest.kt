@@ -5,6 +5,8 @@ import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.CanonicalIdentityState
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.identity.StoryMergeExecutor
+import app.openstory.catalog.identity.StoryMergeResult
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.metadata.CatalogMetadataStamp
@@ -18,6 +20,9 @@ import app.openstory.catalog.repository.CatalogMatchSnapshot
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.repository.CatalogSearchSummaryCommitResult
 import app.openstory.catalog.repository.CatalogSearchSummaryMutation
+import app.openstory.catalog.orchestration.CanonicalEngineWorkItem
+import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
+import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
@@ -159,6 +164,88 @@ class CatalogReconciliationServiceTest {
     }
 
     @Test
+    fun applyModeExecutesOnlyEligibleSameWorkAndReturnsApplied() = kotlinx.coroutines.test.runTest {
+        val a = record("a", "story:a", "Exact", authors = setOf("writer"))
+        val b = record("b", "story:b", "Exact", authors = setOf("writer"))
+        val mergeExecutor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "merge:1"))
+        val work = RecordingWorkRepository()
+        val fixture = fixture(
+            records = listOf(a, b),
+            executionMode = ReconciliationExecutionMode.APPLY_ELIGIBLE_AUTO_MERGES,
+            mergeExecutor = mergeExecutor,
+            work = work,
+        )
+
+        val result = fixture.service.reconcile(a.key)
+
+        assertEquals(ReconciliationRunResult.AutoMergeApplied(StoryId("story:a")), result)
+        assertEquals(1, mergeExecutor.requests.size)
+        val request = mergeExecutor.requests.single()
+        assertEquals(StoryId("story:a"), request.leftStoryId)
+        assertEquals(StoryId("story:b"), request.rightStoryId)
+        assertEquals(fixture.cases.active.values.single().id, request.reconciliationCaseId)
+        assertEquals(emptyList(), work.dirty)
+    }
+
+    @Test
+    fun observeModeNeverCallsMergeExecutor() = kotlinx.coroutines.test.runTest {
+        val a = record("a", "story:a", "Exact", authors = setOf("writer"))
+        val b = record("b", "story:b", "Exact", authors = setOf("writer"))
+        val mergeExecutor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "merge:1"))
+        val fixture = fixture(listOf(a, b), mergeExecutor = mergeExecutor)
+
+        assertIs<ReconciliationRunResult.AutoMergeObserved>(fixture.service.reconcile(a.key))
+        assertEquals(0, mergeExecutor.requests.size)
+    }
+
+    @Test
+    fun mergeReviewRequiredKeepsCasePendingWithoutRetryWork() = kotlinx.coroutines.test.runTest {
+        val a = record("a", "story:a", "Exact", authors = setOf("writer"))
+        val b = record("b", "story:b", "Exact", authors = setOf("writer"))
+        val mergeExecutor = RecordingMergeExecutor(StoryMergeResult.ReviewRequired(setOf("protected-mapping-conflict")))
+        val work = RecordingWorkRepository()
+        val fixture = fixture(
+            records = listOf(a, b),
+            executionMode = ReconciliationExecutionMode.APPLY_ELIGIBLE_AUTO_MERGES,
+            mergeExecutor = mergeExecutor,
+            work = work,
+        )
+
+        val result = fixture.service.reconcile(a.key)
+
+        assertIs<ReconciliationRunResult.ReviewRecorded>(result)
+        assertEquals(ReconciliationCaseStatus.PENDING, fixture.cases.active.values.single().status)
+        assertEquals(emptyList(), work.dirty)
+    }
+
+    @Test
+    fun staleMergePlanDurablySchedulesReconciliationReevaluation() = kotlinx.coroutines.test.runTest {
+        val a = record("a", "story:a", "Exact", authors = setOf("writer"))
+        val b = record("b", "story:b", "Exact", authors = setOf("writer"))
+        val current = setOf(StoryId("story:a"), StoryId("story:c"))
+        val mergeExecutor = RecordingMergeExecutor(StoryMergeResult.StalePlan(current))
+        val work = RecordingWorkRepository()
+        val fixture = fixture(
+            records = listOf(a, b),
+            executionMode = ReconciliationExecutionMode.APPLY_ELIGIBLE_AUTO_MERGES,
+            mergeExecutor = mergeExecutor,
+            work = work,
+        )
+
+        val result = fixture.service.reconcile(a.key)
+
+        assertEquals(ReconciliationRunResult.ReevaluationScheduled(current), result)
+        assertEquals(
+            current,
+            work.dirty.map { it.storyId }.toSet(),
+        )
+        assertEquals(
+            setOf(CanonicalEngineWorkType.RECONCILIATION_REEVALUATION),
+            work.dirty.map { it.type }.toSet(),
+        )
+    }
+
+    @Test
     fun missingSourceRecordIsNoIdentityChange() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(emptyList())
         assertEquals(
@@ -168,16 +255,28 @@ class CatalogReconciliationServiceTest {
         assertNull(fixture.cases.active.values.firstOrNull())
     }
 
-    private fun fixture(records: List<CatalogSourceRecord>): Fixture {
+    private fun fixture(
+        records: List<CatalogSourceRecord>,
+        executionMode: ReconciliationExecutionMode = ReconciliationExecutionMode.OBSERVE_ONLY,
+        mergeExecutor: StoryMergeExecutor? = null,
+        work: CanonicalEngineWorkRepository? = null,
+    ): Fixture {
         val catalog = FakeCatalogRepository(records)
         val cases = RecordingCaseRepository()
-        return Fixture(service(catalog, cases, ReconciliationPolicy()), catalog, cases)
+        return Fixture(
+            service(catalog, cases, ReconciliationPolicy(), executionMode, mergeExecutor, work),
+            catalog,
+            cases,
+        )
     }
 
     private fun service(
         catalog: CatalogRepository,
         cases: ReconciliationCaseRepository,
         policy: ReconciliationPolicy,
+        executionMode: ReconciliationExecutionMode = ReconciliationExecutionMode.OBSERVE_ONLY,
+        mergeExecutor: StoryMergeExecutor? = null,
+        work: CanonicalEngineWorkRepository? = null,
     ) = CatalogReconciliationService(
         catalog = catalog,
         identity = IdentityRepository(),
@@ -185,6 +284,9 @@ class CatalogReconciliationServiceTest {
         engine = CatalogReconciliationEngine(policy),
         cases = cases,
         clock = clock,
+        executionMode = executionMode,
+        mergeExecutor = mergeExecutor,
+        work = work,
     )
 
     private fun record(
@@ -288,6 +390,40 @@ class CatalogReconciliationServiceTest {
         }
 
         override suspend fun defer(caseId: String, expectedRevision: Long, suppressUntilEpochMillis: Long): Boolean = false
+    }
+
+    private class RecordingMergeExecutor(private val result: StoryMergeResult) : StoryMergeExecutor {
+        val requests = mutableListOf<app.openstory.catalog.identity.StoryMergeRequest>()
+
+        override suspend fun execute(request: app.openstory.catalog.identity.StoryMergeRequest): StoryMergeResult {
+            requests += request
+            return result
+        }
+    }
+
+    private class RecordingWorkRepository : CanonicalEngineWorkRepository {
+        data class Dirty(
+            val storyId: StoryId,
+            val type: CanonicalEngineWorkType,
+            val reason: String,
+            val requiredPolicyVersion: Int?,
+        )
+
+        val dirty = mutableListOf<Dirty>()
+
+        override suspend fun markDirty(
+            storyId: StoryId,
+            type: CanonicalEngineWorkType,
+            reason: String,
+            requiredPolicyVersion: Int?,
+        ) {
+            dirty += Dirty(storyId, type, reason, requiredPolicyVersion)
+        }
+
+        override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> = emptyList()
+        override suspend fun complete(item: CanonicalEngineWorkItem) = Unit
+        override suspend fun retry(item: CanonicalEngineWorkItem, failureCode: String, nextAttemptAtEpochMillis: Long) = Unit
+        override suspend fun supersede(storyId: StoryId, type: CanonicalEngineWorkType) = Unit
     }
 
     private class FakeCatalogRepository(records: List<CatalogSourceRecord>) : CatalogRepository {

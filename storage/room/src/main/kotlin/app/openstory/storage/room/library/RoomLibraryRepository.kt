@@ -6,14 +6,20 @@ import app.openstory.library.LibraryEntry
 import app.openstory.library.LibraryRepository
 import app.openstory.library.LibraryStatus
 import app.openstory.storage.room.OpenStoryDatabase
+import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class RoomLibraryRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: LibraryDao,
+    private val identity: RoomStoryIdentityResolver,
 ) : LibraryRepository {
-    constructor(database: OpenStoryDatabase) : this(database, database.libraryDao())
+    constructor(database: OpenStoryDatabase) : this(
+        database,
+        database.libraryDao(),
+        RoomStoryIdentityResolver(database),
+    )
 
     override fun observe(): Flow<List<LibraryEntry>> = dao.observe().map { entries ->
         entries.map(LibraryEntity::toModel)
@@ -24,22 +30,23 @@ class RoomLibraryRepository internal constructor(
         status: LibraryStatus,
         addedAt: Long,
     ): LibraryEntry = database.withTransaction {
-        dao.find(storyId.value)?.toModel() ?: run {
+        val resolved = identity.resolve(storyId)
+        dao.find(resolved.value)?.toModel() ?: run {
             val entity = LibraryEntity(
-                storyId = storyId.value,
+                storyId = resolved.value,
                 status = status.name,
                 addedAtEpochMillis = addedAt,
                 updatedAtEpochMillis = addedAt,
             )
             dao.insert(entity)
-            requireNotNull(dao.find(storyId.value)) {
-                "Library membership was not readable after insert: ${storyId.value}"
+            requireNotNull(dao.find(resolved.value)) {
+                "Library membership was not readable after insert: ${resolved.value}"
             }.toModel()
         }
     }
 
     override suspend fun remove(storyId: StoryId) {
-        dao.delete(storyId.value)
+        dao.delete(identity.resolve(storyId).value)
     }
 
     override suspend fun changeStatus(
@@ -47,15 +54,16 @@ class RoomLibraryRepository internal constructor(
         status: LibraryStatus,
         updatedAt: Long,
     ): LibraryEntry? = database.withTransaction {
-        val existing = dao.find(storyId.value) ?: return@withTransaction null
+        val resolved = identity.resolve(storyId)
+        val existing = dao.find(resolved.value) ?: return@withTransaction null
         if (existing.status == status.name) return@withTransaction existing.toModel()
 
         dao.updateStatus(
-            storyId = storyId.value,
+            storyId = resolved.value,
             status = status.name,
             updatedAtEpochMillis = updatedAt,
         )
-        requireNotNull(dao.find(storyId.value)).toModel()
+        requireNotNull(dao.find(resolved.value)).toModel()
     }
 }
 

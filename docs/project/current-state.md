@@ -32,27 +32,28 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0 VERIFIED; PHASE 1 TASKS 5–11 VERIFIED/CLOSED; PHASE 2 TASKS 12–21 VERIFIED/CLOSED; PHASE 3 TASKS 22–25 VERIFIED/CLOSED; TASK 26 NEXT**.
-  Phase 0 established opaque latest-update labels, bounded external identifiers, shared `SourceKey`,
-  normalized evidence, independent fingerprints, and legacy-source characterization. Phase 1 now
-  adds Room schema 9 with the canonical-engine persistence foundation, persists external identifiers,
-  exposes lossless `CatalogSourceRecord` reads, persists canonical state/generations/provenance,
-  resolves historical Story IDs through redirects, persists durable engine work/audit foundations,
-  covers representative schema-8 graph migration, and provides local-only canonical bootstrap.
-  Phase 2 accepts the versioned Fusion policy, primary hysteresis/pinning, field provenance,
-  canonical generation rebuild/promotion, canonical projection repository, and Story/Search/Discover/
-  Library presentation cutover while preserving raw-source inspection and Discover feed/ranking semantics.
-  Reconciliation policy and destructive Story merge remain disabled. Checkpoints: Phase 0 at
-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`; accepted Phase 1 at
-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; accepted Phase 2 at
-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md`.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0–4 VERIFIED/CLOSED; PHASE 5 TASK 33 NEXT**.
+  Phase 4 adds deterministic survivor selection from meaningful user state; conservative Library,
+  mapping, chapter, and Reader-progress merge policies; authoritative Story-graph preparation with
+  stale-plan fingerprints; one Room-owned atomic merge coordinator; redirect flattening; merge/reversal
+  audit; durable post-merge work; and reconciliation-to-merge-executor integration. Room remains schema 9.
+  Production reconciliation uses guarded `APPLY_ELIGIBLE_AUTO_MERGES`, and the required post-enable
+  unit, Room connected, and full repository verification gate was reported green on the enabled tree.
+  The accepted Phase-4 evidence is
+  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-4.md`; Phase 5 now begins at
+  Task 33 durable review resolution. Prior accepted evidence remains in the Phase 0–3 checkpoints.
+  A narrow Discover repair also priority-bootstraps visible cached Home Story IDs from persisted local
+  evidence after schema-9 migration. It does not fetch Details, alter refresh orchestration, or move
+  Phase-6 Task 36/37 work forward.
 - Wave 10: **PLANNED; NOT STARTED**. Canonical-engine work remains the active pre-Wave-10 track.
   The Phase-1 patch now owns `8 -> 9`, so Wave 10 notification persistence is rebased to `9 -> 10`.
   Wave 10 must not introduce another `MIGRATION_8_9`.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
-  Phase 3 closes observe-only reconciliation Tasks 22–25: symmetric reconciliation policy/evidence, candidate/lead safety, durable case revisions, persisted identity/fusion change facts, and Home/Search/Details ingest cutover away from the legacy matcher. Developer-checkout acceptance gates are green; there is still no destructive Story graph merge. Task 26 is now next. Room remains schema 9.
+  Phase 3 closed observe-only reconciliation Tasks 22–25, and Phase 4 closed Tasks 26–32 after the
+  guarded production auto-merge path passed its post-enable gate. Phase 5 Task 33 is the next canonical-engine
+  implementation step. Room remains schema 9.
 
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.

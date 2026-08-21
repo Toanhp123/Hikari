@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -43,6 +44,15 @@ internal interface LibraryDao {
     @Query("SELECT * FROM content_mappings WHERE story_id = :storyId AND plugin_id = :pluginId")
     suspend fun findMapping(storyId: String, pluginId: String): ContentMappingEntity?
 
+    @Query("SELECT * FROM content_mappings WHERE story_id = :storyId ORDER BY plugin_id")
+    suspend fun mappingsForStory(storyId: String): List<ContentMappingEntity>
+
+    @Query(
+        "SELECT * FROM content_mapping_rejections WHERE story_id = :storyId " +
+            "ORDER BY plugin_id, source_story_id, policy_version",
+    )
+    suspend fun rejectionsForStory(storyId: String): List<ContentMappingRejectionEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMapping(entity: ContentMappingEntity): Long
 
@@ -63,4 +73,19 @@ internal interface LibraryDao {
         sourceStoryId: String,
         policyVersion: Int,
     ): Boolean
+    @Upsert
+    suspend fun upsertLibrary(entity: LibraryEntity)
+
+    @Query("DELETE FROM content_mappings WHERE story_id IN (:storyIds)")
+    suspend fun deleteMappingsForStories(storyIds: Collection<String>): Int
+
+    @Upsert
+    suspend fun upsertMappings(entities: List<ContentMappingEntity>)
+
+    @Query("DELETE FROM content_mapping_rejections WHERE story_id IN (:storyIds)")
+    suspend fun deleteRejectionsForStories(storyIds: Collection<String>): Int
+
+    @Upsert
+    suspend fun upsertRejections(entities: List<ContentMappingRejectionEntity>)
+
 }

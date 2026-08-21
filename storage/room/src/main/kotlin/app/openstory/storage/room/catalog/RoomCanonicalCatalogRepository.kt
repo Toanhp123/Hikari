@@ -70,15 +70,17 @@ class RoomCanonicalCatalogRepository internal constructor(
 
     override fun observeReadyStories(storyIds: Set<StoryId>): Flow<List<CanonicalStoryState.Ready>> {
         if (storyIds.isEmpty()) return kotlinx.coroutines.flow.flowOf(emptyList())
-        val ids = storyIds.map(StoryId::value)
-        return combine(
-            canonicalDao.observeCanonicalStates(ids),
-            catalogDao.observeStories(ids),
-            catalogDao.observeEntries(ids),
-        ) { states, _, _ -> states.map { StoryId(it.storyId) } }
-            .mapLatest { readyIds ->
-                readyIds.mapNotNull { readResolvedState(it) as? CanonicalStoryState.Ready }
-            }
+        return identity.observeResolvedSet(storyIds).flatMapLatest { resolved ->
+            val ids = resolved.map(StoryId::value)
+            combine(
+                canonicalDao.observeCanonicalStates(ids),
+                catalogDao.observeStories(ids),
+                catalogDao.observeEntries(ids),
+            ) { states, _, _ -> states.map { StoryId(it.storyId) } }
+                .mapLatest { readyIds ->
+                    readyIds.mapNotNull { readResolvedState(it) as? CanonicalStoryState.Ready }
+                }
+        }
     }
 
     override suspend fun state(storyId: StoryId): CanonicalStoryState? =

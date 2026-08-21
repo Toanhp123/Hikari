@@ -129,7 +129,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is now the active pre-Wave-10 workstream; Phase 0, Phase 1, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are verified/closed. Phase 3 remains observe-only and Task 26 is now the active next task.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is the active pre-Wave-10 workstream; Phases 0–4 (Tasks 1–32) are verified/closed on Room schema 9, guarded production auto-merge is accepted, and Phase 5 Task 33 is the active next task.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
@@ -184,7 +184,7 @@ and destructive Story merge are still blocked. Wave 10 notification persistence 
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phase 0/1/2/3 Tasks 22-25 verified on schema 9; observe-only reconciliation closed; Task 26 next |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phases 0–4 / Tasks 1–32 verified on schema 9; guarded production auto-merge accepted; Phase 5 Task 33 next |
 | 10 | local scheduling, guarded source login and deduplicated notifications; planned after CCE reaches a compatible schema boundary |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
@@ -252,8 +252,9 @@ websites.
 
 Continue the Canonical Catalog Reconciliation & Fusion Engine from
 `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
-Phase 0 Tasks 1–4, Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are verified and accepted.
-Continue with Task 26 survivor/user-state-footprint policy; destructive merge execution is still outside the accepted Phase-3 boundary. Room schema 9 is the current canonical-engine foundation, and Wave 10
-notification persistence is rebased to `MIGRATION_9_10`; never reintroduce a second meaning for `MIGRATION_8_9`.
+Phases 0–4 (Tasks 1–32) are verified and accepted. Continue with Phase 5 Task 33 durable review
+resolution; guarded automatic Story graph merge is now part of the accepted production boundary. Room
+schema 9 is the current canonical-engine foundation, and Wave 10 notification persistence is rebased to
+`MIGRATION_9_10`; never reintroduce a second meaning for `MIGRATION_8_9`.
 During implementation use `./scripts/verify-fast.sh` for iteration and `./scripts/verify.sh` as the
 full host gate before promoting a checkpoint to verified/accepted.

@@ -26,6 +26,7 @@ class DiscoverViewModel @Inject constructor(
     projections: CatalogStoryProjectionRepository,
     refreshPipeline: DiscoverRefreshPipeline,
     projection: DiscoverProjectionPipeline,
+    private val canonicalBootstrap: DiscoverCanonicalBootstrapPipeline,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
     private val refreshFailure = MutableStateFlow<DiscoverUiFailure?>(null)
@@ -88,6 +89,12 @@ class DiscoverViewModel @Inject constructor(
             val cachedHomes = dependencies.homes.first()
             if (cachedHomes.isEmpty() && observationFailure.value == null) {
                 performRefresh()
+            } else if (cachedHomes.isNotEmpty()) {
+                val priorityStoryIds = discoverCanonicalBootstrapStoryIds(
+                    cachedHomes,
+                    selectedContentType.value,
+                )
+                canonicalBootstrap.prewarm(priorityStoryIds)
             }
             initialLoading.value = false
         }

@@ -10,6 +10,7 @@ import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.evidence.toSourceRecord
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogHomeSnapshot
@@ -28,22 +29,27 @@ import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.common.Outcome
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.CancellationException
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RoomCatalogRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: CatalogDao,
     private val homeDao: CatalogHomeDao,
     private val canonicalDao: CanonicalCatalogDao,
+    private val identity: StoryIdentityRepository,
 ) : CatalogRepository {
     constructor(database: OpenStoryDatabase) : this(
         database,
         database.catalogDao(),
         database.catalogHomeDao(),
         database.canonicalCatalogDao(),
+        RoomStoryIdentityResolver(database),
     )
 
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = combine(
@@ -66,12 +72,15 @@ class RoomCatalogRepository internal constructor(
         }
     }
 
-    override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = combine(
-        dao.observeStory(storyId.value),
-        dao.observeEntries(storyId.value),
-    ) { story, entries ->
-        story?.toModel()?.let { value -> StoryCatalogSnapshot(value, entries.map(CatalogEntryEntity::toModel)) }
-    }
+    override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> =
+        identity.observeResolved(storyId).flatMapLatest { resolved ->
+            combine(
+                dao.observeStory(resolved.value),
+                dao.observeEntries(resolved.value),
+            ) { story, entries ->
+                story?.toModel()?.let { value -> StoryCatalogSnapshot(value, entries.map(CatalogEntryEntity::toModel)) }
+            }
+        }
 
     override suspend fun matchSnapshot(): CatalogMatchSnapshot = database.withTransaction {
         val storiesById = dao.stories().associateBy(StoryEntity::storyId)
@@ -103,7 +112,8 @@ class RoomCatalogRepository internal constructor(
     }
 
     override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> = database.withTransaction {
-        dao.entriesForStory(storyId.value).map { entry ->
+        val resolved = identity.resolve(storyId)
+        dao.entriesForStory(resolved.value).map { entry ->
             entry.toMetadataSnapshot(identifierModels(entry)).toSourceRecord()
         }
     }
@@ -126,8 +136,16 @@ class RoomCatalogRepository internal constructor(
                     .associateBy { it.pluginId to it.sourceId }
             }
             val before = existing.mapValues { (_, entry) -> sourceRecordFor(entry) }
+            val resolvedProposals = mutation.stories.associate { story -> story.id to identity.resolve(story.id) }
             val durableEntries = mutation.entries.map { entry ->
-                merge(existing[entry.pluginId.value to entry.sourceId], entry, mutation)
+                val existingEntry = existing[entry.pluginId.value to entry.sourceId]
+                val resolvedStoryId = existingEntry?.storyId?.let { identity.resolve(StoryId(it)) }
+                    ?: resolvedProposals.getValue(entry.storyId)
+                merge(
+                    existingEntry?.copy(storyId = resolvedStoryId.value),
+                    entry.copy(storyId = resolvedStoryId),
+                    mutation,
+                )
             }
             val durableStoryIds = durableEntries.mapTo(hashSetOf(), CatalogEntryEntity::storyId)
             val newStoryIds = durableStoryIds.filterTo(linkedSetOf()) { storyId ->
@@ -135,7 +153,9 @@ class RoomCatalogRepository internal constructor(
             }
             dao.upsertStories(
                 mutation.stories
-                    .filter { it.id.value in durableStoryIds }
+                    .map { story -> story.copy(id = resolvedProposals.getValue(story.id)) }
+                    .distinctBy { it.id }
+                    .filter { it.id.value in newStoryIds }
                     .map { it.toEntity() },
             )
             newStoryIds.forEach { storyId ->
@@ -191,7 +211,7 @@ class RoomCatalogRepository internal constructor(
                 val key = SourceKey(proposedEntry.pluginId, proposedEntry.sourceId)
                 val existing = dao.findEntry(key.pluginId.value, key.sourceId)
                 val before = existing?.let { sourceRecordFor(it) }
-                val durableStoryId = StoryId(existing?.storyId ?: proposedEntry.storyId.value)
+                val durableStoryId = identity.resolve(StoryId(existing?.storyId ?: proposedEntry.storyId.value))
                 if (dao.findStory(durableStoryId.value) == null) {
                     val story = storiesById[proposedEntry.storyId]
                         ?: error("Missing proposed Story for ${proposedEntry.storyId.value}")
@@ -200,7 +220,7 @@ class RoomCatalogRepository internal constructor(
                 }
                 val durableEntry = proposedEntry.copy(storyId = durableStoryId)
                 val incoming = durableEntry.toHomeEntity(mutation.pluginVersion, mutation.resolvedAtEpochMillis)
-                dao.upsertEntries(listOf(mergeHome(existing, incoming)))
+                dao.upsertEntries(listOf(mergeHome(existing?.copy(storyId = durableStoryId.value), incoming)))
                 replaceIdentifiers(durableEntry)
                 val after = sourceRecordFor(requireNotNull(dao.findEntry(key.pluginId.value, key.sourceId)))
                 changes += commitChange(before, after)
@@ -235,7 +255,7 @@ class RoomCatalogRepository internal constructor(
         val result = database.withTransaction {
             val existing = dao.findEntry(mutation.entry.pluginId.value, mutation.entry.sourceId)
             val before = existing?.let { sourceRecordFor(it) }
-            val durableStoryId = StoryId(existing?.storyId ?: mutation.storyId.value)
+            val durableStoryId = identity.resolve(StoryId(existing?.storyId ?: mutation.storyId.value))
             if (existing == null && dao.findStory(durableStoryId.value) == null) {
                 dao.upsertStories(
                     listOf(StoryEntity(durableStoryId.value, mutation.entry.contentType.name)),
@@ -244,7 +264,7 @@ class RoomCatalogRepository internal constructor(
             }
             val durableEntry = mutation.entry.copy(storyId = durableStoryId)
             dao.upsertEntries(
-                listOf(mergeDetails(existing, durableEntry, mutation)),
+                listOf(mergeDetails(existing?.copy(storyId = durableStoryId.value), durableEntry, mutation)),
             )
             replaceIdentifiers(durableEntry)
             val afterEntity = requireNotNull(dao.findEntry(mutation.entry.pluginId.value, mutation.entry.sourceId))

@@ -18,6 +18,32 @@ import kotlin.test.assertEquals
 
 class DiscoverProjectionTest {
     @Test
+    fun canonicalBootstrapPriorityUsesVisibleFeedOrderAndDeduplicatesStories() {
+        val shared = StoryId("story:shared")
+        val popularSecond = entry("catalog.a", "popular-second", "Popular second", StoryId("story:popular-second"))
+            .copy(popularityRank = 2)
+        val popularFirst = entry("catalog.a", "popular-first", "Popular first", shared)
+            .copy(popularityRank = 1)
+        val latest = entry("catalog.a", "latest", "Latest", StoryId("story:latest"))
+            .copy(latestUpdate = CatalogLatestUpdate(300L, "latest"))
+        val sharedLatest = entry("catalog.a", "shared-latest", "Shared latest", shared)
+            .copy(latestUpdate = CatalogLatestUpdate(200L, "shared"))
+        val top = entry("catalog.a", "top", "Top", StoryId("story:top"))
+            .copy(score = Score(9.0, 10.0))
+
+        val homes = listOf(
+            snapshot(CatalogFeedKind.POPULAR, listOf(popularSecond, popularFirst)),
+            snapshot(CatalogFeedKind.LATEST_UPDATES, listOf(sharedLatest, latest)),
+            snapshot(CatalogFeedKind.TOP_RATED, listOf(top)),
+        )
+
+        assertEquals(
+            listOf(shared, popularSecond.storyId, latest.storyId, top.storyId),
+            discoverCanonicalBootstrapStoryIds(homes, ContentType.MANGA),
+        )
+    }
+
+    @Test
     fun canonicalProjectionOwnsPresentationEvenWhenLegacySourceWouldWin() {
         val storyId = StoryId("story:shared")
         val rawA = entry("catalog.a", "a", "Raw A", storyId).copy(

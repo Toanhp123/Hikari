@@ -4,8 +4,10 @@ import android.content.Context
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.identity.StoryIdentityRepository
+import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.common.Clock
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import app.openstory.plugins.runtime.persistence.PluginStateStore
@@ -15,6 +17,7 @@ import app.openstory.storage.room.catalog.RoomReconciliationCaseRepository
 import app.openstory.storage.room.catalog.RoomCatalogStoryProjectionRepository
 import app.openstory.storage.room.catalog.RoomCanonicalCatalogRepository
 import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
+import app.openstory.storage.room.merge.RoomStoryGraphMergeCoordinator
 import app.openstory.storage.room.catalog.RoomCanonicalEngineWorkRepository
 import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
 import app.openstory.storage.room.plugins.RoomPluginStateStore
@@ -52,6 +55,13 @@ object StorageModule {
     @Singleton
     fun provideCanonicalEngineWorkRepository(database: OpenStoryDatabase): CanonicalEngineWorkRepository =
         RoomCanonicalEngineWorkRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideStoryMergeExecutor(
+        database: OpenStoryDatabase,
+        clock: Clock,
+    ): StoryMergeExecutor = RoomStoryGraphMergeCoordinator(database, clock)
 
     @Provides
     @Singleton

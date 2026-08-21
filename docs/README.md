@@ -9,8 +9,8 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 3. **[implementation/current-roadmap.md](implementation/current-roadmap.md)** — current execution position.
 4. **[superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md](superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md)** — normative canonical catalog identity/fusion architecture.
 5. **[superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md](superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md)** — active task-by-task implementation plan.
-6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md)** — verified Phase-2 Tasks 12–21 checkpoint evidence; Phase 2 is closed.
-7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-3.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-3.md)** — verified Phase-3 Tasks 22–25 checkpoint evidence; observe-only reconciliation is closed and Task 26 is next.
+6. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-4.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-4.md)** — verified Phase-4 Tasks 26–32 checkpoint evidence; guarded production auto-merge is accepted and Phase 5 Task 33 is next.
+7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-3.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-3.md)** — verified Phase-3 Tasks 22–25 checkpoint evidence; retained as the observe-only reconciliation acceptance record.
 7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md)** — verified Phase-1 Tasks 5–11 checkpoint evidence; Phase 1 is closed.
 7. **[internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md)** — verified Phase-0 Tasks 1–4 checkpoint evidence; Phase 0 is closed.
 8. **[internal/checkpoints/discover-semantic-feed-redesign.md](internal/checkpoints/discover-semantic-feed-redesign.md)** — accepted Discover semantic-feed redesign evidence, including Room schema 7 and benchmark results.
@@ -34,8 +34,9 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 The ReDantotsu-inspired Product UI plan is completed and retained as an implementation
 record. The 2026-08-19 Discover semantic-feed plan is also completed and retained as the
 execution record for the current Discover screen. The active next-work entry is now the
-2026-08-21 Canonical Catalog Reconciliation & Fusion Engine plan; Phase 0 Tasks 1–4 and
-Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, and Phase 3 Tasks 22–25 are verified and closed. Phase 3 remains observe-only; Task 26 is now the active next task for survivor/user-state-footprint policy before any destructive merge execution.
+2026-08-21 Canonical Catalog Reconciliation & Fusion Engine plan; Phases 0–4 (Tasks 1–32)
+are verified and closed on Room schema 9. Guarded production auto-merge is accepted, and the active
+next task is Phase 5 Task 33 durable review resolution.
 
 Wave 01-09 plans are historical delivery records. Wave 10-11 remain planned future
 capability work under the approved post-Baseline-2 architecture. The canonical-engine

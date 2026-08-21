@@ -9,11 +9,13 @@ import app.openstory.catalog.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
 import app.openstory.catalog.identity.CatalogStoryIdFactory
 import app.openstory.catalog.identity.StoryIdentityRepository
+import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.reconciliation.CatalogCandidateIndex
 import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
 import app.openstory.catalog.reconciliation.CatalogReconciliationService
 import app.openstory.catalog.reconciliation.InMemoryCatalogCandidateIndex
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
+import app.openstory.catalog.reconciliation.ReconciliationExecutionMode
 import app.openstory.catalog.reconciliation.ReconciliationPolicy
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
@@ -41,6 +43,10 @@ object CatalogModule {
     fun provideReconciliationPolicy(): ReconciliationPolicy = ReconciliationPolicy()
 
     @Provides
+    fun provideReconciliationExecutionMode(): ReconciliationExecutionMode =
+        ReconciliationExecutionMode.APPLY_ELIGIBLE_AUTO_MERGES
+
+    @Provides
     @Singleton
     fun provideCatalogCandidateIndex(): CatalogCandidateIndex = InMemoryCatalogCandidateIndex()
 
@@ -61,13 +67,19 @@ object CatalogModule {
         engine: CatalogReconciliationEngine,
         cases: ReconciliationCaseRepository,
         clock: Clock,
+        executionMode: ReconciliationExecutionMode,
+        mergeExecutor: StoryMergeExecutor,
+        work: CanonicalEngineWorkRepository,
     ): CatalogReconciliationService = CatalogReconciliationService(
-        catalog,
-        identity,
-        candidateIndex,
-        engine,
-        cases,
-        clock,
+        catalog = catalog,
+        identity = identity,
+        candidateIndex = candidateIndex,
+        engine = engine,
+        cases = cases,
+        clock = clock,
+        executionMode = executionMode,
+        mergeExecutor = mergeExecutor,
+        work = work,
     )
 
     @Provides

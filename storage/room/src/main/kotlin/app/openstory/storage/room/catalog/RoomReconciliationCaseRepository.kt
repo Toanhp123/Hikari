@@ -286,13 +286,10 @@ class RoomReconciliationCaseRepository internal constructor(
 
     private companion object {
         const val CASE_DIGEST_HEX = 16
+        const val IDENTIFIER_PART_COUNT = 3
         val identifierOrdering: Comparator<ExternalIdentifier> = compareBy<ExternalIdentifier> { it.namespace }
             .thenBy { it.scope.name }
             .thenBy { it.value }
-    }
-
-    private companion object {
-        const val IDENTIFIER_PART_COUNT = 3
     }
 
 }
