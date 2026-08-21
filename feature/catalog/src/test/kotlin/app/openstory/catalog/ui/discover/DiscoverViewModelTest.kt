@@ -35,6 +35,7 @@ import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.dispatchers.FixedAppDispatchers
 import app.openstory.common.id.StoryId
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

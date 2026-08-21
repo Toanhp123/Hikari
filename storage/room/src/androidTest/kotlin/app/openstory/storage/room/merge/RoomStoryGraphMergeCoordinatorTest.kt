@@ -20,6 +20,11 @@ import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
 import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
 import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
 import app.openstory.catalog.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.reconciliation.ProtectedMappingResolution
+import app.openstory.catalog.reconciliation.ReconciliationReviewAction
+import app.openstory.catalog.reconciliation.ReconciliationReviewCommand
+import app.openstory.catalog.reconciliation.ReconciliationReviewResult
+import app.openstory.catalog.reconciliation.ReconciliationReviewService
 import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
 import app.openstory.common.FakeClock
 import app.openstory.common.id.PluginId
@@ -433,6 +438,64 @@ class RoomStoryGraphMergeCoordinatorTest {
             assertEquals(0, database.canonicalCatalogDao().reconciliationCasesForStory("story:x").count {
                 it.status == ReconciliationCaseStatus.PENDING.name
             })
+        }
+    }
+
+
+    @Test
+    fun userReviewServiceResolvesProtectedMappingConflictAtomicallyAndRepeatMergeIsIdempotent() = runTest {
+        withDatabase { database ->
+            seedStory(database, "story:a", "source:a", createdAt = 1)
+            seedStory(database, "story:b", "source:b", createdAt = 2)
+            val pluginId = PluginId("plugin:content")
+            database.libraryDao().insertMapping(
+                ContentMappingEntity("story:a", pluginId.value, "mapped:a", "USER_APPROVED", 1, 5),
+            )
+            database.libraryDao().insertMapping(
+                ContentMappingEntity("story:b", pluginId.value, "mapped:b", "USER_APPROVED", 1, 6),
+            )
+            val cases = RoomReconciliationCaseRepository(database)
+            val reviewCase = requireNotNull(
+                cases.recordAssessment(
+                    ReconciliationCaseKey.of(StoryId("story:a"), StoryId("story:b")),
+                    assessment(ReconciliationSemanticDecision.REVIEW, "review-evidence"),
+                    evaluatedAtEpochMillis = 10,
+                ),
+            )
+            val clock = FakeClock(100)
+            val service = ReconciliationReviewService(
+                cases = cases,
+                mergeExecutor = RoomStoryGraphMergeCoordinator(
+                    database = database,
+                    clock = clock,
+                    mergeEventIdFactory = { "merge:user-review" },
+                ),
+                clock = clock,
+            )
+            val unresolved = ReconciliationReviewCommand(
+                caseId = reviewCase.id,
+                expectedCaseRevision = reviewCase.revision,
+                action = ReconciliationReviewAction.MERGE,
+            )
+
+            val conflict = assertIs<ReconciliationReviewResult.ConflictResolutionRequired>(service.resolve(unresolved))
+            assertEquals(pluginId, conflict.conflicts.single().pluginId)
+            assertEquals(setOf("mapped:a", "mapped:b"), conflict.conflicts.single().candidateSourceStoryIds)
+            assertEquals(ReconciliationCaseStatus.PENDING, requireNotNull(cases.find(reviewCase.id)).status)
+            assertNull(database.canonicalCatalogDao().mergeEvent("merge:user-review"))
+
+            val resolvedCommand = unresolved.copy(
+                protectedMappingResolutions = listOf(ProtectedMappingResolution(pluginId, "mapped:a")),
+            )
+            val merged = assertIs<ReconciliationReviewResult.Merged>(service.resolve(resolvedCommand))
+            assertEquals(ReconciliationCaseStatus.RESOLVED_MERGED, requireNotNull(cases.find(reviewCase.id)).status)
+            val event = requireNotNull(database.canonicalCatalogDao().mergeEvent("merge:user-review"))
+            assertEquals(StoryMergeOrigin.USER_REVIEW_APPROVAL.name, event.origin)
+            assertEquals(reviewCase.id, event.reconciliationCaseId)
+            assertEquals(1, database.canonicalCatalogDao().mergeEventsForStory(merged.survivorStoryId.value).size)
+
+            assertEquals(merged, service.resolve(resolvedCommand))
+            assertEquals(1, database.canonicalCatalogDao().mergeEventsForStory(merged.survivorStoryId.value).size)
         }
     }
 

@@ -1,7 +1,7 @@
 # Canonical Catalog Reconciliation and Metadata Fusion Engine Design
 
 Date: 2026-08-20
-Status: **NORMATIVE IMPLEMENTATION BASIS — Phases 0–4 / Tasks 1–32 VERIFIED/CLOSED on 2026-08-21; Phase 5 Task 33 active next**
+Status: **NORMATIVE IMPLEMENTATION BASIS — Phases 0–4 / Tasks 1–32 VERIFIED/CLOSED; Phase 5 Task 33 VERIFIED/CLOSED on 2026-08-22; Task 34 active next**
 Scope: host-owned canonical Story identity across multiple catalog providers, explainable reconciliation, metadata fusion, materialized canonical generations, durable review/lineage, atomic Story graph merge, source preference, event orchestration, retry/background safety, and integration with existing Catalog/Library/Chapters/Reader/Room boundaries
 Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 catalog metadata-lifecycle unification; verified Phase 1 advances the current persistence foundation to Room schema 9 through `MIGRATION_8_9`.
 
@@ -12,6 +12,8 @@ Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 
 > **Phase-3 acceptance checkpoint (2026-08-21):** Tasks 22–25 are **VERIFIED / CLOSED**. The accepted boundary adds versioned symmetric reconciliation evidence/decisions, deterministic candidate discovery and winning-lead safety, durable evidence/policy-aware reconciliation case revisions, and observe-only reconciliation routing from persisted Home/Search/Details evidence changes. Home/Search/unowned Details use `CatalogIngestReconciliationIndex`; existing `SourceKey` durable ownership wins before semantic reconciliation, provider/page forks are promoted only after successful commit, and the legacy `StoryMatcher`/`CatalogMatchIndex` remain characterization-only with zero runtime call sites in those services. Developer-checkout acceptance includes the focused Catalog gate, selected feature ViewModel tests, app composition policy, 30/30 selected Room connected tests, green Detekt, and green canonical `./scripts/verify.sh`; sandbox artifact checks retain static/schema/compile-oriented evidence. No destructive Story graph merge executor exists in this phase and Room remains schema 9. At the Phase-3 checkpoint, Task 26 was the active next task.
 
 > **Phase-4 acceptance checkpoint (2026-08-21):** Tasks 26–32 are **VERIFIED / CLOSED**. The accepted boundary adds meaningful-user-state survivor selection; conservative Library, mapping, Chapter, sync/override, and Reader-progress merge policies; read-only full-graph preparation with authoritative stale-plan fingerprints; one atomic Room Story graph writer/coordinator with redirect flattening, merge/reversal audit, case/work re-keying, idempotency, and durable `FUSION_REBUILD` / `POST_MERGE_DERIVED` work; redirect-aware Story-keyed repositories; and reconciliation integration through the same guarded merge executor. Production now uses `APPLY_ELIGIBLE_AUTO_MERGES`. Developer-checkout evidence includes focused reconciliation unit tests, the cross-domain unit gate, 9/9 focused merge-coordinator connected tests, 86/86 full Room connected tests before final enablement, behavior-preserving Detekt cleanup without suppressions, a green pre-enable gate, and a green post-enable Catalog/Library/Chapters/Reader + Room connected + canonical `./scripts/verify.sh` gate on the enabled tree. Room remains schema 9. Phase 5 begins at Task 33.
+
+> **Phase-5 Task-33 acceptance checkpoint (2026-08-22):** Task 33 is **VERIFIED / CLOSED** while Phase 5 remains open. The accepted boundary adds one `ReconciliationReviewService` over durable reconciliation cases and the existing Story merge executor; direct case lookup by `caseId`; case creation/evaluation timestamps needed by later queue ranking; durable `KEEP_SEPARATE`; monotonic `PENDING` + contextual suppression for `DEFER`; stale-revision/stale-plan rejection; deterministic protected-content-mapping conflict projection and explicit user resolution; and app DI wiring. User-approved merge does not create an alternate mutation route: the same `StoryMergeExecutor` / `RoomStoryGraphMergeCoordinator` still owns atomic `RESOLVED_MERGED`, redirect, audit, graph re-keying, and post-merge work. Developer-checkout evidence is green for the focused review-service unit test, feature/app compilation, 20/20 selected Room connected tests on Redmi Note 9S - 15, and canonical `./scripts/verify.sh` after behavior-preserving Detekt cleanup without suppressions. Room remains schema 9. Task 34 is the active next step; no Phase-5 checkpoint document is created until Tasks 34–35 close the phase.
 
 ### 2026-08-21 implementation checkpoint
 
@@ -914,17 +916,16 @@ Storage must canonicalize pair keys deterministically, e.g. lexical StoryId orde
 
 ### 13.3 Case status
 
-The durable workflow supports at least:
+The durable workflow supports:
 
 ```text
 PENDING
-DEFERRED
 RESOLVED_MERGED
 RESOLVED_SEPARATE
 SUPERSEDED
 ```
 
-`DEFERRED` means "do not prompt contextually now" and is not equivalent to `SEPARATE`. A defer suppression is tied to the current case revision/evidence fingerprint; materially new identity evidence may return the case to `PENDING` even if the previous revision was deferred.
+`DEFER` is not a separate durable status. It leaves the case `PENDING` and records a contextual-prompt suppression deadline for the current case revision/evidence fingerprint. The Review Queue therefore continues to expose the case while contextual Story prompting is suppressed. Materially new identity evidence creates a new revision and clears the old suppression. `DEFER` is never equivalent to `SEPARATE`.
 
 ### 13.4 Reopening
 
@@ -1916,7 +1917,7 @@ Invariant-blocked review cases omit/disable `MERGE` and explain the blocking rea
 
 `KEEP_SEPARATE` creates a durable resolution tied to evidence fingerprint/policy.
 
-`DEFER` suppresses contextual prompting according to UI policy while leaving the case reviewable in the queue.
+`DEFER` suppresses contextual prompting according to UI policy while leaving the case reviewable in the queue. Presentation supplies an absolute future suppression deadline; domain/application code does not invent a fixed defer duration. Suppression is monotonic for one case revision, so a stale/older defer command cannot shorten an existing later deadline.
 
 ### 23.3 Contextual prompt eligibility
 

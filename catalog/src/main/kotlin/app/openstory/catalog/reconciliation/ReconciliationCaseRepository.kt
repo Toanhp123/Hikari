@@ -22,18 +22,26 @@ data class ReconciliationCase(
     val resolutionOrigin: ReconciliationResolutionOrigin?,
     val contextualPromptSuppressedUntilEpochMillis: Long?,
     val revision: Long,
+    val createdAtEpochMillis: Long,
+    val lastEvaluatedAtEpochMillis: Long,
 ) {
     init {
+        require(id.isNotBlank())
         require(evidenceFingerprint.isNotBlank())
         require(policyVersion > 0)
         require(revision > 0L)
+        require(createdAtEpochMillis >= 0L)
+        require(lastEvaluatedAtEpochMillis >= 0L)
         require(contextualPromptSuppressedUntilEpochMillis == null || contextualPromptSuppressedUntilEpochMillis >= 0L)
+        require(evidenceFingerprint == assessment.identityEvidenceFingerprint)
+        require(policyVersion == assessment.policyVersion)
     }
 }
 
 interface ReconciliationCaseRepository {
     fun observePending(): Flow<List<ReconciliationCase>>
     fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>>
+    suspend fun find(caseId: String): ReconciliationCase?
     suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase?
     suspend fun recordAssessment(
         key: ReconciliationCaseKey,

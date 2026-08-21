@@ -44,6 +44,7 @@ private object PassthroughStoryIdentityRepository : StoryIdentityRepository {
 private object NoOpReconciliationCaseRepository : ReconciliationCaseRepository {
     override fun observePending(): Flow<List<ReconciliationCase>> = flowOf(emptyList())
     override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> = flowOf(emptyList())
+    override suspend fun find(caseId: String): ReconciliationCase? = null
     override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = null
     override suspend fun recordAssessment(
         key: ReconciliationCaseKey,

@@ -365,6 +365,7 @@ class CatalogDetailsLoaderTest {
         override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> = flowOf(
             active.values.filter { it.key.left == storyId || it.key.right == storyId },
         )
+        override suspend fun find(caseId: String): ReconciliationCase? = active.values.firstOrNull { it.id == caseId }
         override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = active[key]
         override suspend fun recordAssessment(
             key: ReconciliationCaseKey,
@@ -389,6 +390,8 @@ class CatalogDetailsLoaderTest {
                 resolutionOrigin = null,
                 contextualPromptSuppressedUntilEpochMillis = null,
                 revision = (current?.revision ?: 0L) + 1L,
+                createdAtEpochMillis = current?.createdAtEpochMillis ?: evaluatedAtEpochMillis,
+                lastEvaluatedAtEpochMillis = evaluatedAtEpochMillis,
             )
             active[key] = value
             return value

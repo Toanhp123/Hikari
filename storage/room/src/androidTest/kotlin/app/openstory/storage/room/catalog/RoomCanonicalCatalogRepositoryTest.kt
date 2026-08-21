@@ -166,6 +166,63 @@ class RoomCanonicalCatalogRepositoryTest {
     }
 
     @Test
+    fun reconciliationCaseLookupExposesDurableTimestampsAndDeferNeverShortens() = runTest {
+        withDatabase { database ->
+            val left = StoryId("story:a")
+            val right = StoryId("story:b")
+            seedStory(database, left)
+            seedStory(database, right)
+            val repository = RoomReconciliationCaseRepository(database)
+            val pending = requireNotNull(
+                repository.recordAssessment(
+                    ReconciliationCaseKey.of(left, right),
+                    reconciliationAssessment("pair-fp", ReconciliationSemanticDecision.REVIEW),
+                    evaluatedAtEpochMillis = 10,
+                ),
+            )
+
+            assertEquals(10L, pending.createdAtEpochMillis)
+            assertEquals(10L, pending.lastEvaluatedAtEpochMillis)
+            assertTrue(repository.defer(pending.id, pending.revision, 1_000L))
+            assertTrue(repository.defer(pending.id, pending.revision, 500L))
+
+            val deferred = requireNotNull(repository.find(pending.id))
+            assertEquals(ReconciliationCaseStatus.PENDING, deferred.status)
+            assertEquals(10L, deferred.createdAtEpochMillis)
+            assertEquals(10L, deferred.lastEvaluatedAtEpochMillis)
+            assertEquals(1_000L, deferred.contextualPromptSuppressedUntilEpochMillis)
+            assertEquals(
+                10L,
+                requireNotNull(database.canonicalCatalogDao().reconciliationCase(pending.id)).updatedAtEpochMillis,
+            )
+            assertEquals(listOf(pending.id), repository.observePending().first().map { it.id })
+
+            assertTrue(
+                repository.resolveSeparate(
+                    pending.id,
+                    pending.revision,
+                    ReconciliationResolutionOrigin.USER,
+                    resolvedAtEpochMillis = 20,
+                ),
+            )
+            val completed = requireNotNull(repository.find(pending.id))
+            assertEquals(ReconciliationCaseStatus.RESOLVED_SEPARATE, completed.status)
+            assertEquals(10L, completed.createdAtEpochMillis)
+            assertEquals(20L, completed.lastEvaluatedAtEpochMillis)
+            assertEquals(null, completed.contextualPromptSuppressedUntilEpochMillis)
+            assertFalse(
+                repository.resolveSeparate(
+                    pending.id,
+                    completed.revision,
+                    ReconciliationResolutionOrigin.USER,
+                    resolvedAtEpochMillis = 30,
+                ),
+            )
+            assertEquals(completed.revision, requireNotNull(repository.find(pending.id)).revision)
+        }
+    }
+
+    @Test
     fun userKeepSeparateWithSameFingerprintDoesNotReopenOnRefresh() = runTest {
         withDatabase { database ->
             val left = StoryId("story:a")

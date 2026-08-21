@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-21:** Phases 0–4, Tasks 1–32, are **VERIFIED / CLOSED** on the developer checkout and Room remains schema 9. Phase 4 adds deterministic survivor/user-state selection, conservative cross-domain merge policies, authoritative stale-plan fingerprints, one Room-owned atomic Story graph merge coordinator, redirect/audit/re-key handling, durable post-merge work, and reconciliation-to-merge-executor integration. The required pre-enable gate was green before production switched to guarded `APPLY_ELIGIBLE_AUTO_MERGES`; the required post-enable Catalog/Library/Chapters/Reader unit gate, full Room connected suite, and canonical `./scripts/verify.sh` were then reported green on the enabled tree. The accepted Phase-4 checkpoint is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-4.md`. Historical RED-watch and per-task commit checkboxes remain execution-record details rather than current acceptance blockers. **Phase 5 Task 33 is now the active next task.**
+**Execution checkpoint — 2026-08-22:** Phases 0–4, Tasks 1–32, remain **VERIFIED / CLOSED** and Phase 5 Task 33 is now **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 33 adds one application-level `ReconciliationReviewService` for `MERGE`, `KEEP_SEPARATE`, `DEFER`, and protected-content-mapping resolution; direct durable case lookup by `caseId`; case-age/evaluation timestamps required by queue ranking; monotonic contextual suppression; and app DI wiring without creating a second merge path. User-approved merge continues through the Phase-4 `StoryMergeExecutor` / `RoomStoryGraphMergeCoordinator`, so `RESOLVED_MERGED`, redirects, audit, graph re-keying, and post-merge work remain owned by the same atomic transaction. Developer-checkout acceptance evidence is green for the focused review-service unit test, feature/app compilation, 20/20 selected Room connected tests on Redmi Note 9S - 15, and canonical `./scripts/verify.sh` after behavior-preserving Detekt cleanup without suppressions. The accepted Phase-4 checkpoint remains `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-4.md`; no Phase-5 checkpoint is created until Tasks 34–35 close the phase. Historical RED-watch and per-task commit checkboxes remain execution-record details rather than current acceptance blockers. **Phase 5 Task 34 is now the active next task.**
 
 ## Global Constraints
 
@@ -3316,11 +3316,14 @@ data class ReconciliationCase(
     val resolutionOrigin: ReconciliationResolutionOrigin?,
     val contextualPromptSuppressedUntilEpochMillis: Long?,
     val revision: Long,
+    val createdAtEpochMillis: Long,
+    val lastEvaluatedAtEpochMillis: Long,
 )
 
 interface ReconciliationCaseRepository {
     fun observePending(): Flow<List<ReconciliationCase>>
     fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>>
+    suspend fun find(caseId: String): ReconciliationCase?
     suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase?
     suspend fun recordAssessment(
         key: ReconciliationCaseKey,
@@ -4490,11 +4493,17 @@ git commit -m "feat: enable guarded canonical auto merge"
 
 ### Task 33: Add one review-resolution application service for MERGE, KEEP_SEPARATE, DEFER, and protected-conflict resolution
 
+**Execution status (2026-08-22): `VERIFIED — TASK 33 CLOSED`.** Developer-checkout acceptance is green for `ReconciliationReviewServiceTest`, `:feature:catalog:compileDebugUnitTestKotlin` + `:app:compileDebugKotlin`, 20/20 selected Room connected tests covering canonical repository and merge coordinator behavior, and canonical `./scripts/verify.sh`. The first verify attempt exposed Task-33 `ReturnCount` findings in `ReconciliationReviewService` plus a new `CatalogModule` function-count warning; both were removed by behavior-preserving control-flow/DI cleanup with no Detekt suppression or threshold change. The unrelated pre-existing missing `CompletableDeferred` test import in `DiscoverViewModelTest` was repaired as a one-line compile unblock. Room schema remains 9. Task 34 may consume the now-stable review contract without revisiting merge internals. The commit checkbox below remains an execution-record step until this verified checkpoint is committed.
+
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/reconciliation/ReconciliationReviewService.kt`
 - Create: `catalog/src/test/kotlin/app/openstory/catalog/reconciliation/ReconciliationReviewServiceTest.kt`
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/reconciliation/ReconciliationCaseRepository.kt`
 - Modify: `storage/room/src/main/kotlin/app/openstory/storage/room/catalog/RoomReconciliationCaseRepository.kt`
+- Modify: `app/src/main/kotlin/app/openstory/di/CatalogModule.kt`
+- Modify: existing catalog/feature test dependency fakes implementing `ReconciliationCaseRepository`
+- Modify: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/catalog/RoomCanonicalCatalogRepositoryTest.kt`
+- Modify: `storage/room/src/androidTest/kotlin/app/openstory/storage/room/merge/RoomStoryGraphMergeCoordinatorTest.kt`
 
 **Interfaces:**
 
@@ -4515,6 +4524,7 @@ data class ReconciliationReviewCommand(
     val expectedCaseRevision: Long,
     val action: ReconciliationReviewAction,
     val protectedMappingResolutions: List<ProtectedMappingResolution> = emptyList(),
+    val suppressUntilEpochMillis: Long? = null,
 )
 
 sealed interface ReconciliationReviewResult {
@@ -4540,22 +4550,27 @@ class ReconciliationReviewService(
 }
 ```
 
-Use the project's existing `Clock` abstraction, not `System.currentTimeMillis()` in domain code.
+Use the project's existing `Clock` abstraction, not `System.currentTimeMillis()` in domain code. `DEFER` does not choose a duration inside `:catalog`: presentation policy supplies an absolute `suppressUntilEpochMillis`. The repository keeps suppression monotonic for the same revision so an older concurrent command cannot shorten an already-later deadline.
 
-- [ ] **Step 1: Write RED tests for action semantics**
+Task 33 also extends `ReconciliationCaseRepository` with direct lookup by `caseId`, and exposes `createdAtEpochMillis` plus `lastEvaluatedAtEpochMillis` on `ReconciliationCase`. These values already exist in Room schema 9 and are required by Task 34 ranking; this task adds no migration.
+
+- [x] **Step 1: Write RED tests for action semantics**
 
 Required:
 
 ```text
 MERGE on REVIEW_MERGEABLE -> same StoryMergeExecutor used by auto merge
 MERGE on REVIEW_INVARIANT_BLOCKED -> InvariantBlocked, executor not called
-MERGE encountering conflicting protected mappings -> ConflictResolutionRequired with exact plugin/target choices, case remains pending
+MERGE encountering conflicting protected mappings -> ConflictResolutionRequired with exact plugin/target choices in deterministic order, case remains pending
 MERGE with explicit valid protected mapping resolution -> executor called with resolution payload/plan context
 MERGE blocked by another domain-owned conflict (for example unsafe progress or conflicting primary pins) -> DomainStateChangeRequired with stable reason codes; case remains pending
 KEEP_SEPARATE -> durable RESOLVED_SEPARATE with USER origin and current fingerprint/policy
-DEFER -> case remains PENDING, suppression timestamp changes, and it remains returned by Review Queue query
+DEFER -> case remains PENDING, suppression deadline is monotonic, and it remains returned by Review Queue query
+DEFER deadline <= current Clock -> StaleCase, no side effect
 stale expectedCaseRevision -> StaleCase, no side effect
-repeated completed command -> idempotent result/no duplicate merge event
+StoryMergeResult.StalePlan -> StaleCase, no repository mutation
+repeated completed KEEP_SEPARATE -> idempotent result/no second case revision
+repeated completed MERGE -> executor idempotency returns the survivor/no duplicate merge event
 ```
 
 - [ ] **Step 2: Run RED**
@@ -4565,30 +4580,37 @@ repeated completed command -> idempotent result/no duplicate merge event
   --tests app.openstory.catalog.reconciliation.ReconciliationReviewServiceTest
 ```
 
-- [ ] **Step 3: Map review choices into the already-defined merge-resolution contract**
+- [x] **Step 3: Map review choices into the already-defined merge-resolution contract**
 
 Task 26 already owns `StoryMergeResolution.ContentMappingTarget`, Task 27 validates it in `ContentMappingStoryMergePolicy`, and Tasks 30–31 transport structured conflicts/results. `ReconciliationReviewService` only translates each `ProtectedMappingResolution` into the corresponding `StoryMergeResolution.ContentMappingTarget` when constructing the `StoryMergeRequest`; it must not import Library merge types or validate target ownership itself.
 
 Before calling the executor, reject duplicate review selections for the same plugin as `StaleCase`/invalid command semantics rather than relying on list order. A target that is not one of the current domain conflict candidates is rejected by the domain policy during re-plan and returns `ConflictResolutionRequired` again; it never reaches the writer.
 
-- [ ] **Step 4: Implement service and atomic case-state transitions**
+- [x] **Step 4: Implement service and atomic case-state transitions**
 
-`KEEP_SEPARATE` changes durable resolution. `DEFER` leaves status `PENDING` and only advances contextual suppression. `MERGE` updates `RESOLVED_MERGED` inside/coupled to the merge transaction as defined in Task 31; the service must not pre-mark merge success before executor commit. A `StoryMergeResult.ReviewRequired` with structured protected mapping conflicts becomes `ConflictResolutionRequired`; one with only non-resolvable domain reason codes becomes `DomainStateChangeRequired`. Neither path resolves the case.
+`KEEP_SEPARATE` changes durable resolution. `DEFER` leaves status `PENDING` and only advances contextual suppression; successful DEFER returns the effective persisted deadline. `MERGE` updates `RESOLVED_MERGED` inside/coupled to the merge transaction as defined in Task 31; the service must not pre-mark merge success before executor commit. A `StoryMergeResult.ReviewRequired` with structured protected mapping conflicts becomes `ConflictResolutionRequired`; one with only non-resolvable domain reason codes becomes `DomainStateChangeRequired`. The service normalizes conflict/plugin/candidate ordering and reason-code iteration order before exposing results so later presentation state does not depend on executor collection order. `StoryMergeResult.StalePlan` maps to `StaleCase`. Neither review-required path resolves the case.
 
-- [ ] **Step 5: Run GREEN plus merge regression**
+Wire `ReconciliationReviewService` in the app DI graph in this task so Tasks 34–35 consume a stable application service rather than revisiting foundation wiring.
+
+- [x] **Step 5: Run GREEN plus merge regression**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
   --tests app.openstory.catalog.reconciliation.ReconciliationReviewServiceTest
+./gradlew :feature:catalog:compileDebugUnitTestKotlin :app:compileDebugKotlin
 ./gradlew :storage:room:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.merge.RoomStoryGraphMergeCoordinatorTest
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.catalog.RoomCanonicalCatalogRepositoryTest,app.openstory.storage.room.merge.RoomStoryGraphMergeCoordinatorTest
+./scripts/verify.sh
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add catalog/src/main catalog/src/test \
-  storage/room/src/main/kotlin/app/openstory/storage/room/catalog
+git add catalog/src/main catalog/src/test feature/catalog/src/test \
+  storage/room/src/main/kotlin/app/openstory/storage/room/catalog \
+  storage/room/src/androidTest app/src/main \
+  docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md \
+  docs/superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md
 git commit -m "feat: resolve canonical reconciliation reviews"
 ```
 

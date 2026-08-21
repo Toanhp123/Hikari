@@ -336,6 +336,7 @@ class CatalogReconciliationServiceTest {
         override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> = flowOf(
             active.values.filter { it.key.left == storyId || it.key.right == storyId },
         )
+        override suspend fun find(caseId: String): ReconciliationCase? = active.values.firstOrNull { it.id == caseId }
         override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = active[key]
 
         override suspend fun recordAssessment(
@@ -368,6 +369,8 @@ class CatalogReconciliationServiceTest {
                 },
                 contextualPromptSuppressedUntilEpochMillis = null,
                 revision = revisions.toLong(),
+                createdAtEpochMillis = current?.createdAtEpochMillis ?: evaluatedAtEpochMillis,
+                lastEvaluatedAtEpochMillis = evaluatedAtEpochMillis,
             ).also { active[key] = it }
         }
 
@@ -385,6 +388,7 @@ class CatalogReconciliationServiceTest {
                 status = ReconciliationCaseStatus.RESOLVED_SEPARATE,
                 resolutionOrigin = origin,
                 revision = revisions.toLong(),
+                lastEvaluatedAtEpochMillis = resolvedAtEpochMillis,
             )
             return true
         }

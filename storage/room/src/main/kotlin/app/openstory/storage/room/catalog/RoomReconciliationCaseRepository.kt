@@ -24,7 +24,6 @@ class RoomReconciliationCaseRepository internal constructor(
     private val dao: CanonicalCatalogDao,
 ) : ReconciliationCaseRepository {
     constructor(database: OpenStoryDatabase) : this(database, database.canonicalCatalogDao())
-
     override fun observePending(): Flow<List<ReconciliationCase>> = dao.observePendingReconciliationCases().map {
         entities -> database.withTransaction { entities.mapNotNull { entity -> entity.toDomain() } }
     }
@@ -33,6 +32,9 @@ class RoomReconciliationCaseRepository internal constructor(
         dao.observeReconciliationCasesForStory(storyId.value).map { entities ->
             database.withTransaction { entities.mapNotNull { entity -> entity.toDomain() } }
         }
+
+    override suspend fun find(caseId: String): ReconciliationCase? =
+        database.withTransaction { dao.reconciliationCase(caseId)?.toDomain() }
 
     override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = database.withTransaction {
         dao.reconciliationCase(key.left.value, key.right.value)
@@ -107,7 +109,9 @@ class RoomReconciliationCaseRepository internal constructor(
         return database.withTransaction {
             val currentEntity = dao.reconciliationCase(caseId) ?: return@withTransaction false
             val current = currentEntity.toDomain() ?: return@withTransaction false
-            if (current.revision != expectedRevision) return@withTransaction false
+            if (current.revision != expectedRevision || current.status != ReconciliationCaseStatus.PENDING) {
+                return@withTransaction false
+            }
             val nextRevisionNumber = expectedRevision + 1L
             val revision = current.assessment.toEntity(
                 revisionId = revisionId(caseId, nextRevisionNumber.toInt()),
@@ -141,11 +145,10 @@ class RoomReconciliationCaseRepository internal constructor(
             if (current.revision != expectedRevision || current.status != ReconciliationCaseStatus.PENDING) {
                 return@withTransaction false
             }
+            val effectiveSuppression =
+                maxOf(currentEntity.contextualDeferredAtEpochMillis ?: 0L, suppressUntilEpochMillis)
             dao.upsertReconciliationCase(
-                currentEntity.copy(
-                    contextualDeferredAtEpochMillis = suppressUntilEpochMillis,
-                    updatedAtEpochMillis = maxOf(currentEntity.updatedAtEpochMillis, suppressUntilEpochMillis),
-                ),
+                currentEntity.copy(contextualDeferredAtEpochMillis = effectiveSuppression),
             )
             true
         }
@@ -167,6 +170,8 @@ class RoomReconciliationCaseRepository internal constructor(
                     resolutionOrigin = revision.resolutionOrigin?.let(ReconciliationResolutionOrigin::valueOf),
                     contextualPromptSuppressedUntilEpochMillis = contextualDeferredAtEpochMillis,
                     revision = allRevisions.size.toLong(),
+                    createdAtEpochMillis = createdAtEpochMillis,
+                    lastEvaluatedAtEpochMillis = revision.evaluatedAtEpochMillis,
                 )
             }
         }
