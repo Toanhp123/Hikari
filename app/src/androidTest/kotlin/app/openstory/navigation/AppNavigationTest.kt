@@ -254,6 +254,17 @@ class AppNavigationTest {
     }
 
     @Test
+    fun reviewRoutePreservesOriginAndCarriesExactCase() {
+        val (navigator, _) = navigator(TopLevelDestination.Library)
+
+        navigator.navigate(AppRoute.ReconciliationReview("case-123"))
+        assertEquals(AppRoute.ReconciliationReview("case-123"), navigator.currentRoute)
+
+        navigator.back()
+        assertEquals(AppRoute.Library, navigator.currentRoute)
+    }
+
+    @Test
     fun storyRouteNeverExposesFloatingNavigation() {
         assertFocusedRouteHasNoFloatingNavigation(AppRoute.Story("story-123"))
     }

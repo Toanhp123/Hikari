@@ -20,6 +20,19 @@ data class StoryUiState(
     val libraryStatus: LibraryStatus? = null,
     val resumeTarget: ReaderTarget? = null,
     val selectedSection: StorySection = StorySection.OVERVIEW,
+    val reconciliationPrompt: StoryReconciliationPromptUiModel? = null,
+    val reconciliationResolving: Boolean = false,
+    val reconciliationFailureMessage: String? = null,
+)
+
+data class StoryReconciliationPromptUiModel(
+    val caseId: String,
+    val caseRevision: Long,
+    val otherStoryId: StoryId,
+    val otherStoryTitle: String,
+    val confidence: Double,
+    val mergeAllowed: Boolean,
+    val reasonLabels: List<String>,
 )
 
 data class StoryUiModel(

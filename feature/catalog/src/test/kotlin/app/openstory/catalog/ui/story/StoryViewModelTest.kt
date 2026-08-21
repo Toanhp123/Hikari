@@ -31,6 +31,22 @@ import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.catalog.projection.CatalogStoryProjection
+import app.openstory.catalog.projection.CatalogStoryProjectionRepository
+import app.openstory.catalog.reconciliation.ReconciliationAssessment
+import app.openstory.catalog.reconciliation.ReconciliationCase
+import app.openstory.catalog.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
+import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
+import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
+import app.openstory.catalog.reconciliation.ReconciliationReviewService
+import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
+import app.openstory.catalog.identity.ProtectedContentMappingConflict
+import app.openstory.catalog.identity.StoryMergeExecutor
+import app.openstory.catalog.identity.StoryMergeRequest
+import app.openstory.catalog.identity.StoryMergeResult
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
@@ -54,8 +70,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -67,6 +85,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoryViewModelTest {
@@ -156,6 +175,107 @@ class StoryViewModelTest {
     }
 
     @Test
+    fun highConfidencePendingCaseProjectsContextualPromptWithSameDurableIdentity() = runTest(dispatcher.scheduler) {
+        val cases = StoryPromptCases(listOf(promptCase(confidence = 0.90, revision = 4)))
+        val viewModel = viewModel(
+            canonical = FakeCanonicalRepository(readyState()),
+            reviewCases = cases,
+            reviewProjections = StoryPromptProjections,
+        )
+        runCurrent()
+
+        val prompt = requireNotNull(viewModel.state.value.reconciliationPrompt)
+        assertEquals("prompt-case", prompt.caseId)
+        assertEquals(4L, prompt.caseRevision)
+        assertEquals(StoryId("story:2"), prompt.otherStoryId)
+        assertEquals("Other canonical title", prompt.otherStoryTitle)
+        assertTrue(prompt.mergeAllowed)
+    }
+
+    @Test
+    fun lowConfidencePendingCaseRemainsDurableButDoesNotPrompt() = runTest(dispatcher.scheduler) {
+        val cases = StoryPromptCases(listOf(promptCase(confidence = 0.80)))
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()), reviewCases = cases)
+        runCurrent()
+
+        assertNull(viewModel.state.value.reconciliationPrompt)
+        assertEquals(ReconciliationCaseStatus.PENDING, cases.current().single().status)
+    }
+
+    @Test
+    fun deferSuppressesContextualPromptWithoutResolvingCase() = runTest(dispatcher.scheduler) {
+        val clock = MutableStoryClock(1_000L)
+        val cases = StoryPromptCases(listOf(promptCase(confidence = 0.90)))
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()), reviewCases = cases, reviewClock = clock)
+        runCurrent()
+        assertTrue(viewModel.state.value.reconciliationPrompt != null)
+
+        viewModel.deferReconciliationPrompt()
+        runCurrent()
+
+        assertNull(viewModel.state.value.reconciliationPrompt)
+        assertEquals(ReconciliationCaseStatus.PENDING, cases.current().single().status)
+        val suppressUntil = requireNotNull(cases.current().single().contextualPromptSuppressedUntilEpochMillis)
+        assertEquals(86_401_000L, suppressUntil)
+
+        advanceTimeBy(86_399_999L)
+        runCurrent()
+        assertNull(viewModel.state.value.reconciliationPrompt)
+
+        clock.now = suppressUntil
+        advanceTimeBy(1L)
+        runCurrent()
+        assertEquals("prompt-case", requireNotNull(viewModel.state.value.reconciliationPrompt).caseId)
+    }
+
+    @Test
+    fun keepSeparateResolvesCaseAndRemovesPrompt() = runTest(dispatcher.scheduler) {
+        val cases = StoryPromptCases(listOf(promptCase(confidence = 0.90)))
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()), reviewCases = cases)
+        runCurrent()
+
+        viewModel.keepReconciliationSeparate()
+        runCurrent()
+
+        assertNull(viewModel.state.value.reconciliationPrompt)
+        assertEquals(ReconciliationCaseStatus.RESOLVED_SEPARATE, cases.current().single().status)
+    }
+
+    @Test
+    fun invariantBlockedCaseCanExplainButNeverOffersMerge() = runTest(dispatcher.scheduler) {
+        val cases = StoryPromptCases(
+            listOf(promptCase(confidence = 0.92, eligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED)),
+        )
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()), reviewCases = cases)
+        runCurrent()
+
+        val prompt = requireNotNull(viewModel.state.value.reconciliationPrompt)
+        assertFalse(prompt.mergeAllowed)
+    }
+
+    @Test
+    fun protectedConflictHandsOffExactCaseToSharedReviewFlow() = runTest(dispatcher.scheduler) {
+        val cases = StoryPromptCases(listOf(promptCase(confidence = 0.92, revision = 3)))
+        val merge = StoryPromptMergeExecutor(
+            StoryMergeResult.ReviewRequired(
+                reasons = setOf("protected_content_mapping_conflict"),
+                protectedContentMappingConflicts = listOf(
+                    ProtectedContentMappingConflict(PluginId("plugin.a"), setOf("one", "two")),
+                ),
+            ),
+        )
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()), reviewCases = cases, reviewMerge = merge)
+        runCurrent()
+        var handedOffCaseId: String? = null
+
+        viewModel.mergeReconciliationPrompt { handedOffCaseId = it }
+        runCurrent()
+
+        assertEquals("prompt-case", handedOffCaseId)
+        assertEquals("prompt-case", merge.requests.single().reconciliationCaseId)
+    }
+
+    @Test
     fun storyViewModelHasNoRawCatalogRepositoryOrFusionEngineDependency() {
         val dependencies = StoryViewModel::class.java.declaredConstructors
             .flatMap { it.parameterTypes.toList() }
@@ -170,10 +290,14 @@ class StoryViewModelTest {
         canonical: FakeCanonicalRepository,
         rebuilder: RecordingRebuilder = RecordingRebuilder(canonical),
         storyId: StoryId = canonical.requestId,
+        reviewCases: ReconciliationCaseRepository = EmptyStoryPromptCases,
+        reviewProjections: CatalogStoryProjectionRepository = EmptyStoryPromptProjections,
+        reviewMerge: StoryMergeExecutor = StoryPromptMergeExecutor(StoryMergeResult.Merged(storyId, "merge:test")),
+        reviewClock: Clock = Clock { 100L },
     ): StoryViewModel {
         val legacy = EmptyCatalogRepository()
         val registry = EmptySourceRegistry
-        val clock = Clock { 100L }
+        val clock = reviewClock
         val metadata = CatalogMetadataCoordinator(
             repository = legacy,
             sources = registry,
@@ -199,6 +323,12 @@ class StoryViewModelTest {
             metadata,
             LibraryService(FakeLibraryRepository(), clock, NoOpMappingScheduler),
             FakeProgressRepository(),
+            StoryReconciliationController(
+                reviewCases,
+                reviewProjections,
+                ReconciliationReviewService(reviewCases, reviewMerge, clock),
+                clock,
+            ),
         ).also { viewModel ->
             backgroundScope.launch { viewModel.state.collect {} }
         }
@@ -307,6 +437,130 @@ private class FakeProgressRepository : ReadingProgressRepository {
     override fun observe(storyId: StoryId, chapterId: CanonicalChapterId): Flow<ReadingProgress?> = flowOf(null)
     override suspend fun find(storyId: StoryId, chapterId: CanonicalChapterId): ReadingProgress? = null
     override suspend fun save(progress: ReadingProgress) = Unit
+}
+
+private object EmptyStoryPromptCases : ReconciliationCaseRepository {
+    override fun observePending(): Flow<List<ReconciliationCase>> = flowOf(emptyList())
+    override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> = flowOf(emptyList())
+    override suspend fun find(caseId: String): ReconciliationCase? = null
+    override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = null
+    override suspend fun recordAssessment(
+        key: ReconciliationCaseKey,
+        assessment: ReconciliationAssessment,
+        evaluatedAtEpochMillis: Long,
+    ): ReconciliationCase? = null
+    override suspend fun resolveSeparate(
+        caseId: String,
+        expectedRevision: Long,
+        origin: ReconciliationResolutionOrigin,
+        resolvedAtEpochMillis: Long,
+    ): Boolean = false
+    override suspend fun defer(caseId: String, expectedRevision: Long, suppressUntilEpochMillis: Long): Boolean = false
+}
+
+private object EmptyStoryPromptProjections : CatalogStoryProjectionRepository {
+    override fun observe(): Flow<List<CatalogStoryProjection>> = flowOf(emptyList())
+}
+
+private object StoryPromptProjections : CatalogStoryProjectionRepository {
+    override fun observe(): Flow<List<CatalogStoryProjection>> = flowOf(
+        listOf(
+            CatalogStoryProjection(StoryId("story:1"), "Canonical title", ContentType.MANGA, null),
+            CatalogStoryProjection(StoryId("story:2"), "Other canonical title", ContentType.MANGA, "other.jpg"),
+        ),
+    )
+}
+
+private class StoryPromptCases(initial: List<ReconciliationCase>) : ReconciliationCaseRepository {
+    private val cases = MutableStateFlow(initial)
+    fun current(): List<ReconciliationCase> = cases.value
+
+    override fun observePending(): Flow<List<ReconciliationCase>> = cases.map { list ->
+        list.filter { it.status == ReconciliationCaseStatus.PENDING }
+    }
+    override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> = cases.map { list ->
+        list.filter { it.key.left == storyId || it.key.right == storyId }
+    }
+    override suspend fun find(caseId: String): ReconciliationCase? = cases.value.firstOrNull { it.id == caseId }
+    override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = cases.value.firstOrNull { it.key == key }
+    override suspend fun recordAssessment(
+        key: ReconciliationCaseKey,
+        assessment: ReconciliationAssessment,
+        evaluatedAtEpochMillis: Long,
+    ): ReconciliationCase? = findActive(key)
+
+    override suspend fun resolveSeparate(
+        caseId: String,
+        expectedRevision: Long,
+        origin: ReconciliationResolutionOrigin,
+        resolvedAtEpochMillis: Long,
+    ): Boolean {
+        val current = find(caseId) ?: return false
+        if (current.revision != expectedRevision || current.status != ReconciliationCaseStatus.PENDING) return false
+        cases.value = cases.value.map { item ->
+            if (item.id == caseId) item.copy(
+                status = ReconciliationCaseStatus.RESOLVED_SEPARATE,
+                resolutionOrigin = origin,
+                revision = item.revision + 1,
+                lastEvaluatedAtEpochMillis = resolvedAtEpochMillis,
+            ) else item
+        }
+        return true
+    }
+
+    override suspend fun defer(caseId: String, expectedRevision: Long, suppressUntilEpochMillis: Long): Boolean {
+        val current = find(caseId) ?: return false
+        if (current.revision != expectedRevision || current.status != ReconciliationCaseStatus.PENDING) return false
+        cases.value = cases.value.map { item ->
+            if (item.id == caseId) item.copy(contextualPromptSuppressedUntilEpochMillis = suppressUntilEpochMillis) else item
+        }
+        return true
+    }
+}
+
+private class StoryPromptMergeExecutor(private val result: StoryMergeResult) : StoryMergeExecutor {
+    val requests = mutableListOf<StoryMergeRequest>()
+    override suspend fun execute(request: StoryMergeRequest): StoryMergeResult {
+        requests += request
+        return result
+    }
+}
+
+private class MutableStoryClock(var now: Long) : Clock {
+    override fun nowEpochMillis(): Long = now
+}
+
+private fun promptCase(
+    confidence: Double,
+    revision: Long = 1,
+    eligibility: ReconciliationMergeEligibility = ReconciliationMergeEligibility.MERGEABLE,
+): ReconciliationCase {
+    val fingerprint = "prompt-fingerprint"
+    return ReconciliationCase(
+        id = "prompt-case",
+        key = ReconciliationCaseKey.of(StoryId("story:1"), StoryId("story:2")),
+        status = ReconciliationCaseStatus.PENDING,
+        assessment = ReconciliationAssessment(
+            policyVersion = 1,
+            semanticDecision = ReconciliationSemanticDecision.REVIEW,
+            mergeEligibility = eligibility,
+            confidence = confidence,
+            titleSimilarity = confidence,
+            authorSimilarity = null,
+            winningLead = null,
+            matchedIdentifiers = emptySet(),
+            conflictingIdentifiers = emptySet(),
+            reasons = setOf(ReconciliationReasonCode.TITLE_SIMILAR),
+            identityEvidenceFingerprint = fingerprint,
+        ),
+        evidenceFingerprint = fingerprint,
+        policyVersion = 1,
+        resolutionOrigin = null,
+        contextualPromptSuppressedUntilEpochMillis = null,
+        revision = revision,
+        createdAtEpochMillis = 1,
+        lastEvaluatedAtEpochMillis = 2,
+    )
 }
 
 private fun preparingState(storyId: StoryId = StoryId("story:1")): CanonicalStoryState.Preparing {

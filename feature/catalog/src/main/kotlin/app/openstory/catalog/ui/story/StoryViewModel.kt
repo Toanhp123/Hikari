@@ -32,20 +32,23 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel(assistedFactory = StoryViewModel.Factory::class)
-class StoryViewModel @AssistedInject constructor(
+class StoryViewModel @AssistedInject internal constructor(
     @Assisted private val assistedArgs: StoryAssistedArgs,
     private val canonical: CanonicalCatalogRepository,
     private val bootstrap: CanonicalBootstrapUseCase,
     private val metadata: CatalogMetadataCoordinator,
     private val library: LibraryService,
     private val progress: ReadingProgressRepository,
+    private val reconciliation: StoryReconciliationController,
 ) : ViewModel() {
     private val selectedSource = MutableStateFlow<SourceKey?>(null)
     private val refreshing = MutableStateFlow(false)
@@ -70,7 +73,18 @@ class StoryViewModel @AssistedInject constructor(
         StoryCatalogState(state, rawSources, inspection, busy, currentFailure)
     }
 
-    val state = combine(catalogState, personal, selectedSection) { catalog, personal, section ->
+    private val resolvedStoryId = catalogState
+        .map { catalog -> catalog.canonical?.story?.id ?: assistedArgs.storyId }
+        .distinctUntilChanged()
+
+    private val reconciliationUi = reconciliation.observe(resolvedStoryId)
+
+    val state = combine(
+        catalogState,
+        personal,
+        selectedSection,
+        reconciliationUi,
+    ) { catalog, personal, section, review ->
         val model = (catalog.canonical as? CanonicalStoryState.Ready)?.toStoryUiModel(catalog.sources)
         val resolvedId = catalog.canonical?.story?.id ?: assistedArgs.storyId
         StoryUiState(
@@ -82,6 +96,9 @@ class StoryViewModel @AssistedInject constructor(
             libraryStatus = personal.entries.firstOrNull { it.storyId == resolvedId }?.status,
             resumeTarget = personal.records.latestResumeTarget(resolvedId),
             selectedSection = section,
+            reconciliationPrompt = review.prompt,
+            reconciliationResolving = review.resolving,
+            reconciliationFailureMessage = review.failureMessage,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -147,6 +164,18 @@ class StoryViewModel @AssistedInject constructor(
                 current != status -> library.changeStatus(resolvedId, status)
             }
         }
+    }
+
+    fun mergeReconciliationPrompt(onProtectedConflict: (String) -> Unit) {
+        reconciliation.merge(state.value.reconciliationPrompt, viewModelScope, onProtectedConflict)
+    }
+
+    fun keepReconciliationSeparate() {
+        reconciliation.keepSeparate(state.value.reconciliationPrompt, viewModelScope)
+    }
+
+    fun deferReconciliationPrompt() {
+        reconciliation.defer(state.value.reconciliationPrompt, viewModelScope)
     }
 
     fun refresh() {

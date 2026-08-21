@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResult
+import app.openstory.catalog.identity.UserStateFootprint
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
 import app.openstory.catalog.reconciliation.CatalogReconciliationService
@@ -121,6 +122,38 @@ class RoomStoryGraphMergeCoordinatorTest {
             assertEquals(1, database.canonicalCatalogDao().workForStory("story:a").count { it.workType == "FUSION_REBUILD" })
             assertEquals(1, database.canonicalCatalogDao().workForStory("story:a").count { it.workType == "POST_MERGE_DERIVED" })
             assertTrue(foreignKeyViolations(database).isEmpty())
+        }
+    }
+
+    @Test
+    fun userStateFootprintReaderReusesMergePlanningSemantics() = runTest {
+        withDatabase { database ->
+            seedStory(database, "story:a", "source:a", createdAt = 10, pinned = true)
+            database.libraryDao().insert(LibraryEntity("story:a", "READING", 1, 5))
+            database.libraryDao().insertMapping(
+                ContentMappingEntity("story:a", "plugin:protected", "mapped:a", "USER_APPROVED", 1, 5),
+            )
+            seedChapterGraph(database, "story:a", "chapter:a", "release:a", withOverride = true)
+            database.readingProgressDao().upsert(
+                ReadingProgressEntity(
+                    "story:a", "chapter:a", "release:a", "content:a", "block:a", 2, 0.25f, null, 10,
+                ),
+            )
+
+            val footprint = RoomStoryUserStateFootprintReader(database)
+                .read(setOf(StoryId("story:a")))
+                .getValue(StoryId("story:a"))
+
+            assertEquals(
+                UserStateFootprint(
+                    hasLibraryMembership = true,
+                    readingProgressCount = 1,
+                    protectedContentMappingCount = 1,
+                    hasPinnedPrimary = true,
+                    manualChapterOverrideCount = 1,
+                ),
+                footprint,
+            )
         }
     }
 
