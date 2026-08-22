@@ -6,9 +6,11 @@ import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResolution
 import app.openstory.catalog.identity.StoryMergeResult
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
 import app.openstory.common.Clock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import kotlinx.coroutines.CancellationException
 
 enum class ReconciliationReviewAction {
     MERGE,
@@ -57,6 +59,7 @@ class ReconciliationReviewService(
     private val cases: ReconciliationCaseRepository,
     private val mergeExecutor: StoryMergeExecutor,
     private val clock: Clock,
+    private val orchestrator: CanonicalEngineEventSink,
 ) {
     suspend fun resolve(command: ReconciliationReviewCommand): ReconciliationReviewResult {
         val case = cases.find(command.caseId)
@@ -147,11 +150,22 @@ class ReconciliationReviewService(
                 .map { StoryMergeResolution.ContentMappingTarget(it.pluginId, it.sourceStoryId) },
         )
         return when (val result = mergeExecutor.execute(request)) {
-            is StoryMergeResult.Merged -> ReconciliationReviewResult.Merged(result.survivorStoryId)
-            is StoryMergeResult.AlreadyMerged -> ReconciliationReviewResult.Merged(result.survivorStoryId)
+            is StoryMergeResult.Merged -> committedMerge(result.survivorStoryId)
+            is StoryMergeResult.AlreadyMerged -> committedMerge(result.survivorStoryId)
             is StoryMergeResult.StalePlan -> ReconciliationReviewResult.StaleCase
             is StoryMergeResult.ReviewRequired -> result.toReviewResult()
         }
+    }
+
+    private suspend fun committedMerge(storyId: StoryId): ReconciliationReviewResult {
+        try {
+            orchestrator.onStoryMerged(storyId)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Merge is already durable; Room-owned engine work remains the recovery path.
+        }
+        return ReconciliationReviewResult.Merged(storyId)
     }
 
     private suspend fun keepSeparate(case: ReconciliationCase): ReconciliationReviewResult {

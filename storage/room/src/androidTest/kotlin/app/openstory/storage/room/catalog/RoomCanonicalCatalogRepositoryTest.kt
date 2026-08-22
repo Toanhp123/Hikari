@@ -22,7 +22,6 @@ import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
 import app.openstory.catalog.reconciliation.ReconciliationReasonCode
 import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
 import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogHomeSection
@@ -38,6 +37,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import org.junit.runner.RunWith
@@ -79,7 +79,7 @@ class RoomCanonicalCatalogRepositoryTest {
     }
 
     @Test
-    fun sourcePreferenceRevisionIsHostOwnedAndFusionWorkIsCoalesced() = runTest {
+    fun sourcePreferenceRevisionIsHostOwnedAndDoesNotOwnEngineWork() = runTest {
         withDatabase { database ->
             val storyId = StoryId("story:1")
             seedStory(database, storyId)
@@ -108,11 +108,7 @@ class RoomCanonicalCatalogRepositoryTest {
             assertEquals(CanonicalSourcePreferenceMode.AUTO.name, state.preferenceMode)
             assertEquals(null, state.pinnedPluginId)
             assertEquals(null, state.pinnedSourceId)
-            val work = database.canonicalCatalogDao().workForStory(storyId.value)
-                .filter { it.workType == "FUSION_REBUILD" }
-            assertEquals(1, work.size)
-            assertEquals("source-preference-changed", work.single().reason)
-            assertEquals(FUSION_POLICY_VERSION, work.single().requiredPolicyVersion)
+            assertNull(database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD"))
         }
     }
 

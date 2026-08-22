@@ -1,6 +1,10 @@
 package app.openstory.catalog.ui.review
 
+import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.ProtectedContentMappingConflict
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceChange
 import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResult
@@ -204,9 +208,18 @@ class ReconciliationReviewViewModelTest {
         cases = cases,
         projections = FakeProjections(cases.current().flatMap { listOf(it.key.left, it.key.right) }.toSet()),
         footprints = footprints,
-        review = ReconciliationReviewService(cases, merge, clock),
+        review = ReconciliationReviewService(cases, merge, clock, NoOpReviewEngine),
         clock = clock,
     )
+}
+
+private object NoOpReviewEngine : CanonicalEngineEventSink {
+    override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = Unit
+    override suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+    override suspend fun onSourceUnlinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+    override suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult =
+        CanonicalFusionResult.Preparing(storyId)
+    override suspend fun onStoryMerged(storyId: StoryId): CanonicalFusionResult = CanonicalFusionResult.Preparing(storyId)
 }
 
 private class FakeCases(initial: List<ReconciliationCase>) : ReconciliationCaseRepository {

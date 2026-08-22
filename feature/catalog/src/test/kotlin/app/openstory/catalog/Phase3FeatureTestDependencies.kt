@@ -3,6 +3,9 @@ package app.openstory.catalog
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.CanonicalIdentityState
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceChange
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
 import app.openstory.catalog.reconciliation.CatalogReconciliationService
@@ -32,6 +35,15 @@ internal fun featureTestReconciliationService(
 
 internal val featureNoOpCanonicalRebuilder = CanonicalGenerationRebuilder { storyId, _ ->
     CanonicalFusionResult.Preparing(storyId)
+}
+
+internal object FeatureNoOpCanonicalEngineEventSink : CanonicalEngineEventSink {
+    override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = Unit
+    override suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+    override suspend fun onSourceUnlinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+    override suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult =
+        CanonicalFusionResult.Preparing(storyId)
+    override suspend fun onStoryMerged(storyId: StoryId): CanonicalFusionResult = CanonicalFusionResult.Preparing(storyId)
 }
 
 private object FeaturePassthroughStoryIdentityRepository : StoryIdentityRepository {

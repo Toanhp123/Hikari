@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-22:** Phases 0–5, Tasks 1–35, are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Phase 5 now has one durable review-resolution service (Task 33), one Review Queue/navigation surface (Task 34), and one contextual Story prompt (Task 35). Queue and contextual prompting operate on the same durable `ReconciliationCase` / revision; user-approved `MERGE` still delegates to the Phase-4 `StoryMergeExecutor` / `RoomStoryGraphMergeCoordinator`; `KEEP_SEPARATE` is durable; `DEFER` keeps the case `PENDING` while advancing only contextual suppression; protected mapping conflicts hand off to the shared exact-case review flow rather than creating a second conflict model. Developer-checkout evidence includes the focused Task-33 review-service gate, feature/app compilation, 20/20 selected Room connected tests from Task 33, green app unit/Android-test compilation, 10/10 `AppNavigationTest`, 11/11 focused Room merge-coordinator tests, a final 6/6 `ReconciliationReviewViewModelTest` run after replacing the test-only Java-21 `List.removeFirst()` call with Java-17-compatible `removeAt(0)`, successful `:feature:catalog:compileDebugKotlin`, and final canonical `./scripts/verify.sh` after the Story orchestration import-gate and three Phase-5 Detekt findings were cleaned without suppressions or threshold changes. The accepted checkpoint is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-5.md`. Historical RED-watch and per-task commit checkboxes remain execution-record details rather than current acceptance blockers. **Phase 6 Task 36 is now the active next task.**
+**Execution checkpoint — 2026-08-22:** Phases 0–5, Tasks 1–35, plus Phase-6 Task 36 are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 36 replaces direct Home/Details/Search reconciliation/Fusion routing with one `CanonicalEngineOrchestrator`, preserves reconcile-before-Fusion ordering when identity and presentation both change, re-resolves the canonical owner before Fusion, coalesces durable work, removes Story preference/Full-refresh Fusion bypasses, and keeps conditional `POST_MERGE_DERIVED` inside the authoritative Room merge transaction. User-approved merge notifies `onStoryMerged` only after durable success. Developer-checkout evidence includes green focused Catalog and feature unit gates, 47/47 selected Room connected tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` with 14 production modules, 1 android-test module, and stable Room schema 1..9. The accepted checkpoint is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-6-task-36.md`. Historical RED-watch and commit checkboxes remain execution-record details rather than current acceptance blockers. The narrow commit-to-callback process-death window remains explicit later recovery/outbox work rather than a Task-36 schema expansion. **Phase 6 Task 37 is now the active next task.**
 
 ## Global Constraints
 
@@ -4849,6 +4849,9 @@ git commit -m "feat: surface contextual canonical merge review"
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/home/CatalogRefreshService.kt`
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/details/CatalogDetailsLoader.kt`
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/search/CatalogSearchService.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt`
+- Modify: `catalog/src/main/kotlin/app/openstory/catalog/reconciliation/ReconciliationReviewService.kt`
+- Modify: `app/src/main/kotlin/app/openstory/di/ReconciliationModule.kt`
 
 **Interfaces:**
 
@@ -4859,6 +4862,7 @@ data class CatalogEvidenceChange(
     val identityFingerprintChanged: Boolean,
     val fusionFingerprintChanged: Boolean,
     val availabilityChanged: Boolean = false,
+    val level: CatalogEvidenceLevel,
 )
 
 object CanonicalEngineWorkReasons {
@@ -4904,7 +4908,7 @@ availability change -> fusion; identity remains untouched
 source linked -> reconcile that source + Fusion for the resolved owner
 source unlinked -> invalidate the in-memory candidate index, mark reconciliation reevaluation/Fusion for the resolved owner; no full pair scan in the foreground call
 source preference change -> fusion only
-StoryMerged -> invalidate the in-memory candidate index, fusion dirty + POST_MERGE_DERIVED dirty
+StoryMerged -> invalidate the in-memory candidate index + Fusion dirty for the resolved survivor; conditional POST_MERGE_DERIVED remains owned by the authoritative Room merge transaction
 Search Summary commit with N change facts -> each fact routes through the same evidence path; zero Search-specific reasoning branch
 ```
 
@@ -4925,7 +4929,11 @@ Room instrumentation must prove ten `FUSION_REBUILD` marks for one Story create 
 
 - [ ] **Step 4: Implement orchestrator and remove all temporary direct reasoning calls from Home, Details, and Search**
 
+Task-36 amendment after Phase-5 implementation review: `CatalogEvidenceChange.level` is host-only (`SUMMARY`/`FULL`) and exists solely to choose a stable durable work reason. It is not provider policy. Also, `StoryMerged` must not recreate unconditional `POST_MERGE_DERIVED` work in the orchestrator: Task 31 already writes that row conditionally inside the authoritative merge transaction, where chapter/content/sync invalidation facts are known atomically. Task 36 only invalidates the candidate index and drains/coalesces Fusion work for the survivor.
+
 Persistence layers report facts only. `CatalogRefreshService`, `CatalogDetailsLoader`, and `CatalogSearchService` pass each committed `CatalogCommitChange` to `CanonicalEngineOrchestrator.onEvidenceChanged()`. Source membership mutations call the explicit `onSourceLinked`/`onSourceUnlinked` hooks, and committed Story merge calls `onStoryMerged`; those hooks invalidate the reconciliation candidate index only when membership can make its Story ownership stale. The service boundary decides which reason to attach; event payloads must never say “fetch source X” or “prefer plugin Y”. Remove direct `reconciliation.reconcile(change.sourceKey)`, `fusion.rebuild(change.storyId, CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED)`, and direct Search `FUSION_REBUILD` marking that bypasses this path.
+
+Task-36 implementation review also closes two Phase-5-era bypasses omitted from the original file list: Story source-preference writes route through `onSourcePreferenceChanged`, and explicit Story Full refresh relies only on `CatalogMetadataCoordinator -> CatalogDetailsLoader -> onEvidenceChanged` rather than issuing a second UI-owned Fusion rebuild. User-approved `MERGE`/`AlreadyMerged` notifies `onStoryMerged` only after the authoritative merge returns durable success. Bindings live in `ReconciliationModule`; `CatalogModule` stays at its existing 15-provider Detekt boundary. The current baseline has no standalone source attach/detach command, so newly observed provider sources use `onEvidenceChanged` and merge-owned re-keying uses `onStoryMerged`; the explicit source-link/unlink hooks are reserved for future independent membership commands.
 
 - [ ] **Step 5: Add a test proving refresh churn is suppressed**
 
@@ -4953,6 +4961,9 @@ git add catalog/src/main/kotlin/app/openstory/catalog/orchestration \
   storage/room/src/main/kotlin/app/openstory/storage/room/catalog
 git commit -m "feat: orchestrate canonical engine from evidence changes"
 ```
+
+
+**Execution status (2026-08-22): `VERIFIED — TASK 36 CLOSED`.** Focused Catalog/feature unit tests, 47/47 selected Room connected tests, and the canonical `./scripts/verify.sh` are green on the developer checkout. The accepted boundary is recorded in `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-6-task-36.md`. Historical RED-watch and commit checkboxes are retained as execution-record details, not acceptance blockers. Room remains schema 9. **Task 37 is the active next task.**
 
 ---
 

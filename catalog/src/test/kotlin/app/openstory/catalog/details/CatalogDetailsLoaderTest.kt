@@ -1,6 +1,8 @@
 package app.openstory.catalog.details
 
 import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.RecordingCanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.catalog.identity.SourceKey
@@ -35,22 +37,9 @@ import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceSection
 import app.openstory.catalog.evidence.toSourceRecord
 import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
-import app.openstory.catalog.reconciliation.CatalogReconciliationService
-import app.openstory.catalog.reconciliation.InMemoryCatalogCandidateIndex
-import app.openstory.catalog.reconciliation.ReconciliationAssessment
-import app.openstory.catalog.reconciliation.ReconciliationCase
-import app.openstory.catalog.reconciliation.ReconciliationCaseKey
-import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
-import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
 import app.openstory.catalog.reconciliation.ReconciliationPolicy
-import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
-import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
 import app.openstory.catalog.repository.CatalogCommitChange
 import app.openstory.catalog.repository.CatalogDetailsCommitResult
-import app.openstory.catalog.identity.CanonicalIdentityState
-import app.openstory.catalog.identity.StoryIdentityRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
@@ -187,33 +176,25 @@ class CatalogDetailsLoaderTest {
     }
 
     @Test
-    fun richerFullMetadataReconcilesExistingOwnerInsteadOfBypassingIdentityAssessment() = runTest {
+    fun richerFullMetadataRoutesPersistedIdentityChangeThroughFullEvidenceEvent() = runTest {
         val leftStory = StoryId("story:left")
         val rightStory = StoryId("story:right")
         val leftKey = SourceKey(PluginId("a"), "source")
         val rightRecord = sourceRecord(rightStory, "b", "other", "Title", setOf("Author"))
-        val sparse = snapshot(leftStory)
-        val repository = RetroactiveRepository(sparse, rightRecord)
-        val cases = RecordingCaseRepository()
-        val clock = Clock { 42L }
-        val reconciliation = CatalogReconciliationService(
-            catalog = repository,
-            identity = PassthroughIdentityRepository,
-            candidateIndex = InMemoryCatalogCandidateIndex(),
-            engine = CatalogReconciliationEngine(ReconciliationPolicy()),
-            cases = cases,
-            clock = clock,
-        )
+        val repository = RetroactiveRepository(snapshot(leftStory), rightRecord)
+        val engine = RecordingCanonicalEngineEventSink()
         val source = Source("a", details("source"))
 
-        val result = loader(Registry(source), repository, reconciliation)
+        val result = loader(Registry(source), repository, engine)
             .load(CatalogMetadataKey(leftKey.pluginId, leftKey.sourceId))
 
         val success = assertIs<CatalogDetailsLoadResult.Success>(result)
         assertEquals(leftStory, success.storyId)
-        val observed = cases.active.values.single()
-        assertEquals(ReconciliationCaseKey.of(leftStory, rightStory), observed.key)
-        assertEquals(ReconciliationSemanticDecision.SAME_WORK, observed.assessment.semanticDecision)
+        val change = engine.evidenceChanges.single()
+        assertEquals(leftStory, change.storyId)
+        assertEquals(leftKey, change.sourceKey)
+        assertEquals(CatalogEvidenceLevel.FULL, change.level)
+        assertEquals(true, change.identityFingerprintChanged)
         assertEquals(leftStory, repository.lastMutation?.storyId)
     }
 
@@ -259,7 +240,7 @@ class CatalogDetailsLoaderTest {
     private fun loader(
         registry: CatalogSourceRegistry,
         repository: CatalogRepository,
-        reconciliation: CatalogReconciliationService? = null,
+        engine: RecordingCanonicalEngineEventSink = RecordingCanonicalEngineEventSink(),
     ): CatalogDetailsLoader {
         val clock = Clock { 42L }
         return CatalogDetailsLoader(
@@ -269,8 +250,7 @@ class CatalogDetailsLoaderTest {
                 app.openstory.catalog.reconciliation.ReconciliationPolicy(),
             ),
             storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
-            reconciliation = reconciliation ?: app.openstory.catalog.testReconciliationService(repository, clock),
-            fusion = app.openstory.catalog.noOpCanonicalRebuilder,
+            orchestrator = engine,
             clock = clock,
         )
     }
@@ -350,63 +330,6 @@ class CatalogDetailsLoaderTest {
         override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> = error("unused")
         override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> = detailsResult(sourceId)
         override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
-    }
-
-    private object PassthroughIdentityRepository : StoryIdentityRepository {
-        override fun observeResolved(storyId: StoryId): Flow<StoryId> = flowOf(storyId)
-        override suspend fun resolve(storyId: StoryId): StoryId = storyId
-        override suspend fun identityState(storyId: StoryId): CanonicalIdentityState? = null
-    }
-
-    private class RecordingCaseRepository : ReconciliationCaseRepository {
-        val active = linkedMapOf<ReconciliationCaseKey, ReconciliationCase>()
-
-        override fun observePending(): Flow<List<ReconciliationCase>> = flowOf(active.values.toList())
-        override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> = flowOf(
-            active.values.filter { it.key.left == storyId || it.key.right == storyId },
-        )
-        override suspend fun find(caseId: String): ReconciliationCase? = active.values.firstOrNull { it.id == caseId }
-        override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = active[key]
-        override suspend fun recordAssessment(
-            key: ReconciliationCaseKey,
-            assessment: ReconciliationAssessment,
-            evaluatedAtEpochMillis: Long,
-        ): ReconciliationCase? {
-            val current = active[key]
-            if (current != null && current.evidenceFingerprint == assessment.identityEvidenceFingerprint &&
-                current.policyVersion == assessment.policyVersion
-            ) return current
-            val value = ReconciliationCase(
-                id = current?.id ?: "case:${key.left.value}:${key.right.value}",
-                key = key,
-                status = if (assessment.semanticDecision == ReconciliationSemanticDecision.DIFFERENT_WORK) {
-                    ReconciliationCaseStatus.RESOLVED_SEPARATE
-                } else {
-                    ReconciliationCaseStatus.PENDING
-                },
-                assessment = assessment,
-                evidenceFingerprint = assessment.identityEvidenceFingerprint,
-                policyVersion = assessment.policyVersion,
-                resolutionOrigin = null,
-                contextualPromptSuppressedUntilEpochMillis = null,
-                revision = (current?.revision ?: 0L) + 1L,
-                createdAtEpochMillis = current?.createdAtEpochMillis ?: evaluatedAtEpochMillis,
-                lastEvaluatedAtEpochMillis = evaluatedAtEpochMillis,
-            )
-            active[key] = value
-            return value
-        }
-        override suspend fun resolveSeparate(
-            caseId: String,
-            expectedRevision: Long,
-            origin: ReconciliationResolutionOrigin,
-            resolvedAtEpochMillis: Long,
-        ): Boolean = false
-        override suspend fun defer(
-            caseId: String,
-            expectedRevision: Long,
-            suppressUntilEpochMillis: Long,
-        ): Boolean = false
     }
 
     private class RetroactiveRepository(

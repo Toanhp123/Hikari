@@ -305,8 +305,7 @@ class CatalogMetadataCoordinatorTest {
                 app.openstory.catalog.reconciliation.ReconciliationPolicy(),
             ),
             storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
-            reconciliation = app.openstory.catalog.testReconciliationService(repository, clock),
-            fusion = app.openstory.catalog.noOpCanonicalRebuilder,
+            orchestrator = app.openstory.catalog.RecordingCanonicalEngineEventSink(),
             clock = clock,
         )
         val coordinator = CatalogMetadataCoordinator(

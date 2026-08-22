@@ -4,11 +4,14 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResult
 import app.openstory.catalog.identity.UserStateFootprint
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceChange
 import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
 import app.openstory.catalog.reconciliation.CatalogReconciliationService
 import app.openstory.catalog.reconciliation.InMemoryCatalogCandidateIndex
@@ -504,6 +507,7 @@ class RoomStoryGraphMergeCoordinatorTest {
                     mergeEventIdFactory = { "merge:user-review" },
                 ),
                 clock = clock,
+                orchestrator = NoOpCanonicalEngineEventSink,
             )
             val unresolved = ReconciliationReviewCommand(
                 caseId = reviewCase.id,
@@ -701,6 +705,16 @@ class RoomStoryGraphMergeCoordinatorTest {
                 ChapterAggregationOverrideEntity(storyId, releaseId, chapterId, "FORCE_LINK"),
             )
         }
+    }
+
+    private object NoOpCanonicalEngineEventSink : CanonicalEngineEventSink {
+        override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = Unit
+        override suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+        override suspend fun onSourceUnlinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+        override suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult =
+            CanonicalFusionResult.Preparing(storyId)
+        override suspend fun onStoryMerged(storyId: StoryId): CanonicalFusionResult =
+            CanonicalFusionResult.Preparing(storyId)
     }
 
     private fun foreignKeyViolations(database: OpenStoryDatabase): List<String> = buildList {

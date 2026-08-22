@@ -475,8 +475,7 @@ class DiscoverViewModelTest {
                 app.openstory.catalog.reconciliation.ReconciliationPolicy(),
             ),
             storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
-            reconciliation = app.openstory.catalog.featureTestReconciliationService(repository, clock),
-            fusion = app.openstory.catalog.featureNoOpCanonicalRebuilder,
+            orchestrator = app.openstory.catalog.FeatureNoOpCanonicalEngineEventSink,
             clock = clock,
         )
         return DiscoverViewModel(

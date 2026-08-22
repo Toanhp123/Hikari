@@ -33,6 +33,11 @@ sealed interface ReconciliationRunResult {
     data object Separated : ReconciliationRunResult
 }
 
+interface CatalogReconciliationRunner {
+    suspend fun reconcile(sourceKey: SourceKey): ReconciliationRunResult
+    suspend fun invalidateCandidateIndex()
+}
+
 class CatalogReconciliationService(
     private val catalog: CatalogRepository,
     private val identity: StoryIdentityRepository,
@@ -43,7 +48,7 @@ class CatalogReconciliationService(
     private val executionMode: ReconciliationExecutionMode = ReconciliationExecutionMode.OBSERVE_ONLY,
     private val mergeExecutor: StoryMergeExecutor? = null,
     private val work: CanonicalEngineWorkRepository? = null,
-) {
+) : CatalogReconciliationRunner {
     init {
         require(
             executionMode == ReconciliationExecutionMode.OBSERVE_ONLY ||
@@ -54,7 +59,7 @@ class CatalogReconciliationService(
     private val candidateIndexMutex = Mutex()
     private var candidateIndexInitialized = false
 
-    suspend fun reconcile(sourceKey: SourceKey): ReconciliationRunResult {
+    override suspend fun reconcile(sourceKey: SourceKey): ReconciliationRunResult {
         val changedRecord = catalog.sourceRecord(CatalogMetadataKey(sourceKey.pluginId, sourceKey.sourceId))
             ?: return ReconciliationRunResult.NoIdentityChange
         val canonicalStoryId = identity.resolve(changedRecord.storyId)
@@ -80,7 +85,7 @@ class CatalogReconciliationService(
             .map { record -> reconcile(record.key) }
     }
 
-    suspend fun invalidateCandidateIndex() {
+    override suspend fun invalidateCandidateIndex() {
         candidateIndexMutex.withLock {
             candidateIndexInitialized = false
         }

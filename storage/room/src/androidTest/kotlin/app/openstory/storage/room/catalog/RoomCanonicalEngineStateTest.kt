@@ -58,11 +58,18 @@ class RoomCanonicalEngineStateTest {
         withDatabase { database ->
             seedStory(database, "story:1")
             val repository = RoomCanonicalEngineWorkRepository(database)
-            repository.markDirty(StoryId("story:1"), CanonicalEngineWorkType.FUSION_REBUILD, "summary")
-            repository.markDirty(StoryId("story:1"), CanonicalEngineWorkType.FUSION_REBUILD, "full")
+            repeat(10) { index ->
+                repository.markDirty(
+                    StoryId("story:1"),
+                    CanonicalEngineWorkType.FUSION_REBUILD,
+                    reason = "change:$index",
+                    requiredPolicyVersion = index + 1,
+                )
+            }
 
             val claimed = repository.claimReady(nowEpochMillis = 0, limit = 10).single()
-            assertEquals("full", claimed.reason)
+            assertEquals("change:9", claimed.reason)
+            assertEquals(10, claimed.requiredPolicyVersion)
             assertEquals(0, claimed.attemptCount)
 
             repository.retry(claimed, "temporary", nextAttemptAtEpochMillis = 50)

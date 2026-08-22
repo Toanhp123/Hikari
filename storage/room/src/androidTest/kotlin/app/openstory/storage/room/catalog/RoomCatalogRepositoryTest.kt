@@ -38,6 +38,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -91,7 +92,7 @@ class RoomCatalogRepositoryTest {
     }
 
     @Test
-    fun newHomeStoryCreatesCanonicalStateAndFusionWorkInSameCommit() = runTest {
+    fun newHomeStoryCreatesCanonicalStateWithoutOwningEngineWork() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
             repository.commitHomeRefresh(mutation("a", listOf("a-1"), 42))
@@ -101,8 +102,7 @@ class RoomCatalogRepositoryTest {
             assertEquals("REEVALUATING", state.health)
             assertEquals(42L, state.createdAtEpochMillis)
             assertEquals(0L, state.identityRevision)
-            val work = requireNotNull(database.canonicalCatalogDao().work("story:a-1", "FUSION_REBUILD"))
-            assertEquals("story-created", work.reason)
+            assertNull(database.canonicalCatalogDao().work("story:a-1", "FUSION_REBUILD"))
         }
     }
 
@@ -124,7 +124,7 @@ class RoomCatalogRepositoryTest {
             val state = requireNotNull(database.canonicalCatalogDao().canonicalState(storyId.value))
             assertEquals(77L, state.createdAtEpochMillis)
             assertEquals("AUTO", state.preferenceMode)
-            assertEquals("story-created", database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD")?.reason)
+            assertNull(database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD"))
         }
     }
 
@@ -623,7 +623,7 @@ class RoomCatalogRepositoryTest {
             assertEquals(30L, snapshot.summary.resolvedAtEpochMillis)
             assertEquals(20L, snapshot.full?.resolvedAtEpochMillis)
             assertEquals(identifiers, snapshot.entry.externalIdentifiers)
-            assertEquals("search-summary-changed", database.canonicalCatalogDao().work(durable.value, "FUSION_REBUILD")?.reason)
+            assertNull(database.canonicalCatalogDao().work(durable.value, "FUSION_REBUILD"))
             assertEquals(emptyList(), repository.observeHomes().first())
         }
     }
@@ -650,7 +650,7 @@ class RoomCatalogRepositoryTest {
             assertEquals("AUTO", state.preferenceMode)
             assertEquals("REEVALUATING", state.health)
             assertEquals(44L, state.createdAtEpochMillis)
-            assertEquals("search-summary-changed", database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD")?.reason)
+            assertNull(database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD"))
             assertEquals(emptyList(), repository.observeHomes().first())
         }
     }

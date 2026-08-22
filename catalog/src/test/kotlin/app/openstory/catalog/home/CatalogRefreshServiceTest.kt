@@ -1,6 +1,8 @@
 package app.openstory.catalog.home
 
 import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.RecordingCanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.model.CatalogFeedKind
@@ -171,10 +173,33 @@ class CatalogRefreshServiceTest {
         assertEquals(durable, repository.mutations[1].entries.single().storyId)
     }
 
+    @Test
+    fun committedChangesRouteThroughSummaryEvidenceEvents() = runTest {
+        val owner = StoryId("story:durable")
+        val key = SourceKey(PluginId("a"), "a-1")
+        val repository = RecordingRepository(
+            forcedChanges = listOf(
+                CatalogCommitChange(owner, key, identityFingerprintChanged = true, fusionFingerprintChanged = true),
+            ),
+        )
+        val engine = RecordingCanonicalEngineEventSink()
+        val registry = Registry(listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))))
+
+        service(registry, repository, 42L, engine).refresh()
+
+        val change = engine.evidenceChanges.single()
+        assertEquals(owner, change.storyId)
+        assertEquals(key, change.sourceKey)
+        assertEquals(CatalogEvidenceLevel.SUMMARY, change.level)
+        assertEquals(true, change.identityFingerprintChanged)
+        assertEquals(true, change.fusionFingerprintChanged)
+    }
+
     private fun service(
         registry: CatalogSourceRegistry,
         repository: CatalogRepository,
         epochMillis: Long,
+        engine: RecordingCanonicalEngineEventSink = RecordingCanonicalEngineEventSink(),
     ): CatalogRefreshService {
         val clock = Clock { epochMillis }
         return CatalogRefreshService(
@@ -184,8 +209,7 @@ class CatalogRefreshServiceTest {
                 app.openstory.catalog.reconciliation.ReconciliationPolicy(),
             ),
             storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
-            reconciliation = app.openstory.catalog.testReconciliationService(repository, clock),
-            fusion = app.openstory.catalog.noOpCanonicalRebuilder,
+            orchestrator = engine,
             clock = clock,
         )
     }
@@ -235,6 +259,7 @@ class CatalogRefreshServiceTest {
     private class RecordingRepository(
         private val storeFailure: CatalogStoreFailure? = null,
         private val durableOwners: MutableMap<SourceKey, StoryId> = mutableMapOf(),
+        private val forcedChanges: List<CatalogCommitChange>? = null,
     ) : CatalogRepository {
         val mutations = mutableListOf<CatalogHomeMutation>()
 
@@ -256,7 +281,7 @@ class CatalogRefreshServiceTest {
         ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> {
             mutations += mutation
             storeFailure?.let { return Outcome.Failure(it) }
-            val changes = mutation.entries.map { entry ->
+            val changes = forcedChanges ?: mutation.entries.map { entry ->
                 val key = SourceKey(entry.pluginId, entry.sourceId)
                 val owner = durableOwners.getOrPut(key) { entry.storyId }
                 CatalogCommitChange(

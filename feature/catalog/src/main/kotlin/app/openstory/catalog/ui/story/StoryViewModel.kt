@@ -6,7 +6,6 @@ import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
-import app.openstory.catalog.fusion.CanonicalFusionReason
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
@@ -16,6 +15,7 @@ import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -46,6 +46,7 @@ class StoryViewModel @AssistedInject internal constructor(
     private val canonical: CanonicalCatalogRepository,
     private val bootstrap: CanonicalBootstrapUseCase,
     private val metadata: CatalogMetadataCoordinator,
+    private val orchestrator: CanonicalEngineEventSink,
     private val library: LibraryService,
     private val progress: ReadingProgressRepository,
     private val reconciliation: StoryReconciliationController,
@@ -144,7 +145,7 @@ class StoryViewModel @AssistedInject internal constructor(
         canonical.setSourcePreference(
             current.preference.copy(mode = mode, pinnedSource = pinned),
         )
-        when (val result = bootstrap.rebuild(current.story.id, CanonicalFusionReason.SOURCE_PREFERENCE_CHANGED)) {
+        when (val result = orchestrator.onSourcePreferenceChanged(current.story.id)) {
             is CanonicalFusionResult.Failed -> failure.value = StoryRefreshFailure(result.code, result.retryable)
             else -> failure.value = null
         }
@@ -195,17 +196,7 @@ class StoryViewModel @AssistedInject internal constructor(
                         CatalogMetadataKey(source.sourceKey.pluginId, source.sourceKey.sourceId),
                         CatalogMetadataLevel.Full,
                     ).failureOrNull()
-                    if (refreshFailure == null) {
-                        when (val result = bootstrap.rebuild(
-                            currentState.story.id,
-                            CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED,
-                        )) {
-                            is CanonicalFusionResult.Failed -> StoryRefreshFailure(result.code, result.retryable)
-                            else -> null
-                        }
-                    } else {
-                        refreshFailure
-                    }
+                    refreshFailure
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation

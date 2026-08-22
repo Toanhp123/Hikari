@@ -1,11 +1,16 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.ProtectedContentMappingConflict
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceChange
 import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResolution
 import app.openstory.catalog.identity.StoryMergeResult
+import app.openstory.common.Clock
 import app.openstory.common.FakeClock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -20,11 +25,61 @@ import kotlin.test.assertTrue
 
 class ReconciliationReviewServiceTest {
     @Test
+    fun committedMergeNotifiesCanonicalEngineWithSurvivor() = runTest {
+        val case = reviewCase()
+        val engine = RecordingReviewEngine()
+        val service = reviewService(
+            RecordingCases(case),
+            RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "merge:notify")),
+            FakeClock(1_000),
+            engine,
+        )
+
+        val result = service.resolve(command(case, ReconciliationReviewAction.MERGE))
+
+        assertEquals(ReconciliationReviewResult.Merged(StoryId("story:a")), result)
+        assertEquals(listOf(StoryId("story:a")), engine.merged)
+    }
+
+    @Test
+    fun postMergeOrchestrationFailureDoesNotRewriteCommittedMergeResult() = runTest {
+        val case = reviewCase()
+        val engine = RecordingReviewEngine(failOnMerge = true)
+        val service = reviewService(
+            RecordingCases(case),
+            RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "merge:durable")),
+            FakeClock(1_000),
+            engine,
+        )
+
+        val result = service.resolve(command(case, ReconciliationReviewAction.MERGE))
+
+        assertEquals(ReconciliationReviewResult.Merged(StoryId("story:a")), result)
+        assertEquals(listOf(StoryId("story:a")), engine.merged)
+    }
+
+    @Test
+    fun reviewRequiredDoesNotNotifyCanonicalEngine() = runTest {
+        val case = reviewCase()
+        val engine = RecordingReviewEngine()
+        val service = reviewService(
+            RecordingCases(case),
+            RecordingMergeExecutor(StoryMergeResult.ReviewRequired(setOf("blocked"))),
+            FakeClock(1_000),
+            engine,
+        )
+
+        service.resolve(command(case, ReconciliationReviewAction.MERGE))
+
+        assertTrue(engine.merged.isEmpty())
+    }
+
+    @Test
     fun mergeUsesSharedExecutorWithUserReviewContext() = runTest {
         val case = reviewCase()
         val cases = RecordingCases(case)
         val executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "merge:1"))
-        val service = ReconciliationReviewService(cases, executor, FakeClock(1_000))
+        val service = reviewService(cases, executor, FakeClock(1_000))
 
         val result = service.resolve(command(case, ReconciliationReviewAction.MERGE))
 
@@ -42,7 +97,7 @@ class ReconciliationReviewServiceTest {
     fun invariantBlockedReviewDoesNotCallExecutor() = runTest {
         val case = reviewCase(mergeEligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED)
         val executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused"))
-        val service = ReconciliationReviewService(RecordingCases(case), executor, FakeClock(1_000))
+        val service = reviewService(RecordingCases(case), executor, FakeClock(1_000))
 
         assertEquals(
             ReconciliationReviewResult.InvariantBlocked,
@@ -65,7 +120,7 @@ class ReconciliationReviewServiceTest {
                 protectedContentMappingConflicts = listOf(conflict),
             ),
         )
-        val service = ReconciliationReviewService(cases, executor, FakeClock(1_000))
+        val service = reviewService(cases, executor, FakeClock(1_000))
 
         assertEquals(
             ReconciliationReviewResult.ConflictResolutionRequired(listOf(conflict)),
@@ -92,7 +147,7 @@ class ReconciliationReviewServiceTest {
                 ),
             ),
         )
-        val service = ReconciliationReviewService(RecordingCases(case), executor, FakeClock(1_000))
+        val service = reviewService(RecordingCases(case), executor, FakeClock(1_000))
 
         val result = assertIs<ReconciliationReviewResult.ConflictResolutionRequired>(
             service.resolve(command(case, ReconciliationReviewAction.MERGE)),
@@ -107,7 +162,7 @@ class ReconciliationReviewServiceTest {
     fun explicitProtectedMappingResolutionIsTranslatedIntoMergeResolution() = runTest {
         val case = reviewCase()
         val executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "merge:2"))
-        val service = ReconciliationReviewService(RecordingCases(case), executor, FakeClock(1_000))
+        val service = reviewService(RecordingCases(case), executor, FakeClock(1_000))
         val pluginId = PluginId("plugin:content")
 
         service.resolve(
@@ -129,7 +184,7 @@ class ReconciliationReviewServiceTest {
         val case = reviewCase()
         val pluginId = PluginId("plugin:content")
         val executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused"))
-        val service = ReconciliationReviewService(RecordingCases(case), executor, FakeClock(1_000))
+        val service = reviewService(RecordingCases(case), executor, FakeClock(1_000))
 
         val result = service.resolve(
             command(
@@ -155,7 +210,7 @@ class ReconciliationReviewServiceTest {
                 reasons = setOf("canonical_source_preference.pinned_conflict"),
             ),
         )
-        val service = ReconciliationReviewService(cases, executor, FakeClock(1_000))
+        val service = reviewService(cases, executor, FakeClock(1_000))
 
         assertEquals(
             ReconciliationReviewResult.DomainStateChangeRequired(
@@ -174,7 +229,7 @@ class ReconciliationReviewServiceTest {
                 reasons = linkedSetOf("z.reason", "a.reason"),
             ),
         )
-        val service = ReconciliationReviewService(RecordingCases(case), executor, FakeClock(1_000))
+        val service = reviewService(RecordingCases(case), executor, FakeClock(1_000))
 
         val result = assertIs<ReconciliationReviewResult.DomainStateChangeRequired>(
             service.resolve(command(case, ReconciliationReviewAction.MERGE)),
@@ -187,7 +242,7 @@ class ReconciliationReviewServiceTest {
     fun keepSeparatePersistsUserResolutionAtCurrentRevision() = runTest {
         val case = reviewCase()
         val cases = RecordingCases(case)
-        val service = ReconciliationReviewService(
+        val service = reviewService(
             cases,
             RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
             FakeClock(1_234),
@@ -209,7 +264,7 @@ class ReconciliationReviewServiceTest {
     fun deferKeepsCasePendingAndVisibleToQueueWithCallerOwnedSuppressionDeadline() = runTest {
         val case = reviewCase()
         val cases = RecordingCases(case)
-        val service = ReconciliationReviewService(
+        val service = reviewService(
             cases,
             RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
             FakeClock(1_000),
@@ -236,7 +291,7 @@ class ReconciliationReviewServiceTest {
     fun deferNeverShortensExistingSuppressionAndAvoidsWrite() = runTest {
         val case = reviewCase(contextualPromptSuppressedUntilEpochMillis = 90_000L)
         val cases = RecordingCases(case)
-        val service = ReconciliationReviewService(
+        val service = reviewService(
             cases,
             RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
             FakeClock(1_000),
@@ -260,7 +315,7 @@ class ReconciliationReviewServiceTest {
     fun deferDeadlineMustBeStrictlyInFuture() = runTest {
         val case = reviewCase()
         val cases = RecordingCases(case)
-        val service = ReconciliationReviewService(
+        val service = reviewService(
             cases,
             RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
             FakeClock(1_000),
@@ -283,7 +338,7 @@ class ReconciliationReviewServiceTest {
     fun repeatedCompletedKeepSeparateIsIdempotentForOriginalCommandRevision() = runTest {
         val case = reviewCase()
         val cases = RecordingCases(case)
-        val service = ReconciliationReviewService(
+        val service = reviewService(
             cases,
             RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
             FakeClock(1_234),
@@ -300,7 +355,7 @@ class ReconciliationReviewServiceTest {
         val case = reviewCase(revision = 3)
         val cases = RecordingCases(case)
         val executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused"))
-        val service = ReconciliationReviewService(cases, executor, FakeClock(1_000))
+        val service = reviewService(cases, executor, FakeClock(1_000))
 
         val result = service.resolve(
             ReconciliationReviewCommand(
@@ -319,7 +374,7 @@ class ReconciliationReviewServiceTest {
     fun staleMergePlanMapsToStaleCaseWithoutRepositoryMutation() = runTest {
         val case = reviewCase()
         val cases = RecordingCases(case)
-        val service = ReconciliationReviewService(
+        val service = reviewService(
             cases,
             RecordingMergeExecutor(StoryMergeResult.StalePlan(setOf(case.key.left, case.key.right))),
             FakeClock(1_000),
@@ -336,7 +391,7 @@ class ReconciliationReviewServiceTest {
     fun repeatedCompletedMergeUsesExecutorIdempotencyAndReturnsSurvivor() = runTest {
         val case = reviewCase(status = ReconciliationCaseStatus.RESOLVED_MERGED)
         val executor = RecordingMergeExecutor(StoryMergeResult.AlreadyMerged(StoryId("story:a")))
-        val service = ReconciliationReviewService(RecordingCases(case), executor, FakeClock(1_000))
+        val service = reviewService(RecordingCases(case), executor, FakeClock(1_000))
 
         assertEquals(
             ReconciliationReviewResult.Merged(StoryId("story:a")),
@@ -357,6 +412,31 @@ class ReconciliationReviewServiceTest {
         protectedMappingResolutions = protectedMappingResolutions,
         suppressUntilEpochMillis = suppressUntilEpochMillis,
     )
+
+    private fun reviewService(
+        cases: ReconciliationCaseRepository,
+        executor: StoryMergeExecutor,
+        clock: Clock,
+        engine: RecordingReviewEngine = RecordingReviewEngine(),
+    ): ReconciliationReviewService = ReconciliationReviewService(cases, executor, clock, engine)
+
+    private class RecordingReviewEngine(
+        private val failOnMerge: Boolean = false,
+    ) : CanonicalEngineEventSink {
+        val merged = mutableListOf<StoryId>()
+
+        override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = Unit
+        override suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+        override suspend fun onSourceUnlinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+        override suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult =
+            CanonicalFusionResult.Preparing(storyId)
+
+        override suspend fun onStoryMerged(storyId: StoryId): CanonicalFusionResult {
+            merged += storyId
+            if (failOnMerge) error("post-merge orchestration failed")
+            return CanonicalFusionResult.Preparing(storyId)
+        }
+    }
 
     private fun reviewCase(
         status: ReconciliationCaseStatus = ReconciliationCaseStatus.PENDING,

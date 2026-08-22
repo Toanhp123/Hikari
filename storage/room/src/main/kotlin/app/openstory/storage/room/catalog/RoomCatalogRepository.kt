@@ -4,7 +4,6 @@ import androidx.room.withTransaction
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
-import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
 import app.openstory.catalog.evidence.CatalogSourceRecord
@@ -25,7 +24,6 @@ import app.openstory.catalog.repository.CatalogSearchSummaryCommitResult
 import app.openstory.catalog.repository.CatalogSearchSummaryMutation
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.model.CatalogEntry
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.common.Outcome
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
@@ -205,7 +203,6 @@ class RoomCatalogRepository internal constructor(
         val result = database.withTransaction {
             val ownership = linkedMapOf<SourceKey, StoryId>()
             val changes = mutableListOf<CatalogCommitChange>()
-            val affectedStoryIds = linkedSetOf<StoryId>()
             val storiesById = mutation.stories.associateBy { it.id }
             mutation.entries.sortedBy(CatalogEntry::sourceId).forEach { proposedEntry ->
                 val key = SourceKey(proposedEntry.pluginId, proposedEntry.sourceId)
@@ -225,20 +222,6 @@ class RoomCatalogRepository internal constructor(
                 val after = sourceRecordFor(requireNotNull(dao.findEntry(key.pluginId.value, key.sourceId)))
                 changes += commitChange(before, after)
                 ownership[key] = durableStoryId
-                affectedStoryIds += durableStoryId
-            }
-            affectedStoryIds.forEach { storyId ->
-                canonicalDao.upsertWork(
-                    CanonicalEngineWorkEntity(
-                        storyId = storyId.value,
-                        workType = CanonicalEngineWorkType.FUSION_REBUILD.name,
-                        reason = "search-summary-changed",
-                        attemptCount = 0,
-                        nextAttemptAtEpochMillis = 0,
-                        lastErrorCode = null,
-                        requiredPolicyVersion = FUSION_POLICY_VERSION,
-                    ),
-                )
             }
             CatalogSearchSummaryCommitResult(ownership, changes)
         }
@@ -293,17 +276,6 @@ class RoomCatalogRepository internal constructor(
                 preferenceRevision = 0,
                 identityRevision = 0,
                 createdAtEpochMillis = createdAtEpochMillis,
-            ),
-        )
-        canonicalDao.upsertWork(
-            CanonicalEngineWorkEntity(
-                storyId = storyId,
-                workType = CanonicalEngineWorkType.FUSION_REBUILD.name,
-                reason = "story-created",
-                attemptCount = 0,
-                nextAttemptAtEpochMillis = 0,
-                lastErrorCode = null,
-                requiredPolicyVersion = null,
             ),
         )
     }

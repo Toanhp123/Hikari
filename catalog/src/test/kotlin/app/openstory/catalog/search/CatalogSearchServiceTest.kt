@@ -24,6 +24,9 @@ import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
+import app.openstory.catalog.RecordingCanonicalEngineEventSink
+import app.openstory.catalog.repository.CatalogCommitChange
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
@@ -55,6 +58,41 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class CatalogSearchServiceTest {
+
+    @Test
+    fun committedSearchChangesRouteThroughSummaryEvidenceEvents() = runTest {
+        val canonical = FakeCanonicalRepository()
+        val storyId = StoryId("story:routed")
+        val key = SourceKey(PluginId("catalog.a"), "source-a")
+        val repository = FakeRepository(
+            canonical,
+            forcedChanges = listOf(
+                CatalogCommitChange(
+                    storyId = storyId,
+                    sourceKey = key,
+                    identityFingerprintChanged = true,
+                    fusionFingerprintChanged = true,
+                ),
+            ),
+        )
+        val engine = RecordingCanonicalEngineEventSink()
+        val service = service(
+            listOf(Source("catalog.a", item("source-a", "Provider title"))),
+            repository,
+            canonical,
+            engine = engine,
+        )
+
+        service.search(CatalogSearchRequest("provider"))
+
+        assertEquals(1, engine.evidenceChanges.size)
+        val routed = engine.evidenceChanges.single()
+        assertEquals(storyId, routed.storyId)
+        assertEquals(key, routed.sourceKey)
+        assertEquals(CatalogEvidenceLevel.SUMMARY, routed.level)
+        assertTrue(routed.identityFingerprintChanged)
+        assertTrue(routed.fusionFingerprintChanged)
+    }
     @Test
     fun summaryIsCommittedBeforeCanonicalCardConstructionAndRawValuesDoNotOwnPresentation() = runTest {
         val canonical = FakeCanonicalRepository()
@@ -163,6 +201,7 @@ class CatalogSearchServiceTest {
         repository: FakeRepository,
         canonical: FakeCanonicalRepository,
         rebuilder: FakeRebuilder = FakeRebuilder(canonical, promote = true),
+        engine: RecordingCanonicalEngineEventSink = RecordingCanonicalEngineEventSink(),
     ): CatalogSearchService {
         val clock = Clock { 100L }
         return CatalogSearchService(
@@ -172,8 +211,7 @@ class CatalogSearchServiceTest {
                 app.openstory.catalog.reconciliation.ReconciliationPolicy(),
             ),
             storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
-            reconciliation = app.openstory.catalog.testReconciliationService(repository, clock),
-            fusion = rebuilder,
+            orchestrator = engine,
             clock = clock,
             bootstrap = CanonicalBootstrapUseCase(canonical, rebuilder),
             filterCache = CatalogFilterCache(),
@@ -216,6 +254,7 @@ private class Source(id: String, private val item: SourceItem) : CatalogSource {
 private class FakeRepository(
     private val canonical: FakeCanonicalRepository,
     private val existingOwners: MutableMap<SourceKey, StoryId> = mutableMapOf(),
+    private val forcedChanges: List<CatalogCommitChange> = emptyList(),
 ) : CatalogRepository {
     var searchCommits = 0
     private val matchCandidates = mutableListOf<CatalogMatchCandidate>()
@@ -242,7 +281,7 @@ private class FakeRepository(
                 entries.map { SourceKey(it.pluginId, it.sourceId) }.toSet(),
             )
         }
-        return Outcome.Success(CatalogSearchSummaryCommitResult(mapping))
+        return Outcome.Success(CatalogSearchSummaryCommitResult(mapping, forcedChanges))
     }
 
     override suspend fun matchSnapshot(): CatalogMatchSnapshot = CatalogMatchSnapshot(matchCandidates.toList())

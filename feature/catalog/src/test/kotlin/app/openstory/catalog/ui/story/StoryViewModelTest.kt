@@ -31,6 +31,8 @@ import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceChange
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.reconciliation.ReconciliationAssessment
@@ -133,7 +135,8 @@ class StoryViewModelTest {
     fun pinAndAutomaticModePersistPreferenceAndRequestCanonicalRebuild() = runTest(dispatcher.scheduler) {
         val canonical = FakeCanonicalRepository(readyState())
         val rebuilder = RecordingRebuilder(canonical)
-        val viewModel = viewModel(canonical, rebuilder)
+        val engine = RecordingStoryEngineEventSink()
+        val viewModel = viewModel(canonical, rebuilder, engine = engine)
         runCurrent()
 
         val pinned = SourceKey(PluginId("catalog.b"), "source-b")
@@ -142,14 +145,16 @@ class StoryViewModelTest {
 
         assertEquals(CanonicalSourcePreferenceMode.PINNED, canonical.current().preference.mode)
         assertEquals(pinned, canonical.current().preference.pinnedSource)
-        assertEquals(CanonicalFusionReason.SOURCE_PREFERENCE_CHANGED, rebuilder.reasons.last())
+        assertEquals(listOf(canonical.current().story.id), engine.preferenceChanges)
+        assertFalse(rebuilder.reasons.contains(CanonicalFusionReason.SOURCE_PREFERENCE_CHANGED))
 
         viewModel.useAutomaticPrimary()
         runCurrent()
 
         assertEquals(CanonicalSourcePreferenceMode.AUTO, canonical.current().preference.mode)
         assertNull(canonical.current().preference.pinnedSource)
-        assertEquals(2, rebuilder.reasons.count { it == CanonicalFusionReason.SOURCE_PREFERENCE_CHANGED })
+        assertEquals(listOf(canonical.current().story.id, canonical.current().story.id), engine.preferenceChanges)
+        assertFalse(rebuilder.reasons.contains(CanonicalFusionReason.SOURCE_PREFERENCE_CHANGED))
     }
 
     @Test
@@ -289,6 +294,7 @@ class StoryViewModelTest {
     private fun TestScope.viewModel(
         canonical: FakeCanonicalRepository,
         rebuilder: RecordingRebuilder = RecordingRebuilder(canonical),
+        engine: RecordingStoryEngineEventSink = RecordingStoryEngineEventSink(),
         storyId: StoryId = canonical.requestId,
         reviewCases: ReconciliationCaseRepository = EmptyStoryPromptCases,
         reviewProjections: CatalogStoryProjectionRepository = EmptyStoryPromptProjections,
@@ -308,8 +314,7 @@ class StoryViewModelTest {
                     app.openstory.catalog.reconciliation.ReconciliationPolicy(),
                 ),
                 storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
-                reconciliation = app.openstory.catalog.featureTestReconciliationService(legacy, clock),
-                fusion = app.openstory.catalog.featureNoOpCanonicalRebuilder,
+                orchestrator = engine,
                 clock = clock,
             ),
             policy = CatalogMetadataPolicy(clock),
@@ -321,17 +326,43 @@ class StoryViewModelTest {
             canonical,
             CanonicalBootstrapUseCase(canonical, rebuilder),
             metadata,
+            engine,
             LibraryService(FakeLibraryRepository(), clock, NoOpMappingScheduler),
             FakeProgressRepository(),
             StoryReconciliationController(
                 reviewCases,
                 reviewProjections,
-                ReconciliationReviewService(reviewCases, reviewMerge, clock),
+                ReconciliationReviewService(reviewCases, reviewMerge, clock, engine),
                 clock,
             ),
         ).also { viewModel ->
             backgroundScope.launch { viewModel.state.collect {} }
         }
+    }
+}
+
+private class RecordingStoryEngineEventSink : CanonicalEngineEventSink {
+    val evidenceChanges = mutableListOf<CatalogEvidenceChange>()
+    val preferenceChanges = mutableListOf<StoryId>()
+    val merged = mutableListOf<StoryId>()
+    var preferenceResult: CanonicalFusionResult? = null
+
+    override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) {
+        evidenceChanges += change
+    }
+
+    override suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+
+    override suspend fun onSourceUnlinked(storyId: StoryId, sourceKey: SourceKey) = Unit
+
+    override suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult {
+        preferenceChanges += storyId
+        return preferenceResult ?: CanonicalFusionResult.Preparing(storyId)
+    }
+
+    override suspend fun onStoryMerged(storyId: StoryId): CanonicalFusionResult {
+        merged += storyId
+        return CanonicalFusionResult.Preparing(storyId)
     }
 }
 

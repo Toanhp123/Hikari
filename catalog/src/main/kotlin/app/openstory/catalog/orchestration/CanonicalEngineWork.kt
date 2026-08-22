@@ -2,6 +2,19 @@ package app.openstory.catalog.orchestration
 
 import app.openstory.common.id.StoryId
 
+object CanonicalEngineWorkReasons {
+    const val SOURCE_SUMMARY_CHANGED = "source_summary_changed"
+    const val SOURCE_FULL_CHANGED = "source_full_changed"
+    const val SOURCE_AVAILABILITY_CHANGED = "source_availability_changed"
+    const val SOURCE_LINKED = "source_linked"
+    const val SOURCE_UNLINKED = "source_unlinked"
+    const val SOURCE_PREFERENCE_CHANGED = "source_preference_changed"
+    const val REVIEW_RESOLVED = "review_resolved"
+    const val STORY_MERGED = "story_merged"
+    const val POLICY_VERSION_CHANGED = "policy_version_changed"
+    const val RETRY = "retry"
+}
+
 enum class CanonicalEngineWorkType {
     FUSION_REBUILD,
     RECONCILIATION_REEVALUATION,

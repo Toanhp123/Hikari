@@ -1,7 +1,5 @@
 package app.openstory.catalog.details
 
-import app.openstory.catalog.fusion.CanonicalFusionReason
-import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.home.toModel
 import app.openstory.catalog.identity.CatalogStoryIdFactory
 import app.openstory.catalog.identity.SourceKey
@@ -13,9 +11,11 @@ import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.reconciliation.CatalogIngestReconciliationIndex
 import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
-import app.openstory.catalog.reconciliation.CatalogReconciliationService
 import app.openstory.catalog.reconciliation.IncomingSourceResolution
 import app.openstory.catalog.reconciliation.ReconciliationEvidenceFactory
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
+import app.openstory.catalog.orchestration.toEvidenceChange
 import app.openstory.catalog.repository.CatalogCommitChange
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogRepository
@@ -48,8 +48,7 @@ class CatalogDetailsLoader @Inject constructor(
     private val repository: CatalogRepository,
     private val reconciliationEngine: CatalogReconciliationEngine,
     private val storyIdFactory: CatalogStoryIdFactory,
-    private val reconciliation: CatalogReconciliationService,
-    private val fusion: CanonicalGenerationRebuilder,
+    private val orchestrator: CanonicalEngineEventSink,
     private val clock: Clock,
 ) {
     internal suspend fun load(
@@ -189,10 +188,7 @@ class CatalogDetailsLoader @Inject constructor(
 
     private suspend fun routeChanges(changes: List<CatalogCommitChange>) {
         changes.forEach { change ->
-            if (change.identityFingerprintChanged) reconciliation.reconcile(change.sourceKey)
-            if (change.fusionFingerprintChanged) {
-                fusion.rebuild(change.storyId, CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED)
-            }
+            orchestrator.onEvidenceChanged(change.toEvidenceChange(CatalogEvidenceLevel.FULL))
         }
     }
 

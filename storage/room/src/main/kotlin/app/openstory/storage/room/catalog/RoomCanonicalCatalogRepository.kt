@@ -18,11 +18,9 @@ import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.evidence.toSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.PublicationStatus
-import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.catalog.model.Story
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -119,17 +117,6 @@ class RoomCanonicalCatalogRepository internal constructor(
                     pinnedPluginId = preference.pinnedSource?.pluginId?.value,
                     pinnedSourceId = preference.pinnedSource?.sourceId,
                     preferenceRevision = current.preferenceRevision + 1,
-                ),
-            )
-            canonicalDao.upsertWork(
-                CanonicalEngineWorkEntity(
-                    storyId = resolved.value,
-                    workType = CanonicalEngineWorkType.FUSION_REBUILD.name,
-                    reason = "source-preference-changed",
-                    attemptCount = 0,
-                    nextAttemptAtEpochMillis = 0,
-                    lastErrorCode = null,
-                    requiredPolicyVersion = FUSION_POLICY_VERSION,
                 ),
             )
         }

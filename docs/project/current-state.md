@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-21
+Date: 2026-08-22
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -32,28 +32,29 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Canonical Catalog Reconciliation & Fusion Engine: **PHASE 0–4 VERIFIED/CLOSED; PHASE 5 TASK 33 NEXT**.
-  Phase 4 adds deterministic survivor selection from meaningful user state; conservative Library,
-  mapping, chapter, and Reader-progress merge policies; authoritative Story-graph preparation with
-  stale-plan fingerprints; one Room-owned atomic merge coordinator; redirect flattening; merge/reversal
-  audit; durable post-merge work; and reconciliation-to-merge-executor integration. Room remains schema 9.
-  Production reconciliation uses guarded `APPLY_ELIGIBLE_AUTO_MERGES`, and the required post-enable
-  unit, Room connected, and full repository verification gate was reported green on the enabled tree.
-  The accepted Phase-4 evidence is
-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-4.md`; Phase 5 now begins at
-  Task 33 durable review resolution. Prior accepted evidence remains in the Phase 0–3 checkpoints.
-  A narrow Discover repair also priority-bootstraps visible cached Home Story IDs from persisted local
-  evidence after schema-9 migration. It does not fetch Details, alter refresh orchestration, or move
-  Phase-6 Task 36/37 work forward.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–5 + PHASE-6 TASK 36 VERIFIED/CLOSED; TASK 37 NEXT**.
+  Phase 5 closed durable review resolution, Review Queue/navigation, and contextual Story review over
+  one `ReconciliationCase` boundary. Phase-6 Task 36 now routes committed Home, Details, and Search
+  evidence through one `CanonicalEngineOrchestrator`, enforces reconciliation-before-Fusion when
+  identity and presentation both change, re-resolves the canonical owner before Fusion, coalesces
+  durable engine work, routes Story source-preference changes through the same boundary, and removes
+  the explicit Story Full-refresh double-Fusion bypass. User-approved merge notifies orchestration only
+  after authoritative Room success; conditional `POST_MERGE_DERIVED` remains inside the atomic Room
+  merge transaction. Room remains schema 9. Focused Catalog/feature gates, 47/47 selected Room connected
+  tests, and canonical `./scripts/verify.sh` are accepted for Task 36. Evidence is in
+  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-6-task-36.md`. Phase 6 continues
+  at Task 37 operation-level Full metadata fallback. The commit-to-post-commit-callback process-death
+  window remains explicit later recovery/outbox work; Task 36 does not add a migration for it.
 - Wave 10: **PLANNED; NOT STARTED**. Canonical-engine work remains the active pre-Wave-10 track.
   The Phase-1 patch now owns `8 -> 9`, so Wave 10 notification persistence is rebased to `9 -> 10`.
   Wave 10 must not introduce another `MIGRATION_8_9`.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
-  Phase 3 closed observe-only reconciliation Tasks 22–25, and Phase 4 closed Tasks 26–32 after the
-  guarded production auto-merge path passed its post-enable gate. Phase 5 Task 33 is the next canonical-engine
-  implementation step. Room remains schema 9.
+  Phase 3 closed observe-only reconciliation Tasks 22–25, Phase 4 closed Tasks 26–32 after guarded
+  production auto-merge passed its post-enable gate, Phase 5 closed Tasks 33–35, and Phase-6 Task 36
+  closed the shared runtime orchestration boundary. Task 37 is the next canonical-engine implementation
+  step. Room remains schema 9.
 
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
@@ -80,7 +81,7 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
 | `:core:designsystem` | Domain-neutral theme/tokens, artwork and glass primitives, adaptive layout/content chrome, pull-to-refresh, shared actions/states, equal-width segmented control, static skeleton, and screenshot rendering boundary |
-| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, unified Summary/Full metadata lifecycle, canonical evidence/read contracts, durable-work contracts, and local-only bootstrap boundary |
+| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, unified Summary/Full metadata lifecycle, canonical evidence/read contracts, shared canonical-engine orchestration, durable-work contracts, and local-only bootstrap boundary |
 | `:feature:catalog` | Discover, Home, Search, Story, Library, mapping-review, chapter-list, downloads/updates presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
 | `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts, including bounded optional catalog external identifiers and opaque latest-update labels |
