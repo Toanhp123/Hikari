@@ -11,10 +11,9 @@ whether it is already complete.
 Current boundary: Waves 06-09 are verified and complete. Architecture Baseline 2, the
 Design System Foundation, the Product UI checkpoint, and the Discover semantic-feed redesign
 are accepted. The Canonical Catalog Reconciliation & Fusion Engine is the active pre-Wave-10
-workstream. Phases 0–6 / Tasks 1–38 and Phase 7 Tasks 39–41 are verified and closed. The
-canonical-engine foundation owns Room schema 9 through `8 -> 9`; Task 42 is the active final
-certification/governance gate and introduces no new feature semantics. Wave 10 is not implemented;
-its notification persistence is rebased to `9 -> 10`, and Wave 11 enters on schema 10 unless another
+workstream. Phases 0–7 / Tasks 1–42 are verified and closed. The
+canonical-engine foundation owns Room schema 9 through `8 -> 9`. Wave 10 is the active next
+capability boundary; its notification persistence is rebased to `9 -> 10`, and Wave 11 enters on schema 10 unless another
 reviewed migration intervenes.
 
 The matrix below preserves the approved 2026-08-03 requirement-to-wave mapping. Later
@@ -29,7 +28,7 @@ those cases.
 | Primary Discover composition | `../superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` | Semantic `Popular -> media selector -> Latest Updates -> Top Rated`; no default catalog/source selector or per-catalog page in the primary Discover UI |
 | Discover feed identity | same | Explicit semantic feed kind; canonical `StoryId` dedupe before Compose; no provider/title inference |
 | Discover persistence | same + Room schema 7 | Feed kind, publication status, and coherent latest-update metadata are persisted in schema 7 |
-| Canonical catalog identity/fusion | `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` + active implementation plan | Tasks 1–41 are verified/closed through Phase 7 Task 41. The accepted boundary includes host-owned identity/reconciliation/fusion, canonical presentation, guarded atomic Story graph merge, durable review, shared orchestration, Full fallback, post-merge correction review, background safety, controlled reversal, and bounded fail-open diagnostics. Room remains schema 9. Task 42 is active only for final governance and the complete acceptance/profile/performance certification matrix. |
+| Canonical catalog identity/fusion | `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` + implementation plan | Phases 0–7 / Tasks 1–42 are verified/closed. The accepted boundary includes host-owned identity/reconciliation/fusion, canonical presentation, guarded atomic Story graph merge, durable review, shared orchestration, Full fallback, post-merge correction review, background safety, controlled reversal, bounded fail-open diagnostics, and final certification. Room remains schema 9. |
 | Plugin execution mechanics | Architecture Baseline 2 + `../plugin-sdk/` | JavaScript-only protocol/runtime; historical selector/declarative-runtime rows are product-history, not active SDK mechanics |
 | Wave 10 persistence | `../implementation/waves/wave-10-background-sync-auth-and-notifications.md` | Still planned. Canonical-engine Task 6 now owns schema 8 -> 9, so Wave 10 durable notification state is rebased to 9 -> 10 |
 | Manga image Reader scope | `approved-product-design.md` + `current-state.md` | Original MVP exclusion remains normative; repository contains a bounded MangaDex image-page path that is implementation beyond that baseline until separately approved as product scope |

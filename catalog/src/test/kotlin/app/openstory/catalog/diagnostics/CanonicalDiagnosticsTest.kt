@@ -74,7 +74,7 @@ class CanonicalDiagnosticsTest {
 
     @Test
     fun noOpDiagnosticsAcceptsStructuredTraceWithoutPersistence() {
-        CanonicalDiagnostics().record(trace())
+        CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink).record(trace())
     }
 
     private fun trace() = CanonicalDecisionTrace(

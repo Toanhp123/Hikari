@@ -3,6 +3,7 @@ package app.openstory.storage.room.merge
 import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
+import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
 import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResult
@@ -14,14 +15,14 @@ import java.util.UUID
 class RoomStoryGraphMergeCoordinator internal constructor(
     private val planner: RoomStoryGraphMergePlanner,
     private val writer: RoomStoryMergeWriter,
-    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
 ) : StoryMergeExecutor {
     constructor(
         database: OpenStoryDatabase,
         clock: Clock,
         mergeEventIdFactory: () -> String = { "merge:${UUID.randomUUID()}" },
         beforeAudit: suspend () -> Unit = {},
-        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
     ) : this(
         planner = RoomStoryGraphMergePlanner(
             identity = RoomStoryIdentityResolver(database),

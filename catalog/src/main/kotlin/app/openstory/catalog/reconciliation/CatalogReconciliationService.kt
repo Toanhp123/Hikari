@@ -1,6 +1,7 @@
 package app.openstory.catalog.reconciliation
 
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
+import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
@@ -51,7 +52,7 @@ class CatalogReconciliationService(
     private val mergeExecutor: StoryMergeExecutor? = null,
     private val work: CanonicalEngineWorkRepository? = null,
     private val lineageReader: StoryMergeLineageReader = EmptyStoryMergeLineageReader,
-    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
 ) : CatalogReconciliationRunner {
     init {
         require(

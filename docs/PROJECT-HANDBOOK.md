@@ -129,7 +129,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine is the active pre-Wave-10 workstream; Phases 0–6 / Tasks 1–38 and Phase 7 Tasks 39–41 are verified/closed on Room schema 9, and Phase 7 Task 42 is active as the final governance/certification gate.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed (Phases 0–7 / Tasks 1–42 on Room schema 9). Wave 10 is the active next capability boundary.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
@@ -156,17 +156,11 @@ degraded and never triggers host-side Details enrichment. `CatalogDetailsLoader`
 production `CatalogSource.details(...)` call site, while persisted source identity is stable across
 metadata refreshes. Room schema 8 introduced Summary/Full provenance; the canonical-engine Phase-1 migration subsequently advanced the current repository to schema 9.
 
-The Canonical Catalog Reconciliation & Fusion Engine owns the active pre-Wave-10 boundary.
-Phases 0–6 / Tasks 1–38 are verified and closed: the accepted system includes the schema-9 canonical
-foundation, host-owned evidence/reconciliation, deterministic Fusion with materialized generations,
-canonical Story/Search/Discover/Library presentation, guarded atomic Story graph merge, durable review,
-shared evidence-change orchestration, operation-level Story Full fallback, and post-merge correction
-review. Phase 7 Tasks 39–41 are also verified/closed, adding durable background safety, controlled
-fail-closed reversal for provably safe historical merges, and bounded fail-open decision/invariant
-diagnostics while keeping policy engines pure and Room authoritative. Task 42 is active only to certify
-the complete migration/unit/device/app/profile/performance matrix and synchronize final governance; it
-does not introduce new feature behavior. Wave 10 notification persistence remains rebased to `9 -> 10`;
-Wave 11 enters on schema 10 unless another reviewed migration intervenes.
+The Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on Room schema 9.
+Phases 0–7 / Tasks 1–42 are accepted, including the schema-9 foundation, canonical read path,
+guarded atomic Story graph merge, durable review, shared orchestration, background safety, controlled
+reversal, bounded fail-open diagnostics, and final certification. Wave 10 notification persistence
+remains rebased to `9 -> 10`; Wave 11 enters on schema 10 unless another reviewed migration intervenes.
 
 ## 8. Roadmap
 
@@ -182,8 +176,8 @@ Wave 11 enters on schema 10 unless another reviewed migration intervenes.
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Tasks 1–41 verified/closed on schema 9; Task 42 active final certification/governance gate |
-| 10 | local scheduling, guarded source login and deduplicated notifications; planned after CCE reaches a compatible schema boundary |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phases 0–7 / Tasks 1–42 verified/closed on schema 9 | **Completed** |
+| 10 | local scheduling, guarded source login and deduplicated notifications; **active next boundary** | **Planned; ready to start** |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
 Detailed lifecycle/status: `implementation/current-roadmap.md`.
@@ -248,11 +242,7 @@ websites.
 
 ## 12. Next action
 
-Continue Phase 7 Task 42 from
-`superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`.
-Tasks 1–41 are verified and accepted on Room schema 9. Task 42 owns only final governance plus the
-complete schema/unit/device/app/Baseline-Startup-Profile/performance certification matrix; semantic
-failures return to the owning earlier task rather than being patched into Task 42. Wave 10 notification
-persistence is rebased to `MIGRATION_9_10`; never reintroduce a second meaning for `MIGRATION_8_9`.
-Use `./scripts/verify.sh` as the final host gate before the Phase-7/CCE closeout checkpoint is promoted
-to verified/accepted.
+Start Wave 10 from `implementation/waves/wave-10-background-sync-auth-and-notifications.md`.
+CCE Phases 0–7 / Tasks 1–42 are verified and closed on Room schema 9. Wave 10 notification
+persistence owns `MIGRATION_9_10`; never reintroduce a second meaning for `MIGRATION_8_9`.
+Use `./scripts/verify.sh` as the full host gate before Wave-10 checkpoints are promoted to verified/accepted.

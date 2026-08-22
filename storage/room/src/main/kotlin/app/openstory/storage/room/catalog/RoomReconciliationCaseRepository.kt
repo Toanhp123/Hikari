@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
+import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.catalog.reconciliation.ReconciliationAssessment
@@ -25,11 +26,11 @@ import kotlinx.coroutines.flow.map
 class RoomReconciliationCaseRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: CanonicalCatalogDao,
-    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
 ) : ReconciliationCaseRepository {
     constructor(
         database: OpenStoryDatabase,
-        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
     ) : this(database, database.canonicalCatalogDao(), diagnostics)
     override fun observePending(): Flow<List<ReconciliationCase>> = dao.observePendingReconciliationCases().map {
         entities -> database.withTransaction { entities.mapNotNull { entity -> entity.toDomain() } }

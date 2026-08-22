@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-23:** Phases 0–6 / Tasks 1–38 and **Phase 7 Tasks 39–41** are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 39 adds app-owned background maintenance over the durable canonical-engine work table, Task 40 adds controlled fail-closed merge reversal, and Task 41 adds bounded structured decision traces/invariant diagnostics while preserving pure policy engines, fail-open observability, and the existing persistent canonical truth. Developer-checkout acceptance for Task 41 includes the focused Catalog diagnostics/reconciliation/fusion/maintenance gate, 17/17 selected Room diagnostics/maintenance/merge tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` after behavior-preserving Detekt cleanup. Accepted Task-41 evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md`; Task-39/40 evidence remains in their own checkpoints. Historical RED-watch and commit checkboxes remain execution-record details rather than acceptance blockers. **Phase 7 Task 42 final governance/docs and acceptance/profile/performance matrix is ACTIVE.**
+**Execution checkpoint — 2026-08-23:** Phases 0–7 / Tasks 1–42 are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 42 closed final governance plus the complete schema/unit/device/app/profile/performance certification matrix without adding feature semantics. Accepted Phase-7 evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md`; Task-39/40/41 sub-checkpoints remain in their own files. **Wave 10 is the active next capability boundary.**
 
 ## Global Constraints
 
@@ -5492,7 +5492,7 @@ Reversal safety is intentionally narrower than comparing the complete `postMerge
 
 The original file list above is therefore amended to include the Room reversal parser/planner/writer/preparation files, exact DAO restore helpers, `RoomReconciliationCaseRepository`, app DI, `ReconciliationReviewService`, Review Queue UI state/screen/tests, the contextual reconciliation controller guard, canonical split wakeup, and the existing domain policy files required to prove lossless restoration. No Task-41 diagnostics behavior is included.
 
-**Developer verification status — 2026-08-22: `VERIFIED — TASK 40 CLOSED`.** The accepted Task-40 tree passes the focused Catalog review-service gate, Library mapping/state reversal-policy gates, Chapters and Reader reversal-policy gates, Review Queue ViewModel/Screen gates, and 17/17 selected `RoomStoryMergeReversalCoordinatorTest` cases on Redmi Note 9S - 15. The final canonical `./scripts/verify.sh` is green after removing the last Task-40 Detekt errors by behavior-preserving formatting/condition extraction only; Room remains schema 9. The verification-fix history and accepted residual boundary are recorded in `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-40.md`. Task 41 is now separately verified/closed; **Task 42 is the active next task.**
+**Developer verification status — 2026-08-22: `VERIFIED — TASK 40 CLOSED`.** The accepted Task-40 tree passes the focused Catalog review-service gate, Library mapping/state reversal-policy gates, Chapters and Reader reversal-policy gates, Review Queue ViewModel/Screen gates, and 17/17 selected `RoomStoryMergeReversalCoordinatorTest` cases on Redmi Note 9S - 15. The final canonical `./scripts/verify.sh` is green after removing the last Task-40 Detekt errors by behavior-preserving formatting/condition extraction only; Room remains schema 9. The verification-fix history and accepted residual boundary are recorded in `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-40.md`. Tasks 41 and 42 are now verified/closed; **Phases 0–7 are VERIFIED/CLOSED.**
 
 - [ ] **Step 1: Write RED simple-lossless reversal test**
 
@@ -5668,7 +5668,7 @@ Automatic repair is only performed where an existing deterministic transaction a
   --tests app.openstory.catalog.fusion.*
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add catalog/src/main/kotlin/app/openstory/catalog/diagnostics \
@@ -5683,6 +5683,8 @@ git commit -m "feat: add canonical engine decision diagnostics"
 ---
 
 ### Task 42: Final governance plus acceptance, migration, app, profile, and performance certification
+
+**Execution status:** `VERIFIED — PHASE 7 / TASK 42 CLOSED`
 
 **Files:**
 - Modify: `README.md`
@@ -5723,11 +5725,10 @@ owned by their existing feature/Room acceptance tests.
 Final staging must name explicit files; never git-add whole source trees for this docs/certification task.
 ```
 
-Synchronize current governance to **Tasks 1–41 VERIFIED/CLOSED; Task 42 ACTIVE**. Do not mark Phase 7 or
-the Canonical Engine rollout closed until Steps 2–10 are reviewed GREEN. Historical checkpoint files remain
-immutable; the final Phase-7 checkpoint is created only in Step 11.
+Synchronize current governance to **Tasks 1–42 / Phase 7 VERIFIED/CLOSED**. Phase 7 and the
+Canonical Engine rollout are closed. Historical checkpoint files remain immutable.
 
-- [ ] **Step 2: Prove schema 9 is contiguous and deterministic without accepting a compiler-induced export drift**
+- [x] **Step 2: Prove schema 9 is contiguous and deterministic without accepting a compiler-induced export drift**
 
 Capture the current schema-set fingerprint, run the repository's Room compiler path, then require the exact
 same fingerprint and no schema-directory diff:
@@ -5751,7 +5752,7 @@ Expected: `1.json` through `9.json` remain contiguous; `8.json` is unchanged; `9
 does not rewrite it. If schema 9 changes, stop Task 42 and investigate the owning persistence task instead of
 committing a silent final-gate schema mutation.
 
-- [ ] **Step 3: Run the complete pure/module unit matrix**
+- [x] **Step 3: Run the complete pure/module unit matrix**
 
 ```bash
 ./gradlew \
@@ -5766,7 +5767,7 @@ committing a silent final-gate schema mutation.
 
 Expected: GREEN. This is the broad host-side regression gate before device/profile work.
 
-- [ ] **Step 4: Run the complete Room instrumentation suite**
+- [x] **Step 4: Run the complete Room instrumentation suite**
 
 ```bash
 ./gradlew :storage:room:connectedDebugAndroidTest --stacktrace
@@ -5776,7 +5777,7 @@ Required evidence includes representative schema-8→9 graph migration and FK in
 rollback/idempotency/redirect flattening, stale-plan rejection, controlled reversal, and durable one-per-merge
 reversal-audit linkage. Record the actual device and final executed/pass/fail counts in the Phase-7 checkpoint.
 
-- [ ] **Step 5: Run connected app shell/navigation smoke and preserve acceptance ownership**
+- [x] **Step 5: Run connected app shell/navigation smoke and preserve acceptance ownership**
 
 ```bash
 ./gradlew :app:connectedDebugAndroidTest \
@@ -5790,7 +5791,7 @@ for retired-StoryId redirect resolution, canonical presentation consistency, and
 from their existing Step-3/Step-6 owners (`RoomStoryIdentityResolverTest`, Story/Review feature tests, and
 `CanonicalPresentationConsistencyTest`). Do not add duplicate app-level semantic tests merely to satisfy this step.
 
-- [ ] **Step 6: Run the named canonical acceptance matrix**
+- [x] **Step 6: Run the named canonical acceptance matrix**
 
 Confirm the following existing owners remain present and GREEN; Task 42 does not invent late behavior:
 
@@ -5839,7 +5840,7 @@ Run:
 If any named class is missing or red, stop Task 42 and return to the owning earlier task; do not patch missing
 semantics into this final certification task.
 
-- [ ] **Step 7: Regenerate Baseline/Startup Profiles for the canonical read path before measuring final performance**
+- [x] **Step 7: Regenerate Baseline/Startup Profiles for the canonical read path before measuring final performance**
 
 The committed profiles predate the completed canonical Story/Discover/Search read-path constructor/composition
 shape, so regenerate first:
@@ -5855,7 +5856,7 @@ git diff -- \
 Review the diff to ensure it is profile output from the current CUJs rather than unrelated source/config changes.
 The generated profile files are expected Task-42 artifacts; no production semantic source change is expected.
 
-- [ ] **Step 8: Run the final Macrobenchmark journeys against the newly generated profile**
+- [x] **Step 8: Run the final Macrobenchmark journeys against the newly generated profile**
 
 ```bash
 ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
@@ -5876,7 +5877,7 @@ Record startup plus Discover warm-navigation/scroll and Story-tab results. The a
 no per-recomposition source fusion and no obvious regression outside normal device noise. If a measurable
 regression appears, inspect the generated Perfetto trace before changing correctness policy.
 
-- [ ] **Step 9: Run the repository-wide final host gate**
+- [x] **Step 9: Run the repository-wide final host gate**
 
 ```bash
 ./scripts/verify.sh
@@ -5885,7 +5886,7 @@ regression appears, inspect the generated Perfetto trace before changing correct
 Expected: GREEN with architecture, package-boundary, source-layout, Detekt/static, Room schema, profile/static,
 and structural policies intact.
 
-- [ ] **Step 10: Complete bounded diagnostics sanity without creating a production debug surface**
+- [x] **Step 10: Complete bounded diagnostics sanity without creating a production debug surface**
 
 The automated synthetic Task-41 fixtures remain the semantic/privacy proof for AUTO/REVIEW decisions, primary
 hysteresis, field provenance, generation failure, merge blocked/committed, case reopen, invariant diagnostics,
@@ -5893,7 +5894,7 @@ and fail-open sinks. For Task 42, perform only a debug-wiring sanity check that 
 for synthetic/non-provider-specific execution and does not include raw user/plugin payloads. Do not add a
 production diagnostics UI, live-provider fixture, diagnostics persistence, or alternate logging truth store.
 
-- [ ] **Step 11: Create the final Phase-7 checkpoint, close governance, and stage only explicit Task-42 artifacts**
+- [x] **Step 11: Create the final Phase-7 checkpoint, close governance, and stage only explicit Task-42 artifacts**
 
 Only after Steps 2–10 are reviewed GREEN:
 

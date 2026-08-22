@@ -4,6 +4,7 @@ import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
+import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.CanonicalIdentityState
@@ -349,7 +350,7 @@ class CatalogReconciliationServiceTest {
         executionMode: ReconciliationExecutionMode = ReconciliationExecutionMode.OBSERVE_ONLY,
         mergeExecutor: StoryMergeExecutor? = null,
         work: CanonicalEngineWorkRepository? = null,
-        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
     ) = CatalogReconciliationService(
         catalog = catalog,
         identity = IdentityRepository(),

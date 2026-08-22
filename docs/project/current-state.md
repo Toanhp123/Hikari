@@ -32,33 +32,24 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–6 / TASKS 1–38 + PHASE 7 TASKS 39–41 VERIFIED/CLOSED; TASK 42 ACTIVE**.
-  Task 39 provides durable background safety over the schema-9 engine-work queue. Task 40 adds controlled,
-  fail-closed historical merge reversal. Task 41 adds bounded structured decision traces and invariant
-  diagnostics without creating a second truth store: Fusion/Reconciliation policy engines remain pure,
-  services/coordinators/Room owners emit the trace at the boundary where the decision or state transition
-  is actually known, diagnostics are fail-open, debug builds use a safe Logcat sink while production uses
-  a no-op sink, and traces carry bounded IDs, policy versions, reason codes, fingerprints, and optional
-  canonical field identity rather than raw metadata or complete user/plugin payloads. The same layer now
-  explains reconciliation decisions, primary selection/hysteresis, field provenance, generation failures,
-  merge blocked/committed outcomes, resolved-case reopen transitions, and bounded maintenance invariants.
-  Room remains schema 9 and no diagnostics persistence was added. Focused Catalog tests and 17/17 selected
-  Room diagnostics/maintenance/merge tests passed on Redmi Note 9S - 15; the final canonical
-  `./scripts/verify.sh` also passed after behavior-preserving Detekt cleanup. Accepted evidence is in
-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md`.
-- Wave 10: **PLANNED; NOT STARTED**. Canonical-engine work remains the active pre-Wave-10 track.
-  The Phase-1 patch now owns `8 -> 9`, so Wave 10 notification persistence is rebased to `9 -> 10`.
-  Wave 10 must not introduce another `MIGRATION_8_9`.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–7 / TASKS 1–42 VERIFIED/CLOSED**.
+  The accepted rollout includes the schema-9 canonical foundation, host-owned evidence/reconciliation,
+  deterministic Fusion with materialized generations, canonical Story/Search/Discover/Library presentation,
+  guarded atomic Story graph merge, durable review, shared evidence-change orchestration, operation-level
+  Story Full fallback, post-merge correction review, durable background safety, controlled fail-closed
+  reversal, bounded fail-open diagnostics, and final governance/profile/performance certification. Room
+  remains schema 9. Accepted evidence is in
+  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md`.
+- Wave 10: **PLANNED; READY TO START**. CCE closeout is complete on Room schema 9. Notification
+  persistence is rebased to `9 -> 10`. Wave 10 must not introduce another `MIGRATION_8_9`.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
   Phase 3 closed observe-only reconciliation Tasks 22–25, Phase 4 closed Tasks 26–32 after guarded
   production auto-merge passed its post-enable gate, Phase 5 closed Tasks 33–35, Phase 6 closed Tasks 36–38,
-  Phase 7 Task 39 closed durable background maintenance/safety, Task 40 closed controlled reversal, and
-  Task 41 closed structured decision traces/invariant diagnostics after focused unit/device and canonical
-  verification. Task 42 is now the active final certification gate: it owns governance synchronization,
-  deterministic schema-9 confirmation, the full test/device matrix, Baseline/Startup Profile regeneration,
-  and final canonical-read-path macrobenchmarks. It introduces no new feature semantics. Room remains schema 9.
+  Phase 7 Task 39 closed durable background maintenance/safety, Task 40 closed controlled reversal, Task 41
+  closed structured decision traces/invariant diagnostics, and Task 42 closed final governance plus the
+  complete schema/unit/device/app/profile/performance certification matrix. Room remains schema 9.
 
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.

@@ -7,6 +7,7 @@ import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
+import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId
@@ -19,7 +20,7 @@ class CanonicalFusionService(
     private val validator: CanonicalGenerationValidator,
     private val availability: CatalogSourceAvailabilityResolver,
     private val clock: Clock,
-    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
 ) : CanonicalGenerationRebuilder {
     override suspend fun rebuild(storyId: StoryId, reason: CanonicalFusionReason): CanonicalFusionResult {
         val state = canonical.state(storyId)

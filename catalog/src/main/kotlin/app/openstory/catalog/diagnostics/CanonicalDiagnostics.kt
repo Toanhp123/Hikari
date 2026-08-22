@@ -16,7 +16,7 @@ object NoOpCanonicalDiagnosticsSink : CanonicalDiagnosticsSink {
 
 @Singleton
 class CanonicalDiagnostics @Inject constructor(
-    private val sink: CanonicalDiagnosticsSink = NoOpCanonicalDiagnosticsSink,
+    private val sink: CanonicalDiagnosticsSink,
 ) {
     fun record(trace: CanonicalDecisionTrace) {
         try {

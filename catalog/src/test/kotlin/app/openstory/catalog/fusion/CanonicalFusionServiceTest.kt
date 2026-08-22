@@ -11,6 +11,7 @@ import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalDiagnosticsSink
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
+import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
@@ -181,7 +182,7 @@ class CanonicalFusionServiceTest {
     private fun service(
         repo: FakeCanonicalRepository,
         source: FakeSource,
-        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
     ): CanonicalFusionService {
         val registry = object : CatalogSourceRegistry {
             override suspend fun enabled(): List<CatalogSource> = listOf(source)

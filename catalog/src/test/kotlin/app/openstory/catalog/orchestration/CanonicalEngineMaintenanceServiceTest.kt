@@ -515,7 +515,9 @@ class CanonicalEngineMaintenanceServiceTest {
             derived = derived,
             observability = CanonicalMaintenanceObservability(
                 health,
-                app.openstory.catalog.diagnostics.CanonicalDiagnostics(),
+                app.openstory.catalog.diagnostics.CanonicalDiagnostics(
+                    app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink,
+                ),
             ),
             clock = clock,
         )

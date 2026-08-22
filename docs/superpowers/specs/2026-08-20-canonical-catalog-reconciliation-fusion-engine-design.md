@@ -1,7 +1,7 @@
 # Canonical Catalog Reconciliation and Metadata Fusion Engine Design
 
 Date: 2026-08-20
-Status: **NORMATIVE IMPLEMENTATION BASIS — Phases 0–6 / Tasks 1–38 + Phase 7 Tasks 39–41 VERIFIED/CLOSED; Phase 7 Task 42 ACTIVE on 2026-08-23**
+Status: **NORMATIVE IMPLEMENTATION BASIS — Phases 0–7 / Tasks 1–42 VERIFIED/CLOSED on 2026-08-23**
 Scope: host-owned canonical Story identity across multiple catalog providers, explainable reconciliation, metadata fusion, materialized canonical generations, durable review/lineage, atomic Story graph merge, source preference, event orchestration, retry/background safety, and integration with existing Catalog/Library/Chapters/Reader/Room boundaries
 Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 catalog metadata-lifecycle unification; verified Phase 1 advances the current persistence foundation to Room schema 9 through `MIGRATION_8_9`.
 
@@ -25,7 +25,9 @@ Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 
 
 > **Phase-7 Task-40 acceptance checkpoint (2026-08-22):** Task 40 is **VERIFIED / CLOSED**. Controlled historical reversal is fail-closed and available only when the merge audit/lineage proves a lossless reversible merge; reversal restores authoritative ownership atomically, links one durable reversal audit to its merge, and rejects unsafe/stale/conflicting reversal attempts. Evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-40.md`.
 
-> **Phase-7 Task-41 acceptance checkpoint (2026-08-23):** Task 41 is **VERIFIED / CLOSED**. Structured decision/invariant diagnostics follow the service/Room-owner boundary design: Fusion/Reconciliation policy engines remain pure, diagnostics are fail-open, production uses a no-op sink, debug builds use safe Logcat output, and traces contain bounded IDs/policy versions/reason codes/fingerprints/field identity rather than raw metadata or user/plugin payloads. Focused Catalog diagnostics/reconciliation/fusion tests, 17/17 selected Room diagnostics/maintenance/merge tests on Redmi Note 9S - 15, and the canonical `./scripts/verify.sh` passed after behavior-preserving test/Detekt cleanup. Evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md`. Task 42 is active as final certification/governance only; it must not add late feature semantics.
+> **Phase-7 Task-41 acceptance checkpoint (2026-08-23):** Task 41 is **VERIFIED / CLOSED**. Structured decision/invariant diagnostics follow the service/Room-owner boundary design: Fusion/Reconciliation policy engines remain pure, diagnostics are fail-open, production uses a no-op sink, debug builds use safe Logcat output, and traces contain bounded IDs/policy versions/reason codes/fingerprints/field identity rather than raw metadata or user/plugin payloads. Focused Catalog diagnostics/reconciliation/fusion tests, 17/17 selected Room diagnostics/maintenance/merge tests on Redmi Note 9S - 15, and the canonical `./scripts/verify.sh` passed after behavior-preserving test/Detekt cleanup. Evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md`.
+
+> **Phase-7 acceptance checkpoint (2026-08-23):** Tasks 39–42 are **VERIFIED / CLOSED**; the Canonical Catalog Reconciliation & Fusion Engine rollout is complete on Room schema 9. Task 42 certified deterministic schema 9, the complete unit/device/app acceptance matrix, Baseline/Startup Profile regeneration, final canonical-read-path macrobenchmarks, repository-wide `./scripts/verify.sh`, and bounded diagnostics sanity without adding feature semantics. Evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md`. Wave 10 notification persistence is the next approved boundary and owns `MIGRATION_9_10`.
 
 ### 2026-08-21 implementation checkpoint
 
