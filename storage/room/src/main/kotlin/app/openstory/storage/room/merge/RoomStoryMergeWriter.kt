@@ -114,8 +114,9 @@ internal class RoomStoryMergeWriter(
         database.canonicalCatalogDao().rekeyRetiredStoryState(
             retiredStoryId = plan.retiredStoryId.value,
             survivorStoryId = plan.survivorStoryId.value,
+            nowEpochMillis = now,
         )
-        applier.markPostMergeWork(plan)
+        applier.markPostMergeWork(plan, now)
 
         check(database.catalogDao().deleteStory(plan.retiredStoryId.value) == 1) {
             "Retired Story disappeared before retirement: ${plan.retiredStoryId.value}"

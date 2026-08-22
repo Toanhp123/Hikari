@@ -6,6 +6,7 @@ import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.identity.StoryUserStateFootprintReader
+import app.openstory.catalog.orchestration.CanonicalEngineMaintenanceReader
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.Clock
@@ -22,6 +23,7 @@ import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
 import app.openstory.storage.room.merge.RoomStoryGraphMergeCoordinator
 import app.openstory.storage.room.merge.RoomStoryMergeLineageReader
 import app.openstory.storage.room.merge.RoomStoryUserStateFootprintReader
+import app.openstory.storage.room.catalog.RoomCanonicalEngineMaintenanceReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineWorkRepository
 import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
 import app.openstory.storage.room.plugins.RoomPluginStateStore
@@ -57,8 +59,15 @@ object StorageModule {
 
     @Provides
     @Singleton
-    fun provideCanonicalEngineWorkRepository(database: OpenStoryDatabase): CanonicalEngineWorkRepository =
-        RoomCanonicalEngineWorkRepository(database)
+    fun provideCanonicalEngineWorkRepository(
+        database: OpenStoryDatabase,
+        clock: Clock,
+    ): CanonicalEngineWorkRepository = RoomCanonicalEngineWorkRepository(database, clock)
+
+    @Provides
+    @Singleton
+    fun provideCanonicalEngineMaintenanceReader(database: OpenStoryDatabase): CanonicalEngineMaintenanceReader =
+        RoomCanonicalEngineMaintenanceReader(database)
 
     @Provides
     @Singleton

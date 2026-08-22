@@ -1,9 +1,12 @@
 package app.openstory.storage.room.merge
 
 import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
+import app.openstory.catalog.orchestration.CanonicalEngineWorkReasons
 import app.openstory.catalog.orchestration.CanonicalEngineWorkType
+import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
-import app.openstory.storage.room.catalog.CanonicalEngineWorkEntity
+import app.openstory.storage.room.catalog.CanonicalCatalogDao
+import app.openstory.storage.room.catalog.coalesceDirtyCanonicalEngineWork
 import app.openstory.storage.room.chapters.ChapterAggregationOverrideEntity
 import app.openstory.storage.room.chapters.ChapterSyncStateEntity
 import app.openstory.storage.room.library.ContentMappingEntity
@@ -157,46 +160,62 @@ internal class RoomStoryMergeApplier(
         }
     }
 
-    suspend fun markPostMergeWork(plan: PreparedStoryGraphMerge) {
+    suspend fun markPostMergeWork(plan: PreparedStoryGraphMerge, nowEpochMillis: Long) {
         val dao = database.canonicalCatalogDao()
-        dao.upsertWork(
-            CanonicalEngineWorkEntity(
-                storyId = plan.survivorStoryId.value,
-                workType = CanonicalEngineWorkType.FUSION_REBUILD.name,
-                reason = "story-merged",
-                attemptCount = 0,
-                nextAttemptAtEpochMillis = 0,
-                lastErrorCode = null,
-                requiredPolicyVersion = FUSION_POLICY_VERSION,
-            ),
+        markDirty(
+            dao = dao,
+            storyId = plan.survivorStoryId,
+            type = CanonicalEngineWorkType.FUSION_REBUILD,
+            reason = CanonicalEngineWorkReasons.STORY_MERGED,
+            requiredPolicyVersion = FUSION_POLICY_VERSION,
+            nowEpochMillis = nowEpochMillis,
         )
-        dao.upsertWork(
-            CanonicalEngineWorkEntity(
-                storyId = plan.survivorStoryId.value,
-                workType = CanonicalEngineWorkType.RECONCILIATION_REEVALUATION.name,
-                reason = "story-merged",
-                attemptCount = 0,
-                nextAttemptAtEpochMillis = 0,
-                lastErrorCode = null,
-                requiredPolicyVersion = plan.request.reconciliationPolicyVersion,
-            ),
+        markDirty(
+            dao = dao,
+            storyId = plan.survivorStoryId,
+            type = CanonicalEngineWorkType.RECONCILIATION_REEVALUATION,
+            reason = CanonicalEngineWorkReasons.STORY_MERGED,
+            requiredPolicyVersion = plan.request.reconciliationPolicyVersion,
+            nowEpochMillis = nowEpochMillis,
         )
         val needsDerived = plan.mappingPlan.pluginsToRecompute.isNotEmpty() ||
             plan.chapterPlan.syncKeysToInvalidate.isNotEmpty() ||
             plan.chapterPlan.requiresDerivedReaggregation
         if (needsDerived) {
-            dao.upsertWork(
-                CanonicalEngineWorkEntity(
-                    storyId = plan.survivorStoryId.value,
-                    workType = CanonicalEngineWorkType.POST_MERGE_DERIVED.name,
-                    reason = "story-merge-derived-state",
-                    attemptCount = 0,
-                    nextAttemptAtEpochMillis = 0,
-                    lastErrorCode = null,
-                    requiredPolicyVersion = null,
+            markDirty(
+                dao = dao,
+                storyId = plan.survivorStoryId,
+                type = CanonicalEngineWorkType.POST_MERGE_DERIVED,
+                reason = CanonicalEngineWorkReasons.postMergeDerived(
+                    reaggregateChapters = plan.chapterPlan.requiresDerivedReaggregation,
+                    recomputeMappings = plan.mappingPlan.pluginsToRecompute.isNotEmpty(),
+                    refreshChapterSync = plan.chapterPlan.syncKeysToInvalidate.isNotEmpty(),
                 ),
+                requiredPolicyVersion = null,
+                nowEpochMillis = nowEpochMillis,
             )
         }
     }
+
+    private suspend fun markDirty(
+        dao: CanonicalCatalogDao,
+        storyId: StoryId,
+        type: CanonicalEngineWorkType,
+        reason: String,
+        requiredPolicyVersion: Int?,
+        nowEpochMillis: Long,
+    ) {
+        dao.upsertWork(
+            coalesceDirtyCanonicalEngineWork(
+                current = dao.work(storyId.value, type.name),
+                storyId = storyId,
+                type = type,
+                reason = reason,
+                requiredPolicyVersion = requiredPolicyVersion,
+                nowEpochMillis = nowEpochMillis,
+            ),
+        )
+    }
+
 
 }

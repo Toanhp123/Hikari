@@ -4,13 +4,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import app.openstory.designsystem.glass.HikariBackdropMode
 import app.openstory.designsystem.surface.HikariSurfaceShadowMode
 import app.openstory.ui.OpenStoryApp
+import app.openstory.work.WorkManagerCanonicalEngineWorkScheduler
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var canonicalEngineWorkScheduler: WorkManagerCanonicalEngineWorkScheduler
+
     override fun onCreate(
         savedInstanceState: Bundle?,
     ) {
@@ -35,6 +42,11 @@ class MainActivity : ComponentActivity() {
             false,
         )
         setContent {
+            LaunchedEffect(Unit) {
+                withFrameNanos { }
+                canonicalEngineWorkScheduler.scheduleDrain()
+                canonicalEngineWorkScheduler.ensureDailySafety()
+            }
             OpenStoryApp(
                 backdropMode = backdropMode,
                 surfaceShadowMode = surfaceShadowMode,

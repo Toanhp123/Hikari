@@ -125,8 +125,24 @@ internal interface CanonicalCatalogDao {
     @Query("SELECT * FROM canonical_engine_work WHERE story_id = :storyId ORDER BY work_type")
     suspend fun workForStory(storyId: String): List<CanonicalEngineWorkEntity>
 
+    @Query(
+        "SELECT * FROM canonical_engine_work WHERE next_attempt_at_epoch_millis = :blockedEpochMillis " +
+            "AND last_error_code IN (:failureCodes) ORDER BY story_id, work_type LIMIT :limit",
+    )
+    suspend fun blockedWork(
+        blockedEpochMillis: Long,
+        failureCodes: List<String>,
+        limit: Int,
+    ): List<CanonicalEngineWorkEntity>
+
     @Query("DELETE FROM canonical_engine_work WHERE story_id = :storyId AND work_type = :workType")
     suspend fun deleteWork(storyId: String, workType: String)
+
+    @Query(
+        "SELECT MIN(next_attempt_at_epoch_millis) FROM canonical_engine_work " +
+            "WHERE next_attempt_at_epoch_millis < :blockedEpochMillis",
+    )
+    suspend fun earliestRunnableWorkAttempt(blockedEpochMillis: Long): Long?
 
     suspend fun upsertReconciliationCase(case: ReconciliationCaseEntity) {
         val normalized = if (case.leftStoryId <= case.rightStoryId) {
@@ -218,7 +234,12 @@ internal interface CanonicalCatalogDao {
     ): Int
 
     @Transaction
-    suspend fun rekeyRetiredStoryState(retiredStoryId: String, survivorStoryId: String) {
+    suspend fun rekeyRetiredStoryState(
+        retiredStoryId: String,
+        survivorStoryId: String,
+        nowEpochMillis: Long,
+    ) {
+        require(nowEpochMillis >= 0L)
         require(retiredStoryId != survivorStoryId)
         reconciliationCasesForStory(retiredStoryId)
             .filter { it.status == "PENDING" }
@@ -259,24 +280,12 @@ internal interface CanonicalCatalogDao {
         }
 
         workForStory(retiredStoryId).forEach { sourceWork ->
-            val target = work(survivorStoryId, sourceWork.workType)
-            val coalesced = if (target == null) {
-                sourceWork.copy(storyId = survivorStoryId)
-            } else {
-                target.copy(
-                    reason = maxOf(target.reason, sourceWork.reason),
-                    attemptCount = maxOf(target.attemptCount, sourceWork.attemptCount),
-                    nextAttemptAtEpochMillis = minOf(
-                        target.nextAttemptAtEpochMillis,
-                        sourceWork.nextAttemptAtEpochMillis,
-                    ),
-                    lastErrorCode = listOfNotNull(target.lastErrorCode, sourceWork.lastErrorCode).maxOrNull(),
-                    requiredPolicyVersion = listOfNotNull(
-                        target.requiredPolicyVersion,
-                        sourceWork.requiredPolicyVersion,
-                    ).maxOrNull(),
-                )
-            }
+            val coalesced = coalesceRekeyedCanonicalEngineWork(
+                source = sourceWork,
+                target = work(survivorStoryId, sourceWork.workType),
+                survivorStoryId = survivorStoryId,
+                nowEpochMillis = nowEpochMillis,
+            )
             upsertWork(coalesced)
             deleteWork(retiredStoryId, sourceWork.workType)
         }

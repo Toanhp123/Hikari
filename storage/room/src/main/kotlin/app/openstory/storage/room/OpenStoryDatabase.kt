@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import app.openstory.storage.room.catalog.CatalogDao
 import app.openstory.storage.room.catalog.CanonicalCatalogDao
+import app.openstory.storage.room.catalog.CanonicalEngineMaintenanceDao
 import app.openstory.storage.room.catalog.CanonicalEngineWorkEntity
 import app.openstory.storage.room.catalog.CanonicalFieldProvenanceEntity
 import app.openstory.storage.room.catalog.CanonicalGenerationEntity
@@ -81,6 +82,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun catalogDao(): CatalogDao
     internal abstract fun catalogHomeDao(): CatalogHomeDao
     internal abstract fun canonicalCatalogDao(): CanonicalCatalogDao
+    internal abstract fun canonicalEngineMaintenanceDao(): CanonicalEngineMaintenanceDao
     internal abstract fun pluginStateDao(): PluginStateDao
     internal abstract fun pluginDiagnosticDao(): PluginDiagnosticDao
     internal abstract fun libraryDao(): LibraryDao

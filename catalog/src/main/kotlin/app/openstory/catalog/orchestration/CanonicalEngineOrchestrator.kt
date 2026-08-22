@@ -28,6 +28,7 @@ class CanonicalEngineOrchestrator @Inject constructor(
     private val fusion: CanonicalGenerationRebuilder,
     private val work: CanonicalEngineWorkRepository,
     private val identity: StoryIdentityRepository,
+    private val scheduler: CanonicalEngineWorkScheduler = NoOpCanonicalEngineWorkScheduler,
 ) : CanonicalEngineEventSink {
     override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = runCommittedEvent {
         val reconciliationResult = if (change.identityFingerprintChanged) {
@@ -106,7 +107,11 @@ class CanonicalEngineOrchestrator @Inject constructor(
         storyId: StoryId,
         reason: String,
     ): ReconciliationRunResult? = try {
-        reconciliation.reconcile(sourceKey)
+        reconciliation.reconcile(sourceKey).also { result ->
+            if (result is ReconciliationRunResult.ReevaluationScheduled) {
+                scheduleDrainBestEffort()
+            }
+        }
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
@@ -127,13 +132,14 @@ class CanonicalEngineOrchestrator @Inject constructor(
         workReason: String,
         fusionReason: CanonicalFusionReason,
     ): CanonicalFusionResult {
-        markDirtyBestEffort(
+        val durable = markDirtyBestEffort(
             storyId = storyId,
             type = CanonicalEngineWorkType.FUSION_REBUILD,
             reason = workReason,
             requiredPolicyVersion = FUSION_POLICY_VERSION,
+            scheduleDrain = false,
         )
-        return try {
+        val result = try {
             fusion.rebuild(storyId, fusionReason)
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -144,6 +150,18 @@ class CanonicalEngineOrchestrator @Inject constructor(
                 retryable = true,
             )
         }
+        val completed = when (result) {
+            is CanonicalFusionResult.Promoted,
+            is CanonicalFusionResult.Unchanged,
+            is CanonicalFusionResult.Preparing,
+            -> durable?.let { completeBestEffort(it) } ?: true
+
+            is CanonicalFusionResult.Failed -> false
+        }
+        if (!completed || workReason == CanonicalEngineWorkReasons.STORY_MERGED) {
+            scheduleDrainBestEffort()
+        }
+        return result
     }
 
     private suspend fun markDirtyBestEffort(
@@ -151,13 +169,31 @@ class CanonicalEngineOrchestrator @Inject constructor(
         type: CanonicalEngineWorkType,
         reason: String,
         requiredPolicyVersion: Int?,
-    ) {
+        scheduleDrain: Boolean = true,
+    ): CanonicalEngineWorkItem? = try {
+        work.markDirty(storyId, type, reason, requiredPolicyVersion).also {
+            if (scheduleDrain) scheduleDrainBestEffort()
+        }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        // Foreground engine work can still succeed; a future fact change can recreate the durable row.
+        null
+    }
+
+    private suspend fun completeBestEffort(item: CanonicalEngineWorkItem): Boolean = try {
+        work.complete(item)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        false
+    }
+
+    private fun scheduleDrainBestEffort() {
         try {
-            work.markDirty(storyId, type, reason, requiredPolicyVersion)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (_: Exception) {
-            // Foreground engine work can still succeed; a future fact change can recreate the durable row.
+            scheduler.scheduleDrain()
+        } catch (_: RuntimeException) {
+            // Durable work is already committed; app start/daily safety can recover scheduling.
         }
     }
 

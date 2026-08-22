@@ -32,19 +32,19 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–6 / TASKS 1–38 VERIFIED/CLOSED; PHASE 7 TASK 39 NEXT**.
-  Phase 6 now has one committed-evidence orchestration boundary, one operation-level Story AUTO Full
-  fallback policy, and retroactive reconciliation for identity changes including post-merge contradictory
-  evidence. Full fallback reuses Fusion's effective-primary/eligibility ordering, falls through only on
-  operation failure, and stops on any successful Full payload even when optional fields are sparse.
-  Post-merge hard contradictions reuse historical merge lineage to reopen durable review as
-  `REVIEW + INVARIANT_BLOCKED`; they never auto-detach, auto-split, or auto-reverse. Existing atomic
-  Room post-merge work remains authoritative. Final developer verification includes the focused Catalog
-  and feature gates, 13/13 selected Task-38 Room connected tests on Redmi Note 9S - 15, and a green
-  canonical `./scripts/verify.sh`; Room schema export remains stable at schema 9. Accepted evidence is in
-  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-6.md`. The narrow
-  commit-to-post-commit-callback process-death window remains explicit later recovery/outbox work and is
-  not hidden by a Phase-6 migration. Phase 7 starts at Task 39 durable engine-work draining and safety passes.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–6 / TASKS 1–38 + PHASE 7 TASK 39 VERIFIED/CLOSED; TASK 40 NEXT**.
+  Task 39 adds the background safety runtime around the existing canonical engines: the schema-9
+  `canonical_engine_work` table remains the retry source of truth; exact-snapshot completion/retry and a
+  monotonic runnable timestamp prevent stale/identical dirty work loss; invariant and unsupported-policy
+  work fails closed; bounded safety passes requeue supported policy parks and inspect stale policy,
+  pending reconciliation evidence, and redirect inconsistencies without all-pairs scanning. App-owned
+  WorkManager serializes drain wakeups and daily safety while derived post-merge repair keeps local chapter
+  reaggregation ahead of Mapping -> Chapter Sync when those operations are required. Final developer
+  verification passes the focused Catalog/App gates, 17/17 selected Task-39 Room connected tests on
+  Redmi Note 9S - 15, and canonical `./scripts/verify.sh`; Detekt/lint/module-boundary gates are green and
+  Room schema export remains stable at schema 9. Accepted evidence is in
+  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-39.md`. Controlled reversal
+  remains intentionally unimplemented until Task 40.
 - Wave 10: **PLANNED; NOT STARTED**. Canonical-engine work remains the active pre-Wave-10 track.
   The Phase-1 patch now owns `8 -> 9`, so Wave 10 notification persistence is rebased to `9 -> 10`.
   Wave 10 must not introduce another `MIGRATION_8_9`.
@@ -52,9 +52,9 @@ Purpose: single source of truth for the implemented repository boundary.
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
   Phase 3 closed observe-only reconciliation Tasks 22–25, Phase 4 closed Tasks 26–32 after guarded
-  production auto-merge passed its post-enable gate, Phase 5 closed Tasks 33–35, and Phase 6 closed
-  Tasks 36–38 after shared orchestration, operation-level Full fallback, and retroactive correction review
-  passed developer verification. Task 39 is the next canonical-engine implementation step. Room remains schema 9.
+  production auto-merge passed its post-enable gate, Phase 5 closed Tasks 33–35, Phase 6 closed Tasks 36–38,
+  and Phase 7 Task 39 closed after durable background maintenance/safety verification. Task 40 controlled
+  reversal is the next canonical-engine implementation step. Room remains schema 9.
 
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.

@@ -5,8 +5,6 @@ import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.identity.SourceKey
-import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
-import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId
 
@@ -17,7 +15,6 @@ class CanonicalFusionService(
     private val engine: CatalogFusionEngine,
     private val validator: CanonicalGenerationValidator,
     private val availability: CatalogSourceAvailabilityResolver,
-    private val work: CanonicalEngineWorkRepository,
     private val clock: Clock,
 ) : CanonicalGenerationRebuilder {
     override suspend fun rebuild(storyId: StoryId, reason: CanonicalFusionReason): CanonicalFusionResult {
@@ -66,7 +63,9 @@ class CanonicalFusionService(
             }
 
             active != null && candidate.meaningfullyEquals(active) -> {
-                work.supersede(storyId, CanonicalEngineWorkType.FUSION_REBUILD)
+                if (state.health != active.health) {
+                    canonical.markHealth(storyId, active.health)
+                }
                 CanonicalFusionResult.Unchanged(active)
             }
 
@@ -86,7 +85,6 @@ class CanonicalFusionService(
         return when {
             canonical.persistCandidate(generation, active?.id) -> {
                 canonical.cleanupObsoleteGenerations(storyId)
-                work.supersede(storyId, CanonicalEngineWorkType.FUSION_REBUILD)
                 CanonicalFusionResult.Promoted(generation)
             }
 

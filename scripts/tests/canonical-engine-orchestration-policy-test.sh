@@ -11,6 +11,8 @@ room_catalog="$root/storage/room/src/main/kotlin/app/openstory/storage/room/cata
 room_canonical="$root/storage/room/src/main/kotlin/app/openstory/storage/room/catalog/RoomCanonicalCatalogRepository.kt"
 merge_applier="$root/storage/room/src/main/kotlin/app/openstory/storage/room/merge/RoomStoryMergeApplier.kt"
 orchestrator="$root/catalog/src/main/kotlin/app/openstory/catalog/orchestration/CanonicalEngineOrchestrator.kt"
+main_activity="$root/app/src/main/kotlin/app/openstory/MainActivity.kt"
+work_contract="$root/catalog/src/main/kotlin/app/openstory/catalog/orchestration/CanonicalEngineWork.kt"
 
 fail() { echo "Canonical engine orchestration policy violation: $1" >&2; exit 1; }
 
@@ -36,7 +38,12 @@ grep -q 'orchestrator\.onStoryMerged' "$review" || fail "User-approved merge doe
 ! grep -q 'source-preference-changed' "$room_canonical" || fail "RoomCanonicalCatalogRepository still owns preference engine work"
 
 grep -q 'POST_MERGE_DERIVED' "$merge_applier" || fail "merge transaction lost conditional post-merge derived work"
-grep -q 'story-merge-derived-state' "$merge_applier" || fail "merge transaction lost the durable derived-work reason"
+grep -q 'CanonicalEngineWorkReasons.postMergeDerived' "$merge_applier" || fail "merge transaction lost the durable derived-work reason"
+grep -q 'story-merge-derived-state' "$work_contract" || fail "legacy post-merge durable reason is no longer backward-compatible"
 ! grep -q 'POST_MERGE_DERIVED' "$orchestrator" || fail "orchestrator must not recreate conditional post-merge derived work"
+
+grep -q 'withFrameNanos' "$main_activity" || fail "canonical maintenance bootstrap is not deferred beyond the startup frame"
+grep -q 'canonicalEngineWorkScheduler.scheduleDrain()' "$main_activity" || fail "app shell does not wake durable canonical engine work"
+grep -q 'canonicalEngineWorkScheduler.ensureDailySafety()' "$main_activity" || fail "app shell does not register canonical safety maintenance"
 
 echo "Canonical engine orchestration policy verified."

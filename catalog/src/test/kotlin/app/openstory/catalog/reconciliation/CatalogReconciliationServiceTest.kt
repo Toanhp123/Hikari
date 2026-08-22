@@ -255,6 +255,38 @@ class CatalogReconciliationServiceTest {
         assertNull(fixture.cases.active.values.firstOrNull())
     }
 
+    @Test
+    fun maintenanceFingerprintUsesCurrentResolvedEvidencePairs() = kotlinx.coroutines.test.runTest {
+        val left = record("maintenance-left", "story:maintenance-left", "Exact", authors = setOf("writer"))
+        val right = record("maintenance-right", "story:maintenance-right", "Exact", authors = setOf("writer"))
+        val fixture = fixture(listOf(left, right))
+        val engine = CatalogReconciliationEngine(ReconciliationPolicy())
+        val fingerprint = engine.assessPair(
+            ReconciliationEvidenceFactory.fromRecord(left),
+            ReconciliationEvidenceFactory.fromRecord(right),
+        ).identityEvidenceFingerprint
+        val maintenance = CatalogReconciliationMaintenanceService(
+            reconciliation = fixture.service,
+            catalog = fixture.catalog,
+            identity = IdentityRepository(),
+            engine = engine,
+        )
+        val case = ReconciliationMaintenanceCase(
+            caseId = "case:maintenance",
+            leftStoryId = left.storyId,
+            rightStoryId = right.storyId,
+            evidenceFingerprint = fingerprint,
+            policyVersion = RECONCILIATION_POLICY_VERSION,
+        )
+
+        assertEquals(true, maintenance.isEvidenceFingerprintCurrent(case))
+
+        fixture.catalog.put(
+            record("maintenance-right", "story:maintenance-right", "Changed", authors = setOf("writer")),
+        )
+        assertEquals(false, maintenance.isEvidenceFingerprintCurrent(case))
+    }
+
     private fun fixture(
         records: List<CatalogSourceRecord>,
         executionMode: ReconciliationExecutionMode = ReconciliationExecutionMode.OBSERVE_ONLY,
@@ -420,12 +452,21 @@ class CatalogReconciliationServiceTest {
             type: CanonicalEngineWorkType,
             reason: String,
             requiredPolicyVersion: Int?,
-        ) {
+        ): CanonicalEngineWorkItem {
             dirty += Dirty(storyId, type, reason, requiredPolicyVersion)
+            return CanonicalEngineWorkItem(
+                storyId = storyId,
+                type = type,
+                reason = reason,
+                requiredPolicyVersion = requiredPolicyVersion,
+                attemptCount = 0,
+                nextAttemptAtEpochMillis = 0L,
+                lastFailureCode = null,
+            )
         }
 
         override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> = emptyList()
-        override suspend fun complete(item: CanonicalEngineWorkItem) = Unit
+        override suspend fun complete(item: CanonicalEngineWorkItem): Boolean = true
         override suspend fun retry(item: CanonicalEngineWorkItem, failureCode: String, nextAttemptAtEpochMillis: Long) = Unit
         override suspend fun supersede(storyId: StoryId, type: CanonicalEngineWorkType) = Unit
     }

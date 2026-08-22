@@ -34,6 +34,44 @@ class CanonicalEngineOrchestratorTest {
     }
 
     @Test
+    fun successfulForegroundFusionCompletesItsDurableSnapshotWithoutBackgroundReplay() = runTest {
+        val scheduler = RecordingCanonicalWorkScheduler()
+        val fixture = fixture(scheduler = scheduler)
+
+        fixture.orchestrator.onEvidenceChanged(change(identity = false, fusion = true))
+
+        assertEquals(1, fixture.work.completed.size)
+        assertEquals(CanonicalEngineWorkType.FUSION_REBUILD, fixture.work.completed.single().type)
+        assertEquals(0, scheduler.calls)
+    }
+
+    @Test
+    fun staleForegroundCompletionKicksBackgroundDrainForNewerDirtyWork() = runTest {
+        val scheduler = RecordingCanonicalWorkScheduler()
+        val work = RecordingWorkRepository(completeResult = false)
+        val fixture = fixture(work = work, scheduler = scheduler)
+
+        fixture.orchestrator.onEvidenceChanged(change(identity = false, fusion = true))
+
+        assertEquals(1, fixture.work.completed.size)
+        assertEquals(1, scheduler.calls)
+    }
+
+    @Test
+    fun retryableForegroundFusionFailureKicksBackgroundDrain() = runTest {
+        val scheduler = RecordingCanonicalWorkScheduler()
+        val fusion = RecordingRebuilder { id, _ ->
+            CanonicalFusionResult.Failed(id, "canonical.promotion.race", retryable = true)
+        }
+        val fixture = fixture(scheduler = scheduler, fusion = fusion)
+
+        fixture.orchestrator.onEvidenceChanged(change(identity = false, fusion = true))
+
+        assertTrue(fixture.work.completed.isEmpty())
+        assertEquals(1, scheduler.calls)
+    }
+
+    @Test
     fun fusionOnlyChangeMarksDirtyThenRebuildsOnce() = runTest {
         val fixture = fixture()
 
@@ -91,6 +129,17 @@ class CanonicalEngineOrchestratorTest {
 
         assertEquals(listOf(survivor to CanonicalFusionReason.POST_MERGE), fixture.fusion.calls)
         assertEquals(CanonicalEngineWorkReasons.STORY_MERGED, fixture.work.marks.single().reason)
+    }
+
+    @Test
+    fun successfulPostMergeFusionStillKicksDrainForTransactionOwnedDerivedWork() = runTest {
+        val scheduler = RecordingCanonicalWorkScheduler()
+        val fixture = fixture(scheduler = scheduler)
+
+        fixture.orchestrator.onStoryMerged(story)
+
+        assertEquals(1, fixture.work.completed.size)
+        assertEquals(1, scheduler.calls)
     }
 
     @Test
@@ -158,9 +207,10 @@ class CanonicalEngineOrchestratorTest {
         reconciliation: RecordingReconciliationRunner = RecordingReconciliationRunner(),
         fusion: RecordingRebuilder = RecordingRebuilder(),
         work: RecordingWorkRepository = RecordingWorkRepository(),
+        scheduler: CanonicalEngineWorkScheduler = NoOpCanonicalEngineWorkScheduler,
     ): Fixture {
         return Fixture(
-            CanonicalEngineOrchestrator(reconciliation, fusion, work, identity),
+            CanonicalEngineOrchestrator(reconciliation, fusion, work, identity, scheduler),
             reconciliation,
             fusion,
             work,
@@ -206,21 +256,35 @@ internal class RecordingRebuilder(
 
 internal class RecordingWorkRepository(
     private val failMarks: Boolean = false,
+    private val completeResult: Boolean = true,
 ) : CanonicalEngineWorkRepository {
     val marks = mutableListOf<WorkMark>()
+    val completed = mutableListOf<CanonicalEngineWorkItem>()
 
     override suspend fun markDirty(
         storyId: StoryId,
         type: CanonicalEngineWorkType,
         reason: String,
         requiredPolicyVersion: Int?,
-    ) {
+    ): CanonicalEngineWorkItem {
         if (failMarks) error("work unavailable")
         marks += WorkMark(storyId, type, reason, requiredPolicyVersion)
+        return CanonicalEngineWorkItem(
+            storyId = storyId,
+            type = type,
+            reason = reason,
+            requiredPolicyVersion = requiredPolicyVersion,
+            attemptCount = 0,
+            nextAttemptAtEpochMillis = 0L,
+            lastFailureCode = null,
+        )
     }
 
     override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> = emptyList()
-    override suspend fun complete(item: CanonicalEngineWorkItem) = Unit
+    override suspend fun complete(item: CanonicalEngineWorkItem): Boolean {
+        completed += item
+        return completeResult
+    }
     override suspend fun retry(item: CanonicalEngineWorkItem, failureCode: String, nextAttemptAtEpochMillis: Long) = Unit
     override suspend fun supersede(storyId: StoryId, type: CanonicalEngineWorkType) = Unit
 }
@@ -240,4 +304,13 @@ internal class RecordingIdentityRepository : StoryIdentityRepository {
     override suspend fun resolve(storyId: StoryId): StoryId = redirects[storyId] ?: storyId
 
     override suspend fun identityState(storyId: StoryId): CanonicalIdentityState? = null
+}
+
+
+private class RecordingCanonicalWorkScheduler : CanonicalEngineWorkScheduler {
+    var calls = 0
+
+    override fun scheduleDrain() {
+        calls += 1
+    }
 }

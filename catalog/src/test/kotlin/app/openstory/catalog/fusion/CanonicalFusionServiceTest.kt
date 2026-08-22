@@ -13,9 +13,6 @@ import app.openstory.catalog.metadata.CatalogMetadataStamp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Story
-import app.openstory.catalog.orchestration.CanonicalEngineWorkItem
-import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
-import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.catalog.source.CatalogSource
 import app.openstory.catalog.source.CatalogSourceRegistry
 import app.openstory.catalog.source.CatalogSourceResult
@@ -120,40 +117,29 @@ class CanonicalFusionServiceTest {
 
         assertIs<CanonicalFusionResult.Unchanged>(second)
         assertEquals(1, repo.persistCalls)
-        assertEquals(
-            listOf(
-                storyId to CanonicalEngineWorkType.FUSION_REBUILD,
-                storyId to CanonicalEngineWorkType.FUSION_REBUILD,
-            ),
-            work.completed,
-        )
     }
 
     @Test
-    fun failedOrPreparingRebuildKeepsFusionDirtyWorkForRetry() = runTest {
-        val emptyRepo = FakeCanonicalRepository(preparingState(), emptyList())
-        val emptyWork = FakeWorkRepository()
-        service(emptyRepo, FakeSource(), emptyWork).rebuild(storyId, CanonicalFusionReason.BOOTSTRAP)
-        assertEquals(emptyList(), emptyWork.completed)
+    fun semanticallyUnchangedRebuildRepairsDegradedStateHealthFromActiveGeneration() = runTest {
+        val repo = FakeCanonicalRepository(preparingState(), listOf(sourceRecord()))
+        val service = service(repo, FakeSource())
+        val promoted = assertIs<CanonicalFusionResult.Promoted>(
+            service.rebuild(storyId, CanonicalFusionReason.BOOTSTRAP),
+        )
+        repo.currentGeneration = promoted.generation
+        repo.stateHealthOverride = CanonicalHealth.DEGRADED
+        repo.markedHealth = null
 
-        val invalidRepo = FakeCanonicalRepository(
-            preparingState(),
-            listOf(sourceRecord(contentType = ContentType.ANIME)),
+        assertIs<CanonicalFusionResult.Unchanged>(
+            service.rebuild(storyId, CanonicalFusionReason.POLICY_REEVALUATION),
         )
-        val invalidWork = FakeWorkRepository()
-        service(invalidRepo, FakeSource(), invalidWork).rebuild(
-            storyId,
-            CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED,
-        )
-        assertEquals(emptyList(), invalidWork.completed)
+
+        assertEquals(promoted.generation.health, repo.markedHealth)
     }
-
-    private val work = FakeWorkRepository()
 
     private fun service(
         repo: FakeCanonicalRepository,
         source: FakeSource,
-        work: FakeWorkRepository = this.work,
     ): CanonicalFusionService {
         val registry = object : CatalogSourceRegistry {
             override suspend fun enabled(): List<CatalogSource> = listOf(source)
@@ -164,7 +150,6 @@ class CanonicalFusionServiceTest {
             engine = CatalogFusionEngine(),
             validator = CanonicalGenerationValidator(),
             availability = CatalogSourceAvailabilityResolver(registry, CatalogMetadataPolicy(clock)),
-            work = work,
             clock = clock,
         )
     }
@@ -230,6 +215,7 @@ class CanonicalFusionServiceTest {
         private val records: List<CatalogSourceRecord>,
     ) : CanonicalCatalogRepository {
         var currentGeneration: CanonicalGeneration? = null
+        var stateHealthOverride: CanonicalHealth? = null
         var markedHealth: CanonicalHealth? = null
         var persistCalls = 0
         val persistResults = ArrayDeque<Boolean>()
@@ -243,7 +229,7 @@ class CanonicalFusionServiceTest {
         } else {
             CanonicalStoryState.Ready(
                 state.story,
-                currentGeneration!!.health,
+                stateHealthOverride ?: currentGeneration!!.health,
                 state.preference,
                 state.sources,
                 currentGeneration!!,
@@ -269,33 +255,6 @@ class CanonicalFusionServiceTest {
         }
         override suspend fun markHealth(storyId: StoryId, health: CanonicalHealth) { markedHealth = health }
         override suspend fun cleanupObsoleteGenerations(storyId: StoryId) = Unit
-    }
-
-    private class FakeWorkRepository : CanonicalEngineWorkRepository {
-        val completed = mutableListOf<Pair<StoryId, CanonicalEngineWorkType>>()
-
-        override suspend fun markDirty(
-            storyId: StoryId,
-            type: CanonicalEngineWorkType,
-            reason: String,
-            requiredPolicyVersion: Int?,
-        ) = Unit
-
-        override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> = emptyList()
-
-        override suspend fun complete(item: CanonicalEngineWorkItem) {
-            completed += item.storyId to item.type
-        }
-
-        override suspend fun retry(
-            item: CanonicalEngineWorkItem,
-            failureCode: String,
-            nextAttemptAtEpochMillis: Long,
-        ) = Unit
-
-        override suspend fun supersede(storyId: StoryId, type: CanonicalEngineWorkType) {
-            completed += storyId to type
-        }
     }
 
     private class FakeSource : CatalogSource {
