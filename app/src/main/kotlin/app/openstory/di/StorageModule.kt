@@ -5,6 +5,8 @@ import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.StoryMergeExecutor
+import app.openstory.catalog.identity.StoryMergeReversalExecutor
+import app.openstory.catalog.identity.StoryMergeReversalPlanner
 import app.openstory.catalog.identity.StoryUserStateFootprintReader
 import app.openstory.catalog.orchestration.CanonicalEngineMaintenanceReader
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
@@ -21,6 +23,7 @@ import app.openstory.storage.room.catalog.RoomCatalogStoryProjectionRepository
 import app.openstory.storage.room.catalog.RoomCanonicalCatalogRepository
 import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
 import app.openstory.storage.room.merge.RoomStoryGraphMergeCoordinator
+import app.openstory.storage.room.merge.RoomStoryMergeReversalCoordinator
 import app.openstory.storage.room.merge.RoomStoryMergeLineageReader
 import app.openstory.storage.room.merge.RoomStoryUserStateFootprintReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineMaintenanceReader
@@ -75,6 +78,23 @@ object StorageModule {
         database: OpenStoryDatabase,
         clock: Clock,
     ): StoryMergeExecutor = RoomStoryGraphMergeCoordinator(database, clock)
+
+    @Provides
+    @Singleton
+    fun provideStoryMergeReversalCoordinator(
+        database: OpenStoryDatabase,
+        clock: Clock,
+    ): RoomStoryMergeReversalCoordinator = RoomStoryMergeReversalCoordinator(database, clock)
+
+    @Provides
+    fun provideStoryMergeReversalPlanner(
+        coordinator: RoomStoryMergeReversalCoordinator,
+    ): StoryMergeReversalPlanner = coordinator
+
+    @Provides
+    fun provideStoryMergeReversalExecutor(
+        coordinator: RoomStoryMergeReversalCoordinator,
+    ): StoryMergeReversalExecutor = coordinator
 
     @Provides
     @Singleton

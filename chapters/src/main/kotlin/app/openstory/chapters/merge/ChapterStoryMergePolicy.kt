@@ -13,6 +13,7 @@ const val CHAPTER_GRAPH_ID_COLLISION = "chapter.graph_id_collision"
 const val CHAPTER_MANUAL_OVERRIDE_CONFLICT = "chapter.manual_override_conflict"
 const val CHAPTER_MANUAL_OVERRIDE_INVALID = "chapter.manual_override_invalid"
 const val CHAPTER_SYNC_STATE_INVALID = "chapter.sync_state_invalid"
+const val CHAPTER_REVERSAL_STATE_CHANGED = "chapter.reversal_state_changed"
 
 data class ChapterStoryMergeInput(
     val survivorStoryId: StoryId,
@@ -45,6 +46,77 @@ data class ChapterSyncKey(
 }
 
 class ChapterStoryMergePolicy {
+    fun reversalBlockers(
+        survivorStoryId: StoryId,
+        currentGraph: ChapterGraphSnapshot,
+        currentSyncStates: List<ChapterSyncState>,
+        survivorChapterIds: Set<CanonicalChapterId>,
+        retiredChapterIds: Set<CanonicalChapterId>,
+        survivorReleaseIds: Set<ChapterReleaseId>,
+        retiredReleaseIds: Set<ChapterReleaseId>,
+        historicalOverrides: List<ChapterAggregationOverride>,
+        historicalSyncStates: List<ChapterSyncState>,
+    ): Set<String> {
+        val chapterIdsMatch = currentGraph.chapters.mapTo(linkedSetOf()) { it.id } ==
+            survivorChapterIds + retiredChapterIds
+        val releaseIdsMatch = currentGraph.releases.mapTo(linkedSetOf()) { it.id } ==
+            survivorReleaseIds + retiredReleaseIds
+        val partitionSafe = chapterPartitionIsHistorical(
+            currentGraph,
+            survivorChapterIds,
+            retiredChapterIds,
+            survivorReleaseIds,
+            retiredReleaseIds,
+        )
+        val overridesMatch = currentGraph.overrides.toSet() == historicalOverrides.toSet()
+        val syncMatches = currentSyncStates.toSet() == expectedMergedSyncStates(survivorStoryId, historicalSyncStates)
+        val ownershipMatches = chapterIdsMatch && releaseIdsMatch && partitionSafe
+        val derivedStateMatches = overridesMatch && syncMatches
+        return if (ownershipMatches && derivedStateMatches) {
+            emptySet()
+        } else {
+            setOf(CHAPTER_REVERSAL_STATE_CHANGED)
+        }
+    }
+
+    private fun chapterPartitionIsHistorical(
+        graph: ChapterGraphSnapshot,
+        survivorChapterIds: Set<CanonicalChapterId>,
+        retiredChapterIds: Set<CanonicalChapterId>,
+        survivorReleaseIds: Set<ChapterReleaseId>,
+        retiredReleaseIds: Set<ChapterReleaseId>,
+    ): Boolean {
+        val chaptersSafe = graph.chapters.all { chapter ->
+            val allowedReleases = when (chapter.id) {
+                in survivorChapterIds -> survivorReleaseIds
+                in retiredChapterIds -> retiredReleaseIds
+                else -> emptySet()
+            }
+            chapter.releaseIds.all { it in allowedReleases }
+        }
+        val releasesSafe = graph.releases.all { release ->
+            val allowedChapters = when (release.id) {
+                in survivorReleaseIds -> survivorChapterIds
+                in retiredReleaseIds -> retiredChapterIds
+                else -> emptySet()
+            }
+            release.canonicalChapterId == null || release.canonicalChapterId in allowedChapters
+        }
+        return chaptersSafe && releasesSafe
+    }
+
+    private fun expectedMergedSyncStates(
+        survivorStoryId: StoryId,
+        historical: List<ChapterSyncState>,
+    ): Set<ChapterSyncState> = historical
+        .groupBy { ChapterSyncKey(it.pluginId, it.sourceStoryId) }
+        .values
+        .mapNotNull { states ->
+            val owners = states.map(ChapterSyncState::storyId).distinct()
+            states.singleOrNull()?.takeIf { owners.size == 1 }?.copy(storyId = survivorStoryId)
+        }
+        .toSet()
+
     fun plan(input: ChapterStoryMergeInput): DomainMergeDecision<ChapterStoryMergePlan> {
         val overrideDecision = mergeOverrides(input)
         val blocker = graphCollisionReason(input)

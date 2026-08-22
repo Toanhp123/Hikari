@@ -1,11 +1,20 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.identity.NoOpStoryMergeReversalExecutor
+import app.openstory.catalog.identity.NoOpStoryMergeReversalPlanner
 import app.openstory.catalog.identity.ProtectedContentMappingConflict
+import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResolution
 import app.openstory.catalog.identity.StoryMergeResult
+import app.openstory.catalog.identity.StoryMergeReverseRequest
+import app.openstory.catalog.identity.StoryMergeReverseResult
+import app.openstory.catalog.identity.StoryMergeReversalAssessmentResult
+import app.openstory.catalog.identity.StoryMergeReversalExecutor
+import app.openstory.catalog.identity.StoryMergeReversalPlanner
+import app.openstory.catalog.identity.StoryMergeReversibility
 import app.openstory.catalog.orchestration.CanonicalEngineEventSink
 import app.openstory.common.Clock
 import app.openstory.common.id.PluginId
@@ -16,6 +25,7 @@ enum class ReconciliationReviewAction {
     MERGE,
     KEEP_SEPARATE,
     DEFER,
+    REVERSE,
 }
 
 data class ProtectedMappingResolution(
@@ -41,8 +51,23 @@ data class ReconciliationReviewCommand(
     }
 }
 
+data class ReconciliationReversalOption(
+    val mergeEventId: String,
+    val reversibility: StoryMergeReversibility,
+    val reasonCodes: Set<String>,
+) {
+    init {
+        require(mergeEventId.isNotBlank())
+        require(reasonCodes.none(String::isBlank))
+    }
+}
+
 sealed interface ReconciliationReviewResult {
     data class Merged(val survivorStoryId: StoryId) : ReconciliationReviewResult
+    data class Reversed(
+        val restoredStoryId: StoryId,
+        val survivingStoryId: StoryId,
+    ) : ReconciliationReviewResult
     data object KeptSeparate : ReconciliationReviewResult
     data class Deferred(val untilEpochMillis: Long) : ReconciliationReviewResult
     data class ConflictResolutionRequired(
@@ -60,6 +85,10 @@ class ReconciliationReviewService(
     private val mergeExecutor: StoryMergeExecutor,
     private val clock: Clock,
     private val orchestrator: CanonicalEngineEventSink,
+    private val reversalPlanner: StoryMergeReversalPlanner = NoOpStoryMergeReversalPlanner,
+    private val reversalExecutor: StoryMergeReversalExecutor = NoOpStoryMergeReversalExecutor,
+    private val identity: StoryIdentityRepository? = null,
+    private val lineages: StoryMergeLineageReader = EmptyStoryMergeLineageReader,
 ) {
     suspend fun resolve(command: ReconciliationReviewCommand): ReconciliationReviewResult {
         val case = cases.find(command.caseId)
@@ -70,9 +99,47 @@ class ReconciliationReviewService(
                 ReconciliationReviewAction.MERGE -> merge(case, command.protectedMappingResolutions)
                 ReconciliationReviewAction.KEEP_SEPARATE -> keepSeparate(case)
                 ReconciliationReviewAction.DEFER -> defer(case, requireNotNull(command.suppressUntilEpochMillis))
+                ReconciliationReviewAction.REVERSE -> reverse(case)
             }
         }
     }
+
+    suspend fun reversalOption(caseId: String, expectedRevision: Long): ReconciliationReversalOption? {
+        val case = cases.find(caseId)
+        val context = case
+            ?.takeIf { it.revision == expectedRevision && it.status == ReconciliationCaseStatus.PENDING }
+            ?.let { reversalContext(it) }
+        return context?.let { it.toReversalOption(reversalPlanner.assess(it.request)) }
+    }
+
+    private fun ReversalContext.toReversalOption(
+        result: StoryMergeReversalAssessmentResult,
+    ): ReconciliationReversalOption = when (result) {
+        is StoryMergeReversalAssessmentResult.Assessed -> ReconciliationReversalOption(
+            mergeEventId = result.assessment.mergeEventId,
+            reversibility = result.assessment.reversibility,
+            reasonCodes = result.assessment.reasonCodes,
+        )
+        StoryMergeReversalAssessmentResult.StalePlan -> unavailableOption(
+            StoryMergeReversibility.REQUIRES_REVIEW_TO_REVERSE,
+            REVERSAL_STALE_REASON,
+        )
+        StoryMergeReversalAssessmentResult.NotAutomaticallyReversible,
+        StoryMergeReversalAssessmentResult.NotFound,
+        -> unavailableOption(
+            StoryMergeReversibility.NOT_AUTOMATICALLY_REVERSIBLE,
+            REVERSAL_UNAVAILABLE_REASON,
+        )
+    }
+
+    private fun ReversalContext.unavailableOption(
+        reversibility: StoryMergeReversibility,
+        reasonCode: String,
+    ): ReconciliationReversalOption = ReconciliationReversalOption(
+        mergeEventId = lineage.mergeEventId,
+        reversibility = reversibility,
+        reasonCodes = setOf(reasonCode),
+    )
 
     private fun ReconciliationCase.accepts(command: ReconciliationReviewCommand): Boolean =
         if (revision == command.expectedCaseRevision) {
@@ -96,6 +163,10 @@ class ReconciliationReviewService(
                 status == ReconciliationCaseStatus.PENDING &&
                     command.protectedMappingResolutions.isEmpty() &&
                     command.suppressUntilEpochMillis != null
+            ReconciliationReviewAction.REVERSE ->
+                status == ReconciliationCaseStatus.PENDING &&
+                    command.protectedMappingResolutions.isEmpty() &&
+                    command.suppressUntilEpochMillis == null
         }
 
     private fun ReconciliationCase.acceptsRepeatedKeepSeparate(command: ReconciliationReviewCommand): Boolean =
@@ -126,12 +197,11 @@ class ReconciliationReviewService(
 
     private fun hasDuplicatePluginSelection(
         protectedMappingResolutions: List<ProtectedMappingResolution>,
-    ): Boolean =
-        protectedMappingResolutions
-            .groupingBy(ProtectedMappingResolution::pluginId)
-            .eachCount()
-            .values
-            .any { it > 1 }
+    ): Boolean = protectedMappingResolutions
+        .groupingBy(ProtectedMappingResolution::pluginId)
+        .eachCount()
+        .values
+        .any { it > 1 }
 
     private suspend fun executeMerge(
         case: ReconciliationCase,
@@ -168,12 +238,42 @@ class ReconciliationReviewService(
         return ReconciliationReviewResult.Merged(storyId)
     }
 
-    private suspend fun keepSeparate(case: ReconciliationCase): ReconciliationReviewResult {
-        if (case.status == ReconciliationCaseStatus.RESOLVED_SEPARATE &&
-            case.resolutionOrigin == ReconciliationResolutionOrigin.USER
-        ) {
-            return ReconciliationReviewResult.KeptSeparate
+    private suspend fun reverse(case: ReconciliationCase): ReconciliationReviewResult {
+        val context = reversalContext(case) ?: return ReconciliationReviewResult.InvariantBlocked
+        return when (val result = reversalExecutor.reverse(context.request)) {
+            is StoryMergeReverseResult.Reversed -> committedReversal(result)
+            is StoryMergeReverseResult.ReviewRequired ->
+                ReconciliationReviewResult.DomainStateChangeRequired(result.reasons)
+            StoryMergeReverseResult.NotAutomaticallyReversible -> ReconciliationReviewResult.InvariantBlocked
+            StoryMergeReverseResult.StalePlan,
+            StoryMergeReverseResult.NotFound,
+            -> ReconciliationReviewResult.StaleCase
         }
+    }
+
+    private suspend fun committedReversal(
+        result: StoryMergeReverseResult.Reversed,
+    ): ReconciliationReviewResult {
+        try {
+            orchestrator.onStorySplit(result.survivingStoryId, result.restoredStoryId)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Split and durable work are already committed; background maintenance can recover the wakeup.
+        }
+        return ReconciliationReviewResult.Reversed(result.restoredStoryId, result.survivingStoryId)
+    }
+
+    private suspend fun keepSeparate(case: ReconciliationCase): ReconciliationReviewResult = when {
+        case.status == ReconciliationCaseStatus.RESOLVED_SEPARATE &&
+            case.resolutionOrigin == ReconciliationResolutionOrigin.USER ->
+            ReconciliationReviewResult.KeptSeparate
+        reversalContext(case) != null ->
+            ReconciliationReviewResult.DomainStateChangeRequired(setOf(REVERSAL_REQUIRED_REASON))
+        else -> persistSeparateResolution(case)
+    }
+
+    private suspend fun persistSeparateResolution(case: ReconciliationCase): ReconciliationReviewResult {
         val resolved = cases.resolveSeparate(
             caseId = case.id,
             expectedRevision = case.revision,
@@ -181,6 +281,38 @@ class ReconciliationReviewService(
             resolvedAtEpochMillis = clock.nowEpochMillis().also { require(it >= 0L) },
         )
         return if (resolved) ReconciliationReviewResult.KeptSeparate else ReconciliationReviewResult.StaleCase
+    }
+
+    private suspend fun reversalContext(case: ReconciliationCase): ReversalContext? =
+        identity
+            ?.takeIf { case.assessment.mergeEligibility == ReconciliationMergeEligibility.INVARIANT_BLOCKED }
+            ?.let { repository ->
+                latestReversalLineage(case)?.let { lineage ->
+                    reversalContext(case, lineage, repository)
+                }
+            }
+
+    private suspend fun latestReversalLineage(case: ReconciliationCase): StoryMergeLineage? =
+        lineages.lineagesFor(case.key.left)
+            .asSequence()
+            .filter { it.historicalCaseKey() == case.key }
+            .sortedWith(compareByDescending<StoryMergeLineage> { it.mergedAtEpochMillis }.thenBy { it.mergeEventId })
+            .firstOrNull()
+
+    private suspend fun reversalContext(
+        case: ReconciliationCase,
+        lineage: StoryMergeLineage,
+        repository: StoryIdentityRepository,
+    ): ReversalContext? = repository.identityState(lineage.survivorStoryId)?.let { identityState ->
+        ReversalContext(
+            lineage = lineage,
+            request = StoryMergeReverseRequest(
+                mergeEventId = lineage.mergeEventId,
+                expectedSurvivorIdentityRevision = identityState.identityRevision,
+                expectedReconciliationCaseId = case.id,
+                expectedReconciliationCaseRevision = case.revision,
+            ),
+        )
     }
 
     private suspend fun defer(
@@ -215,9 +347,7 @@ class ReconciliationReviewService(
         if (this == null || status != ReconciliationCaseStatus.PENDING || revision != expectedRevision) {
             ReconciliationReviewResult.StaleCase
         } else {
-            ReconciliationReviewResult.Deferred(
-                requireNotNull(contextualPromptSuppressedUntilEpochMillis),
-            )
+            ReconciliationReviewResult.Deferred(requireNotNull(contextualPromptSuppressedUntilEpochMillis))
         }
 
     private fun StoryMergeResult.ReviewRequired.toReviewResult(): ReconciliationReviewResult =
@@ -235,4 +365,15 @@ class ReconciliationReviewService(
         } else {
             ReconciliationReviewResult.DomainStateChangeRequired(reasons.toSortedSet())
         }
+
+    private data class ReversalContext(
+        val lineage: StoryMergeLineage,
+        val request: StoryMergeReverseRequest,
+    )
+
+    private companion object {
+        const val REVERSAL_REQUIRED_REASON = "story_merge.reversal_required"
+        const val REVERSAL_STALE_REASON = "story_merge.reversal_stale"
+        const val REVERSAL_UNAVAILABLE_REASON = "story_merge.reversal_unavailable"
+    }
 }

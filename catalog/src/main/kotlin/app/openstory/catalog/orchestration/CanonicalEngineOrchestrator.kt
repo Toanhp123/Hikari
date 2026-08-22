@@ -20,6 +20,7 @@ interface CanonicalEngineEventSink {
     suspend fun onSourceUnlinked(storyId: StoryId, sourceKey: SourceKey)
     suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult
     suspend fun onStoryMerged(storyId: StoryId): CanonicalFusionResult
+    suspend fun onStorySplit(survivingStoryId: StoryId, restoredStoryId: StoryId) = Unit
 }
 
 @Singleton
@@ -101,6 +102,12 @@ class CanonicalEngineOrchestrator @Inject constructor(
                 CanonicalFusionReason.POST_MERGE,
             )
         }
+
+    override suspend fun onStorySplit(survivingStoryId: StoryId, restoredStoryId: StoryId) = runCommittedEvent {
+        require(survivingStoryId != restoredStoryId)
+        invalidateCandidateIndexBestEffort()
+        scheduleDrainBestEffort()
+    }
 
     private suspend fun reconcileOrSchedule(
         sourceKey: SourceKey,

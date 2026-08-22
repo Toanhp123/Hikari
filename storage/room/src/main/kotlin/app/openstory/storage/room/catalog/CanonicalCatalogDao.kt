@@ -219,8 +219,24 @@ internal interface CanonicalCatalogDao {
     @Upsert
     suspend fun upsertMergeReversalEvent(event: StoryMergeReversalEventEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMergeReversalEvent(event: StoryMergeReversalEventEntity)
+
     @Query("SELECT * FROM story_merge_reversal_events WHERE merge_event_id = :mergeEventId")
     suspend fun mergeReversalEvent(mergeEventId: String): StoryMergeReversalEventEntity?
+
+    @Query("SELECT * FROM story_merge_reversal_events WHERE merge_event_id = :mergeEventId ORDER BY reversal_event_id")
+    suspend fun mergeReversalEventsForMerge(mergeEventId: String): List<StoryMergeReversalEventEntity>
+
+    @Query(
+        "DELETE FROM story_redirects WHERE retired_story_id = :retiredStoryId " +
+            "AND canonical_story_id = :canonicalStoryId AND merge_event_id = :mergeEventId",
+    )
+    suspend fun deleteRedirect(
+        retiredStoryId: String,
+        canonicalStoryId: String,
+        mergeEventId: String,
+    ): Int
 
     @Query(
         "UPDATE story_merge_events SET reversibility_state = :state, reversal_payload_version = :payloadVersion, " +

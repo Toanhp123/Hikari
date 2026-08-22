@@ -18,6 +18,7 @@ object CanonicalEngineWorkReasons {
     const val SOURCE_PREFERENCE_CHANGED = "source_preference_changed"
     const val REVIEW_RESOLVED = "review_resolved"
     const val STORY_MERGED = "story_merged"
+    const val STORY_MERGE_REVERSED = "story_merge_reversed"
     const val POLICY_VERSION_CHANGED = "policy_version_changed"
     const val EVIDENCE_REVISION_CHANGED = "evidence_revision_changed"
     const val RETRY = "retry"

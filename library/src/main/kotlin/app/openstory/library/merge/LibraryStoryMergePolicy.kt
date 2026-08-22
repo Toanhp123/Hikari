@@ -3,9 +3,21 @@ package app.openstory.library.merge
 import app.openstory.common.id.StoryId
 import app.openstory.library.LibraryEntry
 
+const val LIBRARY_REVERSAL_STATE_CHANGED = "library.reversal_state_changed"
+
 data class LibraryMergePlan(val entry: LibraryEntry?)
 
 class LibraryStoryMergePolicy {
+    fun reversalBlockers(
+        survivorId: StoryId,
+        current: LibraryEntry?,
+        survivorBefore: LibraryEntry?,
+        retiredBefore: LibraryEntry?,
+    ): Set<String> {
+        val expected = plan(survivorId, survivorBefore, retiredBefore).entry
+        return if (current == expected) emptySet() else setOf(LIBRARY_REVERSAL_STATE_CHANGED)
+    }
+
     fun plan(
         survivorId: StoryId,
         left: LibraryEntry?,

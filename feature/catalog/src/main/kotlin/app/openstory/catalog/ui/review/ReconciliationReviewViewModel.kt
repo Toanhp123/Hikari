@@ -2,6 +2,7 @@ package app.openstory.catalog.ui.review
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.openstory.catalog.identity.StoryMergeReversibility
 import app.openstory.catalog.identity.StoryUserStateFootprintReader
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.reconciliation.ProtectedMappingResolution
@@ -94,6 +95,28 @@ class ReconciliationReviewViewModel @Inject constructor(
         )
     }
 
+    fun reverse(caseId: String, expectedRevision: Long) {
+        val item = currentItem(caseId, expectedRevision) ?: return markStale()
+        if (!item.isPostMergeCorrection || !item.reverseAllowed) {
+            operation.update {
+                it.copy(
+                    domainConflictReasonLabels = item.reversalBlockerLabels.ifEmpty {
+                        listOf("Automatic reversal is not safe for the current graph")
+                    },
+                    failureMessage = null,
+                )
+            }
+            return
+        }
+        resolve(
+            ReconciliationReviewCommand(
+                caseId = caseId,
+                expectedCaseRevision = expectedRevision,
+                action = ReconciliationReviewAction.REVERSE,
+            ),
+        )
+    }
+
     fun defer(caseId: String, expectedRevision: Long) {
         if (currentItem(caseId, expectedRevision) == null) return markStale()
         val suppressUntil = ReconciliationReviewPresentationPolicy.suppressUntil(clock.nowEpochMillis())
@@ -162,7 +185,18 @@ class ReconciliationReviewViewModel @Inject constructor(
         val storyIds = pending.flatMapTo(linkedSetOf()) { listOf(it.key.left, it.key.right) }
         projections.observeForStories(storyIds).mapLatest { catalog ->
             val footprintByStory = footprints.read(storyIds)
-            projectReviewQueue(pending, catalog, footprintByStory)
+            projectReviewQueue(pending, catalog, footprintByStory).map { item ->
+                val reversal = review.reversalOption(item.caseId, item.caseRevision)
+                if (reversal == null) {
+                    item
+                } else {
+                    item.copy(
+                        isPostMergeCorrection = true,
+                        reverseAllowed = reversal.reversibility == StoryMergeReversibility.REVERSIBLE,
+                        reversalBlockerLabels = reversal.reasonCodes.sorted().map(String::domainConflictLabel),
+                    )
+                }
+            }
         }
     }
 
@@ -218,6 +252,7 @@ private fun ReviewOperationState.withResult(
     result: ReconciliationReviewResult,
 ): ReviewOperationState = when (result) {
     is ReconciliationReviewResult.Merged,
+    is ReconciliationReviewResult.Reversed,
     ReconciliationReviewResult.KeptSeparate,
     is ReconciliationReviewResult.Deferred,
     -> copy(

@@ -1,6 +1,7 @@
 package app.openstory.catalog.ui.review
 
 import app.openstory.catalog.fusion.CanonicalFusionResult
+import app.openstory.catalog.identity.CanonicalIdentityState
 import app.openstory.catalog.identity.ProtectedContentMappingConflict
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.orchestration.CanonicalEngineEventSink
@@ -8,11 +9,20 @@ import app.openstory.catalog.orchestration.CatalogEvidenceChange
 import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResult
+import app.openstory.catalog.identity.StoryMergeReverseRequest
+import app.openstory.catalog.identity.StoryMergeReverseResult
+import app.openstory.catalog.identity.StoryMergeReversalAssessment
+import app.openstory.catalog.identity.StoryMergeReversalAssessmentResult
+import app.openstory.catalog.identity.StoryMergeReversalExecutor
+import app.openstory.catalog.identity.StoryMergeReversalPlanner
+import app.openstory.catalog.identity.StoryMergeReversibility
+import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.StoryUserStateFootprintReader
 import app.openstory.catalog.identity.UserStateFootprint
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
+import app.openstory.catalog.reconciliation.EmptyStoryMergeLineageReader
 import app.openstory.catalog.reconciliation.ReconciliationAssessment
 import app.openstory.catalog.reconciliation.ReconciliationCase
 import app.openstory.catalog.reconciliation.ReconciliationCaseKey
@@ -23,6 +33,8 @@ import app.openstory.catalog.reconciliation.ReconciliationReasonCode
 import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
 import app.openstory.catalog.reconciliation.ReconciliationReviewService
 import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
+import app.openstory.catalog.reconciliation.StoryMergeLineage
+import app.openstory.catalog.reconciliation.StoryMergeLineageReader
 import app.openstory.common.Clock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -199,16 +211,93 @@ class ReconciliationReviewViewModelTest {
         assertEquals(listOf("case-1"), viewModel.state.value.items.map { it.caseId })
     }
 
+    @Test
+    fun postMergeCorrectionProjectsSafeReverseAndExecutesExactRevision() = runTest(dispatcher.scheduler) {
+        val cases = FakeCases(
+            listOf(
+                case(
+                    "case-1",
+                    "a",
+                    "b",
+                    revision = 3,
+                    eligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED,
+                ),
+            ),
+        )
+        val planner = FakeReversalPlanner(
+            StoryMergeReversalAssessmentResult.Assessed(
+                StoryMergeReversalAssessment(
+                    mergeEventId = "merge-1",
+                    survivingStoryId = StoryId("a"),
+                    restoredStoryId = StoryId("b"),
+                    reversibility = StoryMergeReversibility.REVERSIBLE,
+                    reasonCodes = emptySet(),
+                ),
+            ),
+        )
+        val reversal = FakeReversalExecutor(
+            StoryMergeReverseResult.Reversed(StoryId("b"), StoryId("a"), "reverse-1"),
+        )
+        val viewModel = viewModel(
+            cases = cases,
+            reversalPlanner = planner,
+            reversalExecutor = reversal,
+            identity = VmIdentityRepository(StoryId("a"), 8),
+            lineages = VmLineageReader(
+                StoryMergeLineage(
+                    mergeEventId = "merge-1",
+                    survivorStoryId = StoryId("a"),
+                    retiredStoryId = StoryId("b"),
+                    reconciliationCaseId = "historical",
+                    survivorSourceKeysBefore = setOf(SourceKey(PluginId("plugin:a"), "source:a")),
+                    retiredSourceKeysBefore = setOf(SourceKey(PluginId("plugin:b"), "source:b")),
+                    mergedAtEpochMillis = 50,
+                ),
+            ),
+        )
+        backgroundScope.launch { viewModel.state.collect {} }
+        runCurrent()
+
+        val item = viewModel.state.value.items.single()
+        assertTrue(item.isPostMergeCorrection)
+        assertTrue(item.reverseAllowed)
+
+        viewModel.reverse("case-1", 3)
+        runCurrent()
+
+        assertEquals(1, reversal.requests.size)
+        assertEquals(3L, reversal.requests.single().expectedReconciliationCaseRevision)
+        assertTrue(viewModel.state.value.failureMessage == null)
+        assertEquals("case-1", viewModel.state.value.items.single().caseId)
+    }
+
     private fun viewModel(
         cases: FakeCases,
         footprints: StoryUserStateFootprintReader = FakeFootprints(emptyMap()),
         merge: StoryMergeExecutor = SequenceMergeExecutor(mutableListOf(StoryMergeResult.Merged(StoryId("a"), "m"))),
         clock: Clock = Clock { 1_000L },
+        reversalPlanner: StoryMergeReversalPlanner = StoryMergeReversalPlanner {
+            StoryMergeReversalAssessmentResult.NotFound
+        },
+        reversalExecutor: StoryMergeReversalExecutor = StoryMergeReversalExecutor {
+            StoryMergeReverseResult.NotFound
+        },
+        identity: StoryIdentityRepository? = null,
+        lineages: StoryMergeLineageReader = EmptyStoryMergeLineageReader,
     ) = ReconciliationReviewViewModel(
         cases = cases,
         projections = FakeProjections(cases.current().flatMap { listOf(it.key.left, it.key.right) }.toSet()),
         footprints = footprints,
-        review = ReconciliationReviewService(cases, merge, clock, NoOpReviewEngine),
+        review = ReconciliationReviewService(
+            cases = cases,
+            mergeExecutor = merge,
+            clock = clock,
+            orchestrator = NoOpReviewEngine,
+            reversalPlanner = reversalPlanner,
+            reversalExecutor = reversalExecutor,
+            identity = identity,
+            lineages = lineages,
+        ),
         clock = clock,
     )
 }
@@ -220,6 +309,44 @@ private object NoOpReviewEngine : CanonicalEngineEventSink {
     override suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult =
         CanonicalFusionResult.Preparing(storyId)
     override suspend fun onStoryMerged(storyId: StoryId): CanonicalFusionResult = CanonicalFusionResult.Preparing(storyId)
+}
+
+private class FakeReversalPlanner(
+    private val result: StoryMergeReversalAssessmentResult,
+) : StoryMergeReversalPlanner {
+    val requests = mutableListOf<StoryMergeReverseRequest>()
+
+    override suspend fun assess(request: StoryMergeReverseRequest): StoryMergeReversalAssessmentResult {
+        requests += request
+        return result
+    }
+}
+
+private class FakeReversalExecutor(
+    private val result: StoryMergeReverseResult,
+) : StoryMergeReversalExecutor {
+    val requests = mutableListOf<StoryMergeReverseRequest>()
+
+    override suspend fun reverse(request: StoryMergeReverseRequest): StoryMergeReverseResult {
+        requests += request
+        return result
+    }
+}
+
+private class VmIdentityRepository(
+    private val resolved: StoryId,
+    private val revision: Long,
+) : StoryIdentityRepository {
+    override fun observeResolved(storyId: StoryId): Flow<StoryId> = flowOf(resolved)
+    override suspend fun resolve(storyId: StoryId): StoryId = resolved
+    override suspend fun identityState(storyId: StoryId): CanonicalIdentityState =
+        CanonicalIdentityState(resolved, revision, createdAtEpochMillis = 1)
+}
+
+private class VmLineageReader(
+    private vararg val values: StoryMergeLineage,
+) : StoryMergeLineageReader {
+    override suspend fun lineagesFor(storyId: StoryId): List<StoryMergeLineage> = values.toList()
 }
 
 private class FakeCases(initial: List<ReconciliationCase>) : ReconciliationCaseRepository {

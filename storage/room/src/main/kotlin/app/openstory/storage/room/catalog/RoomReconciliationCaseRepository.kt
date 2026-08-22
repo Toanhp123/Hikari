@@ -104,25 +104,38 @@ class RoomReconciliationCaseRepository internal constructor(
         expectedRevision: Long,
         origin: ReconciliationResolutionOrigin,
         resolvedAtEpochMillis: Long,
+    ): Boolean = database.withTransaction {
+        resolveSeparateInCurrentTransaction(caseId, expectedRevision, origin, resolvedAtEpochMillis)
+    }
+
+    internal suspend fun resolveSeparateInCurrentTransaction(
+        caseId: String,
+        expectedRevision: Long,
+        origin: ReconciliationResolutionOrigin,
+        resolvedAtEpochMillis: Long,
     ): Boolean {
         require(resolvedAtEpochMillis >= 0L)
-        return database.withTransaction {
-            val currentEntity = dao.reconciliationCase(caseId) ?: return@withTransaction false
-            val current = currentEntity.toDomain() ?: return@withTransaction false
-            if (current.revision != expectedRevision || current.status != ReconciliationCaseStatus.PENDING) {
-                return@withTransaction false
-            }
-            val nextRevisionNumber = expectedRevision + 1L
-            val revision = current.assessment.toEntity(
+        val currentEntity = dao.reconciliationCase(caseId)
+        val current = currentEntity?.toDomain()
+        val matches = current != null &&
+            current.revision == expectedRevision &&
+            current.status == ReconciliationCaseStatus.PENDING
+        return if (!matches) {
+            false
+        } else {
+            val resolved = requireNotNull(current)
+            val entity = requireNotNull(currentEntity)
+            val nextRevisionNumber = Math.addExact(expectedRevision, 1L)
+            val revision = resolved.assessment.toEntity(
                 revisionId = revisionId(caseId, nextRevisionNumber.toInt()),
                 caseId = caseId,
-                key = current.key,
+                key = resolved.key,
                 resolutionOrigin = origin,
                 evaluatedAtEpochMillis = resolvedAtEpochMillis,
             )
             dao.insertReconciliationRevision(revision)
             dao.upsertReconciliationCase(
-                currentEntity.copy(
+                entity.copy(
                     status = ReconciliationCaseStatus.RESOLVED_SEPARATE.name,
                     currentRevisionId = revision.revisionId,
                     contextualDeferredAtEpochMillis = null,

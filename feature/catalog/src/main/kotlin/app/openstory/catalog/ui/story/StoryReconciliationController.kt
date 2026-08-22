@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -142,6 +141,7 @@ internal class StoryReconciliationController @Inject constructor(
                 ReconciliationReviewResult.StaleCase ->
                     current.copy(failureMessage = "This review changed. Check the latest evidence and try again.")
                 is ReconciliationReviewResult.Merged,
+                is ReconciliationReviewResult.Reversed,
                 ReconciliationReviewResult.KeptSeparate,
                 is ReconciliationReviewResult.Deferred,
                 -> current.copy(failureMessage = null)
@@ -154,19 +154,28 @@ internal class StoryReconciliationController @Inject constructor(
             case?.let { selected -> projectPrompt(storyId, selected) } ?: flowOf(null)
         }
 
-    private fun projectPrompt(storyId: StoryId, case: ReconciliationCase): Flow<StoryReconciliationPromptUiModel?> {
-        val otherStoryId = if (case.key.left == storyId) case.key.right else case.key.left
-        return projections.observeForStories(setOf(otherStoryId)).map { catalog ->
-            val otherTitle = catalog.firstOrNull { it.storyId == otherStoryId }?.title ?: otherStoryId.value
-            StoryReconciliationPromptUiModel(
-                caseId = case.id,
-                caseRevision = case.revision,
-                otherStoryId = otherStoryId,
-                otherStoryTitle = otherTitle,
-                confidence = case.assessment.confidence,
-                mergeAllowed = case.assessment.mergeEligibility == ReconciliationMergeEligibility.MERGEABLE,
-                reasonLabels = case.assessment.reasons.sortedBy { it.name }.map { it.reviewLabel() },
-            )
+    private fun projectPrompt(
+        storyId: StoryId,
+        case: ReconciliationCase,
+    ): Flow<StoryReconciliationPromptUiModel?> = flow {
+        if (review.reversalOption(case.id, case.revision) != null) {
+            emit(null)
+        } else {
+            val otherStoryId = if (case.key.left == storyId) case.key.right else case.key.left
+            projections.observeForStories(setOf(otherStoryId)).collect { catalog ->
+                val otherTitle = catalog.firstOrNull { it.storyId == otherStoryId }?.title ?: otherStoryId.value
+                emit(
+                    StoryReconciliationPromptUiModel(
+                        caseId = case.id,
+                        caseRevision = case.revision,
+                        otherStoryId = otherStoryId,
+                        otherStoryTitle = otherTitle,
+                        confidence = case.assessment.confidence,
+                        mergeAllowed = case.assessment.mergeEligibility == ReconciliationMergeEligibility.MERGEABLE,
+                        reasonLabels = case.assessment.reasons.sortedBy { it.name }.map { it.reviewLabel() },
+                    ),
+                )
+            }
         }
     }
 

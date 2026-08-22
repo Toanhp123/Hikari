@@ -1,6 +1,7 @@
 package app.openstory.catalog.reconciliation
 
 import app.openstory.catalog.fusion.CanonicalFusionResult
+import app.openstory.catalog.identity.CanonicalIdentityState
 import app.openstory.catalog.identity.ProtectedContentMappingConflict
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.orchestration.CanonicalEngineEventSink
@@ -10,12 +11,21 @@ import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResolution
 import app.openstory.catalog.identity.StoryMergeResult
+import app.openstory.catalog.identity.StoryMergeReverseRequest
+import app.openstory.catalog.identity.StoryMergeReverseResult
+import app.openstory.catalog.identity.StoryMergeReversalAssessment
+import app.openstory.catalog.identity.StoryMergeReversalAssessmentResult
+import app.openstory.catalog.identity.StoryMergeReversalExecutor
+import app.openstory.catalog.identity.StoryMergeReversalPlanner
+import app.openstory.catalog.identity.StoryMergeReversibility
+import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.common.Clock
 import app.openstory.common.FakeClock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -400,6 +410,134 @@ class ReconciliationReviewServiceTest {
         assertEquals(1, executor.requests.size)
     }
 
+    @Test
+    fun correctionReviewExposesReversibleOptionWithExactCaseAndIdentityRevision() = runTest {
+        val case = reviewCase(mergeEligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED, revision = 4)
+        val planner = RecordingReversalPlanner(
+            StoryMergeReversalAssessmentResult.Assessed(
+                StoryMergeReversalAssessment(
+                    mergeEventId = "merge:historical",
+                    survivingStoryId = StoryId("story:a"),
+                    restoredStoryId = StoryId("story:b"),
+                    reversibility = StoryMergeReversibility.REVERSIBLE,
+                    reasonCodes = emptySet(),
+                ),
+            ),
+        )
+        val service = reviewService(
+            cases = RecordingCases(case),
+            executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
+            clock = FakeClock(1_000),
+            reversalPlanner = planner,
+            identity = FixedIdentityRepository(StoryId("story:a"), revision = 9),
+            lineages = FixedLineageReader(lineage()),
+        )
+
+        val option = requireNotNull(service.reversalOption(case.id, case.revision))
+
+        assertEquals(StoryMergeReversibility.REVERSIBLE, option.reversibility)
+        val request = planner.requests.single()
+        assertEquals("merge:historical", request.mergeEventId)
+        assertEquals(9L, request.expectedSurvivorIdentityRevision)
+        assertEquals(case.id, request.expectedReconciliationCaseId)
+        assertEquals(case.revision, request.expectedReconciliationCaseRevision)
+    }
+
+    @Test
+    fun correctionKeepSeparateCannotPretendHistoricalMergeWasReversed() = runTest {
+        val case = reviewCase(mergeEligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED)
+        val cases = RecordingCases(case)
+        val service = reviewService(
+            cases = cases,
+            executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
+            clock = FakeClock(1_000),
+            identity = FixedIdentityRepository(StoryId("story:a"), revision = 3),
+            lineages = FixedLineageReader(lineage()),
+        )
+
+        val result = service.resolve(command(case, ReconciliationReviewAction.KEEP_SEPARATE))
+
+        assertEquals(
+            ReconciliationReviewResult.DomainStateChangeRequired(setOf("story_merge.reversal_required")),
+            result,
+        )
+        assertEquals(0, cases.mutationCount)
+        assertEquals(ReconciliationCaseStatus.PENDING, requireNotNull(cases.current).status)
+    }
+
+    @Test
+    fun reverseUsesExactCorrectionRevisionWithoutDoubleResolvingCaseAndNotifiesSplit() = runTest {
+        val case = reviewCase(mergeEligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED, revision = 6)
+        val cases = RecordingCases(case)
+        val reversal = RecordingReversalExecutor(
+            StoryMergeReverseResult.Reversed(
+                restoredStoryId = StoryId("story:b"),
+                survivingStoryId = StoryId("story:a"),
+                reversalEventId = "reversal:1",
+            ),
+        )
+        val engine = RecordingReviewEngine()
+        val service = reviewService(
+            cases = cases,
+            executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
+            clock = FakeClock(1_234),
+            engine = engine,
+            reversalExecutor = reversal,
+            identity = FixedIdentityRepository(StoryId("story:a"), revision = 12),
+            lineages = FixedLineageReader(lineage()),
+        )
+
+        val result = service.resolve(command(case, ReconciliationReviewAction.REVERSE))
+
+        assertEquals(
+            ReconciliationReviewResult.Reversed(StoryId("story:b"), StoryId("story:a")),
+            result,
+        )
+        assertEquals(
+            StoryMergeReverseRequest(
+                mergeEventId = "merge:historical",
+                expectedSurvivorIdentityRevision = 12,
+                expectedReconciliationCaseId = case.id,
+                expectedReconciliationCaseRevision = case.revision,
+            ),
+            reversal.requests.single(),
+        )
+        assertEquals(0, cases.mutationCount)
+        assertEquals(ReconciliationCaseStatus.PENDING, requireNotNull(cases.current).status)
+        assertEquals(listOf(StoryId("story:a") to StoryId("story:b")), engine.splits)
+    }
+
+    @Test
+    fun staleReversalPlanLeavesCorrectionPending() = runTest {
+        val case = reviewCase(mergeEligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED)
+        val cases = RecordingCases(case)
+        val service = reviewService(
+            cases = cases,
+            executor = RecordingMergeExecutor(StoryMergeResult.Merged(StoryId("story:a"), "unused")),
+            clock = FakeClock(1_000),
+            reversalExecutor = RecordingReversalExecutor(StoryMergeReverseResult.StalePlan),
+            identity = FixedIdentityRepository(StoryId("story:a"), revision = 2),
+            lineages = FixedLineageReader(lineage()),
+        )
+
+        assertEquals(
+            ReconciliationReviewResult.StaleCase,
+            service.resolve(command(case, ReconciliationReviewAction.REVERSE)),
+        )
+        assertEquals(0, cases.mutationCount)
+        assertEquals(ReconciliationCaseStatus.PENDING, requireNotNull(cases.current).status)
+    }
+
+    private fun lineage() = StoryMergeLineage(
+        mergeEventId = "merge:historical",
+        survivorStoryId = StoryId("story:a"),
+        retiredStoryId = StoryId("story:b"),
+        reconciliationCaseId = "case:old",
+        survivorSourceKeysBefore = setOf(SourceKey(PluginId("plugin:a"), "source:a")),
+        retiredSourceKeysBefore = setOf(SourceKey(PluginId("plugin:b"), "source:b")),
+        mergedAtEpochMillis = 100,
+    )
+
     private fun command(
         case: ReconciliationCase,
         action: ReconciliationReviewAction,
@@ -418,12 +556,30 @@ class ReconciliationReviewServiceTest {
         executor: StoryMergeExecutor,
         clock: Clock,
         engine: RecordingReviewEngine = RecordingReviewEngine(),
-    ): ReconciliationReviewService = ReconciliationReviewService(cases, executor, clock, engine)
+        reversalPlanner: StoryMergeReversalPlanner = StoryMergeReversalPlanner {
+            StoryMergeReversalAssessmentResult.NotFound
+        },
+        reversalExecutor: StoryMergeReversalExecutor = StoryMergeReversalExecutor {
+            StoryMergeReverseResult.NotFound
+        },
+        identity: StoryIdentityRepository? = null,
+        lineages: StoryMergeLineageReader = EmptyStoryMergeLineageReader,
+    ): ReconciliationReviewService = ReconciliationReviewService(
+        cases = cases,
+        mergeExecutor = executor,
+        clock = clock,
+        orchestrator = engine,
+        reversalPlanner = reversalPlanner,
+        reversalExecutor = reversalExecutor,
+        identity = identity,
+        lineages = lineages,
+    )
 
     private class RecordingReviewEngine(
         private val failOnMerge: Boolean = false,
     ) : CanonicalEngineEventSink {
         val merged = mutableListOf<StoryId>()
+        val splits = mutableListOf<Pair<StoryId, StoryId>>()
 
         override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = Unit
         override suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey) = Unit
@@ -435,6 +591,10 @@ class ReconciliationReviewServiceTest {
             merged += storyId
             if (failOnMerge) error("post-merge orchestration failed")
             return CanonicalFusionResult.Preparing(storyId)
+        }
+
+        override suspend fun onStorySplit(survivingStoryId: StoryId, restoredStoryId: StoryId) {
+            splits += survivingStoryId to restoredStoryId
         }
     }
 
@@ -535,6 +695,44 @@ class ReconciliationReviewServiceTest {
             )
             return true
         }
+    }
+
+    private class RecordingReversalPlanner(
+        private val result: StoryMergeReversalAssessmentResult,
+    ) : StoryMergeReversalPlanner {
+        val requests = mutableListOf<StoryMergeReverseRequest>()
+
+        override suspend fun assess(request: StoryMergeReverseRequest): StoryMergeReversalAssessmentResult {
+            requests += request
+            return result
+        }
+    }
+
+    private class RecordingReversalExecutor(
+        private val result: StoryMergeReverseResult,
+    ) : StoryMergeReversalExecutor {
+        val requests = mutableListOf<StoryMergeReverseRequest>()
+
+        override suspend fun reverse(request: StoryMergeReverseRequest): StoryMergeReverseResult {
+            requests += request
+            return result
+        }
+    }
+
+    private class FixedIdentityRepository(
+        private val resolvedStoryId: StoryId,
+        private val revision: Long,
+    ) : StoryIdentityRepository {
+        override fun observeResolved(storyId: StoryId): Flow<StoryId> = flowOf(resolvedStoryId)
+        override suspend fun resolve(storyId: StoryId): StoryId = resolvedStoryId
+        override suspend fun identityState(storyId: StoryId): CanonicalIdentityState? =
+            CanonicalIdentityState(resolvedStoryId, revision, createdAtEpochMillis = 1)
+    }
+
+    private class FixedLineageReader(
+        private vararg val lineages: StoryMergeLineage,
+    ) : StoryMergeLineageReader {
+        override suspend fun lineagesFor(storyId: StoryId): List<StoryMergeLineage> = lineages.toList()
     }
 
     private class RecordingMergeExecutor(private val result: StoryMergeResult) : StoryMergeExecutor {

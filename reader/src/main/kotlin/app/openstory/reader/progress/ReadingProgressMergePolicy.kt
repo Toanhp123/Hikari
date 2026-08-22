@@ -5,12 +5,30 @@ import app.openstory.common.id.StoryId
 import app.openstory.common.merge.DomainMergeDecision
 
 const val READING_PROGRESS_UNSAFE_CONFLICT = "reading_progress.unsafe_conflict"
+const val READING_PROGRESS_REVERSAL_STATE_CHANGED = "reading_progress.reversal_state_changed"
 
 data class ReadingProgressMergePlan(
     val progressRows: List<ReadingProgress>,
 )
 
 class ReadingProgressMergePolicy {
+    fun reversalBlockers(
+        survivorStoryId: StoryId,
+        current: List<ReadingProgress>,
+        survivorBefore: List<ReadingProgress>,
+        retiredBefore: List<ReadingProgress>,
+    ): Set<String> {
+        val expected = when (val decision = plan(survivorStoryId, survivorBefore, retiredBefore)) {
+            is DomainMergeDecision.Ready -> decision.value.progressRows.toSet()
+            is DomainMergeDecision.RequiresReview -> null
+        }
+        return if (expected != null && current.toSet() == expected) {
+            emptySet()
+        } else {
+            setOf(READING_PROGRESS_REVERSAL_STATE_CHANGED)
+        }
+    }
+
     fun plan(
         survivorStoryId: StoryId,
         left: List<ReadingProgress>,

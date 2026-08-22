@@ -63,6 +63,18 @@ internal interface ChapterDao {
     @Query("UPDATE chapter_releases SET story_id = :survivorStoryId WHERE story_id = :retiredStoryId")
     suspend fun moveReleaseOwnership(retiredStoryId: String, survivorStoryId: String): Int
 
+    @Query(
+        "UPDATE canonical_chapters SET story_id = :newStoryId WHERE canonical_chapter_id = :chapterId " +
+            "AND story_id = :expectedStoryId",
+    )
+    suspend fun moveChapter(chapterId: String, expectedStoryId: String, newStoryId: String): Int
+
+    @Query(
+        "UPDATE chapter_releases SET story_id = :newStoryId WHERE chapter_release_id = :releaseId " +
+            "AND story_id = :expectedStoryId",
+    )
+    suspend fun moveRelease(releaseId: String, expectedStoryId: String, newStoryId: String): Int
+
     @Query("DELETE FROM chapter_aggregation_overrides WHERE story_id IN (:storyIds)")
     suspend fun deleteOverridesForStories(storyIds: Collection<String>): Int
 

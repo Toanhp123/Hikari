@@ -43,6 +43,7 @@ fun ReconciliationReviewScreen(
     state: ReconciliationReviewUiState,
     onBack: () -> Unit,
     onMerge: (String, Long) -> Unit,
+    onReverse: (String, Long) -> Unit = { _, _ -> },
     onKeepSeparate: (String, Long) -> Unit,
     onDefer: (String, Long) -> Unit,
     onProtectedMappingSelected: (PluginId, String) -> Unit,
@@ -56,7 +57,7 @@ fun ReconciliationReviewScreen(
             contentPadding = contentPadding,
             header = { HikariFocusedHeader("Review duplicates", onBack) },
         ) { bodyPadding ->
-            ReviewQueueContent(state, bodyPadding, onMerge, onKeepSeparate, onDefer)
+            ReviewQueueContent(state, bodyPadding, onMerge, onReverse, onKeepSeparate, onDefer)
         }
     }
     state.protectedConflict?.let { conflict ->
@@ -75,13 +76,14 @@ private fun ReviewQueueContent(
     state: ReconciliationReviewUiState,
     bodyPadding: PaddingValues,
     onMerge: (String, Long) -> Unit,
+    onReverse: (String, Long) -> Unit,
     onKeepSeparate: (String, Long) -> Unit,
     onDefer: (String, Long) -> Unit,
 ) {
     if (state.items.isEmpty()) {
         EmptyReviewQueue(state.failureMessage, bodyPadding)
     } else {
-        ReviewQueueList(state, bodyPadding, onMerge, onKeepSeparate, onDefer)
+        ReviewQueueList(state, bodyPadding, onMerge, onReverse, onKeepSeparate, onDefer)
     }
 }
 
@@ -107,6 +109,7 @@ private fun ReviewQueueList(
     state: ReconciliationReviewUiState,
     bodyPadding: PaddingValues,
     onMerge: (String, Long) -> Unit,
+    onReverse: (String, Long) -> Unit,
     onKeepSeparate: (String, Long) -> Unit,
     onDefer: (String, Long) -> Unit,
 ) {
@@ -126,6 +129,7 @@ private fun ReviewQueueList(
                 item = item,
                 resolving = state.resolvingCaseId == item.caseId,
                 onMerge = { onMerge(item.caseId, item.caseRevision) },
+                onReverse = { onReverse(item.caseId, item.caseRevision) },
                 onKeepSeparate = { onKeepSeparate(item.caseId, item.caseRevision) },
                 onDefer = { onDefer(item.caseId, item.caseRevision) },
             )
@@ -151,6 +155,7 @@ private fun ReconciliationReviewCard(
     item: ReconciliationReviewItemUiModel,
     resolving: Boolean,
     onMerge: () -> Unit,
+    onReverse: () -> Unit,
     onKeepSeparate: () -> Unit,
     onDefer: () -> Unit,
 ) {
@@ -178,7 +183,9 @@ private fun ReconciliationReviewCard(
                 color = MaterialTheme.colorScheme.primary,
             )
             HikariMetadataBadgeGroup(item.reasonLabels)
-            if (!item.mergeAllowed) {
+            if (item.isPostMergeCorrection) {
+                ReversalStatus(item)
+            } else if (!item.mergeAllowed) {
                 Text(
                     "These records cannot be merged until the blocking identity conflict changes.",
                     color = MaterialTheme.colorScheme.error,
@@ -189,13 +196,38 @@ private fun ReconciliationReviewCard(
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             ) {
-                if (item.mergeAllowed) {
-                    HikariPrimaryAction(onClick = onMerge, enabled = !resolving) { Text("Merge") }
+                when {
+                    item.isPostMergeCorrection && item.reverseAllowed ->
+                        HikariPrimaryAction(onClick = onReverse, enabled = !resolving) { Text("Reverse safely") }
+                    !item.isPostMergeCorrection && item.mergeAllowed ->
+                        HikariPrimaryAction(onClick = onMerge, enabled = !resolving) { Text("Merge") }
                 }
-                HikariInlineAction(onClick = onKeepSeparate, enabled = !resolving) { Text("Keep separate") }
+                if (!item.isPostMergeCorrection) {
+                    HikariInlineAction(onClick = onKeepSeparate, enabled = !resolving) { Text("Keep separate") }
+                }
                 HikariInlineAction(onClick = onDefer, enabled = !resolving) { Text("Later") }
             }
         }
+    }
+}
+
+@Composable
+private fun ReversalStatus(item: ReconciliationReviewItemUiModel) {
+    Text(
+        text = if (item.reverseAllowed) {
+            "This correction can safely restore the historical split."
+        } else {
+            "Automatic reversal is blocked because the merged graph changed after the merge."
+        },
+        color = if (item.reverseAllowed) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.error
+        },
+        style = MaterialTheme.typography.bodySmall,
+    )
+    if (item.reversalBlockerLabels.isNotEmpty()) {
+        HikariMetadataBadgeGroup(item.reversalBlockerLabels)
     }
 }
 

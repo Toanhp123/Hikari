@@ -7,6 +7,7 @@ import app.openstory.library.mapping.ContentMappingRejection
 
 const val CONTENT_MAPPING_PROTECTED_CONFLICT = "content_mapping.protected_conflict"
 const val CONTENT_MAPPING_RESOLUTION_INVALID = "content_mapping.resolution_invalid"
+const val CONTENT_MAPPING_REVERSAL_STATE_CHANGED = "content_mapping.reversal_state_changed"
 
 data class ContentMappingMergePlan(
     val mappings: List<ContentMapping>,
@@ -46,6 +47,59 @@ sealed interface ContentMappingMergeDecision {
 }
 
 class ContentMappingStoryMergePolicy {
+    fun reversalBlockers(
+        survivorId: StoryId,
+        currentMappings: List<ContentMapping>,
+        currentRejections: List<ContentMappingRejection>,
+        survivorBeforeMappings: List<ContentMapping>,
+        retiredBeforeMappings: List<ContentMapping>,
+        survivorBeforeRejections: List<ContentMappingRejection>,
+        retiredBeforeRejections: List<ContentMappingRejection>,
+    ): Set<String> {
+        val historicalMappings = survivorBeforeMappings + retiredBeforeMappings
+        val mappingsMatch = currentMappingsAreValidHistoricalMerge(survivorId, currentMappings, historicalMappings)
+        val expectedRejections = mergeRejections(
+            survivorId,
+            survivorBeforeRejections + retiredBeforeRejections,
+        ).toSet()
+        val rejectionsMatch = currentRejections.toSet() == expectedRejections
+        return if (mappingsMatch && rejectionsMatch) emptySet() else setOf(CONTENT_MAPPING_REVERSAL_STATE_CHANGED)
+    }
+
+    private fun currentMappingsAreValidHistoricalMerge(
+        survivorId: StoryId,
+        currentMappings: List<ContentMapping>,
+        historicalMappings: List<ContentMapping>,
+    ): Boolean {
+        val historicalByPlugin = historicalMappings.groupBy(ContentMapping::pluginId)
+        val currentByPlugin = currentMappings.groupBy(ContentMapping::pluginId)
+        val noUnexpectedPlugin = currentByPlugin.keys.all { it in historicalByPlugin }
+        return noUnexpectedPlugin && historicalByPlugin.all { (pluginId, historical) ->
+            validCurrentMappingGroup(
+                survivorId = survivorId,
+                historical = historical,
+                current = currentByPlugin[pluginId].orEmpty(),
+            )
+        }
+    }
+
+    private fun validCurrentMappingGroup(
+        survivorId: StoryId,
+        historical: List<ContentMapping>,
+        current: List<ContentMapping>,
+    ): Boolean {
+        val protected = historical.filter { it.origin.isProtected }
+        val protectedTargets = protected.map(ContentMapping::sourceStoryId).distinct()
+        val automatedTargets = historical.map(ContentMapping::sourceStoryId).distinct()
+        val allowed = when {
+            protectedTargets.size > 1 -> null
+            protected.isNotEmpty() -> setOfNotNull(chooseStable(protected)?.copy(storyId = survivorId))
+            automatedTargets.size > 1 -> emptySet()
+            else -> setOfNotNull(chooseStable(historical)?.copy(storyId = survivorId))
+        }
+        return allowed != null && current.toSet() == allowed
+    }
+
     fun plan(
         survivorId: StoryId,
         leftMappings: List<ContentMapping>,

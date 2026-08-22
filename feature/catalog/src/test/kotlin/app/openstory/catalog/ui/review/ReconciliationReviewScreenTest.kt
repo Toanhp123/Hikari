@@ -97,4 +97,85 @@ class ReconciliationReviewScreenTest {
         compose.onNodeWithText("No duplicates to review").assertIsDisplayed()
     }
 
+    @Test
+    fun reversiblePostMergeCorrectionOffersReverseInsteadOfKeepSeparate() {
+        compose.setContent {
+            HikariTheme {
+                ReconciliationReviewScreen(
+                    state = ReconciliationReviewUiState(
+                        items = listOf(
+                            correctionItem(reverseAllowed = true),
+                        ),
+                    ),
+                    onBack = {},
+                    onMerge = { _, _ -> },
+                    onReverse = { _, _ -> },
+                    onKeepSeparate = { _, _ -> },
+                    onDefer = { _, _ -> },
+                    onProtectedMappingSelected = { _, _ -> },
+                    onConfirmProtectedMerge = {},
+                    onDismissProtectedConflict = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Reverse safely").assertIsDisplayed()
+        compose.onNodeWithText("This correction can safely restore the historical split.").assertIsDisplayed()
+        compose.onNodeWithText("Keep separate").assertDoesNotExist()
+        compose.onNodeWithText("Merge").assertDoesNotExist()
+    }
+
+    @Test
+    fun blockedPostMergeCorrectionShowsBlockerAndNeverOffersFalseSeparateAction() {
+        compose.setContent {
+            HikariTheme {
+                ReconciliationReviewScreen(
+                    state = ReconciliationReviewUiState(
+                        items = listOf(
+                            correctionItem(
+                                reverseAllowed = false,
+                                blockerLabels = listOf("Story merge reversal graph changed"),
+                            ),
+                        ),
+                    ),
+                    onBack = {},
+                    onMerge = { _, _ -> },
+                    onReverse = { _, _ -> },
+                    onKeepSeparate = { _, _ -> },
+                    onDefer = { _, _ -> },
+                    onProtectedMappingSelected = { _, _ -> },
+                    onConfirmProtectedMerge = {},
+                    onDismissProtectedConflict = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Automatic reversal is blocked because the merged graph changed after the merge.")
+            .assertIsDisplayed()
+        compose.onNodeWithText("Story merge reversal graph changed").assertIsDisplayed()
+        compose.onNodeWithText("Reverse safely").assertDoesNotExist()
+        compose.onNodeWithText("Keep separate").assertDoesNotExist()
+    }
+
+    private fun correctionItem(
+        reverseAllowed: Boolean,
+        blockerLabels: List<String> = emptyList(),
+    ) = ReconciliationReviewItemUiModel(
+        caseId = "case-correction",
+        caseRevision = 2,
+        leftStoryId = StoryId("left"),
+        rightStoryId = StoryId("right"),
+        leftTitle = "Left story",
+        rightTitle = "Right story",
+        leftCoverUrl = null,
+        rightCoverUrl = null,
+        confidence = 0.95,
+        reasonLabels = listOf("Identity evidence changed"),
+        mergeAllowed = false,
+        userStateImpact = 1,
+        isPostMergeCorrection = true,
+        reverseAllowed = reverseAllowed,
+        reversalBlockerLabels = blockerLabels,
+    )
+
 }

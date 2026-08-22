@@ -17,6 +17,9 @@ data class ReconciliationReviewItemUiModel(
     val reasonLabels: List<String>,
     val mergeAllowed: Boolean,
     val userStateImpact: Int,
+    val isPostMergeCorrection: Boolean = false,
+    val reverseAllowed: Boolean = false,
+    val reversalBlockerLabels: List<String> = emptyList(),
 )
 
 data class ProtectedMappingConflictUiModel(

@@ -184,6 +184,7 @@ internal fun ReconciliationReviewDestination(
         state = state,
         onBack = onBack,
         onMerge = viewModel::merge,
+        onReverse = viewModel::reverse,
         onKeepSeparate = viewModel::keepSeparate,
         onDefer = viewModel::defer,
         onProtectedMappingSelected = viewModel::selectProtectedMapping,

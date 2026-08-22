@@ -106,6 +106,25 @@ class ContentMappingStoryMergePolicyTest {
     }
 
     @Test
+    fun reversalRequiresReviewWhenHistoricalProtectedConflictNeededAnUnrecordedResolution() {
+        val left = mapping("story:a", "x", ContentMappingOrigin.USER_APPROVED, 10)
+        val right = mapping("story:b", "y", ContentMappingOrigin.USER_URL, 20)
+        val current = listOf(left.copy(storyId = survivor))
+
+        val blockers = policy.reversalBlockers(
+            survivorId = survivor,
+            currentMappings = current,
+            currentRejections = emptyList(),
+            survivorBeforeMappings = listOf(left),
+            retiredBeforeMappings = listOf(right),
+            survivorBeforeRejections = emptyList(),
+            retiredBeforeRejections = emptyList(),
+        )
+
+        assertEquals(setOf(CONTENT_MAPPING_REVERSAL_STATE_CHANGED), blockers)
+    }
+
+    @Test
     fun duplicateResolutionForOnePluginIsRejected() {
         val result = assertIs<ContentMappingMergeDecision.RequiresReview>(
             policy.plan(

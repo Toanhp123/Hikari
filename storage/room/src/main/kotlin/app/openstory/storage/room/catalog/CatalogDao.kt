@@ -81,6 +81,17 @@ internal interface CatalogDao {
     @Query("UPDATE catalog_entries SET story_id = :survivorStoryId WHERE story_id = :retiredStoryId")
     suspend fun moveEntries(retiredStoryId: String, survivorStoryId: String): Int
 
+    @Query(
+        "UPDATE catalog_entries SET story_id = :newStoryId WHERE plugin_id = :pluginId AND source_id = :sourceId " +
+            "AND story_id = :expectedStoryId",
+    )
+    suspend fun moveEntry(
+        pluginId: String,
+        sourceId: String,
+        expectedStoryId: String,
+        newStoryId: String,
+    ): Int
+
     @Query("DELETE FROM stories WHERE story_id = :storyId")
     suspend fun deleteStory(storyId: String): Int
 }
