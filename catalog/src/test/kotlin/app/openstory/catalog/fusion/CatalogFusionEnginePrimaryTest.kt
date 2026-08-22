@@ -90,6 +90,22 @@ class CatalogFusionEnginePrimaryTest {
     }
 
     @Test
+    fun rankedEligibleSourceKeysUsesSameEffectivePrimaryAndExcludesUnavailableSources() {
+        val current = source("provider.z", coverage = 3)
+        val marginallyBetter = source("provider.a", coverage = 4)
+        val unavailable = source("provider.best", coverage = 9, usability = CatalogSourceUsability.UNAVAILABLE)
+        val input = input(
+            sources = listOf(marginallyBetter, unavailable, current),
+            previous = generation(current.sourceKey),
+        )
+
+        assertEquals(
+            listOf(current.sourceKey, marginallyBetter.sourceKey),
+            CatalogFusionEngine().rankedEligibleSourceKeys(input),
+        )
+    }
+
+    @Test
     fun pinUsesUsableSourceFallsBackWithoutDeletingPinAndReturnsWhenUsableAgain() {
         val automatic = source("provider.auto", coverage = 8)
         val pinned = source("provider.pin", coverage = 1)

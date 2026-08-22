@@ -10,6 +10,7 @@ import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.Clock
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
+import app.openstory.catalog.reconciliation.StoryMergeLineageReader
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 import app.openstory.storage.room.OpenStoryDatabase
@@ -19,6 +20,7 @@ import app.openstory.storage.room.catalog.RoomCatalogStoryProjectionRepository
 import app.openstory.storage.room.catalog.RoomCanonicalCatalogRepository
 import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
 import app.openstory.storage.room.merge.RoomStoryGraphMergeCoordinator
+import app.openstory.storage.room.merge.RoomStoryMergeLineageReader
 import app.openstory.storage.room.merge.RoomStoryUserStateFootprintReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineWorkRepository
 import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
@@ -69,6 +71,11 @@ object StorageModule {
     @Singleton
     fun provideReconciliationCaseRepository(database: OpenStoryDatabase): ReconciliationCaseRepository =
         RoomReconciliationCaseRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideStoryMergeLineageReader(database: OpenStoryDatabase): StoryMergeLineageReader =
+        RoomStoryMergeLineageReader(database)
 
     @Provides
     @Singleton

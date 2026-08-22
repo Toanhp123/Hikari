@@ -17,6 +17,7 @@ import app.openstory.catalog.reconciliation.InMemoryCatalogCandidateIndex
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.catalog.reconciliation.ReconciliationExecutionMode
 import app.openstory.catalog.reconciliation.ReconciliationPolicy
+import app.openstory.catalog.reconciliation.StoryMergeLineageReader
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
@@ -70,6 +71,7 @@ object CatalogModule {
         executionMode: ReconciliationExecutionMode,
         mergeExecutor: StoryMergeExecutor,
         work: CanonicalEngineWorkRepository,
+        lineageReader: StoryMergeLineageReader,
     ): CatalogReconciliationService = CatalogReconciliationService(
         catalog = catalog,
         identity = identity,
@@ -80,6 +82,7 @@ object CatalogModule {
         executionMode = executionMode,
         mergeExecutor = mergeExecutor,
         work = work,
+        lineageReader = lineageReader,
     )
 
     @Provides

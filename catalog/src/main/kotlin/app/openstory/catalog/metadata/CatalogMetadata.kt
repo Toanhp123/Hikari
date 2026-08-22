@@ -39,6 +39,11 @@ data class CatalogMetadataSnapshot(
     val full: CatalogMetadataStamp?,
 )
 
+interface CatalogMetadataAccess {
+    suspend fun require(key: CatalogMetadataKey, level: CatalogMetadataLevel): CatalogMetadataResult
+    suspend fun refresh(key: CatalogMetadataKey, level: CatalogMetadataLevel): CatalogMetadataResult
+}
+
 sealed interface CatalogMetadataResult {
     data class Ready(
         val storyId: StoryId,

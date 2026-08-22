@@ -52,11 +52,27 @@ data class CanonicalGenerationCandidate(
 )
 
 class CatalogFusionEngine {
+    fun rankedEligibleSourceKeys(input: FusionInput): List<SourceKey> {
+        val ranked = input.sources.sortedWith(primaryQualityComparator)
+        val effectivePrimary = effectivePrimary(input, ranked)
+        val eligible = ranked.filter(FusionSource::isEffectivePrimaryEligible)
+        return if (eligible.isEmpty()) {
+            emptyList()
+        } else {
+            buildList {
+                effectivePrimary?.takeIf { key -> eligible.any { it.sourceKey == key } }?.let(::add)
+                eligible.asSequence()
+                    .map(FusionSource::sourceKey)
+                    .filterNot { it == effectivePrimary }
+                    .forEach(::add)
+            }
+        }
+    }
+
     fun fuse(input: FusionInput): CanonicalGenerationCandidate {
         require(input.sources.isNotEmpty()) { "Canonical fusion requires at least one source" }
         val ranked = input.sources.sortedWith(primaryQualityComparator)
-        val effectivePrimary = selectPinnedPrimary(input, ranked)
-            ?: selectAutomaticPrimary(input.previousGeneration, ranked)
+        val effectivePrimary = effectivePrimary(input, ranked)
             ?: error("Canonical fusion requires at least one source")
 
         val provenance = linkedMapOf<CanonicalFieldKey, CanonicalFieldProvenance>()
@@ -142,6 +158,10 @@ class CatalogFusionEngine {
             sourceContentTypes = ranked.associate { it.sourceKey to it.record.entry.contentType },
         )
     }
+
+    private fun effectivePrimary(input: FusionInput, ranked: List<FusionSource>): SourceKey? =
+        selectPinnedPrimary(input, ranked)
+            ?: selectAutomaticPrimary(input.previousGeneration, ranked)
 
     private fun selectPinnedPrimary(input: FusionInput, ranked: List<FusionSource>): SourceKey? =
         input.preference

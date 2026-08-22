@@ -1,5 +1,6 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.StoryMergeExecutor
@@ -48,6 +49,7 @@ class CatalogReconciliationService(
     private val executionMode: ReconciliationExecutionMode = ReconciliationExecutionMode.OBSERVE_ONLY,
     private val mergeExecutor: StoryMergeExecutor? = null,
     private val work: CanonicalEngineWorkRepository? = null,
+    private val lineageReader: StoryMergeLineageReader = EmptyStoryMergeLineageReader,
 ) : CatalogReconciliationRunner {
     init {
         require(
@@ -65,17 +67,21 @@ class CatalogReconciliationService(
         val canonicalStoryId = identity.resolve(changedRecord.storyId)
         val incoming = ReconciliationEvidenceFactory.fromRecord(changedRecord)
         val candidateStoryIds = shortlist(incoming)
-        val resolvedCandidateStoryIds = linkedSetOf<StoryId>()
-        candidateStoryIds.forEach { candidateStoryId ->
-            val resolved = identity.resolve(candidateStoryId)
-            if (resolved != canonicalStoryId) resolvedCandidateStoryIds += resolved
+        val correction = persistPostMergeCorrection(canonicalStoryId, incoming)
+        return if (correction != null) {
+            correction
+        } else {
+            val resolvedCandidateStoryIds = linkedSetOf<StoryId>()
+            candidateStoryIds.forEach { candidateStoryId ->
+                val resolved = identity.resolve(candidateStoryId)
+                if (resolved != canonicalStoryId) resolvedCandidateStoryIds += resolved
+            }
+            val candidates = resolvedCandidateStoryIds
+                .sortedBy(StoryId::value)
+                .flatMap { candidateStoryId -> catalog.sourceRecords(candidateStoryId) }
+                .map(ReconciliationEvidenceFactory::fromRecord)
+            persistDecision(canonicalStoryId, engine.rankCandidates(incoming, candidates))
         }
-        val candidates = resolvedCandidateStoryIds
-            .sortedBy(StoryId::value)
-            .flatMap { candidateStoryId -> catalog.sourceRecords(candidateStoryId) }
-            .map(ReconciliationEvidenceFactory::fromRecord)
-        val ranked = engine.rankCandidates(incoming, candidates)
-        return persistDecision(canonicalStoryId, ranked)
     }
 
     suspend fun reevaluateStory(storyId: StoryId): List<ReconciliationRunResult> {
@@ -101,6 +107,59 @@ class CatalogReconciliationService(
             candidateIndex.upsert(incoming)
         }
         candidateIndex.candidatesFor(incoming)
+    }
+
+    private suspend fun persistPostMergeCorrection(
+        currentStoryId: StoryId,
+        incoming: ReconciliationEvidence,
+    ): ReconciliationRunResult? {
+        val currentRecords = catalog.sourceRecords(currentStoryId).associateBy { it.key }
+        val lineages = lineageReader.lineagesFor(currentStoryId)
+            .sortedWith(compareByDescending<StoryMergeLineage> { it.mergedAtEpochMillis }.thenBy { it.mergeEventId })
+        val correction = lineages.asSequence()
+            .mapNotNull { lineage -> correctionForLineage(lineage, incoming, currentRecords) }
+            .firstOrNull()
+        if (correction == null) return null
+
+        val (lineage, assessment) = correction
+        val recorded = cases.recordAssessment(
+            lineage.historicalCaseKey(),
+            assessment,
+            clock.nowEpochMillis(),
+        )
+        return if (recorded == null) {
+            ReconciliationRunResult.NoIdentityChange
+        } else {
+            when (recorded.status) {
+                ReconciliationCaseStatus.PENDING -> ReconciliationRunResult.ReviewRecorded(recorded.id)
+                ReconciliationCaseStatus.RESOLVED_SEPARATE -> ReconciliationRunResult.Separated
+                ReconciliationCaseStatus.RESOLVED_MERGED,
+                ReconciliationCaseStatus.SUPERSEDED,
+                -> ReconciliationRunResult.NoIdentityChange
+            }
+        }
+    }
+
+    private fun correctionForLineage(
+        lineage: StoryMergeLineage,
+        incoming: ReconciliationEvidence,
+        currentRecords: Map<SourceKey, CatalogSourceRecord>,
+    ): Pair<StoryMergeLineage, ReconciliationAssessment>? {
+        val contradictory = lineage.oppositeSourceKeys(incoming.sourceKey)
+            .sortedWith(compareBy({ it.pluginId.value }, { it.sourceId }))
+            .asSequence()
+            .mapNotNull(currentRecords::get)
+            .map(ReconciliationEvidenceFactory::fromRecord)
+            .map { candidate -> candidate to engine.assessPair(incoming, candidate) }
+            .firstOrNull { (_, assessment) ->
+                assessment.mergeEligibility == ReconciliationMergeEligibility.INVARIANT_BLOCKED
+            }
+        return contradictory?.let { (_, assessment) ->
+            lineage to assessment.copy(
+                semanticDecision = ReconciliationSemanticDecision.REVIEW,
+                mergeEligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED,
+            )
+        }
     }
 
     private suspend fun persistDecision(

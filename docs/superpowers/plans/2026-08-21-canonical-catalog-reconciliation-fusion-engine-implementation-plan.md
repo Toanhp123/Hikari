@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-22:** Phases 0–5, Tasks 1–35, plus Phase-6 Task 36 are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 36 replaces direct Home/Details/Search reconciliation/Fusion routing with one `CanonicalEngineOrchestrator`, preserves reconcile-before-Fusion ordering when identity and presentation both change, re-resolves the canonical owner before Fusion, coalesces durable work, removes Story preference/Full-refresh Fusion bypasses, and keeps conditional `POST_MERGE_DERIVED` inside the authoritative Room merge transaction. User-approved merge notifies `onStoryMerged` only after durable success. Developer-checkout evidence includes green focused Catalog and feature unit gates, 47/47 selected Room connected tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` with 14 production modules, 1 android-test module, and stable Room schema 1..9. The accepted checkpoint is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-6-task-36.md`. Historical RED-watch and commit checkboxes remain execution-record details rather than current acceptance blockers. The narrow commit-to-callback process-death window remains explicit later recovery/outbox work rather than a Task-36 schema expansion. **Phase 6 Task 37 is now the active next task.**
+**Execution checkpoint — 2026-08-22:** Phases 0–6 / Tasks 1–38 are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Phase 6 centralizes committed evidence behind `CanonicalEngineOrchestrator`, adds one Story AUTO operation-level Full fallback that reuses Fusion ordering and never heals sparse successful payloads from another provider, and adds retroactive post-merge contradiction review through existing schema-9 merge lineage without automatic detach/split/reversal. Developer-checkout evidence for the final Phase-6 tree includes green focused Catalog and feature unit gates, 13/13 selected Task-38 Room connected tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` with stable Room schema export. The accepted phase checkpoint is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-6.md`; Task 36 retains its dedicated sub-checkpoint. Historical RED-watch and commit checkboxes remain execution-record details rather than acceptance blockers. The narrow commit-to-callback process-death window remains explicit later recovery/outbox work rather than a Phase-6 schema expansion. **Phase 7 Task 39 is now the active next task.**
 
 ## Global Constraints
 
@@ -4969,6 +4969,8 @@ git commit -m "feat: orchestrate canonical engine from evidence changes"
 
 ### Task 37: Extract one operation-level Full-metadata fallback service for Story AUTO lifecycle
 
+**Implementation amendment — 2026-08-22 (`VERIFIED — TASK 37 CLOSED`):** Task 37 reuses Fusion's exact effective-primary/eligible-source ordering by exposing `CatalogFusionEngine.rankedEligibleSourceKeys(FusionInput)` and reconstructing that input only from persisted canonical records, current preference, active generation, and `CatalogSourceAvailabilityResolver`. `CatalogFullMetadataFallbackService` uses a narrow `CatalogMetadataAccess` seam for tests while production injection remains `CatalogMetadataCoordinator`. Story AUTO Full runs only after `CanonicalBootstrapUseCase.ensureReady`; a fallback failure is best-effort enrichment and must not rewrite a successful canonical bootstrap into a Story failure. Any `Ready` Full result stops fallback even when optional fields are sparse, and its StoryId is resolved again after the Details commit because that same Full evidence may have triggered reconciliation/merge. Explicit Story refresh remains source-specific and Search remains Full/Details-network-free. No Room/schema change is part of Task 37.
+
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/details/CatalogFullMetadataFallbackService.kt`
 - Create: `catalog/src/test/kotlin/app/openstory/catalog/details/CatalogFullMetadataFallbackServiceTest.kt`
@@ -5138,9 +5140,13 @@ git add catalog/src/main/kotlin/app/openstory/catalog/details \
 git commit -m "feat: add story full metadata source fallback"
 ```
 
+**Execution status (2026-08-22): `VERIFIED — TASK 37 CLOSED`.** The final developer tree passes the focused Full-fallback/Fusion/reconciliation/Details/orchestration Catalog gate and the selected Story/review feature gate. AUTO fallback shares Fusion ordering, stops on any successful Full payload regardless of optional-field sparsity, keeps Search network-free and explicit refresh source-specific, and resolves redirects around successful Full persistence. The initial Kotlin constructor-delegation compile failure was corrected without changing DI semantics. Room remains schema 9.
+
 ---
 
 ### Task 38: Complete retroactive reconciliation after persisted evidence changes and schedule post-merge derived reconstruction
+
+**Implementation amendment — 2026-08-22 (`VERIFIED — TASK 38 CLOSED; PHASE 6 CLOSED`):** Task 36 already proved and owns the committed-evidence routing, identity-before-Fusion ordering, post-merge candidate-index invalidation, and atomic `FUSION_REBUILD` / `RECONCILIATION_REEVALUATION` / conditional `POST_MERGE_DERIVED` work marks, so Task 38 does not duplicate those mutations. The remaining gap is contradictory identity evidence that arrives after sources have already been merged under one canonical survivor. Task 38 adds a read-only `StoryMergeLineageReader` domain boundary and a Room adapter that recovers historical source sides from the existing schema-9 `story_merge_events.reversal_payload`; malformed/unsupported lineage fails closed so Task-36 orchestration can retain durable reevaluation rather than silently suppress correction. Reconciliation refreshes/upserts the candidate index before any correction early-return, compares the changed source only with historical opposite-side sources still owned by the survivor, and records/reopens the historical A/B case as `REVIEW + INVARIANT_BLOCKED` on hard contradiction. It never auto-detaches a source, auto-splits a Story, or auto-reverses a merge; controlled reversal remains Phase 7. No Room migration is introduced.
 
 **Files:**
 - Modify: `catalog/src/main/kotlin/app/openstory/catalog/reconciliation/CatalogReconciliationService.kt`
@@ -5255,6 +5261,8 @@ Candidate-index invalidation happens after the authoritative merge commit; the n
 git add catalog/src/main catalog/src/test storage/room/src/main storage/room/src/androidTest
 git commit -m "feat: complete retroactive canonical reconciliation"
 ```
+
+**Execution status (2026-08-22): `VERIFIED — TASK 38 CLOSED; PHASE 6 CLOSED`.** The accepted implementation keeps Task-36 identity-before-Fusion routing and Room-owned atomic post-merge work, refreshes the candidate index before correction detection, recovers historical merge sides through schema-9 lineage, and reopens hard post-merge contradictions as durable `REVIEW + INVARIANT_BLOCKED` without automatic detach/split/reversal. The selected Room integration gate passes 13/13 on Redmi Note 9S - 15. The final repository gate passes after correcting the test-only stale merge authorization fixture and removing four new `ReturnCount` plus one `MaxLineLength` Detekt finding by behavior-preserving refactor with no suppression. Accepted evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-6.md`. **Phase 7 Task 39 is next.**
 
 ---
 ## Phase 7 — Background Safety, Controlled Reversal, Observability, and Final Hardening

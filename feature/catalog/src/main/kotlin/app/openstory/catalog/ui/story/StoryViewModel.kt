@@ -8,6 +8,7 @@ import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.details.CatalogFullMetadataFallbackService
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
 import app.openstory.catalog.metadata.CatalogMetadataFailure
 import app.openstory.catalog.metadata.CatalogMetadataKey
@@ -45,6 +46,7 @@ class StoryViewModel @AssistedInject internal constructor(
     @Assisted private val assistedArgs: StoryAssistedArgs,
     private val canonical: CanonicalCatalogRepository,
     private val bootstrap: CanonicalBootstrapUseCase,
+    private val fullMetadata: CatalogFullMetadataFallbackService,
     private val metadata: CatalogMetadataCoordinator,
     private val orchestrator: CanonicalEngineEventSink,
     private val library: LibraryService,
@@ -73,13 +75,10 @@ class StoryViewModel @AssistedInject internal constructor(
         val inspection = selected?.takeIf { key -> rawSources.any { it.matches(key) } }
         StoryCatalogState(state, rawSources, inspection, busy, currentFailure)
     }
-
     private val resolvedStoryId = catalogState
         .map { catalog -> catalog.canonical?.story?.id ?: assistedArgs.storyId }
         .distinctUntilChanged()
-
     private val reconciliationUi = reconciliation.observe(resolvedStoryId)
-
     val state = combine(
         catalogState,
         personal,
@@ -106,11 +105,17 @@ class StoryViewModel @AssistedInject internal constructor(
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
         initialValue = StoryUiState(assistedArgs.storyId),
     )
-
     init {
         viewModelScope.launch {
             try {
                 bootstrap.ensureReady(assistedArgs.storyId)
+                try {
+                    fullMetadata.requireFull(assistedArgs.storyId)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (_: Exception) {
+                    // AUTO Full is best-effort after a successful canonical bootstrap.
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
@@ -118,7 +123,6 @@ class StoryViewModel @AssistedInject internal constructor(
             }
         }
     }
-
     fun selectInspectionSource(sourceKey: SourceKey?) {
         selectedSource.value = sourceKey
         failure.value = null

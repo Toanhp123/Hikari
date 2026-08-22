@@ -15,11 +15,16 @@ import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalSourceSummary
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.details.CatalogDetailsLoader
+import app.openstory.catalog.details.CatalogFullMetadataFallbackService
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.fusion.CanonicalFusionReason
+import app.openstory.catalog.fusion.CatalogFusionEngine
+import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.identity.CanonicalIdentityState
+import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataLevel
@@ -287,6 +292,7 @@ class StoryViewModelTest {
             .map { it.name }
 
         assertFalse(dependencies.any { it == CatalogRepository::class.java.name })
+        assertTrue(dependencies.any { it.endsWith("CatalogFullMetadataFallbackService") })
         assertFalse(dependencies.any { it.endsWith("CatalogFusionEngine") })
         assertFalse(dependencies.any { it.endsWith("CanonicalFusionService") })
     }
@@ -321,10 +327,19 @@ class StoryViewModelTest {
             clock = clock,
             processScope = backgroundScope,
         )
+        val identity = StoryViewModelIdentityRepository(canonical)
+        val fullMetadata = CatalogFullMetadataFallbackService(
+            canonical = canonical,
+            metadata = metadata,
+            fusion = CatalogFusionEngine(),
+            availability = CatalogSourceAvailabilityResolver(registry, CatalogMetadataPolicy(clock)),
+            identity = identity,
+        )
         return StoryViewModel(
             StoryAssistedArgs(storyId),
             canonical,
             CanonicalBootstrapUseCase(canonical, rebuilder),
+            fullMetadata,
             metadata,
             engine,
             LibraryService(FakeLibraryRepository(), clock, NoOpMappingScheduler),
@@ -339,6 +354,14 @@ class StoryViewModelTest {
             backgroundScope.launch { viewModel.state.collect {} }
         }
     }
+}
+
+private class StoryViewModelIdentityRepository(
+    private val canonical: FakeCanonicalRepository,
+) : StoryIdentityRepository {
+    override fun observeResolved(storyId: StoryId): Flow<StoryId> = flowOf(canonical.current().story.id)
+    override suspend fun resolve(storyId: StoryId): StoryId = canonical.current().story.id
+    override suspend fun identityState(storyId: StoryId): CanonicalIdentityState? = null
 }
 
 private class RecordingStoryEngineEventSink : CanonicalEngineEventSink {
