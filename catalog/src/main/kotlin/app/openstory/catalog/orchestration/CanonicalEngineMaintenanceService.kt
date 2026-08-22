@@ -1,5 +1,7 @@
 package app.openstory.catalog.orchestration
 
+import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
+import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION
@@ -24,7 +26,7 @@ class CanonicalEngineMaintenanceService @Inject constructor(
     private val identity: StoryIdentityRepository,
     private val reader: CanonicalEngineMaintenanceReader,
     derived: PostMergeDerivedWorkDispatcher,
-    health: CanonicalMaintenanceHealthMarker,
+    observability: CanonicalMaintenanceObservability,
     clock: Clock,
 ) {
     private val mutex = Mutex()
@@ -35,10 +37,11 @@ class CanonicalEngineMaintenanceService @Inject constructor(
         identity = identity,
         reader = reader,
         derived = derived,
-        health = health,
+        health = observability.health,
         clock = clock,
     )
-    private val healthMarker = health
+    private val healthMarker = observability.health
+    private val diagnostics = observability.diagnostics
 
     suspend fun drainReady(limit: Int): CanonicalMaintenanceReport {
         require(limit > 0)
@@ -54,15 +57,16 @@ class CanonicalEngineMaintenanceService @Inject constructor(
         require(limit > 0)
         return mutex.withLock {
             requeueRecoverablePolicyBlocksLocked(limit)
-            val redirectIssues = reader.redirectInconsistencies(limit)
-            redirectIssues.forEach { issue ->
+            val invariantIssues = reader.invariantIssues(limit)
+            invariantIssues.forEach { issue ->
                 issue.storyId?.let { storyId -> markResolvedOwnerDegradedBestEffort(storyId) }
+                recordInvariantViolation(issue)
             }
             val policyResult = enqueuePolicyReevaluationLocked(limit)
             val pendingCaseInvariantFailures = enqueueChangedPendingCasesLocked(limit)
             val drained = queue.drainReady(limit)
             drained.copy(
-                failedInvariant = drained.failedInvariant + redirectIssues.size +
+                failedInvariant = drained.failedInvariant + invariantIssues.size +
                     policyResult.invariantFailures + pendingCaseInvariantFailures,
             )
         }
@@ -222,6 +226,21 @@ class CanonicalEngineMaintenanceService @Inject constructor(
         fusionPolicyVersion?.let { it > FUSION_POLICY_VERSION } == true ||
             primarySelectionPolicyVersion?.let { it > PRIMARY_SELECTION_POLICY_VERSION } == true ||
             reconciliationPolicyVersions.any { it > RECONCILIATION_POLICY_VERSION }
+
+    private fun recordInvariantViolation(issue: CanonicalMaintenanceInvariantIssue) {
+        diagnostics.record(
+            CanonicalDecisionTrace(
+                kind = CanonicalTraceKind.INVARIANT_VIOLATION,
+                storyIds = buildSet {
+                    issue.storyId?.let(::add)
+                    addAll(issue.relatedStoryIds)
+                },
+                sourceKeys = issue.sourceKeys,
+                reasonCodes = listOf(issue.code),
+                field = issue.field,
+            ),
+        )
+    }
 
     private suspend fun markResolvedOwnerDegradedBestEffort(storyId: StoryId) {
         val owner = try {

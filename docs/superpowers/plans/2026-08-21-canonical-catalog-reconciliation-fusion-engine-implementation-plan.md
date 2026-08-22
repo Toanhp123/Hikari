@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-22:** Phases 0–6 / Tasks 1–38 and **Phase 7 Tasks 39–40** are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 39 adds app-owned background maintenance over the durable canonical-engine work table. Task 40 adds controlled, fail-closed merge reversal using the existing schema-9 audit foundation: exact correction/identity revisions, per-domain reversibility proof, one atomic split + review-resolution transaction, monotonic revisions, generation detachment, reversal audit, and Fusion/Reconciliation dirty work for both restored Stories. Developer-checkout acceptance includes the focused Catalog/Library/Chapters/Reader/Feature gates, 17/17 selected Task-40 Room reversal tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` after the Task-40 Detekt cleanup. Accepted Task-40 evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-40.md`; Task-39 evidence remains in its own checkpoint. Historical RED-watch and commit checkboxes remain execution-record details rather than acceptance blockers. **Phase 7 Task 41 observability/diagnostics is now the active next task.**
+**Execution checkpoint — 2026-08-23:** Phases 0–6 / Tasks 1–38 and **Phase 7 Tasks 39–41** are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 39 adds app-owned background maintenance over the durable canonical-engine work table, Task 40 adds controlled fail-closed merge reversal, and Task 41 adds bounded structured decision traces/invariant diagnostics while preserving pure policy engines, fail-open observability, and the existing persistent canonical truth. Developer-checkout acceptance for Task 41 includes the focused Catalog diagnostics/reconciliation/fusion/maintenance gate, 17/17 selected Room diagnostics/maintenance/merge tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` after behavior-preserving Detekt cleanup. Accepted Task-41 evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md`; Task-39/40 evidence remains in their own checkpoints. Historical RED-watch and commit checkboxes remain execution-record details rather than acceptance blockers. **Phase 7 Task 42 final governance/docs and acceptance matrix is now the active next task.**
 
 ## Global Constraints
 
@@ -5492,7 +5492,7 @@ Reversal safety is intentionally narrower than comparing the complete `postMerge
 
 The original file list above is therefore amended to include the Room reversal parser/planner/writer/preparation files, exact DAO restore helpers, `RoomReconciliationCaseRepository`, app DI, `ReconciliationReviewService`, Review Queue UI state/screen/tests, the contextual reconciliation controller guard, canonical split wakeup, and the existing domain policy files required to prove lossless restoration. No Task-41 diagnostics behavior is included.
 
-**Developer verification status — 2026-08-22: `VERIFIED — TASK 40 CLOSED`.** The accepted Task-40 tree passes the focused Catalog review-service gate, Library mapping/state reversal-policy gates, Chapters and Reader reversal-policy gates, Review Queue ViewModel/Screen gates, and 17/17 selected `RoomStoryMergeReversalCoordinatorTest` cases on Redmi Note 9S - 15. The final canonical `./scripts/verify.sh` is green after removing the last Task-40 Detekt errors by behavior-preserving formatting/condition extraction only; Room remains schema 9. The verification-fix history and accepted residual boundary are recorded in `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-40.md`. **Task 41 is the active next task.**
+**Developer verification status — 2026-08-22: `VERIFIED — TASK 40 CLOSED`.** The accepted Task-40 tree passes the focused Catalog review-service gate, Library mapping/state reversal-policy gates, Chapters and Reader reversal-policy gates, Review Queue ViewModel/Screen gates, and 17/17 selected `RoomStoryMergeReversalCoordinatorTest` cases on Redmi Note 9S - 15. The final canonical `./scripts/verify.sh` is green after removing the last Task-40 Detekt errors by behavior-preserving formatting/condition extraction only; Room remains schema 9. The verification-fix history and accepted residual boundary are recorded in `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-40.md`. Task 41 is now separately verified/closed; **Task 42 is the active next task.**
 
 - [ ] **Step 1: Write RED simple-lossless reversal test**
 
@@ -5570,6 +5570,12 @@ git commit -m "feat: add controlled canonical merge reversal"
 
 ### Task 41: Add structured decision traces and invariant diagnostics without creating a second truth store
 
+**Execution status:** `VERIFIED — TASK 41 CLOSED`
+
+**Implementation amendment — 2026-08-23:** The accepted implementation follows the service-boundary observability design rather than injecting side-effecting sinks into pure policy engines. `CatalogFusionEngine` and reconciliation policy remain deterministic; the engine exposes only bounded decision metadata where needed (for example `PrimarySelectionDecision`), while `CanonicalFusionService`, reconciliation services, Room merge/reconciliation owners, and maintenance orchestration record traces at the boundary where the outcome or transition is actually known. `CanonicalDiagnostics` bounds/sanitizes trace content and swallows sink failures, debug app composition uses a safe Logcat sink, and non-debug composition uses the no-op sink. No diagnostics table, event-sourced canonical state, Room migration, UI console, or generic telemetry framework was introduced.
+
+The accepted file scope is broader than the original sketch only where required to preserve those ownership boundaries: `CanonicalFusionService`, `CatalogReconciliationService`, `RoomReconciliationCaseRepository`, `CanonicalEngineMaintenanceDao` / `RoomCanonicalEngineMaintenanceReader`, app diagnostics DI, and focused Room instrumentation tests participate. `CanonicalDecisionTrace` also carries optional `CanonicalFieldKey` so field-fusion decisions remain explainable without payload dumps.
+
 **Files:**
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/diagnostics/CanonicalDecisionTrace.kt`
 - Create: `catalog/src/main/kotlin/app/openstory/catalog/diagnostics/CanonicalDiagnostics.kt`
@@ -5609,7 +5615,7 @@ fun interface CanonicalDiagnosticsSink {
 
 The persistent domain audit remains cases/generations/merge events. Diagnostics is observability, not an event-sourced canonical state.
 
-- [ ] **Step 1: Write RED trace-content tests**
+- [x] **Step 1: Write RED trace-content tests**
 
 Assert traces can answer:
 
@@ -5624,22 +5630,22 @@ why a resolved case reopened
 
 Use reason codes and IDs/fingerprints; do not require raw descriptions, complete progress payloads, or dumped plugin JSON.
 
-- [ ] **Step 2: Write RED privacy/boundedness test**
+- [x] **Step 2: Write RED privacy/boundedness test**
 
 Construct metadata with a long description and mapping/progress values. Assert diagnostic trace does not contain description body or a serialization of full user state. The trace may contain bounded IDs, policy versions, fingerprints, reason codes, and counts.
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
   --tests app.openstory.catalog.diagnostics.CanonicalDiagnosticsTest
 ```
 
-- [ ] **Step 4: Implement no-op production sink plus debug/log sink wiring following existing diagnostics patterns**
+- [x] **Step 4: Implement no-op production sink plus debug/log sink wiring following existing diagnostics patterns**
 
 Do not make policy depend on whether diagnostics recording succeeds. A sink exception must not alter merge/fusion result.
 
-- [ ] **Step 5: Add invariant-check maintenance diagnostics**
+- [x] **Step 5: Add invariant-check maintenance diagnostics**
 
 Emit bounded diagnostics for:
 
@@ -5653,7 +5659,7 @@ orphaned dirty work after redirect resolution
 
 Automatic repair is only performed where an existing deterministic transaction already owns it; otherwise mark degraded/report.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \

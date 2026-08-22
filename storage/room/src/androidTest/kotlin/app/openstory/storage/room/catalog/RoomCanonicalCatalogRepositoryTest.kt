@@ -14,6 +14,9 @@ import app.openstory.catalog.canonical.CanonicalMetadata
 import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
+import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.reconciliation.ReconciliationAssessment
 import app.openstory.catalog.reconciliation.ReconciliationCaseKey
@@ -247,7 +250,8 @@ class RoomCanonicalCatalogRepositoryTest {
             val right = StoryId("story:b")
             seedStory(database, left)
             seedStory(database, right)
-            val repository = RoomReconciliationCaseRepository(database)
+            val traces = mutableListOf<CanonicalDecisionTrace>()
+            val repository = RoomReconciliationCaseRepository(database, CanonicalDiagnostics(traces::add))
             val key = ReconciliationCaseKey.of(left, right)
             val initial = requireNotNull(
                 repository.recordAssessment(key, reconciliationAssessment("fp:1", ReconciliationSemanticDecision.REVIEW), 10),
@@ -261,6 +265,11 @@ class RoomCanonicalCatalogRepositoryTest {
             assertEquals(ReconciliationCaseStatus.PENDING, reopened.status)
             assertEquals(null, reopened.resolutionOrigin)
             assertEquals(3L, reopened.revision)
+            assertEquals(1, traces.size)
+            assertEquals(CanonicalTraceKind.CASE_REOPENED, traces.single().kind)
+            assertEquals(setOf(left, right), traces.single().storyIds)
+            assertEquals(listOf("fp:1", "fp:2"), traces.single().evidenceFingerprints)
+            assertTrue("case.previous.resolved_separate" in traces.single().reasonCodes)
         }
     }
 

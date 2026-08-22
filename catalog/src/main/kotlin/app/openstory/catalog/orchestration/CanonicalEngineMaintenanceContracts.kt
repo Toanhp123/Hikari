@@ -1,7 +1,11 @@
 package app.openstory.catalog.orchestration
 
+import app.openstory.catalog.canonical.CanonicalFieldKey
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.reconciliation.ReconciliationMaintenanceCase
 import app.openstory.common.id.StoryId
+import javax.inject.Inject
 
 /**
  * Read-only persistence facts used by the maintenance engine. Implementations may use bounded SQL
@@ -20,6 +24,9 @@ interface CanonicalEngineMaintenanceReader {
     suspend fun pendingReconciliationCases(limit: Int): List<ReconciliationMaintenanceCase>
 
     suspend fun redirectInconsistencies(limit: Int): List<CanonicalMaintenanceInvariantIssue>
+
+    suspend fun invariantIssues(limit: Int): List<CanonicalMaintenanceInvariantIssue> =
+        redirectInconsistencies(limit)
 }
 
 data class CanonicalMaintenancePolicyState(
@@ -40,6 +47,9 @@ data class CanonicalMaintenancePolicyState(
 data class CanonicalMaintenanceInvariantIssue(
     val storyId: StoryId?,
     val code: String,
+    val relatedStoryIds: Set<StoryId> = emptySet(),
+    val sourceKeys: Set<SourceKey> = emptySet(),
+    val field: CanonicalFieldKey? = null,
 ) {
     init {
         require(code.isNotBlank())
@@ -49,6 +59,11 @@ data class CanonicalMaintenanceInvariantIssue(
 fun interface CanonicalMaintenanceHealthMarker {
     suspend fun markDegraded(storyId: StoryId)
 }
+
+class CanonicalMaintenanceObservability @Inject constructor(
+    val health: CanonicalMaintenanceHealthMarker,
+    val diagnostics: CanonicalDiagnostics,
+)
 
 sealed interface PostMergeDerivedWorkResult {
     data object Dispatched : PostMergeDerivedWorkResult

@@ -3,6 +3,7 @@ package app.openstory.di
 import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.fusion.CanonicalFusionService
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.fusion.CanonicalGenerationValidator
@@ -76,6 +77,7 @@ object CatalogModule {
         mergeExecutor: StoryMergeExecutor,
         work: CanonicalEngineWorkRepository,
         lineageReader: StoryMergeLineageReader,
+        diagnostics: CanonicalDiagnostics,
     ): CatalogReconciliationService = CatalogReconciliationService(
         catalog = catalog,
         identity = identity,
@@ -87,6 +89,7 @@ object CatalogModule {
         mergeExecutor = mergeExecutor,
         work = work,
         lineageReader = lineageReader,
+        diagnostics = diagnostics,
     )
 
     @Provides
@@ -125,7 +128,15 @@ object CatalogModule {
         validator: CanonicalGenerationValidator,
         availability: CatalogSourceAvailabilityResolver,
         clock: Clock,
-    ): CanonicalFusionService = CanonicalFusionService(canonical, engine, validator, availability, clock)
+        diagnostics: CanonicalDiagnostics,
+    ): CanonicalFusionService = CanonicalFusionService(
+        canonical,
+        engine,
+        validator,
+        availability,
+        clock,
+        diagnostics,
+    )
 
     @Provides
     fun provideCanonicalGenerationRebuilder(service: CanonicalFusionService): CanonicalGenerationRebuilder = service

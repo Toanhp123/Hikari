@@ -1,11 +1,16 @@
 package app.openstory.catalog.fusion
 
+import app.openstory.catalog.canonical.CanonicalFieldKey
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
+import app.openstory.catalog.diagnostics.CanonicalDiagnosticsSink
+import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
@@ -33,6 +38,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class CanonicalFusionServiceTest {
     private val storyId = StoryId("story:service")
@@ -67,6 +73,41 @@ class CanonicalFusionServiceTest {
         assertSame(previous, repo.currentGeneration)
         assertEquals(0, repo.persistCalls)
         assertEquals(CanonicalHealth.DEGRADED, repo.markedHealth)
+    }
+
+    @Test
+    fun rebuildEmitsStructuredPrimaryFieldAndValidationFailureTraces() = runTest {
+        val traces = mutableListOf<CanonicalDecisionTrace>()
+        val incompatible = sourceRecord(contentType = ContentType.ANIME)
+        val repo = FakeCanonicalRepository(preparingState(), listOf(incompatible))
+
+        val result = service(
+            repo,
+            FakeSource(),
+            CanonicalDiagnostics(traces::add),
+        ).rebuild(storyId, CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED)
+
+        assertIs<CanonicalFusionResult.Failed>(result)
+        val primary = traces.single { it.kind == CanonicalTraceKind.PRIMARY_SELECTION }
+        assertEquals(listOf("primary.initial_best"), primary.reasonCodes)
+        assertEquals(setOf(incompatible.key), primary.sourceKeys)
+        val title = traces.single { trace ->
+            trace.kind == CanonicalTraceKind.FIELD_FUSION && trace.field == CanonicalFieldKey.TITLE
+        }
+        assertEquals(setOf(incompatible.key), title.sourceKeys)
+        val failed = traces.single { it.kind == CanonicalTraceKind.GENERATION_FAILED }
+        assertTrue("canonical.generation.invalid.content-type-contradiction" in failed.reasonCodes)
+    }
+
+    @Test
+    fun diagnosticSinkFailureDoesNotChangeSuccessfulPromotion() = runTest {
+        val repo = FakeCanonicalRepository(preparingState(), listOf(sourceRecord()))
+        val diagnostics = CanonicalDiagnostics(CanonicalDiagnosticsSink { error("boom") })
+
+        val result = service(repo, FakeSource(), diagnostics).rebuild(storyId, CanonicalFusionReason.BOOTSTRAP)
+
+        assertIs<CanonicalFusionResult.Promoted>(result)
+        assertEquals(1, repo.persistCalls)
     }
 
     @Test
@@ -140,6 +181,7 @@ class CanonicalFusionServiceTest {
     private fun service(
         repo: FakeCanonicalRepository,
         source: FakeSource,
+        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
     ): CanonicalFusionService {
         val registry = object : CatalogSourceRegistry {
             override suspend fun enabled(): List<CatalogSource> = listOf(source)
@@ -151,6 +193,7 @@ class CanonicalFusionServiceTest {
             validator = CanonicalGenerationValidator(),
             availability = CatalogSourceAvailabilityResolver(registry, CatalogMetadataPolicy(clock)),
             clock = clock,
+            diagnostics = diagnostics,
         )
     }
 

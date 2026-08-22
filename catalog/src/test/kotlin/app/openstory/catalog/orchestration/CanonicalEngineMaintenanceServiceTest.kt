@@ -513,7 +513,10 @@ class CanonicalEngineMaintenanceServiceTest {
             identity = identity,
             reader = reader,
             derived = derived,
-            health = health,
+            observability = CanonicalMaintenanceObservability(
+                health,
+                app.openstory.catalog.diagnostics.CanonicalDiagnostics(),
+            ),
             clock = clock,
         )
         return Fixture(service, work, reconciliation, fusion, reader, derived, health)

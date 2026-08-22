@@ -1,6 +1,9 @@
 package app.openstory.storage.room.catalog
 
 import androidx.room.withTransaction
+import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
+import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.catalog.reconciliation.ReconciliationAssessment
@@ -22,8 +25,12 @@ import kotlinx.coroutines.flow.map
 class RoomReconciliationCaseRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: CanonicalCatalogDao,
+    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
 ) : ReconciliationCaseRepository {
-    constructor(database: OpenStoryDatabase) : this(database, database.canonicalCatalogDao())
+    constructor(
+        database: OpenStoryDatabase,
+        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
+    ) : this(database, database.canonicalCatalogDao(), diagnostics)
     override fun observePending(): Flow<List<ReconciliationCase>> = dao.observePendingReconciliationCases().map {
         entities -> database.withTransaction { entities.mapNotNull { entity -> entity.toDomain() } }
     }
@@ -49,7 +56,9 @@ class RoomReconciliationCaseRepository internal constructor(
     ): ReconciliationCase? {
         require(evaluatedAtEpochMillis >= 0L)
         if (assessment.semanticDecision == ReconciliationSemanticDecision.NO_MATCH) return findActive(key)
-        return database.withTransaction {
+        var reopenedFrom: ReconciliationCaseStatus? = null
+        var previousFingerprint: String? = null
+        val recorded = database.withTransaction {
             val existing = dao.reconciliationCase(key.left.value, key.right.value)
             val current = existing?.toDomain()
             if (current != null &&
@@ -67,6 +76,10 @@ class RoomReconciliationCaseRepository internal constructor(
                 ReconciliationSemanticDecision.REVIEW,
                 -> ReconciliationCaseStatus.PENDING
                 ReconciliationSemanticDecision.NO_MATCH -> error("NO_MATCH does not create reconciliation revisions")
+            }
+            if (status == ReconciliationCaseStatus.PENDING && current != null && current.status in RESOLVED_STATUSES) {
+                reopenedFrom = current.status
+                previousFingerprint = current.evidenceFingerprint
             }
             val origin = if (status == ReconciliationCaseStatus.RESOLVED_SEPARATE) {
                 ReconciliationResolutionOrigin.ENGINE
@@ -97,6 +110,25 @@ class RoomReconciliationCaseRepository internal constructor(
             dao.upsertReconciliationCase(caseEntity)
             dao.reconciliationCase(caseId)?.toDomain()
         }
+        reopenedFrom?.let { previousStatus ->
+            diagnostics.record(
+                CanonicalDecisionTrace(
+                    kind = CanonicalTraceKind.CASE_REOPENED,
+                    storyIds = setOf(key.left, key.right),
+                    policyVersions = mapOf("reconciliation" to assessment.policyVersion),
+                    reasonCodes = listOf(
+                        "case.reopened",
+                        "case.previous.${previousStatus.name.lowercase()}",
+                        "decision.${assessment.semanticDecision.name.lowercase()}",
+                    ),
+                    evidenceFingerprints = listOfNotNull(
+                        previousFingerprint,
+                        assessment.identityEvidenceFingerprint,
+                    ),
+                ),
+            )
+        }
+        return recorded
     }
 
     override suspend fun resolveSeparate(
@@ -303,6 +335,10 @@ class RoomReconciliationCaseRepository internal constructor(
     )
 
     private companion object {
+        val RESOLVED_STATUSES = setOf(
+            ReconciliationCaseStatus.RESOLVED_MERGED,
+            ReconciliationCaseStatus.RESOLVED_SEPARATE,
+        )
         const val CASE_DIGEST_HEX = 16
         const val IDENTIFIER_PART_COUNT = 3
         val identifierOrdering: Comparator<ExternalIdentifier> = compareBy<ExternalIdentifier> { it.namespace }

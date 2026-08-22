@@ -17,6 +17,43 @@ internal interface CanonicalEngineMaintenanceDao {
     suspend fun redirectInconsistencies(limit: Int): List<RedirectMaintenanceRow>
 
     @Query(
+        "SELECT e.plugin_id AS pluginId, e.source_id AS sourceId, e.story_id AS storyId, " +
+            "r.canonical_story_id AS canonicalStoryId " +
+            "FROM catalog_entries e LEFT JOIN story_canonical_state s ON s.story_id = e.story_id " +
+            "LEFT JOIN story_redirects r ON r.retired_story_id = e.story_id " +
+            "WHERE s.story_id IS NULL OR r.retired_story_id IS NOT NULL " +
+            "ORDER BY e.plugin_id, e.source_id LIMIT :limit",
+    )
+    suspend fun invalidSourceOwners(limit: Int): List<InvalidSourceOwnerMaintenanceRow>
+
+    @Query(
+        "SELECT e.plugin_id AS pluginId, e.source_id AS sourceId, COUNT(DISTINCT e.story_id) AS ownerCount " +
+            "FROM catalog_entries e GROUP BY e.plugin_id, e.source_id " +
+            "HAVING COUNT(DISTINCT e.story_id) > 1 " +
+            "ORDER BY e.plugin_id, e.source_id LIMIT :limit",
+    )
+    suspend fun duplicateSourceOwnership(limit: Int): List<DuplicateSourceOwnershipMaintenanceRow>
+
+    @Query(
+        "SELECT g.story_id AS storyId, p.field_key AS fieldKey, " +
+            "p.contributor_plugin_id AS pluginId, p.contributor_source_id AS sourceId " +
+            "FROM story_canonical_state s JOIN canonical_generations g " +
+            "ON g.generation_id = s.active_generation_id JOIN canonical_field_provenance p " +
+            "ON p.generation_id = g.generation_id LEFT JOIN catalog_entries e " +
+            "ON e.plugin_id = p.contributor_plugin_id AND e.source_id = p.contributor_source_id " +
+            "WHERE e.story_id IS NULL OR e.story_id != g.story_id " +
+            "ORDER BY g.story_id, p.field_key, p.contributor_plugin_id, p.contributor_source_id LIMIT :limit",
+    )
+    suspend fun provenanceOutsideStorySources(limit: Int): List<ProvenanceOutsideStoryMaintenanceRow>
+
+    @Query(
+        "SELECT w.story_id AS retiredStoryId, r.canonical_story_id AS canonicalStoryId " +
+            "FROM canonical_engine_work w JOIN story_redirects r ON r.retired_story_id = w.story_id " +
+            "ORDER BY w.story_id, w.work_type LIMIT :limit",
+    )
+    suspend fun orphanedRedirectWork(limit: Int): List<OrphanedRedirectWorkMaintenanceRow>
+
+    @Query(
         "SELECT g.fusion_policy_version AS fusionPolicyVersion, " +
             "g.primary_policy_version AS primarySelectionPolicyVersion " +
             "FROM story_canonical_state s LEFT JOIN canonical_generations g " +
@@ -82,4 +119,29 @@ internal data class PendingReconciliationMaintenanceRow(
     val rightStoryId: String,
     val evidenceFingerprint: String,
     val policyVersion: Int,
+)
+
+internal data class InvalidSourceOwnerMaintenanceRow(
+    val pluginId: String,
+    val sourceId: String,
+    val storyId: String,
+    val canonicalStoryId: String?,
+)
+
+internal data class DuplicateSourceOwnershipMaintenanceRow(
+    val pluginId: String,
+    val sourceId: String,
+    val ownerCount: Int,
+)
+
+internal data class ProvenanceOutsideStoryMaintenanceRow(
+    val storyId: String,
+    val fieldKey: String,
+    val pluginId: String,
+    val sourceId: String,
+)
+
+internal data class OrphanedRedirectWorkMaintenanceRow(
+    val retiredStoryId: String,
+    val canonicalStoryId: String,
 )

@@ -3,6 +3,7 @@ package app.openstory.di
 import android.content.Context
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.StoryMergeExecutor
 import app.openstory.catalog.identity.StoryMergeReversalExecutor
@@ -77,7 +78,8 @@ object StorageModule {
     fun provideStoryMergeExecutor(
         database: OpenStoryDatabase,
         clock: Clock,
-    ): StoryMergeExecutor = RoomStoryGraphMergeCoordinator(database, clock)
+        diagnostics: CanonicalDiagnostics,
+    ): StoryMergeExecutor = RoomStoryGraphMergeCoordinator(database, clock, diagnostics = diagnostics)
 
     @Provides
     @Singleton
@@ -98,8 +100,10 @@ object StorageModule {
 
     @Provides
     @Singleton
-    fun provideReconciliationCaseRepository(database: OpenStoryDatabase): ReconciliationCaseRepository =
-        RoomReconciliationCaseRepository(database)
+    fun provideReconciliationCaseRepository(
+        database: OpenStoryDatabase,
+        diagnostics: CanonicalDiagnostics,
+    ): ReconciliationCaseRepository = RoomReconciliationCaseRepository(database, diagnostics)
 
     @Provides
     @Singleton

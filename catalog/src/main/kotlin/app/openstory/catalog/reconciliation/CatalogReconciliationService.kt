@@ -1,5 +1,6 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
@@ -50,6 +51,7 @@ class CatalogReconciliationService(
     private val mergeExecutor: StoryMergeExecutor? = null,
     private val work: CanonicalEngineWorkRepository? = null,
     private val lineageReader: StoryMergeLineageReader = EmptyStoryMergeLineageReader,
+    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
 ) : CatalogReconciliationRunner {
     init {
         require(
@@ -80,7 +82,9 @@ class CatalogReconciliationService(
                 .sortedBy(StoryId::value)
                 .flatMap { candidateStoryId -> catalog.sourceRecords(candidateStoryId) }
                 .map(ReconciliationEvidenceFactory::fromRecord)
-            persistDecision(canonicalStoryId, engine.rankCandidates(incoming, candidates))
+            val selection = engine.rankCandidates(incoming, candidates)
+            diagnostics.recordReconciliationSelection(canonicalStoryId, incoming, candidates, selection)
+            persistDecision(canonicalStoryId, selection)
         }
     }
 
@@ -122,6 +126,7 @@ class CatalogReconciliationService(
         if (correction == null) return null
 
         val (lineage, assessment) = correction
+        diagnostics.recordPostMergeCorrection(lineage, incoming, assessment)
         val recorded = cases.recordAssessment(
             lineage.historicalCaseKey(),
             assessment,

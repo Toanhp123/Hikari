@@ -4,6 +4,9 @@ import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
+import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId
@@ -16,11 +19,12 @@ class CanonicalFusionService(
     private val validator: CanonicalGenerationValidator,
     private val availability: CatalogSourceAvailabilityResolver,
     private val clock: Clock,
+    private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
 ) : CanonicalGenerationRebuilder {
     override suspend fun rebuild(storyId: StoryId, reason: CanonicalFusionReason): CanonicalFusionResult {
         val state = canonical.state(storyId)
         return if (state == null) {
-            CanonicalFusionResult.Failed(storyId, "canonical.story.missing", retryable = false)
+            failed(storyId, "canonical.story.missing", retryable = false)
         } else {
             val sources = canonical.sourceRecords(storyId)
             if (sources.isEmpty()) {
@@ -50,15 +54,19 @@ class CanonicalFusionService(
                 evaluatedAtEpochMillis = evaluatedAt,
             ),
         )
+        recordCandidateDecision(candidate)
         val owned = sources.mapTo(linkedSetOf(), FusionSource::sourceKey)
         val errors = validator.validate(state.story, owned, candidate)
         return when {
             errors.isNotEmpty() -> {
                 canonical.markHealth(storyId, CanonicalHealth.DEGRADED)
-                CanonicalFusionResult.Failed(
-                    storyId,
-                    "canonical.generation.invalid:${errors.sorted().joinToString(",")}",
+                failed(
+                    storyId = storyId,
+                    code = "canonical.generation.invalid:${errors.sorted().joinToString(",")}",
                     retryable = false,
+                    candidate = candidate,
+                    diagnosticReasons = listOf("canonical.generation.invalid") +
+                        errors.sorted().map { error -> "canonical.generation.invalid.$error" },
                 )
             }
 
@@ -88,20 +96,78 @@ class CanonicalFusionService(
                 CanonicalFusionResult.Promoted(generation)
             }
 
-            !retryPromotion -> CanonicalFusionResult.Failed(
-                storyId,
-                "canonical.promotion.race",
+            !retryPromotion -> failed(
+                storyId = storyId,
+                code = "canonical.promotion.race",
                 retryable = true,
+                candidate = candidate,
             )
 
             else -> canonical.state(storyId)?.let { reread ->
                 buildAndPromote(reread, sources, retryPromotion = false)
-            } ?: CanonicalFusionResult.Failed(
-                storyId,
-                "canonical.story.disappeared",
+            } ?: failed(
+                storyId = storyId,
+                code = "canonical.story.disappeared",
                 retryable = true,
+                candidate = candidate,
             )
         }
+    }
+
+    private fun recordCandidateDecision(candidate: CanonicalGenerationCandidate) {
+        val primary = candidate.primarySelection
+        diagnostics.record(
+            CanonicalDecisionTrace(
+                kind = CanonicalTraceKind.PRIMARY_SELECTION,
+                storyIds = setOf(candidate.storyId),
+                sourceKeys = listOfNotNull(
+                    primary.selectedSource,
+                    primary.previousSource,
+                    primary.challengerSource,
+                ).toCollection(linkedSetOf()),
+                policyVersions = mapOf("primary" to candidate.primarySelectionPolicyVersion),
+                reasonCodes = listOf("primary.${primary.reason.name.lowercase()}"),
+                evidenceFingerprints = listOf(candidate.fusionFingerprint),
+            ),
+        )
+        candidate.provenance.toSortedMap(compareBy { it.name }).values.forEach { provenance ->
+            diagnostics.record(
+                CanonicalDecisionTrace(
+                    kind = CanonicalTraceKind.FIELD_FUSION,
+                    storyIds = setOf(candidate.storyId),
+                    sourceKeys = provenance.contributors.mapTo(linkedSetOf()) { it.sourceKey },
+                    policyVersions = mapOf("fusion" to provenance.policyVersion),
+                    reasonCodes = provenance.reasonCodes,
+                    evidenceFingerprints = provenance.contributors.map { it.fusionFingerprint },
+                    field = provenance.field,
+                ),
+            )
+        }
+    }
+
+    private fun failed(
+        storyId: StoryId,
+        code: String,
+        retryable: Boolean,
+        candidate: CanonicalGenerationCandidate? = null,
+        diagnosticReasons: List<String> = listOf(code),
+    ): CanonicalFusionResult.Failed {
+        diagnostics.record(
+            CanonicalDecisionTrace(
+                kind = CanonicalTraceKind.GENERATION_FAILED,
+                storyIds = setOf(storyId),
+                sourceKeys = candidate?.sourceContentTypes?.keys.orEmpty(),
+                policyVersions = candidate?.let { current ->
+                    mapOf(
+                        "fusion" to current.fusionPolicyVersion,
+                        "primary" to current.primarySelectionPolicyVersion,
+                    )
+                }.orEmpty(),
+                reasonCodes = diagnosticReasons,
+                evidenceFingerprints = candidate?.let { listOf(it.fusionFingerprint) }.orEmpty(),
+            ),
+        )
+        return CanonicalFusionResult.Failed(storyId, code, retryable)
     }
 
     private fun generationId(candidate: CanonicalGenerationCandidate): String =

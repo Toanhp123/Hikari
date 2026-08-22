@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.openstory.catalog.canonical.CanonicalFieldKey
 import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION
 import app.openstory.catalog.orchestration.CanonicalMaintenancePolicyState
@@ -101,7 +102,76 @@ class RoomCanonicalEngineMaintenanceReaderTest {
 
             assertEquals(1, issues.size)
             assertEquals(StoryId("story:middle"), issues.single().storyId)
-            assertTrue(issues.single().code.contains("story:retired->story:middle"))
+            assertEquals(setOf(StoryId("story:retired")), issues.single().relatedStoryIds)
+            assertEquals("canonical.invariant.redirect_target_invalid", issues.single().code)
+        }
+    }
+
+
+    @Test
+    fun invariantReadFindsRetiredSourceOwnerProvenanceLeakAndRedirectWorkWithoutPayloads() = runTest {
+        withDatabase { database ->
+            seedStory(database, "story:retired")
+            seedStory(database, "story:canonical")
+            seedStory(database, "story:other")
+            database.catalogDao().upsertStories(listOf(StoryEntity("story:missing-state", "MANGA")))
+            val catalogDao = database.catalogDao()
+            val canonicalDao = database.canonicalCatalogDao()
+
+            catalogDao.upsertEntries(
+                listOf(
+                    entry("source:retired", "story:retired", "must never enter diagnostics"),
+                    entry("source:missing-state", "story:missing-state"),
+                    entry("source:other", "story:other"),
+                ),
+            )
+            canonicalDao.upsertMergeEvent(
+                StoryMergeEventEntity(
+                    "merge:retired", "story:canonical", "story:retired", "TEST", null,
+                    "fingerprint:merge", 1, 1, "REVERSIBLE", 1, "{}",
+                ),
+            )
+            canonicalDao.upsertRedirect(
+                StoryRedirectEntity("story:retired", "story:canonical", "merge:retired", 1),
+            )
+            canonicalDao.upsertWork(
+                CanonicalEngineWorkEntity(
+                    storyId = "story:retired",
+                    workType = "FUSION_REBUILD",
+                    reason = "source_summary_changed",
+                    attemptCount = 0,
+                    nextAttemptAtEpochMillis = 1,
+                    lastErrorCode = null,
+                    requiredPolicyVersion = null,
+                ),
+            )
+            canonicalDao.upsertGeneration(generation("gen:canonical", "story:canonical", FUSION_POLICY_VERSION))
+            canonicalDao.insertProvenance(
+                listOf(
+                    CanonicalFieldProvenanceEntity(
+                        generationId = "gen:canonical",
+                        fieldKey = CanonicalFieldKey.TITLE.name,
+                        contributorPluginId = "catalog:test",
+                        contributorSourceId = "source:other",
+                        strategy = "PRIMARY_WITH_FALLBACK",
+                        contributorFusionFingerprint = "fusion:other",
+                        metadataLevel = "SUMMARY",
+                        reasonCodes = setOf("title-primary"),
+                        policyVersion = FUSION_POLICY_VERSION,
+                    ),
+                ),
+            )
+            canonicalDao.markGenerationValid("gen:canonical")
+            canonicalDao.activateGeneration("story:canonical", "gen:canonical", "FRESH")
+
+            val issues = RoomCanonicalEngineMaintenanceReader(database).invariantIssues(limit = 8)
+
+            val codes = issues.mapTo(linkedSetOf()) { it.code }
+            assertTrue("canonical.invariant.source_owner_invalid" in codes)
+            assertTrue("canonical.invariant.provenance_source_outside_story" in codes)
+            assertTrue("canonical.invariant.orphaned_redirect_work" in codes)
+            assertTrue(issues.size <= 8)
+            assertTrue(issues.none { it.code.contains("must never enter diagnostics") })
         }
     }
 
@@ -160,6 +230,35 @@ class RoomCanonicalEngineMaintenanceReaderTest {
             ),
         )
     }
+
+    private fun entry(
+        sourceId: String,
+        storyId: String,
+        description: String? = null,
+    ) = CatalogEntryEntity(
+        pluginId = "catalog:test",
+        sourceId = sourceId,
+        storyId = storyId,
+        title = "Story",
+        aliases = emptySet(),
+        authors = emptySet(),
+        description = description,
+        genres = emptySet(),
+        contentType = "MANGA",
+        languageTags = emptySet(),
+        coverUrl = null,
+        sourceUrl = "https://example.test/$sourceId",
+        scoreValue = null,
+        scoreScale = null,
+        popularityRank = null,
+        publicationStatus = null,
+        latestUpdateAtEpochMillis = null,
+        latestUpdateReleaseLabel = null,
+        pluginVersion = "1",
+        fetchedAtEpochMillis = 1,
+        fullPluginVersion = null,
+        fullResolvedAtEpochMillis = null,
+    )
 
     private fun generation(id: String, storyId: String, fusionVersion: Int) = CanonicalGenerationEntity(
         generationId = id,

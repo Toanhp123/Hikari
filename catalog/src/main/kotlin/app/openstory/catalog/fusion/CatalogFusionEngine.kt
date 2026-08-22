@@ -9,7 +9,6 @@ import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalMetadata
 import app.openstory.catalog.canonical.CanonicalScore
 import app.openstory.catalog.canonical.CanonicalSourcePreference
-import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.evidence.CatalogEvidenceNormalizer
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataLevel
@@ -20,7 +19,6 @@ import app.openstory.catalog.model.Story
 import app.openstory.common.id.StoryId
 import java.security.MessageDigest
 
-private const val HYSTERESIS_COVERAGE_MARGIN = 2
 private const val HEX_RADIX = 16
 private const val UNSIGNED_BYTE_MASK = 0xFF
 
@@ -49,12 +47,19 @@ data class CanonicalGenerationCandidate(
     val provenance: Map<CanonicalFieldKey, CanonicalFieldProvenance>,
     val createdAtEpochMillis: Long,
     val sourceContentTypes: Map<SourceKey, ContentType> = emptyMap(),
+    val primarySelection: PrimarySelectionDecision = PrimarySelectionDecision(
+        selectedSource = effectivePrimary,
+        previousSource = null,
+        challengerSource = null,
+        reason = PrimarySelectionReason.INITIAL_BEST,
+    ),
 )
 
 class CatalogFusionEngine {
     fun rankedEligibleSourceKeys(input: FusionInput): List<SourceKey> {
         val ranked = input.sources.sortedWith(primaryQualityComparator)
-        val effectivePrimary = effectivePrimary(input, ranked)
+        val primarySelection = selectPrimary(input, ranked)
+        val effectivePrimary = primarySelection?.selectedSource
         val eligible = ranked.filter(FusionSource::isEffectivePrimaryEligible)
         return if (eligible.isEmpty()) {
             emptyList()
@@ -72,8 +77,9 @@ class CatalogFusionEngine {
     fun fuse(input: FusionInput): CanonicalGenerationCandidate {
         require(input.sources.isNotEmpty()) { "Canonical fusion requires at least one source" }
         val ranked = input.sources.sortedWith(primaryQualityComparator)
-        val effectivePrimary = effectivePrimary(input, ranked)
+        val primarySelection = selectPrimary(input, ranked)
             ?: error("Canonical fusion requires at least one source")
+        val effectivePrimary = primarySelection.selectedSource
 
         val provenance = linkedMapOf<CanonicalFieldKey, CanonicalFieldProvenance>()
         val title = requireNotNull(
@@ -156,58 +162,10 @@ class CatalogFusionEngine {
             provenance = provenance.toMap(),
             createdAtEpochMillis = input.evaluatedAtEpochMillis,
             sourceContentTypes = ranked.associate { it.sourceKey to it.record.entry.contentType },
+            primarySelection = primarySelection,
         )
     }
 
-    private fun effectivePrimary(input: FusionInput, ranked: List<FusionSource>): SourceKey? =
-        selectPinnedPrimary(input, ranked)
-            ?: selectAutomaticPrimary(input.previousGeneration, ranked)
-
-    private fun selectPinnedPrimary(input: FusionInput, ranked: List<FusionSource>): SourceKey? =
-        input.preference
-            .takeIf { it.mode == CanonicalSourcePreferenceMode.PINNED }
-            ?.pinnedSource
-            ?.let { pinned ->
-                ranked.firstOrNull { source ->
-                    source.sourceKey == pinned && source.isEffectivePrimaryEligible()
-                }?.sourceKey
-            }
-
-    private fun selectAutomaticPrimary(
-        previousGeneration: CanonicalGeneration?,
-        ranked: List<FusionSource>,
-    ): SourceKey? {
-        val best = ranked.firstOrNull(FusionSource::isEffectivePrimaryEligible) ?: ranked.firstOrNull()
-        val previousKey = previousGeneration?.effectivePrimary
-        val current = previousKey?.let { key -> ranked.firstOrNull { it.sourceKey == key } }
-        return when {
-            best == null -> null
-            previousKey == null || current == null -> best.sourceKey
-            !current.isEffectivePrimaryEligible() -> best.sourceKey
-            best.sourceKey == current.sourceKey -> current.sourceKey
-            challengerMateriallyBetter(best, current) -> best.sourceKey
-            else -> current.sourceKey
-        }
-    }
-
-    private fun challengerMateriallyBetter(challenger: FusionSource, current: FusionSource): Boolean {
-        val challengerQuality = challenger.primaryQuality()
-        val currentQuality = current.primaryQuality()
-        return when {
-            challengerQuality.usability.rank() != currentQuality.usability.rank() ->
-                challengerQuality.usability.rank() > currentQuality.usability.rank()
-
-            challengerQuality.metadataLevel.rank() != currentQuality.metadataLevel.rank() ->
-                challengerQuality.metadataLevel.rank() > currentQuality.metadataLevel.rank()
-
-            challengerQuality.freshness.rank() > currentQuality.freshness.rank() &&
-                challengerQuality.primaryFieldCoverage >= currentQuality.primaryFieldCoverage -> true
-
-            challengerQuality.freshness != currentQuality.freshness -> false
-            else -> challengerQuality.primaryFieldCoverage - currentQuality.primaryFieldCoverage >=
-                HYSTERESIS_COVERAGE_MARGIN
-        }
-    }
 }
 
 private data class FieldSelection<T>(

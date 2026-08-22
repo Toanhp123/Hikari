@@ -45,8 +45,6 @@ class CatalogFusionEnginePrimaryTest {
             source("provider.current", freshness = CatalogSourceFreshness.STALE, coverage = 3) to
                 source("provider.challenger", freshness = CatalogSourceFreshness.FRESH, coverage = 3),
             source("provider.current", coverage = 3) to source("provider.challenger", coverage = 5),
-            source("provider.current", usability = CatalogSourceUsability.UNAVAILABLE, coverage = 9) to
-                source("provider.challenger", coverage = 1),
         )
         cases.forEach { (old, challenger) ->
             val candidate = CatalogFusionEngine().fuse(
@@ -56,7 +54,31 @@ class CatalogFusionEnginePrimaryTest {
                 ),
             )
             assertEquals(challenger.sourceKey, candidate.effectivePrimary)
+            assertEquals(
+                PrimarySelectionReason.CHALLENGER_MATERIALLY_BETTER,
+                candidate.primarySelection.reason,
+            )
+            assertEquals(old.sourceKey, candidate.primarySelection.previousSource)
+            assertEquals(challenger.sourceKey, candidate.primarySelection.challengerSource)
         }
+    }
+
+    @Test
+    fun unavailablePreviousUsesIneligibleFallbackReason() {
+        val current = source("provider.current", usability = CatalogSourceUsability.UNAVAILABLE, coverage = 9)
+        val challenger = source("provider.challenger", coverage = 1)
+
+        val candidate = CatalogFusionEngine().fuse(
+            input(
+                sources = listOf(current, challenger),
+                previous = generation(current.sourceKey),
+            ),
+        )
+
+        assertEquals(challenger.sourceKey, candidate.effectivePrimary)
+        assertEquals(PrimarySelectionReason.PREVIOUS_INELIGIBLE, candidate.primarySelection.reason)
+        assertEquals(current.sourceKey, candidate.primarySelection.previousSource)
+        assertEquals(challenger.sourceKey, candidate.primarySelection.challengerSource)
     }
 
     @Test
@@ -71,10 +93,10 @@ class CatalogFusionEnginePrimaryTest {
         val staleCurrent = current.copy(freshness = CatalogSourceFreshness.STALE)
         val tiePreferredByKey = source("provider.a", coverage = 3)
 
-        assertEquals(
-            current.sourceKey,
-            CatalogFusionEngine().fuse(input(listOf(current, oneMore), generation(current.sourceKey))).effectivePrimary,
-        )
+        val retained = CatalogFusionEngine().fuse(input(listOf(current, oneMore), generation(current.sourceKey)))
+        assertEquals(current.sourceKey, retained.effectivePrimary)
+        assertEquals(PrimarySelectionReason.HYSTERESIS_RETAINED, retained.primarySelection.reason)
+        assertEquals(oneMore.sourceKey, retained.primarySelection.challengerSource)
         assertEquals(
             staleCurrent.sourceKey,
             CatalogFusionEngine().fuse(

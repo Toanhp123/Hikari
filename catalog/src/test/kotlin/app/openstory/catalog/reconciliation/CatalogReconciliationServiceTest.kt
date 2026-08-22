@@ -1,6 +1,9 @@
 package app.openstory.catalog.reconciliation
 
 import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
+import app.openstory.catalog.diagnostics.CanonicalDiagnostics
+import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.CanonicalIdentityState
@@ -53,6 +56,23 @@ class CatalogReconciliationServiceTest {
     }
 
     @Test
+    fun reviewTraceExplainsDecisionWithBoundedPolicyReasonsAndFingerprints() = kotlinx.coroutines.test.runTest {
+        val a = record("a", "story:a", "Exact")
+        val b = record("b", "story:b", "Exact")
+        val fixture = fixture(listOf(a, b))
+
+        assertIs<ReconciliationRunResult.ReviewRecorded>(fixture.service.reconcile(a.key))
+
+        val trace = fixture.traces.single { it.kind == CanonicalTraceKind.RECONCILIATION }
+        assertEquals(setOf(StoryId("story:a"), StoryId("story:b")), trace.storyIds)
+        assertEquals(setOf(a.key, b.key), trace.sourceKeys)
+        assertEquals(ReconciliationPolicy().version, trace.policyVersions.getValue("reconciliation"))
+        assertEquals(true, "decision.review" in trace.reasonCodes)
+        assertEquals(true, ReconciliationReasonCode.TITLE_EXACT.name in trace.reasonCodes)
+        assertEquals(true, trace.evidenceFingerprints.isNotEmpty())
+    }
+
+    @Test
     fun sameWorkIsObservedDurablyWithoutExecutingMerge() = kotlinx.coroutines.test.runTest {
         val a = record("a", "story:a", "Exact", authors = setOf("writer"))
         val b = record("b", "story:b", "Exact", authors = setOf("writer"))
@@ -61,6 +81,11 @@ class CatalogReconciliationServiceTest {
         val result = fixture.service.reconcile(a.key)
 
         assertEquals(ReconciliationRunResult.AutoMergeObserved(StoryId("story:a"), StoryId("story:b")), result)
+        assertEquals(
+            true,
+            fixture.traces.single { it.kind == CanonicalTraceKind.RECONCILIATION }
+                .reasonCodes.contains("decision.auto_merge"),
+        )
         assertEquals(1, fixture.cases.revisions)
         assertEquals(ReconciliationSemanticDecision.SAME_WORK, fixture.cases.active.values.single().assessment.semanticDecision)
     }
@@ -72,6 +97,11 @@ class CatalogReconciliationServiceTest {
         val fixture = fixture(listOf(a, b))
 
         assertEquals(ReconciliationRunResult.Separated, fixture.service.reconcile(a.key))
+        assertEquals(
+            true,
+            fixture.traces.single { it.kind == CanonicalTraceKind.RECONCILIATION }
+                .reasonCodes.contains("decision.separate"),
+        )
         val stored = fixture.cases.active.values.single()
         assertEquals(ReconciliationCaseStatus.RESOLVED_SEPARATE, stored.status)
         assertEquals(ReconciliationResolutionOrigin.ENGINE, stored.resolutionOrigin)
@@ -295,10 +325,20 @@ class CatalogReconciliationServiceTest {
     ): Fixture {
         val catalog = FakeCatalogRepository(records)
         val cases = RecordingCaseRepository()
+        val traces = mutableListOf<CanonicalDecisionTrace>()
         return Fixture(
-            service(catalog, cases, ReconciliationPolicy(), executionMode, mergeExecutor, work),
+            service(
+                catalog,
+                cases,
+                ReconciliationPolicy(),
+                executionMode,
+                mergeExecutor,
+                work,
+                CanonicalDiagnostics(traces::add),
+            ),
             catalog,
             cases,
+            traces,
         )
     }
 
@@ -309,6 +349,7 @@ class CatalogReconciliationServiceTest {
         executionMode: ReconciliationExecutionMode = ReconciliationExecutionMode.OBSERVE_ONLY,
         mergeExecutor: StoryMergeExecutor? = null,
         work: CanonicalEngineWorkRepository? = null,
+        diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(),
     ) = CatalogReconciliationService(
         catalog = catalog,
         identity = IdentityRepository(),
@@ -319,6 +360,7 @@ class CatalogReconciliationServiceTest {
         executionMode = executionMode,
         mergeExecutor = mergeExecutor,
         work = work,
+        diagnostics = diagnostics,
     )
 
     private fun record(
@@ -352,6 +394,7 @@ class CatalogReconciliationServiceTest {
         val service: CatalogReconciliationService,
         val catalog: FakeCatalogRepository,
         val cases: RecordingCaseRepository,
+        val traces: List<CanonicalDecisionTrace>,
     )
 
     private class IdentityRepository : StoryIdentityRepository {
