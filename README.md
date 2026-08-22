@@ -10,8 +10,11 @@ The accepted Product UI and Discover semantic-feed redesigns are implemented. Di
 source-agnostic at the presentation boundary and renders `Popular`, a full-width
 `Manga | Light Novel` selector, `Latest Updates`, and `Top Rated` from cached semantic Home
 feeds. Room schema **9** remains current after the Canonical Catalog Reconciliation & Fusion Engine foundation. The production capability graph remains at 14 modules.
-The active pre-Wave-10 workstream is the Canonical Catalog Reconciliation & Fusion Engine;
-Phases 0-4 (Tasks 1-32) are verified and closed. Production reconciliation now uses the guarded `APPLY_ELIGIBLE_AUTO_MERGES` path through the single Room-owned Story graph merge coordinator. Phase 5 begins at Task 33 with durable review resolution. Room stays schema 9. Wave 10 remains planned and its notification migration is rebased to `9 -> 10`.
+The active pre-Wave-10 workstream is the Canonical Catalog Reconciliation & Fusion Engine.
+Phases 0-6 / Tasks 1-38 and Phase 7 Tasks 39-41 are verified and closed on Room schema 9;
+Phase 7 Task 42 is active as the final governance, acceptance, migration, UI, profile, and
+performance certification gate. Wave 10 remains planned and its notification migration is
+rebased to `9 -> 10`.
 
 See `docs/project/current-state.md` for the exact boundary and
 `docs/implementation/current-roadmap.md` for what comes next.

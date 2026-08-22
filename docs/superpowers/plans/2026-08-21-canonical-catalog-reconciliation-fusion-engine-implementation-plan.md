@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 
-**Execution checkpoint — 2026-08-23:** Phases 0–6 / Tasks 1–38 and **Phase 7 Tasks 39–41** are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 39 adds app-owned background maintenance over the durable canonical-engine work table, Task 40 adds controlled fail-closed merge reversal, and Task 41 adds bounded structured decision traces/invariant diagnostics while preserving pure policy engines, fail-open observability, and the existing persistent canonical truth. Developer-checkout acceptance for Task 41 includes the focused Catalog diagnostics/reconciliation/fusion/maintenance gate, 17/17 selected Room diagnostics/maintenance/merge tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` after behavior-preserving Detekt cleanup. Accepted Task-41 evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md`; Task-39/40 evidence remains in their own checkpoints. Historical RED-watch and commit checkboxes remain execution-record details rather than acceptance blockers. **Phase 7 Task 42 final governance/docs and acceptance matrix is now the active next task.**
+**Execution checkpoint — 2026-08-23:** Phases 0–6 / Tasks 1–38 and **Phase 7 Tasks 39–41** are **VERIFIED / CLOSED** on the developer checkout; Room remains schema 9. Task 39 adds app-owned background maintenance over the durable canonical-engine work table, Task 40 adds controlled fail-closed merge reversal, and Task 41 adds bounded structured decision traces/invariant diagnostics while preserving pure policy engines, fail-open observability, and the existing persistent canonical truth. Developer-checkout acceptance for Task 41 includes the focused Catalog diagnostics/reconciliation/fusion/maintenance gate, 17/17 selected Room diagnostics/maintenance/merge tests on Redmi Note 9S - 15, and final canonical `./scripts/verify.sh` after behavior-preserving Detekt cleanup. Accepted Task-41 evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md`; Task-39/40 evidence remains in their own checkpoints. Historical RED-watch and commit checkboxes remain execution-record details rather than acceptance blockers. **Phase 7 Task 42 final governance/docs and acceptance/profile/performance matrix is ACTIVE.**
 
 ## Global Constraints
 
@@ -5682,58 +5682,76 @@ git commit -m "feat: add canonical engine decision diagnostics"
 
 ---
 
-### Task 42: Update governance/docs and run the final acceptance, migration, UI, and performance matrix
+### Task 42: Final governance plus acceptance, migration, app, profile, and performance certification
 
 **Files:**
+- Modify: `README.md`
 - Modify: `docs/README.md`
 - Modify: `docs/PROJECT-HANDBOOK.md`
 - Modify: `docs/project/current-state.md`
 - Modify: `docs/project/requirement-coverage.md`
 - Modify: `docs/project/document-governance.md`
 - Modify: `docs/implementation/current-roadmap.md`
-- Modify: `docs/implementation/waves/wave-10-background-sync-auth-and-notifications.md`
-- Modify: `docs/implementation/waves/wave-11-hardening-open-source-release.md`
-- Modify: `docs/plugin-sdk/catalog-protocol.md`
-- Add/update: `storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/9.json`
+- Modify: `docs/superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`
+- Modify: `docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
+- Modify: `docs/superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
+- Inspect and modify only if stale: `docs/implementation/waves/wave-10-background-sync-auth-and-notifications.md`
+- Inspect and modify only if stale: `docs/implementation/waves/wave-11-hardening-open-source-release.md`
+- Inspect and modify only if stale: `docs/plugin-sdk/catalog-protocol.md`
+- Verify unchanged/deterministic: `storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/9.json`
+- Regenerate: `app/src/release/generated/baselineProfiles/baseline-prof.txt`
+- Regenerate: `app/src/release/generated/baselineProfiles/startup-prof.txt`
+- Create only after every required gate is reviewed GREEN: `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md`
 
 **Interfaces:**
-- Consumes every previous task.
-- Produces the final documented, verified baseline. No new feature behavior is introduced here.
+- Consumes every previous task and the accepted Task-39/40/41 checkpoints.
+- Produces the final documented and verified Canonical Engine baseline. No new feature behavior is introduced here.
+- Any semantic failure returns to the owning earlier task; Task 42 may correct verification/docs/profile mechanics only.
 
-- [ ] **Step 1: Update normative current docs, not historical checkpoints**
+- [x] **Step 1: Audit Task-42 commands/owners and synchronize current governance to the active certification state**
 
-Document explicitly:
+The 2026-08-23 preflight audit confirmed that the named acceptance test classes and the four required
+Macrobenchmark methods exist, Room schemas `1..9` are contiguous, Wave 10 already enters schema 9 and
+migrates `9 -> 10`, and Wave 11 already enters schema 10. The audit also found four plan corrections that
+are now normative for Task 42:
 
 ```text
-canonical identity/fusion design spec path
-schema 9 ownership by canonical engine
-Wave 10 notification persistence rebased from planned 8->9 to 9->10
-Wave 11 entry schema becomes 10 unless another approved migration intervenes
-plugins provide facts; host owns identity/fusion policy
-Review and controlled reversal status
-background work ownership remains app layer
+Baseline/Startup Profile generation must precede final Macrobenchmark measurement.
+Schema determinism must compare the schema fingerprint/export before and after Room compilation.
+App smoke/navigation owns app-shell routing only; redirect/canonical-presentation/review semantics remain
+owned by their existing feature/Room acceptance tests.
+Final staging must name explicit files; never git-add whole source trees for this docs/certification task.
 ```
 
-Do not edit archived checkpoints to pretend they contained this engine.
+Synchronize current governance to **Tasks 1–41 VERIFIED/CLOSED; Task 42 ACTIVE**. Do not mark Phase 7 or
+the Canonical Engine rollout closed until Steps 2–10 are reviewed GREEN. Historical checkpoint files remain
+immutable; the final Phase-7 checkpoint is created only in Step 11.
 
-- [ ] **Step 2: Regenerate and verify the schema export is contiguous and deterministic**
+- [ ] **Step 2: Prove schema 9 is contiguous and deterministic without accepting a compiler-induced export drift**
 
-Run the same Room compiler path already used by this repository to export schemas, then inspect:
+Capture the current schema-set fingerprint, run the repository's Room compiler path, then require the exact
+same fingerprint and no schema-directory diff:
 
 ```bash
-./gradlew :storage:room:compileDebugKotlin --no-configuration-cache --stacktrace
+ROOM_SCHEMA_FINGERPRINT="$(./scripts/verify-room-schema-stability.sh)"
+
+./gradlew :storage:room:compileDebugKotlin \
+  --no-configuration-cache \
+  --stacktrace
+
+./scripts/verify-room-schema-stability.sh "$ROOM_SCHEMA_FINGERPRINT"
+
+git diff --exit-code -- \
+  storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase
+
 ls storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase
 ```
 
-Expected: schema `8.json` remains and `9.json` is present; no gap or overwritten schema-8 baseline.
+Expected: `1.json` through `9.json` remain contiguous; `8.json` is unchanged; `9.json` exists and compilation
+does not rewrite it. If schema 9 changes, stop Task 42 and investigate the owning persistence task instead of
+committing a silent final-gate schema mutation.
 
-Run repository schema-stability gate:
-
-```bash
-./scripts/verify-room-schema-stability.sh
-```
-
-- [ ] **Step 3: Run all pure/module tests**
+- [ ] **Step 3: Run the complete pure/module unit matrix**
 
 ```bash
 ./gradlew \
@@ -5746,7 +5764,7 @@ Run repository schema-stability gate:
   :app:testDebugUnitTest
 ```
 
-Expected: GREEN.
+Expected: GREEN. This is the broad host-side regression gate before device/profile work.
 
 - [ ] **Step 4: Run the complete Room instrumentation suite**
 
@@ -5754,9 +5772,11 @@ Expected: GREEN.
 ./gradlew :storage:room:connectedDebugAndroidTest --stacktrace
 ```
 
-Required evidence includes schema-8→9 representative graph migration, FK checks, forward merge rollback/idempotency/flattening, controlled reversal tests, and durable one-per-merge reversal audit linkage.
+Required evidence includes representative schema-8→9 graph migration and FK integrity, forward merge
+rollback/idempotency/redirect flattening, stale-plan rejection, controlled reversal, and durable one-per-merge
+reversal-audit linkage. Record the actual device and final executed/pass/fail counts in the Phase-7 checkpoint.
 
-- [ ] **Step 5: Run connected app navigation/smoke**
+- [ ] **Step 5: Run connected app shell/navigation smoke and preserve acceptance ownership**
 
 ```bash
 ./gradlew :app:connectedDebugAndroidTest \
@@ -5764,11 +5784,15 @@ Required evidence includes schema-8→9 representative graph migration, FK check
   --stacktrace
 ```
 
-Verify Review Queue route, old StoryId redirect navigation, Story canonical presentation, and normal top-level navigation.
+This step proves launch, top-level navigation, Review Queue route shape, Story/Reader navigation behavior,
+and normal app-shell transitions. It does **not** claim ownership of all canonical semantics. The final evidence
+for retired-StoryId redirect resolution, canonical presentation consistency, and Review content/commands comes
+from their existing Step-3/Step-6 owners (`RoomStoryIdentityResolverTest`, Story/Review feature tests, and
+`CanonicalPresentationConsistencyTest`). Do not add duplicate app-level semantic tests merely to satisfy this step.
 
-- [ ] **Step 6: Audit the canonical acceptance matrix against the named owning tests**
+- [ ] **Step 6: Run the named canonical acceptance matrix**
 
-Before performance testing, confirm the following already-created tests from earlier tasks are present and GREEN; Task 42 does not invent late feature behavior:
+Confirm the following existing owners remain present and GREEN; Task 42 does not invent late behavior:
 
 ```text
 CatalogReconciliationEngineTest / ReconciliationAdversarialFixtureTest
@@ -5782,14 +5806,14 @@ CanonicalGenerationValidatorTest / CanonicalFusionServiceTest
 RoomStoryGraphMergeCoordinatorTest
   -> one active owner, protected conflict rollback, stable chapter/release IDs, idempotent retry, stale-plan rejection, redirect flattening
 RoomStoryIdentityResolverTest
-  -> retired StoryId resolves deterministic survivor
+  -> retired StoryId resolves deterministic survivor and redirect updates remain observable
 CatalogFullMetadataFallbackServiceTest / CatalogSearchServiceTest
   -> policy reevaluation/fallback does not make Search fetch Full or make optional absence trigger provider hopping
 CanonicalPresentationConsistencyTest
   -> Search/Discover/Story/Library consume canonical presentation and never raw-fallback it
 ```
 
-Run the focused acceptance set explicitly:
+Run:
 
 ```bash
 ./gradlew :catalog:testDebugUnitTest \
@@ -5803,18 +5827,35 @@ Run the focused acceptance set explicitly:
   --tests app.openstory.catalog.fusion.CanonicalFusionServiceTest \
   --tests app.openstory.catalog.details.CatalogFullMetadataFallbackServiceTest \
   --tests app.openstory.catalog.search.CatalogSearchServiceTest
+
 ./gradlew :feature:catalog:testDebugUnitTest \
   --tests app.openstory.catalog.ui.CanonicalPresentationConsistencyTest
+
 ./gradlew :storage:room:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.storage.room.merge.RoomStoryGraphMergeCoordinatorTest,app.openstory.storage.room.catalog.RoomStoryIdentityResolverTest \
   --stacktrace
 ```
 
-If any named class is missing or red, stop Task 42 and return to the owning earlier task; do not patch missing semantics into this final verification task.
+If any named class is missing or red, stop Task 42 and return to the owning earlier task; do not patch missing
+semantics into this final certification task.
 
-- [ ] **Step 7: Run the exact existing macrobenchmark journeys affected by canonical observation**
+- [ ] **Step 7: Regenerate Baseline/Startup Profiles for the canonical read path before measuring final performance**
 
-Run the repository's current benchmark methods by their existing names:
+The committed profiles predate the completed canonical Story/Discover/Search read-path constructor/composition
+shape, so regenerate first:
+
+```bash
+./gradlew :app:generateBaselineProfile --stacktrace
+
+git diff -- \
+  app/src/release/generated/baselineProfiles/baseline-prof.txt \
+  app/src/release/generated/baselineProfiles/startup-prof.txt
+```
+
+Review the diff to ensure it is profile output from the current CUJs rather than unrelated source/config changes.
+The generated profile files are expected Task-42 artifacts; no production semantic source change is expected.
+
+- [ ] **Step 8: Run the final Macrobenchmark journeys against the newly generated profile**
 
 ```bash
 ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
@@ -5831,36 +5872,72 @@ Run the repository's current benchmark methods by their existing names:
   --stacktrace
 ```
 
-Record startup plus Discover warm-navigation/scroll and Story-tab results. The architectural pass criterion is no per-recomposition source fusion and no obvious regression outside normal device noise; if a measurable regression appears, inspect the generated trace before changing correctness policy.
+Record startup plus Discover warm-navigation/scroll and Story-tab results. The architectural pass criterion is
+no per-recomposition source fusion and no obvious regression outside normal device noise. If a measurable
+regression appears, inspect the generated Perfetto trace before changing correctness policy.
 
-- [ ] **Step 8: Regenerate the Baseline/Startup Profile after the canonical read-path rollout**
-
-Tasks 17–21 change hot Discover/Story/Search read paths, so regenerate using the repository's existing task rather than carrying forward a profile generated from the old source-selection path:
-
-```bash
-./gradlew :app:generateBaselineProfile --stacktrace
-```
-
-Then run the existing profile/static verification through the final repository gate in Step 9.
-
-- [ ] **Step 9: Run the repository-wide final gate**
+- [ ] **Step 9: Run the repository-wide final host gate**
 
 ```bash
 ./scripts/verify.sh
 ```
 
-Expected: GREEN with architecture, package-boundary, source-layout, static, Room schema, and structural checks intact.
+Expected: GREEN with architecture, package-boundary, source-layout, Detekt/static, Room schema, profile/static,
+and structural policies intact.
 
-- [ ] **Step 10: Manual debug trace sanity check**
+- [ ] **Step 10: Complete bounded diagnostics sanity without creating a production debug surface**
 
-Using synthetic/non-provider-specific fixture data, confirm diagnostics can explain one AUTO merge, one REVIEW, one primary stay due hysteresis, one fused latestUpdate source, and one blocked protected merge without dumping raw user data.
+The automated synthetic Task-41 fixtures remain the semantic/privacy proof for AUTO/REVIEW decisions, primary
+hysteresis, field provenance, generation failure, merge blocked/committed, case reopen, invariant diagnostics,
+and fail-open sinks. For Task 42, perform only a debug-wiring sanity check that safe Logcat output is emitted
+for synthetic/non-provider-specific execution and does not include raw user/plugin payloads. Do not add a
+production diagnostics UI, live-provider fixture, diagnostics persistence, or alternate logging truth store.
 
-- [ ] **Step 11: Commit final docs/schema/verification evidence**
+- [ ] **Step 11: Create the final Phase-7 checkpoint, close governance, and stage only explicit Task-42 artifacts**
+
+Only after Steps 2–10 are reviewed GREEN:
+
+```text
+Create docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md.
+Record the actual schema fingerprint, unit/device/app acceptance results, device identity, generated profile
+artifacts, four Macrobenchmark results/trace locations, final verify.sh result, and diagnostics sanity result.
+Update current-state/current-roadmap/design/plan status to Tasks 1–42 / Phase 7 VERIFIED/CLOSED.
+Handoff the next active implementation boundary to Wave 10 on schema 9 with MIGRATION_9_10 reserved for
+notification persistence.
+```
+
+Before staging:
 
 ```bash
-git add docs storage/room/schemas config benchmark app feature/catalog catalog library chapters reader plugins/api
+git status --short
+git diff --stat
+git diff
+```
+
+Stage only files that are actually part of the reviewed Task-42 closure. The expected set is governance docs,
+the new Phase-7 checkpoint, and the two generated profile files; schema 9 should normally have no diff. For
+example:
+
+```bash
+git add \
+  README.md \
+  docs/README.md \
+  docs/PROJECT-HANDBOOK.md \
+  docs/project/current-state.md \
+  docs/project/requirement-coverage.md \
+  docs/project/document-governance.md \
+  docs/implementation/current-roadmap.md \
+  docs/superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md \
+  docs/superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md \
+  docs/superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md \
+  docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md \
+  app/src/release/generated/baselineProfiles/baseline-prof.txt \
+  app/src/release/generated/baselineProfiles/startup-prof.txt
+
 git commit -m "docs: finalize canonical catalog engine rollout"
 ```
+
+Do not use `git add docs app catalog ...` or any other whole-tree staging shortcut in this certification task.
 
 ---
 

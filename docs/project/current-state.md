@@ -32,7 +32,7 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–6 / TASKS 1–38 + PHASE 7 TASKS 39–41 VERIFIED/CLOSED; TASK 42 NEXT**.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–6 / TASKS 1–38 + PHASE 7 TASKS 39–41 VERIFIED/CLOSED; TASK 42 ACTIVE**.
   Task 39 provides durable background safety over the schema-9 engine-work queue. Task 40 adds controlled,
   fail-closed historical merge reversal. Task 41 adds bounded structured decision traces and invariant
   diagnostics without creating a second truth store: Fusion/Reconciliation policy engines remain pure,
@@ -56,8 +56,9 @@ Purpose: single source of truth for the implemented repository boundary.
   production auto-merge passed its post-enable gate, Phase 5 closed Tasks 33–35, Phase 6 closed Tasks 36–38,
   Phase 7 Task 39 closed durable background maintenance/safety, Task 40 closed controlled reversal, and
   Task 41 closed structured decision traces/invariant diagnostics after focused unit/device and canonical
-  verification. Task 42 final governance/docs plus acceptance/migration/UI/performance verification is the
-  next canonical-engine step. Room remains schema 9.
+  verification. Task 42 is now the active final certification gate: it owns governance synchronization,
+  deterministic schema-9 confirmation, the full test/device matrix, Baseline/Startup Profile regeneration,
+  and final canonical-read-path macrobenchmarks. It introduces no new feature semantics. Room remains schema 9.
 
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.

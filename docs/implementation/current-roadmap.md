@@ -28,7 +28,7 @@ catalog metadata-lifecycle unification subsequently advanced Room to **schema 8*
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
 The **Canonical Catalog Reconciliation & Fusion Engine remains the active pre-Wave-10 workstream**.
-Phases 0–6 / Tasks 1–38 and Phase 7 Tasks 39–41 are verified and closed on Room schema 9. Task 39 adds durable background draining and policy/invariant safety; Task 40 adds fail-closed controlled reversal for provably safe historical merges; Task 41 adds bounded structured decision traces/invariant diagnostics while keeping policy engines pure, diagnostics fail-open, and canonical persistence authoritative. No diagnostics table or schema migration was introduced. The active next step is **Phase 7 Task 42 final governance/docs and the full acceptance, migration, UI, and performance matrix**. The active design/plan are:
+Phases 0–6 / Tasks 1–38 and Phase 7 Tasks 39–41 are verified and closed on Room schema 9. Task 39 adds durable background draining and policy/invariant safety; Task 40 adds fail-closed controlled reversal for provably safe historical merges; Task 41 adds bounded structured decision traces/invariant diagnostics while keeping policy engines pure, diagnostics fail-open, and canonical persistence authoritative. No diagnostics table or schema migration was introduced. The active step is **Phase 7 Task 42 final governance/docs and the full acceptance, migration, app/navigation, profile, and performance matrix**. The active design/plan are:
 
 - `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
 - `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
@@ -130,7 +130,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | PUI | ReDantotsu-inspired Product UI redesign | **Completed; checkpoint accepted 2026-08-14** | `../internal/checkpoints/product-ui-redesign.md` |
 | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
 | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
-| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phases 0–6 / Tasks 1–38 + Phase 7 Tasks 39–41 verified/closed; Task 42 next; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md` |
+| CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phases 0–6 / Tasks 1–38 + Phase 7 Tasks 39–41 verified/closed; Task 42 active; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7-task-41.md` |
 | 10 | Background work, auth, notifications | **Planned; not started; schema entry will be rebased by CCE Task 6 if that foundation lands first** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
@@ -221,7 +221,7 @@ architecture
                                             -> durable engine-work drain + policy safety passes (Phase 7 Task 39 verified/closed)
                                               -> controlled reversal for provably safe historical merges (Phase 7 Task 40 verified/closed)
                                                 -> structured decision traces + invariant diagnostics (Phase 7 Task 41 verified/closed)
-                                                  -> final governance/docs + acceptance matrix (Phase 7 Task 42 next)
+                                                  -> final governance/docs + acceptance/profile/performance matrix (Phase 7 Task 42 active)
                                   -> local background/auth/notifications (Wave 10; schema 9 -> 10)
                       -> release hardening
 ```
@@ -229,7 +229,7 @@ architecture
 ## Execution rule
 
 1. Use the current 14-module graph, Room schema 9, and the Canonical Engine design/plan as the active execution baseline.
-2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–41 are verified and closed. Phase 7 Task 42 is the active next task. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
+2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–41 are verified and closed. Phase 7 Task 42 is the active task. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
 3. Wave 10 notification persistence is rebased to `MIGRATION_9_10`; never reintroduce another meaning for `MIGRATION_8_9`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
