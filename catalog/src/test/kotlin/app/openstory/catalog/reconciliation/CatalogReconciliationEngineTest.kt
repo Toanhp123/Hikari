@@ -8,6 +8,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class CatalogReconciliationEngineTest {
@@ -133,6 +134,40 @@ class CatalogReconciliationEngineTest {
 
         assertEquals(1, selection.ranked.count { it.storyId == StoryId("story:a") })
         assertEquals(ReconciliationSemanticDecision.SAME_WORK, selection.semanticDecision)
+    }
+
+    @Test
+    fun sameStoryStrongMatchCannotHideAnotherSourceHardConflict() {
+        val incoming = evidence("incoming", null, "Exact", identifiers = setOf(workId("work", "x")))
+        val matching = evidence("matching", "story:a", "Exact", identifiers = setOf(workId("work", "x")))
+        val conflicting = evidence("conflicting", "story:a", "Exact", identifiers = setOf(workId("work", "y")))
+
+        val selection = engine.rankCandidates(incoming, listOf(matching, conflicting))
+
+        assertEquals(ReconciliationSemanticDecision.REVIEW, selection.semanticDecision)
+        assertEquals(ReconciliationMergeEligibility.INVARIANT_BLOCKED, selection.mergeEligibility)
+        assertTrue(ReconciliationReasonCode.WORK_IDENTIFIER_CONFLICT in selection.reasons)
+        assertEquals(setOf(workId("work", "x"), workId("work", "y")), selection.ranked.single().assessment.conflictingIdentifiers)
+    }
+
+    @Test
+    fun runnerUpChangesContextFingerprintWithoutChangingTopPairEvidence() {
+        val incoming = evidence("incoming", null, "Exact", authors = setOf("writer"))
+        val top = evidence("top", "story:a", "Exact", authors = setOf("writer"))
+        val runnerUp = evidence("runner-up", "story:b", "Exact", authors = setOf("writer"))
+
+        val alone = engine.rankCandidates(incoming, listOf(top))
+        val ambiguous = engine.rankCandidates(incoming, listOf(top, runnerUp))
+        val permuted = engine.rankCandidates(incoming, listOf(runnerUp, top))
+
+        assertEquals(
+            alone.ranked.first().assessment.identityEvidenceFingerprint,
+            ambiguous.ranked.first().assessment.identityEvidenceFingerprint,
+        )
+        assertEquals(ReconciliationSemanticDecision.SAME_WORK, alone.semanticDecision)
+        assertEquals(ReconciliationSemanticDecision.REVIEW, ambiguous.semanticDecision)
+        assertNotEquals(alone.identityEvidenceFingerprint, ambiguous.identityEvidenceFingerprint)
+        assertEquals(ambiguous.identityEvidenceFingerprint, permuted.identityEvidenceFingerprint)
     }
 
     private fun evidence(

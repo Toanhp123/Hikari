@@ -16,6 +16,7 @@ interface CanonicalCatalogRepository {
     suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord>
     suspend fun activeGeneration(storyId: StoryId): CanonicalGeneration?
     suspend fun sourcePreference(storyId: StoryId): CanonicalSourcePreference
+    suspend fun identityRevision(storyId: StoryId): Long = 0L
 
     suspend fun setSourcePreference(preference: CanonicalSourcePreference)
 
@@ -23,6 +24,11 @@ interface CanonicalCatalogRepository {
         candidate: CanonicalGeneration,
         expectedActiveGenerationId: String?,
     ): Boolean
+
+    suspend fun persistCandidateIfCurrent(
+        candidate: CanonicalGeneration,
+        expectation: CanonicalPromotionExpectation,
+    ): Boolean = persistCandidate(candidate, expectation.activeGenerationId)
 
     suspend fun markHealth(storyId: StoryId, health: CanonicalHealth)
     suspend fun cleanupObsoleteGenerations(storyId: StoryId)

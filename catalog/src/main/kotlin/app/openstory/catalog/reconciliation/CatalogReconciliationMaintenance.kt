@@ -37,12 +37,20 @@ class CatalogReconciliationMaintenanceService(
         val left = identity.resolve(case.leftStoryId)
         val right = identity.resolve(case.rightStoryId)
         if (left == right) return false
-        val leftEvidence = catalog.sourceRecords(left).map(ReconciliationEvidenceFactory::fromRecord)
-        val rightEvidence = catalog.sourceRecords(right).map(ReconciliationEvidenceFactory::fromRecord)
-        return leftEvidence.any { leftRecord ->
-            rightEvidence.any { rightRecord ->
-                engine.assessPair(leftRecord, rightRecord).identityEvidenceFingerprint == case.evidenceFingerprint
-            }
+        val allEvidence = catalog.sourceRecords().map(ReconciliationEvidenceFactory::fromRecord)
+        val index = InMemoryCatalogCandidateIndex().apply { rebuild(allEvidence) }
+        val pair = ReconciliationCaseKey.of(left, right)
+        return allEvidence.asSequence()
+            .filter { it.currentStoryId == left || it.currentStoryId == right }
+            .any { incoming ->
+                val incomingStoryId = requireNotNull(incoming.currentStoryId)
+                val candidateStoryIds = index.candidatesFor(incoming)
+                    .filterNot { it == incomingStoryId }
+                    .toSet()
+                val selection = engine.rankCandidates(incoming, index.evidenceFor(candidateStoryIds))
+                val bestStoryId = selection.ranked.firstOrNull()?.storyId
+                bestStoryId != null && ReconciliationCaseKey.of(incomingStoryId, bestStoryId) == pair &&
+                    selection.identityEvidenceFingerprint == case.evidenceFingerprint
         }
     }
 }

@@ -3,6 +3,7 @@ package app.openstory.catalog.fusion
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
 import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.canonical.CanonicalPromotionExpectation
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
@@ -22,7 +23,10 @@ class CanonicalFusionService(
     private val clock: Clock,
     private val diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
 ) : CanonicalGenerationRebuilder {
-    override suspend fun rebuild(storyId: StoryId, reason: CanonicalFusionReason): CanonicalFusionResult {
+    override suspend fun rebuild(storyId: StoryId, reason: CanonicalFusionReason): CanonicalFusionResult =
+        rebuildCurrent(storyId, retryPromotion = true)
+
+    private suspend fun rebuildCurrent(storyId: StoryId, retryPromotion: Boolean): CanonicalFusionResult {
         val state = canonical.state(storyId)
         return if (state == null) {
             failed(storyId, "canonical.story.missing", retryable = false)
@@ -32,7 +36,7 @@ class CanonicalFusionService(
                 canonical.markHealth(storyId, CanonicalHealth.DEGRADED)
                 CanonicalFusionResult.Preparing(storyId)
             } else {
-                buildAndPromote(state, sources.map { availability.resolve(it) }, retryPromotion = true)
+                buildAndPromote(state, availability.resolve(sources), retryPromotion)
             }
         }
     }
@@ -45,6 +49,7 @@ class CanonicalFusionService(
         val storyId = state.story.id
         val active = canonical.activeGeneration(storyId)
         val preference = canonical.sourcePreference(storyId)
+        val identityRevision = canonical.identityRevision(storyId)
         val evaluatedAt = clock.nowEpochMillis()
         val candidate = engine.fuse(
             FusionInput(
@@ -78,7 +83,15 @@ class CanonicalFusionService(
                 CanonicalFusionResult.Unchanged(active)
             }
 
-            else -> persistOrRetry(state, sources, active, candidate, retryPromotion)
+            else -> persistOrRetry(
+                state = state,
+                sources = sources,
+                active = active,
+                preferenceRevision = preference.revision,
+                identityRevision = identityRevision,
+                candidate = candidate,
+                retryPromotion = retryPromotion,
+            )
         }
     }
 
@@ -86,13 +99,21 @@ class CanonicalFusionService(
         state: CanonicalStoryState,
         sources: List<FusionSource>,
         active: CanonicalGeneration?,
+        preferenceRevision: Long,
+        identityRevision: Long,
         candidate: CanonicalGenerationCandidate,
         retryPromotion: Boolean,
     ): CanonicalFusionResult {
         val storyId = state.story.id
         val generation = candidate.toGeneration(generationId(candidate))
+        val expectation = CanonicalPromotionExpectation(
+            activeGenerationId = active?.id,
+            preferenceRevision = preferenceRevision,
+            identityRevision = identityRevision,
+            sourceFusionFingerprints = sources.associate { it.sourceKey to it.record.fusionFingerprint },
+        )
         return when {
-            canonical.persistCandidate(generation, active?.id) -> {
+            canonical.persistCandidateIfCurrent(generation, expectation) -> {
                 canonical.cleanupObsoleteGenerations(storyId)
                 CanonicalFusionResult.Promoted(generation)
             }
@@ -104,14 +125,7 @@ class CanonicalFusionService(
                 candidate = candidate,
             )
 
-            else -> canonical.state(storyId)?.let { reread ->
-                buildAndPromote(reread, sources, retryPromotion = false)
-            } ?: failed(
-                storyId = storyId,
-                code = "canonical.story.disappeared",
-                retryable = true,
-                candidate = candidate,
-            )
+            else -> rebuildCurrent(storyId, retryPromotion = false)
         }
     }
 

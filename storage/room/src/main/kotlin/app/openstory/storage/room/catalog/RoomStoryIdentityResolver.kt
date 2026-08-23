@@ -21,6 +21,12 @@ class RoomStoryIdentityResolver internal constructor(
     override suspend fun resolve(storyId: StoryId): StoryId =
         resolveFrom(storyId, dao.redirects().associateBy(StoryRedirectEntity::retiredStoryId))
 
+    override suspend fun resolveAll(storyIds: Collection<StoryId>): Map<StoryId, StoryId> {
+        if (storyIds.isEmpty()) return emptyMap()
+        val redirects = dao.redirects().associateBy(StoryRedirectEntity::retiredStoryId)
+        return storyIds.distinct().associateWith { storyId -> resolveFrom(storyId, redirects) }
+    }
+
     override suspend fun identityState(storyId: StoryId): CanonicalIdentityState? {
         val resolved = resolve(storyId)
         val state = dao.canonicalState(resolved.value) ?: return null

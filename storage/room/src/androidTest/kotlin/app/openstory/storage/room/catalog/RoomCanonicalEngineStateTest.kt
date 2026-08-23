@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.openstory.catalog.orchestration.CanonicalEngineWorkRequest
 import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.common.FakeClock
 import app.openstory.common.id.StoryId
@@ -85,6 +86,82 @@ class RoomCanonicalEngineStateTest {
     }
 
     @Test
+    fun oneThousandDirtyStoriesArePersistedByTheBatchContract() = runTest {
+        withDatabase { database ->
+            val stories = (0 until 1_000).map { index -> StoryEntity("story:batch:$index", "MANGA") }
+            database.catalogDao().upsertStories(stories)
+            val repository = RoomCanonicalEngineWorkRepository(database, FakeClock(10))
+            val requests = stories.map { story ->
+                CanonicalEngineWorkRequest(
+                    storyId = StoryId(story.storyId),
+                    type = CanonicalEngineWorkType.FUSION_REBUILD,
+                    reason = "source_summary_changed",
+                    requiredPolicyVersion = 1,
+                )
+            }
+
+            val persisted = repository.markDirty(requests)
+
+            assertEquals(1_000, persisted.size)
+            assertEquals(1_000, repository.claimReady(nowEpochMillis = 10, limit = 1_000).size)
+        }
+    }
+
+    @Test
+    fun liveLeasePreventsASecondConsumerFromClaimingTheSameWork() = runTest {
+        withDatabase { database ->
+            seedStory(database, "story:leased")
+            val first = RoomCanonicalEngineWorkRepository(database, FakeClock(10))
+            val second = RoomCanonicalEngineWorkRepository(database, FakeClock(10))
+            first.markDirty(StoryId("story:leased"), CanonicalEngineWorkType.FUSION_REBUILD, "changed")
+
+            assertEquals(1, first.claimReady(10, 1).size)
+            assertTrue(second.claimReady(10, 1).isEmpty())
+        }
+    }
+
+    @Test
+    fun expiredLeaseCanBeClaimedAgainAfterWorkerDeath() = runTest {
+        withDatabase { database ->
+            seedStory(database, "story:expired")
+            val repository = RoomCanonicalEngineWorkRepository(database, FakeClock(10))
+            repository.markDirty(StoryId("story:expired"), CanonicalEngineWorkType.FUSION_REBUILD, "changed")
+
+            val first = repository.claimReady(10, 1).single()
+            val reclaimed = repository.claimReady(requireNotNull(first.leaseExpiresAtEpochMillis), 1).single()
+
+            assertTrue(first.leaseToken != reclaimed.leaseToken)
+        }
+    }
+
+    @Test
+    fun reconciliationPriorityIsAppliedBeforeSqlLimit() = runTest {
+        withDatabase { database ->
+            seedStory(database, "story:priority")
+            val repository = RoomCanonicalEngineWorkRepository(database, FakeClock(10))
+            repository.markDirty(
+                listOf(
+                    CanonicalEngineWorkRequest(
+                        StoryId("story:priority"),
+                        CanonicalEngineWorkType.FUSION_REBUILD,
+                        "changed",
+                    ),
+                    CanonicalEngineWorkRequest(
+                        StoryId("story:priority"),
+                        CanonicalEngineWorkType.RECONCILIATION_REEVALUATION,
+                        "changed",
+                    ),
+                ),
+            )
+
+            assertEquals(
+                CanonicalEngineWorkType.RECONCILIATION_REEVALUATION,
+                repository.claimReady(10, 1).single().type,
+            )
+        }
+    }
+
+    @Test
     fun identicalDirtyEventGetsNewQueueRevisionSoStaleCompletionCannotDeleteIt() = runTest {
         withDatabase { database ->
             seedStory(database, "story:identical-race")
@@ -107,7 +184,13 @@ class RoomCanonicalEngineStateTest {
 
             assertEquals(100L, stale.nextAttemptAtEpochMillis)
             assertEquals(101L, newer.nextAttemptAtEpochMillis)
-            assertEquals(newer, repository.claimReady(101, 1).single())
+            assertEquals(
+                newer,
+                repository.claimReady(101, 1).single().copy(
+                    leaseToken = null,
+                    leaseExpiresAtEpochMillis = null,
+                ),
+            )
         }
     }
 
@@ -313,7 +396,13 @@ class RoomCanonicalEngineStateTest {
             assertEquals("new", requeued.reason)
             assertEquals(null, requeued.lastFailureCode)
             assertEquals(100L, requeued.nextAttemptAtEpochMillis)
-            assertEquals(requeued, repository.claimReady(100, 1).single())
+            assertEquals(
+                requeued,
+                repository.claimReady(100, 1).single().copy(
+                    leaseToken = null,
+                    leaseExpiresAtEpochMillis = null,
+                ),
+            )
         }
     }
 

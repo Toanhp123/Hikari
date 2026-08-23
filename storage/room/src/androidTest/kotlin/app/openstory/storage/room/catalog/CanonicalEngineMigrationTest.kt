@@ -89,6 +89,41 @@ class CanonicalEngineMigrationTest {
     }
 
     @Test
+    fun migrationNineToTenPreservesWorkAsUnleasedAndCreatesOutbox() {
+        helper.createDatabase(TEST_DATABASE_V10, 9).apply {
+            execSQL("INSERT INTO stories (story_id, content_type) VALUES ('story-10', 'MANGA')")
+            execSQL(
+                "INSERT INTO canonical_engine_work " +
+                    "(story_id, work_type, reason, attempt_count, next_attempt_at_epoch_millis, " +
+                    "last_error_code, required_policy_version) VALUES " +
+                    "('story-10', 'FUSION_REBUILD', 'changed', 0, 10, NULL, 1)",
+            )
+            close()
+        }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE_V10,
+            10,
+            true,
+            RoomMigrations.MIGRATION_9_10,
+        ).use { database ->
+            database.query(
+                "SELECT reason, lease_token, lease_expires_at_epoch_millis " +
+                    "FROM canonical_engine_work WHERE story_id='story-10'",
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("changed", cursor.getString(0))
+                assertTrue(cursor.isNull(1))
+                assertTrue(cursor.isNull(2))
+            }
+            database.query("SELECT COUNT(*) FROM catalog_change_outbox").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
+    @Test
     fun migrationEightToNinePreservesRepresentativeStoryGraphAndForeignKeys() {
         helper.createDatabase(TEST_DATABASE_GRAPH, 8).apply {
             execSQL("INSERT INTO stories (story_id, content_type) VALUES ('story:a', 'MANGA')")
@@ -236,5 +271,6 @@ class CanonicalEngineMigrationTest {
     private companion object {
         const val TEST_DATABASE = "canonical-engine-migration-8-9-test"
         const val TEST_DATABASE_GRAPH = "canonical-engine-migration-8-9-graph-test"
+        const val TEST_DATABASE_V10 = "canonical-engine-migration-9-10-test"
     }
 }

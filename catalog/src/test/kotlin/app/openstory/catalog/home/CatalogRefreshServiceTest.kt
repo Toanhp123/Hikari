@@ -195,6 +195,56 @@ class CatalogRefreshServiceTest {
         assertEquals(true, change.fusionFingerprintChanged)
     }
 
+    @Test
+    fun callerSelectedVisibleStoriesAreTheOnlyImmediateConvergenceSet() = runTest {
+        val visible = StoryId("story:visible")
+        val background = StoryId("story:background")
+        val repository = RecordingRepository(
+            forcedChanges = listOf(
+                CatalogCommitChange(
+                    visible,
+                    SourceKey(PluginId("a"), "visible"),
+                    identityFingerprintChanged = true,
+                    fusionFingerprintChanged = true,
+                ),
+                CatalogCommitChange(
+                    background,
+                    SourceKey(PluginId("a"), "background"),
+                    identityFingerprintChanged = true,
+                    fusionFingerprintChanged = true,
+                ),
+            ),
+        )
+        val engine = RecordingCanonicalEngineEventSink()
+        val registry = Registry(
+            listOf(
+                Source(
+                    "a",
+                    CatalogSourceResult.Success(
+                        listOf(
+                            SourceSection(
+                                "popular",
+                                "Popular",
+                                listOf(item("visible", "Visible"), item("background", "Background")),
+                                SourceFeedKind.POPULAR,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        service(registry, repository, 42L, engine).refresh(
+            prioritySelector = CatalogRefreshPrioritySelector { homes ->
+                assertEquals(2, homes.single().sections.single().items.size)
+                setOf(homes.single().sections.single().items.first().storyId)
+            },
+        )
+
+        assertEquals(setOf(visible), engine.immediateStoryIdBatches.single())
+        assertEquals(setOf(visible, background), engine.evidenceChanges.map { it.storyId }.toSet())
+    }
+
     private fun service(
         registry: CatalogSourceRegistry,
         repository: CatalogRepository,

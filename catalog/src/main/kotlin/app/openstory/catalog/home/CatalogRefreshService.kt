@@ -6,6 +6,7 @@ import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
+import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
@@ -47,22 +48,32 @@ class CatalogRefreshService @Inject constructor(
     private val orchestrator: CanonicalEngineEventSink,
     private val clock: Clock,
 ) {
-    suspend fun refresh(request: SourceHomeRequest = SourceHomeRequest()): List<CatalogRefreshResult> {
+    suspend fun refresh(
+        request: SourceHomeRequest = SourceHomeRequest(),
+        prioritySelector: CatalogRefreshPrioritySelector = CatalogRefreshPrioritySelector.ALL,
+    ): List<CatalogRefreshResult> {
         var ingest = ingestContext()
         val fetched = supervisorScope {
             sources.enabled().sortedBy { it.pluginId.value }
                 .map { source -> async { source to fetch(source, request) } }
                 .awaitAll()
         }
-        return fetched.map { (source, result) ->
+        val attempts = fetched.map { (source, result) ->
             when (result) {
-                is CatalogSourceResult.Failure -> CatalogRefreshResult.SourceFailure(source.pluginId, result.failure)
+                is CatalogSourceResult.Failure -> CommitAttempt(
+                    result = CatalogRefreshResult.SourceFailure(source.pluginId, result.failure),
+                    committedContext = null,
+                )
                 is CatalogSourceResult.Success -> runCatchingCommit(source, result.value, ingest).let { attempt ->
                     attempt.committedContext?.let { ingest = it }
-                    attempt.result
+                    attempt
                 }
             }
         }
+        val changes = attempts.flatMap(CommitAttempt::changes)
+        val committedHomes = attempts.mapNotNull(CommitAttempt::committedHome)
+        routeChanges(changes, prioritySelector.select(committedHomes))
+        return attempts.map(CommitAttempt::result)
     }
 
     private suspend fun ingestContext(): IngestContext {
@@ -130,10 +141,11 @@ class CatalogRefreshService @Inject constructor(
         return when (val committed = commitMutation(mutation)) {
             is Outcome.Success -> {
                 local.applyDurableOwnership(committed.value.changes)
-                routeChanges(committed.value.changes)
                 CommitAttempt(
                     CatalogRefreshResult.Success(source.pluginId, refreshedAtEpochMillis),
                     local,
+                    mutation.toSnapshot(committed.value.changes),
+                    committed.value.changes,
                 )
             }
             is Outcome.Failure -> CommitAttempt(
@@ -171,11 +183,13 @@ class CatalogRefreshService @Inject constructor(
             item.sourceId to ResolvedEntry(story, item.toEntry(source, story.id))
         }
 
-    private suspend fun routeChanges(changes: List<CatalogCommitChange>) {
-        changes.forEach { change ->
-            orchestrator.onEvidenceChanged(change.toEvidenceChange(CatalogEvidenceLevel.SUMMARY))
-        }
-    }
+    private suspend fun routeChanges(
+        changes: List<CatalogCommitChange>,
+        immediateStoryIds: Set<StoryId>,
+    ) = orchestrator.onEvidenceChanges(
+        changes = changes.map { change -> change.toEvidenceChange(CatalogEvidenceLevel.SUMMARY) },
+        immediateStoryIds = immediateStoryIds,
+    )
 
     private data class IngestContext(
         val index: CatalogIngestReconciliationIndex,
@@ -193,6 +207,8 @@ class CatalogRefreshService @Inject constructor(
     private data class CommitAttempt(
         val result: CatalogRefreshResult,
         val committedContext: IngestContext?,
+        val committedHome: CatalogHomeSnapshot? = null,
+        val changes: List<CatalogCommitChange> = emptyList(),
     )
 
     private suspend fun commitMutation(
@@ -204,6 +220,23 @@ class CatalogRefreshService @Inject constructor(
     } catch (_: Exception) {
         Outcome.Failure(CatalogStoreFailure("catalog.store.exception", retryable = true))
     }
+}
+
+private fun CatalogHomeMutation.toSnapshot(changes: List<CatalogCommitChange>): CatalogHomeSnapshot {
+    val durableOwners = changes.associate { change -> change.sourceKey to change.storyId }
+    return CatalogHomeSnapshot(
+        pluginId = pluginId,
+        pluginVersion = pluginVersion,
+        refreshedAtEpochMillis = refreshedAtEpochMillis,
+        sections = sections.map { section ->
+            section.copy(
+                items = section.items.map { entry ->
+                    val sourceKey = SourceKey(entry.pluginId, entry.sourceId)
+                    entry.copy(storyId = durableOwners[sourceKey] ?: entry.storyId)
+                },
+            )
+        },
+    )
 }
 
 private fun List<app.openstory.catalog.source.SourceSection>.toCatalogSections(

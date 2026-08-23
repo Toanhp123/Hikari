@@ -8,6 +8,7 @@ import app.openstory.common.id.StoryId
 
 internal class RecordingCanonicalEngineEventSink : CanonicalEngineEventSink {
     val evidenceChanges = mutableListOf<CatalogEvidenceChange>()
+    val immediateStoryIdBatches = mutableListOf<Set<StoryId>>()
     val linked = mutableListOf<Pair<StoryId, SourceKey>>()
     val unlinked = mutableListOf<Pair<StoryId, SourceKey>>()
     val preferenceChanges = mutableListOf<StoryId>()
@@ -17,6 +18,14 @@ internal class RecordingCanonicalEngineEventSink : CanonicalEngineEventSink {
 
     override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) {
         evidenceChanges += change
+    }
+
+    override suspend fun onEvidenceChanges(
+        changes: List<CatalogEvidenceChange>,
+        immediateStoryIds: Set<StoryId>,
+    ) {
+        immediateStoryIdBatches += immediateStoryIds
+        changes.forEach { change -> onEvidenceChanged(change) }
     }
 
     override suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey) {

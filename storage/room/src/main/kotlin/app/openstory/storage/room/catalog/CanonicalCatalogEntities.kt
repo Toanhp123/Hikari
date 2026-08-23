@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
+import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "catalog_entry_identifiers",
@@ -164,6 +165,11 @@ internal data class ReconciliationCaseRevisionEntity(
     @ColumnInfo(name = "evaluated_at_epoch_millis") val evaluatedAtEpochMillis: Long,
 )
 
+internal data class ReconciliationRevisionCountRow(
+    @ColumnInfo(name = "case_id") val caseId: String,
+    @ColumnInfo(name = "revision_count") val revisionCount: Long,
+)
+
 @Entity(
     tableName = "story_merge_events",
     indices = [Index(
@@ -246,7 +252,16 @@ internal data class StoryRedirectEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index("next_attempt_at_epoch_millis")],
+    indices = [
+        Index(
+            value = [
+                "lease_expires_at_epoch_millis",
+                "next_attempt_at_epoch_millis",
+                "work_type",
+                "story_id",
+            ],
+        ),
+    ],
 )
 internal data class CanonicalEngineWorkEntity(
     @ColumnInfo(name = "story_id") val storyId: String,
@@ -256,4 +271,35 @@ internal data class CanonicalEngineWorkEntity(
     @ColumnInfo(name = "next_attempt_at_epoch_millis") val nextAttemptAtEpochMillis: Long,
     @ColumnInfo(name = "last_error_code") val lastErrorCode: String?,
     @ColumnInfo(name = "required_policy_version") val requiredPolicyVersion: Int?,
+    @ColumnInfo(name = "lease_token") val leaseToken: String? = null,
+    @ColumnInfo(name = "lease_expires_at_epoch_millis") val leaseExpiresAtEpochMillis: Long? = null,
+)
+
+@Entity(
+    tableName = "catalog_change_outbox",
+    foreignKeys = [
+        ForeignKey(
+            entity = StoryEntity::class,
+            parentColumns = ["story_id"],
+            childColumns = ["story_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [
+        Index("story_id"),
+        Index(value = ["created_at_epoch_millis", "event_id"]),
+    ],
+)
+internal data class CatalogChangeOutboxEntity(
+    @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "event_id") val eventId: Long = 0L,
+    @ColumnInfo(name = "story_id") val storyId: String,
+    @ColumnInfo(name = "plugin_id") val pluginId: String,
+    @ColumnInfo(name = "source_id") val sourceId: String,
+    @ColumnInfo(name = "identity_fingerprint_changed") val identityFingerprintChanged: Boolean,
+    @ColumnInfo(name = "fusion_fingerprint_changed") val fusionFingerprintChanged: Boolean,
+    @ColumnInfo(name = "availability_changed") val availabilityChanged: Boolean,
+    @ColumnInfo(name = "evidence_level") val evidenceLevel: String,
+    val reason: String,
+    @ColumnInfo(name = "created_at_epoch_millis") val createdAtEpochMillis: Long,
 )

@@ -126,6 +126,19 @@ data class CanonicalGeneration(
     }
 }
 
+data class CanonicalPromotionExpectation(
+    val activeGenerationId: String?,
+    val preferenceRevision: Long,
+    val identityRevision: Long,
+    val sourceFusionFingerprints: Map<SourceKey, String>,
+) {
+    init {
+        require(preferenceRevision >= 0L)
+        require(identityRevision >= 0L)
+        require(sourceFusionFingerprints.values.none(String::isBlank))
+    }
+}
+
 data class CanonicalSourceSummary(
     val sourceKey: SourceKey,
     val entry: CatalogEntry,

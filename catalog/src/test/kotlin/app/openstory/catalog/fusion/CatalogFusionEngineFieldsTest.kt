@@ -80,6 +80,15 @@ class CatalogFusionEngineFieldsTest {
     }
 
     @Test
+    fun collectionOrderUsesNormalizedKeyBeforeDisplayCase() {
+        val source = source("provider.a", authors = linkedSetOf("Z", "a"))
+
+        val candidate = fuse(listOf(source), source.sourceKey)
+
+        assertEquals(listOf("a", "Z"), candidate.metadata.authors)
+    }
+
+    @Test
     fun publicationStatusUsesFullThenFreshnessThenPrimaryThenStableKey() {
         val primarySummary = source(
             "provider.a",

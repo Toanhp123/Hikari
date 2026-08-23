@@ -16,6 +16,12 @@ import kotlinx.coroutines.CancellationException
 
 interface CanonicalEngineEventSink {
     suspend fun onEvidenceChanged(change: CatalogEvidenceChange)
+    suspend fun onEvidenceChanges(
+        changes: List<CatalogEvidenceChange>,
+        immediateStoryIds: Set<StoryId>,
+    ) {
+        changes.forEach { change -> onEvidenceChanged(change) }
+    }
     suspend fun onSourceLinked(storyId: StoryId, sourceKey: SourceKey)
     suspend fun onSourceUnlinked(storyId: StoryId, sourceKey: SourceKey)
     suspend fun onSourcePreferenceChanged(storyId: StoryId): CanonicalFusionResult
@@ -30,24 +36,47 @@ class CanonicalEngineOrchestrator @Inject constructor(
     private val work: CanonicalEngineWorkRepository,
     private val identity: StoryIdentityRepository,
     private val scheduler: CanonicalEngineWorkScheduler = NoOpCanonicalEngineWorkScheduler,
+    private val outbox: CatalogChangeOutboxRepository = NoOpCatalogChangeOutboxRepository,
 ) : CanonicalEngineEventSink {
-    override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = runCommittedEvent {
-        val reconciliationResult = if (change.identityFingerprintChanged) {
-            reconcileOrSchedule(change.sourceKey, change.storyId, change.workReason())
+    override suspend fun onEvidenceChanges(
+        changes: List<CatalogEvidenceChange>,
+        immediateStoryIds: Set<StoryId>,
+    ) = runCommittedEvent {
+        val (immediate, deferred) = changes.partition { change -> change.storyId in immediateStoryIds }
+        val durableDeferred = if (outbox.persistsCatalogChanges) {
+            materializeOutboxBestEffort()
         } else {
-            null
+            persistDeferredEvidenceChanges(deferred)
         }
-        val merged = reconciliationResult as? ReconciliationRunResult.AutoMergeApplied
-        if (change.fusionFingerprintChanged || change.availabilityChanged || merged != null) {
-            val owner = identity.resolve(merged?.survivorStoryId ?: change.storyId)
-            val reason = if (merged != null) CanonicalEngineWorkReasons.STORY_MERGED else change.workReason()
-            val fusionReason = when {
-                merged != null -> CanonicalFusionReason.POST_MERGE
-                change.availabilityChanged && !change.fusionFingerprintChanged ->
-                    CanonicalFusionReason.SOURCE_AVAILABILITY_CHANGED
-                else -> CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED
+        try {
+            immediate.forEach { change -> onEvidenceChanged(change) }
+        } finally {
+            if (deferred.isNotEmpty() || durableDeferred) scheduleDrainBestEffort()
+        }
+    }
+
+    override suspend fun onEvidenceChanged(change: CatalogEvidenceChange) = runCommittedEvent {
+        val durableOutboxWork = outbox.persistsCatalogChanges && materializeOutboxBestEffort()
+        try {
+            val reconciliationResult = if (change.identityFingerprintChanged) {
+                reconcileOrSchedule(change.sourceKey, change.storyId, change.workReason())
+            } else {
+                null
             }
-            rebuildFusion(owner, reason, fusionReason)
+            val merged = reconciliationResult as? ReconciliationRunResult.AutoMergeApplied
+            if (change.fusionFingerprintChanged || change.availabilityChanged || merged != null) {
+                val owner = identity.resolve(merged?.survivorStoryId ?: change.storyId)
+                val reason = if (merged != null) CanonicalEngineWorkReasons.STORY_MERGED else change.workReason()
+                val fusionReason = when {
+                    merged != null -> CanonicalFusionReason.POST_MERGE
+                    change.availabilityChanged && !change.fusionFingerprintChanged ->
+                        CanonicalFusionReason.SOURCE_AVAILABILITY_CHANGED
+                    else -> CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED
+                }
+                rebuildFusion(owner, reason, fusionReason)
+            }
+        } finally {
+            if (durableOutboxWork) scheduleDrainBestEffort()
         }
     }
 
@@ -117,6 +146,11 @@ class CanonicalEngineOrchestrator @Inject constructor(
         reconciliation.reconcile(sourceKey).also { result ->
             if (result is ReconciliationRunResult.ReevaluationScheduled) {
                 scheduleDrainBestEffort()
+            } else {
+                val owner = identity.resolve(
+                    (result as? ReconciliationRunResult.AutoMergeApplied)?.survivorStoryId ?: storyId,
+                )
+                work.supersede(owner, CanonicalEngineWorkType.RECONCILIATION_REEVALUATION)
             }
         }
     } catch (cancellation: CancellationException) {
@@ -188,6 +222,27 @@ class CanonicalEngineOrchestrator @Inject constructor(
         null
     }
 
+    private suspend fun materializeOutboxBestEffort(): Boolean = try {
+        outbox.materializePending(OUTBOX_MATERIALIZE_LIMIT) > 0
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        false
+    }
+
+    private suspend fun persistDeferredEvidenceChanges(changes: List<CatalogEvidenceChange>): Boolean {
+        val requests = changes.toDeferredCanonicalWorkRequests()
+        if (requests.isEmpty()) return false
+        return try {
+            work.markDirty(requests)
+            true
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private suspend fun completeBestEffort(item: CanonicalEngineWorkItem): Boolean = try {
         work.complete(item)
     } catch (cancellation: CancellationException) {
@@ -245,5 +300,6 @@ class CanonicalEngineOrchestrator @Inject constructor(
     private companion object {
         const val FUSION_EXCEPTION_CODE = "canonical.orchestration.fusion_exception"
         const val ORCHESTRATION_EXCEPTION_CODE = "canonical.orchestration.exception"
+        const val OUTBOX_MATERIALIZE_LIMIT = 4_096
     }
 }

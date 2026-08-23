@@ -43,25 +43,26 @@ internal class CanonicalEngineWorkProcessor(
         var succeeded = 0
         var retried = 0
         var failedInvariant = 0
-
-        items.forEach { item ->
-            when (val outcome = process(item)) {
-                WorkOutcome.Success -> {
-                    work.complete(item)
-                    succeeded += 1
-                }
-
-                is WorkOutcome.Retry -> {
-                    work.retry(
-                        item = item,
-                        failureCode = outcome.code,
-                        nextAttemptAtEpochMillis = retryAt(now, item.attemptCount),
-                    )
-                    retried += 1
-                }
-
+        val outcomes = items.map { item -> item to process(item) }
+        val transitions = outcomes.map { (item, outcome) ->
+            when (outcome) {
+                WorkOutcome.Success -> CanonicalEngineWorkTransition.Complete(item)
+                is WorkOutcome.Retry -> CanonicalEngineWorkTransition.Retry(
+                    item = item,
+                    failureCode = outcome.code,
+                    nextAttemptAtEpochMillis = retryAt(now, item.attemptCount),
+                )
+                is WorkOutcome.InvariantFailure -> CanonicalEngineWorkTransition.BlockInvariant(item, outcome.code)
+            }
+        }
+        val applied = work.transitionClaimed(transitions)
+        check(applied.size == outcomes.size)
+        outcomes.zip(applied).forEach { (entry, wasApplied) ->
+            if (!wasApplied) return@forEach
+            when (val outcome = entry.second) {
+                WorkOutcome.Success -> succeeded += 1
+                is WorkOutcome.Retry -> retried += 1
                 is WorkOutcome.InvariantFailure -> {
-                    work.blockInvariant(item, outcome.code)
                     markDegradedBestEffort(outcome.storyId)
                     failedInvariant += 1
                 }
@@ -69,7 +70,7 @@ internal class CanonicalEngineWorkProcessor(
         }
 
         return CanonicalMaintenanceReport(
-            processed = items.size,
+            processed = applied.count { it },
             succeeded = succeeded,
             retried = retried,
             failedInvariant = failedInvariant,

@@ -11,11 +11,13 @@ import app.openstory.catalog.canonical.CanonicalFieldStrategy
 import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalMetadata
-import app.openstory.catalog.metadata.CatalogMetadataKey
-import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataLevel
+import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
@@ -24,11 +26,11 @@ import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Story
+import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
-import app.openstory.catalog.repository.CatalogSearchSummaryMutation
 import app.openstory.catalog.repository.CatalogSearchSummaryCommitResult
-import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.repository.CatalogSearchSummaryMutation
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -39,6 +41,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -92,7 +95,36 @@ class RoomCatalogRepositoryTest {
     }
 
     @Test
-    fun newHomeStoryCreatesCanonicalStateWithoutOwningEngineWork() = runTest {
+    fun summaryOmissionPreservesFullIdentifiersAndEmptyDetailsRetractsThem() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            val storyId = StoryId("story:a-1")
+            val pluginId = PluginId("a")
+            val identifier = ExternalIdentifier("work", "work-1", ExternalIdentifierScope.WORK)
+            val detailsEntry = CatalogEntry(
+                storyId = storyId,
+                pluginId = pluginId,
+                sourceId = "a-1",
+                title = "Details",
+                contentType = ContentType.MANGA,
+                externalIdentifiers = setOf(identifier),
+            )
+            repository.commitDetails(CatalogDetailsMutation(storyId, detailsEntry, "2.0.0", 20L))
+
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 30L))
+
+            val key = CatalogMetadataKey(pluginId, "a-1")
+            assertEquals(setOf(identifier), requireNotNull(repository.metadataSnapshot(key)).entry.externalIdentifiers)
+
+            repository.commitDetails(
+                CatalogDetailsMutation(storyId, detailsEntry.copy(externalIdentifiers = emptySet()), "3.0.0", 40L),
+            )
+            assertEquals(emptySet(), requireNotNull(repository.metadataSnapshot(key)).entry.externalIdentifiers)
+        }
+    }
+
+    @Test
+    fun newHomeStoryCreatesCanonicalStateAndTransactionalOutbox() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
             repository.commitHomeRefresh(mutation("a", listOf("a-1"), 42))
@@ -103,11 +135,78 @@ class RoomCatalogRepositoryTest {
             assertEquals(42L, state.createdAtEpochMillis)
             assertEquals(0L, state.identityRevision)
             assertNull(database.canonicalCatalogDao().work("story:a-1", "FUSION_REBUILD"))
+            assertNull(database.canonicalCatalogDao().work("story:a-1", "RECONCILIATION_REEVALUATION"))
+            assertEquals(1, database.canonicalCatalogDao().pendingOutbox(10).size)
         }
     }
 
     @Test
-    fun newDetailsStoryCreatesCanonicalStateWithDetailsResolutionTime() = runTest {
+    fun materializingOutboxAcknowledgesOnlyAfterQueueRepresentationExists() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            repository.commitHomeRefresh(mutation("a", listOf("a-1"), 42))
+            val outbox = RoomCatalogChangeOutboxRepository(database, app.openstory.common.FakeClock(43))
+
+            assertEquals(1, database.canonicalCatalogDao().pendingOutbox(10).size)
+            assertNull(database.canonicalCatalogDao().work("story:a-1", "FUSION_REBUILD"))
+            assertEquals(1, outbox.materializePending(10))
+            assertTrue(database.canonicalCatalogDao().pendingOutbox(10).isEmpty())
+            assertTrue(database.canonicalCatalogDao().work("story:a-1", "FUSION_REBUILD") != null)
+            assertTrue(database.canonicalCatalogDao().work("story:a-1", "RECONCILIATION_REEVALUATION") != null)
+        }
+    }
+
+    @Test
+    fun oneThousandCatalogChangesRemainDurableAndMaterializeToTwoWorkRowsPerStory() = runTest {
+        withDatabase { database ->
+            val sourceIds = (0 until 1_000).map { index -> "scale-$index" }
+            val repository = RoomCatalogRepository(database)
+            val base = mutation("scale", sourceIds, 42)
+            val entries = base.entries.map { entry ->
+                entry.copy(
+                    externalIdentifiers = setOf(
+                        ExternalIdentifier("scale", entry.sourceId, ExternalIdentifierScope.WORK),
+                    ),
+                )
+            }
+            val result = repository.commitHomeRefresh(
+                base.copy(
+                    entries = entries,
+                    sections = listOf(base.sections.single().copy(items = entries)),
+                ),
+            )
+            val outbox = RoomCatalogChangeOutboxRepository(database, app.openstory.common.FakeClock(43))
+            val work = RoomCanonicalEngineWorkRepository(database, app.openstory.common.FakeClock(43))
+
+            assertIs<Outcome.Success<*>>(result)
+            val records = repository.sourceRecords()
+            assertEquals(1_000, records.size)
+            records.forEach { record ->
+                assertEquals(record.storyId, record.entry.storyId)
+                assertEquals(setOf(record.key.sourceId), record.entry.externalIdentifiers.map { it.value }.toSet())
+                assertEquals(CatalogEvidenceFingerprints.identity(record.entry), record.identityFingerprint)
+                assertEquals(
+                    CatalogEvidenceFingerprints.fusion(
+                        CatalogMetadataSnapshot(record.entry, record.summary, record.full),
+                    ),
+                    record.fusionFingerprint,
+                )
+            }
+            assertEquals(1_000, database.canonicalCatalogDao().pendingOutbox(1_000).size)
+            assertEquals(1_000, outbox.materializePending(1_000))
+            assertTrue(database.canonicalCatalogDao().pendingOutbox(1).isEmpty())
+
+            val reconciliation = work.claimReady(43, 1_000)
+            val fusion = work.claimReady(43, 1_000)
+            assertEquals(1_000, reconciliation.size)
+            assertTrue(reconciliation.all { it.type == CanonicalEngineWorkType.RECONCILIATION_REEVALUATION })
+            assertEquals(1_000, fusion.size)
+            assertTrue(fusion.all { it.type == CanonicalEngineWorkType.FUSION_REBUILD })
+        }
+    }
+
+    @Test
+    fun newDetailsStoryCreatesCanonicalStateAndTransactionalOutbox() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
             val storyId = StoryId("story:details-new")
@@ -125,6 +224,8 @@ class RoomCatalogRepositoryTest {
             assertEquals(77L, state.createdAtEpochMillis)
             assertEquals("AUTO", state.preferenceMode)
             assertNull(database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD"))
+            assertNull(database.canonicalCatalogDao().work(storyId.value, "RECONCILIATION_REEVALUATION"))
+            assertEquals(1, database.canonicalCatalogDao().pendingOutbox(10).size)
         }
     }
 
@@ -623,13 +724,13 @@ class RoomCatalogRepositoryTest {
             assertEquals(30L, snapshot.summary.resolvedAtEpochMillis)
             assertEquals(20L, snapshot.full?.resolvedAtEpochMillis)
             assertEquals(identifiers, snapshot.entry.externalIdentifiers)
-            assertNull(database.canonicalCatalogDao().work(durable.value, "FUSION_REBUILD"))
+            assertEquals(2, database.canonicalCatalogDao().pendingOutbox(10).size)
             assertEquals(emptyList(), repository.observeHomes().first())
         }
     }
 
     @Test
-    fun newSearchSummaryCreatesCanonicalStateAndAuthoritativeOwnershipWithoutHomeRows() = runTest {
+    fun newSearchSummaryCreatesCanonicalStateOwnershipAndTransactionalOutbox() = runTest {
         withDatabase { database ->
             val repository = RoomCatalogRepository(database)
             val storyId = StoryId("story:search-new")
@@ -651,6 +752,8 @@ class RoomCatalogRepositoryTest {
             assertEquals("REEVALUATING", state.health)
             assertEquals(44L, state.createdAtEpochMillis)
             assertNull(database.canonicalCatalogDao().work(storyId.value, "FUSION_REBUILD"))
+            assertNull(database.canonicalCatalogDao().work(storyId.value, "RECONCILIATION_REEVALUATION"))
+            assertEquals(1, database.canonicalCatalogDao().pendingOutbox(10).size)
             assertEquals(emptyList(), repository.observeHomes().first())
         }
     }

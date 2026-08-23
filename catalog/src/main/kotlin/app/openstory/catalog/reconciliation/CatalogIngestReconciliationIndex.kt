@@ -44,7 +44,7 @@ class CatalogIngestReconciliationIndex(
         }
 
         val candidateStoryIds = candidateIndex.candidatesFor(incoming).toSet()
-        val candidateEvidence = recordsBySource.values.filter { it.currentStoryId in candidateStoryIds }
+        val candidateEvidence = candidateIndex.evidenceFor(candidateStoryIds)
         val selection = engine.rankCandidates(incoming, candidateEvidence)
         val best = selection.ranked.firstOrNull()
         val resolution = when {
@@ -53,7 +53,10 @@ class CatalogIngestReconciliationIndex(
                 IncomingSourceResolution.Existing(
                     storyId = best.storyId,
                     action = IncomingSourceAction.AUTO_LINK,
-                    assessment = best.assessment.copy(winningLead = selection.winningLead),
+                    assessment = best.assessment.copy(
+                        winningLead = selection.winningLead,
+                        identityEvidenceFingerprint = requireNotNull(selection.identityEvidenceFingerprint),
+                    ),
                 )
             selection.semanticDecision == ReconciliationSemanticDecision.REVIEW && best != null -> create(
                 incoming = incoming,
@@ -64,6 +67,7 @@ class CatalogIngestReconciliationIndex(
                     mergeEligibility = selection.mergeEligibility,
                     winningLead = selection.winningLead,
                     reasons = selection.reasons,
+                    identityEvidenceFingerprint = requireNotNull(selection.identityEvidenceFingerprint),
                 ),
             )
             else -> create(

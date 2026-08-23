@@ -74,10 +74,7 @@ object CatalogEvidenceFingerprints {
         }
 
         fun displayTexts(values: Collection<String>) {
-            val stable = values.sortedWith(
-                compareBy<String>(CatalogEvidenceNormalizer::comparisonKey)
-                    .thenBy { it },
-            )
+            val stable = values.sortedWith(CatalogEvidenceNormalizer.stableDisplayComparator)
             collection(stable)
         }
 
@@ -98,7 +95,6 @@ object CatalogEvidenceFingerprints {
 
         fun stamp(value: CatalogMetadataStamp) {
             text(value.pluginVersion)
-            text(value.resolvedAtEpochMillis.toString())
         }
 
         fun nullableStamp(value: CatalogMetadataStamp?) {

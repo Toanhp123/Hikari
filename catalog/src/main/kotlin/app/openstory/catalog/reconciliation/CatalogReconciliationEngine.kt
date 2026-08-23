@@ -106,9 +106,9 @@ class CatalogReconciliationEngine(
             .map { (storyId, assessments) ->
                 RankedReconciliationCandidate(
                     storyId = storyId,
-                    assessment = assessments.map(Pair<StoryId, ReconciliationAssessment>::second)
-                        .sortedWith(assessmentOrdering)
-                        .first(),
+                    assessment = aggregateStoryAssessments(
+                        assessments.map(Pair<StoryId, ReconciliationAssessment>::second),
+                    ),
                 )
             }
             .sortedWith(candidateOrdering)
@@ -120,6 +120,7 @@ class CatalogReconciliationEngine(
                 mergeEligibility = ReconciliationMergeEligibility.MERGEABLE,
                 winningLead = null,
                 reasons = emptySet(),
+                identityEvidenceFingerprint = null,
             )
         }
 
@@ -147,8 +148,52 @@ class CatalogReconciliationEngine(
             mergeEligibility = top.assessment.mergeEligibility,
             winningLead = lead,
             reasons = reasons,
+            identityEvidenceFingerprint = selectionFingerprint(ranked, semantic, top.assessment.mergeEligibility, lead),
         )
     }
+
+    private fun aggregateStoryAssessments(assessments: List<ReconciliationAssessment>): ReconciliationAssessment {
+        val ordered = assessments.sortedWith(assessmentOrdering)
+        val strongest = ordered.first()
+        val blocked = ordered.filter { it.mergeEligibility == ReconciliationMergeEligibility.INVARIANT_BLOCKED }
+        if (strongest.semanticDecision != ReconciliationSemanticDecision.SAME_WORK || blocked.isEmpty()) {
+            return strongest
+        }
+        val relevant = listOf(strongest) + blocked
+        return strongest.copy(
+            semanticDecision = ReconciliationSemanticDecision.REVIEW,
+            mergeEligibility = ReconciliationMergeEligibility.INVARIANT_BLOCKED,
+            matchedIdentifiers = relevant.flatMapTo(linkedSetOf()) { it.matchedIdentifiers },
+            conflictingIdentifiers = relevant.flatMapTo(linkedSetOf()) { it.conflictingIdentifiers },
+            reasons = relevant.flatMapTo(linkedSetOf()) { it.reasons },
+            identityEvidenceFingerprint = digest(
+                relevant.map(ReconciliationAssessment::identityEvidenceFingerprint)
+                    .distinct()
+                    .sorted()
+                    .joinToString("|"),
+            ),
+        )
+    }
+
+    private fun selectionFingerprint(
+        ranked: List<RankedReconciliationCandidate>,
+        semanticDecision: ReconciliationSemanticDecision,
+        mergeEligibility: ReconciliationMergeEligibility,
+        winningLead: Double?,
+    ): String = digest(
+        buildString {
+            append("policy=").append(policy.version)
+            append("|decision=").append(semanticDecision.name)
+            append("|eligibility=").append(mergeEligibility.name)
+            append("|lead=").append(winningLead?.toString() ?: "none")
+            ranked.forEach { candidate ->
+                append("|candidate=").append(candidate.storyId.value)
+                append(':').append(candidate.assessment.identityEvidenceFingerprint)
+                append(':').append(candidate.assessment.semanticDecision.name)
+                append(':').append(candidate.assessment.mergeEligibility.name)
+            }
+        },
+    )
 
     private fun buildReasons(
         titleSimilarity: Double,
@@ -230,10 +275,12 @@ class CatalogReconciliationEngine(
         val semantic = listOf(left.identityEvidenceFingerprint, right.identityEvidenceFingerprint)
             .sorted()
             .joinToString("|")
-        return MessageDigest.getInstance("SHA-256")
-            .digest(semantic.toByteArray())
-            .joinToString("") { byte -> "%02x".format(byte) }
+        return digest(semantic)
     }
+
+    private fun digest(value: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray())
+        .joinToString("") { byte -> "%02x".format(byte) }
 
     private data class Decision(
         val semantic: ReconciliationSemanticDecision,
@@ -279,4 +326,5 @@ data class ReconciliationCandidateSelection(
     val mergeEligibility: ReconciliationMergeEligibility,
     val winningLead: Double?,
     val reasons: Set<ReconciliationReasonCode>,
+    val identityEvidenceFingerprint: String?,
 )

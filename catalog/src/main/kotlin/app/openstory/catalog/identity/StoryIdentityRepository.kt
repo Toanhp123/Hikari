@@ -19,5 +19,7 @@ class StoryIdentityInvariantException(message: String) : IllegalStateException(m
 interface StoryIdentityRepository {
     fun observeResolved(storyId: StoryId): Flow<StoryId>
     suspend fun resolve(storyId: StoryId): StoryId
+    suspend fun resolveAll(storyIds: Collection<StoryId>): Map<StoryId, StoryId> =
+        storyIds.distinct().associateWith { storyId -> resolve(storyId) }
     suspend fun identityState(storyId: StoryId): CanonicalIdentityState?
 }

@@ -28,6 +28,7 @@ class CanonicalEngineMaintenanceService @Inject constructor(
     derived: PostMergeDerivedWorkDispatcher,
     observability: CanonicalMaintenanceObservability,
     clock: Clock,
+    private val outbox: CatalogChangeOutboxRepository = NoOpCatalogChangeOutboxRepository,
 ) {
     private val mutex = Mutex()
     private val queue = CanonicalEngineWorkProcessor(
@@ -45,7 +46,10 @@ class CanonicalEngineMaintenanceService @Inject constructor(
 
     suspend fun drainReady(limit: Int): CanonicalMaintenanceReport {
         require(limit > 0)
-        return mutex.withLock { queue.drainReady(limit) }
+        return mutex.withLock {
+            outbox.materializePending(outboxMaterializeLimit(limit))
+            queue.drainReady(limit)
+        }
     }
 
     suspend fun enqueuePolicyReevaluationIfNeeded(limit: Int): Int {
@@ -56,6 +60,7 @@ class CanonicalEngineMaintenanceService @Inject constructor(
     suspend fun runConsistencySafetyPass(limit: Int): CanonicalMaintenanceReport {
         require(limit > 0)
         return mutex.withLock {
+            outbox.materializePending(outboxMaterializeLimit(limit))
             requeueRecoverablePolicyBlocksLocked(limit)
             val invariantIssues = reader.invariantIssues(limit)
             invariantIssues.forEach { issue ->
@@ -259,11 +264,19 @@ class CanonicalEngineMaintenanceService @Inject constructor(
         }
     }
     private companion object {
+        const val OUTBOX_EVENTS_PER_WORK_ITEM = 4
         val RECOVERABLE_POLICY_BLOCK_CODES = setOf(
             CanonicalMaintenanceFailureCodes.UNSUPPORTED_REQUIRED_POLICY_VERSION,
             CanonicalMaintenanceFailureCodes.UNSUPPORTED_PERSISTED_POLICY_VERSION,
         )
     }
+
+    private fun outboxMaterializeLimit(workLimit: Int): Int =
+        if (workLimit > Int.MAX_VALUE / OUTBOX_EVENTS_PER_WORK_ITEM) {
+            Int.MAX_VALUE
+        } else {
+            workLimit * OUTBOX_EVENTS_PER_WORK_ITEM
+        }
 
     private data class PolicyEnqueueResult(
         val markedStories: Int,

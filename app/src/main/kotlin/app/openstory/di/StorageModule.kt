@@ -11,6 +11,7 @@ import app.openstory.catalog.identity.StoryMergeReversalPlanner
 import app.openstory.catalog.identity.StoryUserStateFootprintReader
 import app.openstory.catalog.orchestration.CanonicalEngineMaintenanceReader
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
+import app.openstory.catalog.orchestration.CatalogChangeOutboxRepository
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.Clock
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
@@ -29,6 +30,7 @@ import app.openstory.storage.room.merge.RoomStoryMergeLineageReader
 import app.openstory.storage.room.merge.RoomStoryUserStateFootprintReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineMaintenanceReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineWorkRepository
+import app.openstory.storage.room.catalog.RoomCatalogChangeOutboxRepository
 import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
 import app.openstory.storage.room.plugins.RoomPluginStateStore
 import dagger.Module
@@ -67,6 +69,13 @@ object StorageModule {
         database: OpenStoryDatabase,
         clock: Clock,
     ): CanonicalEngineWorkRepository = RoomCanonicalEngineWorkRepository(database, clock)
+
+    @Provides
+    @Singleton
+    fun provideCatalogChangeOutboxRepository(
+        database: OpenStoryDatabase,
+        clock: Clock,
+    ): CatalogChangeOutboxRepository = RoomCatalogChangeOutboxRepository(database, clock)
 
     @Provides
     @Singleton

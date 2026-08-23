@@ -487,6 +487,18 @@ class CanonicalEngineMaintenanceServiceTest {
         assertNull(fixture.service.drainReady(limit = 8).nextAttemptAtEpochMillis)
     }
 
+    @Test
+    fun regularAndSafetyDrainsMaterializeOutboxBeforeClaimingQueueWork() = runTest {
+        val regularCalls = mutableListOf<String>()
+        fixture(operationCalls = regularCalls).service.drainReady(limit = 8)
+        assertEquals(listOf("materialize", "claim"), regularCalls.take(2))
+
+        val safetyCalls = mutableListOf<String>()
+        fixture(operationCalls = safetyCalls).service.runConsistencySafetyPass(limit = 8)
+        assertEquals("materialize", safetyCalls.first())
+        assertEquals("claim", safetyCalls.last())
+    }
+
     private fun currentPolicyState() = CanonicalMaintenancePolicyState(
         fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
         primarySelectionPolicyVersion = app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION,
@@ -499,8 +511,9 @@ class CanonicalEngineMaintenanceServiceTest {
         onReconcile: () -> Unit = {},
         onFusion: () -> Unit = {},
         identity: StoryIdentityRepository = FakeIdentity(),
+        operationCalls: MutableList<String>? = null,
     ): Fixture {
-        val work = FakeWorkRepository(ready.toMutableList())
+        val work = FakeWorkRepository(ready.toMutableList(), operationCalls)
         val reconciliation = FakeReconciliation(onReconcile)
         val fusion = FakeFusion(fusionResult, onFusion)
         val reader = FakeMaintenanceReader()
@@ -520,6 +533,7 @@ class CanonicalEngineMaintenanceServiceTest {
                 ),
             ),
             clock = clock,
+            outbox = FakeOutbox(operationCalls),
         )
         return Fixture(service, work, reconciliation, fusion, reader, derived, health)
     }
@@ -572,6 +586,7 @@ private data class BlockRecord(
 
 private class FakeWorkRepository(
     val ready: MutableList<CanonicalEngineWorkItem> = mutableListOf(),
+    private val operationCalls: MutableList<String>? = null,
 ) : CanonicalEngineWorkRepository {
     val marks = mutableListOf<WorkMarkRecord>()
     val completed = mutableListOf<CanonicalEngineWorkItem>()
@@ -599,8 +614,10 @@ private class FakeWorkRepository(
         )
     }
 
-    override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> =
-        ready.take(limit)
+    override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> {
+        operationCalls?.add("claim")
+        return ready.take(limit)
+    }
 
     override suspend fun complete(item: CanonicalEngineWorkItem): Boolean {
         completed += item
@@ -641,6 +658,15 @@ private class FakeWorkRepository(
     override suspend fun nextAttemptAtEpochMillis(): Long? = nextAttempt
 
     override suspend fun supersede(storyId: StoryId, type: CanonicalEngineWorkType) = Unit
+}
+
+private class FakeOutbox(
+    private val operationCalls: MutableList<String>?,
+) : CatalogChangeOutboxRepository {
+    override suspend fun materializePending(limit: Int): Int {
+        operationCalls?.add("materialize")
+        return 0
+    }
 }
 
 private class FakeReconciliation(

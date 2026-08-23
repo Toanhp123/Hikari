@@ -9,6 +9,7 @@ import app.openstory.storage.room.catalog.CatalogDao
 import app.openstory.storage.room.catalog.CanonicalCatalogDao
 import app.openstory.storage.room.catalog.CanonicalEngineMaintenanceDao
 import app.openstory.storage.room.catalog.CanonicalEngineWorkEntity
+import app.openstory.storage.room.catalog.CatalogChangeOutboxEntity
 import app.openstory.storage.room.catalog.CanonicalFieldProvenanceEntity
 import app.openstory.storage.room.catalog.CanonicalGenerationEntity
 import app.openstory.storage.room.catalog.CatalogEntryIdentifierEntity
@@ -61,6 +62,7 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         StoryMergeReversalEventEntity::class,
         StoryRedirectEntity::class,
         CanonicalEngineWorkEntity::class,
+        CatalogChangeOutboxEntity::class,
         PluginStateEntity::class,
         PluginVersionEntity::class,
         PluginDiagnosticEntity::class,
@@ -74,7 +76,7 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         ReadingProgressEntity::class,
         ChapterStorageEntryEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -107,6 +109,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             RoomMigrations.MIGRATION_6_7,
             RoomMigrations.MIGRATION_7_8,
             RoomMigrations.MIGRATION_8_9,
+            RoomMigrations.MIGRATION_9_10,
         )
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()

@@ -41,6 +41,9 @@ internal interface CanonicalCatalogDao {
     @Query("SELECT * FROM canonical_generations WHERE generation_id = :generationId")
     suspend fun generation(generationId: String): CanonicalGenerationEntity?
 
+    @Query("SELECT * FROM canonical_generations WHERE generation_id IN (:generationIds)")
+    suspend fun generations(generationIds: Collection<String>): List<CanonicalGenerationEntity>
+
     @Query(
         "SELECT generation_id FROM canonical_generations " +
             "WHERE story_id = :storyId AND valid = 1 ORDER BY created_at_epoch_millis DESC, generation_id DESC",
@@ -58,6 +61,12 @@ internal interface CanonicalCatalogDao {
             "ORDER BY field_key, contributor_plugin_id, contributor_source_id",
     )
     suspend fun provenance(generationId: String): List<CanonicalFieldProvenanceEntity>
+
+    @Query(
+        "SELECT * FROM canonical_field_provenance WHERE generation_id IN (:generationIds) " +
+            "ORDER BY generation_id, field_key, contributor_plugin_id, contributor_source_id",
+    )
+    suspend fun provenanceForGenerations(generationIds: Collection<String>): List<CanonicalFieldProvenanceEntity>
 
     @Query("UPDATE canonical_generations SET valid = 1 WHERE generation_id = :generationId")
     suspend fun markGenerationValid(generationId: String)
@@ -115,15 +124,40 @@ internal interface CanonicalCatalogDao {
 
     @Query(
         "SELECT * FROM canonical_engine_work WHERE next_attempt_at_epoch_millis <= :nowEpochMillis " +
-            "ORDER BY next_attempt_at_epoch_millis ASC, story_id ASC, work_type ASC LIMIT :limit",
+            "AND (lease_token IS NULL OR lease_expires_at_epoch_millis <= :nowEpochMillis) " +
+            "ORDER BY CASE work_type WHEN 'RECONCILIATION_REEVALUATION' THEN 0 " +
+            "WHEN 'FUSION_REBUILD' THEN 1 WHEN 'POLICY_REEVALUATION' THEN 2 ELSE 3 END ASC, " +
+            "next_attempt_at_epoch_millis ASC, story_id ASC, work_type ASC LIMIT :limit",
     )
     suspend fun readyWork(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkEntity>
+
+    @Query(
+        "UPDATE canonical_engine_work SET lease_token = :leaseToken, " +
+            "lease_expires_at_epoch_millis = :leaseExpiresAtEpochMillis " +
+            "WHERE story_id = :storyId AND work_type = :workType " +
+            "AND next_attempt_at_epoch_millis = :expectedNextAttemptAtEpochMillis " +
+            "AND (lease_token IS NULL OR lease_expires_at_epoch_millis <= :nowEpochMillis)",
+    )
+    suspend fun claimWork(
+        storyId: String,
+        workType: String,
+        expectedNextAttemptAtEpochMillis: Long,
+        nowEpochMillis: Long,
+        leaseToken: String,
+        leaseExpiresAtEpochMillis: Long,
+    ): Int
+
+    @Query("SELECT * FROM canonical_engine_work WHERE lease_token = :leaseToken ORDER BY story_id, work_type")
+    suspend fun workByLeaseToken(leaseToken: String): List<CanonicalEngineWorkEntity>
 
     @Query("SELECT * FROM canonical_engine_work WHERE story_id = :storyId AND work_type = :workType")
     suspend fun work(storyId: String, workType: String): CanonicalEngineWorkEntity?
 
     @Query("SELECT * FROM canonical_engine_work WHERE story_id = :storyId ORDER BY work_type")
     suspend fun workForStory(storyId: String): List<CanonicalEngineWorkEntity>
+
+    @Query("SELECT * FROM canonical_engine_work WHERE story_id IN (:storyIds) ORDER BY story_id, work_type")
+    suspend fun workForStories(storyIds: Collection<String>): List<CanonicalEngineWorkEntity>
 
     @Query(
         "SELECT * FROM canonical_engine_work WHERE next_attempt_at_epoch_millis = :blockedEpochMillis " +
@@ -139,10 +173,23 @@ internal interface CanonicalCatalogDao {
     suspend fun deleteWork(storyId: String, workType: String)
 
     @Query(
-        "SELECT MIN(next_attempt_at_epoch_millis) FROM canonical_engine_work " +
-            "WHERE next_attempt_at_epoch_millis < :blockedEpochMillis",
+        "SELECT MIN(CASE WHEN lease_token IS NOT NULL AND lease_expires_at_epoch_millis > :nowEpochMillis " +
+            "THEN lease_expires_at_epoch_millis ELSE next_attempt_at_epoch_millis END) " +
+            "FROM canonical_engine_work WHERE next_attempt_at_epoch_millis < :blockedEpochMillis",
     )
-    suspend fun earliestRunnableWorkAttempt(blockedEpochMillis: Long): Long?
+    suspend fun earliestRunnableWorkAttempt(blockedEpochMillis: Long, nowEpochMillis: Long): Long?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertOutbox(events: List<CatalogChangeOutboxEntity>): List<Long>
+
+    @Query(
+        "SELECT * FROM catalog_change_outbox " +
+            "ORDER BY event_id ASC LIMIT :limit",
+    )
+    suspend fun pendingOutbox(limit: Int): List<CatalogChangeOutboxEntity>
+
+    @Query("DELETE FROM catalog_change_outbox WHERE event_id <= :maxEventId")
+    suspend fun deleteOutboxThrough(maxEventId: Long): Int
 
     suspend fun upsertReconciliationCase(case: ReconciliationCaseEntity) {
         val normalized = if (case.leftStoryId <= case.rightStoryId) {
@@ -192,8 +239,24 @@ internal interface CanonicalCatalogDao {
     )
     suspend fun reconciliationRevisions(caseId: String): List<ReconciliationCaseRevisionEntity>
 
+    @Query("SELECT COUNT(*) FROM reconciliation_case_revisions WHERE case_id = :caseId")
+    suspend fun reconciliationRevisionCount(caseId: String): Long
+
     @Query("SELECT * FROM reconciliation_case_revisions WHERE revision_id = :revisionId")
     suspend fun reconciliationRevision(revisionId: String): ReconciliationCaseRevisionEntity?
+
+    @Query("SELECT * FROM reconciliation_case_revisions WHERE revision_id IN (:revisionIds)")
+    suspend fun reconciliationRevisionsByIds(
+        revisionIds: Collection<String>,
+    ): List<ReconciliationCaseRevisionEntity>
+
+    @Query(
+        "SELECT case_id, COUNT(*) AS revision_count FROM reconciliation_case_revisions " +
+            "WHERE case_id IN (:caseIds) GROUP BY case_id",
+    )
+    suspend fun reconciliationRevisionCounts(
+        caseIds: Collection<String>,
+    ): List<ReconciliationRevisionCountRow>
 
     @Query("UPDATE reconciliation_case_revisions SET case_id = :targetCaseId WHERE case_id = :sourceCaseId")
     suspend fun moveReconciliationRevisions(sourceCaseId: String, targetCaseId: String)

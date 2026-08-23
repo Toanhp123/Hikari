@@ -18,7 +18,7 @@ fail() { echo "Canonical engine orchestration policy violation: $1" >&2; exit 1;
 
 for file in "$home" "$details" "$search"; do
   grep -q 'CanonicalEngineEventSink' "$file" || fail "$(basename "$file") does not depend on the canonical event sink"
-  grep -q 'orchestrator\.onEvidenceChanged' "$file" || fail "$(basename "$file") does not route committed facts"
+  grep -Eq 'orchestrator\.onEvidenceChange(d|s)' "$file" || fail "$(basename "$file") does not route committed facts"
   ! grep -q 'CatalogReconciliationService' "$file" || fail "$(basename "$file") still owns reconciliation routing"
   ! grep -q 'CanonicalGenerationRebuilder' "$file" || fail "$(basename "$file") still owns Fusion routing"
   ! grep -q 'reconciliation\.reconcile' "$file" || fail "$(basename "$file") calls reconciliation directly"

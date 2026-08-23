@@ -167,6 +167,57 @@ class CanonicalEngineOrchestratorTest {
     }
 
     @Test
+    fun oneThousandBackgroundChangesAreCoalescedIntoOneDurableBatchWithoutForegroundEngines() = runTest {
+        val scheduler = RecordingCanonicalWorkScheduler()
+        val fixture = fixture(scheduler = scheduler)
+        val changes = (0 until 1_000).map { index ->
+            CatalogEvidenceChange(
+                storyId = StoryId("story:$index"),
+                sourceKey = SourceKey(PluginId("catalog:test"), "source:$index"),
+                identityFingerprintChanged = true,
+                fusionFingerprintChanged = true,
+                availabilityChanged = false,
+                level = CatalogEvidenceLevel.SUMMARY,
+            )
+        }
+
+        fixture.orchestrator.onEvidenceChanges(changes, immediateStoryIds = emptySet())
+
+        assertTrue(fixture.reconciliation.reconcileCalls.isEmpty())
+        assertTrue(fixture.fusion.calls.isEmpty())
+        assertEquals(1, fixture.work.batchCalls)
+        assertEquals(2_000, fixture.work.marks.size)
+        assertEquals(1, scheduler.calls)
+    }
+
+    @Test
+    fun deferredRowsAreDurableBeforeForegroundReconciliationCanMergeStories() = runTest {
+        val order = mutableListOf<String>()
+        val work = RecordingWorkRepository(onBatchMark = { order += "batch" })
+        val reconciliation = RecordingReconciliationRunner {
+            order += "reconcile"
+            ReconciliationRunResult.NoIdentityChange
+        }
+        val fixture = fixture(work = work, reconciliation = reconciliation)
+        val backgroundStory = StoryId("story:background")
+        val changes = listOf(
+            change(identity = true, fusion = true),
+            CatalogEvidenceChange(
+                storyId = backgroundStory,
+                sourceKey = SourceKey(PluginId("catalog:test"), "source:background"),
+                identityFingerprintChanged = true,
+                fusionFingerprintChanged = true,
+                availabilityChanged = false,
+                level = CatalogEvidenceLevel.SUMMARY,
+            ),
+        )
+
+        fixture.orchestrator.onEvidenceChanges(changes, immediateStoryIds = setOf(story))
+
+        assertEquals(listOf("batch", "reconcile"), order)
+    }
+
+    @Test
     fun reconciliationFailureSchedulesResolvedOwnerRetryAndStillAllowsFusion() = runTest {
         val identity = RecordingIdentityRepository().apply { redirects[story] = survivor }
         val reconciliation = RecordingReconciliationRunner { error("temporary reconciliation failure") }
@@ -257,9 +308,11 @@ internal class RecordingRebuilder(
 internal class RecordingWorkRepository(
     private val failMarks: Boolean = false,
     private val completeResult: Boolean = true,
+    private val onBatchMark: () -> Unit = {},
 ) : CanonicalEngineWorkRepository {
     val marks = mutableListOf<WorkMark>()
     val completed = mutableListOf<CanonicalEngineWorkItem>()
+    var batchCalls = 0
 
     override suspend fun markDirty(
         storyId: StoryId,
@@ -278,6 +331,19 @@ internal class RecordingWorkRepository(
             nextAttemptAtEpochMillis = 0L,
             lastFailureCode = null,
         )
+    }
+
+    override suspend fun markDirty(requests: List<CanonicalEngineWorkRequest>): List<CanonicalEngineWorkItem> {
+        batchCalls += 1
+        onBatchMark()
+        return requests.map { request ->
+            markDirty(
+                storyId = request.storyId,
+                type = request.type,
+                reason = request.reason,
+                requiredPolicyVersion = request.requiredPolicyVersion,
+            )
+        }
     }
 
     override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> = emptyList()

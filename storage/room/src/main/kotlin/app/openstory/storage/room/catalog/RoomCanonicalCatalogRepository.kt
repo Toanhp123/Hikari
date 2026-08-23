@@ -9,11 +9,13 @@ import app.openstory.catalog.canonical.CanonicalFieldStrategy
 import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalMetadata
+import app.openstory.catalog.canonical.CanonicalPromotionExpectation
 import app.openstory.catalog.canonical.CanonicalScore
 import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalSourceSummary
 import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.evidence.CatalogEvidenceNormalizer
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.evidence.toSourceRecord
 import app.openstory.catalog.identity.SourceKey
@@ -61,10 +63,8 @@ class RoomCanonicalCatalogRepository internal constructor(
         canonicalDao.observeCanonicalStates(),
         catalogDao.observeStories(),
         catalogDao.observeAllEntries(),
-    ) { states, _, _ -> states.map { StoryId(it.storyId) } }
-        .mapLatest { storyIds ->
-            storyIds.mapNotNull { readResolvedState(it) as? CanonicalStoryState.Ready }
-        }
+    ) { states, stories, entries -> CanonicalObservation(states, stories, entries) }
+        .mapLatest(::readReadyStates)
 
     override fun observeReadyStories(storyIds: Set<StoryId>): Flow<List<CanonicalStoryState.Ready>> {
         if (storyIds.isEmpty()) return kotlinx.coroutines.flow.flowOf(emptyList())
@@ -74,10 +74,8 @@ class RoomCanonicalCatalogRepository internal constructor(
                 canonicalDao.observeCanonicalStates(ids),
                 catalogDao.observeStories(ids),
                 catalogDao.observeEntries(ids),
-            ) { states, _, _ -> states.map { StoryId(it.storyId) } }
-                .mapLatest { readyIds ->
-                    readyIds.mapNotNull { readResolvedState(it) as? CanonicalStoryState.Ready }
-                }
+            ) { states, stories, entries -> CanonicalObservation(states, stories, entries) }
+                .mapLatest(::readReadyStates)
         }
     }
 
@@ -106,6 +104,13 @@ class RoomCanonicalCatalogRepository internal constructor(
         }.toPreference()
     }
 
+    override suspend fun identityRevision(storyId: StoryId): Long {
+        val resolved = identity.resolve(storyId)
+        return requireNotNull(canonicalDao.canonicalState(resolved.value)) {
+            "Missing canonical state for ${resolved.value}"
+        }.identityRevision
+    }
+
     override suspend fun setSourcePreference(preference: CanonicalSourcePreference) {
         val resolved = identity.resolve(preference.storyId)
         database.withTransaction {
@@ -127,10 +132,41 @@ class RoomCanonicalCatalogRepository internal constructor(
         expectedActiveGenerationId: String?,
     ): Boolean {
         val resolved = identity.resolve(candidate.storyId)
+        val expectation = if (resolved == candidate.storyId) {
+            database.withTransaction {
+                canonicalDao.canonicalState(candidate.storyId.value)?.let { state ->
+                    CanonicalPromotionExpectation(
+                        activeGenerationId = expectedActiveGenerationId,
+                        preferenceRevision = state.preferenceRevision,
+                        identityRevision = state.identityRevision,
+                        sourceFusionFingerprints = sourceRecordsResolved(candidate.storyId)
+                            .associate { it.key to it.fusionFingerprint },
+                    )
+                }
+            }
+        } else {
+            null
+        }
+        return expectation?.let { persistCandidateIfCurrent(candidate, it) } ?: false
+    }
+
+    override suspend fun persistCandidateIfCurrent(
+        candidate: CanonicalGeneration,
+        expectation: CanonicalPromotionExpectation,
+    ): Boolean {
+        val resolved = identity.resolve(candidate.storyId)
         if (resolved != candidate.storyId) return false
         return database.withTransaction {
             val state = canonicalDao.canonicalState(candidate.storyId.value) ?: return@withTransaction false
-            if (state.activeGenerationId != expectedActiveGenerationId) return@withTransaction false
+            if (state.activeGenerationId != expectation.activeGenerationId ||
+                state.preferenceRevision != expectation.preferenceRevision ||
+                state.identityRevision != expectation.identityRevision
+            ) {
+                return@withTransaction false
+            }
+            val currentFingerprints = sourceRecordsResolved(candidate.storyId)
+                .associate { it.key to it.fusionFingerprint }
+            if (currentFingerprints != expectation.sourceFusionFingerprints) return@withTransaction false
             val ownedSources = catalogDao.entriesForStory(candidate.storyId.value)
                 .mapTo(linkedSetOf()) { SourceKey(PluginId(it.pluginId), it.sourceId) }
             require(candidate.effectivePrimary in ownedSources) { "Effective primary is not owned by Story" }
@@ -174,14 +210,61 @@ class RoomCanonicalCatalogRepository internal constructor(
         }
     }
 
-    private suspend fun sourceRecordsResolved(storyId: StoryId): List<CatalogSourceRecord> =
-        catalogDao.entriesForStory(storyId.value).map { entry ->
-            val identifiers = catalogDao.identifiers(entry.pluginId, entry.sourceId)
-                .map(CatalogEntryIdentifierEntity::toModel)
-                .toSet()
+    private suspend fun readReadyStates(observation: CanonicalObservation): List<CanonicalStoryState.Ready> {
+        val activeIds = observation.states.mapNotNull(StoryCanonicalStateEntity::activeGenerationId)
+        return if (activeIds.isEmpty()) {
+            emptyList()
+        } else {
+            val storyIds = observation.states.map(StoryCanonicalStateEntity::storyId)
+            database.withTransaction {
+                val identifiersBySource = catalogDao.identifiersForStories(storyIds)
+                    .groupBy { it.pluginId to it.sourceId }
+                    .mapValues { (_, rows) -> rows.map(CatalogEntryIdentifierEntity::toModel).toSet() }
+                val entriesByStory = observation.entries.groupBy(CatalogEntryEntity::storyId)
+                val storiesById = observation.stories.associateBy(StoryEntity::storyId)
+                val generationsById = canonicalDao.generations(activeIds)
+                    .filter(CanonicalGenerationEntity::valid)
+                    .associateBy(CanonicalGenerationEntity::generationId)
+                val provenanceByGeneration = canonicalDao.provenanceForGenerations(activeIds)
+                    .groupBy(CanonicalFieldProvenanceEntity::generationId)
+                observation.states.mapNotNull { state ->
+                    val story = storiesById[state.storyId]?.toModel() ?: return@mapNotNull null
+                    val generationEntity = state.activeGenerationId?.let(generationsById::get)
+                        ?: return@mapNotNull null
+                    val sources = entriesByStory[state.storyId].orEmpty().map { entry ->
+                        val identifiers = identifiersBySource[entry.pluginId to entry.sourceId].orEmpty()
+                        entry.toMetadataSnapshot(identifiers).toSourceRecord().toSummary()
+                    }
+                    CanonicalStoryState.Ready(
+                        story = story,
+                        health = CanonicalHealth.valueOf(state.health),
+                        preference = state.toPreference(),
+                        sources = sources,
+                        generation = generationEntity.toModel(
+                            provenanceByGeneration[generationEntity.generationId].orEmpty(),
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun sourceRecordsResolved(storyId: StoryId): List<CatalogSourceRecord> {
+        val identifiersBySource = catalogDao.identifiersForStories(listOf(storyId.value))
+            .groupBy { it.pluginId to it.sourceId }
+        return catalogDao.entriesForStory(storyId.value).map { entry ->
+            val identifiers = identifiersBySource[entry.pluginId to entry.sourceId].orEmpty()
+                .mapTo(linkedSetOf(), CatalogEntryIdentifierEntity::toModel)
             entry.toMetadataSnapshot(identifiers).toSourceRecord()
         }
+    }
 }
+
+private data class CanonicalObservation(
+    val states: List<StoryCanonicalStateEntity>,
+    val stories: List<StoryEntity>,
+    val entries: List<CatalogEntryEntity>,
+)
 
 internal fun CanonicalGeneration.toEntity(valid: Boolean) = CanonicalGenerationEntity(
     generationId = id,
@@ -244,10 +327,10 @@ private fun CanonicalGenerationEntity.toModel(
         coverUrl = coverUrl,
         sourceUrl = sourceUrl,
         popularityRank = popularityRank,
-        aliases = aliases.sorted(),
-        authors = authors.sorted(),
-        genres = genres.sorted(),
-        languageTags = languageTags.sorted(),
+        aliases = aliases.sortedWith(CatalogEvidenceNormalizer.stableDisplayComparator),
+        authors = authors.sortedWith(CatalogEvidenceNormalizer.stableDisplayComparator),
+        genres = genres.sortedWith(CatalogEvidenceNormalizer.stableDisplayComparator),
+        languageTags = languageTags.sortedWith(CatalogEvidenceNormalizer.stableDisplayComparator),
         publicationStatus = publicationStatus?.let(PublicationStatus::valueOf),
         latestUpdate = latestUpdateAtEpochMillis?.let { CatalogLatestUpdate(it, latestUpdateReleaseLabel) },
         score = if (scoreNormalizedValue != null && scoreContributorCount != null) {

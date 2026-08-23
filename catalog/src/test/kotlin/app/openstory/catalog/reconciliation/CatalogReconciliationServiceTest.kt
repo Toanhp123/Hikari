@@ -292,9 +292,9 @@ class CatalogReconciliationServiceTest {
         val right = record("maintenance-right", "story:maintenance-right", "Exact", authors = setOf("writer"))
         val fixture = fixture(listOf(left, right))
         val engine = CatalogReconciliationEngine(ReconciliationPolicy())
-        val fingerprint = engine.assessPair(
+        val fingerprint = engine.rankCandidates(
             ReconciliationEvidenceFactory.fromRecord(left),
-            ReconciliationEvidenceFactory.fromRecord(right),
+            listOf(ReconciliationEvidenceFactory.fromRecord(right)),
         ).identityEvidenceFingerprint
         val maintenance = CatalogReconciliationMaintenanceService(
             reconciliation = fixture.service,
@@ -306,7 +306,7 @@ class CatalogReconciliationServiceTest {
             caseId = "case:maintenance",
             leftStoryId = left.storyId,
             rightStoryId = right.storyId,
-            evidenceFingerprint = fingerprint,
+            evidenceFingerprint = requireNotNull(fingerprint),
             policyVersion = RECONCILIATION_POLICY_VERSION,
         )
 

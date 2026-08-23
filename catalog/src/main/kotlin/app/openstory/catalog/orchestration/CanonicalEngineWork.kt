@@ -107,6 +107,8 @@ data class CanonicalEngineWorkItem(
     val attemptCount: Int,
     val nextAttemptAtEpochMillis: Long,
     val lastFailureCode: String?,
+    val leaseToken: String? = null,
+    val leaseExpiresAtEpochMillis: Long? = null,
 ) {
     init {
         require(reason.isNotBlank())
@@ -114,6 +116,38 @@ data class CanonicalEngineWorkItem(
         require(attemptCount >= 0)
         require(nextAttemptAtEpochMillis >= 0L)
         require(lastFailureCode == null || lastFailureCode.isNotBlank())
+        require((leaseToken == null) == (leaseExpiresAtEpochMillis == null))
+        require(leaseToken == null || leaseToken.isNotBlank())
+        require(leaseExpiresAtEpochMillis == null || leaseExpiresAtEpochMillis >= 0L)
+    }
+}
+
+sealed interface CanonicalEngineWorkTransition {
+    val item: CanonicalEngineWorkItem
+
+    data class Complete(override val item: CanonicalEngineWorkItem) : CanonicalEngineWorkTransition
+
+    data class Retry(
+        override val item: CanonicalEngineWorkItem,
+        val failureCode: String,
+        val nextAttemptAtEpochMillis: Long,
+    ) : CanonicalEngineWorkTransition
+
+    data class BlockInvariant(
+        override val item: CanonicalEngineWorkItem,
+        val failureCode: String,
+    ) : CanonicalEngineWorkTransition
+}
+
+data class CanonicalEngineWorkRequest(
+    val storyId: StoryId,
+    val type: CanonicalEngineWorkType,
+    val reason: String,
+    val requiredPolicyVersion: Int? = null,
+) {
+    init {
+        require(reason.isNotBlank())
+        require(requiredPolicyVersion == null || requiredPolicyVersion > 0)
     }
 }
 
@@ -125,6 +159,17 @@ interface CanonicalEngineWorkRepository {
         reason: String,
         requiredPolicyVersion: Int? = null,
     ): CanonicalEngineWorkItem
+
+    /** Coalesces a committed event batch. Storage implementations should use one transaction. */
+    suspend fun markDirty(requests: List<CanonicalEngineWorkRequest>): List<CanonicalEngineWorkItem> =
+        requests.map { request ->
+            markDirty(
+                storyId = request.storyId,
+                type = request.type,
+                reason = request.reason,
+                requiredPolicyVersion = request.requiredPolicyVersion,
+            )
+        }
 
     suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem>
 
@@ -138,6 +183,22 @@ interface CanonicalEngineWorkRepository {
     suspend fun blockInvariant(item: CanonicalEngineWorkItem, failureCode: String) {
         retry(item, failureCode, Long.MAX_VALUE)
     }
+
+    /** Applies claimed outcomes together. The result aligns one-for-one with [transitions]. */
+    suspend fun transitionClaimed(transitions: List<CanonicalEngineWorkTransition>): List<Boolean> =
+        transitions.map { transition ->
+            when (transition) {
+                is CanonicalEngineWorkTransition.Complete -> complete(transition.item)
+                is CanonicalEngineWorkTransition.Retry -> {
+                    retry(transition.item, transition.failureCode, transition.nextAttemptAtEpochMillis)
+                    true
+                }
+                is CanonicalEngineWorkTransition.BlockInvariant -> {
+                    blockInvariant(transition.item, transition.failureCode)
+                    true
+                }
+            }
+        }
 
     /** Bounded parked rows for selected repairable failure classes. */
     suspend fun blocked(

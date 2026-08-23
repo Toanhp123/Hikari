@@ -11,6 +11,7 @@ import app.openstory.catalog.canonical.CanonicalFieldStrategy
 import app.openstory.catalog.canonical.CanonicalGeneration
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalMetadata
+import app.openstory.catalog.canonical.CanonicalPromotionExpectation
 import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
@@ -18,6 +19,11 @@ import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.metadata.CatalogMetadataLevel
+import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.model.CatalogHomeSection
+import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.model.Story
 import app.openstory.catalog.reconciliation.ReconciliationAssessment
 import app.openstory.catalog.reconciliation.ReconciliationCaseKey
 import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
@@ -25,11 +31,7 @@ import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
 import app.openstory.catalog.reconciliation.ReconciliationReasonCode
 import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
 import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
-import app.openstory.catalog.metadata.CatalogMetadataLevel
-import app.openstory.catalog.model.CatalogEntry
-import app.openstory.catalog.model.CatalogHomeSection
-import app.openstory.catalog.model.ContentType
-import app.openstory.catalog.model.Story
+import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -47,6 +49,70 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RoomCanonicalCatalogRepositoryTest {
+    @Test
+    fun promotionRejectsStaleSourcePreferenceAndIdentitySnapshots() = runTest {
+        withDatabase { database ->
+            val storyId = StoryId("story:1")
+            seedStory(database, storyId)
+            val repository = RoomCanonicalCatalogRepository(database)
+            val dao = database.canonicalCatalogDao()
+            suspend fun expectation(): CanonicalPromotionExpectation {
+                val state = requireNotNull(dao.canonicalState(storyId.value))
+                return CanonicalPromotionExpectation(
+                    activeGenerationId = state.activeGenerationId,
+                    preferenceRevision = state.preferenceRevision,
+                    identityRevision = state.identityRevision,
+                    sourceFusionFingerprints = repository.sourceRecords(storyId)
+                        .associate { it.key to it.fusionFingerprint },
+                )
+            }
+
+            val staleSource = expectation()
+            val catalog = RoomCatalogRepository(database)
+            val current = repository.sourceRecords(storyId).single().entry
+            catalog.commitDetails(CatalogDetailsMutation(storyId, current.copy(title = "Changed"), "2", 20L))
+            assertFalse(repository.persistCandidateIfCurrent(generation(storyId, "gen:source", 20), staleSource))
+
+            val stalePreference = expectation()
+            repository.setSourcePreference(
+                CanonicalSourcePreference(
+                    storyId,
+                    CanonicalSourcePreferenceMode.PINNED,
+                    SourceKey(PluginId("plugin:one"), "source-1"),
+                    stalePreference.preferenceRevision,
+                ),
+            )
+            assertFalse(repository.persistCandidateIfCurrent(generation(storyId, "gen:preference", 30), stalePreference))
+
+            val staleIdentity = expectation()
+            val state = requireNotNull(dao.canonicalState(storyId.value))
+            dao.upsertCanonicalState(state.copy(identityRevision = state.identityRevision + 1L))
+            assertFalse(repository.persistCandidateIfCurrent(generation(storyId, "gen:identity", 40), staleIdentity))
+        }
+    }
+
+    @Test
+    fun canonicalCollectionsKeepNormalizedOrderAcrossRoomRoundTrip() = runTest {
+        withDatabase { database ->
+            val storyId = StoryId("story:1")
+            seedStory(database, storyId)
+            database.canonicalCatalogDao().upsertCanonicalState(canonicalState(storyId))
+            val repository = RoomCanonicalCatalogRepository(database)
+            val candidate = generation(storyId, "gen:ordered", 10).copy(
+                metadata = generation(storyId, "gen:ordered", 10).metadata.copy(
+                    authors = listOf("a", "Z"),
+                    genres = listOf("a", "Z"),
+                ),
+            )
+
+            assertTrue(repository.persistCandidate(candidate, expectedActiveGenerationId = null))
+
+            val restored = requireNotNull(repository.activeGeneration(storyId))
+            assertEquals(listOf("a", "Z"), restored.metadata.authors)
+            assertEquals(listOf("a", "Z"), restored.metadata.genres)
+        }
+    }
+
     @Test
     fun invalidCandidateIsInvisibleUntilAtomicPromotion() = runTest {
         withDatabase { database ->

@@ -32,13 +32,14 @@ class RoomReconciliationCaseRepository internal constructor(
         database: OpenStoryDatabase,
         diagnostics: CanonicalDiagnostics = CanonicalDiagnostics(NoOpCanonicalDiagnosticsSink),
     ) : this(database, database.canonicalCatalogDao(), diagnostics)
-    override fun observePending(): Flow<List<ReconciliationCase>> = dao.observePendingReconciliationCases().map {
-        entities -> database.withTransaction { entities.mapNotNull { entity -> entity.toDomain() } }
-    }
+    override fun observePending(): Flow<List<ReconciliationCase>> =
+        dao.observePendingReconciliationCases().map { entities ->
+            database.withTransaction { entities.toDomains() }
+        }
 
     override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> =
         dao.observeReconciliationCasesForStory(storyId.value).map { entities ->
-            database.withTransaction { entities.mapNotNull { entity -> entity.toDomain() } }
+            database.withTransaction { entities.toDomains() }
         }
 
     override suspend fun find(caseId: String): ReconciliationCase? =
@@ -70,7 +71,10 @@ class RoomReconciliationCaseRepository internal constructor(
             }
 
             val caseId = existing?.caseId ?: caseId(key)
-            val revisionNumber = (existing?.let { dao.reconciliationRevisions(caseId).size } ?: 0) + 1
+            val revisionNumber = Math.addExact(
+                existing?.let { dao.reconciliationRevisionCount(caseId) } ?: 0L,
+                1L,
+            )
             val status = when (assessment.semanticDecision) {
                 ReconciliationSemanticDecision.DIFFERENT_WORK -> ReconciliationCaseStatus.RESOLVED_SEPARATE
                 ReconciliationSemanticDecision.SAME_WORK,
@@ -160,7 +164,7 @@ class RoomReconciliationCaseRepository internal constructor(
             val entity = requireNotNull(currentEntity)
             val nextRevisionNumber = Math.addExact(expectedRevision, 1L)
             val revision = resolved.assessment.toEntity(
-                revisionId = revisionId(caseId, nextRevisionNumber.toInt()),
+                revisionId = revisionId(caseId, nextRevisionNumber),
                 caseId = caseId,
                 key = resolved.key,
                 resolutionOrigin = origin,
@@ -204,23 +208,41 @@ class RoomReconciliationCaseRepository internal constructor(
         val revisionId = currentRevisionId
         return revisionId?.let { id ->
             dao.reconciliationRevision(id)?.let { revision ->
-                val allRevisions = dao.reconciliationRevisions(caseId)
-                val key = ReconciliationCaseKey.of(StoryId(leftStoryId), StoryId(rightStoryId))
-                ReconciliationCase(
-                    id = caseId,
-                    key = key,
-                    status = ReconciliationCaseStatus.valueOf(status),
-                    assessment = revision.toAssessment(),
-                    evidenceFingerprint = revision.identityFingerprint,
-                    policyVersion = revision.policyVersion,
-                    resolutionOrigin = revision.resolutionOrigin?.let(ReconciliationResolutionOrigin::valueOf),
-                    contextualPromptSuppressedUntilEpochMillis = contextualDeferredAtEpochMillis,
-                    revision = allRevisions.size.toLong(),
-                    createdAtEpochMillis = createdAtEpochMillis,
-                    lastEvaluatedAtEpochMillis = revision.evaluatedAtEpochMillis,
-                )
+                toDomain(revision, dao.reconciliationRevisionCount(caseId))
             }
         }
+    }
+
+    private suspend fun List<ReconciliationCaseEntity>.toDomains(): List<ReconciliationCase> {
+        if (isEmpty()) return emptyList()
+        val revisionsById = dao.reconciliationRevisionsByIds(mapNotNull { it.currentRevisionId })
+            .associateBy { it.revisionId }
+        val revisionCountsByCaseId = dao.reconciliationRevisionCounts(map { it.caseId })
+            .associate { it.caseId to it.revisionCount }
+        return mapNotNull { entity ->
+            val revision = entity.currentRevisionId?.let(revisionsById::get) ?: return@mapNotNull null
+            entity.toDomain(revision, revisionCountsByCaseId[entity.caseId] ?: 0L)
+        }
+    }
+
+    private fun ReconciliationCaseEntity.toDomain(
+        revision: ReconciliationCaseRevisionEntity,
+        revisionCount: Long,
+    ): ReconciliationCase {
+        val key = ReconciliationCaseKey.of(StoryId(leftStoryId), StoryId(rightStoryId))
+        return ReconciliationCase(
+            id = caseId,
+            key = key,
+            status = ReconciliationCaseStatus.valueOf(status),
+            assessment = revision.toAssessment(),
+            evidenceFingerprint = revision.identityFingerprint,
+            policyVersion = revision.policyVersion,
+            resolutionOrigin = revision.resolutionOrigin?.let(ReconciliationResolutionOrigin::valueOf),
+            contextualPromptSuppressedUntilEpochMillis = contextualDeferredAtEpochMillis,
+            revision = revisionCount,
+            createdAtEpochMillis = createdAtEpochMillis,
+            lastEvaluatedAtEpochMillis = revision.evaluatedAtEpochMillis,
+        )
     }
 
     private fun ReconciliationAssessment.toEntity(
@@ -317,7 +339,7 @@ class RoomReconciliationCaseRepository internal constructor(
         return "reconcile:$pairDigest"
     }
 
-    private fun revisionId(caseId: String, revision: Int): String = "$caseId:r:$revision"
+    private fun revisionId(caseId: String, revision: Long): String = "$caseId:r:$revision"
 
     private fun digest(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray())

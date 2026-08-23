@@ -128,6 +128,26 @@ class CanonicalFusionServiceTest {
     }
 
     @Test
+    fun promotionRaceRebuildsFromFreshSourceEvidence() = runTest {
+        val refreshed = sourceRecord().copy(
+            entry = sourceRecord().entry.copy(title = "Refreshed title"),
+            fusionFingerprint = "fusion:refreshed",
+        )
+        val repo = FakeCanonicalRepository(preparingState(), listOf(sourceRecord())).apply {
+            persistResults.add(false)
+            persistResults.add(true)
+            recordsInstalledOnFirstRace = listOf(refreshed)
+        }
+
+        val result = assertIs<CanonicalFusionResult.Promoted>(
+            service(repo, FakeSource()).rebuild(storyId, CanonicalFusionReason.SOURCE_EVIDENCE_CHANGED),
+        )
+
+        assertEquals("Refreshed title", result.generation.metadata.title)
+        assertEquals(2, repo.sourceReadCalls)
+    }
+
+    @Test
     fun repeatedPromotionRaceReturnsRetryableFailureWithoutReplacingCurrentGeneration() = runTest {
         val raced = generation("gen:raced", "Raced title")
         val repo = FakeCanonicalRepository(preparingState(), listOf(sourceRecord())).apply {
@@ -256,8 +276,9 @@ class CanonicalFusionServiceTest {
 
     private class FakeCanonicalRepository(
         private val state: CanonicalStoryState,
-        private val records: List<CatalogSourceRecord>,
+        records: List<CatalogSourceRecord>,
     ) : CanonicalCatalogRepository {
+        private var records: List<CatalogSourceRecord> = records
         var currentGeneration: CanonicalGeneration? = null
         var stateHealthOverride: CanonicalHealth? = null
         var markedHealth: CanonicalHealth? = null
@@ -265,6 +286,8 @@ class CanonicalFusionServiceTest {
         val persistResults = ArrayDeque<Boolean>()
         val expectedActiveIds = mutableListOf<String?>()
         var generationInstalledOnFirstRace: CanonicalGeneration? = null
+        var recordsInstalledOnFirstRace: List<CatalogSourceRecord>? = null
+        var sourceReadCalls = 0
 
         override fun observeStory(storyId: StoryId): Flow<CanonicalStoryState?> = flow { emit(state(storyId)) }
         override fun observeReadyStories(): Flow<List<CanonicalStoryState.Ready>> = flowOf(emptyList())
@@ -279,7 +302,10 @@ class CanonicalFusionServiceTest {
                 currentGeneration!!,
             )
         }
-        override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> = records
+        override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> {
+            sourceReadCalls++
+            return records
+        }
         override suspend fun activeGeneration(storyId: StoryId): CanonicalGeneration? = currentGeneration
         override suspend fun sourcePreference(storyId: StoryId): CanonicalSourcePreference = state.preference
         override suspend fun setSourcePreference(preference: CanonicalSourcePreference) = Unit
@@ -294,6 +320,7 @@ class CanonicalFusionServiceTest {
                 currentGeneration = candidate
             } else if (persistCalls == 1) {
                 generationInstalledOnFirstRace?.let { currentGeneration = it }
+                recordsInstalledOnFirstRace?.let { records = it }
             }
             return accepted
         }

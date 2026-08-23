@@ -1,6 +1,7 @@
 package app.openstory.work
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.work.CoroutineWorker
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
@@ -26,7 +27,14 @@ class CanonicalEngineWorker(
         )
         entryPoint.scheduler().onDrainStarted()
         return try {
-            val report = entryPoint.maintenanceService().drainReady(CANONICAL_ENGINE_BATCH_LIMIT)
+            val startedAtElapsedMillis = SystemClock.elapsedRealtime()
+            var report = entryPoint.maintenanceService().drainReady(CANONICAL_ENGINE_BATCH_LIMIT)
+            while (
+                report.nextAttemptAtEpochMillis?.let { it <= System.currentTimeMillis() } == true &&
+                SystemClock.elapsedRealtime() - startedAtElapsedMillis < CANONICAL_ENGINE_RUN_BUDGET_MILLIS
+            ) {
+                report = entryPoint.maintenanceService().drainReady(CANONICAL_ENGINE_BATCH_LIMIT)
+            }
             scheduleCanonicalFollowUp(entryPoint.scheduler(), report)
             decideCanonicalWorkerResult().toWorkerResult()
         } catch (cancelled: CancellationException) {
@@ -152,3 +160,5 @@ private fun CanonicalWorkRunDecision.toWorkerResult(): ListenableWorker.Result =
     CanonicalWorkRunDecision.RETRY -> ListenableWorker.Result.retry()
     CanonicalWorkRunDecision.FAILURE -> ListenableWorker.Result.failure()
 }
+
+private const val CANONICAL_ENGINE_RUN_BUDGET_MILLIS = 5_000L

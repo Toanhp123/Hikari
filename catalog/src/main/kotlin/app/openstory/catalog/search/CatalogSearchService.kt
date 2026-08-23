@@ -1,6 +1,7 @@
 package app.openstory.catalog.search
 
 import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
+import app.openstory.catalog.canonical.CanonicalScore
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.home.toModel
 import app.openstory.catalog.identity.CatalogStoryIdFactory
@@ -77,6 +78,7 @@ class CatalogSearchService @Inject constructor(
     suspend fun search(request: CatalogSearchRequest): CatalogSearchResult {
         var ingest = ingestContext()
         val cardsByStory = linkedMapOf<StoryId, MutableList<CatalogSearchSourceCard>>()
+        val committedChanges = mutableListOf<CatalogCommitChange>()
         val failures = mutableListOf<CatalogSearchFailure>()
         val fetched = supervisorScope {
             sources.enabled().sortedBy { it.pluginId.value }
@@ -100,7 +102,7 @@ class CatalogSearchService @Inject constructor(
                             is Outcome.Success -> {
                                 attempt.context.applyDurableOwnership(commit.value.sourceStoryIds)
                                 ingest = attempt.context
-                                routeChanges(commit.value.changes)
+                                committedChanges += commit.value.changes
                                 attempt.cards.forEach { (key, card) ->
                                     val durableStoryId = commit.value.sourceStoryIds[key]
                                         ?: error("Search commit omitted durable owner for $key")
@@ -113,20 +115,33 @@ class CatalogSearchService @Inject constructor(
             }
         }
 
+        val orderedStoryIds = cardsByStory.keys.sortedBy(StoryId::value)
+        val immediateStoryIds = orderedStoryIds.take(SEARCH_FOREGROUND_STORY_LIMIT).toSet()
+        orchestrator.onEvidenceChanges(
+            changes = committedChanges.map { change ->
+                change.toEvidenceChange(CatalogEvidenceLevel.SUMMARY)
+            },
+            immediateStoryIds = immediateStoryIds,
+        )
         val stories = mutableListOf<CatalogSearchStory>()
-        cardsByStory.toSortedMap(compareBy<StoryId> { it.value }).forEach { (storyId, rawCards) ->
-            val state = try {
-                bootstrap.ensureReady(storyId)
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                null
-            }
-            if (state is CanonicalStoryState.Ready) {
-                stories += CatalogSearchStory(state.story, state.toProjection(), rawCards.toList())
+        orderedStoryIds.forEach { storyId ->
+            val rawCards = cardsByStory.getValue(storyId).toList()
+            if (storyId !in immediateStoryIds) {
+                stories += rawCards.toProvisionalStory(storyId)
             } else {
-                val pluginId = rawCards.minByOrNull { it.pluginId.value }?.pluginId ?: return@forEach
-                failures += CatalogSearchFailure(pluginId, CANONICAL_NOT_READY_CODE, retryable = true)
+                val state = try {
+                    bootstrap.ensureReady(storyId)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (_: Exception) {
+                    null
+                }
+                if (state is CanonicalStoryState.Ready) {
+                    stories += CatalogSearchStory(state.story, state.toProjection(), rawCards)
+                } else {
+                    val pluginId = rawCards.minByOrNull { it.pluginId.value }?.pluginId ?: return@forEach
+                    failures += CatalogSearchFailure(pluginId, CANONICAL_NOT_READY_CODE, retryable = true)
+                }
             }
         }
         return CatalogSearchResult(stories, failures)
@@ -213,12 +228,6 @@ class CatalogSearchService @Inject constructor(
         )
     }
 
-    private suspend fun routeChanges(changes: List<CatalogCommitChange>) {
-        changes.forEach { change ->
-            orchestrator.onEvidenceChanged(change.toEvidenceChange(CatalogEvidenceLevel.SUMMARY))
-        }
-    }
-
     private data class IngestContext(
         val index: CatalogIngestReconciliationIndex,
         val storyContentTypes: MutableMap<StoryId, ContentType>,
@@ -240,7 +249,30 @@ class CatalogSearchService @Inject constructor(
         const val SOURCE_EXCEPTION_CODE = "catalog.source.exception"
         const val INVALID_SOURCE_CODE = "catalog.source.invalid"
         const val CANONICAL_NOT_READY_CODE = "catalog.search.canonical_not_ready"
+        const val SEARCH_FOREGROUND_STORY_LIMIT = 20
     }
+}
+
+private fun List<CatalogSearchSourceCard>.toProvisionalStory(storyId: StoryId): CatalogSearchStory {
+    val primary = minWith(compareBy({ it.pluginId.value }, CatalogSearchSourceCard::sourceId))
+    val score = primary.score?.takeIf { it.scale > 0.0 }?.let { raw ->
+        CanonicalScore(raw.value / raw.scale, contributorCount = 1)
+    }
+    val story = Story(storyId, primary.contentType)
+    return CatalogSearchStory(
+        story = story,
+        presentation = app.openstory.catalog.projection.CatalogStoryProjection(
+            storyId = storyId,
+            title = primary.title,
+            contentType = primary.contentType,
+            coverUrl = primary.coverUrl,
+            authors = primary.authors,
+            publicationStatus = null,
+            latestUpdate = null,
+            score = score,
+        ),
+        sources = this,
+    )
 }
 
 private fun CatalogSourceResult.Failure.toFailure(pluginId: PluginId) = CatalogSearchFailure(

@@ -50,14 +50,54 @@ class CatalogCandidateIndexTest {
 
     @Test
     fun upsertReplacesOldTokensForSameSourceKey() {
-        index.rebuild(listOf(evidence("a", "story:a", titles = setOf("Old Token"))))
-        index.upsert(evidence("a", "story:a", titles = setOf("New Token")))
+        val oldIdentifier = workId("work", "old")
+        val newIdentifier = workId("work", "new")
+        index.rebuild(
+            listOf(
+                evidence(
+                    "a",
+                    "story:a",
+                    titles = setOf("Old Token"),
+                    authors = setOf("old author"),
+                    identifiers = setOf(oldIdentifier),
+                ),
+            ),
+        )
+        index.upsert(
+            evidence(
+                "a",
+                "story:a",
+                titles = setOf("New Token"),
+                authors = setOf("new author"),
+                identifiers = setOf(newIdentifier),
+            ),
+        )
 
         assertTrue(index.candidatesFor(evidence("incoming1", null, titles = setOf("Old"))).isEmpty())
+        assertTrue(
+            index.candidatesFor(
+                evidence("incoming2", null, titles = setOf("Other"), authors = setOf("old author")),
+            ).isEmpty(),
+        )
+        assertTrue(
+            index.candidatesFor(
+                evidence("incoming3", null, titles = setOf("Other"), identifiers = setOf(oldIdentifier)),
+            ).isEmpty(),
+        )
         assertEquals(
             listOf(StoryId("story:a")),
-            index.candidatesFor(evidence("incoming2", null, titles = setOf("New"))),
+            index.candidatesFor(evidence("incoming4", null, titles = setOf("New"))),
         )
+    }
+
+    @Test
+    fun evidenceLookupReturnsOnlyRequestedStoriesInStableSourceOrder() {
+        val a2 = evidence("a2", "story:a", titles = setOf("Shared"))
+        val unrelated = evidence("unrelated", "story:z", titles = setOf("Other"))
+        val a1 = evidence("a1", "story:a", titles = setOf("Shared"))
+        index.rebuild(listOf(a2, unrelated, a1))
+
+        assertEquals(listOf(a1, a2), index.evidenceFor(setOf(StoryId("story:a"))))
     }
 
     @Test

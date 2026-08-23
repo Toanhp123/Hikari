@@ -151,6 +151,27 @@ class CatalogEvidenceFingerprintsTest {
     }
 
     @Test
+    fun fusionFingerprintIgnoresRefreshTimestampsButRetainsMetadataLevelProvenance() {
+        val base = snapshot(entry(title = "One")).copy(
+            full = CatalogMetadataStamp("1.0.0", 20L),
+        )
+        val refreshed = base.copy(
+            summary = base.summary.copy(resolvedAtEpochMillis = 100L),
+            full = requireNotNull(base.full).copy(resolvedAtEpochMillis = 200L),
+        )
+
+        assertEquals(CatalogEvidenceFingerprints.fusion(base), CatalogEvidenceFingerprints.fusion(refreshed))
+        assertNotEquals(
+            CatalogEvidenceFingerprints.fusion(base),
+            CatalogEvidenceFingerprints.fusion(base.copy(summary = CatalogMetadataStamp("2.0.0", 10L))),
+        )
+        assertNotEquals(
+            CatalogEvidenceFingerprints.fusion(base),
+            CatalogEvidenceFingerprints.fusion(base.copy(full = null)),
+        )
+    }
+
+    @Test
     fun sourceRecordFactoryCarriesProvenanceAndComputedFingerprints() {
         val snapshot = snapshot(
             entry(

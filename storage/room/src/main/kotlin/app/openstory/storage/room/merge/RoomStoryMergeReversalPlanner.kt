@@ -199,7 +199,7 @@ internal class RoomStoryMergeReversalPlanner(
         database.canonicalCatalogDao().reconciliationCase(expectedCaseId)?.let { case ->
             case.status == "PENDING" &&
                 setOf(case.leftStoryId, case.rightStoryId) == setOf(survivorStoryId, retiredStoryId) &&
-                database.canonicalCatalogDao().reconciliationRevisions(expectedCaseId).size.toLong() == expectedRevision
+                database.canonicalCatalogDao().reconciliationRevisionCount(expectedCaseId) == expectedRevision
         } ?: false
     } ?: true
 

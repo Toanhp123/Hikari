@@ -93,6 +93,23 @@ class CatalogSearchServiceTest {
         assertTrue(routed.identityFingerprintChanged)
         assertTrue(routed.fusionFingerprintChanged)
     }
+
+    @Test
+    fun searchConvergesOnlyTwentyDistinctStoriesInOneForegroundBatch() = runTest {
+        val canonical = FakeCanonicalRepository()
+        val repository = FakeRepository(canonical)
+        val engine = RecordingCanonicalEngineEventSink()
+        val sources = (0 until 25).map { index ->
+            Source("catalog.$index", item("source-$index", "Title $index"))
+        }
+        val service = service(sources, repository, canonical, engine = engine)
+
+        val result = service.search(CatalogSearchRequest("title"))
+
+        assertEquals(1, engine.immediateStoryIdBatches.size)
+        assertEquals(20, engine.immediateStoryIdBatches.single().size)
+        assertEquals(25, result.stories.size)
+    }
     @Test
     fun summaryIsCommittedBeforeCanonicalCardConstructionAndRawValuesDoNotOwnPresentation() = runTest {
         val canonical = FakeCanonicalRepository()

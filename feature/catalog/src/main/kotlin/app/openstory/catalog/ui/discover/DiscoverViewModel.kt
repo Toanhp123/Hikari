@@ -9,18 +9,22 @@ import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
     projections: CatalogStoryProjectionRepository,
@@ -37,13 +41,19 @@ class DiscoverViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
             replay = 1,
-        )
+    )
     private val selectedContentType = MutableStateFlow(ContentType.MANGA)
+    private val visibleStoryIds = combine(homes, selectedContentType) { currentHomes, contentType ->
+        discoverCanonicalBootstrapStoryIds(currentHomes, contentType).toSet()
+    }.distinctUntilChanged()
+    private val visibleProjections = visibleStoryIds
+        .flatMapLatest(projections::observeForStories)
+        .distinctUntilChanged()
     private val dependencies = DiscoverDependencies(
         homes = homes,
-        content = combine(homes, projections.observe(), selectedContentType) { currentHomes, canonical, contentType ->
+        content = combine(homes, visibleProjections, selectedContentType) { currentHomes, canonical, contentType ->
             projection.project(currentHomes, canonical, contentType)
-        }.preserveLatestOnFailure(
+        }.distinctUntilChanged().preserveLatestOnFailure(
             RANKING_OBSERVE_EXCEPTION_CODE,
             DiscoverSemanticContent.empty(selectedContentType.value),
         ),

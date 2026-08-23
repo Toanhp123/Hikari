@@ -4,6 +4,44 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 object RoomMigrations {
+    val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `canonical_engine_work` ADD COLUMN `lease_token` TEXT")
+            db.execSQL(
+                "ALTER TABLE `canonical_engine_work` ADD COLUMN `lease_expires_at_epoch_millis` INTEGER",
+            )
+            db.execSQL(
+                "DROP INDEX IF EXISTS `index_canonical_engine_work_next_attempt_at_epoch_millis`",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_canonical_engine_work_lease_expires_at_epoch_millis_" +
+                    "next_attempt_at_epoch_millis_work_type_story_id` " +
+                    "ON `canonical_engine_work` (`lease_expires_at_epoch_millis`, " +
+                    "`next_attempt_at_epoch_millis`, `work_type`, `story_id`)",
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `catalog_change_outbox` (" +
+                    "`event_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `story_id` TEXT NOT NULL, " +
+                    "`plugin_id` TEXT NOT NULL, `source_id` TEXT NOT NULL, " +
+                    "`identity_fingerprint_changed` INTEGER NOT NULL, " +
+                    "`fusion_fingerprint_changed` INTEGER NOT NULL, `availability_changed` INTEGER NOT NULL, " +
+                    "`evidence_level` TEXT NOT NULL, `reason` TEXT NOT NULL, " +
+                    "`created_at_epoch_millis` INTEGER NOT NULL, " +
+                    "FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_catalog_change_outbox_story_id` " +
+                    "ON `catalog_change_outbox` (`story_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_catalog_change_outbox_created_at_epoch_millis_event_id` " +
+                    "ON `catalog_change_outbox` (`created_at_epoch_millis`, `event_id`)",
+            )
+        }
+    }
+
     val MIGRATION_1_2: Migration = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(

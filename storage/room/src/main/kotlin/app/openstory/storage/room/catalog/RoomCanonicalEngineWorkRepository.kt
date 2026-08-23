@@ -2,13 +2,16 @@ package app.openstory.storage.room.catalog
 
 import androidx.room.withTransaction
 import app.openstory.catalog.orchestration.CanonicalEngineWorkItem
+import app.openstory.catalog.orchestration.CanonicalEngineWorkRequest
 import app.openstory.catalog.orchestration.CanonicalEngineWorkReasons
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
+import app.openstory.catalog.orchestration.CanonicalEngineWorkTransition
 import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.common.Clock
 import app.openstory.common.SystemClock
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
+import java.util.UUID
 
 private const val COALESCED_INVARIANT_FAILURE_CODE = "canonical.maintenance.coalesced_invariant"
 
@@ -24,25 +27,114 @@ class RoomCanonicalEngineWorkRepository(
         reason: String,
         requiredPolicyVersion: Int?,
     ): CanonicalEngineWorkItem {
-        require(reason.isNotBlank())
+        val request = CanonicalEngineWorkRequest(storyId, type, reason, requiredPolicyVersion)
+        return database.withTransaction { markDirtyInTransaction(request, clock.nowEpochMillis()) }
+    }
+
+    override suspend fun markDirty(
+        requests: List<CanonicalEngineWorkRequest>,
+    ): List<CanonicalEngineWorkItem> {
+        if (requests.isEmpty()) return emptyList()
         return database.withTransaction {
-            val item = coalesceDirtyCanonicalEngineWork(
-                current = dao.work(storyId.value, type.name),
-                storyId = storyId,
-                type = type,
-                reason = reason,
-                requiredPolicyVersion = requiredPolicyVersion,
-                nowEpochMillis = clock.nowEpochMillis(),
-            )
-            dao.upsertWork(item)
-            item.toModel()
+            val nowEpochMillis = clock.nowEpochMillis()
+            val currentByKey = dao.workForStoryIdsChunked(requests.map { it.storyId.value })
+                .associateByTo(mutableMapOf()) { it.storyId to it.workType }
+            requests.map { request ->
+                val key = request.storyId.value to request.type.name
+                val item = coalesceDirtyCanonicalEngineWork(
+                    current = currentByKey[key],
+                    storyId = request.storyId,
+                    type = request.type,
+                    reason = request.reason,
+                    requiredPolicyVersion = request.requiredPolicyVersion,
+                    nowEpochMillis = nowEpochMillis,
+                )
+                dao.upsertWork(item)
+                currentByKey[key] = item
+                item.toModel()
+            }
         }
+    }
+
+    private suspend fun markDirtyInTransaction(
+        request: CanonicalEngineWorkRequest,
+        nowEpochMillis: Long,
+    ): CanonicalEngineWorkItem {
+        val item = coalesceDirtyCanonicalEngineWork(
+            current = dao.work(request.storyId.value, request.type.name),
+            storyId = request.storyId,
+            type = request.type,
+            reason = request.reason,
+            requiredPolicyVersion = request.requiredPolicyVersion,
+            nowEpochMillis = nowEpochMillis,
+        )
+        dao.upsertWork(item)
+        return item.toModel()
     }
 
     override suspend fun claimReady(nowEpochMillis: Long, limit: Int): List<CanonicalEngineWorkItem> {
         require(nowEpochMillis >= 0L)
         require(limit > 0)
-        return dao.readyWork(nowEpochMillis, limit).map(CanonicalEngineWorkEntity::toModel)
+        return database.withTransaction {
+            val selected = dao.readyWork(nowEpochMillis, limit)
+            if (selected.isEmpty()) return@withTransaction emptyList()
+            val leaseToken = UUID.randomUUID().toString()
+            val leaseExpiresAtEpochMillis = leaseExpiry(nowEpochMillis)
+            selected.forEach { item ->
+                dao.claimWork(
+                    storyId = item.storyId,
+                    workType = item.workType,
+                    expectedNextAttemptAtEpochMillis = item.nextAttemptAtEpochMillis,
+                    nowEpochMillis = nowEpochMillis,
+                    leaseToken = leaseToken,
+                    leaseExpiresAtEpochMillis = leaseExpiresAtEpochMillis,
+                )
+            }
+            dao.workByLeaseToken(leaseToken).map(CanonicalEngineWorkEntity::toModel)
+        }
+    }
+
+    override suspend fun transitionClaimed(
+        transitions: List<CanonicalEngineWorkTransition>,
+    ): List<Boolean> = database.withTransaction {
+        val currentByKey = dao.workForStoryIdsChunked(transitions.map { it.item.storyId.value })
+            .associateBy { it.storyId to it.workType }
+        transitions.map { transition ->
+            applyTransitionInTransaction(
+                transition,
+                currentByKey[transition.item.storyId.value to transition.item.type.name],
+            )
+        }
+    }
+
+    private suspend fun applyTransitionInTransaction(
+        transition: CanonicalEngineWorkTransition,
+        current: CanonicalEngineWorkEntity?,
+    ): Boolean {
+        val item = transition.item
+        if (item.leaseToken == null || current?.toModel() != item) return false
+        when (transition) {
+            is CanonicalEngineWorkTransition.Complete ->
+                dao.deleteWork(item.storyId.value, item.type.name)
+            is CanonicalEngineWorkTransition.Retry -> dao.upsertWork(
+                current.copy(
+                    attemptCount = item.attemptCount + 1,
+                    nextAttemptAtEpochMillis = transition.nextAttemptAtEpochMillis,
+                    lastErrorCode = transition.failureCode,
+                    leaseToken = null,
+                    leaseExpiresAtEpochMillis = null,
+                ),
+            )
+            is CanonicalEngineWorkTransition.BlockInvariant -> dao.upsertWork(
+                current.copy(
+                    nextAttemptAtEpochMillis = Long.MAX_VALUE,
+                    lastErrorCode = transition.failureCode,
+                    leaseToken = null,
+                    leaseExpiresAtEpochMillis = null,
+                ),
+            )
+        }
+        return true
     }
 
     override suspend fun complete(item: CanonicalEngineWorkItem): Boolean = database.withTransaction {
@@ -67,6 +159,8 @@ class RoomCanonicalEngineWorkRepository(
                         attemptCount = item.attemptCount + 1,
                         nextAttemptAtEpochMillis = nextAttemptAtEpochMillis,
                         lastErrorCode = failureCode,
+                        leaseToken = null,
+                        leaseExpiresAtEpochMillis = null,
                     ),
                 )
             }
@@ -82,6 +176,8 @@ class RoomCanonicalEngineWorkRepository(
                     current.copy(
                         nextAttemptAtEpochMillis = Long.MAX_VALUE,
                         lastErrorCode = failureCode,
+                        leaseToken = null,
+                        leaseExpiresAtEpochMillis = null,
                     ),
                 )
             }
@@ -112,13 +208,15 @@ class RoomCanonicalEngineWorkRepository(
                 attemptCount = 0,
                 nextAttemptAtEpochMillis = clock.nowEpochMillis(),
                 lastErrorCode = null,
+                leaseToken = null,
+                leaseExpiresAtEpochMillis = null,
             )
             dao.upsertWork(requeued)
             requeued.toModel()
         }
 
     override suspend fun nextAttemptAtEpochMillis(): Long? =
-        dao.earliestRunnableWorkAttempt(Long.MAX_VALUE)
+        dao.earliestRunnableWorkAttempt(Long.MAX_VALUE, clock.nowEpochMillis())
 
     override suspend fun supersede(storyId: StoryId, type: CanonicalEngineWorkType) {
         dao.deleteWork(storyId.value, type.name)
@@ -148,6 +246,8 @@ internal fun coalesceDirtyCanonicalEngineWork(
         current.copy(
             reason = coalescedReason,
             requiredPolicyVersion = requiredVersion,
+            leaseToken = null,
+            leaseExpiresAtEpochMillis = null,
         )
     } else {
         CanonicalEngineWorkEntity(
@@ -158,6 +258,8 @@ internal fun coalesceDirtyCanonicalEngineWork(
             nextAttemptAtEpochMillis = nextDirtyReadyAt(current, nowEpochMillis),
             lastErrorCode = null,
             requiredPolicyVersion = requiredVersion,
+            leaseToken = null,
+            leaseExpiresAtEpochMillis = null,
         )
     }
 }
@@ -191,13 +293,19 @@ internal fun coalesceRekeyedCanonicalEngineWork(
     require(nowEpochMillis >= 0L)
     if (target == null) {
         return if (source.nextAttemptAtEpochMillis == Long.MAX_VALUE) {
-            source.copy(storyId = survivorStoryId)
+            source.copy(
+                storyId = survivorStoryId,
+                leaseToken = null,
+                leaseExpiresAtEpochMillis = null,
+            )
         } else {
             source.copy(
                 storyId = survivorStoryId,
                 attemptCount = 0,
                 nextAttemptAtEpochMillis = nowEpochMillis,
                 lastErrorCode = null,
+                leaseToken = null,
+                leaseExpiresAtEpochMillis = null,
             )
         }
     }
@@ -236,6 +344,8 @@ internal fun coalesceRekeyedCanonicalEngineWork(
         },
         lastErrorCode = lastError,
         requiredPolicyVersion = maxPolicyVersion(target.requiredPolicyVersion, source.requiredPolicyVersion),
+        leaseToken = null,
+        leaseExpiresAtEpochMillis = null,
     )
 }
 
@@ -253,4 +363,19 @@ private fun CanonicalEngineWorkEntity.toModel() = CanonicalEngineWorkItem(
     attemptCount = attemptCount,
     nextAttemptAtEpochMillis = nextAttemptAtEpochMillis,
     lastFailureCode = lastErrorCode,
+    leaseToken = leaseToken,
+    leaseExpiresAtEpochMillis = leaseExpiresAtEpochMillis,
 )
+
+private const val WORK_LEASE_DURATION_MILLIS = 2 * 60 * 1000L
+private const val ROOM_IN_QUERY_CHUNK_SIZE = 900
+
+internal suspend fun CanonicalCatalogDao.workForStoryIdsChunked(storyIds: Collection<String>) =
+    storyIds.distinct().chunked(ROOM_IN_QUERY_CHUNK_SIZE).flatMap { chunk -> workForStories(chunk) }
+
+private fun leaseExpiry(nowEpochMillis: Long): Long =
+    if (Long.MAX_VALUE - nowEpochMillis < WORK_LEASE_DURATION_MILLIS) {
+        Long.MAX_VALUE
+    } else {
+        nowEpochMillis + WORK_LEASE_DURATION_MILLIS
+    }

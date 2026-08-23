@@ -191,6 +191,7 @@ class CatalogReconciliationService(
             mergeEligibility = selection.mergeEligibility,
             winningLead = selection.winningLead,
             reasons = selection.reasons,
+            identityEvidenceFingerprint = requireNotNull(selection.identityEvidenceFingerprint),
         )
         return when (selection.semanticDecision) {
             ReconciliationSemanticDecision.NO_MATCH -> ReconciliationRunResult.NoIdentityChange
