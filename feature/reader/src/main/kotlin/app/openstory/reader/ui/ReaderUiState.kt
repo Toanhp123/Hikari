@@ -19,6 +19,7 @@ data class ReaderUiState(
     val availableOffline: Boolean = false,
     val failure: String? = null,
     val failureRetryable: Boolean = true,
+    val preferenceFailure: String? = null,
 )
 
 data class ReaderReleaseUiModel(

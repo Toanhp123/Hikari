@@ -10,6 +10,7 @@ import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.chapters.source.ChapterSourceRegistry
 import app.openstory.chapters.source.PluginChapterSourceRegistry
 import app.openstory.chapters.sync.ChapterSyncService
+import app.openstory.chapters.sync.ChapterSourceEligibilityResolver
 import app.openstory.chapters.sync.InitialChapterSyncScheduler
 import app.openstory.common.Clock
 import app.openstory.library.mapping.ContentMappingRepository
@@ -57,6 +58,7 @@ object ChapterModule {
         sources: ChapterSourceRegistry,
         chapters: ChapterRepository,
         clock: Clock,
+        eligibility: ChapterSourceEligibilityResolver,
     ): ChapterSyncService = ChapterSyncService(
         mappings = mappings,
         sources = sources,
@@ -64,7 +66,12 @@ object ChapterModule {
         aggregation = ChapterAggregationEngine(),
         parser = ChapterLabelParser(),
         clock = clock,
+        eligibility = eligibility,
     )
+
+    @Provides
+    fun provideChapterSourceEligibilityResolver(): ChapterSourceEligibilityResolver =
+        ChapterSourceEligibilityResolver.ALLOW_ALL
 
     @Provides
     @Singleton

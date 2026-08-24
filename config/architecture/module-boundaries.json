@@ -13,6 +13,7 @@
         ":chapters",
         ":reader",
         ":downloads",
+        ":settings",
         ":storage:room",
         ":storage:files",
         ":plugins:api",
@@ -148,6 +149,27 @@
         "app.openstory.plugins.runtime.install.",
         "app.openstory.plugins.runtime.persistence.",
         "app.openstory.plugins.runtime.update."
+      ]
+    },
+    ":settings": {
+      "path": "settings",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.content.",
+        "androidx.compose.",
+        "androidx.room.",
+        "androidx.work.",
+        "app.openstory.catalog.",
+        "app.openstory.library.",
+        "app.openstory.chapters.",
+        "app.openstory.reader.",
+        "app.openstory.downloads.",
+        "app.openstory.storage.",
+        "app.openstory.plugins.",
+        "app.openstory.reader.ui."
       ]
     },
     ":feature:catalog": {

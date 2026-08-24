@@ -49,7 +49,7 @@ class WorkManagerPostMergeDerivedWorkDispatcher(
         val chapterSync = if (refreshChapterSync) {
             OneTimeWorkRequestBuilder<InitialChapterSyncWorker>()
                 .setConstraints(network)
-                .setInputData(workDataOf(InitialChapterSyncWorker.STORY_ID_KEY to storyId.value))
+                .setInputData(workDataOf(WorkInput.STORY_ID to storyId.value))
                 .build()
         } else {
             null

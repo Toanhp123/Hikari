@@ -29,7 +29,7 @@ class WorkManagerInitialChapterSyncScheduler(
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build(),
                 )
-                .setInputData(workDataOf(InitialChapterSyncWorker.STORY_ID_KEY to storyId.value))
+                .setInputData(workDataOf(WorkInput.STORY_ID to storyId.value))
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 uniqueInitialChapterSyncWorkName(storyId),
@@ -51,16 +51,13 @@ class InitialChapterSyncWorker(
             applicationContext,
             InitialChapterSyncWorkerEntryPoint::class.java,
         ).chapterSyncService()
-        return when (runInitialChapterSyncWork(inputData.getString(STORY_ID_KEY), sync::sync)) {
+        return when (runInitialChapterSyncWork(inputData.getString(WorkInput.STORY_ID), sync::sync)) {
             InitialChapterSyncWorkDecision.SUCCESS -> Result.success()
             InitialChapterSyncWorkDecision.RETRY -> Result.retry()
             InitialChapterSyncWorkDecision.FAILURE -> Result.failure()
         }
     }
 
-    companion object {
-        const val STORY_ID_KEY = "story_id"
-    }
 }
 
 @EntryPoint
@@ -92,4 +89,4 @@ internal suspend fun runInitialChapterSyncWork(
 }
 
 internal fun uniqueInitialChapterSyncWorkName(storyId: StoryId): String =
-    "initial-chapter-sync:${storyId.value}"
+    WorkNames.storyChapterSync(storyId)

@@ -12,6 +12,8 @@ source ./scripts/verification-common.sh
 
 run_repository_static_gates
 
+bash ./scripts/check-wave-10-production-policy.sh
+
 ROOM_SCHEMA_FINGERPRINT="$(
   ./scripts/verify-room-schema-stability.sh
 )"

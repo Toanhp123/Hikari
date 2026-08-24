@@ -16,6 +16,7 @@ import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.Clock
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.catalog.reconciliation.StoryMergeLineageReader
+import app.openstory.chapters.sync.ChapterSyncCandidateSource
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 import app.openstory.storage.room.OpenStoryDatabase
@@ -31,6 +32,7 @@ import app.openstory.storage.room.merge.RoomStoryUserStateFootprintReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineMaintenanceReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineWorkRepository
 import app.openstory.storage.room.catalog.RoomCatalogChangeOutboxRepository
+import app.openstory.storage.room.chapters.RoomChapterSyncCandidateSource
 import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
 import app.openstory.storage.room.plugins.RoomPluginStateStore
 import dagger.Module
@@ -139,4 +141,9 @@ object StorageModule {
     @Singleton
     fun providePluginDiagnosticsSink(database: OpenStoryDatabase): PluginDiagnosticsSink =
         RoomPluginDiagnosticsSink(database)
+
+    @Provides
+    @Singleton
+    fun provideChapterSyncCandidateSource(database: OpenStoryDatabase): ChapterSyncCandidateSource =
+        RoomChapterSyncCandidateSource(database)
 }
