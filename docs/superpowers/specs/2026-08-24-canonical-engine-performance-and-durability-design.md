@@ -114,6 +114,11 @@ The Room schema version increments from 9 to 10. Migration 9→10:
 
 The migration must not destructively recreate catalog, canonical, user-state, chapter, or download tables.
 
+This migration consumes the previously planned Wave 10 `9 -> 10` reservation. Active roadmap and
+Wave 10 documentation must therefore enter on schema 10 and assign durable notification delivery to
+`MIGRATION_10_11`. Historical schema-9 CCE acceptance checkpoints remain unchanged as evidence of
+their accepted boundary.
+
 ## Testing
 
 Tests are written before production changes and cover:

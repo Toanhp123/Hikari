@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-23
+Date: 2026-08-24
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -27,16 +27,23 @@ it advanced Room from schema 6 to **schema 7** without changing module ownership
 catalog metadata-lifecycle unification subsequently advanced Room to **schema 8**, centralized
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
-The **Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on Room schema 9**.
-Phases 0–7 / Tasks 1–42 are accepted. **Wave 10 is the active next capability boundary.** The active design/plan records are:
+The **Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on its Room schema-9 boundary**.
+Phases 0-7 / Tasks 1-42 are accepted. The schema-10 durability entry gate is also accepted, so
+**Wave 10 is ready to start as the active next capability boundary.** The current
+design/plan/readiness records are:
 
-- `../superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md`
-- `../superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md`
+- `../superpowers/specs/2026-08-24-canonical-engine-performance-and-durability-design.md`
+- `waves/wave-10-background-sync-auth-and-notifications.md`
+- `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`
 
-Wave 10 is planned and ready to start. Canonical-engine Task 6 owns the reviewed `8 -> 9`
-schema foundation. Wave 10 notification persistence is rebased to `9 -> 10`, and
-Wave 11 enters on schema 10 unless another separately reviewed migration intervenes. Do not create a
-second, competing `MIGRATION_8_9`.
+The later Canonical Engine Performance and Durability implementation advances current source to
+schema 10. It owns `MIGRATION_9_10` for canonical-work leases and the transactional catalog-change
+outbox. Its policy, full host, and API 26/API 37 entry verification is accepted.
+
+Wave 10 is ready to start and remains unimplemented.
+Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
+notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
+separately reviewed migration intervenes.
 
 The completed Product UI and Discover implementation plans are execution records, not active next-work
 instructions. Wave 01-05 checkpoints remain historical delivery evidence and do not require compatibility
@@ -51,9 +58,9 @@ remain under `../internal/checkpoints/`. Phase-6 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md`; accepted Phase-1 evidence remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; Phase-0 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`. Current Discover acceptance
-evidence remains in `../internal/checkpoints/discover-semantic-feed-redesign.md`; keep the accepted Discover semantic-feed checkpoint as the Wave 10 entry baseline
-for its completed feed/UI behavior while CCE remains
-the active pre-Wave-10 engineering track. The accepted broader Product UI evidence remains in
+evidence remains in `../internal/checkpoints/discover-semantic-feed-redesign.md`; keep the accepted Discover semantic-feed checkpoint as part of the Wave 10 entry baseline
+for its completed feed/UI behavior. The schema-10 durability gate is the only open pre-Wave-10
+engineering boundary. The accepted broader Product UI evidence remains in
 `../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -106,7 +113,7 @@ current fourteen-module graph. The approved post-baseline evolution is defined b
 | 07 | `:chapters` | Release synchronization and canonical aggregation |
 | 08 | `:reader`, `:feature:reader` | Reader policy and independent immersive presentation |
 | 09 | `:downloads`, `:storage:files` | Offline/cache policy and atomic file adapter |
-| 09 -> 10 foundation | `:core:designsystem` | Application theme, visual tokens, and domain-neutral shared UX |
+| Post-Wave-09 UI foundation | `:core:designsystem` | Application theme, visual tokens, and domain-neutral shared UX |
 | 10 | `:settings`, `:feature:settings` | Typed policies and independent settings presentation |
 | 11 | `:feature:plugins` | Full plugin-management presentation |
 
@@ -132,7 +139,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | DSR | Discover semantic-feed redesign | **Completed; Room schema 7; focused/device/visual/benchmark verification complete** | `../internal/checkpoints/discover-semantic-feed-redesign.md` |
 | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
 | CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phases 0–7 / Tasks 1–42 verified/closed; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md` |
-| 10 | Background work, auth, notifications | **Planned; ready to start; schema entry 9 -> 10 for notification persistence** | `waves/wave-10-background-sync-auth-and-notifications.md` |
+| CED | Canonical engine performance/durability | **Entry baseline accepted on schema 10** | `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md` |
+| 10 | Background work, auth, notifications | **Ready to start; notification persistence 10 -> 11** | `waves/wave-10-background-sync-auth-and-notifications.md` |
 | 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -223,15 +231,16 @@ architecture
                                               -> controlled reversal for provably safe historical merges (Phase 7 Task 40 verified/closed)
                                                 -> structured decision traces + invariant diagnostics (Phase 7 Task 41 verified/closed)
                                                   -> final governance/docs + acceptance/profile/performance matrix (Phase 7 Task 42 verified/closed)
-                                  -> local background/auth/notifications (Wave 10; schema 9 -> 10)
+                                  -> canonical durability leases/outbox (schema 9 -> 10; entry accepted)
+                                    -> local background/auth/notifications (Wave 10; schema 10 -> 11)
                       -> release hardening
 ```
 
 ## Execution rule
 
-1. Use the current 14-module graph, Room schema 9, and the Canonical Engine design/plan as the active execution baseline.
+1. Use the current 14-module graph and accepted Room schema-10 durability boundary as the Wave 10 source baseline.
 2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 10 is the active next boundary. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
-3. Wave 10 notification persistence is rebased to `MIGRATION_9_10`; never reintroduce another meaning for `MIGRATION_8_9`.
+3. `MIGRATION_8_9` belongs to canonical foundation and `MIGRATION_9_10` belongs to canonical durability. Wave 10 notification persistence uses `MIGRATION_10_11`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
 6. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.

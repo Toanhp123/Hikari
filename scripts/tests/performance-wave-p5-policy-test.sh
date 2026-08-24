@@ -84,8 +84,12 @@ grep -q 'projections = projections' "$discover_pipeline" ||
   fail "Discover presentation is not derived from canonical projections"
 ! grep -Eq 'loading|refreshing|refreshReport' "$discover_pipeline" ||
   fail "Discover projection pipeline still recomputes semantic content for transient UI flags"
-grep -q 'combine(homes, projections.observe(), selectedContentType)' "$discover_vm" ||
-  fail "Discover semantic projection must combine Home feed semantics with canonical presentation"
+grep -q 'flatMapLatest(projections::observeForStories)' "$discover_vm" ||
+  fail "Discover canonical presentation is not scoped to the visible Story set"
+grep -q 'combine(homes, visibleProjections, selectedContentType)' "$discover_vm" ||
+  fail "Discover semantic projection must combine Home feed semantics with scoped canonical presentation"
+! grep -q 'projections.observe()' "$discover_vm" ||
+  fail "Discover regressed to the unbounded canonical projection stream"
 grep -q 'content.toUiState' "$discover_vm" ||
   fail "Discover transient UI flags are not assembled after semantic projection"
 ! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||

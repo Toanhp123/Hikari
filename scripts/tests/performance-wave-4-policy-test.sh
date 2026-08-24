@@ -35,8 +35,12 @@ fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
   fail "DiscoverViewModel must own exactly one repository.observeHomes() source"
 [[ -f "$discover_pipeline" ]] || fail "Discover projection pipeline is missing"
 [[ -f "$discover_refresh_pipeline" ]] || fail "Discover refresh scheduling pipeline is missing"
-grep -q 'combine(homes, projections.observe(), selectedContentType)' "$discover_vm" ||
-  fail "Discover semantic projection must combine Home feed semantics with canonical presentation"
+grep -q 'flatMapLatest(projections::observeForStories)' "$discover_vm" ||
+  fail "Discover canonical presentation is not scoped to the visible Story set"
+grep -q 'combine(homes, visibleProjections, selectedContentType)' "$discover_vm" ||
+  fail "Discover semantic projection must combine Home feed semantics with scoped canonical presentation"
+! grep -q 'projections.observe()' "$discover_vm" ||
+  fail "Discover regressed to the unbounded canonical projection stream"
 grep -q 'projection.project(currentHomes, canonical, contentType)' "$discover_vm" ||
   fail "Discover Home feed semantics and canonical presentation do not share one projection call"
 grep -q 'projectSemanticDiscoverContent' "$discover_pipeline" ||

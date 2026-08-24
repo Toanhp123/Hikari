@@ -37,6 +37,7 @@ class DatabaseBaselineTest {
                 "story_merge_reversal_events",
                 "story_redirects",
                 "canonical_engine_work",
+                "catalog_change_outbox",
                 "plugin_state",
                 "plugin_versions",
                 "plugin_diagnostics",

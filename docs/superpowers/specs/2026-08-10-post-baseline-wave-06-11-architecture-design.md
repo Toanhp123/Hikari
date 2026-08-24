@@ -59,6 +59,21 @@ now owns `MIGRATION_8_9`. Its schema-9 foundation is the current persistence bas
 
 Capability ownership and the approved module-evolution table are unchanged.
 
+## 2026-08-24 Canonical-Durability Persistence Rebase
+
+The separately reviewed Canonical Engine Performance and Durability work landed before Wave 10 and
+now owns `MIGRATION_9_10` for queue leases and the transactional catalog-change outbox. Schema 10 is
+the current source baseline. The 2026-08-23 numbering above is therefore superseded only for future
+wave numbering:
+
+- Wave 10 enters on Room schema 10.
+- Wave 10 durable notification-delivery state migrates `10 -> 11`.
+- Wave 11 enters on schema 11 unless another separately reviewed migration intervenes.
+- `MIGRATION_8_9` remains canonical-engine foundation ownership and `MIGRATION_9_10` remains
+  canonical-engine durability ownership; Wave 10 must not redefine either migration.
+
+Capability ownership and the approved module-evolution table remain unchanged.
+
 ## Ownership
 
 ### `:catalog`

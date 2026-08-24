@@ -494,17 +494,6 @@ class RoomCatalogRepository internal constructor(
         )
     }
 
-    private fun mergeLatestUpdate(
-        existingAt: Long?,
-        existingLabel: String?,
-        incomingAt: Long?,
-        incomingLabel: String?,
-    ): Pair<Long?, String?> = when {
-        incomingAt == null -> existingAt to existingLabel
-        existingAt == null -> incomingAt to incomingLabel
-        incomingAt > existingAt -> incomingAt to incomingLabel
-        else -> existingAt to existingLabel
-    }
 }
 
 private const val ROOM_CATALOG_IN_QUERY_CHUNK_SIZE = 900

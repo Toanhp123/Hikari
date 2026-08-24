@@ -42,9 +42,11 @@ grep -q 'dao.observeHomeEntries()' "$room_repo" || fail "Home observation still 
 grep -q 'sectionsByPlugin' "$room_repo" || fail "Home sections are not grouped once per emission"
 grep -q 'itemsByPlugin' "$room_repo" || fail "Home items are not grouped once per emission"
 
-# Home refresh must bulk load existing entries once.
+# Home refresh must bulk load existing entries in bounded SQLite-safe chunks.
 grep -q 'suspend fun entries(pluginId: String, sourceIds: Collection<String>)' "$catalog_dao" || fail "bulk existing-entry query is missing"
-grep -q 'dao.entries(mutation.pluginId.value, sourceIds)' "$room_repo" || fail "home refresh does not bulk load existing entries"
+grep -q 'sourceIds.chunked(ROOM_CATALOG_IN_QUERY_CHUNK_SIZE)' "$room_repo" || fail "home refresh does not chunk bulk existing-entry queries"
+grep -q 'dao.entries(mutation.pluginId.value, chunk)' "$room_repo" || fail "home refresh does not use the bulk existing-entry query"
+grep -q 'const val ROOM_CATALOG_IN_QUERY_CHUNK_SIZE = 900' "$room_repo" || fail "Room catalog IN-query chunk bound is missing"
 ! grep -q 'mutation.entries.mapNotNull' "$room_repo" || fail "home refresh still performs per-entry lookup mapping"
 
 # Matching snapshot must collapse source rows to canonical stories.

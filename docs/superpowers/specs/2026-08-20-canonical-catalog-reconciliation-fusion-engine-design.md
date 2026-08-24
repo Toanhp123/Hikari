@@ -29,6 +29,8 @@ Baseline: plan-entry repository snapshot was Room schema 8 after the 2026-08-20 
 
 > **Phase-7 acceptance checkpoint (2026-08-23):** Tasks 39–42 are **VERIFIED / CLOSED**; the Canonical Catalog Reconciliation & Fusion Engine rollout is complete on Room schema 9. Task 42 certified deterministic schema 9, the complete unit/device/app acceptance matrix, Baseline/Startup Profile regeneration, final canonical-read-path macrobenchmarks, repository-wide `./scripts/verify.sh`, and bounded diagnostics sanity without adding feature semantics. Evidence is `docs/internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md`. Wave 10 notification persistence is the next approved boundary and owns `MIGRATION_9_10`.
 
+> **Post-closeout durability amendment (2026-08-24):** The separately reviewed Canonical Engine Performance and Durability design subsequently advanced the repository to schema 10 and owns `MIGRATION_9_10` for queue leases and the catalog-change outbox. The Phase-7 schema-9 checkpoint remains historical evidence; active Wave 10 planning now enters on schema 10 and assigns notification persistence to `MIGRATION_10_11`.
+
 ### 2026-08-21 implementation checkpoint
 
 The first Phase-0 slice is now represented in source and tests without advancing Room schema or enabling any reconciliation/fusion runtime behavior:

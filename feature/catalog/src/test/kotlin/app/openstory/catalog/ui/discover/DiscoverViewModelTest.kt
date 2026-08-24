@@ -1,5 +1,4 @@
 package app.openstory.catalog.ui.discover
-
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
 import app.openstory.catalog.fusion.CanonicalFusionResult

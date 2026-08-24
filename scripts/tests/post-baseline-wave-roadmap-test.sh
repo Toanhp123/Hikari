@@ -47,9 +47,9 @@ grep -q 'RECENT.*FULL.*INCREMENTAL' "${WAVES[1]}"
 grep -q 'ReaderDocumentStore.*write' "${WAVES[2]}"
 grep -q 'sanitized network write-through' "${WAVES[2]}"
 grep -q 'successful sanitized network reads write into automatic cache' "${WAVES[3]}"
-grep -q 'LibraryWorkSchedulePort' "${WAVES[4]}"
-grep -q 'ChapterWorkSchedulePort' "${WAVES[4]}"
-grep -q 'DownloadWorkSchedulePort' "${WAVES[4]}"
+grep -q 'LibraryMappingScheduler' "${WAVES[4]}"
+grep -q 'InitialChapterSyncScheduler' "${WAVES[4]}"
+grep -q 'DownloadScheduler' "${WAVES[4]}"
 grep -q 'SettingsWorkSchedulePort' "${WAVES[4]}"
 ! grep -q 'feature-owned UI over .*runtime management' "${WAVES[4]}"
 
@@ -58,8 +58,8 @@ grep -q 'schema `2 -> 3`' "${WAVES[0]}"
 grep -q 'schema `3 -> 4`' "${WAVES[1]}"
 grep -q 'schema `4 -> 5`' "${WAVES[2]}"
 grep -q 'schema `5 -> 6`' "${WAVES[3]}"
-grep -q 'schema `9 -> 10`' "${WAVES[4]}"
-grep -q 'Room schema 10 remains stable' "${WAVES[5]}"
+grep -q 'schema `10 -> 11`' "${WAVES[4]}"
+grep -q 'Room schema 11 remains stable' "${WAVES[5]}"
 
 for wave in "${WAVES[@]}"; do
   [[ "$(grep -c '^### Task ' "$wave")" -eq 6 ]]

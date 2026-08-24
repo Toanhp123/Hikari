@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-21
+Date: 2026-08-24
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -129,7 +129,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. The Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed (Phases 0–7 / Tasks 1–42 on Room schema 9). Wave 10 is the active next capability boundary.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. CCE Phases 0-7 / Tasks 1-42 are verified and closed on schema 9. Current source is schema 10 after the accepted canonical durability entry gate. Wave 10 is ready to start.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
@@ -154,13 +154,16 @@ retry suppression, and process-wide single-flight. Home/Search listing payload q
 plugin-operation responsibility: missing optional artwork or other presentation metadata stays
 degraded and never triggers host-side Details enrichment. `CatalogDetailsLoader` is the sole
 production `CatalogSource.details(...)` call site, while persisted source identity is stable across
-metadata refreshes. Room schema 8 introduced Summary/Full provenance; the canonical-engine Phase-1 migration subsequently advanced the current repository to schema 9.
+metadata refreshes. Room schema 8 introduced Summary/Full provenance; canonical foundation then
+advanced to schema 9, and the canonical durability patch advanced current source to schema 10.
 
 The Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on Room schema 9.
-Phases 0–7 / Tasks 1–42 are accepted, including the schema-9 foundation, canonical read path,
+Phases 0-7 / Tasks 1-42 are accepted, including the schema-9 foundation, canonical read path,
 guarded atomic Story graph merge, durable review, shared orchestration, background safety, controlled
-reversal, bounded fail-open diagnostics, and final certification. Wave 10 notification persistence
-remains rebased to `9 -> 10`; Wave 11 enters on schema 10 unless another reviewed migration intervenes.
+reversal, bounded fail-open diagnostics, and final certification. The later canonical durability
+implementation advances current source to schema 10 through `MIGRATION_9_10` for leased work and the
+catalog-change outbox. Wave 10 notification persistence is rebased to `10 -> 11`; Wave 11 enters on
+schema 11 unless another reviewed migration intervenes.
 
 ## 8. Roadmap
 
@@ -176,8 +179,9 @@ remains rebased to `9 -> 10`; Wave 11 enters on schema 10 unless another reviewe
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phases 0–7 / Tasks 1–42 verified/closed on schema 9 | **Completed** |
-| 10 | local scheduling, guarded source login and deduplicated notifications; **active next boundary** | **Planned; ready to start** |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phases 0-7 / Tasks 1-42 verified/closed on schema 9 | **Completed** |
+| CED | canonical engine leases, outbox, and bounded foreground convergence on schema 10 | **Entry baseline accepted** |
+| 10 | local scheduling, guarded source login and deduplicated notifications | **Ready to start** |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
 Detailed lifecycle/status: `implementation/current-roadmap.md`.
@@ -242,7 +246,9 @@ websites.
 
 ## 12. Next action
 
-Start Wave 10 from `implementation/waves/wave-10-background-sync-auth-and-notifications.md`.
-CCE Phases 0–7 / Tasks 1–42 are verified and closed on Room schema 9. Wave 10 notification
-persistence owns `MIGRATION_9_10`; never reintroduce a second meaning for `MIGRATION_8_9`.
-Use `./scripts/verify.sh` as the full host gate before Wave-10 checkpoints are promoted to verified/accepted.
+Start Wave 10 from
+`implementation/waves/wave-10-background-sync-auth-and-notifications.md`. CCE Phases 0-7 / Tasks
+1-42 remain verified on schema 9. Canonical durability owns `MIGRATION_9_10`; Wave 10 notification
+persistence owns `MIGRATION_10_11`; never redefine earlier migrations.
+The accepted entry evidence is in `internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`.
+Use `./scripts/verify.sh` as the full host gate before Wave-10 task checkpoints are promoted.
