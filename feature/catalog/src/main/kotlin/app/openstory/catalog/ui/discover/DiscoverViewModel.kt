@@ -5,25 +5,32 @@ import androidx.lifecycle.viewModelScope
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
+    projections: CatalogStoryProjectionRepository,
     refreshPipeline: DiscoverRefreshPipeline,
     projection: DiscoverProjectionPipeline,
+    private val canonicalBootstrap: DiscoverCanonicalBootstrapPipeline,
 ) : ViewModel() {
     private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
     private val refreshFailure = MutableStateFlow<DiscoverUiFailure?>(null)
@@ -34,13 +41,19 @@ class DiscoverViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
             replay = 1,
-        )
+    )
     private val selectedContentType = MutableStateFlow(ContentType.MANGA)
+    private val visibleStoryIds = combine(homes, selectedContentType) { currentHomes, contentType ->
+        discoverCanonicalBootstrapStoryIds(currentHomes, contentType).toSet()
+    }.distinctUntilChanged()
+    private val visibleProjections = visibleStoryIds
+        .flatMapLatest(projections::observeForStories)
+        .distinctUntilChanged()
     private val dependencies = DiscoverDependencies(
         homes = homes,
-        content = combine(homes, selectedContentType) { currentHomes, contentType ->
-            projection.project(currentHomes, contentType)
-        }.preserveLatestOnFailure(
+        content = combine(homes, visibleProjections, selectedContentType) { currentHomes, canonical, contentType ->
+            projection.project(currentHomes, canonical, contentType)
+        }.distinctUntilChanged().preserveLatestOnFailure(
             RANKING_OBSERVE_EXCEPTION_CODE,
             DiscoverSemanticContent.empty(selectedContentType.value),
         ),
@@ -86,6 +99,12 @@ class DiscoverViewModel @Inject constructor(
             val cachedHomes = dependencies.homes.first()
             if (cachedHomes.isEmpty() && observationFailure.value == null) {
                 performRefresh()
+            } else if (cachedHomes.isNotEmpty()) {
+                val priorityStoryIds = discoverCanonicalBootstrapStoryIds(
+                    cachedHomes,
+                    selectedContentType.value,
+                )
+                canonicalBootstrap.prewarm(priorityStoryIds)
             }
             initialLoading.value = false
         }

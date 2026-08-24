@@ -15,7 +15,7 @@
 - Introduces `:feature:plugins` in Task 1.
 - Consumes from Wave 10: complete capability graph, typed settings, sessions, workers, notifications, downloads, and Reader.
 - Produces: reproducible signed APK evidence and an open-source release-ready repository.
-- Room schema 9 remains stable after Wave 10 notification persistence unless a proven release defect requires a reviewed migration.
+- Room schema 11 remains stable after Wave 10 notification persistence unless a proven release defect requires a reviewed migration.
 - No new product capability or generic architecture layer.
 - Wave 11 Plugin Management enters through the avatar utility sheet and never top-level navigation.
 - Discover / Home / Library remains the final top-level model; Plugins must not become a `TopLevelDestination`.

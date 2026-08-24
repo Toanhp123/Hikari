@@ -1,8 +1,9 @@
 package app.openstory.catalog.ui.discover
-
 import app.openstory.catalog.CatalogStoreFailure
+import app.openstory.catalog.canonical.CanonicalBootstrapUseCase
+import app.openstory.catalog.fusion.CanonicalFusionResult
+import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.home.CatalogRefreshService
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogEntry
@@ -12,10 +13,13 @@ import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
 import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.projection.CatalogStoryProjection
+import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.source.CatalogSource
 import app.openstory.catalog.source.CatalogSourceFailure
 import app.openstory.catalog.source.CatalogSourceRegistry
@@ -81,6 +85,25 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun discoverObservesOnlySemanticStoryIdsInsteadOfTheWholeCanonicalCatalog() =
+        runTest(dispatcher.scheduler) {
+            val repository = FakeRepository(cachedHome())
+            val projections = RecordingScopedProjectionRepository(repository.projections())
+            val viewModel = viewModel(
+                repository = repository,
+                source = FakeSource(),
+                projections = projections,
+            )
+
+            backgroundScope.launch { viewModel.state.collect() }
+            runCurrent()
+
+            assertEquals(setOf(StoryId("story-1")), projections.observedStoryIds)
+            assertEquals(0, projections.observeAllCalls)
+            assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
+        }
+
+    @Test
     fun refreshUsesCommittedSuccessTimestampWithoutSecondHomeObservation() = runTest(dispatcher.scheduler) {
         val repository = FakeRepository(cachedHome())
         val viewModel = viewModel(repository, FakeSource())
@@ -120,6 +143,38 @@ class DiscoverViewModelTest {
 
         assertEquals(0, source.homeCalls)
     }
+
+    @Test
+    fun populatedMigratedCacheBootstrapsVisibleCanonicalStoriesWithoutNetwork() =
+        runTest(dispatcher.scheduler) {
+            val repository = FakeRepository(cachedHome())
+            val source = FakeSource()
+            val projections = MutableProjectionRepository(emptyList())
+            val canonical = DiscoverCanonicalRepository(preparingDiscoverState(StoryId("story-1")))
+            val rebuildCalls = mutableListOf<StoryId>()
+            val bootstrap = CanonicalBootstrapUseCase(
+                canonical,
+                CanonicalGenerationRebuilder { storyId, _ ->
+                    rebuildCalls += storyId
+                    projections.replace(repository.projections())
+                    CanonicalFusionResult.Preparing(storyId)
+                },
+            )
+            val viewModel = viewModel(
+                repository = repository,
+                source = source,
+                bootstrap = bootstrap,
+                projections = projections,
+            )
+            backgroundScope.launch { viewModel.state.collect() }
+
+            runCurrent()
+
+            assertEquals(listOf(StoryId("story-1")), rebuildCalls)
+            assertEquals("Fixture Novel", viewModel.state.value.popular.single().title)
+            assertEquals(0, source.homeCalls)
+            assertEquals(0, source.detailsCalls)
+        }
 
     @Test
     fun cachedLatestWithoutArtworkDoesNotCallDetailsAndKeepsMissingArtwork() = runTest(dispatcher.scheduler) {
@@ -365,8 +420,23 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun freshDiscoverRefreshSelectsOnlyNineteenVisibleStoriesForImmediateConvergence() =
+        runTest(dispatcher.scheduler) {
+            val repository = FakeRepository(emptyList())
+            val source = FakeSource().apply {
+                homeAction = { CatalogSourceResult.Success(discoverSections(itemsPerSection = 10)) }
+            }
+            val engine = RecordingDiscoverEngine()
+
+            viewModel(repository, source, engine = engine)
+            runCurrent()
+
+            assertEquals(19, engine.immediateStoryIdBatches.single().size)
+        }
+
+    @Test
     fun refreshBoundaryExceptionBecomesNonBlockingFailure() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(cachedHome(), matchFailuresRemaining = 1)
+        val repository = FakeRepository(cachedHome(), sourceRecordFailuresRemaining = 1)
         val viewModel = viewModel(repository, FakeSource())
         backgroundScope.launch { viewModel.state.collect() }
         runCurrent()
@@ -412,16 +482,40 @@ class DiscoverViewModelTest {
         assertEquals(null, viewModel.state.value.refreshFailure)
     }
 
+    @Test
+    fun discoverReadPathHasNoDetailsOrFusionDependency() {
+        val dependencies = DiscoverViewModel::class.java.declaredConstructors
+            .flatMap { it.parameterTypes.toList() }
+            .map { it.name }
+        assertFalse(dependencies.any { it.endsWith("CatalogMetadataCoordinator") })
+        assertFalse(dependencies.any { it.endsWith("CatalogDetailsLoader") })
+        assertFalse(dependencies.any { it.endsWith("CatalogFusionEngine") })
+        assertFalse(dependencies.any { it.endsWith("CanonicalFusionService") })
+    }
+
     private fun TestScope.viewModel(
         repository: FakeRepository,
         source: FakeSource,
         refreshDispatcher: CoroutineDispatcher = dispatcher,
+        bootstrap: CanonicalBootstrapUseCase = readyBootstrap(repository),
+        projections: CatalogStoryProjectionRepository = FakeProjectionRepository(repository.projections()),
+        engine: CanonicalEngineEventSink = app.openstory.catalog.FeatureNoOpCanonicalEngineEventSink,
     ): DiscoverViewModel {
         val registry = Registry(source)
         val clock = FakeClock(200L)
-        val refreshService = CatalogRefreshService(registry, repository, StoryMatcher(), clock)
+        val refreshService = CatalogRefreshService(
+            sources = registry,
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            orchestrator = engine,
+            clock = clock,
+        )
         return DiscoverViewModel(
             repository,
+            projections,
             DiscoverRefreshPipeline(
                 refreshService,
                 FixedAppDispatchers(dispatcher, refreshDispatcher, dispatcher),
@@ -429,6 +523,21 @@ class DiscoverViewModelTest {
             DiscoverProjectionPipeline(
                 FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
             ),
+            DiscoverCanonicalBootstrapPipeline(
+                bootstrap,
+                FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+            ),
+        )
+    }
+
+    private fun readyBootstrap(repository: FakeRepository): CanonicalBootstrapUseCase {
+        val states = repository.projections().map { projection ->
+            readyDiscoverState(projection.storyId)
+        }
+        val canonical = DiscoverCanonicalRepository(states)
+        return CanonicalBootstrapUseCase(
+            canonical,
+            CanonicalGenerationRebuilder { storyId, _ -> CanonicalFusionResult.Preparing(storyId) },
         )
     }
 }
@@ -479,13 +588,32 @@ private class FakeSource : CatalogSource {
 
 private class FakeRepository(
     initialHomes: List<CatalogHomeSnapshot>,
-    private var matchFailuresRemaining: Int = 0,
+    private var sourceRecordFailuresRemaining: Int = 0,
     private val observeFailure: Boolean = false,
     private val observeFailureAfterEmission: Boolean = false,
 ) : CatalogRepository {
     private val homes = MutableStateFlow(initialHomes)
     var observeHomesSubscriptions = 0
         private set
+
+    fun projections(): List<CatalogStoryProjection> = homes.value
+        .flatMap { it.sections }
+        .flatMap { it.items }
+        .distinctBy { it.storyId }
+        .map { entry ->
+            CatalogStoryProjection(
+                storyId = entry.storyId,
+                title = entry.title,
+                contentType = entry.contentType,
+                coverUrl = entry.coverUrl,
+                authors = entry.authors,
+                publicationStatus = entry.publicationStatus,
+                latestUpdate = entry.latestUpdate,
+                score = entry.score?.let { score ->
+                    app.openstory.catalog.canonical.CanonicalScore(score.value / score.scale, 1)
+                },
+            )
+        }
 
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = flow {
         observeHomesSubscriptions++
@@ -499,21 +627,59 @@ private class FakeRepository(
         }
     }
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
-    override suspend fun matchSnapshot(): CatalogMatchSnapshot {
-        if (matchFailuresRemaining > 0) {
-            matchFailuresRemaining--
+    override suspend fun matchSnapshot(): CatalogMatchSnapshot = CatalogMatchSnapshot(emptyList())
+    override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = null
+
+    override suspend fun sourceRecord(key: CatalogMetadataKey): app.openstory.catalog.evidence.CatalogSourceRecord? = null
+
+    override suspend fun sourceRecords(storyId: StoryId): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
+    override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> {
+        if (sourceRecordFailuresRemaining > 0) {
+            sourceRecordFailuresRemaining--
             error("catalog unavailable")
         }
-        return CatalogMatchSnapshot(emptyList())
+        return emptyList()
     }
-    override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = null
 
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
-    ): Outcome<Unit, CatalogStoreFailure> = Outcome.Success(Unit)
+    ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
+
+    override suspend fun commitSearchSummaries(
+        mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
+    ) = app.openstory.common.Outcome.Failure(
+        app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
+    )
+
     override suspend fun commitDetails(
         mutation: CatalogDetailsMutation,
-    ): Outcome<StoryId, CatalogStoreFailure> = error("Discover must not commit Details")
+    ): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> = error("Discover must not commit Details")
+}
+
+private class FakeProjectionRepository(
+    private val projections: List<CatalogStoryProjection>,
+) : CatalogStoryProjectionRepository {
+    override fun observe(): Flow<List<CatalogStoryProjection>> = flowOf(projections)
+}
+
+private class RecordingScopedProjectionRepository(
+    private val projections: List<CatalogStoryProjection>,
+) : CatalogStoryProjectionRepository {
+    var observedStoryIds: Set<StoryId>? = null
+        private set
+    var observeAllCalls: Int = 0
+        private set
+
+    override fun observe(): Flow<List<CatalogStoryProjection>> {
+        observeAllCalls += 1
+        return flowOf(projections)
+    }
+
+    override fun observeForStories(storyIds: Set<StoryId>): Flow<List<CatalogStoryProjection>> {
+        observedStoryIds = storyIds
+        return flowOf(projections.filter { it.storyId in storyIds })
+    }
 }
 
 private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot> {

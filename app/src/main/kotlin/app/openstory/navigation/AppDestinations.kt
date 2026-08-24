@@ -22,6 +22,8 @@ import app.openstory.catalog.ui.downloads.DownloadsScreen
 import app.openstory.catalog.ui.downloads.DownloadsViewModel
 import app.openstory.catalog.ui.library.LibraryScreen
 import app.openstory.catalog.ui.library.LibraryViewModel
+import app.openstory.catalog.ui.review.ReconciliationReviewScreen
+import app.openstory.catalog.ui.review.ReconciliationReviewViewModel
 import app.openstory.catalog.ui.search.SearchScreen
 import app.openstory.catalog.ui.search.SearchViewModel
 import app.openstory.catalog.ui.story.StoryAssistedArgs
@@ -168,6 +170,31 @@ internal fun LibraryDestination(
 }
 
 @Composable
+internal fun ReconciliationReviewDestination(
+    route: AppRoute.ReconciliationReview,
+    contentPadding: PaddingValues,
+    onBack: () -> Unit,
+) {
+    val viewModel = hiltViewModel<ReconciliationReviewViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(route.caseId, state.items) {
+        route.caseId?.let(viewModel::resumeMerge)
+    }
+    ReconciliationReviewScreen(
+        state = state,
+        onBack = onBack,
+        onMerge = viewModel::merge,
+        onReverse = viewModel::reverse,
+        onKeepSeparate = viewModel::keepSeparate,
+        onDefer = viewModel::defer,
+        onProtectedMappingSelected = viewModel::selectProtectedMapping,
+        onConfirmProtectedMerge = viewModel::confirmProtectedMerge,
+        onDismissProtectedConflict = viewModel::dismissProtectedConflict,
+        contentPadding = contentPadding,
+    )
+}
+
+@Composable
 internal fun StoryDestination(
     route: AppRoute.Story,
     navigate: (AppRoute) -> Unit,
@@ -199,8 +226,17 @@ internal fun StoryDestination(
         state = state,
         onRefresh = viewModel::refresh,
         onSourceSelected = viewModel::selectSource,
+        onPinPrimary = viewModel::pinPrimary,
+        onUseAutomaticPrimary = viewModel::useAutomaticPrimary,
         onSectionSelected = viewModel::selectSection,
         onLibraryStatusSelected = viewModel::changeLibraryStatus,
+        onReconciliationMerge = {
+            viewModel.mergeReconciliationPrompt { caseId ->
+                navigate(AppRoute.ReconciliationReview(caseId))
+            }
+        },
+        onReconciliationKeepSeparate = viewModel::keepReconciliationSeparate,
+        onReconciliationDefer = viewModel::deferReconciliationPrompt,
         onRead = navigateToReader,
         onDownload = downloadViewModel::download,
         mappingState = dependencies.mappingState,

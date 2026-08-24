@@ -1,8 +1,10 @@
 package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.home.CatalogRefreshResult
+import app.openstory.catalog.home.CatalogRefreshPrioritySelector
 import app.openstory.catalog.home.CatalogRefreshService
 import app.openstory.catalog.model.CatalogHomeSnapshot
+import app.openstory.catalog.model.ContentType
 import app.openstory.common.dispatchers.AppDispatchers
 import javax.inject.Inject
 import kotlinx.coroutines.withContext
@@ -16,7 +18,11 @@ class DiscoverRefreshPipeline @Inject constructor(
     internal suspend fun refresh(
         cachedHomes: List<CatalogHomeSnapshot>,
     ): DiscoverRefreshReport = withContext(dispatcher) {
-        refreshService.refresh().toReport(cachedHomes)
+        refreshService.refresh(
+            prioritySelector = CatalogRefreshPrioritySelector { committedHomes ->
+                discoverCanonicalBootstrapStoryIds(committedHomes, ContentType.MANGA).toSet()
+            },
+        ).toReport(cachedHomes)
     }
 }
 

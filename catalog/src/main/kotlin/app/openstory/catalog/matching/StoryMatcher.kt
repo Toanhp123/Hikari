@@ -1,5 +1,6 @@
 package app.openstory.catalog.matching
 
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.Story
 import app.openstory.common.id.StoryId
 import java.security.MessageDigest

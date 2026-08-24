@@ -221,6 +221,26 @@ class DiscoverSemanticsTest {
     }
 
     @Test
+    fun latestCardRendersProviderFormattedReleaseLabelWithoutPrefixing() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverLatestCard(
+                    item = story(1).copy(
+                        latestUpdate = CatalogLatestUpdate(
+                            atEpochMillis = 10L,
+                            releaseLabel = "Ch. 56",
+                        ),
+                    ),
+                    onSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Ch. 56").assertIsDisplayed()
+        compose.onNodeWithText("Ch. Ch. 56").assertDoesNotExist()
+    }
+
+    @Test
     fun latestIsCappedAtNineAndTopRatedAtFive() {
         compose.setContent {
             HikariTheme {

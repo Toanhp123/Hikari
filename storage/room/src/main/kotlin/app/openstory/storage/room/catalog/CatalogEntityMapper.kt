@@ -2,7 +2,9 @@ package app.openstory.storage.room.catalog
 
 import app.openstory.catalog.matching.CatalogMatchCandidate
 import app.openstory.catalog.matching.CatalogMatchEvidence
-import app.openstory.catalog.matching.SourceKey
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.metadata.CatalogMetadataStamp
 import app.openstory.catalog.model.CatalogEntry
@@ -100,7 +102,7 @@ internal fun CatalogHomeSnapshotEntity.toModel(
 
 internal fun StoryEntity.toModel() = Story(StoryId(storyId), ContentType.valueOf(contentType))
 
-internal fun CatalogEntryEntity.toModel() = CatalogEntry(
+internal fun CatalogEntryEntity.toModel(identifiers: Set<ExternalIdentifier> = emptySet()) = CatalogEntry(
     storyId = StoryId(storyId),
     pluginId = PluginId(pluginId),
     sourceId = sourceId,
@@ -119,6 +121,7 @@ internal fun CatalogEntryEntity.toModel() = CatalogEntry(
     latestUpdate = latestUpdateAtEpochMillis?.let { atEpochMillis ->
         CatalogLatestUpdate(atEpochMillis, latestUpdateReleaseLabel)
     },
+    externalIdentifiers = identifiers,
 )
 
 // These aliases isolate schema-8 legacy field names at the Room entity boundary.
@@ -130,8 +133,10 @@ internal val CatalogEntryEntity.summaryPluginVersion: String
 internal val CatalogEntryEntity.summaryResolvedAtEpochMillis: Long
     get() = fetchedAtEpochMillis
 
-internal fun CatalogEntryEntity.toMetadataSnapshot(): CatalogMetadataSnapshot = CatalogMetadataSnapshot(
-    entry = toModel(),
+internal fun CatalogEntryEntity.toMetadataSnapshot(
+    identifiers: Set<ExternalIdentifier> = emptySet(),
+): CatalogMetadataSnapshot = CatalogMetadataSnapshot(
+    entry = toModel(identifiers),
     summary = CatalogMetadataStamp(summaryPluginVersion, summaryResolvedAtEpochMillis),
     full = metadataStamp(fullPluginVersion, fullResolvedAtEpochMillis),
 )
@@ -144,21 +149,50 @@ private fun metadataStamp(pluginVersion: String?, resolvedAtEpochMillis: Long?):
     )
 }
 
-internal fun List<CatalogEntryEntity>.toCandidate(story: StoryEntity): CatalogMatchCandidate {
+internal fun List<CatalogEntryEntity>.toCandidate(
+    story: StoryEntity,
+    identifiersBySource: Map<Pair<String, String>, Set<ExternalIdentifier>> = emptyMap(),
+): CatalogMatchCandidate {
     require(isNotEmpty())
     val titles = linkedSetOf<String>()
     val authors = linkedSetOf<String>()
     val sourceKeys = linkedSetOf<SourceKey>()
+    val externalIdentifiers = linkedSetOf<ExternalIdentifier>()
     val evidence = map { entry ->
         titles += entry.title
         titles += entry.aliases
         authors += entry.authors
         sourceKeys += SourceKey(PluginId(entry.pluginId), entry.sourceId)
+        val sourceIdentifiers = identifiersBySource[entry.pluginId to entry.sourceId].orEmpty()
+        externalIdentifiers += sourceIdentifiers
         CatalogMatchEvidence(
             setOf(entry.title) + entry.aliases,
             entry.authors,
             ContentType.valueOf(entry.contentType),
+            sourceIdentifiers,
         )
     }
-    return CatalogMatchCandidate(story.toModel(), titles, authors, sourceKeys, evidence)
+    return CatalogMatchCandidate(
+        story = story.toModel(),
+        titles = titles,
+        authors = authors,
+        sourceKeys = sourceKeys,
+        externalIdentifiers = externalIdentifiers,
+        evidence = evidence,
+    )
 }
+
+
+internal fun ExternalIdentifier.toEntity(key: SourceKey) = CatalogEntryIdentifierEntity(
+    pluginId = key.pluginId.value,
+    sourceId = key.sourceId,
+    namespace = namespace,
+    value = value,
+    scope = scope.name,
+)
+
+internal fun CatalogEntryIdentifierEntity.toModel() = ExternalIdentifier(
+    namespace = namespace,
+    value = value,
+    scope = ExternalIdentifierScope.valueOf(scope),
+)

@@ -31,6 +31,8 @@ internal fun MediumStoryLayout(
     downloadableReleaseId: ChapterReleaseId?,
     onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onPinPrimary: (PluginId, String) -> Unit,
+    onUseAutomaticPrimary: () -> Unit,
     onSectionSelected: (StorySection) -> Unit,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
@@ -53,8 +55,8 @@ internal fun MediumStoryLayout(
         }
         Column(storyPane(MaterialTheme.hikariLayoutRatios.detailContentPaneWeight, "story-content-pane", 1f)) {
             StoryBody(
-                state, onRefresh, onSourceSelected, onSectionSelected, mappingState,
-                mappingActions, chapterState, chapterActions,
+                state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+                onSectionSelected, mappingState, mappingActions, chapterState, chapterActions,
             )
         }
     }
@@ -69,6 +71,8 @@ internal fun CompactStoryLayout(
     downloadableReleaseId: ChapterReleaseId?,
     onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onPinPrimary: (PluginId, String) -> Unit,
+    onUseAutomaticPrimary: () -> Unit,
     onSectionSelected: (StorySection) -> Unit,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
@@ -86,8 +90,8 @@ internal fun CompactStoryLayout(
             onLibraryStatusSelected, onRead, onFindSource, onDownload, narrow = narrowHero,
         )
         StoryBody(
-            state, onRefresh, onSourceSelected, onSectionSelected, mappingState,
-            mappingActions, chapterState, chapterActions,
+            state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+            onSectionSelected, mappingState, mappingActions, chapterState, chapterActions,
         )
     }
 }
@@ -97,6 +101,8 @@ private fun ColumnScope.StoryBody(
     state: StoryUiState,
     onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onPinPrimary: (PluginId, String) -> Unit,
+    onUseAutomaticPrimary: () -> Unit,
     onSectionSelected: (StorySection) -> Unit,
     mappingState: MappingUiState?,
     mappingActions: MappingActions,
@@ -108,8 +114,8 @@ private fun ColumnScope.StoryBody(
         ?.takeIf { state.selectedSection.showsSourceDetailFailure() }
         ?.let { StoryFailureBanner(it, state.refreshing, onRefresh) }
     StorySectionContent(
-        state, onRefresh, onSourceSelected, mappingState, mappingActions,
-        chapterState, chapterActions, Modifier.weight(1f),
+        state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+        mappingState, mappingActions, chapterState, chapterActions, Modifier.weight(1f),
     )
 }
 

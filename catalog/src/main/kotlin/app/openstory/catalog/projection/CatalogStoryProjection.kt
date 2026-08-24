@@ -1,8 +1,11 @@
 package app.openstory.catalog.projection
 
-import app.openstory.catalog.model.CatalogEntry
+import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.canonical.CanonicalScore
+import app.openstory.catalog.canonical.CanonicalStoryState
+import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
-import app.openstory.catalog.model.Story
+import app.openstory.catalog.model.PublicationStatus
 import app.openstory.common.id.StoryId
 
 data class CatalogStoryProjection(
@@ -12,23 +15,21 @@ data class CatalogStoryProjection(
     val coverUrl: String?,
     val aliases: Set<String> = emptySet(),
     val authors: Set<String> = emptySet(),
+    val publicationStatus: PublicationStatus? = null,
+    val latestUpdate: CatalogLatestUpdate? = null,
+    val score: CanonicalScore? = null,
+    val health: CanonicalHealth = CanonicalHealth.FRESH,
 )
 
-fun projectCatalogStory(
-    story: Story,
-    entries: List<CatalogEntry>,
-): CatalogStoryProjection {
-    val ordered = entries.sortedWith(
-        compareBy<CatalogEntry> { it.pluginId.value }
-            .thenBy { it.sourceId },
-    )
-    val preferred = ordered.firstOrNull()
-    return CatalogStoryProjection(
-        storyId = story.id,
-        title = preferred?.title ?: story.id.value,
-        contentType = story.contentType,
-        coverUrl = preferred?.coverUrl,
-        aliases = ordered.flatMap(CatalogEntry::aliases).toSet(),
-        authors = ordered.flatMap(CatalogEntry::authors).toSet(),
-    )
-}
+fun CanonicalStoryState.Ready.toProjection(): CatalogStoryProjection = CatalogStoryProjection(
+    storyId = story.id,
+    title = generation.metadata.title,
+    contentType = story.contentType,
+    coverUrl = generation.metadata.coverUrl,
+    aliases = generation.metadata.aliases.toSet(),
+    authors = generation.metadata.authors.toSet(),
+    publicationStatus = generation.metadata.publicationStatus,
+    latestUpdate = generation.metadata.latestUpdate,
+    score = generation.metadata.score,
+    health = health,
+)

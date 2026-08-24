@@ -57,6 +57,30 @@ internal interface ChapterDao {
     @Query("UPDATE canonical_chapters SET tombstoned = 0 WHERE canonical_chapter_id IN (:chapterIds)")
     suspend fun restore(chapterIds: Collection<String>)
 
+    @Query("UPDATE canonical_chapters SET story_id = :survivorStoryId WHERE story_id = :retiredStoryId")
+    suspend fun moveChapterOwnership(retiredStoryId: String, survivorStoryId: String): Int
+
+    @Query("UPDATE chapter_releases SET story_id = :survivorStoryId WHERE story_id = :retiredStoryId")
+    suspend fun moveReleaseOwnership(retiredStoryId: String, survivorStoryId: String): Int
+
+    @Query(
+        "UPDATE canonical_chapters SET story_id = :newStoryId WHERE canonical_chapter_id = :chapterId " +
+            "AND story_id = :expectedStoryId",
+    )
+    suspend fun moveChapter(chapterId: String, expectedStoryId: String, newStoryId: String): Int
+
+    @Query(
+        "UPDATE chapter_releases SET story_id = :newStoryId WHERE chapter_release_id = :releaseId " +
+            "AND story_id = :expectedStoryId",
+    )
+    suspend fun moveRelease(releaseId: String, expectedStoryId: String, newStoryId: String): Int
+
+    @Query("DELETE FROM chapter_aggregation_overrides WHERE story_id IN (:storyIds)")
+    suspend fun deleteOverridesForStories(storyIds: Collection<String>): Int
+
+    @Upsert
+    suspend fun upsertOverrides(overrides: List<ChapterAggregationOverrideEntity>)
+
 }
 
 @Dao
@@ -72,4 +96,25 @@ internal interface ChapterSyncDao {
             "AND plugin_id = :pluginId AND source_story_id = :sourceStoryId",
     )
     suspend fun find(storyId: String, pluginId: String, sourceStoryId: String): ChapterSyncStateEntity?
+
+    @Query(
+        "SELECT * FROM chapter_sync_states WHERE story_id = :storyId " +
+            "ORDER BY plugin_id, source_story_id",
+    )
+    suspend fun statesForStory(storyId: String): List<ChapterSyncStateEntity>
+    @Query("DELETE FROM chapter_sync_states WHERE story_id IN (:storyIds)")
+    suspend fun deleteStatesForStories(storyIds: Collection<String>): Int
+
+    @Query("DELETE FROM chapter_sync_states WHERE story_id = :storyId")
+    suspend fun deleteStatesForStory(storyId: String): Int
+
+    @Query(
+        "DELETE FROM chapter_sync_states WHERE story_id = :storyId " +
+            "AND plugin_id = :pluginId AND source_story_id = :sourceStoryId",
+    )
+    suspend fun deleteState(storyId: String, pluginId: String, sourceStoryId: String): Int
+
+    @Upsert
+    suspend fun upsertAll(states: List<ChapterSyncStateEntity>)
+
 }

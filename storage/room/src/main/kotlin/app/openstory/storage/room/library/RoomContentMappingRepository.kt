@@ -9,18 +9,30 @@ import app.openstory.library.mapping.ContentMappingRejection
 import app.openstory.library.mapping.ContentMappingRepository
 import app.openstory.library.mapping.ContentMappingWriteResult
 import app.openstory.storage.room.OpenStoryDatabase
+import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
+import app.openstory.storage.room.catalog.observeResolvedSet
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RoomContentMappingRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: LibraryDao,
+    private val identity: RoomStoryIdentityResolver,
 ) : ContentMappingRepository {
-    constructor(database: OpenStoryDatabase) : this(database, database.libraryDao())
+    constructor(database: OpenStoryDatabase) : this(
+        database,
+        database.libraryDao(),
+        RoomStoryIdentityResolver(database),
+    )
 
     override fun observe(storyId: StoryId): Flow<List<ContentMapping>> =
-        dao.observeMappings(storyId.value).map { mappings -> mappings.map(ContentMappingEntity::toModel) }
+        identity.observeResolved(storyId).flatMapLatest { resolved ->
+            dao.observeMappings(resolved.value).map { mappings -> mappings.map(ContentMappingEntity::toModel) }
+        }
 
     override fun observeAll(): Flow<List<ContentMapping>> =
         dao.observeMappings().map { mappings -> mappings.map(ContentMappingEntity::toModel) }
@@ -29,35 +41,40 @@ class RoomContentMappingRepository internal constructor(
         if (storyIds.isEmpty()) {
             flowOf(emptyList())
         } else {
-            dao.observeMappings(storyIds.map(StoryId::value))
-                .map { mappings -> mappings.map(ContentMappingEntity::toModel) }
+            identity.observeResolvedSet(storyIds).flatMapLatest { resolved ->
+                dao.observeMappings(resolved.map(StoryId::value))
+                    .map { mappings -> mappings.map(ContentMappingEntity::toModel) }
+            }
         }
 
     override suspend fun compareAndWrite(
         mapping: ContentMapping,
         replaceableOrigins: Set<ContentMappingOrigin>,
     ): ContentMappingWriteResult = database.withTransaction {
-        val existing = dao.findMapping(mapping.storyId.value, mapping.pluginId.value)
+        val resolvedStoryId = identity.resolve(mapping.storyId)
+        val normalized = mapping.copy(storyId = resolvedStoryId)
+        val existing = dao.findMapping(resolvedStoryId.value, mapping.pluginId.value)
         when {
             existing == null -> {
-                dao.insertMapping(mapping.toEntity())
-                ContentMappingWriteResult.Written(mapping, changed = true)
+                dao.insertMapping(normalized.toEntity())
+                ContentMappingWriteResult.Written(normalized, changed = true)
             }
-            existing.sameMapping(mapping) -> ContentMappingWriteResult.Written(
+            existing.sameMapping(normalized) -> ContentMappingWriteResult.Written(
                 mapping = existing.toModel(),
                 changed = false,
             )
             ContentMappingOrigin.valueOf(existing.origin) !in replaceableOrigins ->
                 ContentMappingWriteResult.Protected(existing.toModel())
             else -> {
-                dao.updateMapping(mapping.toEntity())
-                ContentMappingWriteResult.Written(mapping, changed = true)
+                dao.updateMapping(normalized.toEntity())
+                ContentMappingWriteResult.Written(normalized, changed = true)
             }
         }
     }
 
     override suspend fun reject(rejection: ContentMappingRejection) {
-        dao.upsertRejection(rejection.toEntity())
+        val resolved = identity.resolve(rejection.storyId)
+        dao.upsertRejection(rejection.copy(storyId = resolved).toEntity())
     }
 
     override suspend fun isRejected(
@@ -65,7 +82,7 @@ class RoomContentMappingRepository internal constructor(
         pluginId: PluginId,
         sourceStoryId: String,
         policyVersion: Int,
-    ): Boolean = dao.isRejected(storyId.value, pluginId.value, sourceStoryId, policyVersion)
+    ): Boolean = dao.isRejected(identity.resolve(storyId).value, pluginId.value, sourceStoryId, policyVersion)
 }
 
 private fun ContentMappingEntity.sameMapping(mapping: ContentMapping): Boolean =

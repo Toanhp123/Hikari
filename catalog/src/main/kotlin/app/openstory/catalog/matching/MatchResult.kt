@@ -1,13 +1,15 @@
 package app.openstory.catalog.matching
 
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.ContentType
-import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 
 data class CatalogMatchEvidence(
     val titles: Set<String>,
     val authors: Set<String>,
     val contentType: ContentType,
+    val externalIdentifiers: Set<ExternalIdentifier> = emptySet(),
 )
 
 data class CatalogMatchCandidate(
@@ -15,14 +17,11 @@ data class CatalogMatchCandidate(
     val titles: Set<String>,
     val authors: Set<String>,
     val sourceKeys: Set<SourceKey>,
+    val externalIdentifiers: Set<ExternalIdentifier> = emptySet(),
     val evidence: List<CatalogMatchEvidence> = listOf(
-        CatalogMatchEvidence(titles, authors, story.contentType),
+        CatalogMatchEvidence(titles, authors, story.contentType, externalIdentifiers),
     ),
 )
-
-data class SourceKey(val pluginId: PluginId, val sourceId: String) {
-    init { require(sourceId.isNotBlank()) }
-}
 
 sealed interface StoryResolution {
     data class Existing(val storyId: StoryId) : StoryResolution

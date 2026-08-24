@@ -162,6 +162,9 @@ private fun AppNavigationContent(
                     },
                 )
             }
+            entry<AppRoute.ReconciliationReview> { route ->
+                ReconciliationReviewDestination(route, contentPadding, navigator::back)
+            }
             entry<AppRoute.Story> { route ->
                 StoryDestination(route, navigator::navigate, contentPadding, snackbarHostState)
             }

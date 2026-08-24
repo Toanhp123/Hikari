@@ -1,5 +1,7 @@
 package app.openstory.catalog.source
 
+import app.openstory.catalog.identity.ExternalIdentifier
+
 enum class SourceContentType { LIGHT_NOVEL, WEB_NOVEL, MANGA, ANIME }
 
 enum class SourceFeedKind { POPULAR, LATEST_UPDATES, TOP_RATED, OTHER }
@@ -48,6 +50,7 @@ data class SourceItem(
     val popularityRank: Long? = null,
     val publicationStatus: SourcePublicationStatus? = null,
     val latestUpdate: SourceLatestUpdate? = null,
+    val externalIdentifiers: Set<ExternalIdentifier> = emptySet(),
 )
 
 data class SourceSearchPage(
@@ -71,6 +74,7 @@ data class SourceDetails(
     val popularityRank: Long?,
     val publicationStatus: SourcePublicationStatus? = null,
     val latestUpdate: SourceLatestUpdate? = null,
+    val externalIdentifiers: Set<ExternalIdentifier> = emptySet(),
 )
 
 sealed interface SourceFilter {

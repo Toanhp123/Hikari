@@ -36,10 +36,9 @@ fun SearchResultCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val primary = result.sources.firstOrNull()
-    val title = primary?.title ?: "Untitled story"
+    val title = result.presentation.title
     val artwork = rememberHikariArtwork(
-        HikariArtworkModel(primary?.coverUrl, result.story.id.value, title),
+        HikariArtworkModel(result.presentation.coverUrl, result.story.id.value, title),
     )
     HikariContentCard(
         onClick = onClick,
@@ -57,7 +56,7 @@ fun SearchResultCard(
             HikariCoverCardFrame(Modifier.width(MaterialTheme.hikariDimensions.posterSearchWidth)) {
                 HikariArtwork(artwork, "$title cover", Modifier.matchParentSize())
             }
-            SearchResultMetadata(result, primary, title, Modifier.weight(1f))
+            SearchResultMetadata(result, title, Modifier.weight(1f))
         }
     }
 }
@@ -65,7 +64,6 @@ fun SearchResultCard(
 @Composable
 private fun SearchResultMetadata(
     result: CatalogSearchStory,
-    primary: CatalogSearchSourceCard?,
     title: String,
     modifier: Modifier,
 ) {
@@ -78,11 +76,12 @@ private fun SearchResultMetadata(
         )
         HikariMetadataBadgeGroup(
             listOfNotNull(
-                result.story.contentType.displayName(),
-                primary?.score?.let { "${formatScore(it.value)}/${formatScore(it.scale)}" },
+                result.presentation.contentType.displayName(),
+                result.presentation.publicationStatus?.name?.lowercase(),
+                result.presentation.score?.let { "${formatScore(it.normalizedValue * SCORE_SCALE)}/10" },
             ),
         )
-        primary?.authors?.takeIf(Set<String>::isNotEmpty)?.let { authors ->
+        result.presentation.authors.takeIf(Set<String>::isNotEmpty)?.let { authors ->
             Text(
                 authors.sorted().joinToString(),
                 style = MaterialTheme.typography.bodySmall,
@@ -105,9 +104,9 @@ private fun SearchResultMetadata(
 }
 
 private fun CatalogSearchStory.accessibilityDescription(): String = buildString {
-    append(sources.firstOrNull()?.title ?: "Untitled story")
+    append(presentation.title)
     append(". ")
-    append(story.contentType.displayName())
+    append(presentation.contentType.displayName())
     append(".")
     sources.forEach { source -> append(" ${source.displayLabel()}.") }
 }
@@ -130,3 +129,4 @@ private fun formatScore(value: Double): String {
 }
 
 private const val MAX_VISIBLE_SOURCES = 3
+private const val SCORE_SCALE = 10.0

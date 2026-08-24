@@ -1,19 +1,26 @@
 package app.openstory.catalog.home
 
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.catalog.matching.CatalogMatchCandidate
-import app.openstory.catalog.matching.CatalogMatchIndex
-import app.openstory.catalog.matching.SourceKey
-import app.openstory.catalog.matching.StoryMatcher
-import app.openstory.catalog.matching.StoryResolution
+import app.openstory.catalog.identity.CatalogStoryIdFactory
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
+import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
+import app.openstory.catalog.reconciliation.CatalogIngestReconciliationIndex
+import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.reconciliation.IncomingSourceResolution
+import app.openstory.catalog.reconciliation.ReconciliationEvidenceFactory
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
+import app.openstory.catalog.orchestration.toEvidenceChange
+import app.openstory.catalog.repository.CatalogCommitChange
+import app.openstory.catalog.repository.CatalogHomeCommitResult
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.source.CatalogSource
@@ -36,28 +43,51 @@ import kotlinx.coroutines.supervisorScope
 class CatalogRefreshService @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
-    private val matcher: StoryMatcher,
+    private val reconciliationEngine: CatalogReconciliationEngine,
+    private val storyIdFactory: CatalogStoryIdFactory,
+    private val orchestrator: CanonicalEngineEventSink,
     private val clock: Clock,
 ) {
-    suspend fun refresh(request: SourceHomeRequest = SourceHomeRequest()): List<CatalogRefreshResult> {
-        var matchIndex = CatalogMatchIndex(matcher, repository.matchSnapshot().candidates)
+    suspend fun refresh(
+        request: SourceHomeRequest = SourceHomeRequest(),
+        prioritySelector: CatalogRefreshPrioritySelector = CatalogRefreshPrioritySelector.ALL,
+    ): List<CatalogRefreshResult> {
+        var ingest = ingestContext()
         val fetched = supervisorScope {
             sources.enabled().sortedBy { it.pluginId.value }
                 .map { source -> async { source to fetch(source, request) } }
                 .awaitAll()
         }
-        return fetched.map { (source, result) ->
+        val attempts = fetched.map { (source, result) ->
             when (result) {
-                is CatalogSourceResult.Failure -> CatalogRefreshResult.SourceFailure(
-                    source.pluginId,
-                    result.failure,
+                is CatalogSourceResult.Failure -> CommitAttempt(
+                    result = CatalogRefreshResult.SourceFailure(source.pluginId, result.failure),
+                    committedContext = null,
                 )
-                is CatalogSourceResult.Success -> runCatchingCommit(source, result.value, matchIndex).let { attempt ->
-                    attempt.committedIndex?.let { matchIndex = it }
-                    attempt.result
+                is CatalogSourceResult.Success -> runCatchingCommit(source, result.value, ingest).let { attempt ->
+                    attempt.committedContext?.let { ingest = it }
+                    attempt
                 }
             }
         }
+        val changes = attempts.flatMap(CommitAttempt::changes)
+        val committedHomes = attempts.mapNotNull(CommitAttempt::committedHome)
+        routeChanges(changes, prioritySelector.select(committedHomes))
+        return attempts.map(CommitAttempt::result)
+    }
+
+    private suspend fun ingestContext(): IngestContext {
+        val records = repository.sourceRecords()
+        return IngestContext(
+            index = CatalogIngestReconciliationIndex(
+                reconciliationEngine,
+                storyIdFactory,
+                records.map(ReconciliationEvidenceFactory::fromRecord),
+            ),
+            storyContentTypes = records.groupBy { it.storyId }
+                .mapValues { (_, values) -> values.first().entry.contentType }
+                .toMutableMap(),
+        )
     }
 
     private suspend fun fetch(
@@ -69,105 +99,144 @@ class CatalogRefreshService @Inject constructor(
         throw cancellation
     } catch (_: Exception) {
         CatalogSourceResult.Failure(
-            app.openstory.catalog.source.CatalogSourceFailure(
-                "catalog.source.exception",
-                retryable = true,
-            ),
+            app.openstory.catalog.source.CatalogSourceFailure("catalog.source.exception", retryable = true),
         )
     }
 
     private suspend fun runCatchingCommit(
         source: CatalogSource,
         sections: List<app.openstory.catalog.source.SourceSection>,
-        matchIndex: CatalogMatchIndex,
+        ingest: IngestContext,
     ): CommitAttempt = try {
-        commit(source, sections, matchIndex)
+        commit(source, sections, ingest)
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
         CommitAttempt(
             CatalogRefreshResult.SourceFailure(
                 source.pluginId,
-                app.openstory.catalog.source.CatalogSourceFailure(
-                    "catalog.source.invalid",
-                    retryable = false,
-                ),
+                app.openstory.catalog.source.CatalogSourceFailure("catalog.source.invalid", retryable = false),
             ),
-            committedIndex = null,
+            committedContext = null,
         )
     }
 
     private suspend fun commit(
         source: CatalogSource,
         sections: List<app.openstory.catalog.source.SourceSection>,
-        matchIndex: CatalogMatchIndex,
+        ingest: IngestContext,
     ): CommitAttempt {
-        val localIndex = matchIndex.fork()
-        val resolved = resolveEntries(source, sections, localIndex)
+        val local = ingest.fork()
+        val resolved = resolveEntries(source, sections, local)
         val refreshedAtEpochMillis = clock.nowEpochMillis()
         val mutation = CatalogHomeMutation(
             pluginId = source.pluginId,
             pluginVersion = source.version,
             refreshedAtEpochMillis = refreshedAtEpochMillis,
-            stories = resolved.values
-                .map { entry -> localIndex.story(entry.storyId) }
-                .distinctBy { it.id },
-            entries = resolved.values.toList(),
-            sections = sections.toCatalogSections(resolved),
+            stories = resolved.values.map(ResolvedEntry::story).distinctBy { it.id },
+            entries = resolved.values.map(ResolvedEntry::entry),
+            sections = sections.toCatalogSections(resolved.mapValues { it.value.entry }),
             orderedSourceItemIds = sections.associate { it.sourceId to it.items.map(SourceItem::sourceId) },
         )
-        return commitMutation(mutation).fold(
-            onSuccess = {
+        return when (val committed = commitMutation(mutation)) {
+            is Outcome.Success -> {
+                local.applyDurableOwnership(committed.value.changes)
                 CommitAttempt(
                     CatalogRefreshResult.Success(source.pluginId, refreshedAtEpochMillis),
-                    localIndex,
+                    local,
+                    mutation.toSnapshot(committed.value.changes),
+                    committed.value.changes,
                 )
-            },
-            onFailure = { failure ->
-                CommitAttempt(
-                    CatalogRefreshResult.StoreFailure(source.pluginId, failure),
-                    committedIndex = null,
-                )
-            },
-        )
+            }
+            is Outcome.Failure -> CommitAttempt(
+                CatalogRefreshResult.StoreFailure(source.pluginId, committed.error),
+                committedContext = null,
+            )
+        }
     }
 
     private fun resolveEntries(
         source: CatalogSource,
         sections: List<app.openstory.catalog.source.SourceSection>,
-        matchIndex: CatalogMatchIndex,
-    ): Map<String, CatalogEntry> = sections
+        ingest: IngestContext,
+    ): Map<String, ResolvedEntry> = sections
         .flatMap { it.items }
         .distinctBy { it.sourceId }
         .sortedBy { it.sourceId }
         .associate { item ->
-            val incoming = item.toCandidate(source)
-            val story = when (val resolution = matchIndex.resolve(incoming)) {
-                is StoryResolution.Existing -> matchIndex.story(resolution.storyId)
-                is StoryResolution.Create -> resolution.story
+            val evidence = ReconciliationEvidenceFactory.incoming(
+                sourceKey = SourceKey(source.pluginId, item.sourceId),
+                contentType = item.contentType.toModel(),
+                titles = setOf(item.title),
+                authors = item.authors,
+                identifiers = item.externalIdentifiers,
+            )
+            val resolution = ingest.index.resolve(evidence)
+            val story = when (resolution) {
+                is IncomingSourceResolution.Existing -> Story(
+                    resolution.storyId,
+                    ingest.storyContentTypes[resolution.storyId] ?: evidence.contentType,
+                )
+                is IncomingSourceResolution.Create -> resolution.story
             }
-            item.sourceId to item.toEntry(source, story.id)
+            ingest.storyContentTypes.putIfAbsent(story.id, story.contentType)
+            item.sourceId to ResolvedEntry(story, item.toEntry(source, story.id))
         }
+
+    private suspend fun routeChanges(
+        changes: List<CatalogCommitChange>,
+        immediateStoryIds: Set<StoryId>,
+    ) = orchestrator.onEvidenceChanges(
+        changes = changes.map { change -> change.toEvidenceChange(CatalogEvidenceLevel.SUMMARY) },
+        immediateStoryIds = immediateStoryIds,
+    )
+
+    private data class IngestContext(
+        val index: CatalogIngestReconciliationIndex,
+        val storyContentTypes: MutableMap<StoryId, ContentType>,
+    ) {
+        fun fork(): IngestContext = IngestContext(index.fork(), storyContentTypes.toMutableMap())
+
+        fun applyDurableOwnership(changes: List<CatalogCommitChange>) {
+            index.applyDurableOwnership(changes.associate { it.sourceKey to it.storyId })
+        }
+    }
+
+    private data class ResolvedEntry(val story: Story, val entry: CatalogEntry)
 
     private data class CommitAttempt(
         val result: CatalogRefreshResult,
-        val committedIndex: CatalogMatchIndex?,
+        val committedContext: IngestContext?,
+        val committedHome: CatalogHomeSnapshot? = null,
+        val changes: List<CatalogCommitChange> = emptyList(),
     )
 
     private suspend fun commitMutation(
         mutation: CatalogHomeMutation,
-    ): Outcome<Unit, CatalogStoreFailure> = try {
+    ): Outcome<CatalogHomeCommitResult, CatalogStoreFailure> = try {
         repository.commitHomeRefresh(mutation)
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
-        Outcome.Failure(
-            CatalogStoreFailure(
-                "catalog.store.exception",
-                retryable = true,
-            ),
-        )
+        Outcome.Failure(CatalogStoreFailure("catalog.store.exception", retryable = true))
     }
+}
+
+private fun CatalogHomeMutation.toSnapshot(changes: List<CatalogCommitChange>): CatalogHomeSnapshot {
+    val durableOwners = changes.associate { change -> change.sourceKey to change.storyId }
+    return CatalogHomeSnapshot(
+        pluginId = pluginId,
+        pluginVersion = pluginVersion,
+        refreshedAtEpochMillis = refreshedAtEpochMillis,
+        sections = sections.map { section ->
+            section.copy(
+                items = section.items.map { entry ->
+                    val sourceKey = SourceKey(entry.pluginId, entry.sourceId)
+                    entry.copy(storyId = durableOwners[sourceKey] ?: entry.storyId)
+                },
+            )
+        },
+    )
 }
 
 private fun List<app.openstory.catalog.source.SourceSection>.toCatalogSections(
@@ -180,16 +249,6 @@ private fun List<app.openstory.catalog.source.SourceSection>.toCatalogSections(
         kind = section.kind.toModel(),
     )
 }
-
-private fun SourceItem.toCandidate(source: CatalogSource) = CatalogMatchCandidate(
-    story = Story(
-        StoryId("incoming:${source.pluginId.value}:${sourceId.stableHash()}"),
-        contentType.toModel(),
-    ),
-    titles = setOf(title),
-    authors = authors,
-    sourceKeys = setOf(SourceKey(source.pluginId, sourceId)),
-)
 
 private fun SourceItem.toEntry(source: CatalogSource, storyId: StoryId) = CatalogEntry(
     storyId = storyId,
@@ -204,11 +263,8 @@ private fun SourceItem.toEntry(source: CatalogSource, storyId: StoryId) = Catalo
     popularityRank = popularityRank,
     publicationStatus = publicationStatus?.toModel(),
     latestUpdate = latestUpdate?.let { CatalogLatestUpdate(it.atEpochMillis, it.releaseLabel) },
+    externalIdentifiers = externalIdentifiers,
 )
-
-private fun String.stableHash(): String = hashCode().toUInt().toString(HEX_RADIX)
-
-private const val HEX_RADIX = 16
 
 internal fun SourceContentType.toModel(): ContentType = when (this) {
     SourceContentType.LIGHT_NOVEL -> ContentType.LIGHT_NOVEL

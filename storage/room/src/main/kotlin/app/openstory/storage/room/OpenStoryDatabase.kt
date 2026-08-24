@@ -6,6 +6,19 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import app.openstory.storage.room.catalog.CatalogDao
+import app.openstory.storage.room.catalog.CanonicalCatalogDao
+import app.openstory.storage.room.catalog.CanonicalEngineMaintenanceDao
+import app.openstory.storage.room.catalog.CanonicalEngineWorkEntity
+import app.openstory.storage.room.catalog.CatalogChangeOutboxEntity
+import app.openstory.storage.room.catalog.CanonicalFieldProvenanceEntity
+import app.openstory.storage.room.catalog.CanonicalGenerationEntity
+import app.openstory.storage.room.catalog.CatalogEntryIdentifierEntity
+import app.openstory.storage.room.catalog.ReconciliationCaseEntity
+import app.openstory.storage.room.catalog.ReconciliationCaseRevisionEntity
+import app.openstory.storage.room.catalog.StoryCanonicalStateEntity
+import app.openstory.storage.room.catalog.StoryMergeEventEntity
+import app.openstory.storage.room.catalog.StoryMergeReversalEventEntity
+import app.openstory.storage.room.catalog.StoryRedirectEntity
 import app.openstory.storage.room.catalog.CatalogEntryEntity
 import app.openstory.storage.room.catalog.CatalogHomeItemEntity
 import app.openstory.storage.room.catalog.CatalogHomeDao
@@ -39,6 +52,17 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         CatalogHomeSnapshotEntity::class,
         CatalogHomeSectionEntity::class,
         CatalogHomeItemEntity::class,
+        CatalogEntryIdentifierEntity::class,
+        StoryCanonicalStateEntity::class,
+        CanonicalGenerationEntity::class,
+        CanonicalFieldProvenanceEntity::class,
+        ReconciliationCaseEntity::class,
+        ReconciliationCaseRevisionEntity::class,
+        StoryMergeEventEntity::class,
+        StoryMergeReversalEventEntity::class,
+        StoryRedirectEntity::class,
+        CanonicalEngineWorkEntity::class,
+        CatalogChangeOutboxEntity::class,
         PluginStateEntity::class,
         PluginVersionEntity::class,
         PluginDiagnosticEntity::class,
@@ -52,13 +76,15 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         ReadingProgressEntity::class,
         ChapterStorageEntryEntity::class,
     ],
-    version = 8,
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
 abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun catalogDao(): CatalogDao
     internal abstract fun catalogHomeDao(): CatalogHomeDao
+    internal abstract fun canonicalCatalogDao(): CanonicalCatalogDao
+    internal abstract fun canonicalEngineMaintenanceDao(): CanonicalEngineMaintenanceDao
     internal abstract fun pluginStateDao(): PluginStateDao
     internal abstract fun pluginDiagnosticDao(): PluginDiagnosticDao
     internal abstract fun libraryDao(): LibraryDao
@@ -82,6 +108,8 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             RoomMigrations.MIGRATION_5_6,
             RoomMigrations.MIGRATION_6_7,
             RoomMigrations.MIGRATION_7_8,
+            RoomMigrations.MIGRATION_8_9,
+            RoomMigrations.MIGRATION_9_10,
         )
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()

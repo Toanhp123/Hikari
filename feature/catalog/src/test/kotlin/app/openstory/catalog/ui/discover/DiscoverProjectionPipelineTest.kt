@@ -5,6 +5,7 @@ import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSection
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.common.dispatchers.FixedAppDispatchers
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -17,25 +18,23 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverProjectionPipelineTest {
     @Test
-    fun oneHomeSnapshotProducesSemanticStateOnProjectionBoundary() = runTest {
+    fun projectionBoundaryJoinsHomeFeedWithCanonicalPresentation() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val pipeline = DiscoverProjectionPipeline(
-            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
-        )
-        val homes = listOf(snapshot())
+        val pipeline = DiscoverProjectionPipeline(FixedAppDispatchers(dispatcher, dispatcher, dispatcher))
+        val storyId = StoryId("story:one")
 
         val projected = pipeline.project(
-            homes = homes,
+            homes = listOf(snapshot(storyId)),
+            projections = listOf(CatalogStoryProjection(storyId, "Canonical One", ContentType.MANGA, "canonical.jpg")),
             selectedContentType = ContentType.MANGA,
         )
 
-        assertEquals(listOf(StoryId("story:one")), projected.popular.map(DiscoverStoryItem::storyId))
-        assertEquals(ContentType.MANGA, projected.selectedContentType)
+        assertEquals(listOf("Canonical One"), projected.popular.map { it.title })
         assertEquals(false, projected.sourceEmpty)
     }
 }
 
-private fun snapshot() = CatalogHomeSnapshot(
+private fun snapshot(storyId: StoryId) = CatalogHomeSnapshot(
     pluginId = PluginId("catalog.one"),
     pluginVersion = "1.0.0",
     sections = listOf(
@@ -46,8 +45,8 @@ private fun snapshot() = CatalogHomeSnapshot(
                 CatalogEntry(
                     pluginId = PluginId("catalog.one"),
                     sourceId = "entry:one",
-                    storyId = StoryId("story:one"),
-                    title = "Story One",
+                    storyId = storyId,
+                    title = "Raw Story One",
                     contentType = ContentType.MANGA,
                 ),
             ),

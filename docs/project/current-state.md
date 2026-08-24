@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-20
+Date: 2026-08-24
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -32,11 +32,30 @@ Purpose: single source of truth for the implemented repository boundary.
   presentation metadata remains degraded and does not cause host-side Details enrichment.
   `CatalogDetailsLoader` is the sole production Details transport and Room schema 8 stores separate
   Summary/Full provenance while preserving persisted source identity.
-- Wave 10: **READY TO START; NOT IMPLEMENTED**. It enters on Room schema 8; the planned durable
-  notification-delivery persistence is rebased to migration 8 -> 9.
+- Canonical Catalog Reconciliation & Fusion Engine: **PHASES 0–7 / TASKS 1–42 VERIFIED/CLOSED**.
+  The accepted rollout includes the schema-9 canonical foundation, host-owned evidence/reconciliation,
+  deterministic Fusion with materialized generations, canonical Story/Search/Discover/Library presentation,
+  guarded atomic Story graph merge, durable review, shared evidence-change orchestration, operation-level
+  Story Full fallback, post-merge correction review, durable background safety, controlled fail-closed
+  reversal, bounded fail-open diagnostics, and final governance/profile/performance certification. This
+  accepted rollout closes on schema 9. Accepted evidence is in
+  `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md`.
+- Canonical Engine Performance and Durability: **ENTRY BASELINE ACCEPTED**.
+  Current source is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
+  catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
+  134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
+- Wave 10: **READY TO START; IMPLEMENTATION NOT STARTED**. Its plan is rebased to schema 10 and
+  notification persistence now owns `MIGRATION_10_11`. Wave 10 must not redefine `MIGRATION_8_9` or
+  `MIGRATION_9_10`.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+  Phase 3 closed observe-only reconciliation Tasks 22–25, Phase 4 closed Tasks 26–32 after guarded
+  production auto-merge passed its post-enable gate, Phase 5 closed Tasks 33–35, Phase 6 closed Tasks 36–38,
+  Phase 7 Task 39 closed durable background maintenance/safety, Task 40 closed controlled reversal, Task 41
+  closed structured decision traces/invariant diagnostics, and Task 42 closed final governance plus the
+  complete schema/unit/device/app/profile/performance certification matrix on its accepted schema-9 boundary.
+
 
 - Performance Waves 1-3.5: **VERIFIED** for retained top-level navigation state, lazy Story workloads, Reader chapter reuse, navigation state-layer polish, and one-shot Discover bootstrap.
 - Performance Wave 4: **IMPLEMENTED AND RETAINED**. Discover shares one Home observation, Search caches versioned filter definitions, Home/Updates use library-scoped projections, and `:benchmark` owns Macrobenchmark/Baseline Profile tooling. The semantic Discover redesign preserves the single-emission projection contract.
@@ -48,8 +67,8 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 8 current; schemas 1-7 remain frozen historical exports |
-| Plugin protocol | major 1, JavaScript-only Baseline 2 protocol |
+| Room database | schema 10 current source; schemas 1-9 remain contiguous historical exports |
+| Plugin protocol | major 1, JavaScript-only Baseline 2 protocol; optional bounded catalog external-identifier facts added in canonical-engine Phase 0 |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
 
@@ -62,10 +81,10 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
 | `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
 | `:core:designsystem` | Domain-neutral theme/tokens, artwork and glass primitives, adaptive layout/content chrome, pull-to-refresh, shared actions/states, equal-width segmented control, static skeleton, and screenshot rendering boundary |
-| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, and unified Summary/Full metadata lifecycle |
+| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, unified Summary/Full metadata lifecycle, canonical evidence/read contracts, shared canonical-engine orchestration, durable-work contracts, and local-only bootstrap boundary |
 | `:feature:catalog` | Discover, Home, Search, Story, Library, mapping-review, chapter-list, downloads/updates presentation and UI state |
 | `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
-| `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts |
+| `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts, including bounded optional catalog external identifiers and opaque latest-update labels |
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
@@ -109,13 +128,15 @@ runtime persistence SPI.
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures. Discover uses one outer `LazyColumn`; Popular is a manual pager (max 5),
   Latest Updates is a bounded 3-column grid (max 9), and Top Rated is a ranked list (max 5).
-- Room schema 8 is current. It retains the Baseline-2 catalog/runtime state, metadata-only
+- Room schema 10 is the current source persistence foundation. It retains the Baseline-2 catalog/runtime state, metadata-only
   Library membership, protected content mappings, chapter graphs, aggregation overrides,
   synchronization state, canonical plus exact-release reading progress, Wave 09 cache/download
   metadata, Discover semantic feed/status/latest-update fields, and separate Summary/Full
-  catalog metadata provenance. Migration 7 -> 8 is additive and intentionally leaves legacy
-  Full stamps unresolved instead of inferring Details freshness from old Summary fields. Schemas 1-7 remain
-  historical exports and schema 1 remains byte-frozen. Room entities/DAOs stay private to
+  catalog metadata provenance, canonical-engine queue leases, and the transactional catalog-change
+  outbox. Migration 7 -> 8 is additive and intentionally leaves legacy
+  Full stamps unresolved instead of inferring Details freshness from old Summary fields. Schemas 1-9 remain
+  contiguous historical exports, schema 9 remains the accepted CCE closeout export, and schema 1 remains
+  byte-frozen. Room entities/DAOs stay private to
   `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
@@ -273,6 +294,21 @@ Evidence:
 - `../internal/checkpoints/product-ui-task-01-toolchain.md`
 - `../internal/checkpoints/product-ui-task-02-target-pack.md`
 - `../internal/checkpoints/product-ui-task-03-artwork.md`
+
+## Wave 10 execution baseline
+
+Wave 10 remains unimplemented and is ready to start from the focused clean-architecture rebaseline:
+
+- `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
+- `../implementation/waves/wave-10-background-sync-auth-and-notifications.md`
+- `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`
+
+The rebaseline corrects earlier future-facing assumptions. Current source does not yet contain a
+Reader preferences port, a settings-backed automatic-cache policy port, request-target-scoped plugin
+credentials, bounded periodic chapter candidate selection, or a transactional chapter-change
+notification outbox. Wave 10 creates these boundaries in their consuming capabilities and migrates
+the current consumers rather than preserving SavedState-only, hard-coded, host-only, or
+post-transaction behavior.
 
 ## Source-of-truth rule
 

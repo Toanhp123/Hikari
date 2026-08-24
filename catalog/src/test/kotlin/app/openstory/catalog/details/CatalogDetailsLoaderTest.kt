@@ -1,10 +1,12 @@
 package app.openstory.catalog.details
 
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.catalog.matching.CatalogMatchCandidate
-import app.openstory.catalog.matching.CatalogMatchEvidence
-import app.openstory.catalog.matching.SourceKey
-import app.openstory.catalog.matching.StoryMatcher
+import app.openstory.catalog.RecordingCanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.ExternalIdentifierScope
+import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.metadata.CatalogMetadataFailure
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
@@ -33,6 +35,11 @@ import app.openstory.catalog.source.SourcePublicationStatus
 import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceSection
+import app.openstory.catalog.evidence.toSourceRecord
+import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.reconciliation.ReconciliationPolicy
+import app.openstory.catalog.repository.CatalogCommitChange
+import app.openstory.catalog.repository.CatalogDetailsCommitResult
 import app.openstory.common.Clock
 import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
@@ -121,10 +128,10 @@ class CatalogDetailsLoaderTest {
     }
 
     @Test
-    fun newSourceReferenceUsesMatchingOnceBeforePersistence() = runTest {
+    fun newSourceReferenceUsesReconciliationIndexBeforePersistence() = runTest {
         val matchedStoryId = StoryId("story:matched")
         val repository = FakeRepository(
-            matchCandidates = listOf(candidate(matchedStoryId)),
+            records = listOf(sourceRecord(matchedStoryId, "other", "other-source", "Title", setOf("Author"))),
             durableStoryId = matchedStoryId,
         )
         val source = Source("a", details("source"))
@@ -134,7 +141,8 @@ class CatalogDetailsLoaderTest {
 
         val success = assertIs<CatalogDetailsLoadResult.Success>(result)
         assertEquals(matchedStoryId, success.storyId)
-        assertEquals(1, repository.matchSnapshotCalls)
+        assertEquals(0, repository.matchSnapshotCalls)
+        assertEquals(1, repository.globalSourceRecordCalls)
         assertEquals(matchedStoryId, repository.lastMutation?.storyId)
     }
 
@@ -168,6 +176,29 @@ class CatalogDetailsLoaderTest {
     }
 
     @Test
+    fun richerFullMetadataRoutesPersistedIdentityChangeThroughFullEvidenceEvent() = runTest {
+        val leftStory = StoryId("story:left")
+        val rightStory = StoryId("story:right")
+        val leftKey = SourceKey(PluginId("a"), "source")
+        val rightRecord = sourceRecord(rightStory, "b", "other", "Title", setOf("Author"))
+        val repository = RetroactiveRepository(snapshot(leftStory), rightRecord)
+        val engine = RecordingCanonicalEngineEventSink()
+        val source = Source("a", details("source"))
+
+        val result = loader(Registry(source), repository, engine)
+            .load(CatalogMetadataKey(leftKey.pluginId, leftKey.sourceId))
+
+        val success = assertIs<CatalogDetailsLoadResult.Success>(result)
+        assertEquals(leftStory, success.storyId)
+        val change = engine.evidenceChanges.single()
+        assertEquals(leftStory, change.storyId)
+        assertEquals(leftKey, change.sourceKey)
+        assertEquals(CatalogEvidenceLevel.FULL, change.level)
+        assertEquals(true, change.identityFingerprintChanged)
+        assertEquals(leftStory, repository.lastMutation?.storyId)
+    }
+
+    @Test
     fun normalizedDetailsCarryPublicationStatusAndLatestUpdate() = runTest {
         val repository = FakeRepository()
         val source = Source(
@@ -186,8 +217,43 @@ class CatalogDetailsLoaderTest {
         assertEquals(CatalogLatestUpdate(700L, "200"), entry.latestUpdate)
     }
 
-    private fun loader(registry: CatalogSourceRegistry, repository: CatalogRepository) =
-        CatalogDetailsLoader(registry, repository, StoryMatcher(), Clock { 42L })
+    @Test
+    fun normalizedDetailsCarryExternalIdentifiersIntoCatalogEntry() = runTest {
+        val repository = FakeRepository()
+        val identifier = ExternalIdentifier(
+            namespace = "openlibrary.work",
+            value = "OL123W",
+            scope = ExternalIdentifierScope.WORK,
+        )
+        val source = Source(
+            "a",
+            details("source").copy(externalIdentifiers = setOf(identifier)),
+        )
+
+        loader(Registry(source), repository)
+            .load(CatalogMetadataKey(PluginId("a"), "source"))
+
+        val entry = requireNotNull(repository.lastMutation).entry
+        assertEquals(setOf(identifier), entry.externalIdentifiers)
+    }
+
+    private fun loader(
+        registry: CatalogSourceRegistry,
+        repository: CatalogRepository,
+        engine: RecordingCanonicalEngineEventSink = RecordingCanonicalEngineEventSink(),
+    ): CatalogDetailsLoader {
+        val clock = Clock { 42L }
+        return CatalogDetailsLoader(
+            sources = registry,
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            orchestrator = engine,
+            clock = clock,
+        )
+    }
 
     private fun details(sourceId: String) = SourceDetails(
         sourceId = sourceId,
@@ -217,19 +283,32 @@ class CatalogDetailsLoaderTest {
         full = null,
     )
 
-    private fun candidate(storyId: StoryId) = CatalogMatchCandidate(
-        story = Story(storyId, ContentType.MANGA),
-        titles = setOf("Title"),
-        authors = setOf("Author"),
-        sourceKeys = setOf(SourceKey(PluginId("other"), "other-source")),
-        evidence = listOf(
-            CatalogMatchEvidence(
-                titles = setOf("Title"),
-                authors = setOf("Author"),
-                contentType = ContentType.MANGA,
-            ),
-        ),
-    )
+    private fun sourceRecord(
+        storyId: StoryId,
+        pluginId: String,
+        sourceId: String,
+        title: String,
+        authors: Set<String>,
+    ): CatalogSourceRecord {
+        val entry = CatalogEntry(
+            storyId = storyId,
+            pluginId = PluginId(pluginId),
+            sourceId = sourceId,
+            title = title,
+            authors = authors,
+            contentType = ContentType.MANGA,
+        )
+        return CatalogSourceRecord(
+            key = SourceKey(entry.pluginId, entry.sourceId),
+            storyId = storyId,
+            entry = entry,
+            summary = CatalogMetadataStamp("1.0.0", 1),
+            full = null,
+            identityFingerprint = "identity:${pluginId}:${sourceId}:${title}:${authors.sorted()}",
+            fusionFingerprint = "fusion:${pluginId}:${sourceId}",
+        )
+    }
+
 
     private class Registry(private val source: CatalogSource?) : CatalogSourceRegistry {
         override suspend fun enabled(): List<CatalogSource> = listOfNotNull(source)
@@ -253,31 +332,112 @@ class CatalogDetailsLoaderTest {
         override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = error("unused")
     }
 
+    private class RetroactiveRepository(
+        private val persisted: CatalogMetadataSnapshot,
+        candidate: CatalogSourceRecord,
+    ) : CatalogRepository {
+        private val records = linkedMapOf<SourceKey, CatalogSourceRecord>(candidate.key to candidate)
+        var lastMutation: CatalogDetailsMutation? = null
+
+        init {
+            val initial = persisted.toSourceRecord()
+            records[initial.key] = initial
+        }
+
+        override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
+        override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
+        override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
+        override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? =
+            persisted.takeIf { it.entry.pluginId == key.pluginId && it.entry.sourceId == key.sourceId }
+        override suspend fun sourceRecord(key: CatalogMetadataKey): CatalogSourceRecord? =
+            records[SourceKey(key.pluginId, key.sourceId)]
+        override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> =
+            records.values.filter { it.storyId == storyId }
+        override suspend fun sourceRecords(): List<CatalogSourceRecord> = records.values.toList()
+        override suspend fun commitHomeRefresh(
+            mutation: CatalogHomeMutation,
+        ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> =
+            Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
+        override suspend fun commitSearchSummaries(
+            mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
+        ) = Outcome.Failure(CatalogStoreFailure("unsupported", false))
+        override suspend fun commitDetails(
+            mutation: CatalogDetailsMutation,
+        ): Outcome<CatalogDetailsCommitResult, CatalogStoreFailure> {
+            lastMutation = mutation
+            val key = SourceKey(mutation.entry.pluginId, mutation.entry.sourceId)
+            val before = records[key]
+            val snapshot = CatalogMetadataSnapshot(
+                entry = mutation.entry.copy(storyId = persisted.entry.storyId),
+                summary = CatalogMetadataStamp(mutation.pluginVersion, mutation.resolvedAtEpochMillis),
+                full = CatalogMetadataStamp(mutation.pluginVersion, mutation.resolvedAtEpochMillis),
+            )
+            val after = snapshot.toSourceRecord()
+            records[key] = after
+            return Outcome.Success(
+                CatalogDetailsCommitResult(
+                    storyId = persisted.entry.storyId,
+                    changes = listOf(
+                        CatalogCommitChange(
+                            storyId = persisted.entry.storyId,
+                            sourceKey = key,
+                            identityFingerprintChanged = before?.identityFingerprint != after.identityFingerprint,
+                            fusionFingerprintChanged = true,
+                        ),
+                    ),
+                ),
+            )
+        }
+    }
+
     private class FakeRepository(
         private val persisted: CatalogMetadataSnapshot? = null,
-        private val matchCandidates: List<CatalogMatchCandidate> = emptyList(),
+        private val records: List<CatalogSourceRecord> = emptyList(),
         private val durableStoryId: StoryId? = null,
         private val storeFailure: CatalogStoreFailure? = null,
     ) : CatalogRepository {
         var detailCommits = 0
         var matchSnapshotCalls = 0
+        var globalSourceRecordCalls = 0
         var lastMutation: CatalogDetailsMutation? = null
 
         override fun observeHomes() = emptyFlow<List<CatalogHomeSnapshot>>()
         override fun observeStory(storyId: StoryId) = emptyFlow<StoryCatalogSnapshot?>()
         override suspend fun matchSnapshot(): CatalogMatchSnapshot {
             matchSnapshotCalls++
-            return CatalogMatchSnapshot(matchCandidates)
+            return CatalogMatchSnapshot(emptyList())
         }
         override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = persisted
-        override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<Unit, CatalogStoreFailure> =
-            Outcome.Success(Unit)
+        override suspend fun sourceRecord(key: CatalogMetadataKey): app.openstory.catalog.evidence.CatalogSourceRecord? = null
 
-        override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<StoryId, CatalogStoreFailure> {
+        override suspend fun sourceRecords(storyId: StoryId): List<CatalogSourceRecord> =
+            records.filter { it.storyId == storyId }
+
+        override suspend fun sourceRecords(): List<CatalogSourceRecord> {
+            globalSourceRecordCalls++
+            return records
+        }
+
+        override suspend fun commitHomeRefresh(mutation: CatalogHomeMutation): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> =
+            Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
+
+
+        override suspend fun commitSearchSummaries(
+            mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
+        ) = app.openstory.common.Outcome.Failure(
+            app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
+        )
+
+        override suspend fun commitDetails(mutation: CatalogDetailsMutation): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> {
             detailCommits++
             lastMutation = mutation
             return storeFailure?.let { Outcome.Failure(it) }
-                ?: Outcome.Success(durableStoryId ?: mutation.storyId)
+                ?: Outcome.Success(
+                    app.openstory.catalog.repository.CatalogDetailsCommitResult(
+                        durableStoryId ?: mutation.storyId,
+                        emptyList(),
+                    ),
+                )
         }
     }
 }

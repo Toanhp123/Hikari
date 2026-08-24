@@ -41,6 +41,86 @@ class CatalogProtocolTest {
     }
 
     @Test
+    fun externalIdentifierRequiresBoundedStableNamespaceAndValue() {
+        assertFailsWith<IllegalArgumentException> {
+            CatalogExternalIdentifierDto(
+                namespace = " ",
+                value = "123",
+                scope = WireCatalogIdentifierScope.WORK,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            CatalogExternalIdentifierDto(
+                namespace = "isbn",
+                value = " ",
+                scope = WireCatalogIdentifierScope.EDITION,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            CatalogExternalIdentifierDto(
+                namespace = "n".repeat(129),
+                value = "123",
+                scope = WireCatalogIdentifierScope.WORK,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            CatalogExternalIdentifierDto(
+                namespace = "isbn",
+                value = "v".repeat(257),
+                scope = WireCatalogIdentifierScope.EDITION,
+            )
+        }
+    }
+
+    @Test
+    fun catalogItemCarriesAllExternalIdentifierScopesAndRoundTrips() {
+        val identifiers = setOf(
+            CatalogExternalIdentifierDto("work", "w1", WireCatalogIdentifierScope.WORK),
+            CatalogExternalIdentifierDto("publication", "p1", WireCatalogIdentifierScope.PUBLICATION),
+            CatalogExternalIdentifierDto("edition", "e1", WireCatalogIdentifierScope.EDITION),
+            CatalogExternalIdentifierDto("provider", "r1", WireCatalogIdentifierScope.PROVIDER_RECORD),
+        )
+        val item = CatalogItemDto(
+            sourceId = "1",
+            title = "One",
+            contentType = WireContentType.MANGA,
+            externalIdentifiers = identifiers,
+        )
+
+        assertEquals(identifiers, item.externalIdentifiers)
+        assertEquals(item, json.decodeFromString(json.encodeToString(item)))
+    }
+
+    @Test
+    fun catalogPayloadsDefaultExternalIdentifiersToEmpty() {
+        val item = json.decodeFromString<CatalogItemDto>(
+            """{"sourceId":"1","title":"One","contentType":"MANGA"}""",
+        )
+
+        assertTrue(item.externalIdentifiers.isEmpty())
+    }
+
+    @Test
+    fun catalogItemRejectsMoreThanThirtyTwoExternalIdentifiers() {
+        val identifiers = (1..33).map { index ->
+            CatalogExternalIdentifierDto(
+                namespace = "work",
+                value = "id-$index",
+                scope = WireCatalogIdentifierScope.WORK,
+            )
+        }.toSet()
+
+        assertFailsWith<IllegalArgumentException> {
+            CatalogItemDto(
+                sourceId = "1",
+                title = "One",
+                contentType = WireContentType.MANGA,
+                externalIdentifiers = identifiers,
+            )
+        }
+    }
+
+    @Test
     fun richHomeMetadataRoundTrips() {
         val item = CatalogItemDto(
             sourceId = "manga-1",
@@ -59,6 +139,16 @@ class CatalogProtocolTest {
         )
 
         assertEquals(section, json.decodeFromString(json.encodeToString(section)))
+    }
+
+    @Test
+    fun latestUpdateReleaseLabelIsOpaqueCompleteText() {
+        val dto = CatalogLatestUpdateDto(
+            atEpochMillis = 1234L,
+            releaseLabel = "Vol. 4 Ch. 56",
+        )
+
+        assertEquals("Vol. 4 Ch. 56", dto.releaseLabel)
     }
 
     @Test

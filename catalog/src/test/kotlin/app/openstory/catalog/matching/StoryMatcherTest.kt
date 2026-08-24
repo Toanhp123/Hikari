@@ -1,5 +1,8 @@
 package app.openstory.catalog.matching
 
+import app.openstory.catalog.identity.ExternalIdentifier
+import app.openstory.catalog.identity.ExternalIdentifierScope
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Story
 import app.openstory.common.id.PluginId
@@ -50,6 +53,29 @@ class StoryMatcherTest {
 
         assertEquals(1.0, result.score)
         assertEquals(MergeDecision.AUTO_LINK, result.decision)
+    }
+
+    @Test
+    fun legacyMatcherCarriesButDoesNotInterpretExternalIdentifiers() {
+        val identifier = ExternalIdentifier(
+            namespace = "work",
+            value = "shared",
+            scope = ExternalIdentifierScope.WORK,
+        )
+        val incoming = candidate("incoming", "Same", emptySet(), setOf("Author")).copy(
+            externalIdentifiers = setOf(identifier),
+        )
+        val existing = candidate("existing", "Same", emptySet(), setOf("Author")).copy(
+            externalIdentifiers = emptySet(),
+        )
+
+        assertEquals(
+            matcher.compare(
+                incoming.copy(externalIdentifiers = emptySet()),
+                existing,
+            ),
+            matcher.compare(incoming, existing),
+        )
     }
 
     @Test

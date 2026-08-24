@@ -114,9 +114,15 @@ class CatalogRepositoryContractTest {
         override suspend fun matchSnapshot() = CatalogMatchSnapshot(emptyList())
         override suspend fun metadataSnapshot(key: CatalogMetadataKey): CatalogMetadataSnapshot? = metadata[key]
 
+        override suspend fun sourceRecord(key: CatalogMetadataKey): app.openstory.catalog.evidence.CatalogSourceRecord? = null
+
+        override suspend fun sourceRecords(storyId: StoryId): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
+        override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
-        ): Outcome<Unit, CatalogStoreFailure> {
+        ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> {
             val retained = homes.value.filterNot { it.pluginId == mutation.pluginId }
             homes.value = (
                 retained + CatalogHomeSnapshot(
@@ -140,11 +146,18 @@ class CatalogRepositoryContractTest {
                     full = null,
                 )
             }
-            return Outcome.Success(Unit)
+            return Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
         }
+
+
+        override suspend fun commitSearchSummaries(
+            mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
+        ) = app.openstory.common.Outcome.Failure(
+            app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
+        )
 
         override suspend fun commitDetails(
             mutation: CatalogDetailsMutation,
-        ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+        ): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogDetailsCommitResult(mutation.storyId, emptyList()))
     }
 }

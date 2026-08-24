@@ -14,6 +14,28 @@ enum class WireCatalogFeedKind { POPULAR, LATEST_UPDATES, TOP_RATED, OTHER }
 enum class WirePublicationStatus { ONGOING, COMPLETED, HIATUS, CANCELLED, UPCOMING }
 
 @Serializable
+enum class WireCatalogIdentifierScope { WORK, PUBLICATION, EDITION, PROVIDER_RECORD }
+
+@Serializable
+data class CatalogExternalIdentifierDto(
+    val namespace: String,
+    val value: String,
+    val scope: WireCatalogIdentifierScope,
+) {
+    init {
+        requireStableText(namespace, "external identifier namespace", MAX_EXTERNAL_IDENTIFIER_NAMESPACE_LENGTH)
+        requireStableText(value, "external identifier value", MAX_EXTERNAL_IDENTIFIER_VALUE_LENGTH)
+    }
+}
+
+/**
+ * Provider-owned latest-update presentation payload.
+ *
+ * [releaseLabel] is opaque, complete provider-formatted display text. The host must render it
+ * unchanged (apart from ordinary text bounds/ellipsis) and must not prepend chapter syntax or
+ * parse numeric chapter identity from it.
+ */
+@Serializable
 data class CatalogLatestUpdateDto(
     val atEpochMillis: Long,
     val releaseLabel: String? = null,
@@ -55,6 +77,7 @@ data class CatalogItemDto(
     val popularityRank: Long? = null,
     val publicationStatus: WirePublicationStatus? = null,
     val latestUpdate: CatalogLatestUpdateDto? = null,
+    val externalIdentifiers: Set<CatalogExternalIdentifierDto> = emptySet(),
 ) {
     init {
         requireStableText(sourceId, "sourceId", MAX_ID_LENGTH)
@@ -64,6 +87,7 @@ data class CatalogItemDto(
         requireHttpsUrl(coverUrl, "coverUrl")
         requireBoundedCollection(genres, "genres")
         require(popularityRank == null || popularityRank > 0) { "Popularity rank must be positive" }
+        requireExternalIdentifiers(externalIdentifiers)
     }
 }
 
@@ -161,6 +185,7 @@ data class CatalogDetailsOutputDto(
     val popularityRank: Long?,
     val publicationStatus: WirePublicationStatus? = null,
     val latestUpdate: CatalogLatestUpdateDto? = null,
+    val externalIdentifiers: Set<CatalogExternalIdentifierDto> = emptySet(),
 ) {
     init {
         requireStableText(sourceId, "sourceId", MAX_ID_LENGTH)
@@ -174,6 +199,7 @@ data class CatalogDetailsOutputDto(
         languageTags.forEach { requireLanguageTag(it) }
         requireHttpsUrl(coverUrl, "coverUrl")
         require(popularityRank == null || popularityRank > 0) { "Popularity rank must be positive" }
+        requireExternalIdentifiers(externalIdentifiers)
     }
 }
 
@@ -258,6 +284,9 @@ private const val MAX_PAGE_ITEMS = 200
 private const val MAX_FILTERS = 100
 private const val MAX_FILTER_VALUES = 100
 private const val MAX_FILTER_OPTIONS = 500
+private const val MAX_EXTERNAL_IDENTIFIERS = 32
+private const val MAX_EXTERNAL_IDENTIFIER_NAMESPACE_LENGTH = 128
+private const val MAX_EXTERNAL_IDENTIFIER_VALUE_LENGTH = 256
 private const val MAX_COLLECTION_ITEMS = 200
 private const val MAX_LANGUAGE_TAG_LENGTH = 64
 
@@ -273,6 +302,10 @@ private fun requireBoundedText(value: String, field: String) =
 private fun requireBoundedCollection(values: Collection<String>, field: String) {
     require(values.size <= MAX_COLLECTION_ITEMS) { "Too many $field" }
     values.forEach { requireBoundedText(it, field) }
+}
+
+private fun requireExternalIdentifiers(values: Set<CatalogExternalIdentifierDto>) {
+    require(values.size <= MAX_EXTERNAL_IDENTIFIERS) { "Too many external identifiers" }
 }
 
 private fun requireLanguageTag(value: String) {

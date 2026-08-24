@@ -1,5 +1,6 @@
 package app.openstory.catalog.model
 
+import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 
@@ -20,6 +21,7 @@ data class CatalogEntry(
     val popularityRank: Long? = null,
     val publicationStatus: PublicationStatus? = null,
     val latestUpdate: CatalogLatestUpdate? = null,
+    val externalIdentifiers: Set<ExternalIdentifier> = emptySet(),
 ) {
     init {
         require(sourceId.isNotBlank()) { "Source identity must not be blank" }

@@ -15,19 +15,25 @@ chapter_dao="$root/storage/room/src/main/kotlin/app/openstory/storage/room/chapt
 
 fail() { echo "Performance Wave P2 policy violation: $1" >&2; exit 1; }
 
-[[ -f "$match_index" ]] || fail "catalog match index is missing"
-grep -q 'storyBySource' "$match_index" || fail "catalog direct-source index is missing"
-grep -q 'preparedByStory' "$match_index" || fail "catalog prepared candidate cache is missing"
-grep -q 'storyIdsByTitleToken' "$match_index" || fail "catalog evidence shortlist index is missing"
-grep -q 'matchingVariants()' "$match_index" || fail "collapsed canonical evidence is not expanded for legacy minimum-lead ranking"
-! grep -q 'sortedWith(matchOrdering)' "$matcher" || fail "StoryMatcher still sorts all evidence matches"
-grep -q 'secondAutoLink' "$matcher" || fail "StoryMatcher does not retain a single-pass runner-up"
+# The legacy matcher/index remain characterization-only after canonical reconciliation cutover.
+[[ -f "$match_index" ]] || fail "legacy catalog match index characterization is missing"
+grep -q 'storyBySource' "$match_index" || fail "legacy catalog direct-source index characterization is missing"
+! grep -q 'sortedWith(matchOrdering)' "$matcher" || fail "StoryMatcher characterization regressed to sorting all evidence matches"
+grep -q 'secondAutoLink' "$matcher" || fail "StoryMatcher characterization lost single-pass runner-up semantics"
+
+# Runtime incoming ownership must use the reconciliation ingest index, never the legacy matcher/index.
+for runtime_file in "$search" "$refresh" "$details"; do
+  grep -q 'CatalogIngestReconciliationIndex' "$runtime_file" || fail "runtime catalog ingest path is not reconciliation-indexed: $runtime_file"
+  ! grep -q 'StoryMatcher' "$runtime_file" || fail "runtime catalog ingest still references StoryMatcher: $runtime_file"
+  ! grep -q 'CatalogMatchIndex' "$runtime_file" || fail "runtime catalog ingest still references CatalogMatchIndex: $runtime_file"
+done
 ! grep -q 'first { it.story.id == resolution.storyId }' "$search" || fail "search still scans candidates after resolution"
 ! grep -q 'first { it.story.id == resolution.storyId }' "$refresh" || fail "home refresh still scans candidates after resolution"
 ! grep -q 'first { it.story.id == resolution.storyId }' "$details" || fail "details still scans candidates after resolution"
-grep -q 'CatalogMatchIndex' "$details" || fail "details does not use indexed catalog matching"
-grep -q 'matchIndex.fork()' "$search" || fail "search source-page matching is not atomically forked"
-grep -q 'matchIndex.fork()' "$refresh" || fail "home source-page matching is not atomically forked"
+grep -q 'ingest.fork()' "$search" || fail "search source-page reconciliation is not atomically forked"
+grep -q 'ingest.fork()' "$refresh" || fail "home source-page reconciliation is not atomically forked"
+grep -q 'applyDurableOwnership' "$search" || fail "search does not reconcile the committed durable owner back into its ingest fork"
+grep -q 'applyDurableOwnership' "$refresh" || fail "home refresh does not reconcile the committed durable owner back into its ingest fork"
 
 # Home observation must scope catalog entries to home membership and pre-group rows once per emission.
 grep -q 'observeHomeEntries()' "$catalog_dao" || fail "Room catalog DAO lacks home-scoped entry observation"
@@ -36,9 +42,11 @@ grep -q 'dao.observeHomeEntries()' "$room_repo" || fail "Home observation still 
 grep -q 'sectionsByPlugin' "$room_repo" || fail "Home sections are not grouped once per emission"
 grep -q 'itemsByPlugin' "$room_repo" || fail "Home items are not grouped once per emission"
 
-# Home refresh must bulk load existing entries once.
+# Home refresh must bulk load existing entries in bounded SQLite-safe chunks.
 grep -q 'suspend fun entries(pluginId: String, sourceIds: Collection<String>)' "$catalog_dao" || fail "bulk existing-entry query is missing"
-grep -q 'dao.entries(mutation.pluginId.value, sourceIds)' "$room_repo" || fail "home refresh does not bulk load existing entries"
+grep -q 'sourceIds.chunked(ROOM_CATALOG_IN_QUERY_CHUNK_SIZE)' "$room_repo" || fail "home refresh does not chunk bulk existing-entry queries"
+grep -q 'dao.entries(mutation.pluginId.value, chunk)' "$room_repo" || fail "home refresh does not use the bulk existing-entry query"
+grep -q 'const val ROOM_CATALOG_IN_QUERY_CHUNK_SIZE = 900' "$room_repo" || fail "Room catalog IN-query chunk bound is missing"
 ! grep -q 'mutation.entries.mapNotNull' "$room_repo" || fail "home refresh still performs per-entry lookup mapping"
 
 # Matching snapshot must collapse source rows to canonical stories.

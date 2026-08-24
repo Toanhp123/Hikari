@@ -31,7 +31,7 @@ fun DiscoverLatestCard(
     onSelected: (StoryId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val updateLabel = item.latestUpdate?.releaseLabel?.let { label -> "Ch. $label" }
+    val updateLabel = item.latestUpdate?.releaseLabel
     Column(
         modifier = modifier
             .heightIn(min = MaterialTheme.hikariDimensions.minimumTouchTarget)

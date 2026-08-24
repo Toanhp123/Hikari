@@ -35,14 +35,20 @@ fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
   fail "DiscoverViewModel must own exactly one repository.observeHomes() source"
 [[ -f "$discover_pipeline" ]] || fail "Discover projection pipeline is missing"
 [[ -f "$discover_refresh_pipeline" ]] || fail "Discover refresh scheduling pipeline is missing"
-grep -q 'combine(homes, selectedContentType)' "$discover_vm" ||
-  fail "Discover semantic projection is not keyed only by homes plus content type"
-grep -q 'projection.project(currentHomes, contentType)' "$discover_vm" ||
-  fail "Discover homes are not projected from the shared repository emission"
+grep -q 'flatMapLatest(projections::observeForStories)' "$discover_vm" ||
+  fail "Discover canonical presentation is not scoped to the visible Story set"
+grep -q 'combine(homes, visibleProjections, selectedContentType)' "$discover_vm" ||
+  fail "Discover semantic projection must combine Home feed semantics with scoped canonical presentation"
+! grep -q 'projections.observe()' "$discover_vm" ||
+  fail "Discover regressed to the unbounded canonical projection stream"
+grep -q 'projection.project(currentHomes, canonical, contentType)' "$discover_vm" ||
+  fail "Discover Home feed semantics and canonical presentation do not share one projection call"
 grep -q 'projectSemanticDiscoverContent' "$discover_pipeline" ||
   fail "Discover semantic content is not computed inside the projection pipeline"
 grep -q 'homes = homes' "$discover_pipeline" ||
   fail "Discover semantic projection is not derived from the shared homes emission"
+grep -q 'projections = projections' "$discover_pipeline" ||
+  fail "Discover presentation is not derived from canonical projections"
 ! grep -Eq 'loading|refreshing|refreshReport' "$discover_pipeline" ||
   fail "Discover projection pipeline still depends on transient UI flags"
 grep -q 'content.toUiState' "$discover_vm" ||
@@ -53,6 +59,8 @@ grep -q 'withContext(dispatcher)' "$discover_refresh_pipeline" ||
   fail "Discover refresh CPU work is not isolated behind the feature scheduling boundary"
 ! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
   fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
+! grep -Eq 'CatalogFusionEngine|CanonicalFusionService|CatalogDetailsLoader|CatalogMetadataCoordinator' "$discover_vm" "$discover_pipeline" ||
+  fail "Discover owns Details or canonical fusion instead of consuming canonical presentation"
 grep -q 'LazyListScope.discoverLatestItems' "$discover_latest" ||
   fail "Discover Latest is not emitted as real lazy rows"
 grep -q 'LazyListScope.discoverTopRatedItems' "$discover_top_rated" ||

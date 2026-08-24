@@ -30,8 +30,13 @@ fun StoryScreen(
     state: StoryUiState,
     onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onPinPrimary: (PluginId, String) -> Unit = { _, _ -> },
+    onUseAutomaticPrimary: () -> Unit = {},
     onSectionSelected: (StorySection) -> Unit = {},
     onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
+    onReconciliationMerge: () -> Unit = {},
+    onReconciliationKeepSeparate: () -> Unit = {},
+    onReconciliationDefer: () -> Unit = {},
     onRead: (ReaderTarget) -> Unit = {},
     onDownload: (ChapterReleaseId) -> Unit = {},
     mappingState: MappingUiState? = null,
@@ -82,22 +87,34 @@ fun StoryScreen(
     }
     HikariDestinationScaffold(modifier) {
         HikariSafeDestinationViewport(contentPadding) { safeBodyPadding ->
-            HikariResponsiveContent(Modifier.fillMaxSize().padding(safeBodyPadding)) {
-                if (windowClass == HikariWindowClass.MEDIUM) {
-                    MediumStoryLayout(
-                        state, story, readerTarget, validatedResumeTarget != null,
-                        downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
-                        onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
-                        onDownload, mappingState, mappingActions, chapterState, chapterActions,
-                    )
-                } else {
-                    CompactStoryLayout(
-                        state, story, readerTarget, validatedResumeTarget != null,
-                        downloadableReleaseId, onRefresh, onSourceSelected, onSectionSelected,
-                        onLibraryStatusSelected, onRead, { onSectionSelected(StorySection.SOURCES) },
-                        onDownload, mappingState, mappingActions, chapterState, chapterActions,
-                        narrowHero = windowClass == HikariWindowClass.COMPACT,
-                    )
+            StoryReconciliationPromptHost(
+                prompt = state.reconciliationPrompt,
+                resolving = state.reconciliationResolving,
+                failureMessage = state.reconciliationFailureMessage,
+                onMerge = onReconciliationMerge,
+                onKeepSeparate = onReconciliationKeepSeparate,
+                onDefer = onReconciliationDefer,
+                modifier = Modifier.fillMaxSize().padding(safeBodyPadding),
+            ) {
+                HikariResponsiveContent(Modifier.weight(1f)) {
+                    if (windowClass == HikariWindowClass.MEDIUM) {
+                        MediumStoryLayout(
+                            state, story, readerTarget, validatedResumeTarget != null,
+                            downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
+                            onUseAutomaticPrimary, onSectionSelected, onLibraryStatusSelected, onRead,
+                            { onSectionSelected(StorySection.SOURCES) },
+                            onDownload, mappingState, mappingActions, chapterState, chapterActions,
+                        )
+                    } else {
+                        CompactStoryLayout(
+                            state, story, readerTarget, validatedResumeTarget != null,
+                            downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
+                            onUseAutomaticPrimary, onSectionSelected, onLibraryStatusSelected, onRead,
+                            { onSectionSelected(StorySection.SOURCES) },
+                            onDownload, mappingState, mappingActions, chapterState, chapterActions,
+                            narrowHero = windowClass == HikariWindowClass.COMPACT,
+                        )
+                    }
                 }
             }
         }

@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-20
+Date: 2026-08-24
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -129,7 +129,7 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. Wave 10 is next and has not started.**
+**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. CCE Phases 0-7 / Tasks 1-42 are verified and closed on schema 9. Current source is schema 10 after the accepted canonical durability entry gate. Wave 10 is ready to start.**
 
 Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
 Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
@@ -154,9 +154,16 @@ retry suppression, and process-wide single-flight. Home/Search listing payload q
 plugin-operation responsibility: missing optional artwork or other presentation metadata stays
 degraded and never triggers host-side Details enrichment. `CatalogDetailsLoader` is the sole
 production `CatalogSource.details(...)` call site, while persisted source identity is stable across
-metadata refreshes. Room schema 8 stores Summary/Full provenance and is now current. Wave 10
-remains the next capability wave; its planned durable notification state must continue contiguously
-from schema 8 to schema 9.
+metadata refreshes. Room schema 8 introduced Summary/Full provenance; canonical foundation then
+advanced to schema 9, and the canonical durability patch advanced current source to schema 10.
+
+The Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on Room schema 9.
+Phases 0-7 / Tasks 1-42 are accepted, including the schema-9 foundation, canonical read path,
+guarded atomic Story graph merge, durable review, shared orchestration, background safety, controlled
+reversal, bounded fail-open diagnostics, and final certification. The later canonical durability
+implementation advances current source to schema 10 through `MIGRATION_9_10` for leased work and the
+catalog-change outbox. Wave 10 notification persistence is rebased to `10 -> 11`; Wave 11 enters on
+schema 11 unless another reviewed migration intervenes.
 
 ## 8. Roadmap
 
@@ -172,7 +179,9 @@ from schema 8 to schema 9.
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| 10 | local scheduling, guarded source login and deduplicated notifications; enters schema 8, notification persistence planned for schema 9 |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phases 0-7 / Tasks 1-42 verified/closed on schema 9 | **Completed** |
+| CED | canonical engine leases, outbox, and bounded foreground convergence on schema 10 | **Entry baseline accepted** |
+| 10 | local scheduling, guarded source login and deduplicated notifications | **Ready to start** |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
 Detailed lifecycle/status: `implementation/current-roadmap.md`.
@@ -205,14 +214,19 @@ Read in this order:
 
 1. `project/current-state.md` — what exists now and what remains.
 2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
-3. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
-4. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract.
-5. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
-6. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
-7. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
-8. `plugin-sdk/` when changing public plugin contracts/packages.
-9. `internal/checkpoints/` when deciding whether a gate is proven.
-10. `internal/archive/` only for historical provenance.
+3. `superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` — current canonical catalog identity/fusion architecture.
+4. `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md` — active task-by-task execution record.
+5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` — verified Phase-2 Tasks 12–21 evidence.
+6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` — verified Phase-1 Tasks 5–11 evidence.
+6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` — verified Phase-0 Tasks 1–4 evidence.
+7. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
+8. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract until canonical read-path cutover.
+9. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
+10. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
+11. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
+12. `plugin-sdk/` when changing public plugin contracts/packages.
+13. `internal/checkpoints/` when deciding whether a gate is proven.
+14. `internal/archive/` only for historical provenance.
 
 `project/document-governance.md` defines precedence when documents disagree.
 
@@ -232,9 +246,9 @@ websites.
 
 ## 12. Next action
 
-Start Wave 10 from `implementation/waves/wave-10-background-sync-auth-and-notifications.md`
-only after choosing its first task boundary. The entry graph is the current 14-module graph
-with `:core:designsystem`; Room schema 8 is current and any planned notification-delivery
-persistence must migrate 8 -> 9. Product UI and Discover plans are completed records, not
-active execution plans. During implementation use `./scripts/verify-fast.sh` for iteration
-and `./scripts/verify.sh` as the full host gate before closing a checkpoint.
+Start Wave 10 from
+`implementation/waves/wave-10-background-sync-auth-and-notifications.md`. CCE Phases 0-7 / Tasks
+1-42 remain verified on schema 9. Canonical durability owns `MIGRATION_9_10`; Wave 10 notification
+persistence owns `MIGRATION_10_11`; never redefine earlier migrations.
+The accepted entry evidence is in `internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`.
+Use `./scripts/verify.sh` as the full host gate before Wave-10 task checkpoints are promoted.

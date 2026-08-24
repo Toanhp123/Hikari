@@ -1,17 +1,22 @@
 package app.openstory.catalog.details
 
 import app.openstory.catalog.home.toModel
-import app.openstory.catalog.matching.CatalogMatchCandidate
-import app.openstory.catalog.matching.CatalogMatchIndex
-import app.openstory.catalog.matching.SourceKey
-import app.openstory.catalog.matching.StoryMatcher
-import app.openstory.catalog.matching.StoryResolution
+import app.openstory.catalog.identity.CatalogStoryIdFactory
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataFailure
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
+import app.openstory.catalog.reconciliation.CatalogIngestReconciliationIndex
+import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.reconciliation.IncomingSourceResolution
+import app.openstory.catalog.reconciliation.ReconciliationEvidenceFactory
+import app.openstory.catalog.orchestration.CanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
+import app.openstory.catalog.orchestration.toEvidenceChange
+import app.openstory.catalog.repository.CatalogCommitChange
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.source.CatalogSource
@@ -41,7 +46,9 @@ internal sealed interface CatalogDetailsLoadResult {
 class CatalogDetailsLoader @Inject constructor(
     private val sources: CatalogSourceRegistry,
     private val repository: CatalogRepository,
-    private val matcher: StoryMatcher,
+    private val reconciliationEngine: CatalogReconciliationEngine,
+    private val storyIdFactory: CatalogStoryIdFactory,
+    private val orchestrator: CanonicalEngineEventSink,
     private val clock: Clock,
 ) {
     internal suspend fun load(
@@ -49,10 +56,7 @@ class CatalogDetailsLoader @Inject constructor(
         sourceHint: CatalogSource? = null,
     ): CatalogDetailsLoadResult = when (val lookup = resolveSource(key, sourceHint)) {
         is SourceLookup.Success -> load(lookup.source, key)
-        is SourceLookup.Failure -> CatalogDetailsLoadResult.Failure(
-            lookup.failure,
-            attemptedPluginVersion = null,
-        )
+        is SourceLookup.Failure -> CatalogDetailsLoadResult.Failure(lookup.failure, attemptedPluginVersion = null)
     }
 
     private suspend fun load(
@@ -73,10 +77,7 @@ class CatalogDetailsLoader @Inject constructor(
         }
     }
 
-    private suspend fun resolveSource(
-        key: CatalogMetadataKey,
-        sourceHint: CatalogSource?,
-    ): SourceLookup {
+    private suspend fun resolveSource(key: CatalogMetadataKey, sourceHint: CatalogSource?): SourceLookup {
         if (sourceHint?.pluginId == key.pluginId) return SourceLookup.Success(sourceHint)
         return try {
             sources.source(key.pluginId)
@@ -85,16 +86,11 @@ class CatalogDetailsLoader @Inject constructor(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
-            SourceLookup.Failure(
-                CatalogMetadataFailure.SourceFailure(SOURCE_EXCEPTION_CODE, retryable = true),
-            )
+            SourceLookup.Failure(CatalogMetadataFailure.SourceFailure(SOURCE_EXCEPTION_CODE, retryable = true))
         }
     }
 
-    private suspend fun fetchDetails(
-        source: CatalogSource,
-        sourceId: String,
-    ): DetailsFetch = try {
+    private suspend fun fetchDetails(source: CatalogSource, sourceId: String): DetailsFetch = try {
         when (val result = source.details(sourceId)) {
             is CatalogSourceResult.Success -> DetailsFetch.Success(result.value)
             is CatalogSourceResult.Failure -> DetailsFetch.Failure(
@@ -104,9 +100,7 @@ class CatalogDetailsLoader @Inject constructor(
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
-        DetailsFetch.Failure(
-            CatalogMetadataFailure.SourceFailure(SOURCE_EXCEPTION_CODE, retryable = true),
-        )
+        DetailsFetch.Failure(CatalogMetadataFailure.SourceFailure(SOURCE_EXCEPTION_CODE, retryable = true))
     }
 
     private suspend fun persist(
@@ -118,21 +112,16 @@ class CatalogDetailsLoader @Inject constructor(
         val story = if (persisted != null) {
             Story(persisted.entry.storyId, persisted.entry.contentType)
         } else {
-            val matchIndex = CatalogMatchIndex(matcher, repository.matchSnapshot().candidates)
-            when (val resolution = matchIndex.resolve(details.toCandidate(source.pluginId))) {
-                is StoryResolution.Existing -> matchIndex.story(resolution.storyId)
-                is StoryResolution.Create -> resolution.story
-            }
+            resolveUnowned(source.pluginId, details)
         }
         val entry = details.toEntry(source.pluginId, story.id)
         val resolvedAt = clock.nowEpochMillis()
-        val mutation = CatalogDetailsMutation(
-            storyId = story.id,
+        store(
+            source = source,
             entry = entry,
-            pluginVersion = source.version,
-            resolvedAtEpochMillis = resolvedAt,
+            mutation = CatalogDetailsMutation(story.id, entry, source.version, resolvedAt),
+            resolvedAt = resolvedAt,
         )
-        store(source, entry, mutation, resolvedAt)
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
@@ -140,6 +129,31 @@ class CatalogDetailsLoader @Inject constructor(
             CatalogMetadataFailure.StoreFailure(STORE_EXCEPTION_CODE, retryable = true),
             attemptedPluginVersion = source.version,
         )
+    }
+
+    private suspend fun resolveUnowned(pluginId: PluginId, details: SourceDetails): Story {
+        val records = repository.sourceRecords()
+        val contentTypes = records.groupBy { it.storyId }
+            .mapValues { (_, values) -> values.first().entry.contentType }
+        val index = CatalogIngestReconciliationIndex(
+            reconciliationEngine,
+            storyIdFactory,
+            records.map(ReconciliationEvidenceFactory::fromRecord),
+        )
+        val evidence = ReconciliationEvidenceFactory.incoming(
+            sourceKey = SourceKey(pluginId, details.sourceId),
+            contentType = details.contentType.toModel(),
+            titles = setOf(details.title) + details.aliases,
+            authors = details.authors,
+            identifiers = details.externalIdentifiers,
+        )
+        return when (val resolution = index.resolve(evidence)) {
+            is IncomingSourceResolution.Existing -> Story(
+                resolution.storyId,
+                contentTypes[resolution.storyId] ?: evidence.contentType,
+            )
+            is IncomingSourceResolution.Create -> resolution.story
+        }
     }
 
     private suspend fun store(
@@ -148,22 +162,21 @@ class CatalogDetailsLoader @Inject constructor(
         mutation: CatalogDetailsMutation,
         resolvedAt: Long,
     ): CatalogDetailsLoadResult = try {
-        repository.commitDetails(mutation).fold(
-            onSuccess = { durableStoryId ->
+        when (val committed = repository.commitDetails(mutation)) {
+            is app.openstory.common.Outcome.Success -> {
+                routeChanges(committed.value.changes)
                 CatalogDetailsLoadResult.Success(
-                    storyId = durableStoryId,
-                    entry = entry.copy(storyId = durableStoryId),
+                    storyId = committed.value.storyId,
+                    entry = entry.copy(storyId = committed.value.storyId),
                     pluginVersion = source.version,
                     resolvedAtEpochMillis = resolvedAt,
                 )
-            },
-            onFailure = { failure ->
-                CatalogDetailsLoadResult.Failure(
-                    CatalogMetadataFailure.StoreFailure(failure.code, failure.retryable),
-                    attemptedPluginVersion = source.version,
-                )
-            },
-        )
+            }
+            is app.openstory.common.Outcome.Failure -> CatalogDetailsLoadResult.Failure(
+                CatalogMetadataFailure.StoreFailure(committed.error.code, committed.error.retryable),
+                attemptedPluginVersion = source.version,
+            )
+        }
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
@@ -173,6 +186,11 @@ class CatalogDetailsLoader @Inject constructor(
         )
     }
 
+    private suspend fun routeChanges(changes: List<CatalogCommitChange>) {
+        changes.forEach { change ->
+            orchestrator.onEvidenceChanged(change.toEvidenceChange(CatalogEvidenceLevel.FULL))
+        }
+    }
 
     private sealed interface SourceLookup {
         data class Success(val source: CatalogSource) : SourceLookup
@@ -189,16 +207,6 @@ class CatalogDetailsLoader @Inject constructor(
         const val STORE_EXCEPTION_CODE = "catalog.store.exception"
     }
 }
-
-private fun SourceDetails.toCandidate(pluginId: PluginId) = CatalogMatchCandidate(
-    Story(
-        StoryId("incoming:${pluginId.value}:${sourceId.hashCode().toUInt().toString(HEX_RADIX)}"),
-        contentType.toModel(),
-    ),
-    setOf(title) + aliases,
-    authors,
-    setOf(SourceKey(pluginId, sourceId)),
-)
 
 private fun SourceDetails.toEntry(pluginId: PluginId, storyId: StoryId) = CatalogEntry(
     storyId = storyId,
@@ -217,6 +225,5 @@ private fun SourceDetails.toEntry(pluginId: PluginId, storyId: StoryId) = Catalo
     popularityRank = popularityRank,
     publicationStatus = publicationStatus?.toModel(),
     latestUpdate = latestUpdate?.let { CatalogLatestUpdate(it.atEpochMillis, it.releaseLabel) },
+    externalIdentifiers = externalIdentifiers,
 )
-
-private const val HEX_RADIX = 16

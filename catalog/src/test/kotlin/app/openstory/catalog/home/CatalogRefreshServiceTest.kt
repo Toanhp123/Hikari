@@ -1,12 +1,16 @@
 package app.openstory.catalog.home
 
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.RecordingCanonicalEngineEventSink
+import app.openstory.catalog.orchestration.CatalogEvidenceLevel
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.catalog.matching.StoryMatcher
 import app.openstory.catalog.model.CatalogFeedKind
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.StoryCatalogSnapshot
+import app.openstory.catalog.repository.CatalogCommitChange
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
@@ -142,11 +146,123 @@ class CatalogRefreshServiceTest {
         assertEquals(resolve(items), resolve(items.reversed()))
     }
 
+    @Test
+    fun durableOwnerFromCommittedForkControlsLaterProviderResolution() = runTest {
+        val durable = StoryId("story:durable")
+        val firstKey = SourceKey(PluginId("a"), "a-1")
+        val repository = RecordingRepository(durableOwners = mutableMapOf(firstKey to durable))
+        val registry = Registry(
+            listOf(
+                Source(
+                    "a",
+                    CatalogSourceResult.Success(
+                        listOf(SourceSection("s", "S", listOf(item("a-1", "Same", setOf("Same Author"))))),
+                    ),
+                ),
+                Source(
+                    "b",
+                    CatalogSourceResult.Success(
+                        listOf(SourceSection("s", "S", listOf(item("b-1", "Same", setOf("Same Author"))))),
+                    ),
+                ),
+            ),
+        )
+
+        service(registry, repository, 10).refresh()
+
+        assertEquals(durable, repository.mutations[1].entries.single().storyId)
+    }
+
+    @Test
+    fun committedChangesRouteThroughSummaryEvidenceEvents() = runTest {
+        val owner = StoryId("story:durable")
+        val key = SourceKey(PluginId("a"), "a-1")
+        val repository = RecordingRepository(
+            forcedChanges = listOf(
+                CatalogCommitChange(owner, key, identityFingerprintChanged = true, fusionFingerprintChanged = true),
+            ),
+        )
+        val engine = RecordingCanonicalEngineEventSink()
+        val registry = Registry(listOf(Source("a", CatalogSourceResult.Success(listOf(section("a-1"))))))
+
+        service(registry, repository, 42L, engine).refresh()
+
+        val change = engine.evidenceChanges.single()
+        assertEquals(owner, change.storyId)
+        assertEquals(key, change.sourceKey)
+        assertEquals(CatalogEvidenceLevel.SUMMARY, change.level)
+        assertEquals(true, change.identityFingerprintChanged)
+        assertEquals(true, change.fusionFingerprintChanged)
+    }
+
+    @Test
+    fun callerSelectedVisibleStoriesAreTheOnlyImmediateConvergenceSet() = runTest {
+        val visible = StoryId("story:visible")
+        val background = StoryId("story:background")
+        val repository = RecordingRepository(
+            forcedChanges = listOf(
+                CatalogCommitChange(
+                    visible,
+                    SourceKey(PluginId("a"), "visible"),
+                    identityFingerprintChanged = true,
+                    fusionFingerprintChanged = true,
+                ),
+                CatalogCommitChange(
+                    background,
+                    SourceKey(PluginId("a"), "background"),
+                    identityFingerprintChanged = true,
+                    fusionFingerprintChanged = true,
+                ),
+            ),
+        )
+        val engine = RecordingCanonicalEngineEventSink()
+        val registry = Registry(
+            listOf(
+                Source(
+                    "a",
+                    CatalogSourceResult.Success(
+                        listOf(
+                            SourceSection(
+                                "popular",
+                                "Popular",
+                                listOf(item("visible", "Visible"), item("background", "Background")),
+                                SourceFeedKind.POPULAR,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        service(registry, repository, 42L, engine).refresh(
+            prioritySelector = CatalogRefreshPrioritySelector { homes ->
+                assertEquals(2, homes.single().sections.single().items.size)
+                setOf(homes.single().sections.single().items.first().storyId)
+            },
+        )
+
+        assertEquals(setOf(visible), engine.immediateStoryIdBatches.single())
+        assertEquals(setOf(visible, background), engine.evidenceChanges.map { it.storyId }.toSet())
+    }
+
     private fun service(
         registry: CatalogSourceRegistry,
         repository: CatalogRepository,
         epochMillis: Long,
-    ) = CatalogRefreshService(registry, repository, StoryMatcher(), Clock { epochMillis })
+        engine: RecordingCanonicalEngineEventSink = RecordingCanonicalEngineEventSink(),
+    ): CatalogRefreshService {
+        val clock = Clock { epochMillis }
+        return CatalogRefreshService(
+            sources = registry,
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            orchestrator = engine,
+            clock = clock,
+        )
+    }
 
     private fun section(id: String) = SourceSection(
         "section",
@@ -154,11 +270,15 @@ class CatalogRefreshServiceTest {
         listOf(item(id, id)),
     )
 
-    private fun item(id: String, title: String) = SourceItem(
+    private fun item(
+        id: String,
+        title: String,
+        authors: Set<String> = emptySet(),
+    ) = SourceItem(
         id,
         title,
         SourceContentType.MANGA,
-        emptySet(),
+        authors,
         null,
         null,
         null,
@@ -188,6 +308,8 @@ class CatalogRefreshServiceTest {
 
     private class RecordingRepository(
         private val storeFailure: CatalogStoreFailure? = null,
+        private val durableOwners: MutableMap<SourceKey, StoryId> = mutableMapOf(),
+        private val forcedChanges: List<CatalogCommitChange>? = null,
     ) : CatalogRepository {
         val mutations = mutableListOf<CatalogHomeMutation>()
 
@@ -198,15 +320,39 @@ class CatalogRefreshServiceTest {
             key: app.openstory.catalog.metadata.CatalogMetadataKey,
         ): app.openstory.catalog.metadata.CatalogMetadataSnapshot? = null
 
+        override suspend fun sourceRecord(key: CatalogMetadataKey): app.openstory.catalog.evidence.CatalogSourceRecord? = null
+
+        override suspend fun sourceRecords(storyId: StoryId): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
+        override suspend fun sourceRecords(): List<app.openstory.catalog.evidence.CatalogSourceRecord> = emptyList()
+
         override suspend fun commitHomeRefresh(
             mutation: CatalogHomeMutation,
-        ): Outcome<Unit, CatalogStoreFailure> {
+        ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> {
             mutations += mutation
-            return storeFailure?.let { Outcome.Failure(it) } ?: Outcome.Success(Unit)
+            storeFailure?.let { return Outcome.Failure(it) }
+            val changes = forcedChanges ?: mutation.entries.map { entry ->
+                val key = SourceKey(entry.pluginId, entry.sourceId)
+                val owner = durableOwners.getOrPut(key) { entry.storyId }
+                CatalogCommitChange(
+                    storyId = owner,
+                    sourceKey = key,
+                    identityFingerprintChanged = false,
+                    fusionFingerprintChanged = false,
+                )
+            }
+            return Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(changes))
         }
+
+
+        override suspend fun commitSearchSummaries(
+            mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,
+        ) = app.openstory.common.Outcome.Failure(
+            app.openstory.catalog.CatalogStoreFailure("test.search.unsupported", retryable = false),
+        )
 
         override suspend fun commitDetails(
             mutation: CatalogDetailsMutation,
-        ): Outcome<StoryId, CatalogStoreFailure> = Outcome.Success(mutation.storyId)
+        ): Outcome<app.openstory.catalog.repository.CatalogDetailsCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogDetailsCommitResult(mutation.storyId, emptyList()))
     }
 }

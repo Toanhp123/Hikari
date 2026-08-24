@@ -25,13 +25,13 @@ class CatalogMetadataCoordinator @Inject constructor(
     private val policy: CatalogMetadataPolicy,
     private val clock: Clock,
     @CatalogMetadataScope private val processScope: CoroutineScope,
-) {
+) : CatalogMetadataAccess {
     private val suppressionMutex = Mutex()
     private val suppressions = mutableMapOf<CatalogMetadataKey, AutomaticSuppression>()
     private val inFlightMutex = Mutex()
     private val inFlight = mutableMapOf<CatalogMetadataKey, Deferred<CatalogDetailsLoadResult>>()
 
-    suspend fun require(
+    override suspend fun require(
         key: CatalogMetadataKey,
         level: CatalogMetadataLevel,
     ): CatalogMetadataResult {
@@ -52,7 +52,7 @@ class CatalogMetadataCoordinator @Inject constructor(
         }
     }
 
-    suspend fun refresh(
+    override suspend fun refresh(
         key: CatalogMetadataKey,
         level: CatalogMetadataLevel,
     ): CatalogMetadataResult {

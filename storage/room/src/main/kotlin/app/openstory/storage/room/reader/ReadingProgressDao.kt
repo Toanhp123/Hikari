@@ -31,6 +31,18 @@ internal interface ReadingProgressDao {
     )
     suspend fun find(storyId: String, chapterId: String): ReadingProgressEntity?
 
+    @Query(
+        "SELECT * FROM reading_progress WHERE story_id = :storyId " +
+            "ORDER BY canonical_chapter_id",
+    )
+    suspend fun progressForStory(storyId: String): List<ReadingProgressEntity>
+
     @Upsert
     suspend fun upsert(progress: ReadingProgressEntity)
+    @Query("DELETE FROM reading_progress WHERE story_id IN (:storyIds)")
+    suspend fun deleteForStories(storyIds: Collection<String>): Int
+
+    @Upsert
+    suspend fun upsertAll(progress: List<ReadingProgressEntity>)
+
 }

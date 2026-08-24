@@ -1,69 +1,72 @@
 # Documentation Governance and Precedence
 
-Date: 2026-08-20
+Date: 2026-08-24
 Status: **CANONICAL documentation policy**
 
 ## Purpose
 
-The repository retains approved greenfield plans, source-local remediation records,
-checkpoint evidence, and raw review packages. They remain useful for audit, but they are
-not equal execution instructions.
+The repository retains approved plans, remediation records, checkpoint evidence, and raw review
+packages. They remain useful for audit, but they are not equal execution instructions.
 
 ## Precedence by question
 
 ### What product are we building?
 
-Use `approved-product-design.md`. Later implementation documents may clarify mechanics
-but may not silently change product scope or domain invariants.
+Use `approved-product-design.md`. Later implementation documents may clarify mechanics but may not
+silently change product scope or domain invariants.
 
 ### What is implemented now?
 
-Use `current-state.md`, then inspect code and tests. A checked plan item is not proof that
-code exists, and code existence is not proof that a checkpoint passed.
+Use `current-state.md`, then inspect code and tests. A checked plan item is not proof that code
+exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active owning-wave plan. Waves 06-09,
-the Design System Foundation, the Product UI checkpoint, and the Discover semantic-feed redesign
-are complete. The next capability boundary is **Wave 10** in
-`../implementation/waves/wave-10-background-sync-auth-and-notifications.md`; it has not started.
+Use `../implementation/current-roadmap.md`, then the active owning plan. Waves 06-09, the Design
+System Foundation, Product UI, Discover semantic-feed redesign, and CCE Phases 0-7 / Tasks 1-42 are
+complete. The accepted CCE checkpoint closes on Room schema 9.
 
-Architecture Baseline 2 remains accepted. Its design and acceptance checkpoint own the architecture
-foundation, while Wave 01-09 and Product UI plans/checkpoints are retained as delivery records. The
-post-baseline architecture design owns module evolution and cross-wave continuity for Waves 06-11.
-The 2026-08-19 Discover spec owns the current Discover-specific presentation/data contract without
-changing capability ownership. Its canonical architecture path remains
-`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+The separately reviewed Canonical Engine Performance and Durability work advances current source to
+schema 10 through `MIGRATION_9_10` for queue leases and the transactional catalog-change outbox.
+Its entry verification is accepted. Wave 10 is ready to start under
+`../implementation/waves/wave-10-background-sync-auth-and-notifications.md`. Wave 10
+enters on schema 10 and notification persistence owns `MIGRATION_10_11`.
 
-The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions
-that retain development-only database migrations or selector generations.
+Architecture Baseline 2 remains accepted. The broader Wave 06-11 path is
+`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. The 2026-08-19
+Discover spec owns Discover semantic composition. The 2026-08-20 CCE spec owns canonical catalog
+identity, reconciliation, fusion, and canonical presentation. The 2026-08-24 durability spec owns
+the schema-10 performance/durable-work extension.
+
+The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions that retain
+development-only database migrations or selector generations.
 
 ### Has a gate passed?
 
-Use `../internal/checkpoints/`. A required command remains `NOT RUN` until its actual
-output is reviewed and recorded.
+Use `../internal/checkpoints/`. A required command remains `NOT RUN` until its actual output is
+reviewed and recorded. Implementation presence does not imply acceptance.
 
 ### How does a public plugin contract work?
 
-Use `../plugin-sdk/`. SDK documents must match `:plugins:api`, the JavaScript runtime
-protocol, and tested fixtures.
+Use `../plugin-sdk/`. SDK documents must match `:plugins:api`, the JavaScript runtime protocol,
+and tested fixtures.
 
 ## Supersession map
 
 | Historical source | Current interpretation |
 |---|---|
-| 2026-08-03 Waves 01–03 plans | Intent and coverage history; implementation is already present |
+| 2026-08-03 Waves 01-03 plans | Intent and coverage history; implementation is already present |
 | 2026-08-03 Wave 04 selector sketch | Historical; superseded by the Baseline 2 JavaScript protocol/runtime |
-| 2026-08-06 generation-based selector review package | Historical design provenance retained under `../internal/archive/`; no active selector contract |
-| Source-local Wave 01–03 remediation specs/plans/checkpoints | Archived under `../internal/archive/pre-baseline-development/`; do not execute again |
-| Pre-baseline Room migration instructions | Historical only; Baseline 2 schema 1 is frozen and current schemas evolve contiguously from it |
+| 2026-08-06 selector-v2 review package | Historical design provenance under `../internal/archive/`; no active selector contract |
+| Pre-baseline remediation plans/checkpoints | Archived; do not execute again |
+| Pre-baseline Room migration instructions | Historical only; current schemas evolve contiguously from frozen schema 1 |
 | Historical checkpoint `NOT RUN` entries | Evidence history; never infer `PASS` from later source changes |
-| Project-wide Baseline 1 refactor plan | Execution record for the one-time reset; not the next feature plan after completion |
-| Wave 05 checkpoint and pre-reset Wave 06 entry instruction | Historical execution evidence; Wave 06 is reopened only through the accepted Baseline 2 boundary |
-| Architecture Baseline 2 R0-R6 plans | Accepted one-time architecture reset record; not the active feature plan after R6 |
-| 2026-08-12 Product UI design/plan | Accepted/completed broader presentation baseline; Discover-specific source/category composition is superseded by the 2026-08-19 Discover spec |
-| 2026-08-19 Discover semantic-feed design/plan | Accepted implementation record and current Discover-specific contract; checkpoint evidence is `discover-semantic-feed-redesign.md` |
-| Wave 10 schema `6 -> 7` / `7 -> 8` planning text | Superseded by current Room schema 8 after the catalog metadata-lifecycle migration; Wave 10 notification persistence is rebased to `8 -> 9` |
+| Architecture Baseline 2 R0-R6 plans | Accepted one-time reset record; not the active feature plan |
+| 2026-08-12 Product UI design/plan | Accepted broader presentation baseline |
+| 2026-08-19 Discover design/plan | Accepted Discover semantic-feed contract and execution record |
+| 2026-08-20 CCE design + 2026-08-21 plan | Accepted canonical identity/fusion authority; Phases 0-7 / Tasks 1-42 close on schema 9 |
+| 2026-08-24 canonical performance/durability design + plan | Current schema-10 queue lease/outbox authority; owns `MIGRATION_9_10`; entry baseline accepted |
+| Wave 10 schema `6 -> 7`, `7 -> 8`, `8 -> 9`, or `9 -> 10` text | Superseded. Wave 10 enters schema 10, notification persistence owns `10 -> 11`, and Wave 11 enters schema 11 |
 
 ## Lifecycle labels
 
@@ -81,7 +84,6 @@ protocol, and tested fixtures.
 - Root and docs READMEs link to canonical files instead of duplicating the roadmap.
 - Public SDK examples point to tested fixtures where possible.
 - When a design correction changes ownership, update this supersession map.
-- When a scoped design supersedes only one surface, add an explicit notice to the older design instead of rewriting unrelated historical requirements.
+- When a scoped design supersedes one surface, add an explicit notice to the older design.
 - When a checkpoint is accepted, update its evidence record and `current-state.md` together.
-- When a module is added, update settings, architecture policy, module documentation,
-  tests, and current state in one reviewed change.
+- When a module is added, update settings, architecture policy, module documentation, tests, and current state in one reviewed change.

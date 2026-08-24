@@ -46,6 +46,34 @@ Future persistence numbering is therefore rebased while the architecture decisio
 
 This is a contiguous-schema rebase only; it does not reopen Waves 06-09 or add a new capability owner.
 
+## 2026-08-23 Canonical-Engine Persistence Rebase
+
+The separately reviewed Canonical Catalog Reconciliation & Fusion Engine landed before Wave 10 and
+now owns `MIGRATION_8_9`. Its schema-9 foundation is the current persistence baseline. The historical
+2026-08-20 reservation above is therefore superseded only for numbering:
+
+- Wave 10 enters on Room schema 9.
+- Wave 10 durable notification-delivery state migrates `9 -> 10`.
+- Wave 11 enters on schema 10 unless another separately reviewed migration intervenes.
+- No later plan may introduce a second meaning for `MIGRATION_8_9`.
+
+Capability ownership and the approved module-evolution table are unchanged.
+
+## 2026-08-24 Canonical-Durability Persistence Rebase
+
+The separately reviewed Canonical Engine Performance and Durability work landed before Wave 10 and
+now owns `MIGRATION_9_10` for queue leases and the transactional catalog-change outbox. Schema 10 is
+the current source baseline. The 2026-08-23 numbering above is therefore superseded only for future
+wave numbering:
+
+- Wave 10 enters on Room schema 10.
+- Wave 10 durable notification-delivery state migrates `10 -> 11`.
+- Wave 11 enters on schema 11 unless another separately reviewed migration intervenes.
+- `MIGRATION_8_9` remains canonical-engine foundation ownership and `MIGRATION_9_10` remains
+  canonical-engine durability ownership; Wave 10 must not redefine either migration.
+
+Capability ownership and the approved module-evolution table remain unchanged.
+
 ## Ownership
 
 ### `:catalog`

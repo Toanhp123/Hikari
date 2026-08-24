@@ -20,21 +20,28 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
+import app.openstory.storage.room.catalog.RoomStoryIdentityResolver
+import app.openstory.storage.room.catalog.observeResolvedSet
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RoomChapterRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: ChapterDao,
     private val syncDao: ChapterSyncDao,
+    private val identity: RoomStoryIdentityResolver,
 ) : ChapterRepository, ChapterReleaseLookup {
     constructor(database: OpenStoryDatabase) : this(
         database,
         database.chapterDao(),
         database.chapterSyncDao(),
+        RoomStoryIdentityResolver(database),
     )
 
     override fun observeAll(): Flow<List<CanonicalChapterGroup>> =
@@ -44,19 +51,24 @@ class RoomChapterRepository internal constructor(
         if (storyIds.isEmpty()) {
             flowOf(emptyList())
         } else {
-            dao.observeGroups(storyIds.map(StoryId::value))
-                .map(List<CanonicalChapterWithReleases>::toModelsByIdentity)
+            identity.observeResolvedSet(storyIds).flatMapLatest { resolved ->
+                dao.observeGroups(resolved.map(StoryId::value))
+                    .map(List<CanonicalChapterWithReleases>::toModelsByIdentity)
+            }
         }
 
     override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
-        dao.observeGroups(storyId.value).map(List<CanonicalChapterWithReleases>::toModels)
+        identity.observeResolved(storyId).flatMapLatest { resolved ->
+            dao.observeGroups(resolved.value).map(List<CanonicalChapterWithReleases>::toModels)
+        }
 
     override suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot {
-        val groups = dao.groups(storyId.value).toModels()
+        val resolved = identity.resolve(storyId)
+        val groups = dao.groups(resolved.value).toModels()
         return ChapterGraphSnapshot(
             chapters = groups.map(CanonicalChapterGroup::chapter),
-            releases = dao.releases(storyId.value).map(ChapterReleaseEntity::toModel).sortedBy { it.id.value },
-            overrides = dao.overrides(storyId.value).map(ChapterAggregationOverrideEntity::toModel)
+            releases = dao.releases(resolved.value).map(ChapterReleaseEntity::toModel).sortedBy { it.id.value },
+            overrides = dao.overrides(resolved.value).map(ChapterAggregationOverrideEntity::toModel)
                 .sortedBy { it.releaseId.value },
         )
     }
@@ -66,11 +78,15 @@ class RoomChapterRepository internal constructor(
 
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult = try {
         database.withTransaction {
-            if (mutation.plan.creates.isNotEmpty()) {
-                dao.upsertChapters(mutation.plan.creates.map(CanonicalChapter::toEntity))
+            val resolved = identity.resolve(mutation.storyId)
+            val normalizedCreates = mutation.plan.creates.map { it.copy(storyId = resolved) }
+            val normalizedReleases = mutation.releases.map { it.copy(storyId = resolved) }
+            val normalizedSyncState = mutation.syncState?.copy(storyId = resolved)
+            if (normalizedCreates.isNotEmpty()) {
+                dao.upsertChapters(normalizedCreates.map(CanonicalChapter::toEntity))
             }
-            if (mutation.releases.isNotEmpty()) {
-                dao.upsertReleases(mutation.releases.map(ChapterRelease::toEntity))
+            if (normalizedReleases.isNotEmpty()) {
+                dao.upsertReleases(normalizedReleases.map(ChapterRelease::toEntity))
             }
             if (mutation.plan.unlinks.isNotEmpty()) {
                 dao.unlink(mutation.plan.unlinks.map { it.value })
@@ -88,7 +104,7 @@ class RoomChapterRepository internal constructor(
             if (mutation.plan.tombstones.isNotEmpty()) {
                 dao.tombstone(mutation.plan.tombstones.map { it.value })
             }
-            mutation.syncState?.let { syncDao.upsert(it.toEntity()) }
+            normalizedSyncState?.let { syncDao.upsert(it.toEntity()) }
         }
         ChapterCommitResult.Success
     } catch (cancelled: CancellationException) {
@@ -98,14 +114,14 @@ class RoomChapterRepository internal constructor(
     }
 
     override suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride) {
-        syncDao.upsertOverride(override.toEntity(storyId))
+        syncDao.upsertOverride(override.toEntity(identity.resolve(storyId)))
     }
 
     override suspend fun syncState(
         storyId: StoryId,
         pluginId: PluginId,
         sourceStoryId: String,
-    ): ChapterSyncState? = syncDao.find(storyId.value, pluginId.value, sourceStoryId)?.toModel()
+    ): ChapterSyncState? = syncDao.find(identity.resolve(storyId).value, pluginId.value, sourceStoryId)?.toModel()
 }
 
 private fun List<CanonicalChapterWithReleases>.toModels(): List<CanonicalChapterGroup> = map { group ->
