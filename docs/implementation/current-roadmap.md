@@ -33,6 +33,7 @@ Phases 0-7 / Tasks 1-42 are accepted. The schema-10 durability entry gate is als
 design/plan/readiness records are:
 
 - `../superpowers/specs/2026-08-24-canonical-engine-performance-and-durability-design.md`
+- `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
 - `waves/wave-10-background-sync-auth-and-notifications.md`
 - `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`
 
@@ -40,7 +41,10 @@ The later Canonical Engine Performance and Durability implementation advances cu
 schema 10. It owns `MIGRATION_9_10` for canonical-work leases and the transactional catalog-change
 outbox. Its policy, full host, and API 26/API 37 entry verification is accepted.
 
-Wave 10 is ready to start and remains unimplemented.
+Wave 10 is ready to start from its clean-architecture rebaseline and remains unimplemented. The
+rebaseline explicitly introduces missing consumer-owned Reader/cache policy ports, request-target
+credential scope, bounded background candidate selection, and a transactional chapter-change outbox
+rather than treating those boundaries as already implemented.
 Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
 notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
 separately reviewed migration intervenes.
@@ -238,13 +242,17 @@ architecture
 
 ## Execution rule
 
-1. Use the current 14-module graph and accepted Room schema-10 durability boundary as the Wave 10 source baseline.
+1. Use the current 14-module graph, accepted Room schema-10 durability boundary, and the focused
+   Wave 10 clean-architecture design as the source baseline.
 2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 10 is the active next boundary. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
 3. `MIGRATION_8_9` belongs to canonical foundation and `MIGRATION_9_10` belongs to canonical durability. Wave 10 notification persistence uses `MIGRATION_10_11`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
 6. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.
-7. Update current state and checkpoints only after actual command/device evidence is reviewed.
+7. When a needed contract is absent or insufficient in current code, create it in the consuming
+   capability and migrate the current consumer in the same task; do not encode a false existing-port
+   assumption in implementation docs.
+8. Update current state and checkpoints only after actual command/device evidence is reviewed.
 
 Discover / Home / Library remains the final top-level model. Discover itself is now semantic rather
 than catalog-selector driven: `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.

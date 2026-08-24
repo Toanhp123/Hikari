@@ -295,6 +295,21 @@ Evidence:
 - `../internal/checkpoints/product-ui-task-02-target-pack.md`
 - `../internal/checkpoints/product-ui-task-03-artwork.md`
 
+## Wave 10 execution baseline
+
+Wave 10 remains unimplemented and is ready to start from the focused clean-architecture rebaseline:
+
+- `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
+- `../implementation/waves/wave-10-background-sync-auth-and-notifications.md`
+- `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`
+
+The rebaseline corrects earlier future-facing assumptions. Current source does not yet contain a
+Reader preferences port, a settings-backed automatic-cache policy port, request-target-scoped plugin
+credentials, bounded periodic chapter candidate selection, or a transactional chapter-change
+notification outbox. Wave 10 creates these boundaries in their consuming capabilities and migrates
+the current consumers rather than preserving SavedState-only, hard-coded, host-only, or
+post-transaction behavior.
+
 ## Source-of-truth rule
 
 When documents disagree:
