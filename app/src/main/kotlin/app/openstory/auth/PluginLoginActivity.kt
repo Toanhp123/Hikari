@@ -56,12 +56,14 @@ class PluginLoginActivity : ComponentActivity() {
                 setDownloadListener { _, _, _, _, _ -> }
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                        if (!policy.allows(url)) return true
-                        if (policy.isCompletion(url)) {
-                            completeLogin(pluginId, installed.capability, entryPoint.sessionService())
-                            return true
+                        return when {
+                            !policy.allows(url) -> true
+                            policy.isCompletion(url) -> {
+                                completeLogin(pluginId, installed.capability)
+                                true
+                            }
+                            else -> false
                         }
-                        return false
                     }
                 }
             }
@@ -73,7 +75,6 @@ class PluginLoginActivity : ComponentActivity() {
     private fun completeLogin(
         pluginId: PluginId,
         capability: app.openstory.plugins.api.manifest.PluginAuthenticationCapability,
-        sessions: PluginSessionService,
     ) {
         lifecycleScope.launch {
             try {

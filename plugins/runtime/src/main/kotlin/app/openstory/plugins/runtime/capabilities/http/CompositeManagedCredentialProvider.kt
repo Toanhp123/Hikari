@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 class CompositeManagedCredentialProvider(
     private val providers: List<ManagedCredentialProvider>,
 ) : ManagedCredentialProvider {
+    @Suppress("ThrowsCount")
     override suspend fun headers(request: ManagedCredentialRequest): Map<String, String> {
         val merged = linkedMapOf<String, String>()
         val owners = mutableSetOf<String>()

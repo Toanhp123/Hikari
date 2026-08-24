@@ -37,6 +37,25 @@ import app.openstory.reader.ui.ReaderAssistedArgs
 import app.openstory.reader.ui.ReaderScreen
 import app.openstory.reader.ui.ReaderViewModel
 import app.openstory.ui.HikariAppShellScope
+import app.openstory.settings.ui.SettingsScreen
+import app.openstory.settings.ui.SettingsViewModel
+
+@Composable
+internal fun SettingsDestination(
+    contentPadding: PaddingValues,
+    onBack: () -> Unit,
+) {
+    val viewModel = hiltViewModel<SettingsViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    SettingsScreen(
+        state = state,
+        onBack = onBack,
+        onLogin = viewModel::login,
+        onLogout = viewModel::logout,
+        onRequestNotificationPermission = viewModel::requestNotificationPermission,
+        contentPadding = contentPadding,
+    )
+}
 
 @Composable
 internal fun DownloadsDestination(

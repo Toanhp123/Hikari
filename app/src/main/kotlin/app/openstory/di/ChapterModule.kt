@@ -7,6 +7,7 @@ import app.openstory.chapters.maintenance.ChapterReaggregator
 import app.openstory.chapters.normalization.ChapterLabelParser
 import app.openstory.chapters.repository.ChapterRepository
 import app.openstory.chapters.repository.ChapterReleaseLookup
+import app.openstory.chapters.notification.NotificationDrainScheduler
 import app.openstory.chapters.source.ChapterSourceRegistry
 import app.openstory.chapters.source.PluginChapterSourceRegistry
 import app.openstory.chapters.sync.ChapterSyncService
@@ -31,8 +32,10 @@ import kotlinx.serialization.json.Json
 object ChapterModule {
     @Provides
     @Singleton
-    fun provideChapterRepository(database: OpenStoryDatabase): ChapterRepository =
-        RoomChapterRepository(database)
+    fun provideChapterRepository(
+        database: OpenStoryDatabase,
+        notificationDrainScheduler: NotificationDrainScheduler,
+    ): ChapterRepository = RoomChapterRepository(database, notificationDrainScheduler)
 
     @Provides
     @Singleton

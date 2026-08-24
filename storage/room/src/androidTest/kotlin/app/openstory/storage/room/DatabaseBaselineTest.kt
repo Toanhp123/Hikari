@@ -48,6 +48,8 @@ class DatabaseBaselineTest {
                 "chapter_releases",
                 "chapter_aggregation_overrides",
                 "chapter_sync_states",
+                "chapter_change_events",
+                "notification_deliveries",
                 "reading_progress",
                 "chapter_storage_entries",
             ),

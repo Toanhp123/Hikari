@@ -4,6 +4,60 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 object RoomMigrations {
+    val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `chapter_change_events` (" +
+                    "`event_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `event_key` TEXT NOT NULL, " +
+                    "`story_id` TEXT NOT NULL, `chapter_id` TEXT NOT NULL, `release_id` TEXT, " +
+                    "`change_kind` TEXT NOT NULL, `chapter_commit_fingerprint` TEXT NOT NULL, " +
+                    "`occurred_at_epoch_millis` INTEGER NOT NULL)",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_chapter_change_events_event_key` " +
+                    "ON `chapter_change_events` (`event_key`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_chapter_change_events_story_id_chapter_id_change_kind` " +
+                    "ON `chapter_change_events` (`story_id`, `chapter_id`, `change_kind`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_chapter_change_events_occurred_at_epoch_millis_event_id` " +
+                    "ON `chapter_change_events` (`occurred_at_epoch_millis`, `event_id`)",
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `notification_deliveries` (" +
+                    "`event_id` INTEGER NOT NULL, `status` TEXT NOT NULL, `claim_token` TEXT, " +
+                    "`claim_expires_at_epoch_millis` INTEGER, `attempt_count` INTEGER NOT NULL, " +
+                    "`next_attempt_at_epoch_millis` INTEGER NOT NULL, `notification_id` INTEGER, " +
+                    "`reason_code` TEXT, `last_error_code` TEXT, `updated_at_epoch_millis` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`event_id`), FOREIGN KEY(`event_id`) REFERENCES `chapter_change_events`(`event_id`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_notification_deliveries_status_next_attempt_at_epoch_millis_event_id` " +
+                    "ON `notification_deliveries` (`status`, `next_attempt_at_epoch_millis`, `event_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_notification_deliveries_claim_expires_at_epoch_millis` " +
+                    "ON `notification_deliveries` (`claim_expires_at_epoch_millis`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_notification_deliveries_claim_token` " +
+                    "ON `notification_deliveries` (`claim_token`)",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_notification_deliveries_notification_id` " +
+                    "ON `notification_deliveries` (`notification_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_notification_deliveries_updated_at_epoch_millis_status` " +
+                    "ON `notification_deliveries` (`updated_at_epoch_millis`, `status`)",
+            )
+        }
+    }
+
     val MIGRATION_9_10: Migration = object : Migration(9, 10) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE `canonical_engine_work` ADD COLUMN `lease_token` TEXT")

@@ -92,7 +92,10 @@ class AndroidKeystorePluginSessionStore(
         cipher.init(
             Cipher.DECRYPT_MODE,
             key(),
-            GCMParameterSpec(128, android.util.Base64.decode(record.nonce, android.util.Base64.NO_WRAP)),
+            GCMParameterSpec(
+                GCM_TAG_LENGTH_BITS,
+                android.util.Base64.decode(record.nonce, android.util.Base64.NO_WRAP),
+            ),
         )
         cipher.updateAAD(record.aad(pluginId))
         return cipher.doFinal(
@@ -123,6 +126,7 @@ class AndroidKeystorePluginSessionStore(
     private companion object {
         const val KEY_ALIAS = "openstory.plugin.sessions.v1"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
+        const val GCM_TAG_LENGTH_BITS = 128
     }
 }
 

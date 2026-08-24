@@ -15,6 +15,7 @@ import app.openstory.chapters.sync.ChapterSyncBatchCursor
 import app.openstory.chapters.sync.ChapterSyncBatchPlanner
 import app.openstory.chapters.sync.ChapterSyncCandidateSource
 import app.openstory.common.id.StoryId
+import app.openstory.settings.BackgroundDispatchStatusStore
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -49,6 +50,10 @@ private suspend fun CoroutineWorker.dispatch(cursor: ChapterSyncBatchCursor?): L
     val batch = candidates?.let { ChapterSyncBatchPlanner().plan(it, cursor) }
     val workManager = batch?.let { workManagerOrNull() }
     return if (batch == null || workManager == null) {
+        runCatching {
+            BackgroundDispatchStatusStore(applicationContext)
+                .recordFailure("background.dispatch_unavailable")
+        }
         ListenableWorker.Result.retry()
     } else {
         when (
@@ -58,8 +63,18 @@ private suspend fun CoroutineWorker.dispatch(cursor: ChapterSyncBatchCursor?): L
                 enqueueContinuation = { continuation -> enqueueContinuationWork(workManager, continuation) },
             )
         ) {
-            PeriodicDispatchEnqueueDecision.SUCCESS -> ListenableWorker.Result.success()
-            PeriodicDispatchEnqueueDecision.RETRY -> ListenableWorker.Result.retry()
+            PeriodicDispatchEnqueueDecision.SUCCESS -> {
+                val now = System.currentTimeMillis()
+                runCatching { BackgroundDispatchStatusStore(applicationContext).recordSuccess(now) }
+                ListenableWorker.Result.success()
+            }
+            PeriodicDispatchEnqueueDecision.RETRY -> {
+                runCatching {
+                    BackgroundDispatchStatusStore(applicationContext)
+                        .recordFailure("background.continuation_enqueue_failed")
+                }
+                ListenableWorker.Result.retry()
+            }
         }
     }
 }

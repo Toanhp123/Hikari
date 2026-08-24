@@ -2,6 +2,7 @@ package app.openstory.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -11,6 +12,7 @@ import app.openstory.designsystem.surface.HikariSurfaceShadowMode
 import app.openstory.designsystem.surface.LocalHikariSurfaceShadowMode
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.navigation.AppNavHost
+import app.openstory.navigation.AppRoute
 import app.openstory.navigation.rememberAppNavigator
 
 @Composable
@@ -19,8 +21,16 @@ fun OpenStoryApp(
     backdropMode: HikariBackdropMode = HikariBackdropMode.ENABLED,
     surfaceShadowMode: HikariSurfaceShadowMode = HikariSurfaceShadowMode.ENABLED,
     useLegacyNavigationTransitions: Boolean = false,
+    notificationRoute: AppRoute? = null,
+    onNotificationRouteConsumed: () -> Unit = {},
 ) {
     val navigator = rememberAppNavigator()
+    LaunchedEffect(notificationRoute) {
+        notificationRoute?.let {
+            navigator.navigate(it)
+            onNotificationRouteConsumed()
+        }
+    }
     CompositionLocalProvider(
         LocalHikariBackdropMode provides backdropMode,
         LocalHikariSurfaceShadowMode provides surfaceShadowMode,

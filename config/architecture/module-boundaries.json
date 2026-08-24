@@ -193,7 +193,7 @@
       "path": "feature/settings",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common"],
+      "productionDependencies": [":core:common", ":core:designsystem", ":settings"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.", "app.openstory.plugins.runtime."]
     },

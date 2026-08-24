@@ -7,25 +7,27 @@ import app.openstory.common.id.PluginId
 import app.openstory.plugins.runtime.auth.InstalledAuthenticationPolicySource
 import app.openstory.plugins.runtime.auth.PluginSessionService
 import app.openstory.plugins.runtime.auth.PluginSessionStatus
-import app.openstory.settings.ui.SettingsPluginSessionStatus
-import app.openstory.settings.ui.SettingsPluginSessionSummary
-import app.openstory.settings.ui.SettingsPluginSessionsPort
+import app.openstory.settings.session.PluginLoginCommandResult
+import app.openstory.settings.session.PluginSessionControlPort
+import app.openstory.settings.session.SettingsPluginSessionStatus
+import app.openstory.settings.session.SettingsPluginSessionSummary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class SettingsPluginSessionAdapter(
-    private val context: Context,
-    private val sessions: PluginSessionService,
+class RuntimePluginSessionControlAdapter(
+    context: Context,
+    private val sessionService: PluginSessionService,
     private val policies: InstalledAuthenticationPolicySource,
-) : SettingsPluginSessionsPort {
-    override fun observeInstalledSessions(): Flow<List<SettingsPluginSessionSummary>> =
-        sessions.observeInstalledSessions().map { summaries ->
-            val installed = policies.installedAuthenticationPolicies()
-            installed.filter { it.enabled }.map { policy ->
+) : PluginSessionControlPort {
+    private val applicationContext = context.applicationContext
+
+    override val sessions: Flow<List<SettingsPluginSessionSummary>> =
+        sessionService.observeInstalledSessions().map { summaries ->
+            policies.installedAuthenticationPolicies().filter { it.enabled }.map { policy ->
                 val summary = summaries.singleOrNull { it.pluginId == policy.pluginId }
                 SettingsPluginSessionSummary(
-                    pluginId = policy.pluginId.value,
+                    pluginId = policy.pluginId,
                     displayName = policy.pluginId.value,
                     status = when (summary?.status ?: PluginSessionStatus.LOGGED_OUT) {
                         PluginSessionStatus.LOGGED_OUT -> SettingsPluginSessionStatus.LOGGED_OUT
@@ -37,21 +39,20 @@ class SettingsPluginSessionAdapter(
             }
         }
 
-    override suspend fun launchLogin(pluginId: String): Boolean = try {
-        val id = PluginId(pluginId)
-        val available = policies.installedAuthenticationPolicies().any { it.pluginId == id && it.enabled }
-        if (!available) return false
-        context.startActivity(
-            Intent(context, PluginLoginActivity::class.java)
-                .putExtra(PluginLoginActivity.EXTRA_PLUGIN_ID, pluginId)
+    override suspend fun beginLogin(pluginId: PluginId): PluginLoginCommandResult = try {
+        val installed = policies.installedAuthenticationPolicies().any { it.pluginId == pluginId && it.enabled }
+        if (!installed) return PluginLoginCommandResult.Rejected("settings.auth_login_unavailable")
+        applicationContext.startActivity(
+            Intent(applicationContext, PluginLoginActivity::class.java)
+                .putExtra(PluginLoginActivity.EXTRA_PLUGIN_ID, pluginId.value)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
-        true
+        PluginLoginCommandResult.Launched
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {
-        false
+        PluginLoginCommandResult.Rejected("settings.auth_login_failed")
     }
 
-    override suspend fun logout(pluginId: String) = sessions.logout(PluginId(pluginId))
+    override suspend fun logout(pluginId: PluginId) = sessionService.logout(pluginId)
 }

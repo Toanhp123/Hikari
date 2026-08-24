@@ -12,6 +12,6 @@ class Wave10NotificationEntryContractTest {
         val manifest = File(root, "app/src/main/AndroidManifest.xml").readText()
         val application = File(root, "app/src/main/kotlin/app/openstory/OpenStoryApplication.kt").readText()
         assertTrue("android.permission.POST_NOTIFICATIONS" in manifest)
-        assertTrue("notificationChannels.createAll()" in application)
+        assertTrue("NotificationChannelConfig.create(this)" in application)
     }
 }

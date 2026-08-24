@@ -15,10 +15,20 @@ import app.openstory.settings.SettingsCorruptionHandler
 import app.openstory.settings.SettingsDefaults
 import app.openstory.settings.SettingsDiagnosticSink
 import app.openstory.settings.SettingsReaderPreferencesAdapter
-import app.openstory.settings.SettingsPluginSessionAdapter
-import app.openstory.settings.ui.SettingsPluginSessionsPort
+import app.openstory.settings.RuntimePluginSessionControlAdapter
+import app.openstory.settings.AndroidNotificationControlAdapter
+import app.openstory.settings.WorkManagerBackgroundWorkStatusAdapter
+import app.openstory.settings.AppStorageSummaryAdapter
 import app.openstory.plugins.runtime.auth.InstalledAuthenticationPolicySource
 import app.openstory.plugins.runtime.auth.PluginSessionService
+import app.openstory.chapters.notification.NotificationEventRepository
+import app.openstory.downloads.DownloadRepository
+import app.openstory.downloads.cache.CacheRepository
+import app.openstory.notifications.NotificationPermissionGate
+import app.openstory.settings.session.PluginSessionControlPort
+import app.openstory.settings.notification.NotificationControlPort
+import app.openstory.settings.background.BackgroundWorkStatusPort
+import app.openstory.settings.storage.StorageSummaryPort
 import app.openstory.settings.background.BackgroundPolicyCoordinator
 import app.openstory.settings.background.BackgroundWorkSchedulePort
 import app.openstory.work.WorkManagerBackgroundWorkScheduleAdapter
@@ -38,11 +48,32 @@ import kotlinx.coroutines.SupervisorJob
 object SettingsModule {
     @Provides
     @Singleton
-    fun provideSettingsPluginSessionsPort(
+    fun providePluginSessionControlPort(
         @ApplicationContext context: Context,
         sessions: PluginSessionService,
         policies: InstalledAuthenticationPolicySource,
-    ): SettingsPluginSessionsPort = SettingsPluginSessionAdapter(context, sessions, policies)
+    ): PluginSessionControlPort = RuntimePluginSessionControlAdapter(context, sessions, policies)
+
+    @Provides
+    @Singleton
+    fun provideNotificationControlPort(
+        gate: NotificationPermissionGate,
+        events: NotificationEventRepository,
+    ): NotificationControlPort = AndroidNotificationControlAdapter(gate, events)
+
+    @Provides
+    @Singleton
+    fun provideBackgroundWorkStatusPort(
+        @ApplicationContext context: Context,
+    ): BackgroundWorkStatusPort = WorkManagerBackgroundWorkStatusAdapter(context)
+
+    @Provides
+    @Singleton
+    fun provideStorageSummaryPort(
+        cache: CacheRepository,
+        downloads: DownloadRepository,
+        settings: AppSettingsRepository,
+    ): StorageSummaryPort = AppStorageSummaryAdapter(cache, downloads, settings)
 
     @Provides
     @Singleton

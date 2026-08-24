@@ -17,6 +17,8 @@ import app.openstory.common.Clock
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.catalog.reconciliation.StoryMergeLineageReader
 import app.openstory.chapters.sync.ChapterSyncCandidateSource
+import app.openstory.chapters.notification.ChapterNotificationTargetSource
+import app.openstory.chapters.notification.NotificationEventRepository
 import app.openstory.plugins.runtime.persistence.PluginDiagnosticsSink
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 import app.openstory.storage.room.OpenStoryDatabase
@@ -33,6 +35,8 @@ import app.openstory.storage.room.catalog.RoomCanonicalEngineMaintenanceReader
 import app.openstory.storage.room.catalog.RoomCanonicalEngineWorkRepository
 import app.openstory.storage.room.catalog.RoomCatalogChangeOutboxRepository
 import app.openstory.storage.room.chapters.RoomChapterSyncCandidateSource
+import app.openstory.storage.room.chapters.RoomChapterNotificationTargetSource
+import app.openstory.storage.room.chapters.RoomNotificationEventRepository
 import app.openstory.storage.room.plugins.RoomPluginDiagnosticsSink
 import app.openstory.storage.room.plugins.RoomPluginStateStore
 import dagger.Module
@@ -146,4 +150,14 @@ object StorageModule {
     @Singleton
     fun provideChapterSyncCandidateSource(database: OpenStoryDatabase): ChapterSyncCandidateSource =
         RoomChapterSyncCandidateSource(database)
+
+    @Provides
+    @Singleton
+    fun provideNotificationEventRepository(database: OpenStoryDatabase): NotificationEventRepository =
+        RoomNotificationEventRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideChapterNotificationTargetSource(database: OpenStoryDatabase): ChapterNotificationTargetSource =
+        RoomChapterNotificationTargetSource(database)
 }

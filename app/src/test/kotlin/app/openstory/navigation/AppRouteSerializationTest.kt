@@ -56,7 +56,8 @@ class AppRouteSerializationTest {
 
     @Test
     fun utilityRoutesRoundTrip() {
-        listOf(AppRoute.Downloads, AppRoute.Updates, AppRoute.ReconciliationReview("case-1")).forEach { route ->
+        listOf(AppRoute.Downloads, AppRoute.Updates, AppRoute.Settings, AppRoute.ReconciliationReview("case-1"))
+            .forEach { route ->
             val encoded = Json.encodeToString(AppRoute.serializer(), route)
             assertEquals(route, Json.decodeFromString(AppRoute.serializer(), encoded))
         }
@@ -69,6 +70,7 @@ class AppRouteSerializationTest {
         assertTrue(AppRoute.Library.isTopLevel())
         assertFalse(AppRoute.Search.isTopLevel())
         assertFalse(AppRoute.Downloads.isTopLevel())
+        assertFalse(AppRoute.Settings.isTopLevel())
         assertFalse(AppRoute.ReconciliationReview().isTopLevel())
         assertFalse(AppRoute.Story("story").isTopLevel())
         assertFalse(AppRoute.Reader("story", "chapter", null).isTopLevel())
@@ -80,6 +82,7 @@ class AppRouteSerializationTest {
         assertTrue(shouldShowFloatingNavigation(AppRoute.Home))
         assertTrue(shouldShowFloatingNavigation(AppRoute.Library))
         assertFalse(shouldShowFloatingNavigation(AppRoute.Search))
+        assertFalse(shouldShowFloatingNavigation(AppRoute.Settings))
         assertFalse(shouldShowFloatingNavigation(AppRoute.ReconciliationReview()))
         assertFalse(shouldShowFloatingNavigation(AppRoute.Story("story")))
         assertFalse(shouldShowFloatingNavigation(AppRoute.Reader("story", "chapter", null)))
@@ -88,10 +91,13 @@ class AppRouteSerializationTest {
     @Test
     fun utilitySheetOnlyExposesImplementedCheckpointEntries() {
         assertEquals(
-            listOf(AppRoute.Downloads, AppRoute.Updates, AppRoute.ReconciliationReview()),
+            listOf(AppRoute.Downloads, AppRoute.Updates, AppRoute.Settings, AppRoute.ReconciliationReview()),
             utilityDestinations.map { it.route },
         )
-        assertEquals(listOf("Downloads", "Updates", "Review duplicates"), utilityDestinations.map { it.label })
+        assertEquals(
+            listOf("Downloads", "Updates", "Settings", "Review duplicates"),
+            utilityDestinations.map { it.label },
+        )
     }
 
     @Test
