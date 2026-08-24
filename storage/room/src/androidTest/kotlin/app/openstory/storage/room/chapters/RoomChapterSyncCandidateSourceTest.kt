@@ -37,6 +37,8 @@ class RoomChapterSyncCandidateSourceTest {
         }
         insertSyncState(sql, "story:old", "plugin:a", 20)
         insertSyncState(sql, "story:old", "plugin:b", 10)
+        insertMapping(sql, "story:old", "plugin:a", "DISCOVERED")
+        insertMapping(sql, "story:old", "plugin:b", "USER_APPROVED")
         insertSyncState(sql, "story:new", "plugin:a", 30)
         insertSyncState(sql, "story:removed", "plugin:a", 1)
 
@@ -46,6 +48,68 @@ class RoomChapterSyncCandidateSourceTest {
         assertNull(candidates[0].lastSuccessfulSyncAtEpochMillis)
         assertEquals(10L, candidates[1].lastSuccessfulSyncAtEpochMillis)
         assertEquals(30L, candidates[2].lastSuccessfulSyncAtEpochMillis)
+    }
+
+    private fun insertMapping(
+        sql: androidx.sqlite.db.SupportSQLiteDatabase,
+        storyId: String,
+        pluginId: String,
+        origin: String,
+    ) {
+        sql.execSQL(
+            "INSERT INTO content_mappings(" +
+                "story_id, plugin_id, source_story_id, origin, policy_version, updated_at_epoch_millis" +
+                ") VALUES(?, ?, ?, ?, 1, 0)",
+            arrayOf<Any?>(storyId, pluginId, "source-$pluginId", origin),
+        )
+    }
+
+    @Test
+    fun resolvesRedirectsAndExcludesDeletedLibraryRows() = runTest {
+        database = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext<Context>(),
+            OpenStoryDatabase::class.java,
+        ).build()
+        val sql = database.openHelper.writableDatabase
+        listOf("story:retired", "story:canonical", "story:deleted").forEach { storyId ->
+            sql.execSQL("INSERT INTO stories(story_id, content_type) VALUES(?, ?)", arrayOf(storyId, "MANGA"))
+        }
+        listOf("story:retired", "story:deleted").forEachIndexed { index, storyId ->
+            sql.execSQL(
+                "INSERT INTO library_entries(story_id, status, added_at_epoch_millis, updated_at_epoch_millis) " +
+                    "VALUES(?, 'READING', ?, ?)",
+                arrayOf<Any?>(storyId, index.toLong(), index.toLong()),
+            )
+        }
+        insertMergeRedirect(sql, "story:retired", "story:canonical")
+        insertSyncState(sql, "story:canonical", "plugin:a", 15)
+        sql.execSQL("DELETE FROM library_entries WHERE story_id = ?", arrayOf("story:deleted"))
+
+        val candidates = RoomChapterSyncCandidateSource(database).eligibleCandidates()
+
+        assertEquals(listOf("story:canonical"), candidates.map { it.storyId.value })
+        assertEquals(15L, candidates.single().lastSuccessfulSyncAtEpochMillis)
+    }
+
+    private fun insertMergeRedirect(
+        sql: androidx.sqlite.db.SupportSQLiteDatabase,
+        retiredStoryId: String,
+        canonicalStoryId: String,
+    ) {
+        sql.execSQL(
+            "INSERT INTO story_merge_events(" +
+                "merge_event_id, survivor_story_id, retired_story_id, origin, reconciliation_case_id, " +
+                "evidence_fingerprint, policy_version, merged_at_epoch_millis, reversibility_state, " +
+                "reversal_payload_version, reversal_payload" +
+                ") VALUES('merge:test', ?, ?, 'TEST', NULL, 'fingerprint', 1, 0, 'REVERSIBLE', 1, '{}')",
+            arrayOf<Any?>(canonicalStoryId, retiredStoryId),
+        )
+        sql.execSQL(
+            "INSERT INTO story_redirects(" +
+                "retired_story_id, canonical_story_id, merge_event_id, created_at_epoch_millis" +
+                ") VALUES(?, ?, 'merge:test', 0)",
+            arrayOf<Any?>(retiredStoryId, canonicalStoryId),
+        )
     }
 
     private fun insertSyncState(

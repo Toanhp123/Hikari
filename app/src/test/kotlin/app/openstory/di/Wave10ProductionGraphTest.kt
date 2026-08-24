@@ -31,9 +31,9 @@ class Wave10ProductionGraphTest {
     @Test
     fun managedCredentialsUseCollisionCheckingComposition() {
         val source = File(root, "app/src/main/kotlin/app/openstory/di/PluginRuntimeModule.kt").readText()
-        assertTrue("CollisionCheckingManagedCredentialProvider" in source)
-        assertTrue("RuntimeSessionCredentialProvider" in source)
-        assertTrue("MyAnimeListManagedCredentialProvider" in source)
+        assertTrue("CompositeManagedCredentialProvider" in source)
+        assertTrue("MyAnimeListManagedCredentials" in source)
+        assertTrue("PluginSessionManagedCredentialProvider" in source)
     }
 
     private fun kotlinSources(directory: File): Sequence<File> = directory.walkTopDown()

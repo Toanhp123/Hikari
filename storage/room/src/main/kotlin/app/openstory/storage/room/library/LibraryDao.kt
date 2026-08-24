@@ -17,13 +17,15 @@ internal data class ChapterSyncCandidateRow(
 @Dao
 internal interface LibraryDao {
     @Query(
-        "SELECT library.story_id AS story_id, " +
+        "SELECT COALESCE(redirect.canonical_story_id, library.story_id) AS story_id, " +
             "MIN(sync.updated_at_epoch_millis) AS last_successful_sync_at_epoch_millis " +
             "FROM library_entries AS library " +
-            "LEFT JOIN chapter_sync_states AS sync ON sync.story_id = library.story_id " +
-            "GROUP BY library.story_id " +
+            "LEFT JOIN story_redirects AS redirect ON redirect.retired_story_id = library.story_id " +
+            "LEFT JOIN chapter_sync_states AS sync " +
+            "ON sync.story_id = COALESCE(redirect.canonical_story_id, library.story_id) " +
+            "GROUP BY COALESCE(redirect.canonical_story_id, library.story_id) " +
             "ORDER BY last_successful_sync_at_epoch_millis IS NOT NULL, " +
-            "last_successful_sync_at_epoch_millis, library.story_id",
+            "last_successful_sync_at_epoch_millis, story_id",
     )
     suspend fun chapterSyncCandidates(): List<ChapterSyncCandidateRow>
 

@@ -6,8 +6,16 @@ import app.openstory.plugins.runtime.DefaultPluginRuntime
 import app.openstory.plugins.runtime.PluginRuntime
 import app.openstory.plugins.runtime.capabilities.CapabilityBroker
 import app.openstory.plugins.runtime.capabilities.html.HtmlCapability
+import app.openstory.plugins.runtime.capabilities.http.CompositeManagedCredentialProvider
 import app.openstory.plugins.runtime.capabilities.http.ManagedCredentialProvider
 import app.openstory.plugins.runtime.capabilities.http.PluginHttpCapability
+import app.openstory.plugins.runtime.auth.AndroidKeystorePluginSessionStore
+import app.openstory.plugins.runtime.auth.DefaultPluginSessionService
+import app.openstory.plugins.runtime.auth.InstalledAuthenticationPolicySource
+import app.openstory.plugins.runtime.auth.InstalledPackageAuthenticationPolicySource
+import app.openstory.plugins.runtime.auth.PluginSessionManagedCredentialProvider
+import app.openstory.plugins.runtime.auth.PluginSessionService
+import app.openstory.plugins.runtime.auth.PluginSessionStore
 import app.openstory.plugins.runtime.capabilities.log.SafePluginLogger
 import app.openstory.plugins.runtime.execution.AndroidxJavaScriptEngine
 import app.openstory.plugins.runtime.execution.JavaScriptEngine
@@ -55,8 +63,37 @@ object PluginRuntimeModule {
 
     @Provides
     @Singleton
-    fun provideManagedCredentialProvider(): ManagedCredentialProvider =
-        MyAnimeListManagedCredentials(BuildConfig.MYANIMELIST_CLIENT_ID)
+    fun providePluginSessionStore(
+        @ApplicationContext context: Context,
+        json: Json,
+    ): PluginSessionStore = AndroidKeystorePluginSessionStore(context, json)
+
+    @Provides
+    @Singleton
+    fun provideInstalledAuthenticationPolicySource(
+        state: PluginStateStore,
+        storage: PluginPackageStorage,
+        json: Json,
+    ): InstalledAuthenticationPolicySource = InstalledPackageAuthenticationPolicySource(state, storage, json)
+
+    @Provides
+    @Singleton
+    fun providePluginSessionService(
+        store: PluginSessionStore,
+        policies: InstalledAuthenticationPolicySource,
+    ): PluginSessionService = DefaultPluginSessionService(store, policies)
+
+    @Provides
+    @Singleton
+    fun provideManagedCredentialProvider(
+        sessions: PluginSessionService,
+    ): ManagedCredentialProvider =
+        CompositeManagedCredentialProvider(
+            listOf(
+                MyAnimeListManagedCredentials(BuildConfig.MYANIMELIST_CLIENT_ID),
+                PluginSessionManagedCredentialProvider(sessions),
+            ),
+        )
 
     @Provides
     @Singleton
@@ -67,9 +104,15 @@ object PluginRuntimeModule {
         storage: PluginPackageStorage,
         engine: JavaScriptEngine,
         credentials: ManagedCredentialProvider,
+        sessions: PluginSessionService,
         json: Json,
     ): PluginRuntime {
-        val installer = PluginInstaller(PackageVerifier(), storage, state)
+        val installer = PluginInstaller(
+            PackageVerifier(),
+            storage,
+            state,
+            onInstalled = { sessions.invalidateChangedPolicies() },
+        )
         val updates = PluginUpdateService(installer, state)
         val bundled = BundledPluginProvisioner(
             source = AndroidBundledPluginSource(context, BundledPlugins.descriptors),
@@ -84,6 +127,7 @@ object PluginRuntimeModule {
             ),
             html = HtmlCapability(),
             logger = SafePluginLogger(diagnostics),
+            sessions = sessions,
             json = json,
         )
         val runner = PluginOperationRunner(

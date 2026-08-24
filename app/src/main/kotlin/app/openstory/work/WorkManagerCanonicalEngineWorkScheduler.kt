@@ -20,7 +20,7 @@ class WorkManagerCanonicalEngineWorkScheduler(
         try {
             val request = OneTimeWorkRequestBuilder<CanonicalEngineWorker>().build()
             WorkManager.getInstance(context).enqueueUniqueWork(
-                DRAIN_WORK_NAME,
+                WorkNames.CANONICAL_ENGINE_DRAIN,
                 ExistingWorkPolicy.APPEND_OR_REPLACE,
                 request,
             )
@@ -46,7 +46,7 @@ class WorkManagerCanonicalEngineWorkScheduler(
                 )
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
-                canonicalRetryWakeWorkName(nextAttemptAtEpochMillis),
+                WorkNames.canonicalRetryWake(nextAttemptAtEpochMillis),
                 ExistingWorkPolicy.KEEP,
                 request,
             )
@@ -59,17 +59,12 @@ class WorkManagerCanonicalEngineWorkScheduler(
         try {
             val request = PeriodicWorkRequestBuilder<CanonicalEngineSafetyWorker>(24, TimeUnit.HOURS).build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                SAFETY_WORK_NAME,
+                WorkNames.CANONICAL_ENGINE_SAFETY,
                 ExistingPeriodicWorkPolicy.KEEP,
                 request,
             )
         } catch (_: RuntimeException) {
             // Scheduling is best effort; application startup retries registration on the next process start.
         }
-    }
-
-    private companion object {
-        const val DRAIN_WORK_NAME = "canonical-engine-drain"
-        const val SAFETY_WORK_NAME = "canonical-engine-safety"
     }
 }

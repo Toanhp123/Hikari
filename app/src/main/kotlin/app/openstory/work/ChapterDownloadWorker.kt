@@ -3,7 +3,6 @@ package app.openstory.work
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -16,28 +15,31 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CancellationException
 
 class WorkManagerDownloadScheduler(private val context: Context) : DownloadScheduler {
-    private fun workName(releaseId: ChapterReleaseId) = "chapter-download:${releaseId.value}"
-
     override fun schedule(releaseId: ChapterReleaseId) {
-        val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
-            .setConstraints(
-                androidx.work.Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build(),
+        try {
+            val request = OneTimeWorkRequestBuilder<ChapterDownloadWorker>()
+                .setConstraints(WorkConstraintsFactory.networkConnected())
+                .setInputData(workDataOf(WorkInput.CHAPTER_RELEASE_ID to releaseId.value))
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                WorkNames.chapterDownload(releaseId),
+                ExistingWorkPolicy.KEEP,
+                request,
             )
-            .setInputData(workDataOf(ChapterDownloadWorker.RELEASE_ID to releaseId.value))
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            workName(releaseId),
-            ExistingWorkPolicy.KEEP,
-            request,
-        )
+        } catch (_: RuntimeException) {
+            // The queued download remains durable and can be scheduled again by the capability owner.
+        }
     }
 
     override fun cancel(releaseId: ChapterReleaseId) {
-        WorkManager.getInstance(context).cancelUniqueWork(workName(releaseId))
+        try {
+            WorkManager.getInstance(context).cancelUniqueWork(WorkNames.chapterDownload(releaseId))
+        } catch (_: RuntimeException) {
+            // Capability cancellation remains authoritative if WorkManager is unavailable.
+        }
     }
 }
 
@@ -47,7 +49,7 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             applicationContext,
             ChapterDownloadWorkerEntryPoint::class.java,
         ).service()
-        val decision = runChapterDownloadWork(inputData.getString(RELEASE_ID)) {
+        val decision = runChapterDownloadWork(inputData.getString(WorkInput.CHAPTER_RELEASE_ID)) {
             service.run(it, System.currentTimeMillis())
         }
         return when (decision) {
@@ -56,8 +58,6 @@ class ChapterDownloadWorker(context: Context, params: WorkerParameters) : Corout
             ChapterDownloadWorkDecision.FAILURE -> Result.failure()
         }
     }
-
-    companion object { const val RELEASE_ID = "release_id" }
 }
 
 @EntryPoint
@@ -70,11 +70,17 @@ internal suspend fun runChapterDownloadWork(
     releaseId: String?,
     run: suspend (ChapterReleaseId) -> DownloadRunResult,
 ): ChapterDownloadWorkDecision {
-    val id = releaseId?.let { runCatching { ChapterReleaseId(it) }.getOrNull() }
+    val id = WorkInput.chapterReleaseId(releaseId).getOrNull()
         ?: return ChapterDownloadWorkDecision.FAILURE
-    return when (run(id)) {
-        DownloadRunResult.COMPLETED, DownloadRunResult.CANCELLED -> ChapterDownloadWorkDecision.SUCCESS
-        DownloadRunResult.RETRY -> ChapterDownloadWorkDecision.RETRY
-        DownloadRunResult.FAILURE -> ChapterDownloadWorkDecision.FAILURE
+    return try {
+        when (run(id)) {
+            DownloadRunResult.COMPLETED, DownloadRunResult.CANCELLED -> ChapterDownloadWorkDecision.SUCCESS
+            DownloadRunResult.RETRY -> ChapterDownloadWorkDecision.RETRY
+            DownloadRunResult.FAILURE -> ChapterDownloadWorkDecision.FAILURE
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        ChapterDownloadWorkDecision.RETRY
     }
 }

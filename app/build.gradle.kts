@@ -129,6 +129,7 @@ dependencies {
     implementation(project(":plugins:runtime"))
     implementation(project(":feature:catalog"))
     implementation(project(":feature:reader"))
+    implementation(project(":feature:settings"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.okhttp.client)
     implementation(platform(libs.androidx.compose.bom))

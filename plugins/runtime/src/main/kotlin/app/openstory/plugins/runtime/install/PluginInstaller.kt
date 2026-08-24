@@ -4,6 +4,7 @@ import app.openstory.plugins.api.packageformat.PluginArtifact
 import app.openstory.plugins.runtime.PluginCallResult
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 import app.openstory.plugins.runtime.persistence.StoredPluginState
+import app.openstory.common.id.PluginId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -12,6 +13,7 @@ class PluginInstaller(
     private val verifier: PackageVerifier,
     private val storage: PluginPackageStorage,
     private val state: PluginStateStore,
+    private val onInstalled: suspend (PluginId) -> Unit = {},
 ) {
     fun verify(
         packageBytes: ByteArray,
@@ -49,6 +51,7 @@ class PluginInstaller(
                 acceptedNetworkHosts = verified.manifest.capabilities.network?.hosts.orEmpty(),
             )
             state.replace(replacement)
+            onInstalled(verified.pluginId)
             PluginCallResult.Success(replacement)
         } catch (failure: CancellationException) {
             withContext(NonCancellable) { storage.remove(stored.packageLocation) }

@@ -15,6 +15,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Hikari">
         <activity
+            android:name="app.openstory.auth.PluginLoginActivity"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/Theme.Hikari" />
+        <activity
             android:name="app.openstory.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Hikari"

@@ -141,8 +141,7 @@ private fun scheduleCanonicalFollowUp(
 }
 
 internal fun canonicalRetryWakeWorkName(nextAttemptAtEpochMillis: Long): String {
-    require(nextAttemptAtEpochMillis >= 0L)
-    return "canonical-engine-retry-wake:$nextAttemptAtEpochMillis"
+    return WorkNames.canonicalRetryWake(nextAttemptAtEpochMillis)
 }
 
 internal fun canonicalRetryWakeDelayMillis(

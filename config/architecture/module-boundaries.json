@@ -19,7 +19,8 @@
         ":plugins:api",
         ":plugins:runtime",
         ":feature:catalog",
-        ":feature:reader"
+        ":feature:reader",
+        ":feature:settings"
       ],
       "testDependencies": [":benchmark"],
       "forbiddenProductionImports": []
@@ -187,6 +188,14 @@
       "productionDependencies": [":core:common", ":core:designsystem", ":chapters", ":reader", ":downloads"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
+    },
+    ":feature:settings": {
+      "path": "feature/settings",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common"],
+      "testDependencies": [],
+      "forbiddenProductionImports": ["app.openstory.storage.", "app.openstory.plugins.runtime."]
     },
     ":storage:room": {
       "path": "storage/room",

@@ -1,47 +1,54 @@
 package app.openstory.work
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import app.openstory.settings.background.BackgroundWorkPolicy
+import app.openstory.settings.background.BackgroundWorkScheduleResult
 import java.util.concurrent.TimeUnit
 
 class WorkManagerPeriodicSyncScheduler(
     context: Context,
-) {
+) : PeriodicWorkRegistrar {
     private val applicationContext = context.applicationContext
 
-    fun apply(policy: BackgroundWorkPolicy) {
+    override fun apply(policy: BackgroundWorkPolicy): BackgroundWorkScheduleResult =
         try {
             val workManager = WorkManager.getInstance(applicationContext)
             if (!policy.enabled) {
                 workManager.cancelUniqueWork(WorkNames.LIBRARY_CHAPTER_PERIODIC)
                 workManager.cancelUniqueWork(WorkNames.LIBRARY_CHAPTER_CONTINUATION)
-                return
-            }
-
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(
-                    if (policy.requireUnmeteredNetwork) NetworkType.UNMETERED else NetworkType.CONNECTED,
+                BackgroundWorkScheduleResult.cancelled()
+            } else {
+                val request = PeriodicWorkRequestBuilder<PeriodicChapterDispatchWorker>(
+                    policy.cadenceHours.toLong(),
+                    TimeUnit.HOURS,
                 )
-                .setRequiresBatteryNotLow(policy.requireBatteryNotLow)
-                .build()
-            val request = PeriodicWorkRequestBuilder<PeriodicChapterDispatchWorker>(
-                policy.cadenceHours.toLong(),
-                TimeUnit.HOURS,
-            )
-                .setConstraints(constraints)
-                .build()
-            workManager.enqueueUniquePeriodicWork(
-                WorkNames.LIBRARY_CHAPTER_PERIODIC,
-                ExistingPeriodicWorkPolicy.UPDATE,
-                request,
-            )
+                    .setConstraints(WorkConstraintsFactory.periodic(policy))
+                    .build()
+                workManager.enqueueUniquePeriodicWork(
+                    WorkNames.LIBRARY_CHAPTER_PERIODIC,
+                    ExistingPeriodicWorkPolicy.UPDATE,
+                    request,
+                )
+                BackgroundWorkScheduleResult.applied()
+            }
         } catch (_: RuntimeException) {
-            // Persisted policy remains authoritative; a later emission or startup can register work.
+            BackgroundWorkScheduleResult.failed()
         }
+
+    override fun cancelPeriodicChapterChecks(): BackgroundWorkScheduleResult = try {
+        val workManager = WorkManager.getInstance(applicationContext)
+        workManager.cancelUniqueWork(WorkNames.LIBRARY_CHAPTER_PERIODIC)
+        workManager.cancelUniqueWork(WorkNames.LIBRARY_CHAPTER_CONTINUATION)
+        BackgroundWorkScheduleResult.cancelled()
+    } catch (_: RuntimeException) {
+        BackgroundWorkScheduleResult.failed()
     }
+}
+
+interface PeriodicWorkRegistrar {
+    fun apply(policy: BackgroundWorkPolicy): BackgroundWorkScheduleResult
+    fun cancelPeriodicChapterChecks(): BackgroundWorkScheduleResult
 }

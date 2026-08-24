@@ -15,9 +15,13 @@ import app.openstory.settings.SettingsCorruptionHandler
 import app.openstory.settings.SettingsDefaults
 import app.openstory.settings.SettingsDiagnosticSink
 import app.openstory.settings.SettingsReaderPreferencesAdapter
+import app.openstory.settings.SettingsPluginSessionAdapter
+import app.openstory.settings.ui.SettingsPluginSessionsPort
+import app.openstory.plugins.runtime.auth.InstalledAuthenticationPolicySource
+import app.openstory.plugins.runtime.auth.PluginSessionService
 import app.openstory.settings.background.BackgroundPolicyCoordinator
 import app.openstory.settings.background.BackgroundWorkSchedulePort
-import app.openstory.work.SettingsBackgroundWorkScheduleAdapter
+import app.openstory.work.WorkManagerBackgroundWorkScheduleAdapter
 import app.openstory.work.WorkManagerPeriodicSyncScheduler
 import dagger.Module
 import dagger.Provides
@@ -32,6 +36,14 @@ import kotlinx.coroutines.SupervisorJob
 @Module
 @InstallIn(SingletonComponent::class)
 object SettingsModule {
+    @Provides
+    @Singleton
+    fun provideSettingsPluginSessionsPort(
+        @ApplicationContext context: Context,
+        sessions: PluginSessionService,
+        policies: InstalledAuthenticationPolicySource,
+    ): SettingsPluginSessionsPort = SettingsPluginSessionAdapter(context, sessions, policies)
+
     @Provides
     @Singleton
     fun provideSettingsDefaults(): SettingsDefaults {
@@ -90,7 +102,7 @@ object SettingsModule {
     @Singleton
     fun provideBackgroundWorkSchedulePort(
         scheduler: WorkManagerPeriodicSyncScheduler,
-    ): BackgroundWorkSchedulePort = SettingsBackgroundWorkScheduleAdapter(scheduler)
+    ): BackgroundWorkSchedulePort = WorkManagerBackgroundWorkScheduleAdapter(scheduler)
 
     @Provides
     @Singleton

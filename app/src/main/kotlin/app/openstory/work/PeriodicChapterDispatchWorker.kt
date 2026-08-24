@@ -128,7 +128,10 @@ internal fun enqueuePeriodicChapterBatch(
     }
 }
 
-private fun enqueueStoryWork(workManager: WorkManager, storyId: StoryId) {
+private fun enqueueStoryWork(
+    workManager: WorkManager,
+    storyId: StoryId,
+) {
     val request = OneTimeWorkRequestBuilder<InitialChapterSyncWorker>()
         .setConstraints(networkConstraints())
         .setInputData(workDataOf(WorkInput.STORY_ID to storyId.value))

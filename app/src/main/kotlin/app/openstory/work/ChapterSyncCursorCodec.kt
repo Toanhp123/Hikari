@@ -38,6 +38,8 @@ class ChapterSyncCursorCodec(
         return ChapterSyncBatchCursor(payload.timestampBucket, StoryId(payload.storyId))
     }
 
+    fun decodeResult(encoded: String): Result<ChapterSyncBatchCursor> = runCatching { decode(encoded) }
+
     @Serializable
     private data class CursorPayload(
         @SerialName("v") val version: Int,

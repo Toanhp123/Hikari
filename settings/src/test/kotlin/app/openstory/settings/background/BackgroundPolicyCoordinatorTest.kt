@@ -23,7 +23,7 @@ class BackgroundPolicyCoordinatorTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val coordinator = BackgroundPolicyCoordinator(
             repository,
-            BackgroundWorkSchedulePort { policy -> applied += policy },
+            RecordingSchedulePort(onApply = { policy -> applied += policy }),
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
         )
 
@@ -43,10 +43,14 @@ class BackgroundPolicyCoordinatorTest {
     fun disablingProjectsAnExplicitDisabledPolicy() = runTest {
         val values = MutableStateFlow(SettingsDefaults().defaultSettings())
         val applied = mutableListOf<BackgroundWorkPolicy>()
+        var cancellations = 0
         val dispatcher = StandardTestDispatcher(testScheduler)
         val coordinator = BackgroundPolicyCoordinator(
             FakeSettingsRepository(values),
-            BackgroundWorkSchedulePort { policy -> applied += policy },
+            RecordingSchedulePort(
+                onApply = { policy -> applied += policy },
+                onCancel = { cancellations += 1 },
+            ),
             FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
         )
 
@@ -55,7 +59,47 @@ class BackgroundPolicyCoordinatorTest {
         values.value = values.value.copy(periodicChapterChecksEnabled = false)
         runCurrent()
 
-        assertEquals(false, applied.last().enabled)
+        assertEquals(1, applied.size)
+        assertEquals(1, cancellations)
+    }
+
+    @Test
+    fun protectedSourceRefreshDoesNotControlPeriodicChapterChecks() = runTest {
+        val values = MutableStateFlow(SettingsDefaults().defaultSettings())
+        var cancellations = 0
+        val applied = mutableListOf<BackgroundWorkPolicy>()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val coordinator = BackgroundPolicyCoordinator(
+            FakeSettingsRepository(values),
+            RecordingSchedulePort(
+                onApply = { policy -> applied += policy },
+                onCancel = { cancellations += 1 },
+            ),
+            FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
+        )
+
+        coordinator.start()
+        runCurrent()
+        values.value = values.value.copy(protectedSourceBackgroundRefresh = false)
+        runCurrent()
+
+        assertEquals(1, applied.size)
+        assertEquals(0, cancellations)
+    }
+}
+
+private class RecordingSchedulePort(
+    private val onApply: (BackgroundWorkPolicy) -> Unit,
+    private val onCancel: () -> Unit = {},
+) : BackgroundWorkSchedulePort {
+    override suspend fun apply(policy: BackgroundWorkPolicy): BackgroundWorkScheduleResult {
+        onApply(policy)
+        return BackgroundWorkScheduleResult.applied()
+    }
+
+    override suspend fun cancelPeriodicChapterChecks(): BackgroundWorkScheduleResult {
+        onCancel()
+        return BackgroundWorkScheduleResult.cancelled()
     }
 }
 

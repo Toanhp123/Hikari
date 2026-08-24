@@ -11,6 +11,11 @@ done
 grep -Rqs 'sha256' "$SDK"
 grep -Rqs '`operations`' "$SDK"
 grep -Rqs 'Protocol `1` packages' "$SDK"
+grep -Rqs 'capabilities.authentication' "$SDK"
+grep -Rqs 'sessionTtlSeconds' "$SDK"
+grep -Rqs 'credentialTargets' "$SDK"
+grep -Rqs 'Older fail-closed hosts' "$SDK"
+grep -Rqs 'Proxy-Authorization' "$SDK"
 for capability in 'host.http' 'host.html' 'host.log'; do
   grep -Rqs "$capability" "$SDK"
 done

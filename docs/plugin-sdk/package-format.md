@@ -60,6 +60,9 @@ are rejected. `manifest.json` and `main.js` are required.
   may retrieve only sanitized HTTPS image descriptors for a package that opted into remote images.
   Remote-image capability currently requires `offlineDownload: false`, because the host does not yet
   persist complete page assets. A reader capability is only valid when `content.chapter` is supported.
+- `capabilities.authentication` optionally declares a guarded host-owned login flow and scoped
+  credential targets. See [authentication.md](authentication.md) for the exact JSON contract and
+  validation rules.
 
 The manifest describes execution permissions. It does not attest to its containing archive.
 The installer verifies the SHA-256 of the exact `.osp` bytes against detached provenance.

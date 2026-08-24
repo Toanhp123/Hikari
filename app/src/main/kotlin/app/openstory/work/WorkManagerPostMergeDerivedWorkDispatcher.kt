@@ -1,9 +1,7 @@
 package app.openstory.work
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -35,13 +33,11 @@ class WorkManagerPostMergeDerivedWorkDispatcher(
         recomputeMappings: Boolean,
         refreshChapterSync: Boolean,
     ) {
-        val network = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
+        val network = WorkConstraintsFactory.networkConnected()
         val mapping = if (recomputeMappings) {
             OneTimeWorkRequestBuilder<LibraryMappingWorker>()
                 .setConstraints(network)
-                .setInputData(workDataOf(LibraryMappingWorker.STORY_ID_KEY to storyId.value))
+                .setInputData(workDataOf(WorkInput.STORY_ID to storyId.value))
                 .build()
         } else {
             null
@@ -148,4 +144,4 @@ private fun schedulePostMergeNetworkWork(
 }
 
 internal fun postMergeDerivedWorkName(storyId: StoryId): String =
-    "canonical-post-merge-derived:${storyId.value}"
+    WorkNames.postMergeDerived(storyId)
