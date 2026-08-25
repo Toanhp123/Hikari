@@ -84,10 +84,10 @@ class ModuleBoundaryVerifierTest {
                 """.trimIndent(),
             )
             val project = ProjectBuilder.builder().withProjectDir(root).build()
-            val task = project.tasks.create(
+            val task = project.tasks.register(
                 "verifyDesignSystemBoundary",
                 VerifyModuleBoundariesTask::class.java,
-            ).apply {
+            ).get().apply {
                 policyFile.set(policyJson)
                 moduleDirectories.set(mapOf(":core:designsystem" to "core/designsystem"))
                 modulePlatforms.set(mapOf(":core:designsystem" to "android-library"))
@@ -104,6 +104,36 @@ class ModuleBoundaryVerifierTest {
         } finally {
             root.deleteRecursively()
         }
+    }
+
+    @Test
+    fun readerEnginePolicyForbidsEffectAndFrameworkImports() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        val forbidden = policy.modules.getValue(":reader:engine").forbiddenProductionImports
+
+        assertEquals(
+            setOf(
+                "android.",
+                "androidx.",
+                "app.openstory.common.Clock",
+                "app.openstory.common.SystemClock",
+                "app.openstory.common.FakeClock",
+                "app.openstory.common.dispatchers.",
+                "app.openstory.chapters.",
+                "app.openstory.reader.content.",
+                "app.openstory.reader.routing.",
+                "app.openstory.plugins.",
+                "app.openstory.downloads.",
+                "app.openstory.storage.",
+                "kotlinx.coroutines.",
+                "kotlinx.serialization.",
+                "java.io.",
+                "java.net.",
+            ),
+            forbidden,
+        )
     }
 
     @Test

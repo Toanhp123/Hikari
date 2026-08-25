@@ -49,6 +49,19 @@ run_case 'chapters/src/main/kotlin/F.kt' 'import app.openstory.storage.room.Open
 run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.chapters.model.ChapterRelease' 0
 run_case 'reader/src/main/kotlin/F.kt' 'import androidx.compose.runtime.Composable' 1
 run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import android.content.Context' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.reader.content.ReaderDocument' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import kotlinx.coroutines.CoroutineScope' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import java.net.URL' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.common.id.ChapterReleaseId' 0
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.common.SystemClock' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.common.FakeClock' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.common.dispatchers.AppDispatchers' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = app.openstory.reader.content.ReaderDocument::class' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = app.openstory.common.SystemClock' 1
+run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 1
+run_case 'app/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 1
+run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 0
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.reader.document.ReaderDocument' 0
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.designsystem.state.HikariErrorState' 0
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.plugins.runtime.PluginRuntime' 1

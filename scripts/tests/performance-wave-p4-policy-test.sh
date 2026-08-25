@@ -66,8 +66,12 @@ grep -q 'MemoryUsageMetric(MemoryUsageMetric.Mode.Max)' "$macrobenchmark" || fai
 frame_helper=$(awk '/private fun measureNavigation\(/,/^    }/' "$macrobenchmark")
 [[ "$frame_helper" != *"MemoryUsageMetric"* ]] || fail "memory metric was mixed into frame timing helper"
 
-if grep -q 'override fun onCreate' "$application"; then
-  fail "production Application.onCreate work was introduced during final performance wave"
-fi
+# Wave 10 intentionally owns three bounded startup hooks. Keep them exact and reject
+# unrelated blocking/heavy startup work rather than banning Application.onCreate itself.
+grep -q 'NotificationChannelConfig.create(this)' "$application" || fail "notification channel startup hook missing"
+grep -q 'backgroundPolicyCoordinator.start()' "$application" || fail "background policy startup hook missing"
+grep -q 'notificationDrainScheduler.ensureRecoveryWork()' "$application" || fail "notification recovery startup hook missing"
+! grep -Eq 'runBlocking|Thread[.]sleep|database[.]|snapshot\(' "$application" || \
+  fail "blocking/heavy startup work introduced"
 
 echo "Performance Wave P4 policy verified."

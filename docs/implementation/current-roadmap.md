@@ -21,8 +21,10 @@ acceptance remain separate states.
 ## Current position
 
 Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
-Design System Foundation and the full Product UI checkpoint are accepted, preserving the 14-module
-production graph. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
+Design System Foundation and the full Product UI checkpoint are accepted; they preserved the historical
+14-module production graph at that boundary. Wave 10 expanded the graph to 16 production modules, and
+HES-v1 M0 now adds `:reader:engine` as the seventeenth production module; `:benchmark` remains the
+separate Android test/performance module. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
 it advanced Room from schema 6 to **schema 7** without changing module ownership. The 2026-08-20
 catalog metadata-lifecycle unification subsequently advanced Room to **schema 8**, centralized
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
@@ -48,8 +50,24 @@ request-target credential scope, bounded background candidate selection, transac
 chapter-change evidence, durable notification delivery, and Settings status ports. Remediation
 Phase 7 adds the planned auth, scheduling, process-death recovery, permission-denial, and ID-collision
 integration contracts. Acceptance remains verification-open until the recorded host and API 26/API
-37 gates are actually run and reviewed.
+37 gates are actually run and reviewed. R0 for Adaptive Reader/HES selected the explicit acceptance-rebase
+path because the supplied execution environment cannot bootstrap Gradle 9.5.0 offline and provides no
+API 26/API 37 device harness. This does **not** close Wave 10: if HES implementation proceeds, the full
+Wave 10 acceptance matrix must be rerun on the HES-containing tree and all previous `NOT RUN` evidence
+remains unsatisfied.
 **Wave 11 must not start while this Wave 10 acceptance boundary remains open.**
+
+Adaptive Reader Continuity / HES-v1 **M0 is verified and closed** under that explicit acceptance-rebase.
+The current source graph therefore contains 17 production modules plus `:benchmark`: `:reader:engine` is
+JVM-only with exact production project dependency `:core:common`, while `:reader` consumes it with an
+implementation-only edge. Room remains schema 11 and M0 does not activate adaptive Reader routing behavior.
+Fresh developer-host Gradle 9.5.0 evidence passes the constitutional build-logic tests, pure engine compile/tests,
+`verifyArchitecture`, and current/package-boundary shell contracts/verifiers. The prior M0 warning cleanup is also
+verified clean on that host. The next HES implementation boundary is **M1 — Legacy-Compatible Pure Reasoner
+(Tasks 6–8)**. The normative in-repository sources are
+`../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and
+`../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; M0 evidence is recorded in
+`../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`.
 Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
 notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
 separately reviewed migration intervenes.
@@ -68,8 +86,8 @@ remain under `../internal/checkpoints/`. Phase-6 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; Phase-0 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`. Current Discover acceptance
 evidence remains in `../internal/checkpoints/discover-semantic-feed-redesign.md`; keep the accepted Discover semantic-feed checkpoint as part of the Wave 10 entry baseline
-for its completed feed/UI behavior. The schema-10 durability gate is the only open pre-Wave-10
-engineering boundary. The accepted broader Product UI evidence remains in
+for its completed feed/UI behavior. The schema-10 durability gate is the accepted pre-Wave-10
+engineering boundary; the currently open gate is Wave 10 final host/API 26/API 37 acceptance on schema 11. The accepted broader Product UI evidence remains in
 `../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -96,13 +114,18 @@ entry evidence, not the number of plugins allowed after that boundary.
 :library
 :chapters
 :reader
+:reader:engine
 :downloads
+:settings
 :feature:catalog
 :feature:reader
+:feature:settings
 :storage:room
 :storage:files
 :plugins:api
 :plugins:runtime
+
+:benchmark  # android-test/performance; not a production module
 ```
 
 Direct dependencies are governed by
@@ -110,9 +133,11 @@ Direct dependencies are governed by
 historical evidence at seven modules; Wave 06 introduced `:library`, Wave 07 introduced
 `:chapters`, Wave 08 added `:reader` and `:feature:reader`, and Wave 09 added
 `:downloads` and `:storage:files`, producing the thirteen-module capability graph.
-The approved between-wave UI foundation adds `:core:designsystem`, producing the
-current fourteen-module graph. The approved post-baseline evolution is defined by
-`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+The approved between-wave UI foundation added `:core:designsystem`; Wave 10 then added `:settings`
+and `:feature:settings`, reaching sixteen production modules. HES-v1 M0 adds `:reader:engine` as the
+seventeenth production module without changing Room schema 11. The approved post-baseline evolution
+remains defined by `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`,
+with Reader/HES ownership additionally governed by the 2026-08-25 HES design and plan above.
 
 ## Approved module evolution
 
@@ -124,6 +149,7 @@ current fourteen-module graph. The approved post-baseline evolution is defined b
 | 09 | `:downloads`, `:storage:files` | Offline/cache policy and atomic file adapter |
 | Post-Wave-09 UI foundation | `:core:designsystem` | Application theme, visual tokens, and domain-neutral shared UX |
 | 10 | `:settings`, `:feature:settings` | Typed policies and independent settings presentation |
+| HES-v1 M0 | `:reader:engine` | Pure JVM reference-engine boundary and immutable routing contracts; no adaptive production behavior yet |
 | 11 | `:feature:plugins` | Full plugin-management presentation |
 
 No catch-all synchronization module is planned. Pure orchestration stays with its
@@ -150,6 +176,7 @@ capability; WorkManager and notification adapters stay in `:app`.
 | CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phases 0–7 / Tasks 1–42 verified/closed; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md` |
 | CED | Canonical engine performance/durability | **Entry baseline accepted on schema 10** | `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md` |
 | 10 | Background work, auth, notifications | **Implementation present on schema 11; final host/device verification open** | `../internal/checkpoints/wave-10-production-remediation.md` |
+| HES-M0 | Adaptive Reader Continuity / HES-v1 constitutional boundary | **Verified/closed; M1 Tasks 6–8 are next** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md` |
 | 11 | Hardening and open-source release | **Blocked until Wave 10 final host/API 26/API 37 acceptance closes** | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -247,9 +274,11 @@ architecture
 
 ## Execution rule
 
-1. Use the current 14-module graph, accepted Room schema-10 durability boundary, and the focused
-   Wave 10 clean-architecture design as the source baseline.
-2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 10 is the active next boundary. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
+1. Use the current **verified/closed** 17-production-module HES M0 graph plus `:benchmark`, Room schema 11,
+   and the Wave 10 production-remediation checkpoint as the active source baseline. The HES entry boundary was the prior
+   16-production-module Wave 10 tree; its final host/API 26/API 37 acceptance remains open under the
+   explicit acceptance-rebase.
+2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 10 is the active acceptance boundary, not an unstarted implementation boundary. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
 3. `MIGRATION_8_9` belongs to canonical foundation and `MIGRATION_9_10` belongs to canonical durability. Wave 10 notification persistence uses `MIGRATION_10_11`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
@@ -261,9 +290,9 @@ architecture
 
 Discover / Home / Library remains the final top-level model. Discover itself is now semantic rather
 than catalog-selector driven: `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.
-Downloads and Updates remain avatar-utility routes. Wave 10 Settings enters through that utility sheet
-and never top-level navigation; Wave 11 Plugin Management follows the same rule. Settings and Plugin
-Management remain planned capability-wave work.
+Downloads and Updates remain avatar-utility routes. Wave 10 Settings is implemented through that utility
+sheet and never top-level navigation; Wave 11 Plugin Management follows the same rule and remains planned.
+Settings is no longer future-only work, but Wave 10 is not accepted until its final matrix closes.
 
 ## Verification workflow
 

@@ -49,15 +49,25 @@ content.
 
 ## Required Acceptance Commands
 
-The following complete host commands are recorded from the remediation plan and remain `NOT RUN`:
+R0 re-ran the structural policy successfully in the supplied archive:
 
 ```bash
 bash scripts/check-wave-10-production-policy.sh
-./gradlew verifyArchitecture :build-logic:test test testDebugUnitTest lintDebug detekt :app:assembleDebug
+# PASS
 ```
 
-Required device gates also remain `NOT RUN` on both API 26 and API 37. Focused equivalents passed on
-the available API 35 device, but that does not replace the acceptance matrix:
+The required complete Gradle host command remains `NOT RUN` because this sandbox has no cached
+Gradle 9.5.0 distribution and outbound DNS/network access is unavailable. Wrapper bootstrap stops
+before Gradle execution with `java.net.UnknownHostException: services.gradle.org`:
+
+```bash
+./gradlew verifyArchitecture :build-logic:test test testDebugUnitTest lintDebug detekt :app:assembleDebug --no-daemon
+# NOT RUN — Gradle wrapper bootstrap environment blocker
+```
+
+Required device gates also remain `NOT RUN` on both API 26 and API 37. This sandbox does not provide
+`adb` or an Android device/emulator harness. Focused equivalents previously passed on the available
+API 35 device, but that does not replace the acceptance matrix:
 
 - Schema `10 -> 11` migration and notification claim/recovery instrumentation.
 - Android Keystore session-store and guarded WebView authentication instrumentation.
@@ -68,25 +78,33 @@ the available API 35 device, but that does not replace the acceptance matrix:
 
 | Evidence | API/environment | Result | Counts/retries |
 |---|---|---|---|
-| Wave 10 structural production policy | Host | NOT RUN | Not available |
-| Architecture, unit, lint, Detekt, assembly | Host | NOT RUN | Not available |
+| Wave 10 structural production policy | Host / R0 sandbox | PASS | `bash scripts/check-wave-10-production-policy.sh`; zero policy violations |
+| Architecture, unit, lint, Detekt, assembly | Host / R0 sandbox | NOT RUN | Gradle 9.5.0 wrapper distribution absent; bootstrap blocked by `UnknownHostException: services.gradle.org` |
 | Missing-auth-policy credential regression | Host | RED then PASS | 1 failing before fix; runtime HTTP/auth suite PASS |
 | Redirect credential integration | Host | PASS | 2/2 after replacing virtual-time HTTP execution |
 | Phase 7 app integration | Redmi Note 9S, API 35 | PASS | 6/6 after correcting test-asset context; one rerun |
 | Notification claim recovery | Redmi Note 9S, API 35 | PASS | 2/2; zero retries |
 | Clean-data Discover refresh | Redmi Note 9S, API 35 | PASS | Both catalog snapshots present; zero plugin diagnostics |
-| Session/auth/notification app instrumentation | API 26 | NOT RUN | Not available |
-| Room migration/claim recovery instrumentation | API 26 | NOT RUN | Not available |
-| Session/auth/notification app instrumentation | API 37 | NOT RUN | Not available |
-| Room migration/claim recovery instrumentation | API 37 | NOT RUN | Not available |
+| Session/auth/notification app instrumentation | API 26 | NOT RUN | R0 sandbox has no `adb`/device harness |
+| Room migration/claim recovery instrumentation | API 26 | NOT RUN | R0 sandbox has no `adb`/device harness |
+| Session/auth/notification app instrumentation | API 37 | NOT RUN | R0 sandbox has no `adb`/device harness |
+| Room migration/claim recovery instrumentation | API 37 | NOT RUN | R0 sandbox has no `adb`/device harness |
 | Existing feature regression matrix | Host/device | NOT RUN | Not available |
 
 ## Acceptance Decision
 
 Wave 10 is **not yet accepted or closed**. Source and integration contracts are present, but the
-plan explicitly requires successful host, API 26, and API 37 evidence. Replace the `NOT RUN` entries
-with exact commands, device identifiers, test counts, failures, fixes, reruns, and the final accepted
-SHA before marking the wave complete or advancing Wave 11 from this boundary.
+plan explicitly requires successful host, API 26, and API 37 evidence. The R0 entry gate therefore
+uses the explicit **acceptance-rebase** path rather than pretending the missing matrix is satisfied:
+
+> HES implementation is a deliberate acceptance rebase. Wave 10 final acceptance must be rerun on
+> the HES-containing tree. Previous `NOT RUN` entries remain unsatisfied.
+
+The structural Wave 10 policy is freshly PASS in the R0 sandbox, but the complete Gradle host gate
+could not start because the required Gradle distribution is unavailable offline, and API 26/API 37
+remain unavailable because this environment has no Android device harness. These are environment
+blockers, not acceptance evidence. Replace every remaining `NOT RUN` entry with exact commands, device
+identifiers, test counts, failures, fixes, reruns, and the final accepted SHA before closing Wave 10.
 
 **Wave 11 is blocked. Do not start or advance Wave 11 until every remaining Wave 10 acceptance gate
 passes and this checkpoint is explicitly marked accepted and closed.**

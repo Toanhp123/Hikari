@@ -144,6 +144,37 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun readerEngineIsConstitutionallyPureJvm() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        val rule = policy.modules.getValue(":reader:engine")
+
+        assertEquals("jvm", rule.platform.policyValue)
+        assertEquals("exact", rule.dependencyMode.policyValue)
+        assertEquals(setOf(":core:common"), rule.productionDependencies)
+        assertTrue(rule.testDependencies.isEmpty())
+
+        val build = File("../reader/engine/build.gradle.kts").readText()
+        assertTrue("id(\"openstory.kotlin.jvm\")" in build)
+        assertFalse("openstory.android" in build)
+        assertFalse("openstory.compose" in build)
+        assertFalse("openstory.hilt" in build)
+        assertFalse("openstory.room" in build)
+        assertFalse("kotlinx.coroutines" in build)
+        assertFalse("kotlinx.serialization" in build)
+
+        val engineConsumers = policy.modules
+            .filterValues { ":reader:engine" in it.productionDependencies }
+            .keys
+        assertEquals(setOf(":reader"), engineConsumers)
+
+        val readerBuild = File("../reader/build.gradle.kts").readText()
+        assertTrue("implementation(project(\":reader:engine\"))" in readerBuild)
+        assertFalse("api(project(\":reader:engine\"))" in readerBuild)
+    }
+
+    @Test
     fun libraryContentSearchUsesOnlyApprovedPluginFacadeDependencies() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),
