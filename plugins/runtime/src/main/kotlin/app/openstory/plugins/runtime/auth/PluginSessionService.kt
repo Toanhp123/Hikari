@@ -66,7 +66,9 @@ class DefaultPluginSessionService(
     }
 
     override suspend fun sessionFor(request: ManagedCredentialRequest): List<PluginSessionRecord> {
-        val policy = policy(request.pluginId)
+        val policy = policies.installedAuthenticationPolicies()
+            .singleOrNull { it.pluginId == request.pluginId }
+            ?: return emptyList()
         if (!policy.enabled) return emptyList()
         val fingerprint = policy.capability.policyFingerprint()
         val now = nowEpochMillis()

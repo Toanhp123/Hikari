@@ -66,6 +66,21 @@ class PluginSessionManagedCredentialProviderTest {
         )
     }
 
+    @Test
+    fun pluginWithoutAuthenticationPolicyEmitsNoCredentials() = runTest {
+        val service = DefaultPluginSessionService(
+            MemorySessionStore(),
+            InstalledAuthenticationPolicySource { emptyList() },
+            nowEpochMillis = { 1000 },
+        )
+
+        assertTrue(
+            PluginSessionManagedCredentialProvider(service)
+                .headers(ManagedCredentialRequest(pluginId, "https://api.example.com/v1/books"))
+                .isEmpty(),
+        )
+    }
+
     private fun record(expiresAt: Long) = PluginSessionRecord(
         pluginId = pluginId,
         targetHost = "api.example.com",
