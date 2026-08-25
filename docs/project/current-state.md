@@ -44,23 +44,25 @@ Purpose: single source of truth for the implemented repository boundary.
   That accepted durability boundary is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
   catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
   134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
-- Adaptive Reader Continuity / HES-v1: **M0–M2 VERIFIED/CLOSED; M3 NEXT**. The pure JVM `:reader:engine`
+- Adaptive Reader Continuity / HES-v1: **M0–M3 VERIFIED/CLOSED; M4 READY**. The pure JVM `:reader:engine`
   remains isolated behind `:reader` with exact production project dependency `:core:common`, Room remains schema 11,
   and the verified graph remains 17 production modules plus the `:benchmark` Android test/performance module. M1
-  adds the Reader-internal legacy adapter, deterministic compatibility reasoner, and 250-seed differential overlap
-  coverage against `ReleaseSelector`. M2 adds per-screen session/generation/plan identities, a compatibility executor,
-  and a real-target coordinator/session factory behind DI while deliberately keeping Feature Reader on the legacy
-  production facade until M5. Health, adaptive access ranking, hysteresis, reactive hard-invalidation policy, prefetch,
-  and hedging remain disabled until their owning milestones. Fresh developer-host Gradle 9.5.0 evidence passes the
-  M1/M2 targeted Reader suites, full Reader + Feature Reader unit suites, `:reader:engine:test`,
-  `:app:compileDebugKotlin`, `verifyArchitecture`, and current/package-boundary shell contracts/verifiers. The only
-  M2 host warning was a test-only `ExperimentalCoroutinesApi` opt-in for `runCurrent()`; the closeout patch adds the
-  repository-standard explicit opt-in without changing production behavior.
-  The normative design and implementation plan are stored in
-  `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and
-  `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; M0 evidence is recorded in
-  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md` and M1/M2 closure evidence in
-  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`. Wave 10 final acceptance remains open under
+  owns the deterministic compatibility reasoner, M2 the per-screen session/coordinator compatibility boundary, and
+  M3 Tasks 12–16 the exact typed Reader failure classification, explicit materialized-document validation and corrected
+  local-corruption/cache-write semantics, bounded pure health reducer, process-shared Reader health/remote lanes with
+  owned HALF_OPEN probe leases, and health-aware observational snapshots/traces. Adaptive eligibility/ranking,
+  hysteresis policy consumption, prefetch, and hedging remain disabled until their owning later milestones. M3 is
+  closed after the applied tree passed the complete developer-host Gradle gate: focused Reader failure/document/health/
+  snapshot suites, runtime/download integration tests, `SourceHealthReducerTest`, `ReaderDecisionTraceTest`,
+  `:app:compileDebugKotlin`, `:reader:engine:test :reader:testDebugUnitTest`, and `verifyArchitecture` all completed
+  successfully; package/current-architecture shell gates also verified 17 production modules plus `:benchmark` and
+  Room schemas 1..11. The initial host run found one test-only Kotlin generic-inference assertion blocker, corrected
+  without production behavior change before the full GREEN rerun. M4 may now begin at Task 17. The normative design
+  and implementation plan are stored in `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md`
+  and `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; M0 evidence is recorded in
+  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`, M1/M2 closure evidence in
+  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`, and M3 closure evidence in
+  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m3.md`. Wave 10 final acceptance remains open under
   the explicit acceptance-rebase recorded in its checkpoint.
 - Wave 10: **IMPLEMENTATION PRESENT; FINAL ACCEPTANCE OPEN**. Current source is Room schema 11,
   `MIGRATION_10_11` owns Wave 10 notification persistence, and the required complete host plus API 26/API 37

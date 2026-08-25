@@ -160,6 +160,130 @@ class ReaderDocumentRepositoryTest {
         assertEquals(listOf(true, false), failure.attempts.map(ReaderLoadFailure::retryable))
     }
 
+    @Test
+    fun localStorageIoFailureDoesNotClaimCorruptionOrQuarantine() = runTest {
+        val store = FakeStore(readFailure = IllegalStateException("disk unavailable"))
+        val source = FakeSource(
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+
+        val result = repository(store, source).load(
+            request(candidate("release"), mapOf(ChapterReleaseId("release") to "expected")),
+        )
+
+        assertEquals(false, assertIs<ReaderLoadResult.Success>(result).fromStore)
+        assertEquals(emptyList(), store.quarantines)
+    }
+
+    @Test
+    fun missingExactLocalBlobDoesNotQuarantineAndFallsBackRemote() = runTest {
+        val store = FakeStore(readResult = null)
+        val source = FakeSource(
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+
+        val result = repository(store, source).load(
+            request(candidate("release"), mapOf(ChapterReleaseId("release") to "expected")),
+        )
+
+        assertIs<ReaderLoadResult.Success>(result)
+        assertEquals(emptyList(), store.quarantines)
+    }
+
+    @Test
+    fun quarantineFailureIsBestEffortAndRemoteRecoveryContinues() = runTest {
+        val store = FakeStore(
+            readResult = document("wrong"),
+            quarantineFailure = IllegalStateException("quarantine unavailable"),
+        )
+        val source = FakeSource(
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+
+        val result = repository(store, source).load(
+            request(candidate("release"), mapOf(ChapterReleaseId("release") to "expected")),
+        )
+
+        assertEquals("remote", assertIs<ReaderLoadResult.Success>(result).document.fingerprint)
+        assertEquals(listOf("release" to "expected"), store.quarantineAttempts)
+    }
+
+    @Test
+    fun validRemoteDocumentStillCommitsWhenAutomaticCacheWriteFails() = runTest {
+        val store = FakeStore(writeFailure = IllegalStateException("cache full"))
+        val source = FakeSource(
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+
+        val result = repository(store, source).load(request(candidate("release")))
+
+        assertEquals("remote", assertIs<ReaderLoadResult.Success>(result).document.fingerprint)
+        assertEquals(false, result.fromStore)
+    }
+
+    @Test
+    fun remoteFingerprintMayChangeRelativeToSavedProgressFingerprint() = runTest {
+        val source = FakeSource(
+            mutableMapOf("release" to ReaderSourceResult.Success(document("new-fingerprint"))),
+        )
+
+        val result = repository(FakeStore(), source).load(
+            request(candidate("release"), mapOf(ChapterReleaseId("release") to "old-fingerprint")),
+        )
+
+        assertEquals("new-fingerprint", assertIs<ReaderLoadResult.Success>(result).document.fingerprint)
+    }
+
+    @Test
+    fun invalidRemoteMaterializedDocumentBecomesSourceFailure() = runTest {
+        val empty = ReaderDocument(null, emptyList(), "fingerprint")
+        val source = FakeSource(
+            mutableMapOf("release" to ReaderSourceResult.Success(empty)),
+        )
+
+        val failure = assertIs<ReaderLoadResult.Failure>(
+            repository(FakeStore(), source).load(request(candidate("release"))),
+        )
+
+        assertEquals(listOf("reader.document_empty"), failure.attempts.map { it.code })
+    }
+
+    @Test
+    fun writeCancellationStillPropagates() = runTest {
+        val store = FakeStore(writeFailure = CancellationException("cancel write"))
+        val source = FakeSource(
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+
+        val caught = try {
+            repository(store, source).load(request(candidate("release")))
+            null
+        } catch (cancelled: CancellationException) {
+            cancelled
+        }
+
+        assertIs<CancellationException>(caught)
+    }
+
+    @Test
+    fun quarantineCancellationStillPropagates() = runTest {
+        val store = FakeStore(
+            readResult = document("wrong"),
+            quarantineFailure = CancellationException("cancel quarantine"),
+        )
+
+        val caught = try {
+            repository(store, FakeSource()).load(
+                request(candidate("release"), mapOf(ChapterReleaseId("release") to "expected")),
+            )
+            null
+        } catch (cancelled: CancellationException) {
+            cancelled
+        }
+
+        assertIs<CancellationException>(caught)
+    }
+
     private fun repository(store: FakeStore, source: FakeSource) = ReaderDocumentRepository(
         store,
         object : ReaderDocumentSourceRegistry {
@@ -195,22 +319,36 @@ class ReaderDocumentRepositoryTest {
 private class FakeStore(
     private val readResult: ReaderDocument? = null,
     private val currentReadResult: ReaderDocument? = null,
+    private val readFailure: Throwable? = null,
+    private val writeFailure: Throwable? = null,
+    private val quarantineFailure: Throwable? = null,
 ) : ReaderDocumentStore {
     val writes = mutableListOf<Pair<String, String>>()
     val quarantines = mutableListOf<Pair<String, String>>()
+    val quarantineAttempts = mutableListOf<Pair<String, String>>()
 
-    override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String) = readResult
-    override suspend fun readCurrent(releaseId: ChapterReleaseId) = currentReadResult
+    override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? {
+        readFailure?.let { throw it }
+        return readResult
+    }
+
+    override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? {
+        readFailure?.let { throw it }
+        return currentReadResult
+    }
 
     override suspend fun write(
         releaseId: ChapterReleaseId,
         fingerprint: String,
         document: ReaderDocument,
     ) {
+        writeFailure?.let { throw it }
         writes += releaseId.value to fingerprint
     }
 
     override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) {
+        quarantineAttempts += releaseId.value to fingerprint
+        quarantineFailure?.let { throw it }
         quarantines += releaseId.value to fingerprint
     }
 }

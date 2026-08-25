@@ -5,7 +5,6 @@ import app.openstory.reader.engine.AttemptRole
 import app.openstory.reader.engine.BasisPoints
 import app.openstory.reader.engine.CandidateLocalAccess
 import app.openstory.reader.engine.CandidateRejection
-import app.openstory.reader.engine.CandidateRemoteAccess
 import app.openstory.reader.engine.CompetitiveSet
 import app.openstory.reader.engine.DecisionReason
 import app.openstory.reader.engine.DiagnosticNote
@@ -38,10 +37,6 @@ internal class DefaultReaderRouteEngine : ReaderRouteEngine {
     ): ReaderRouteDecision {
         val canonicalCandidates = snapshot.candidates
             .sortedWith(compareBy({ it.sourceId.value }, { it.releaseId.value }))
-        require(canonicalCandidates.all { it.remoteAccess == CandidateRemoteAccess.PERMITTED }) {
-            "M1 compatibility planning supports only REMOTE-permitted candidates; " +
-                "exact access eligibility belongs to M4."
-        }
         require(canonicalCandidates.none(::hasUsableLocalPath)) {
             "M1 compatibility planning supports REMOTE-only usable paths; local access planning belongs to M4."
         }
@@ -95,7 +90,9 @@ internal class DefaultReaderRouteEngine : ReaderRouteEngine {
             routeConstruction = attempts,
             hedgeDirective = hedgeDirective,
             finalDecisionReason = reason,
-            healthOrigins = emptyList(),
+            healthOrigins = snapshot.sourceHealth.map { health ->
+                app.openstory.reader.engine.HealthOriginTrace(health.key.sourceId, health.origin)
+            },
         )
 
         return ReaderRouteDecision(

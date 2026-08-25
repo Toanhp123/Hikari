@@ -163,27 +163,26 @@ class ReaderRouteEngineCompatibilityTest {
     }
 
     @Test
-    fun emptyInputProducesNoAttemptAndFactsOutsideM1RemoteOnlyEnvelopeFailFast() {
+    fun emptyInputProducesNoAttemptAndM3AvailabilityFactsStayObservational() {
         val empty = engine.plan(snapshot(emptyList()), ReaderRoutingPolicy.v1())
         assertNull(empty.competitiveSet.primary)
         assertEquals(DecisionReason.NO_ELIGIBLE_CANDIDATE, empty.reason)
 
-        assertFailsWith<IllegalArgumentException> {
-            engine.plan(
-                snapshot(
-                    listOf(
-                        candidate(
-                            id = "release-a",
-                            source = "source-a",
-                            language = "vi",
-                            publishedAt = 1L,
-                            remoteAccess = CandidateRemoteAccess.SOURCE_UNAVAILABLE,
-                        ),
+        val unavailable = engine.plan(
+            snapshot(
+                listOf(
+                    candidate(
+                        id = "release-a",
+                        source = "source-a",
+                        language = "vi",
+                        publishedAt = 1L,
+                        remoteAccess = CandidateRemoteAccess.SOURCE_UNAVAILABLE,
                     ),
                 ),
-                ReaderRoutingPolicy.v1(),
-            )
-        }
+            ),
+            ReaderRoutingPolicy.v1(),
+        )
+        assertEquals(ChapterReleaseId("release-a"), unavailable.competitiveSet.primary?.releaseId)
         assertFailsWith<IllegalArgumentException> {
             engine.plan(
                 snapshot(

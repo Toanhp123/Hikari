@@ -28,6 +28,7 @@ internal object LegacyReaderRoutingAdapter {
     fun productionCandidate(
         release: ChapterRelease,
         remoteAccess: CandidateRemoteAccess,
+        localAccess: CandidateLocalAccess = CandidateLocalAccess.Unknown,
     ): RoutingCandidate = RoutingCandidate(
         releaseId = release.id,
         sourceId = release.pluginId,
@@ -36,7 +37,7 @@ internal object LegacyReaderRoutingAdapter {
         publishedAtEpochMillis = release.publishedAtEpochMillis,
         completeness = BasisPoints(10_000),
         remoteAccess = remoteAccess,
-        localAccess = CandidateLocalAccess.Unknown,
+        localAccess = localAccess,
     )
 
     fun differentialCandidate(candidate: ReleaseCandidate): RoutingCandidate = RoutingCandidate(

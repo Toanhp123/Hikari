@@ -1,6 +1,10 @@
 package app.openstory.reader.engine
 
 import app.openstory.common.id.PluginId
+import app.openstory.reader.engine.internal.DefaultSourceHealthReducer
+import kotlin.math.ceil
+
+const val HES_V1_MAX_HEALTH_FAILURE_THRESHOLD: Int = 20
 
 enum class SourceOperation {
     READ_DOCUMENT,
@@ -27,6 +31,13 @@ enum class RemoteAttemptKind {
     HALF_OPEN_PROBE,
 }
 
+enum class RecoveryScope {
+    RELEASE_SCOPED,
+    SOURCE_SCOPED,
+    LOCAL_SCOPED,
+    CLIENT_SCOPED,
+}
+
 @ConsistentCopyVisibility
 data class HealthPolicy private constructor(
     val version: HealthPolicyVersion,
@@ -39,8 +50,11 @@ data class HealthPolicy private constructor(
 ) {
     init {
         require(alpha.value in 1..10_000) { "Health alpha must be in 1..10_000." }
-        require(openAfterConsecutivePenalizingFailures > 0) {
-            "Health open failure count must be positive."
+        require(openAfterConsecutivePenalizingFailures in 1..HES_V1_MAX_HEALTH_FAILURE_THRESHOLD) {
+            "Health open failure count must be in 1..$HES_V1_MAX_HEALTH_FAILURE_THRESHOLD for HES-v1."
+        }
+        require(openAtOrBelowReliability.value in BasisPoints.MIN_VALUE..BasisPoints.MAX_VALUE) {
+            "Health open reliability threshold must be valid basis points."
         }
         require(minimumCooldownMillis > 0L) { "Health minimum cooldown must be positive." }
         require(maximumCooldownMillis >= minimumCooldownMillis) {
@@ -84,6 +98,12 @@ class SourceHealthState(
 ) {
     val recentLatencySamplesMillis: List<Long> = recentLatencySamplesMillis.toList()
 
+    val p50LatencyMillis: Long?
+        get() = nearestRankLatency(50)
+
+    val p95LatencyMillis: Long?
+        get() = nearestRankLatency(95)
+
     init {
         require(consecutivePenalizingFailures >= 0) {
             "consecutivePenalizingFailures must be non-negative."
@@ -94,6 +114,24 @@ class SourceHealthState(
         }
         require(this.recentLatencySamplesMillis.all { it >= 0L }) {
             "Latency samples must be non-negative."
+        }
+        when (circuitState) {
+            CircuitState.CLOSED -> {
+                require(openedAtEpochMillis == null && nextProbeAtEpochMillis == null) {
+                    "CLOSED health state cannot retain an OPEN cooldown."
+                }
+            }
+            CircuitState.OPEN,
+            CircuitState.HALF_OPEN,
+            -> {
+                require(openCount > 0) { "OPEN/HALF_OPEN health state requires a positive openCount." }
+                require(openedAtEpochMillis != null && nextProbeAtEpochMillis != null) {
+                    "OPEN/HALF_OPEN health state requires cooldown timestamps."
+                }
+                require(nextProbeAtEpochMillis >= openedAtEpochMillis) {
+                    "Health next probe time must not precede the OPEN timestamp."
+                }
+            }
         }
     }
 
@@ -114,6 +152,13 @@ class SourceHealthState(
         openedAtEpochMillis = openedAtEpochMillis,
         nextProbeAtEpochMillis = nextProbeAtEpochMillis,
     )
+
+    private fun nearestRankLatency(percentile: Int): Long? {
+        if (recentLatencySamplesMillis.size < 3) return null
+        val sorted = recentLatencySamplesMillis.sorted()
+        val rank = ceil(percentile / 100.0 * sorted.size).toInt().coerceIn(1, sorted.size)
+        return sorted[rank - 1]
+    }
 
     override fun equals(other: Any?): Boolean =
         other is SourceHealthState &&
@@ -158,11 +203,15 @@ data class SourceHealthSnapshot(
 }
 
 sealed interface SourceObservation {
+    sealed interface RemoteAttemptObservation : SourceObservation {
+        val kind: RemoteAttemptKind
+    }
+
     sealed interface Success : SourceObservation {
         data class Remote(
-            val kind: RemoteAttemptKind,
+            override val kind: RemoteAttemptKind,
             val latencyMillis: Long,
-        ) : Success {
+        ) : Success, RemoteAttemptObservation {
             init {
                 require(latencyMillis >= 0L) { "Remote success latency must be non-negative." }
             }
@@ -171,10 +220,18 @@ sealed interface SourceObservation {
         data object Local : Success
     }
 
-    sealed interface TransportFailure : SourceObservation {
-        data object Timeout : TransportFailure
-        data object Connection : TransportFailure
-        data object RateLimited : TransportFailure
+    sealed interface TransportFailure : SourceObservation, RemoteAttemptObservation {
+        data class Timeout(
+            override val kind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        ) : TransportFailure
+
+        data class Connection(
+            override val kind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        ) : TransportFailure
+
+        data class RateLimited(
+            override val kind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        ) : TransportFailure
     }
 
     sealed interface AuthFailure : SourceObservation {
@@ -194,10 +251,18 @@ sealed interface SourceObservation {
         data object NotFound : ReleaseFailure
     }
 
-    sealed interface ContentFailure : SourceObservation {
-        data object EmptyDocument : ContentFailure
-        data object InvalidDocument : ContentFailure
-        data object CorruptDocument : ContentFailure
+    sealed interface ContentFailure : SourceObservation, RemoteAttemptObservation {
+        data class EmptyDocument(
+            override val kind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        ) : ContentFailure
+
+        data class InvalidDocument(
+            override val kind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        ) : ContentFailure
+
+        data class CorruptDocument(
+            override val kind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        ) : ContentFailure
     }
 
     sealed interface LocalFailure : SourceObservation {
@@ -216,6 +281,9 @@ sealed interface SourceObservation {
     }
 }
 
+val SourceObservation.penalizesSourceHealth: Boolean
+    get() = this is SourceObservation.TransportFailure || this is SourceObservation.ContentFailure
+
 interface SourceHealthReducer {
     fun advance(
         previous: SourceHealthState,
@@ -229,4 +297,8 @@ interface SourceHealthReducer {
         nowEpochMillis: Long,
         policy: HealthPolicy,
     ): SourceHealthState
+
+    companion object {
+        fun v1(): SourceHealthReducer = DefaultSourceHealthReducer()
+    }
 }

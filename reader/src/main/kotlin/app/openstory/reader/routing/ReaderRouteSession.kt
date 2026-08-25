@@ -79,6 +79,7 @@ internal data class ReaderRouteExecutionContext(
     val preferences: ReaderPreferences,
     val committedIdentity: ReaderCommittedIdentity?,
     val explicitReleaseId: ChapterReleaseId?,
+    val knownInvalidLocalFingerprints: Map<ChapterReleaseId, Set<String>> = emptyMap(),
 ) {
     val foregroundIdentity: ReaderForegroundIdentity
         get() = identity.toForegroundIdentity()
@@ -112,6 +113,7 @@ class ReaderRouteSession internal constructor(
     private val firstRoutingPreferences = CompletableDeferred<Unit>()
     private var chapterGraphRevision = ReaderChapterGraphRevision(0)
     private var committedIdentity: ReaderCommittedIdentity? = null
+    private val knownInvalidLocalFingerprints = mutableMapOf<ChapterReleaseId, MutableSet<String>>()
     private var mutableExecutionState: ReaderExecutionState = ReaderExecutionState.Idle
 
     internal val executionState: ReaderExecutionState
@@ -237,6 +239,17 @@ class ReaderRouteSession internal constructor(
         true
     }
 
+    internal fun markKnownInvalidLocal(
+        context: ReaderRouteExecutionContext,
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+    ): Boolean = synchronized(stateLock) {
+        if (!matchesActiveLocked(context.identity)) return@synchronized false
+        require(fingerprint.isNotBlank()) { "Known-invalid local fingerprint must not be blank." }
+        knownInvalidLocalFingerprints.getOrPut(releaseId, ::mutableSetOf).add(fingerprint)
+        true
+    }
+
     private fun completeExecution(
         context: ReaderRouteExecutionContext,
         result: ReaderForegroundResult,
@@ -310,6 +323,8 @@ class ReaderRouteSession internal constructor(
             preferences = preferences,
             committedIdentity = committedIdentity,
             explicitReleaseId = active.explicitReleaseId,
+            knownInvalidLocalFingerprints = knownInvalidLocalFingerprints
+                .mapValues { (_, fingerprints) -> fingerprints.toSet() },
         )
     }
 

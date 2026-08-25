@@ -13,6 +13,9 @@ import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
+import app.openstory.reader.engine.RemoteAttemptKind
+import app.openstory.reader.engine.SourceObservation
+import app.openstory.reader.engine.penalizesSourceHealth
 import app.openstory.reader.selection.ReleaseCandidate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
@@ -26,13 +29,16 @@ class ReaderRouteExecutorCompatibilityTest {
         val store = RecordingStore(exact = document("expected"))
         val registry = RecordingRegistry(listOf(RecordingSource()))
 
+        val observations = mutableListOf<SourceObservation>()
         val result = executor(store, registry).executeCompatibility(
             orderedCandidates = listOf(candidate("selected"), candidate("alternate")),
             expectedFingerprints = mapOf(ChapterReleaseId("selected") to "expected"),
+            onSourceObservation = { _, observation -> observations += observation },
         )
 
         assertEquals("selected", assertIs<ReaderLoadResult.Success>(result).release.release.id.value)
         assertEquals(true, result.fromStore)
+        assertEquals(listOf<SourceObservation>(SourceObservation.Success.Local), observations)
         assertEquals(0, registry.enabledCalls)
     }
 
@@ -147,6 +153,75 @@ class ReaderRouteExecutorCompatibilityTest {
         assertEquals(listOf(true, false), failure.attempts.map { it.retryable })
     }
 
+
+    @Test
+    fun exactCorruptionNotifiesInvalidLocatorAndRemoteProbeObservationKeepsOrigin() = runTest {
+        val store = RecordingStore(exact = document("wrong"))
+        val source = RecordingSource(
+            results = mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+        val invalidated = mutableListOf<Pair<String, String>>()
+        val observations = mutableListOf<SourceObservation>()
+
+        val result = executor(store, RecordingRegistry(listOf(source))).executeCompatibility(
+            orderedCandidates = listOf(candidate("release")),
+            expectedFingerprints = mapOf(ChapterReleaseId("release") to "expected"),
+            remoteAttemptKinds = mapOf(ChapterReleaseId("release") to RemoteAttemptKind.HALF_OPEN_PROBE),
+            onSourceObservation = { _, observation -> observations += observation },
+            onLocalInvalidated = { releaseId, fingerprint -> invalidated += releaseId.value to fingerprint },
+        )
+
+        assertIs<ReaderLoadResult.Success>(result)
+        assertEquals(listOf("release" to "expected"), store.quarantines)
+        assertEquals(listOf("release" to "expected"), invalidated)
+        assertIs<SourceObservation.LocalFailure.FingerprintOrDecodeMismatch>(observations[0])
+        assertEquals(false, observations[0].penalizesSourceHealth)
+        assertEquals(
+            RemoteAttemptKind.HALF_OPEN_PROBE,
+            assertIs<SourceObservation.Success.Remote>(observations[1]).kind,
+        )
+    }
+
+    @Test
+    fun missingExactLocalBlobEmitsTypedNonPenalizingMissBeforeRemoteRecovery() = runTest {
+        val source = RecordingSource(
+            results = mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+        val observations = mutableListOf<SourceObservation>()
+
+        val result = executor(RecordingStore(), RecordingRegistry(listOf(source))).executeCompatibility(
+            orderedCandidates = listOf(candidate("release")),
+            expectedFingerprints = mapOf(ChapterReleaseId("release") to "expected"),
+            onSourceObservation = { _, observation -> observations += observation },
+        )
+
+        assertIs<ReaderLoadResult.Success>(result)
+        assertIs<SourceObservation.LocalFailure.MissingBlob>(observations[0])
+        assertEquals(false, observations[0].penalizesSourceHealth)
+        assertIs<SourceObservation.Success.Remote>(observations[1])
+    }
+
+    @Test
+    fun localStorageIoFailureEmitsTypedClientObservationWithoutCorruptionClaim() = runTest {
+        val store = RecordingStore(readFailure = IllegalStateException("disk unavailable"))
+        val source = RecordingSource(
+            results = mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+        val observations = mutableListOf<SourceObservation>()
+
+        val result = executor(store, RecordingRegistry(listOf(source))).executeCompatibility(
+            orderedCandidates = listOf(candidate("release")),
+            expectedFingerprints = mapOf(ChapterReleaseId("release") to "expected"),
+            onSourceObservation = { _, observation -> observations += observation },
+        )
+
+        assertIs<ReaderLoadResult.Success>(result)
+        assertIs<SourceObservation.RuntimeFailure.Unexpected>(observations[0])
+        assertEquals(false, observations[0].penalizesSourceHealth)
+        assertEquals(emptyList(), store.quarantines)
+        assertIs<SourceObservation.Success.Remote>(observations[1])
+    }
+
     private fun executor(store: ReaderDocumentStore, registry: ReaderDocumentSourceRegistry) =
         ReaderRouteExecutor(store, registry)
 
@@ -175,6 +250,7 @@ class ReaderRouteExecutorCompatibilityTest {
 private class RecordingStore(
     private val exact: ReaderDocument? = null,
     private val current: ReaderDocument? = null,
+    private val readFailure: Throwable? = null,
 ) : ReaderDocumentStore {
     val exactReads = mutableListOf<Pair<String, String>>()
     val currentReads = mutableListOf<String>()
@@ -183,11 +259,13 @@ private class RecordingStore(
 
     override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? {
         exactReads += releaseId.value to fingerprint
+        readFailure?.let { throw it }
         return exact
     }
 
     override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? {
         currentReads += releaseId.value
+        readFailure?.let { throw it }
         return current
     }
 

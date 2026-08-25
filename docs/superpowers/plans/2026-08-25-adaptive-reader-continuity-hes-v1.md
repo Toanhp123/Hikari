@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` — R2 / Wave 10 production-remediation baseline.
 
-**Implementation status (2026-08-25):** **M0–M2 VERIFIED/CLOSED; M3 NEXT.** M1 Tasks 6–8 and M2 Tasks 9–11 are implemented and verified on the developer host. Evidence is recorded in `docs/internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`. The per-task Step 5 commit commands for Tasks 6–11 are intentionally not executed individually; the repository owner requested one combined M1+M2 commit after this closeout patch. Wave 10 final acceptance remains open under the existing acceptance-rebase.
+**Implementation status (2026-08-25):** **M0–M3 VERIFIED/CLOSED; M4 READY.** M3 Tasks 12–16 are implemented, self-reviewed against the R2 design/plan, and accepted after the complete developer-host Gradle gate passed on the applied M3 tree. The first host run exposed one test-only Kotlin generic-inference blocker in `ReaderRouteExecutorCompatibilityTest`; that assertion was corrected without production behavior change, after which all focused Reader/runtime/download/engine gates, the broad `:reader:engine:test :reader:testDebugUnitTest` gate, `:app:compileDebugKotlin`, `verifyArchitecture`, and package/current-architecture shell checks were GREEN. Closure evidence is recorded in `docs/internal/checkpoints/adaptive-reader-continuity-hes-v1-m3.md`. M4 may begin at Task 17; Wave 10 final host/API 26/API 37 acceptance remains independently open under the existing acceptance-rebase.
 
 ## Global Constraints
 

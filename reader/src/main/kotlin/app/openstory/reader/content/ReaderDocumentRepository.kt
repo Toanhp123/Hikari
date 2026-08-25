@@ -3,6 +3,7 @@ package app.openstory.reader.content
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.routing.ReaderRouteExecutor
+import app.openstory.reader.routing.ReaderSourceExecutionLimiter
 import app.openstory.reader.selection.ReleaseCandidate
 import app.openstory.reader.selection.ReleaseSelectionResult
 import app.openstory.reader.selection.ReleaseSelector
@@ -34,8 +35,9 @@ class ReaderDocumentRepository(
     store: ReaderDocumentStore,
     sources: ReaderDocumentSourceRegistry,
     private val selector: ReleaseSelector,
+    executionLimiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
 ) {
-    private val executor = ReaderRouteExecutor(store, sources)
+    private val executor = ReaderRouteExecutor(store, sources, executionLimiter)
 
     suspend fun load(request: ReaderLoadRequest): ReaderLoadResult {
         val selection = selector.select(request.candidates, request.selectionPolicy)

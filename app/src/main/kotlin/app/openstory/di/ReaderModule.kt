@@ -9,6 +9,8 @@ import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.document.ReaderDocumentSanitizer
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.routing.ReaderRouteCoordinator
+import app.openstory.reader.routing.ReaderSourceExecutionLimiter
+import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import app.openstory.reader.routing.ReaderRouteSessionFactory
 import app.openstory.reader.selection.ReleaseSelector
 import app.openstory.storage.room.OpenStoryDatabase
@@ -66,10 +68,24 @@ object ReaderModule {
 
     @Provides
     @Singleton
+    fun provideReaderSourceHealthRegistry(): ReaderSourceHealthRegistry = ReaderSourceHealthRegistry()
+
+    @Provides
+    @Singleton
+    fun provideReaderSourceExecutionLimiter(): ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter()
+
+    @Provides
+    @Singleton
     fun provideReaderDocumentRepository(
         store: ReaderDocumentStore,
         sources: ReaderDocumentSourceRegistry,
-    ): ReaderDocumentRepository = ReaderDocumentRepository(store, sources, ReleaseSelector())
+        executionLimiter: ReaderSourceExecutionLimiter,
+    ): ReaderDocumentRepository = ReaderDocumentRepository(
+        store,
+        sources,
+        ReleaseSelector(),
+        executionLimiter,
+    )
 
     @Provides
     @Singleton
@@ -82,7 +98,17 @@ object ReaderModule {
         store: ReaderDocumentStore,
         sources: ReaderDocumentSourceRegistry,
         progress: ReadingProgressRepository,
-    ): ReaderRouteCoordinator = ReaderRouteCoordinator(store, sources, progress)
+        sourceAvailability: ReaderSourceAvailability,
+        healthRegistry: ReaderSourceHealthRegistry,
+        executionLimiter: ReaderSourceExecutionLimiter,
+    ): ReaderRouteCoordinator = ReaderRouteCoordinator(
+        store = store,
+        sources = sources,
+        progress = progress,
+        sourceAvailability = sourceAvailability,
+        healthRegistry = healthRegistry,
+        executionLimiter = executionLimiter,
+    )
 
     @Provides
     @Singleton

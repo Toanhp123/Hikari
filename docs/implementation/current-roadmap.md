@@ -57,21 +57,22 @@ Wave 10 acceptance matrix must be rerun on the HES-containing tree and all previ
 remains unsatisfied.
 **Wave 11 must not start while this Wave 10 acceptance boundary remains open.**
 
-Adaptive Reader Continuity / HES-v1 **M0–M2 are verified and closed** under that explicit acceptance-rebase.
+Adaptive Reader Continuity / HES-v1 **M0–M3 are verified and closed; M4 Task 17 is ready** under that explicit acceptance-rebase.
 The current source graph remains 17 production modules plus `:benchmark`: `:reader:engine` is JVM-only with exact
 production project dependency `:core:common`, while `:reader` consumes it through an implementation-only edge.
-Room remains schema 11. M1 closes deterministic legacy-compatible reasoning and differential overlap coverage; M2
-closes the session/coordinator compatibility boundary and sequential executor extraction without a Feature Reader
-production cutover or adaptive health/hysteresis/hedge behavior. Fresh developer-host Gradle 9.5.0 evidence passes
-targeted M1/M2 Reader tests, full Reader + Feature Reader unit suites, pure engine tests, `:app:compileDebugKotlin`,
-`verifyArchitecture`, and current/package-boundary shell contracts/verifiers. The M2 closeout patch also adds the
-repository-standard `ExperimentalCoroutinesApi` opt-in required by `runCurrent()` in the session-state test. The next
-HES implementation boundary is **M3 — Typed Observations, Validation, and Process Health (Tasks 12–16)**. The
-normative in-repository sources are
+Room remains schema 11. M3 adds exhaustive exact Reader-reachable failure classification, corrected typed local
+validation/corruption semantics, the pure bounded source-health reducer, process-shared Reader health/remote lanes and
+owned HALF_OPEN probe leases, plus health-aware observational snapshot/trace plumbing. It deliberately does not enable
+M4 adaptive eligibility/ranking, hysteresis consumption, prefetch, or hedging. After one test-only Kotlin generic-
+inference assertion blocker was corrected, the complete developer-host M3 gate passed: focused Reader/runtime/download/
+engine suites, `:app:compileDebugKotlin`, the broad `:reader:engine:test :reader:testDebugUnitTest` gate,
+`verifyArchitecture`, and all package/current-architecture shell checks are GREEN. **M3 is VERIFIED/CLOSED and M4 is
+unblocked at Task 17.** The normative in-repository sources are
 `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and
 `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; M0 evidence is recorded in
-`../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md` and M1/M2 evidence in
-`../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`.
+`../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`, M1/M2 evidence in
+`../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`, and M3 closure evidence in
+`../internal/checkpoints/adaptive-reader-continuity-hes-v1-m3.md`.
 Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
 notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
 separately reviewed migration intervenes.
@@ -183,7 +184,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | 10 | Background work, auth, notifications | **Implementation present on schema 11; final host/device verification open** | `../internal/checkpoints/wave-10-production-remediation.md` |
 | HES-M0 | Adaptive Reader Continuity / HES-v1 constitutional boundary | **Verified/closed** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md` |
 | HES-M1 | Legacy-compatible pure reasoner + differential overlap envelope | **Verified/closed; Tasks 6–8** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md` |
-| HES-M2 | Session/coordinator compatibility boundary | **Verified/closed; Tasks 9–11; M3 next** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md` |
+| HES-M2 | Session/coordinator compatibility boundary | **Verified/closed; Tasks 9–11** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md` |
+| HES-M3 | Typed observations, validation, and process health | **Verified/closed; Tasks 12–16; host Gradle + architecture gates GREEN; M4 ready** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m3.md` |
 | 11 | Hardening and open-source release | **Blocked until Wave 10 final host/API 26/API 37 acceptance closes** | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -281,9 +283,10 @@ architecture
 
 ## Execution rule
 
-1. Use the current **verified/closed** 17-production-module HES M0–M2 graph plus `:benchmark`, Room schema 11,
-   and the Wave 10 production-remediation checkpoint as the active source baseline. M3 Tasks 12–16 are the next HES
-   implementation boundary. The HES entry boundary was the prior 16-production-module Wave 10 tree; its final
+1. Use the current 17-production-module HES graph plus `:benchmark`, Room schema 11, and the Wave 10
+   production-remediation checkpoint as the active source baseline. M0–M3 are verified/closed; the recorded M3
+   developer-host Gradle and architecture/package gates are GREEN, so M4 may start at Task 17. The HES entry boundary
+   was the prior 16-production-module Wave 10 tree; its final
    host/API 26/API 37 acceptance remains open under the explicit acceptance-rebase.
 2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 10 is the active acceptance boundary, not an unstarted implementation boundary. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
 3. `MIGRATION_8_9` belongs to canonical foundation and `MIGRATION_9_10` belongs to canonical durability. Wave 10 notification persistence uses `MIGRATION_10_11`.
