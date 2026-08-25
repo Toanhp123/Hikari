@@ -25,12 +25,15 @@ class ReaderRouteEngineDifferentialTest {
     private val engine = ReaderRouteEngine.v1()
 
     @Test
-    fun seededLegacyOverlapEnvelopeMatchesForAtLeastTwoHundredCandidateSets() {
+    fun seededExplicitSelectionOverlapStillMatchesForAtLeastTwoHundredCandidateSets() {
+        // M4 intentionally replaces the M1 automatic comparator. Explicit eligible selection remains
+        // a strict overlap contract; adaptive automatic divergences are covered by named engine goldens.
         val random = Random(0x48455331)
 
         repeat(250) { fixtureIndex ->
             val candidates = candidates(random, fixtureIndex)
-            val policy = policy(random, candidates)
+            val explicit = candidates[random.nextInt(candidates.size)]
+            val policy = policy(random, candidates).copy(explicitReleaseId = explicit.release.id)
             val legacy = assertIs<ReleaseSelectionResult.Selected>(selector.select(candidates, policy))
             val snapshot = LegacyReaderRoutingAdapter.compatibilitySnapshot(
                 targetChapterId = CanonicalChapterId("chapter-$fixtureIndex"),
@@ -44,12 +47,7 @@ class ReaderRouteEngineDifferentialTest {
             assertEquals(
                 legacy.candidate.release.id,
                 decision.competitiveSet.primary?.releaseId,
-                "winner mismatch in seeded fixture $fixtureIndex",
-            )
-            assertEquals(
-                legacy.alternates.map { it.release.id }.distinct(),
-                decision.trace.stableRanking.drop(1).distinct(),
-                "alternate order mismatch in seeded fixture $fixtureIndex",
+                "explicit winner mismatch in seeded fixture $fixtureIndex",
             )
         }
     }

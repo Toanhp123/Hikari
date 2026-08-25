@@ -5,14 +5,13 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class ReaderRouteEngineCompatibilityTest {
     private val engine = ReaderRouteEngine.v1()
 
     @Test
-    fun representableLegacyTiersAreAppliedInOrder() {
+    fun m4KeepsExplicitAndResumeCompatibilityButAdaptiveScoringOwnsAutomaticWinner() {
         assertWinner(
             expected = "explicit",
             candidates = listOf(
@@ -40,8 +39,10 @@ class ReaderRouteEngineCompatibilityTest {
             policy = ReaderRoutingPolicy.v1(languageOrder = listOf("vi")),
         )
 
+        // M4 replaces the M1 lexicographic comparator with fixed-point scoring plus hysteresis.
+        // These named cases document intentional divergence rather than silently retaining the old tiers.
         assertWinner(
-            expected = "group",
+            expected = "source",
             candidates = listOf(
                 candidate("group", source = "z", language = "fr", group = "team", completeness = 0, publishedAt = 1L),
                 candidate("source", source = "preferred", language = "vi", completeness = 10_000, publishedAt = 100L),
@@ -59,7 +60,7 @@ class ReaderRouteEngineCompatibilityTest {
         )
 
         assertWinner(
-            expected = "source",
+            expected = "language",
             candidates = listOf(
                 candidate("source", source = "preferred", language = "fr", completeness = 0, publishedAt = 1L),
                 candidate("language", source = "other", language = "vi", completeness = 10_000, publishedAt = 100L),
@@ -71,7 +72,7 @@ class ReaderRouteEngineCompatibilityTest {
         )
 
         assertWinner(
-            expected = "language",
+            expected = "complete",
             candidates = listOf(
                 candidate("language", source = "z", language = "vi", completeness = 0, publishedAt = 1L),
                 candidate("complete", source = "a", language = "en", completeness = 10_000, publishedAt = 100L),
@@ -87,8 +88,9 @@ class ReaderRouteEngineCompatibilityTest {
             ),
         )
 
+        // Publication times inside the same freshness bucket tie on freshness; stable IDs break the tie.
         assertWinner(
-            expected = "recent",
+            expected = "older",
             candidates = listOf(
                 candidate("recent", source = "z", language = "vi", publishedAt = 100L),
                 candidate("older", source = "a", language = "vi", publishedAt = 1L),
@@ -163,7 +165,7 @@ class ReaderRouteEngineCompatibilityTest {
     }
 
     @Test
-    fun emptyInputProducesNoAttemptAndM3AvailabilityFactsStayObservational() {
+    fun emptyInputAndM4AccessEligibilityProduceBoundedResults() {
         val empty = engine.plan(snapshot(emptyList()), ReaderRoutingPolicy.v1())
         assertNull(empty.competitiveSet.primary)
         assertEquals(DecisionReason.NO_ELIGIBLE_CANDIDATE, empty.reason)
@@ -182,23 +184,27 @@ class ReaderRouteEngineCompatibilityTest {
             ),
             ReaderRoutingPolicy.v1(),
         )
-        assertEquals(ChapterReleaseId("release-a"), unavailable.competitiveSet.primary?.releaseId)
-        assertFailsWith<IllegalArgumentException> {
-            engine.plan(
-                snapshot(
-                    listOf(
-                        candidate(
-                            id = "release-local",
-                            source = "source-a",
-                            language = "vi",
-                            publishedAt = 1L,
-                            localAccess = CandidateLocalAccess.AvailableExact("fingerprint"),
-                        ),
+        assertNull(unavailable.competitiveSet.primary)
+        assertEquals(DecisionReason.NO_ELIGIBLE_CANDIDATE, unavailable.reason)
+
+        val local = engine.plan(
+            snapshot(
+                listOf(
+                    candidate(
+                        id = "release-local",
+                        source = "source-a",
+                        language = "vi",
+                        publishedAt = 1L,
+                        remoteAccess = CandidateRemoteAccess.SOURCE_UNAVAILABLE,
+                        localAccess = CandidateLocalAccess.AvailableExact("fingerprint"),
                     ),
                 ),
-                ReaderRoutingPolicy.v1(),
-            )
-        }
+            ),
+            ReaderRoutingPolicy.v1(),
+        )
+        assertEquals(ChapterReleaseId("release-local"), local.competitiveSet.primary?.releaseId)
+        assertEquals(AccessMode.LOCAL, local.competitiveSet.primary?.accessMode)
+        assertEquals("fingerprint", local.competitiveSet.primary?.localFingerprint)
     }
 
     private fun assertWinner(

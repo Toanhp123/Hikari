@@ -8,6 +8,7 @@ import app.openstory.downloads.DownloadScheduler
 import app.openstory.downloads.DownloadService
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.reader.ReaderDownloadContentSource
+import app.openstory.downloads.reader.ReaderCacheMetadataSource
 import app.openstory.downloads.reconcile.StorageReconciliationInventory
 import app.openstory.downloads.reconcile.StorageReconciliationRepository
 import app.openstory.downloads.reconcile.StorageReconciliationService
@@ -52,6 +53,8 @@ object DownloadModule {
 
     @Provides fun provideCacheRepository(repository: RoomDownloadRepository): CacheRepository = repository
     @Provides fun provideDownloadRepository(repository: RoomDownloadRepository): DownloadRepository = repository
+    @Provides
+    fun provideReaderCacheMetadataSource(repository: RoomDownloadRepository): ReaderCacheMetadataSource = repository
     @Provides
     fun provideStorageReconciliationRepository(
         repository: RoomDownloadRepository,

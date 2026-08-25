@@ -7,6 +7,7 @@ import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.engine.CandidateLocalAccess
 import app.openstory.reader.engine.CandidateRemoteAccess
 import app.openstory.reader.engine.CircuitState
+import app.openstory.reader.engine.LanguageFallbackMode
 import app.openstory.reader.engine.ReaderNetworkClass
 import app.openstory.reader.engine.ReaderRoutingPolicy
 import app.openstory.reader.engine.ReaderRoutingSnapshot
@@ -16,13 +17,12 @@ import app.openstory.reader.engine.SourceOperationKey
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.selection.ReleaseCandidate
-import app.openstory.reader.selection.ReleaseSelectionPolicy
+import kotlinx.coroutines.CancellationException
 
 internal data class AssembledRouteSnapshot(
     val targetIndex: Int,
     val targetGroup: CanonicalChapterGroup,
     val candidates: List<ReleaseCandidate>,
-    val expectedFingerprints: Map<ChapterReleaseId, String>,
     val restoredProgress: ReadingProgress?,
     val snapshot: ReaderRoutingSnapshot,
     val policy: ReaderRoutingPolicy,
@@ -34,6 +34,10 @@ internal class RouteSnapshotAssembler(
     private val sourceAvailability: ReaderSourceAvailability,
     private val healthRegistry: ReaderSourceHealthRegistry,
     private val executionLimiter: ReaderSourceExecutionLimiter,
+    private val cacheFacts: ReaderCacheFactsPort = ReaderCacheFactsPort { releaseIds, _ ->
+        releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
+    },
+    private val networkFacts: ReaderNetworkFactsPort = ReaderNetworkFactsPort { ReaderNetworkState.UNKNOWN },
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
 ) {
     suspend fun assemble(context: ReaderRouteExecutionContext): AssembledRouteSnapshot? {
@@ -45,18 +49,13 @@ internal class RouteSnapshotAssembler(
         val targetGroup = context.chapterGroups[targetIndex]
         val restored = progress.find(context.storyId, context.identity.targetChapterId)
         val candidates = targetGroup.releases.map(::ReleaseCandidate)
-        val previousPluginId = restored?.releaseId?.let { releaseId ->
-            targetGroup.releases.firstOrNull { it.id == releaseId }?.pluginId
-        }
-        val selectionPolicy = ReleaseSelectionPolicy(
-            explicitReleaseId = context.explicitReleaseId,
-            previousReleaseId = restored?.releaseId,
-            previousPluginId = previousPluginId,
-            languageOrder = context.preferences.languageOrder,
-        )
-        val expectedFingerprints = restored?.let {
-            mapOf(it.releaseId to it.contentFingerprint)
-        }.orEmpty()
+        val releaseIds = targetGroup.releases.mapTo(linkedSetOf()) { it.id }
+        val resumeFingerprints = restored
+            ?.takeIf { it.releaseId in releaseIds }
+            ?.let { mapOf(it.releaseId to it.contentFingerprint) }
+            .orEmpty()
+        val localFacts = inspectCacheFacts(releaseIds, resumeFingerprints)
+        val networkClass = networkClass()
         val now = nowEpochMillis()
         require(now >= 0L) { "Reader route snapshot clock must be non-negative." }
         val enabledSourceIds = sourceAvailability.enabledPluginIds().toSet()
@@ -84,15 +83,10 @@ internal class RouteSnapshotAssembler(
                 }
 
             val routingCandidates = targetGroup.releases.map { release ->
-                val expectedFingerprint = expectedFingerprints[release.id]
-                val localAccess = if (
-                    expectedFingerprint != null &&
-                    context.knownInvalidLocalFingerprints[release.id]?.contains(expectedFingerprint) == true
-                ) {
-                    CandidateLocalAccess.KnownInvalid(expectedFingerprint)
-                } else {
-                    CandidateLocalAccess.Unknown
-                }
+                val localAccess = localAccess(
+                    localFacts[release.id] ?: ReaderLocalCacheFact.Unknown,
+                    context.knownInvalidLocalFingerprints[release.id].orEmpty(),
+                )
                 LegacyReaderRoutingAdapter.productionCandidate(
                     release = release,
                     remoteAccess = if (release.pluginId in enabledSourceIds) {
@@ -113,12 +107,8 @@ internal class RouteSnapshotAssembler(
             val continuity = ReadingContinuity(
                 committedChapterId = committed?.chapterId,
                 committedReleaseId = committed?.releaseId,
-                // Preserve the M1/M2 compatibility ranking key. Cross-chapter committed-source
-                // preference becomes adaptive policy work in M4 rather than leaking in here.
-                committedSourceId = previousPluginId,
-                committedSourceGroupKey = selectionPolicy.previousSourceGroup?.let {
-                    app.openstory.reader.engine.SourceGroupKey(it)
-                },
+                committedSourceId = committed?.sourceId,
+                committedSourceGroupKey = null,
                 committedLanguageTag = committedLanguage,
                 targetResumeReleaseId = restored?.releaseId,
                 targetResumeFingerprint = restored?.contentFingerprint,
@@ -127,7 +117,6 @@ internal class RouteSnapshotAssembler(
                 targetIndex = targetIndex,
                 targetGroup = targetGroup,
                 candidates = candidates,
-                expectedFingerprints = expectedFingerprints,
                 restoredProgress = restored,
                 snapshot = ReaderRoutingSnapshot.create(
                     targetChapterId = context.identity.targetChapterId,
@@ -137,16 +126,64 @@ internal class RouteSnapshotAssembler(
                     candidates = routingCandidates,
                     sourceHealth = sourceHealth,
                     continuity = continuity,
-                    networkClass = ReaderNetworkClass.UNKNOWN,
+                    networkClass = networkClass,
                     explicitReleaseId = context.explicitReleaseId,
                     nowEpochMillis = now,
                 ),
-                policy = LegacyReaderRoutingAdapter.compatibilityPolicy(selectionPolicy),
+                policy = ReaderRoutingPolicy.v1(
+                    languageOrder = context.preferences.languageOrder,
+                    languageFallbackMode = LanguageFallbackMode.ORDERED_ALLOW,
+                ),
                 probeLeases = probeLeases.toList(),
             )
         } catch (failure: Throwable) {
             probeLeases.forEach(ReaderHalfOpenProbeLease::release)
             throw failure
+        }
+    }
+
+    private suspend fun inspectCacheFacts(
+        releaseIds: Set<ChapterReleaseId>,
+        resumeFingerprints: Map<ChapterReleaseId, String>,
+    ): Map<ChapterReleaseId, ReaderLocalCacheFact> = try {
+        cacheFacts.inspect(releaseIds, resumeFingerprints)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
+    }
+
+    private suspend fun networkClass(): ReaderNetworkClass {
+        val state = try {
+            networkFacts.current()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            ReaderNetworkState.UNKNOWN
+        }
+        return when (state) {
+            ReaderNetworkState.OFFLINE -> ReaderNetworkClass.OFFLINE
+            ReaderNetworkState.METERED -> ReaderNetworkClass.METERED
+            ReaderNetworkState.UNMETERED -> ReaderNetworkClass.UNMETERED
+            ReaderNetworkState.UNKNOWN -> ReaderNetworkClass.UNKNOWN
+        }
+    }
+
+    private fun localAccess(
+        fact: ReaderLocalCacheFact,
+        knownInvalid: Set<String>,
+    ): CandidateLocalAccess = when (fact) {
+        ReaderLocalCacheFact.Unknown -> CandidateLocalAccess.Unknown
+        ReaderLocalCacheFact.Miss -> CandidateLocalAccess.Miss
+        is ReaderLocalCacheFact.Exact -> if (fact.fingerprint in knownInvalid) {
+            CandidateLocalAccess.KnownInvalid(fact.fingerprint)
+        } else {
+            CandidateLocalAccess.AvailableExact(fact.fingerprint)
+        }
+        is ReaderLocalCacheFact.Unverified -> if (fact.fingerprint in knownInvalid) {
+            CandidateLocalAccess.KnownInvalid(fact.fingerprint)
+        } else {
+            CandidateLocalAccess.AvailableUnverified(fact.fingerprint)
         }
     }
 }

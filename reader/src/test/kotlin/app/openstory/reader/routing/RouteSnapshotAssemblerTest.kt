@@ -116,6 +116,9 @@ class RouteSnapshotAssemblerTest {
             sourceAvailability = ReaderSourceAvailability { setOf(PluginId("source")) },
             healthRegistry = ReaderSourceHealthRegistry(),
             executionLimiter = ReaderSourceExecutionLimiter(),
+            cacheFacts = ReaderCacheFactsPort { _, _ ->
+                mapOf(release.id to ReaderLocalCacheFact.Exact("bad-fingerprint"))
+            },
             nowEpochMillis = { 100L },
         )
         val context = context(listOf(release)).copy(

@@ -185,6 +185,60 @@ class RoomDownloadRepositoryTest {
     }
 
     @Test
+    fun readerMetadataInspectionUsesOneBoundedQueryForThirtyTwoReleases() = runTest {
+        val queries = CopyOnWriteArrayList<String>()
+        val queryDatabase = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext<Context>(),
+            OpenStoryDatabase::class.java,
+        ).setQueryCallback(
+            RoomDatabase.QueryCallback { sql, _ -> queries += sql },
+            Executor(Runnable::run),
+        ).build()
+        try {
+            val queryRepository = RoomDownloadRepository(queryDatabase)
+            val releaseIds = (0 until 32).mapTo(linkedSetOf()) { index ->
+                ChapterReleaseId("reader-release-$index")
+            }
+            releaseIds.forEach { releaseId ->
+                queryRepository.upsert(
+                    entry(
+                        ChapterBlobKey(
+                            ChapterBlobNamespace.AUTOMATIC_CACHE,
+                            releaseId,
+                            "fingerprint-${releaseId.value}",
+                        ),
+                    ),
+                )
+            }
+            queries.clear()
+
+            val metadata = queryRepository.entriesFor(releaseIds)
+
+            assertEquals(32, metadata.size)
+            assertEquals(releaseIds, metadata.mapTo(linkedSetOf()) { it.releaseId })
+            val boundedSelects = queries.filter { sql ->
+                sql.contains("SELECT * FROM chapter_storage_entries", ignoreCase = true) &&
+                    sql.contains("chapter_release_id IN", ignoreCase = true) &&
+                    sql.contains("EXPLICIT_DOWNLOAD", ignoreCase = true) &&
+                    sql.contains("AUTOMATIC_CACHE", ignoreCase = true)
+            }
+            assertEquals(1, boundedSelects.size)
+            val storageEntrySelects = queries.filter { sql ->
+                sql.trimStart().startsWith("SELECT", ignoreCase = true) &&
+                    sql.contains("FROM chapter_storage_entries", ignoreCase = true)
+            }
+            assertEquals(
+                1,
+                storageEntrySelects.size,
+                "Reader metadata inspection must issue one storage metadata SELECT; " +
+                    "Room-internal bookkeeping queries are outside this contract. Queries=$queries",
+            )
+        } finally {
+            queryDatabase.close()
+        }
+    }
+
+    @Test
     fun quotaSnapshotIgnoresExplicitDownloadsAndKeepsLruOrder() = runTest {
         val oldest = key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-old")
         val newest = key(ChapterBlobNamespace.AUTOMATIC_CACHE, "cache-new")

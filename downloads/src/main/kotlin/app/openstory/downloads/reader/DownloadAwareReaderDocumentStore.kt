@@ -11,6 +11,8 @@ import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.cache.CacheService
 import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.reader.content.ReaderDocumentStore
+import app.openstory.reader.routing.ReaderCacheFactsPort
+import app.openstory.reader.routing.ReaderLocalCacheFact
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.document.isLocalPersistable
@@ -26,8 +28,69 @@ class DownloadAwareReaderDocumentStore(
     private val now: () -> Long,
     private val writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
     private val cacheQuotaBytes: Long = DEFAULT_CACHE_QUOTA_BYTES,
-) : ReaderDocumentStore {
+    private val metadataSource: ReaderCacheMetadataSource = ReaderCacheMetadataSource { emptyList() },
+) : ReaderDocumentStore, ReaderCacheFactsPort {
     private val cache = CacheService(cacheRepository, blobs)
+
+
+    override suspend fun inspect(
+        releaseIds: Set<ChapterReleaseId>,
+        resumeFingerprints: Map<ChapterReleaseId, String>,
+    ): Map<ChapterReleaseId, ReaderLocalCacheFact> {
+        if (releaseIds.isEmpty()) return emptyMap()
+        require(resumeFingerprints.keys.all { it in releaseIds }) {
+            "Reader resume fingerprints must belong to the inspected release set."
+        }
+        val metadata = try {
+            metadataSource.entriesFor(releaseIds)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
+        }
+        val byRelease = metadata.asSequence()
+            .filter { it.releaseId in releaseIds }
+            .groupBy(ReaderCacheMetadata::releaseId)
+        return releaseIds.associateWith { releaseId ->
+            selectCacheFact(byRelease[releaseId].orEmpty(), resumeFingerprints[releaseId])
+        }
+    }
+
+    private fun selectCacheFact(
+        rows: List<ReaderCacheMetadata>,
+        resumeFingerprint: String?,
+    ): ReaderLocalCacheFact {
+        if (resumeFingerprint != null) {
+            return if (rows.any { it.fingerprint == resumeFingerprint && it.checksumPresent }) {
+                ReaderLocalCacheFact.Exact(resumeFingerprint)
+            } else {
+                ReaderLocalCacheFact.Miss
+            }
+        }
+        val newestExplicit = rows.asSequence()
+            .filter { it.namespace == ChapterBlobNamespace.EXPLICIT_DOWNLOAD }
+            .sortedWith(
+                compareByDescending<ReaderCacheMetadata> { it.updatedAtEpochMillis }
+                    .thenBy { it.fingerprint },
+            )
+            .firstOrNull()
+        if (
+            newestExplicit != null &&
+            newestExplicit.downloadState == DownloadState.COMPLETED &&
+            newestExplicit.checksumPresent
+        ) {
+            return ReaderLocalCacheFact.Unverified(newestExplicit.fingerprint)
+        }
+        val automatic = rows.asSequence()
+            .filter { it.namespace == ChapterBlobNamespace.AUTOMATIC_CACHE && it.checksumPresent }
+            .sortedWith(
+                compareByDescending<ReaderCacheMetadata> { it.lastAccessedAtEpochMillis }
+                    .thenBy { it.fingerprint },
+            )
+            .firstOrNull()
+        return automatic?.let { ReaderLocalCacheFact.Unverified(it.fingerprint) }
+            ?: ReaderLocalCacheFact.Miss
+    }
 
     override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? {
         for (namespace in LOCAL_READ_ORDER) {

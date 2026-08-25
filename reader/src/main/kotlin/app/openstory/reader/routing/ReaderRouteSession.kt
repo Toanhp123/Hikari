@@ -9,6 +9,7 @@ import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.engine.ReaderPlanRevision
+import app.openstory.reader.engine.RouteAttempt
 import app.openstory.reader.preferences.ReaderPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -104,9 +105,16 @@ class ReaderRouteSession internal constructor(
         val planRevision: ReaderPlanRevision,
     )
 
+    private data class ActivePlan(
+        val identity: ReaderExecutionIdentity,
+        val winnerReleaseId: ChapterReleaseId,
+        val plannedReleaseIds: Set<ChapterReleaseId>,
+    )
+
     private val stateLock = Any()
     private var nextGenerationValue = 1L
     private var activeExecution: ActiveExecution? = null
+    private var activePlan: ActivePlan? = null
     private var latestChapterGroups: List<CanonicalChapterGroup>? = null
     private var latestPreferences: ReaderPreferences? = null
     private val firstChapterGraph = CompletableDeferred<Unit>()
@@ -134,20 +142,36 @@ class ReaderRouteSession internal constructor(
         }
         synchronized(stateLock) {
             if (latestChapterGroups == ownedGroups) return
+            // The first graph snapshot establishes readiness; there is no prior route fact to revoke yet.
+            val isFirstEmission = latestChapterGroups == null
+            val active = activeExecution
+            val hardInvalidation = !isFirstEmission &&
+                active != null &&
+                graphHardInvalidatesLocked(active, ownedGroups)
             latestChapterGroups = ownedGroups
             chapterGraphRevision = ReaderChapterGraphRevision(chapterGraphRevision.value + 1L)
             firstChapterGraph.complete(Unit)
-            // M4 Tasks 23-24 own hard/soft invalidation classification. M2 records facts only.
+            if (hardInvalidation) hardInvalidateLocked()
         }
     }
 
     suspend fun updateRoutingPreferences(preferences: ReaderPreferences) {
+        val owned = preferences.copy(languageOrder = preferences.languageOrder.toList())
         synchronized(stateLock) {
-            latestPreferences = preferences.copy(
-                languageOrder = preferences.languageOrder.toList(),
-            )
+            val previous = latestPreferences
+            if (previous == owned) {
+                firstRoutingPreferences.complete(Unit)
+                return
+            }
+            latestPreferences = owned
             firstRoutingPreferences.complete(Unit)
-            // M4 Task 24 decides whether a routing-preference change is a hard replan.
+            if (
+                activeExecution != null &&
+                previous != null &&
+                previous.languageOrder != owned.languageOrder
+            ) {
+                hardInvalidateLocked()
+            }
         }
     }
 
@@ -160,6 +184,7 @@ class ReaderRouteSession internal constructor(
                 explicitReleaseId = intent.explicitReleaseId,
                 planRevision = ReaderPlanRevision(0),
             )
+            activePlan = null
             mutableExecutionState = ReaderExecutionState.Planning(identityFor(activeExecution!!))
             next
         }
@@ -208,9 +233,33 @@ class ReaderRouteSession internal constructor(
         }
     }
 
+    internal fun recordPlannedRoute(
+        context: ReaderRouteExecutionContext,
+        winnerReleaseId: ChapterReleaseId,
+        attempts: List<RouteAttempt>,
+    ): Boolean = synchronized(stateLock) {
+        if (!matchesActiveLocked(context.identity)) return@synchronized false
+        require(attempts.isNotEmpty()) { "An active Reader plan must contain at least one attempt." }
+        require(attempts.any { it.releaseId == winnerReleaseId }) {
+            "Reader winner must be represented in the executable route."
+        }
+        activePlan = ActivePlan(
+            identity = context.identity,
+            winnerReleaseId = winnerReleaseId,
+            plannedReleaseIds = attempts.mapTo(linkedSetOf()) { it.releaseId },
+        )
+        true
+    }
+
     internal fun hardInvalidate(): ReaderExecutionIdentity? = synchronized(stateLock) {
         hardInvalidateLocked()
         activeExecution?.let(::identityFor)
+    }
+
+    internal fun hardInvalidateIfCurrent(context: ReaderRouteExecutionContext): Boolean = synchronized(stateLock) {
+        if (!matchesActiveLocked(context.identity)) return@synchronized false
+        hardInvalidateLocked()
+        true
     }
 
     internal fun markAttempt(
@@ -296,6 +345,7 @@ class ReaderRouteSession internal constructor(
             is ReaderForegroundResult.Superseded -> Unit
         }
         activeExecution = null
+        activePlan = null
         return result
     }
 
@@ -305,6 +355,7 @@ class ReaderRouteSession internal constructor(
             if (active.generationId != generationId) return
             mutableExecutionState = ReaderExecutionState.Cancelled(identityFor(active))
             activeExecution = null
+            activePlan = null
         }
     }
 
@@ -328,12 +379,30 @@ class ReaderRouteSession internal constructor(
         )
     }
 
+    private fun graphHardInvalidatesLocked(
+        active: ActiveExecution,
+        nextGroups: List<CanonicalChapterGroup>,
+    ): Boolean {
+        val target = nextGroups.firstOrNull { it.chapter.id == active.targetChapterId } ?: return true
+        if (target.chapter.tombstoned || target.releases.isEmpty()) return true
+        val targetReleaseIds = target.releases
+            .asSequence()
+            .filter { it.canonicalChapterId == target.chapter.id }
+            .mapTo(hashSetOf()) { it.id }
+        if (targetReleaseIds.isEmpty()) return true
+        val plan = activePlan
+        if (plan == null || plan.identity != identityFor(active)) return false
+        if (plan.winnerReleaseId !in targetReleaseIds) return true
+        return plan.plannedReleaseIds.any { it !in targetReleaseIds }
+    }
+
     private fun hardInvalidateLocked() {
         val active = activeExecution ?: return
         val revised = active.copy(
             planRevision = ReaderPlanRevision(active.planRevision.value + 1L),
         )
         activeExecution = revised
+        activePlan = null
         mutableExecutionState = ReaderExecutionState.Planning(identityFor(revised))
     }
 

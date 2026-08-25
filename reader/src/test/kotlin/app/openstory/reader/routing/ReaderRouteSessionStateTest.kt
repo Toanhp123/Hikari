@@ -120,7 +120,7 @@ class ReaderRouteSessionStateTest {
     }
 
     @Test
-    fun graphAndPreferenceUpdatesDoNotSelfClassifyHardInvalidationBeforeM4() = runTest {
+    fun routingLanguagePreferenceChangeHardInvalidatesActiveGenerationInM4() = runTest {
         val seen = mutableListOf<ReaderExecutionIdentity>()
         var changed = false
         val session = ReaderRouteSession(
@@ -130,7 +130,6 @@ class ReaderRouteSessionStateTest {
                 seen += context.identity
                 if (!changed) {
                     changed = true
-                    owner.updateChapterGraph(listOf(group("chapter-a")))
                     owner.updateRoutingPreferences(ReaderPreferences(languageOrder = listOf("fr")))
                 }
                 exhausted(context)
@@ -140,8 +139,8 @@ class ReaderRouteSessionStateTest {
 
         session.execute(ReaderForegroundIntent(chapter("chapter-a")))
 
-        assertEquals(1, seen.size)
-        assertEquals(ReaderPlanRevision(0), seen.single().planRevision)
+        assertEquals(2, seen.size)
+        assertEquals(listOf(ReaderPlanRevision(0), ReaderPlanRevision(1)), seen.map { it.planRevision })
     }
 
     @Test
