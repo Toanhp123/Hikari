@@ -18,6 +18,8 @@ import app.openstory.reader.progress.ProgressUpdate
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.progress.ReadingProgressService
+import app.openstory.reader.preferences.ReaderPreferences
+import app.openstory.reader.preferences.ReaderPreferencesPort
 import app.openstory.reader.selection.ReleaseCandidate
 import app.openstory.reader.selection.ReleaseSelectionPolicy
 import dagger.assisted.Assisted
@@ -31,6 +33,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -42,6 +45,7 @@ class ReaderViewModel @AssistedInject constructor(
     private val documents: ReaderDocumentRepository,
     private val progress: ReadingProgressRepository,
     clock: Clock,
+    private val preferences: ReaderPreferencesPort = DefaultReaderPreferencesPort,
 ) : ViewModel() {
     private val storyId = StoryId(assistedArgs.storyId)
     private var chapterId = CanonicalChapterId(savedState[CHAPTER_ID_KEY] ?: assistedArgs.chapterId)
@@ -49,13 +53,27 @@ class ReaderViewModel @AssistedInject constructor(
     private val progressService = ReadingProgressService(progress, clock, viewModelScope)
     private var cachedChapterGroups: List<CanonicalChapterGroup>? = null
     private var loadJob: Job? = null
+    private var currentPreferences = ReaderPreferences()
     private val mutableState = MutableStateFlow(
-        ReaderUiState(fontScale = savedState[FONT_SCALE_KEY] ?: 1f),
+        ReaderUiState(),
     )
     val state: StateFlow<ReaderUiState> = mutableState.asStateFlow()
 
     init {
-        load(savedState.get<String>(RELEASE_ID_KEY)?.let(::ChapterReleaseId) ?: initialReleaseId)
+        viewModelScope.launch {
+            var initialized = false
+            preferences.preferences.collect { next ->
+                currentPreferences = next.copy(fontScale = next.normalizedFontScale)
+                mutableState.value = mutableState.value.copy(
+                    fontScale = currentPreferences.normalizedFontScale,
+                    preferenceFailure = null,
+                )
+                if (!initialized) {
+                    initialized = true
+                    load(savedState.get<String>(RELEASE_ID_KEY)?.let(::ChapterReleaseId) ?: initialReleaseId)
+                }
+            }
+        }
     }
 
     fun retry() = load(mutableState.value.selectedReleaseId)
@@ -133,6 +151,7 @@ class ReaderViewModel @AssistedInject constructor(
             previousPluginId = restored?.releaseId?.let { id ->
                 group.releases.firstOrNull { it.id == id }?.pluginId
             },
+            languageOrder = currentPreferences.languageOrder,
         )
         val fingerprints = restored?.let { mapOf(it.releaseId to it.contentFingerprint) }.orEmpty()
         when (val result = documents.load(ReaderLoadRequest(candidates, policy, fingerprints))) {
@@ -191,8 +210,19 @@ class ReaderViewModel @AssistedInject constructor(
 
     private fun setFontScale(value: Float) {
         val bounded = value.coerceIn(MIN_FONT_SCALE, MAX_FONT_SCALE)
-        savedState[FONT_SCALE_KEY] = bounded
-        mutableState.value = mutableState.value.copy(fontScale = bounded)
+        mutableState.value = mutableState.value.copy(fontScale = bounded, preferenceFailure = null)
+        viewModelScope.launch {
+            try {
+                preferences.setFontScale(bounded)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableState.value = mutableState.value.copy(
+                    fontScale = currentPreferences.normalizedFontScale,
+                    preferenceFailure = READER_PREFERENCES_WRITE_FAILED,
+                )
+            }
+        }
     }
 
     @AssistedFactory
@@ -203,11 +233,17 @@ class ReaderViewModel @AssistedInject constructor(
     private companion object {
         const val RELEASE_ID_KEY = "reader.release-id"
         const val CHAPTER_ID_KEY = "reader.chapter-id"
-        const val FONT_SCALE_KEY = "reader.font-scale"
         const val READER_CHAPTER_NOT_FOUND = "reader.chapter_not_found"
         const val READER_LOAD_FAILED = "reader.load_failed"
         const val READER_EMPTY = "reader.no_release_available"
+        const val READER_PREFERENCES_WRITE_FAILED = "reader.preferences_write_failed"
     }
+}
+
+private object DefaultReaderPreferencesPort : ReaderPreferencesPort {
+    override val preferences = kotlinx.coroutines.flow.flowOf(ReaderPreferences())
+
+    override suspend fun setFontScale(value: Float) = Unit
 }
 
 internal fun ChapterGraphSnapshot.toReaderGroups(): List<CanonicalChapterGroup> {

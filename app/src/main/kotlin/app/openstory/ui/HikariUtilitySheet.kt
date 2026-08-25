@@ -15,6 +15,7 @@ import app.openstory.designsystem.theme.hikariDimensions
 val utilityDestinations = listOf(
     HikariUtilityDestination(AppRoute.Downloads, "Downloads"),
     HikariUtilityDestination(AppRoute.Updates, "Updates"),
+    HikariUtilityDestination(AppRoute.Settings, "Settings"),
     HikariUtilityDestination(AppRoute.ReconciliationReview(), "Review duplicates"),
 )
 

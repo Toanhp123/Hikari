@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -74,10 +75,80 @@ class PluginManifestTest {
         assertTrue(manifest.capabilities.reader!!.remoteImages)
     }
 
+    @Test
+    fun authenticationIsOptionalForExistingManifests() {
+        val encoded = Json.encodeToString(PluginManifest.serializer(), manifest())
+
+        assertEquals(null, manifest().capabilities.authentication)
+        assertFalse("authentication" in encoded)
+    }
+
+    @Test
+    fun authenticationRejectsUnsafeNavigationAndCompletionTargets() {
+        assertFailsWith<IllegalArgumentException> {
+            authentication(loginStartUrl = "http://accounts.example.com/login")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            authentication(navigationHosts = setOf("*.example.com"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            authentication(completionHost = "user@accounts.example.com")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            authentication(completionHost = "accounts.example.com:8443")
+        }
+    }
+
+    @Test
+    fun authenticationRejectsUnsafeCredentialScopeAndTtl() {
+        assertFailsWith<IllegalArgumentException> {
+            manifest(authentication = authentication(credentialHost = "outside.example.com"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            PluginAuthenticationCredentialTarget("api.example.com", "relative", setOf("session"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            PluginAuthenticationCredentialTarget("api.example.com", "/v1", emptySet())
+        }
+        assertFailsWith<IllegalArgumentException> {
+            authentication(sessionTtlSeconds = PluginAuthenticationCapability.MAX_SESSION_TTL_SECONDS + 1)
+        }
+    }
+
+    @Test
+    fun authenticationFingerprintInputIsOrderIndependentAndSecretFree() {
+        val first = authentication(
+            navigationHosts = setOf("accounts.example.com", "login.example.com"),
+            cookieNames = setOf("refresh", "session"),
+        )
+        val second = authentication(
+            navigationHosts = setOf("login.example.com", "accounts.example.com"),
+            cookieNames = setOf("session", "refresh"),
+        )
+
+        assertEquals(first.policyFingerprint(), second.policyFingerprint())
+        assertEquals(64, first.policyFingerprint().length)
+    }
+
+    @Test
+    fun authenticationFixtureDecodesAndReencodesDeterministically() {
+        val raw = checkNotNull(javaClass.getResource("/authentication/manifest.json")).readText()
+        val manifest = Json.decodeFromString<PluginManifest>(raw)
+        val authentication = checkNotNull(manifest.capabilities.authentication)
+
+        assertEquals("accounts.example.org", authentication.navigationHosts.first())
+        assertEquals(setOf("refresh", "session"), authentication.credentialTargets.single().cookieNames)
+        assertEquals(
+            Json.encodeToString(manifest),
+            Json.encodeToString(Json.decodeFromString<PluginManifest>(Json.encodeToString(manifest))),
+        )
+    }
+
     private fun manifest(
         entry: String = "main.js",
         networkHosts: Set<String> = setOf("api.example.com"),
         operations: Set<PluginOperation>? = null,
+        authentication: PluginAuthenticationCapability? = null,
     ) = PluginManifest(
         id = "org.example.plugin",
         name = "Example plugin",
@@ -86,7 +157,31 @@ class PluginManifestTest {
         entry = entry,
         provides = setOf(PluginService.CATALOG),
         operations = operations,
-        capabilities = PluginCapabilities(NetworkCapability(networkHosts)),
+        capabilities = PluginCapabilities(
+            network = NetworkCapability(networkHosts),
+            authentication = authentication,
+        ),
+    )
+
+    private fun authentication(
+        loginStartUrl: String = "https://accounts.example.com/login",
+        navigationHosts: Set<String> = setOf("accounts.example.com"),
+        completionHost: String = "accounts.example.com",
+        credentialHost: String = "api.example.com",
+        cookieNames: Set<String> = setOf("session"),
+        sessionTtlSeconds: Long = 24 * 60 * 60,
+    ) = PluginAuthenticationCapability(
+        loginStartUrl = loginStartUrl,
+        navigationHosts = navigationHosts,
+        completion = PluginAuthenticationCompletionTarget(completionHost, "/complete"),
+        credentialTargets = listOf(
+            PluginAuthenticationCredentialTarget(
+                host = credentialHost,
+                pathPrefix = "/v1",
+                cookieNames = cookieNames,
+            ),
+        ),
+        sessionTtlSeconds = sessionTtlSeconds,
     )
     private fun contentManifest(
         operations: Set<PluginOperation>,

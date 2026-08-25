@@ -38,6 +38,12 @@ data class PluginManifest(
         require(capabilities.reader == null || supports(PluginOperation.CONTENT_CHAPTER)) {
             "Reader capability requires content.chapter"
         }
+        capabilities.authentication?.let { authentication ->
+            val networkHosts = capabilities.network?.hosts.orEmpty()
+            require(authentication.credentialTargets.all { target -> target.host in networkHosts }) {
+                "Authentication credential targets must belong to declared network hosts"
+            }
+        }
     }
 
     fun supports(operation: PluginOperation): Boolean =
@@ -65,6 +71,7 @@ data class PluginManifest(
 data class PluginCapabilities(
     val network: NetworkCapability? = null,
     val reader: ReaderCapability? = null,
+    val authentication: PluginAuthenticationCapability? = null,
 )
 
 @Serializable
@@ -87,13 +94,22 @@ data class NetworkCapability(
         require(hosts.isNotEmpty()) { "Network capability must declare hosts" }
         require(hosts.all(::isNormalizedHttpsHost)) { "Network hosts must be normalized HTTPS hostnames" }
     }
+}
 
-    private companion object {
-        val HOST_PATTERN = Regex("[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?")
+internal val HOST_PATTERN = Regex("[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?")
 
-        fun isNormalizedHttpsHost(host: String): Boolean =
-            host.isNotBlank() && host == host.lowercase() && host.none(Char::isWhitespace) &&
-                !host.contains("*") && !host.contains("/") && !host.contains(":") &&
-                HOST_PATTERN.matches(host) && host.split('.').all { it.isNotEmpty() }
+internal fun isNormalizedHttpsHost(host: String): Boolean =
+    host.isNotBlank() && host == host.lowercase() && host.none(Char::isWhitespace) &&
+        !host.contains("*") && !host.contains("/") && !host.contains(":") &&
+        HOST_PATTERN.matches(host) && host.split('.').all { it.isNotEmpty() }
+
+internal fun requireNormalizedPathPrefix(pathPrefix: String) {
+    require(pathPrefix.isNotBlank() && pathPrefix == pathPrefix.trim() && pathPrefix.startsWith('/')) {
+        "Authentication path prefix must be absolute and non-blank"
     }
+    require(!pathPrefix.contains("//") && pathPrefix.none(Char::isISOControl)) {
+        "Authentication path prefix must be normalized"
+    }
+    val normalized = URI(null, null, pathPrefix, null).normalize().path
+    require(normalized == pathPrefix) { "Authentication path prefix must not contain dot segments" }
 }

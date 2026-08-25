@@ -27,11 +27,14 @@ import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.progress.ReadingPosition
+import app.openstory.reader.preferences.ReaderPreferences
+import app.openstory.reader.preferences.ReaderPreferencesPort
 import app.openstory.reader.selection.ReleaseSelector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -60,6 +63,7 @@ class ReaderViewModelTest {
             progress("chapter-2", "release-b", "fingerprint-b"),
         )
         val savedState = SavedStateHandle()
+        val preferenceValues = MutableStateFlow(ReaderPreferences())
         val viewModel = ReaderViewModel(
             ReaderAssistedArgs("story", "chapter-2", null),
             savedState,
@@ -67,6 +71,7 @@ class ReaderViewModelTest {
             documents(),
             progress,
             FakeClock(100),
+            FakeReaderPreferencesPort(preferenceValues),
         )
         runCurrent()
 
@@ -78,7 +83,9 @@ class ReaderViewModelTest {
         assertEquals(0.5f, viewModel.state.value.restoredProgressFraction)
 
         viewModel.increaseFont()
-        assertEquals(1.1f, savedState.get<Float>("reader.font-scale"))
+        runCurrent()
+        assertEquals(1.1f, preferenceValues.value.fontScale)
+        assertEquals(null, savedState.get<Float>("reader.font-scale"))
     }
 
     @Test
@@ -226,6 +233,51 @@ class ReaderViewModelTest {
         assertEquals(ReadingPosition("block", 4, 0.4f), repository.current()?.position)
     }
 
+    @Test
+    fun waitsForFirstPreferenceAndUsesItsLanguageOrderForInitialSelection() = runTest(dispatcher.scheduler) {
+        val values = MutableSharedFlow<ReaderPreferences>()
+        val chapters = FakeReaderChapterRepository(graphWithLanguages())
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter", null),
+            SavedStateHandle(),
+            chapters,
+            documents(),
+            FakeReaderProgressRepository(null),
+            FakeClock(100),
+            FakeReaderPreferencesPort(values),
+        )
+        runCurrent()
+        assertEquals(0, chapters.snapshotCalls)
+
+        values.emit(ReaderPreferences(fontScale = 1.2f, languageOrder = listOf("ja", "en")))
+        runCurrent()
+
+        assertEquals(1, chapters.snapshotCalls)
+        assertEquals("release-ja", viewModel.state.value.selectedReleaseId?.value)
+        assertEquals(1.2f, viewModel.state.value.fontScale)
+    }
+
+    @Test
+    fun failedFontPersistenceRestoresLastPersistedValue() = runTest(dispatcher.scheduler) {
+        val values = MutableStateFlow(ReaderPreferences(fontScale = 1f, languageOrder = listOf("en")))
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter", null),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graphForSingleChapter()),
+            documents(),
+            FakeReaderProgressRepository(null),
+            FakeClock(100),
+            FakeReaderPreferencesPort(values, failWrites = true),
+        )
+        runCurrent()
+
+        viewModel.increaseFont()
+        runCurrent()
+
+        assertEquals(1f, viewModel.state.value.fontScale)
+        assertEquals("reader.preferences_write_failed", viewModel.state.value.preferenceFailure)
+    }
+
 
     private fun failingDocuments(code: String, retryable: Boolean) = ReaderDocumentRepository(
         NoOpReaderDocumentStore,
@@ -308,6 +360,28 @@ private fun graph(): ChapterGraphSnapshot {
 private fun graphForSingleChapter(): ChapterGraphSnapshot {
     val chapter = chapter("chapter", "release-a")
     return ChapterGraphSnapshot(listOf(chapter.first), listOf(chapter.second), emptyList())
+}
+
+private fun graphWithLanguages(): ChapterGraphSnapshot {
+    val base = chapter("chapter", "release-en")
+    val japanese = base.second.copy(
+        id = ChapterReleaseId("release-ja"),
+        sourceReleaseId = "release-ja",
+        languageTag = "ja",
+    )
+    return ChapterGraphSnapshot(listOf(base.first), listOf(base.second, japanese), emptyList())
+}
+
+private class FakeReaderPreferencesPort(
+    override val preferences: Flow<ReaderPreferences>,
+    private val failWrites: Boolean = false,
+) : ReaderPreferencesPort {
+    override suspend fun setFontScale(value: Float) {
+        if (failWrites) error("write failed")
+        @Suppress("UNCHECKED_CAST")
+        val state = preferences as? MutableStateFlow<ReaderPreferences> ?: return
+        state.value = state.value.copy(fontScale = value)
+    }
 }
 
 private fun chapter(chapterId: String, releaseId: String): Pair<CanonicalChapter, ChapterRelease> {

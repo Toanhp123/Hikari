@@ -26,6 +26,12 @@ Backward-compatible optional fields can be added within the current major only w
 packages remain valid and the host gives the field a safe default. The tested Kotlin
 serializers in `:plugins:api` are the source of truth; prose examples do not override them.
 
+`capabilities.authentication` follows that rule for the current host: new hosts continue to read
+old packages because the field defaults to absent. This is not universal backward compatibility.
+Older fail-closed hosts that do not recognize the field may reject a new manifest containing it.
+Publishers must treat authentication-enabled packages as requiring a host version that documents
+this field, even though the JavaScript protocol major remains `1`.
+
 ## Release checklist
 
 Before publishing a protocol change:

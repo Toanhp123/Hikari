@@ -75,7 +75,7 @@ class PluginHttpCapability(
             var redirects = 0
             repeat(policy.maxRequests) {
                 val response = client.newCall(
-                    buildRequest(current, policy, currentUri.host.lowercase()) {
+                    buildRequest(current, policy) {
                         tag(
                             CompressedByteLimit::class.java,
                             CompressedByteLimit(policy.maxCompressedResponseBytes),
@@ -117,9 +117,9 @@ class PluginHttpCapability(
     internal suspend fun buildRequest(
         source: PluginHttpRequest,
         policy: PluginRequestPolicy,
-        host: String,
         customize: Request.Builder.() -> Unit = {},
     ): Request {
+        val target = requireAllowedUrl(source.url, policy.allowedHosts)
         val bodyBytes = source.body?.encodeToByteArray()
         if ((bodyBytes?.size ?: 0) > policy.maxRequestBytes) {
             throw HttpCapabilityFailure("plugin.http_request_too_large")
@@ -128,7 +128,12 @@ class PluginHttpCapability(
         source.headers.forEach { (name, value) ->
             if (!FORBIDDEN_SCRIPT_HEADERS.contains(name.lowercase())) builder.header(name, value)
         }
-        credentials.headers(policy.pluginId, host).forEach(builder::header)
+        credentials.headers(
+            ManagedCredentialRequest(
+                pluginId = policy.pluginId,
+                url = normalizedRequestTarget(target),
+            ),
+        ).forEach(builder::header)
         val body = bodyBytes?.toRequestBody(source.headers["Content-Type"]?.toMediaTypeOrNull())
         builder.method(source.method.uppercase(), body)
         builder.customize()
@@ -143,12 +148,23 @@ class PluginHttpCapability(
         requireHttpTarget(uri.scheme == "https", "plugin.http_https_required")
         requireHttpTarget(host in allowedHosts, "plugin.http_domain_denied")
         requireHttpTarget(uri.userInfo == null, "plugin.http_url_invalid")
-        return uri
+        requireHttpTarget(uri.fragment == null, "plugin.http_url_invalid")
+        return URI(
+            uri.scheme.lowercase(),
+            null,
+            host,
+            uri.port,
+            uri.path.ifBlank { "/" },
+            uri.query,
+            null,
+        ).normalize()
     }
 
     private fun requireHttpTarget(condition: Boolean, code: String) {
         if (!condition) throw HttpCapabilityFailure(code)
     }
+
+    private fun normalizedRequestTarget(uri: URI): String = uri.toASCIIString()
 
     private companion object {
         val FORBIDDEN_SCRIPT_HEADERS = setOf("authorization", "cookie", "proxy-authorization")

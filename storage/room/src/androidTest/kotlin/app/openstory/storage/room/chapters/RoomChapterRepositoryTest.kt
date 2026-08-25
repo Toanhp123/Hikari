@@ -32,6 +32,42 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RoomChapterRepositoryTest {
     @Test
+    fun chapterGraphAndRawNotificationEvidenceCommitAtomicallyAndRemainIdempotent() = runTest {
+        withRepository { database, repository ->
+            val chapter = chapter("chapter-evidence", "1")
+            val release = release("release-evidence", "1")
+            val mutation = mutation(
+                releases = listOf(release),
+                creates = listOf(chapter),
+                links = listOf(ChapterReleaseLink(release.id, chapter.id)),
+            )
+
+            assertIs<ChapterCommitResult.Success>(repository.commit(mutation))
+            assertIs<ChapterCommitResult.Success>(repository.commit(mutation))
+
+            assertEquals(2, database.rowCount("chapter_change_events"))
+            assertEquals(2, database.rowCount("notification_deliveries"))
+        }
+    }
+
+    @Test
+    fun notificationEvidenceFailureRollsBackTheChapterGraph() = runTest {
+        withRepository { database, repository ->
+            database.openHelper.writableDatabase.execSQL(
+                "CREATE TRIGGER fail_chapter_evidence BEFORE INSERT ON chapter_change_events " +
+                    "BEGIN SELECT RAISE(ABORT, 'forced'); END",
+            )
+            val chapter = chapter("chapter-rollback", "2")
+
+            assertIs<ChapterCommitResult.Failure>(
+                repository.commit(mutation(releases = emptyList(), creates = listOf(chapter))),
+            )
+            assertTrue(repository.snapshot(STORY_ID).chapters.isEmpty())
+            assertEquals(0, database.rowCount("chapter_change_events"))
+        }
+    }
+
+    @Test
     fun aggregationCommitIsAtomicAndRollsBackInvalidLinks() = runTest {
         withRepository { database, repository ->
             val release = release("release-1", "1")
@@ -208,6 +244,12 @@ class RoomChapterRepositoryTest {
         part = null,
         normalizedTitle = null,
     )
+
+    private fun OpenStoryDatabase.rowCount(table: String): Int =
+        openHelper.writableDatabase.query("SELECT COUNT(*) FROM $table").use { cursor ->
+            cursor.moveToFirst()
+            cursor.getInt(0)
+        }
 
     private companion object {
         val STORY_ID = StoryId("story:chapters")

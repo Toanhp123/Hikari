@@ -11,8 +11,11 @@ import app.openstory.plugins.runtime.capabilities.http.PluginHttpResponse
 import app.openstory.plugins.runtime.capabilities.http.PluginRequestPolicy
 import app.openstory.plugins.runtime.capabilities.log.SafeLogEvent
 import app.openstory.plugins.runtime.capabilities.log.SafePluginLogger
+import app.openstory.plugins.runtime.auth.PluginSessionService
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 fun interface CapabilityDispatcher {
     suspend fun dispatch(
@@ -28,6 +31,7 @@ class CapabilityBroker(
     private val http: PluginHttpCapability,
     private val html: HtmlCapability,
     private val logger: SafePluginLogger,
+    private val sessions: PluginSessionService? = null,
     private val json: Json = Json,
 ) : CapabilityDispatcher {
     override suspend fun dispatch(
@@ -50,6 +54,14 @@ class CapabilityBroker(
                 operation,
                 json.decodeFromJsonElement(SafeLogEvent.serializer(), payload),
             ).mapJson { json.parseToJsonElement("null") }
+            "auth.getState" -> sessions?.summary(pluginId)?.let { summary ->
+                PluginCallResult.Success(
+                    buildJsonObject {
+                        put("status", summary.status.name.lowercase())
+                        summary.expiresAtEpochMillis?.let { put("expiresAtEpochMillis", it) }
+                    },
+                )
+            } ?: PluginCallResult.Failure("plugin.auth_unavailable", retryable = false)
             else -> PluginCallResult.Failure("plugin.capability_denied", retryable = false)
         }
     } catch (_: RuntimeException) {

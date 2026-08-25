@@ -85,8 +85,8 @@ production_module_count="$(awk '
   /^[[:space:]]*}[,]?[[:space:]]*$/ && module != "" { if (!is_test) count++; module = "" }
   END { print count + 0 }
 ' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$production_module_count" == 14 ]] || {
-  echo "UI foundation boundary must contain exactly fourteen production modules." >&2
+[[ "$production_module_count" == 15 ]] || {
+  echo "Wave 10 foundation boundary must contain exactly fifteen production modules before feature settings." >&2
   exit 1
 }
 
@@ -100,7 +100,7 @@ grep -A4 '"\:benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture
   exit 1
 }
 
-expected_app_dependencies=$':core:common\n:core:designsystem\n:catalog\n:library\n:chapters\n:reader\n:downloads\n:storage:room\n:storage:files\n:plugins:api\n:plugins:runtime\n:feature:catalog\n:feature:reader'
+expected_app_dependencies=$':core:common\n:core:designsystem\n:catalog\n:library\n:chapters\n:reader\n:downloads\n:settings\n:storage:room\n:storage:files\n:plugins:api\n:plugins:runtime\n:feature:catalog\n:feature:reader'
 expected_download_dependencies=$':core:common\n:chapters\n:reader'
 expected_file_dependencies=':downloads'
 if [[ "$(module_dependencies ':app')" != "$expected_app_dependencies" ]] ||

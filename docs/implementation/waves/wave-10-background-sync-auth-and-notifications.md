@@ -1,4 +1,4 @@
-<!-- DOCUMENT LIFECYCLE: PLANNED / CLEAN-ARCHITECTURE REBASELINE -->
+<!-- DOCUMENT LIFECYCLE: IMPLEMENTATION PRESENT / VERIFICATION OPEN -->
 
 # Wave 10 Background Work, Authentication, and Notifications Implementation Plan
 
@@ -19,6 +19,19 @@ owns WorkManager, WebView, permission, notification, deep-link, and navigation a
 Android Keystore AES-GCM, Room, Compose, Navigation 3, and Android notification APIs.
 
 **Spec:** `../../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
+
+## Current Implementation Status
+
+- Production implementation through remediation Phase 6 is present on
+  `feat/wave-10-production-remediation` with Room schema 11 and the approved 16-module graph.
+- Remediation Phase 7 integration coverage is present for runtime sessions, redirect credential
+  isolation, bounded chapter dispatch, durable notification recovery, terminal permission denial,
+  and collision-safe platform IDs.
+- Focused host RED/GREEN and API 35 integration gates have run; the complete host matrix plus the
+  required API 26 and API 37 acceptance gates remain open. Wave 10 is not accepted or closed from
+  source presence alone. See `../../internal/checkpoints/wave-10-production-remediation.md`.
+- Wave 11 is explicitly blocked and must not begin until those remaining Wave 10 acceptance gates
+  pass and this checkpoint is closed.
 
 ## Entry Baseline
 

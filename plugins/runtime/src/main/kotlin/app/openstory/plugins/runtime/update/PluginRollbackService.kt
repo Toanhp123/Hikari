@@ -4,7 +4,10 @@ import app.openstory.common.id.PluginId
 import app.openstory.plugins.runtime.PluginCallResult
 import app.openstory.plugins.runtime.persistence.PluginStateStore
 
-class PluginRollbackService(private val state: PluginStateStore) {
+class PluginRollbackService(
+    private val state: PluginStateStore,
+    private val onRolledBack: suspend (PluginId) -> Unit = {},
+) {
     suspend fun rollback(pluginId: PluginId): PluginCallResult<Unit> {
         val current = state.find(pluginId)
         return when {
@@ -17,6 +20,7 @@ class PluginRollbackService(private val state: PluginStateStore) {
                         previousVersion = current.activeVersion,
                     ),
                 )
+                onRolledBack(pluginId)
                 PluginCallResult.Success(Unit)
             }
         }

@@ -83,6 +83,10 @@ unknown methods are denied.
 Accepts `{url, method, headers, body}` and returns `{status, body}`. The host enforces HTTPS,
 the exact manifest host allowlist, redirect/request/body/response/time budgets, strips
 script-provided authorization and cookie headers, and injects managed credentials itself.
+The runtime validates the complete HTTPS request target, including every redirect, before managed
+credentials are consulted. Providers receive the plugin ID and normalized URL; duplicate
+case-insensitive managed-header ownership fails closed. Authentication cookies remain host-owned as
+described in [authentication.md](authentication.md).
 
 ### `host.html.query(request)`
 

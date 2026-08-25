@@ -8,8 +8,27 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
+internal data class ChapterSyncCandidateRow(
+    @androidx.room.ColumnInfo(name = "story_id") val storyId: String,
+    @androidx.room.ColumnInfo(name = "last_successful_sync_at_epoch_millis")
+    val lastSuccessfulSyncAtEpochMillis: Long?,
+)
+
 @Dao
 internal interface LibraryDao {
+    @Query(
+        "SELECT COALESCE(redirect.canonical_story_id, library.story_id) AS story_id, " +
+            "MIN(sync.updated_at_epoch_millis) AS last_successful_sync_at_epoch_millis " +
+            "FROM library_entries AS library " +
+            "LEFT JOIN story_redirects AS redirect ON redirect.retired_story_id = library.story_id " +
+            "LEFT JOIN chapter_sync_states AS sync " +
+            "ON sync.story_id = COALESCE(redirect.canonical_story_id, library.story_id) " +
+            "GROUP BY COALESCE(redirect.canonical_story_id, library.story_id) " +
+            "ORDER BY last_successful_sync_at_epoch_millis IS NOT NULL, " +
+            "last_successful_sync_at_epoch_millis, story_id",
+    )
+    suspend fun chapterSyncCandidates(): List<ChapterSyncCandidateRow>
+
     @Query("SELECT * FROM library_entries ORDER BY story_id")
     fun observe(): Flow<List<LibraryEntity>>
 

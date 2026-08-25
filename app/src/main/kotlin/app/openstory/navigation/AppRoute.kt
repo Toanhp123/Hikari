@@ -21,6 +21,9 @@ sealed interface AppRoute : NavKey {
     data object Updates : AppRoute
 
     @Serializable
+    data object Settings : AppRoute
+
+    @Serializable
     data class ReconciliationReview(val caseId: String? = null) : AppRoute
 
     @Serializable

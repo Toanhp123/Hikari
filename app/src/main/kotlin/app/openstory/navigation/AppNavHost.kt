@@ -162,6 +162,9 @@ private fun AppNavigationContent(
                     },
                 )
             }
+            entry<AppRoute.Settings> {
+                SettingsDestination(contentPadding, navigator::back)
+            }
             entry<AppRoute.ReconciliationReview> { route ->
                 ReconciliationReviewDestination(route, contentPadding, navigator::back)
             }

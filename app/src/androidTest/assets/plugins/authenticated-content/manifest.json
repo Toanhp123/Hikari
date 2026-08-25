@@ -1,0 +1,47 @@
+{
+  "id": "org.example.authenticatedcontent",
+  "name": "Authenticated Content Fixture",
+  "version": "1.0.0",
+  "protocol": 1,
+  "entry": "main.js",
+  "provides": [
+    "CONTENT"
+  ],
+  "operations": [
+    "content.search",
+    "content.chapters",
+    "content.chapter"
+  ],
+  "languages": [
+    "en"
+  ],
+  "capabilities": {
+    "network": {
+      "hosts": [
+        "accounts.example.com",
+        "api.example.com",
+        "redirect.example.com"
+      ]
+    },
+    "authentication": {
+      "loginStartUrl": "https://accounts.example.com/login",
+      "navigationHosts": [
+        "accounts.example.com"
+      ],
+      "completion": {
+        "host": "accounts.example.com",
+        "pathPrefix": "/complete"
+      },
+      "credentialTargets": [
+        {
+          "host": "api.example.com",
+          "pathPrefix": "/content",
+          "cookieNames": [
+            "session"
+          ]
+        }
+      ],
+      "sessionTtlSeconds": 3600
+    }
+  }
+}

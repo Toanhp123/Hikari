@@ -33,6 +33,15 @@ internal interface ChapterDao {
     @Query("SELECT * FROM chapter_releases WHERE chapter_release_id = :releaseId")
     suspend fun findRelease(releaseId: String): ChapterReleaseEntity?
 
+    @Query("SELECT * FROM canonical_chapters WHERE canonical_chapter_id = :chapterId")
+    suspend fun findChapter(chapterId: String): CanonicalChapterEntity?
+
+    @Query(
+        "SELECT * FROM chapter_releases WHERE canonical_chapter_id = :chapterId " +
+            "ORDER BY language_tag, chapter_release_id",
+    )
+    suspend fun releasesForChapter(chapterId: String): List<ChapterReleaseEntity>
+
     @Query("SELECT * FROM chapter_aggregation_overrides WHERE story_id = :storyId")
     suspend fun overrides(storyId: String): List<ChapterAggregationOverrideEntity>
 

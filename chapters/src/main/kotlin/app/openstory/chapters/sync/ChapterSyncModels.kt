@@ -11,7 +11,6 @@ data class ChapterSyncFailure(
 
 data class ChapterSyncSourceSuccess(
     val pluginId: PluginId,
-    val releaseCount: Int,
 )
 
 sealed interface ChapterSyncReport {

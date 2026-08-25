@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-24
+Date: 2026-08-25
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -28,23 +28,28 @@ catalog metadata-lifecycle unification subsequently advanced Room to **schema 8*
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
 
 The **Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on its Room schema-9 boundary**.
-Phases 0-7 / Tasks 1-42 are accepted. The schema-10 durability entry gate is also accepted, so
-**Wave 10 is ready to start as the active next capability boundary.** The current
+Phases 0-7 / Tasks 1-42 are accepted. The schema-10 durability entry gate is also accepted.
+**Wave 10 production implementation and remediation Phase 7 coverage are present on Room schema 11,
+with final host/device verification still open.** The current
 design/plan/readiness records are:
 
 - `../superpowers/specs/2026-08-24-canonical-engine-performance-and-durability-design.md`
 - `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
 - `waves/wave-10-background-sync-auth-and-notifications.md`
 - `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`
+- `../internal/checkpoints/wave-10-production-remediation.md`
 
 The later Canonical Engine Performance and Durability implementation advances current source to
 schema 10. It owns `MIGRATION_9_10` for canonical-work leases and the transactional catalog-change
 outbox. Its policy, full host, and API 26/API 37 entry verification is accepted.
 
-Wave 10 is ready to start from its clean-architecture rebaseline and remains unimplemented. The
-rebaseline explicitly introduces missing consumer-owned Reader/cache policy ports, request-target
-credential scope, bounded background candidate selection, and a transactional chapter-change outbox
-rather than treating those boundaries as already implemented.
+Wave 10 now has production implementation for consumer-owned Reader/cache policy ports,
+request-target credential scope, bounded background candidate selection, transactional
+chapter-change evidence, durable notification delivery, and Settings status ports. Remediation
+Phase 7 adds the planned auth, scheduling, process-death recovery, permission-denial, and ID-collision
+integration contracts. Acceptance remains verification-open until the recorded host and API 26/API
+37 gates are actually run and reviewed.
+**Wave 11 must not start while this Wave 10 acceptance boundary remains open.**
 Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
 notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
 separately reviewed migration intervenes.
@@ -144,8 +149,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
 | CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phases 0–7 / Tasks 1–42 verified/closed; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md` |
 | CED | Canonical engine performance/durability | **Entry baseline accepted on schema 10** | `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md` |
-| 10 | Background work, auth, notifications | **Ready to start; notification persistence 10 -> 11** | `waves/wave-10-background-sync-auth-and-notifications.md` |
-| 11 | Hardening and open-source release | Planned; post-baseline plan approved | `waves/wave-11-hardening-open-source-release.md` |
+| 10 | Background work, auth, notifications | **Implementation present on schema 11; final host/device verification open** | `../internal/checkpoints/wave-10-production-remediation.md` |
+| 11 | Hardening and open-source release | **Blocked until Wave 10 final host/API 26/API 37 acceptance closes** | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
 

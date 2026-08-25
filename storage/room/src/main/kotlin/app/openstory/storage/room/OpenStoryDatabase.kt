@@ -28,9 +28,12 @@ import app.openstory.storage.room.catalog.StoryEntity
 import app.openstory.storage.room.chapters.CanonicalChapterEntity
 import app.openstory.storage.room.chapters.ChapterAggregationOverrideEntity
 import app.openstory.storage.room.chapters.ChapterDao
+import app.openstory.storage.room.chapters.ChapterChangeEventEntity
 import app.openstory.storage.room.chapters.ChapterReleaseEntity
 import app.openstory.storage.room.chapters.ChapterSyncStateEntity
 import app.openstory.storage.room.chapters.ChapterSyncDao
+import app.openstory.storage.room.chapters.NotificationDeliveryEntity
+import app.openstory.storage.room.chapters.NotificationEventDao
 import app.openstory.storage.room.downloads.ChapterStorageEntryEntity
 import app.openstory.storage.room.downloads.DownloadDao
 import app.openstory.storage.room.library.ContentMappingEntity
@@ -73,10 +76,12 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         ChapterReleaseEntity::class,
         ChapterAggregationOverrideEntity::class,
         ChapterSyncStateEntity::class,
+        ChapterChangeEventEntity::class,
+        NotificationDeliveryEntity::class,
         ReadingProgressEntity::class,
         ChapterStorageEntryEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -90,6 +95,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun libraryDao(): LibraryDao
     internal abstract fun chapterDao(): ChapterDao
     internal abstract fun chapterSyncDao(): ChapterSyncDao
+    internal abstract fun notificationEventDao(): NotificationEventDao
     internal abstract fun readingProgressDao(): ReadingProgressDao
     internal abstract fun downloadDao(): DownloadDao
 
@@ -110,6 +116,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             RoomMigrations.MIGRATION_7_8,
             RoomMigrations.MIGRATION_8_9,
             RoomMigrations.MIGRATION_9_10,
+            RoomMigrations.MIGRATION_10_11,
         )
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()

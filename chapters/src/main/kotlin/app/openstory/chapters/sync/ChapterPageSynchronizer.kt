@@ -47,7 +47,6 @@ internal class ChapterPageSynchronizer(
         var graph: ChapterGraphSnapshot? = null
         val startedFromBeginning = mode == ChapterListMode.FULL && cursor == null
         val fullReleaseIds = linkedSetOf<ChapterReleaseId>()
-        var releaseCount = 0
         var pageCount = 0
         var outcome: PageSyncResult? = null
 
@@ -72,8 +71,7 @@ internal class ChapterPageSynchronizer(
                         is PageCommit.Failed -> outcome = PageSyncResult.Failed(committed.failure)
                         is PageCommit.Success -> {
                             graph = committed.graph
-                            releaseCount += releases.size
-                            outcome = pageOutcome(mapping, fetched.page.nextToken, cursor, releaseCount)
+                            outcome = pageOutcome(mapping, fetched.page.nextToken, cursor)
                             cursor = fetched.page.nextToken
                         }
                     }
@@ -189,9 +187,8 @@ internal class ChapterPageSynchronizer(
         mapping: ContentMapping,
         nextToken: String?,
         currentCursor: String?,
-        releaseCount: Int,
     ): PageSyncResult? = when {
-        nextToken == null -> PageSyncResult.Completed(releaseCount)
+        nextToken == null -> PageSyncResult.Completed
         nextToken == currentCursor -> PageSyncResult.Failed(
             ChapterSyncFailure(mapping.pluginId, PAGE_LOOP, false),
         )
@@ -217,7 +214,7 @@ internal class ChapterPageSynchronizer(
 }
 
 internal sealed interface PageSyncResult {
-    data class Completed(val releaseCount: Int) : PageSyncResult
+    data object Completed : PageSyncResult
     data class Failed(val failure: ChapterSyncFailure) : PageSyncResult
 }
 

@@ -1,0 +1,29 @@
+{
+  "id": "org.example.authenticated",
+  "name": "Authenticated example",
+  "version": "1.0.0",
+  "protocol": 1,
+  "provides": ["CONTENT"],
+  "operations": ["content.chapters"],
+  "capabilities": {
+    "network": {
+      "hosts": ["api.example.org"]
+    },
+    "authentication": {
+      "loginStartUrl": "https://accounts.example.org/login",
+      "navigationHosts": ["accounts.example.org", "login.example.org"],
+      "completion": {
+        "host": "accounts.example.org",
+        "pathPrefix": "/complete"
+      },
+      "credentialTargets": [
+        {
+          "host": "api.example.org",
+          "pathPrefix": "/v1",
+          "cookieNames": ["refresh", "session"]
+        }
+      ],
+      "sessionTtlSeconds": 86400
+    }
+  }
+}

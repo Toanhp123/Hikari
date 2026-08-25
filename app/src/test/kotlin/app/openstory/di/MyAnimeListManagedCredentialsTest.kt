@@ -1,6 +1,7 @@
 package app.openstory.di
 
 import app.openstory.common.id.PluginId
+import app.openstory.plugins.runtime.capabilities.http.ManagedCredentialRequest
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,16 +14,19 @@ class MyAnimeListManagedCredentialsTest {
 
         assertEquals(
             mapOf("X-MAL-CLIENT-ID" to "marker-secret"),
-            provider.headers(PluginId("org.openstory.catalog.myanimelist"), "api.myanimelist.net"),
+            provider.headers(request("org.openstory.catalog.myanimelist", "https://api.myanimelist.net/v2/manga")),
         )
-        assertTrue(provider.headers(PluginId("org.openstory.catalog.myanimelist"), "cdn.myanimelist.net").isEmpty())
-        assertTrue(provider.headers(PluginId("org.example.other"), "api.myanimelist.net").isEmpty())
+        assertTrue(provider.headers(request("org.openstory.catalog.myanimelist", "https://cdn.myanimelist.net/a")).isEmpty())
+        assertTrue(provider.headers(request("org.example.other", "https://api.myanimelist.net/v2/manga")).isEmpty())
     }
 
     @Test
     fun invalidOrMissingClientIdIsNeverInjected() = runTest {
-        val pluginId = PluginId("org.openstory.catalog.myanimelist")
-        assertTrue(MyAnimeListManagedCredentials(" ").headers(pluginId, "api.myanimelist.net").isEmpty())
-        assertTrue(MyAnimeListManagedCredentials("bad\nvalue").headers(pluginId, "api.myanimelist.net").isEmpty())
+        val request = request("org.openstory.catalog.myanimelist", "https://api.myanimelist.net/v2/manga")
+        assertTrue(MyAnimeListManagedCredentials(" ").headers(request).isEmpty())
+        assertTrue(MyAnimeListManagedCredentials("bad\nvalue").headers(request).isEmpty())
     }
+
+    private fun request(pluginId: String, url: String) =
+        ManagedCredentialRequest(PluginId(pluginId), url)
 }

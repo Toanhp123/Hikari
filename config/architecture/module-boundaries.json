@@ -13,12 +13,14 @@
         ":chapters",
         ":reader",
         ":downloads",
+        ":settings",
         ":storage:room",
         ":storage:files",
         ":plugins:api",
         ":plugins:runtime",
         ":feature:catalog",
-        ":feature:reader"
+        ":feature:reader",
+        ":feature:settings"
       ],
       "testDependencies": [":benchmark"],
       "forbiddenProductionImports": []
@@ -150,6 +152,27 @@
         "app.openstory.plugins.runtime.update."
       ]
     },
+    ":settings": {
+      "path": "settings",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.content.",
+        "androidx.compose.",
+        "androidx.room.",
+        "androidx.work.",
+        "app.openstory.catalog.",
+        "app.openstory.library.",
+        "app.openstory.chapters.",
+        "app.openstory.reader.",
+        "app.openstory.downloads.",
+        "app.openstory.storage.",
+        "app.openstory.plugins.",
+        "app.openstory.reader.ui."
+      ]
+    },
     ":feature:catalog": {
       "path": "feature/catalog",
       "platform": "android-library",
@@ -165,6 +188,14 @@
       "productionDependencies": [":core:common", ":core:designsystem", ":chapters", ":reader", ":downloads"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
+    },
+    ":feature:settings": {
+      "path": "feature/settings",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common", ":core:designsystem", ":settings"],
+      "testDependencies": [],
+      "forbiddenProductionImports": ["app.openstory.storage.", "app.openstory.plugins.runtime."]
     },
     ":storage:room": {
       "path": "storage/room",

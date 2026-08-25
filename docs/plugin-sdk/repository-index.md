@@ -29,3 +29,7 @@ The pair `(pluginId, version)` must be unique and an index contains at most 10,0
 artifacts. Repository transport, index provenance, signing-key trust, download limits,
 and exact package-byte verification are host responsibilities. Plugin JavaScript receives
 none of the repository credentials, signature keys, or raw package paths.
+
+Repository metadata does not advertise or carry login cookies. Authentication declarations live
+inside the signed plugin manifest and follow [authentication.md](authentication.md); session data is
+local host state and is never serialized into an index or package.
