@@ -18,7 +18,7 @@ internal object ReaderRoutingCandidateMapper {
         languageTag = release.languageTag,
         sourceGroupKey = null,
         publishedAtEpochMillis = release.publishedAtEpochMillis,
-        completeness = BasisPoints(10_000),
+        completeness = BasisPoints(BasisPoints.MAX_VALUE),
         remoteAccess = remoteAccess,
         localAccess = localAccess,
     )

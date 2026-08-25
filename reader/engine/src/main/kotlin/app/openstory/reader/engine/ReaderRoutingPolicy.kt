@@ -5,15 +5,33 @@ enum class LanguageFallbackMode {
     STRICT_ALLOWED,
 }
 
+private object ReaderRoutingDefaults {
+    const val LANGUAGE_WEIGHT = 2_500
+    const val CONTINUITY_WEIGHT = 2_500
+    const val HEALTH_WEIGHT = 1_800
+    const val RELIABILITY_WEIGHT = 1_000
+    const val COMPLETENESS_WEIGHT = 900
+    const val LATENCY_WEIGHT = 700
+    const val FRESHNESS_WEIGHT = 300
+    const val CACHE_UTILITY_WEIGHT = 300
+    const val REQUIRED_WEIGHT_TOTAL = BasisPoints.MAX_VALUE
+    const val HEDGE_ALTERNATE_MINIMUM_REMOTE_ACCESS_SCORE = 8_000
+    const val HEDGE_ALTERNATE_MINIMUM_RELIABILITY = 9_000
+    const val MAX_RECOVERY_ATTEMPTS = 6
+    const val MAX_PLANNED_FOREGROUND_REMOTE_ATTEMPTS = 4
+    const val NORMAL_SWITCH_THRESHOLD = 800
+    const val DEGRADED_SWITCH_THRESHOLD = 350
+}
+
 data class ReaderRoutingWeights(
-    val language: BasisPoints = BasisPoints(2_500),
-    val continuity: BasisPoints = BasisPoints(2_500),
-    val health: BasisPoints = BasisPoints(1_800),
-    val reliability: BasisPoints = BasisPoints(1_000),
-    val completeness: BasisPoints = BasisPoints(900),
-    val latency: BasisPoints = BasisPoints(700),
-    val freshness: BasisPoints = BasisPoints(300),
-    val cacheUtility: BasisPoints = BasisPoints(300),
+    val language: BasisPoints = BasisPoints(ReaderRoutingDefaults.LANGUAGE_WEIGHT),
+    val continuity: BasisPoints = BasisPoints(ReaderRoutingDefaults.CONTINUITY_WEIGHT),
+    val health: BasisPoints = BasisPoints(ReaderRoutingDefaults.HEALTH_WEIGHT),
+    val reliability: BasisPoints = BasisPoints(ReaderRoutingDefaults.RELIABILITY_WEIGHT),
+    val completeness: BasisPoints = BasisPoints(ReaderRoutingDefaults.COMPLETENESS_WEIGHT),
+    val latency: BasisPoints = BasisPoints(ReaderRoutingDefaults.LATENCY_WEIGHT),
+    val freshness: BasisPoints = BasisPoints(ReaderRoutingDefaults.FRESHNESS_WEIGHT),
+    val cacheUtility: BasisPoints = BasisPoints(ReaderRoutingDefaults.CACHE_UTILITY_WEIGHT),
 ) {
     val total: Int = listOf(
         language,
@@ -27,7 +45,7 @@ data class ReaderRoutingWeights(
     ).sumOf(BasisPoints::value)
 
     init {
-        require(total == 10_000) {
+        require(total == ReaderRoutingDefaults.REQUIRED_WEIGHT_TOTAL) {
             "Reader routing weights must total exactly 10_000 basis points: $total"
         }
     }
@@ -37,8 +55,12 @@ data class HedgePolicy(
     val delayMillis: Long = 650L,
     val primaryP95ThresholdMillis: Long = 1_200L,
     val minimumLatencySamples: Int = 3,
-    val alternateMinimumRemoteAccessScore: BasisPoints = BasisPoints(8_000),
-    val alternateMinimumReliability: BasisPoints = BasisPoints(9_000),
+    val alternateMinimumRemoteAccessScore: BasisPoints = BasisPoints(
+        ReaderRoutingDefaults.HEDGE_ALTERNATE_MINIMUM_REMOTE_ACCESS_SCORE,
+    ),
+    val alternateMinimumReliability: BasisPoints = BasisPoints(
+        ReaderRoutingDefaults.HEDGE_ALTERNATE_MINIMUM_RELIABILITY,
+    ),
 ) {
     init {
         require(delayMillis >= 0L) { "Hedge delay must be non-negative." }
@@ -91,11 +113,16 @@ class ReaderRoutingPolicy private constructor(
                 "STRICT_ALLOWED requires at least one language tag."
             }
         }
-        require(maxRecoveryAttempts in 0..6) {
-            "maxRecoveryAttempts must be in 0..6: $maxRecoveryAttempts"
+        require(maxRecoveryAttempts in 0..ReaderRoutingDefaults.MAX_RECOVERY_ATTEMPTS) {
+            "maxRecoveryAttempts must be in 0..${ReaderRoutingDefaults.MAX_RECOVERY_ATTEMPTS}: " +
+                maxRecoveryAttempts
         }
-        require(maxPlannedForegroundRemoteAttempts in 1..4) {
-            "maxPlannedForegroundRemoteAttempts must be in 1..4: " +
+        require(
+            maxPlannedForegroundRemoteAttempts in
+                1..ReaderRoutingDefaults.MAX_PLANNED_FOREGROUND_REMOTE_ATTEMPTS
+        ) {
+            "maxPlannedForegroundRemoteAttempts must be in " +
+                "1..${ReaderRoutingDefaults.MAX_PLANNED_FOREGROUND_REMOTE_ATTEMPTS}: " +
                 maxPlannedForegroundRemoteAttempts
         }
     }
@@ -152,11 +179,11 @@ class ReaderRoutingPolicy private constructor(
             weights: ReaderRoutingWeights = ReaderRoutingWeights(),
             languageOrder: List<String> = emptyList(),
             languageFallbackMode: LanguageFallbackMode = LanguageFallbackMode.ORDERED_ALLOW,
-            normalSwitchThreshold: BasisPoints = BasisPoints(800),
-            degradedSwitchThreshold: BasisPoints = BasisPoints(350),
+            normalSwitchThreshold: BasisPoints = BasisPoints(ReaderRoutingDefaults.NORMAL_SWITCH_THRESHOLD),
+            degradedSwitchThreshold: BasisPoints = BasisPoints(ReaderRoutingDefaults.DEGRADED_SWITCH_THRESHOLD),
             allowUnverifiedLocalAttempt: Boolean = true,
-            maxRecoveryAttempts: Int = 6,
-            maxPlannedForegroundRemoteAttempts: Int = 4,
+            maxRecoveryAttempts: Int = ReaderRoutingDefaults.MAX_RECOVERY_ATTEMPTS,
+            maxPlannedForegroundRemoteAttempts: Int = ReaderRoutingDefaults.MAX_PLANNED_FOREGROUND_REMOTE_ATTEMPTS,
             hedge: HedgePolicy = HedgePolicy(),
         ): ReaderRoutingPolicy {
             val normalizedLanguageOrder = languageOrder.map(::normalizeLanguageTag)

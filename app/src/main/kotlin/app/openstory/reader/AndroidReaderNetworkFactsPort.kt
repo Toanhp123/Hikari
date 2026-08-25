@@ -43,21 +43,24 @@ private class AndroidReaderConnectivitySnapshotSource(
         .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     override fun read(): ReaderConnectivitySnapshot {
-        val active = connectivity.activeNetwork ?: return ReaderConnectivitySnapshot(
-            hasActiveNetwork = false,
-            validated = null,
-            metered = null,
-        )
-        val capabilities = connectivity.getNetworkCapabilities(active)
-            ?: return ReaderConnectivitySnapshot(
+        val active = connectivity.activeNetwork
+        val capabilities = active?.let(connectivity::getNetworkCapabilities)
+        return when {
+            active == null -> ReaderConnectivitySnapshot(
+                hasActiveNetwork = false,
+                validated = null,
+                metered = null,
+            )
+            capabilities == null -> ReaderConnectivitySnapshot(
                 hasActiveNetwork = true,
                 validated = null,
                 metered = null,
             )
-        return ReaderConnectivitySnapshot(
-            hasActiveNetwork = true,
-            validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED),
-            metered = connectivity.isActiveNetworkMetered,
-        )
+            else -> ReaderConnectivitySnapshot(
+                hasActiveNetwork = true,
+                validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED),
+                metered = connectivity.isActiveNetworkMetered,
+            )
+        }
     }
 }

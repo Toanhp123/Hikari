@@ -1,5 +1,6 @@
 package app.openstory.reader.routing
 
+import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
@@ -8,6 +9,7 @@ import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.engine.AccessMode
+import app.openstory.reader.engine.ReaderRouteDecision
 import app.openstory.reader.engine.ReaderRouteEngine
 import app.openstory.reader.engine.RemoteAttemptKind
 import app.openstory.reader.engine.RouteAttempt
@@ -58,18 +60,28 @@ class ReaderRouteCoordinator(
     )
     private val engine = ReaderRouteEngine.v1()
 
+    private data class PreparedForegroundRoute(
+        val assembled: AssembledRouteSnapshot,
+        val decision: ReaderRouteDecision,
+        val plannedAttempts: List<RouteAttempt>,
+        val candidateByRelease: Map<ChapterReleaseId, ChapterRelease>,
+        val heldProbeLeases: MutableList<ReaderHalfOpenProbeLease>,
+    )
+
     internal suspend fun execute(
         session: ReaderRouteSession,
         context: ReaderRouteExecutionContext,
+    ): ReaderForegroundResult = assembler.assemble(context)
+        ?.let { assembled -> executeAssembledForeground(session, context, assembled) }
+        ?: unavailableRoute(context, READER_CHAPTER_NOT_FOUND)
+
+    private suspend fun executeAssembledForeground(
+        session: ReaderRouteSession,
+        context: ReaderRouteExecutionContext,
+        assembled: AssembledRouteSnapshot,
     ): ReaderForegroundResult {
-        val assembled = assembler.assemble(context) ?: return ReaderForegroundResult.Exhausted(
-            identity = context.foregroundIdentity,
-            code = READER_CHAPTER_NOT_FOUND,
-            retryable = false,
-            attempts = emptyList(),
-        )
         val heldProbeLeases = assembled.probeLeases.toMutableList()
-        try {
+        return try {
             val decision = engine.plan(assembled.snapshot, assembled.policy)
             val plannedAttempts = buildList {
                 decision.competitiveSet.primary?.let(::add)
@@ -82,108 +94,138 @@ class ReaderRouteCoordinator(
                     "Engine planned release ${attempt.releaseId.value} outside the assembled candidate set."
                 }
             }
-
             releaseUnusedProbeLeases(heldProbeLeases, plannedAttempts)
+            val prepared = PreparedForegroundRoute(
+                assembled = assembled,
+                decision = decision,
+                plannedAttempts = plannedAttempts,
+                candidateByRelease = candidateByRelease,
+                heldProbeLeases = heldProbeLeases,
+            )
 
             if (plannedAttempts.isEmpty()) {
-                return ReaderForegroundResult.Exhausted(
-                    identity = context.foregroundIdentity,
-                    code = READER_EMPTY,
-                    retryable = false,
-                    attempts = emptyList(),
-                )
-            }
-            val winnerReleaseId = checkNotNull(decision.trace.finalWinnerReleaseId) {
-                "A non-empty adaptive route requires a final winner release."
-            }
-            if (!session.recordPlannedRoute(context, winnerReleaseId, plannedAttempts)) {
-                return ReaderForegroundResult.Superseded(context.foregroundIdentity)
-            }
-
-            val probeSourceIds = heldProbeLeases.mapTo(linkedSetOf()) { it.key.sourceId }
-            val probeAttemptKinds = firstPlannedProbeBySource(plannedAttempts, probeSourceIds)
-            val attemptIndex = plannedAttempts.mapIndexed { index, attempt ->
-                attempt.attemptId to index
-            }.toMap()
-            val sourceByPlugin = if (plannedAttempts.any { it.accessMode == AccessMode.REMOTE }) {
-                executor.enabledSources()
+                unavailableRoute(context, READER_EMPTY)
             } else {
-                emptyMap()
+                executePlannedForeground(session, context, prepared)
             }
-            val primary = checkNotNull(decision.competitiveSet.primary)
-            val execution = ReaderCompetitiveExecution(
-                scheduler = executionScheduler,
-                executeAttempt = { attempt, ownership, onValidCompletion ->
-                    val candidate = checkNotNull(candidateByRelease[attempt.releaseId])
-                    executor.executeAttempt(
-                        attempt = attempt,
-                        candidate = candidate,
-                        sourceByPlugin = sourceByPlugin,
-                        attemptKind = probeAttemptKinds[attempt.releaseId]
-                            ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
-                        ownership = ownership,
-                        onValidCompletion = onValidCompletion,
-                        onSourceObservation = { sourceId, observation ->
-                            recordHealth(sourceId, observation)
-                            if (observation is SourceObservation.TransportFailure.Connection) {
-                                hardInvalidateIfDefinitelyOffline(
-                                    session = session,
-                                    context = context,
-                                    attempts = plannedAttempts,
-                                    completedAttemptIndex = attemptIndex.getValue(attempt.attemptId),
-                                )
-                            }
-                        },
-                        onLocalInvalidated = { releaseId, fingerprint ->
-                            // The current deterministic recovery chain gets first chance to recover.
-                            session.markKnownInvalidLocal(context, releaseId, fingerprint)
-                        },
-                    )
-                },
-                onAttemptStarted = { attempt, recovering ->
-                    if (
-                        attempt.accessMode == AccessMode.REMOTE &&
-                        remoteAttemptHardInvalidated(attempt, probeSourceIds)
-                    ) {
-                        session.hardInvalidateIfCurrent(context)
-                        throw ReaderRoutePlanInvalidatedException()
-                    }
-                    val marked = if (
-                        attempt.role == app.openstory.reader.engine.AttemptRole.HEDGE && !recovering
-                    ) {
-                        session.markCompeting(
-                            context = context,
-                            primaryAttemptId = primary.attemptId,
-                            hedgeAttemptId = attempt.attemptId,
-                        )
-                    } else {
-                        session.markAttempt(
-                            context = context,
-                            attemptId = attempt.attemptId,
-                            recovering = recovering,
-                        )
-                    }
-                    check(marked) { "Reader adaptive attempt belongs to a superseded plan." }
-                },
-                onCompetitionLoser = { attempt ->
-                    recordHealth(attempt.sourceId, SourceObservation.Cancellation.HedgeLoser)
-                },
-            ).execute(
-                primary = primary,
-                hedgeDirective = decision.hedgeDirective,
-                recoveryChain = decision.recoveryChain,
-            )
-            return execution.completion?.let { completion ->
-                session.markValidating(context, completion.attempt.attemptId)
-                committed(context, assembled, completion.loaded)
-            } ?: exhausted(
-                context,
-                execution.failures.map(ReaderAttemptFailure::toLoadFailure),
-            )
         } finally {
             heldProbeLeases.forEach(ReaderHalfOpenProbeLease::release)
         }
     }
+
+    private suspend fun executePlannedForeground(
+        session: ReaderRouteSession,
+        context: ReaderRouteExecutionContext,
+        prepared: PreparedForegroundRoute,
+    ): ReaderForegroundResult {
+        val winnerReleaseId = checkNotNull(prepared.decision.trace.finalWinnerReleaseId) {
+            "A non-empty adaptive route requires a final winner release."
+        }
+        return if (!session.recordPlannedRoute(context, winnerReleaseId, prepared.plannedAttempts)) {
+            ReaderForegroundResult.Superseded(context.foregroundIdentity)
+        } else {
+            executeRecordedForeground(session, context, prepared)
+        }
+    }
+
+    private suspend fun executeRecordedForeground(
+        session: ReaderRouteSession,
+        context: ReaderRouteExecutionContext,
+        prepared: PreparedForegroundRoute,
+    ): ReaderForegroundResult {
+        val plannedAttempts = prepared.plannedAttempts
+        val decision = prepared.decision
+        val probeSourceIds = prepared.heldProbeLeases.mapTo(linkedSetOf()) { it.key.sourceId }
+        val probeAttemptKinds = firstPlannedProbeBySource(plannedAttempts, probeSourceIds)
+        val attemptIndex = plannedAttempts.mapIndexed { index, attempt ->
+            attempt.attemptId to index
+        }.toMap()
+        val sourceByPlugin = if (plannedAttempts.any { it.accessMode == AccessMode.REMOTE }) {
+            executor.enabledSources()
+        } else {
+            emptyMap()
+        }
+        val primary = checkNotNull(decision.competitiveSet.primary)
+        val execution = ReaderCompetitiveExecution(
+            scheduler = executionScheduler,
+            executeAttempt = { attempt, ownership, onValidCompletion ->
+                val candidate = checkNotNull(prepared.candidateByRelease[attempt.releaseId])
+                executor.executeAttempt(
+                    attempt = attempt,
+                    candidate = candidate,
+                    sourceByPlugin = sourceByPlugin,
+                    attemptKind = probeAttemptKinds[attempt.releaseId]
+                        ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+                    ownership = ownership,
+                    onValidCompletion = onValidCompletion,
+                    onSourceObservation = { sourceId, observation ->
+                        recordHealth(sourceId, observation)
+                        if (observation is SourceObservation.TransportFailure.Connection) {
+                            hardInvalidateIfDefinitelyOffline(
+                                session = session,
+                                context = context,
+                                attempts = plannedAttempts,
+                                completedAttemptIndex = attemptIndex.getValue(attempt.attemptId),
+                            )
+                        }
+                    },
+                    onLocalInvalidated = { releaseId, fingerprint ->
+                        // The current deterministic recovery chain gets first chance to recover.
+                        session.markKnownInvalidLocal(context, releaseId, fingerprint)
+                    },
+                )
+            },
+            onAttemptStarted = { attempt, recovering ->
+                if (
+                    attempt.accessMode == AccessMode.REMOTE &&
+                    remoteAttemptHardInvalidated(attempt, probeSourceIds)
+                ) {
+                    session.hardInvalidateIfCurrent(context)
+                    throw ReaderRoutePlanInvalidatedException()
+                }
+                val marked = if (
+                    attempt.role == app.openstory.reader.engine.AttemptRole.HEDGE && !recovering
+                ) {
+                    session.markCompeting(
+                        context = context,
+                        primaryAttemptId = primary.attemptId,
+                        hedgeAttemptId = attempt.attemptId,
+                    )
+                } else {
+                    session.markAttempt(
+                        context = context,
+                        attemptId = attempt.attemptId,
+                        recovering = recovering,
+                    )
+                }
+                check(marked) { "Reader adaptive attempt belongs to a superseded plan." }
+            },
+            onCompetitionLoser = { attempt ->
+                recordHealth(attempt.sourceId, SourceObservation.Cancellation.HedgeLoser)
+            },
+        ).execute(
+            primary = primary,
+            hedgeDirective = decision.hedgeDirective,
+            recoveryChain = decision.recoveryChain,
+        )
+        return execution.completion?.let { completion ->
+            session.markValidating(context, completion.attempt.attemptId)
+            committed(context, prepared.assembled, completion.loaded)
+        } ?: exhausted(
+            context,
+            execution.failures.map(ReaderAttemptFailure::toLoadFailure),
+        )
+    }
+
+    private fun unavailableRoute(
+        context: ReaderRouteExecutionContext,
+        code: String,
+    ): ReaderForegroundResult.Exhausted = ReaderForegroundResult.Exhausted(
+        identity = context.foregroundIdentity,
+        code = code,
+        retryable = false,
+        attempts = emptyList(),
+    )
 
 
     internal suspend fun executePrefetch(

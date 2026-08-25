@@ -82,14 +82,26 @@ internal class DefaultReaderRouteEngine : ReaderRouteEngine {
     private fun confidence(
         winner: EvaluatedCandidate?,
         ranked: List<EvaluatedCandidate>,
-    ): BasisPoints {
-        if (winner == null) return BasisPoints(0)
-        if (ranked.size == 1) return winner.weightedScore
-        val bestAlternative = ranked.firstOrNull { it.candidate.releaseId != winner.candidate.releaseId }
-            ?: return winner.weightedScore
-        return BasisPoints(
-            (5_000 + winner.weightedScore.value - bestAlternative.weightedScore.value)
-                .coerceIn(0, 10_000),
-        )
+    ): BasisPoints = when {
+        winner == null -> BasisPoints(BasisPoints.MIN_VALUE)
+        ranked.size == 1 -> winner.weightedScore
+        else -> confidenceAgainstBestAlternative(winner, ranked)
+    }
+
+    private fun confidenceAgainstBestAlternative(
+        winner: EvaluatedCandidate,
+        ranked: List<EvaluatedCandidate>,
+    ): BasisPoints = ranked
+        .firstOrNull { it.candidate.releaseId != winner.candidate.releaseId }
+        ?.let { bestAlternative ->
+            BasisPoints(
+                (CONFIDENCE_MIDPOINT + winner.weightedScore.value - bestAlternative.weightedScore.value)
+                    .coerceIn(BasisPoints.MIN_VALUE, BasisPoints.MAX_VALUE),
+            )
+        }
+        ?: winner.weightedScore
+
+    private companion object {
+        const val CONFIDENCE_MIDPOINT = BasisPoints.MAX_VALUE / 2
     }
 }

@@ -2,7 +2,7 @@
 
 Date: 2026-08-25
 
-Status: **IMPLEMENTATION PRESENT; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE OPEN ON M7.1 DETEKT**
+Status: **VERIFIED/CLOSED; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE PASS**
 
 ## Scope
 
@@ -27,12 +27,11 @@ The Phase 7 source additions cover:
 |---|---|---|
 | Task 24 - production auth and redirects | `PluginSessionRuntimeIntegrationTest`, `PluginCredentialRedirectIntegrationTest`, authenticated-content manifest fixture | Focused host/API 35 PASS |
 | Task 25 - bounded scheduling and notification recovery | `PeriodicChapterDispatchIntegrationTest`, `NotificationRecoveryIntegrationTest`, `NotificationClaimRecoveryTest` | Focused API 35 PASS |
-| Task 26 - host/device gates and checkpoint | This checkpoint plus Wave 10 roadmap/status updates | Device matrix PASS; final host combined gate blocked by M7.1 Detekt |
+| Task 26 - host/device gates and checkpoint | This checkpoint plus Wave 10 roadmap/status updates | PASS; device matrix and final host acceptance GREEN |
 
 Focused execution on the available Redmi Note 9S (Android API 35) changed Tasks 24 and 25 to
-passing. The required API 26 and API 37 connected matrix is now developer-confirmed GREEN. Task 26
-remains open only because the canonical combined host command still fails at Detekt and must be restored
-by HES M7.1 before final acceptance.
+passing. The required API 26 and API 37 connected matrix is developer-confirmed GREEN. HES M7.1 restored
+standalone Detekt and the canonical combined host command, so Task 26 is complete.
 
 ## Discover Clean-Install Remediation
 
@@ -60,12 +59,10 @@ bash scripts/check-wave-10-production-policy.sh
 R0 initially could not start the Gradle command in the supplied sandbox. Developer-host evidence on
 2026-08-26 supersedes that environment-only state for the final HES tree: focused M7 Gradle suites,
 Reader/Feature/Downloads/App/build-logic regression, app compile, architecture, and structural policy
-all run successfully. The canonical combined host command also starts normally but fails at `:detekt`
-with 74 blocking issues. Therefore the host matrix is **RUN / FAIL**, not `NOT RUN`.
+all run successfully. The first canonical combined host run exposed 74 blocking Detekt issues.
 
-Detekt cleanup is deferred to HES M7.1. After that mini-phase, the original command above must be rerun
-**unchanged** and reach `BUILD SUCCESSFUL`; no Detekt suppression/baseline carve-out counts as Wave 10
-acceptance.
+HES M7.1 repaired those findings without Detekt suppression/config weakening/baseline growth. Standalone
+Detekt is GREEN, and the original command above reran **unchanged** to `BUILD SUCCESSFUL in 3m 34s`.
 
 Required device gates are now developer-confirmed **PASS** on both API 26 and API 37:
 
@@ -86,7 +83,8 @@ records PASS without inventing counts.
 | Reader/Feature/Downloads/App/build-logic regression | Developer host / final HES tree | PASS | `BUILD SUCCESSFUL` in 1m 47s |
 | App Kotlin compile | Developer host / final HES tree | PASS | `BUILD SUCCESSFUL` in 8s |
 | `verifyArchitecture` + package/current-architecture contracts | Developer host / final HES tree | PASS | 18 modules; 17 production + 1 android-test; Room 1..11 |
-| Canonical combined host acceptance | Developer host / final HES tree | **FAIL** | `:detekt` -> `Analysis failed with 74 issues` |
+| Standalone Detekt after M7.1 | Developer host / final HES tree | **PASS** | `BUILD SUCCESSFUL in 16s`; zero blocking issues |
+| Canonical combined host acceptance | Developer host / final HES tree | **PASS** | unchanged command; `BUILD SUCCESSFUL in 3m 34s`; 743 actionable tasks |
 | Standalone tests + lint + assembly after Detekt split | Developer host | PASS | `BUILD SUCCESSFUL in 2m 42s` |
 | Instrumentation compile | Developer host | PASS | storage Room + app androidTest Kotlin compile; `BUILD SUCCESSFUL in 9s` |
 | Exploratory connected aggregate | Redmi Note 9S, API 35 | **PASS AFTER TEST-ONLY REPAIR** | MyAnimeList catalog contract now selects provider by plugin id; developer-confirmed rerun |
@@ -103,18 +101,15 @@ records PASS without inventing counts.
 
 ## Acceptance Decision
 
-Wave 10 is **not yet accepted or closed**. The earlier sandbox wrapper blocker is no longer the current
-host blocker: developer-host execution reaches the real repository gate and fails at Detekt. HES M7.1
-now owns that static-quality debt as a separate patch, but this does not weaken Wave 10 acceptance.
+Wave 10 is **VERIFIED/CLOSED**. The earlier sandbox wrapper blocker was superseded by developer-host
+execution, and HES M7.1 closed the Detekt debt as a separate patch without weakening Wave 10 acceptance.
 
-The required API 26/API 37 connected matrix is now satisfied. Wave 10 closes only after both remaining
-host conditions are true on the final tree:
+The required API 26/API 37 connected matrix is satisfied. Both final host conditions are true on the final tree:
 
-1. M7.1 makes standalone Detekt GREEN without blanket suppressions/config weakening/baseline growth;
-2. the original combined host command reruns unchanged and is GREEN.
+1. M7.1 makes standalone Detekt GREEN without blanket suppressions/config weakening/baseline growth — **PASS**;
+2. the original combined host command reruns unchanged and is GREEN — **PASS**.
 
-**Wave 11 is blocked. Do not start or advance Wave 11 until this checkpoint is explicitly accepted and
-closed from those outputs.**
+**Wave 11 is unblocked from this accepted checkpoint.**
 
 ## Final HES-tree rebase evidence — M7 source tree
 
@@ -143,8 +138,17 @@ The original broad repository host command was also run, so this is no longer an
 
 The Detekt debt is explicitly deferred to **HES M7.1 — Detekt Debt Closure** so it can be repaired as a
 small, reviewable quality patch instead of being mixed into the HES routing freeze. This deferral does
-**not** mark Detekt as accepted and does **not** weaken Wave 10's final command: M7.1 must first make
-standalone Detekt GREEN, then the original combined host acceptance command above must be rerun unchanged.
+**not** weaken Wave 10's final command. M7.1 made standalone Detekt GREEN, then the original combined host
+acceptance command above reran unchanged and passed.
+
+```text
+./gradlew detekt --no-daemon
+BUILD SUCCESSFUL in 16s
+
+./gradlew verifyArchitecture :build-logic:test test testDebugUnitTest lintDebug detekt :app:assembleDebug --no-daemon
+BUILD SUCCESSFUL in 3m 34s
+743 actionable tasks: 198 executed, 545 up-to-date
+```
 
 Standalone test/lint/assembly after excluding Detekt and instrumentation compile are GREEN on the
 developer host. The pre-M7 MyAnimeList catalog contract defect was repaired test-only by selecting the
@@ -153,6 +157,6 @@ matrix is also developer-confirmed GREEN for schema 10->11/notification claim-re
 auth/Keystore, notification delivery/navigation, and Discover/Home/Library/Reader/Downloads regression
 requirements.
 
-Wave 10 decision remains **FINAL ACCEPTANCE OPEN; Wave 11 blocked** solely on the static host-quality
-boundary. Closure requires M7.1 Detekt GREEN followed by a fresh unchanged combined host gate GREEN. The
-detailed M7 evidence is recorded in `adaptive-reader-continuity-hes-v1.md`.
+Wave 10 decision is **VERIFIED/CLOSED; Wave 11 unblocked**. M7.1 source cleanup and the final unchanged
+combined host gate are developer-host verified GREEN. Detailed M7/M7.1 evidence is recorded in
+`adaptive-reader-continuity-hes-v1.md`.

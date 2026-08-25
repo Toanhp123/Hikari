@@ -44,13 +44,12 @@ internal class ReaderDocumentValidatorAdapter {
         requestedFingerprint: String? = null,
     ): ReaderDocumentValidation {
         val invalidCode = materializedInvalidCode(document)
-        if (invalidCode != null) {
-            return localInvalid("reader.local_document_invalid")
+        val fingerprintMismatch = requestedFingerprint != null && document.fingerprint != requestedFingerprint
+        return when {
+            invalidCode != null -> localInvalid("reader.local_document_invalid")
+            fingerprintMismatch -> localInvalid("reader.local_fingerprint_mismatch")
+            else -> ReaderDocumentValidation.Valid(document)
         }
-        if (requestedFingerprint != null && document.fingerprint != requestedFingerprint) {
-            return localInvalid("reader.local_fingerprint_mismatch")
-        }
-        return ReaderDocumentValidation.Valid(document)
     }
 
     private fun localInvalid(code: String) = ReaderDocumentValidation.Invalid(
@@ -62,14 +61,14 @@ internal class ReaderDocumentValidatorAdapter {
     private fun materializedInvalidCode(document: ReaderDocument): String? = when {
         document.blocks.isEmpty() -> READER_DOCUMENT_EMPTY
         document.fingerprint.isBlank() -> READER_DOCUMENT_BLOCK_INVALID
-        document.title != null && document.title.isBlank() -> READER_DOCUMENT_TITLE_INVALID
+        document.title?.isBlank() == true -> READER_DOCUMENT_TITLE_INVALID
         document.blocks.any { !it.isMaterializedValid() } -> READER_DOCUMENT_BLOCK_INVALID
         else -> null
     }
 
     private fun ReaderBlock.isMaterializedValid(): Boolean = when (this) {
         is ReaderBlock.Paragraph -> id.isNotBlank() && text.isNotBlank()
-        is ReaderBlock.Heading -> id.isNotBlank() && level in 1..6 && text.isNotBlank()
+        is ReaderBlock.Heading -> id.isNotBlank() && level in 1..MAX_HEADING_LEVEL && text.isNotBlank()
         is ReaderBlock.Divider -> id.isNotBlank()
         is ReaderBlock.Note -> id.isNotBlank() && text.isNotBlank()
         is ReaderBlock.ImagePage -> id.isNotBlank() && isSafeHttpsUrl(imageUrl)
@@ -80,6 +79,7 @@ internal class ReaderDocumentValidatorAdapter {
     } == true
 
     private companion object {
+        const val MAX_HEADING_LEVEL = 6
         const val READER_DOCUMENT_EMPTY = "reader.document_empty"
         const val READER_DOCUMENT_TITLE_INVALID = "reader.document_title_invalid"
         const val READER_DOCUMENT_BLOCK_INVALID = "reader.document_block_invalid"

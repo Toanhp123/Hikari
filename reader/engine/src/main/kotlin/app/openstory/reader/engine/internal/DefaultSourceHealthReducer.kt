@@ -49,7 +49,7 @@ internal class DefaultSourceHealthReducer : SourceHealthReducer {
         observation: SourceObservation.Success.Remote,
         policy: HealthPolicy,
     ): SourceHealthState {
-        val ewma = ewma(previous.successEwmaBasisPoints, 10_000, policy.alpha)
+        val ewma = ewma(previous.successEwmaBasisPoints, BasisPoints.MAX_VALUE, policy.alpha)
         val latencies = appendLatency(
             previous.recentLatencySamplesMillis,
             observation.latencyMillis,
@@ -89,37 +89,17 @@ internal class DefaultSourceHealthReducer : SourceHealthReducer {
         nowEpochMillis: Long,
         policy: HealthPolicy,
     ): SourceHealthState {
-        val ewma = ewma(previous.successEwmaBasisPoints, 0, policy.alpha)
+        val ewma = ewma(previous.successEwmaBasisPoints, BasisPoints.MIN_VALUE, policy.alpha)
         val consecutive = previous.consecutivePenalizingFailures + 1
         val attemptKind = (observation as? SourceObservation.RemoteAttemptObservation)?.kind
-
-        if (
-            previous.circuitState == CircuitState.HALF_OPEN &&
+        val authoritativeProbeFailure = previous.circuitState == CircuitState.HALF_OPEN &&
             attemptKind == RemoteAttemptKind.HALF_OPEN_PROBE
-        ) {
-            return open(
-                previous = previous,
-                nowEpochMillis = nowEpochMillis,
-                policy = policy,
-                reliability = ewma,
-                consecutiveFailures = consecutive,
-                nextOpenCount = previous.openCount + 1,
-            )
-        }
-
-        if (previous.circuitState != CircuitState.CLOSED) {
-            // Late normal failures can update reliability/failure quality but cannot create a new
-            // probe cycle or alter the cooldown/openCount that an authoritative failure established.
-            return previous.copy(
-                consecutivePenalizingFailures = consecutive,
-                successEwmaBasisPoints = ewma,
-            )
-        }
-
-        val shouldOpen = consecutive >= policy.openAfterConsecutivePenalizingFailures &&
+        val closedCircuitShouldOpen = previous.circuitState == CircuitState.CLOSED &&
+            consecutive >= policy.openAfterConsecutivePenalizingFailures &&
             ewma.value <= policy.openAtOrBelowReliability.value
-        return if (shouldOpen) {
-            open(
+
+        return when {
+            authoritativeProbeFailure || closedCircuitShouldOpen -> open(
                 previous = previous,
                 nowEpochMillis = nowEpochMillis,
                 policy = policy,
@@ -127,11 +107,14 @@ internal class DefaultSourceHealthReducer : SourceHealthReducer {
                 consecutiveFailures = consecutive,
                 nextOpenCount = previous.openCount + 1,
             )
-        } else {
-            previous.copy(
-                consecutivePenalizingFailures = consecutive,
-                successEwmaBasisPoints = ewma,
-            )
+            else -> {
+                // Late failures can update bounded quality facts, but only CLOSED policy threshold
+                // crossings and authoritative HALF_OPEN probes own a new OPEN/cooldown cycle.
+                previous.copy(
+                    consecutivePenalizingFailures = consecutive,
+                    successEwmaBasisPoints = ewma,
+                )
+            }
         }
     }
 
@@ -155,9 +138,10 @@ internal class DefaultSourceHealthReducer : SourceHealthReducer {
     }
 
     private fun ewma(previous: BasisPoints, sample: Int, alpha: BasisPoints): BasisPoints {
+        val scale = BasisPoints.MAX_VALUE.toLong()
         val weighted = alpha.value.toLong() * sample.toLong() +
-            (10_000 - alpha.value).toLong() * previous.value.toLong()
-        return BasisPoints((weighted / 10_000L).toInt())
+            (BasisPoints.MAX_VALUE - alpha.value).toLong() * previous.value.toLong()
+        return BasisPoints((weighted / scale).toInt())
     }
 
     private fun appendLatency(previous: List<Long>, value: Long, maxSamples: Int): List<Long> =

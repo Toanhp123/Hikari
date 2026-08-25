@@ -66,6 +66,7 @@ internal class RouteSnapshotAssembler(
         require(now >= 0L) { "Reader route snapshot clock must be non-negative." }
         val enabledSourceIds = sourceAvailability.enabledPluginIds().toSet()
         val probeLeases = mutableListOf<ReaderHalfOpenProbeLease>()
+        var assemblyCompleted = false
 
         try {
             val sourceHealth = targetGroup.releases
@@ -120,7 +121,7 @@ internal class RouteSnapshotAssembler(
                 targetResumeReleaseId = restored?.releaseId,
                 targetResumeFingerprint = restored?.contentFingerprint,
             )
-            return AssembledRouteSnapshot(
+            val assembled = AssembledRouteSnapshot(
                 targetIndex = targetIndex,
                 targetGroup = targetGroup,
                 candidates = candidates,
@@ -143,9 +144,12 @@ internal class RouteSnapshotAssembler(
                 ),
                 probeLeases = probeLeases.toList(),
             )
-        } catch (failure: Throwable) {
-            probeLeases.forEach(ReaderHalfOpenProbeLease::release)
-            throw failure
+            assemblyCompleted = true
+            return assembled
+        } finally {
+            if (!assemblyCompleted) {
+                probeLeases.forEach(ReaderHalfOpenProbeLease::release)
+            }
         }
     }
 

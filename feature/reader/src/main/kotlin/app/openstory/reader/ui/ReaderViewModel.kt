@@ -121,20 +121,23 @@ class ReaderViewModel @AssistedInject constructor(
 
     fun openChapter(chapterId: CanonicalChapterId) {
         val pending = transitionTarget
-        if (pending?.chapterId == chapterId && pending.explicitReleaseId == null) {
-            if (failedTarget === pending) {
-                startLoad(pending.chapterId, explicitReleaseId = null, flushProgress = committed != null)
-            }
-            return
-        }
-
         val current = committed
-        if (current?.chapterId == chapterId) {
-            if (pending != null) cancelTransitionAndKeepCommitted()
-            return
+        val repeatsPendingAutomaticTarget = pending?.chapterId == chapterId && pending.explicitReleaseId == null
+        val initialLoadPending = current == null && initialLoadStarted
+        val repeatsInitialTarget = chapterId == initialChapterId && pending != null
+
+        when {
+            repeatsPendingAutomaticTarget -> {
+                if (failedTarget === pending) {
+                    startLoad(chapterId, explicitReleaseId = null, flushProgress = current != null)
+                }
+            }
+            current?.chapterId == chapterId -> {
+                if (pending != null) cancelTransitionAndKeepCommitted()
+            }
+            initialLoadPending && repeatsInitialTarget -> Unit
+            else -> startLoad(chapterId, explicitReleaseId = null, flushProgress = current != null)
         }
-        if (current == null && initialLoadStarted && chapterId == initialChapterId && pending != null) return
-        startLoad(chapterId, explicitReleaseId = null, flushProgress = current != null)
     }
 
     fun increaseFont() = setFontScale(mutableState.value.fontScale + FONT_SCALE_STEP)

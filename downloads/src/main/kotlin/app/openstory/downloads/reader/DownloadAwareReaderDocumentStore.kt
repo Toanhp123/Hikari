@@ -36,37 +36,49 @@ class DownloadAwareReaderDocumentStore(
     override suspend fun inspect(
         releaseIds: Set<ChapterReleaseId>,
         resumeFingerprints: Map<ChapterReleaseId, String>,
-    ): Map<ChapterReleaseId, ReaderLocalCacheFact> {
-        if (releaseIds.isEmpty()) return emptyMap()
+    ): Map<ChapterReleaseId, ReaderLocalCacheFact> = if (releaseIds.isEmpty()) {
+        emptyMap()
+    } else {
         require(resumeFingerprints.keys.all { it in releaseIds }) {
             "Reader resume fingerprints must belong to the inspected release set."
         }
-        val metadata = try {
-            metadataSource.entriesFor(releaseIds)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            return releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
+        val metadata = readCacheMetadata(releaseIds)
+        if (metadata == null) {
+            releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
+        } else {
+            val byRelease = metadata.asSequence()
+                .filter { it.releaseId in releaseIds }
+                .groupBy(ReaderCacheMetadata::releaseId)
+            releaseIds.associateWith { releaseId ->
+                selectCacheFact(byRelease[releaseId].orEmpty(), resumeFingerprints[releaseId])
+            }
         }
-        val byRelease = metadata.asSequence()
-            .filter { it.releaseId in releaseIds }
-            .groupBy(ReaderCacheMetadata::releaseId)
-        return releaseIds.associateWith { releaseId ->
-            selectCacheFact(byRelease[releaseId].orEmpty(), resumeFingerprints[releaseId])
-        }
+    }
+
+    private suspend fun readCacheMetadata(
+        releaseIds: Set<ChapterReleaseId>,
+    ): List<ReaderCacheMetadata>? = try {
+        metadataSource.entriesFor(releaseIds)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
     }
 
     private fun selectCacheFact(
         rows: List<ReaderCacheMetadata>,
         resumeFingerprint: String?,
-    ): ReaderLocalCacheFact {
-        if (resumeFingerprint != null) {
-            return if (rows.any { it.fingerprint == resumeFingerprint && it.checksumPresent }) {
-                ReaderLocalCacheFact.Exact(resumeFingerprint)
-            } else {
-                ReaderLocalCacheFact.Miss
-            }
+    ): ReaderLocalCacheFact = if (resumeFingerprint != null) {
+        if (rows.any { it.fingerprint == resumeFingerprint && it.checksumPresent }) {
+            ReaderLocalCacheFact.Exact(resumeFingerprint)
+        } else {
+            ReaderLocalCacheFact.Miss
         }
+    } else {
+        selectBestStoredCacheFact(rows)
+    }
+
+    private fun selectBestStoredCacheFact(rows: List<ReaderCacheMetadata>): ReaderLocalCacheFact {
         val newestExplicit = rows.asSequence()
             .filter { it.namespace == ChapterBlobNamespace.EXPLICIT_DOWNLOAD }
             .sortedWith(
@@ -74,12 +86,8 @@ class DownloadAwareReaderDocumentStore(
                     .thenBy { it.fingerprint },
             )
             .firstOrNull()
-        if (
-            newestExplicit != null &&
-            newestExplicit.downloadState == DownloadState.COMPLETED &&
-            newestExplicit.checksumPresent
-        ) {
-            return ReaderLocalCacheFact.Unverified(newestExplicit.fingerprint)
+        val completedExplicit = newestExplicit?.takeIf { row ->
+            row.downloadState == DownloadState.COMPLETED && row.checksumPresent
         }
         val automatic = rows.asSequence()
             .filter { it.namespace == ChapterBlobNamespace.AUTOMATIC_CACHE && it.checksumPresent }
@@ -88,7 +96,8 @@ class DownloadAwareReaderDocumentStore(
                     .thenBy { it.fingerprint },
             )
             .firstOrNull()
-        return automatic?.let { ReaderLocalCacheFact.Unverified(it.fingerprint) }
+        return completedExplicit?.let { ReaderLocalCacheFact.Unverified(it.fingerprint) }
+            ?: automatic?.let { ReaderLocalCacheFact.Unverified(it.fingerprint) }
             ?: ReaderLocalCacheFact.Miss
     }
 

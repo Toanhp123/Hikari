@@ -1,11 +1,11 @@
 # Adaptive Reader Continuity / HES-v1 Final Checkpoint
 
 Date: 2026-08-25
-Updated: 2026-08-26 (developer-host verification)
+Updated: 2026-08-26 (M7.1 and Wave 10 closure verification)
 
-Status: **M0–M7 VERIFIED/CLOSED; HES-v1 FROZEN; M7.1 READY/UNBLOCKED**
+Status: **M0–M7.1 VERIFIED/CLOSED; HES-v1 FROZEN**
 
-Follow-up: **M7.1 DETEKT DEBT CLOSURE IS THE NEXT QUALITY MINI-PHASE; WAVE 10 FINAL HOST ACCEPTANCE REMAINS OPEN UNTIL DETEKT + THE UNCHANGED COMBINED GATE ARE GREEN**
+Follow-up: **WAVE 10 FINAL HOST ACCEPTANCE IS CLOSED; WAVE 11 IS UNBLOCKED**
 
 ## Scope
 
@@ -17,8 +17,8 @@ Commands are recorded from the strongest available evidence. The focused/broad h
 instrumentation compile below come from supplied developer-host output. Final API 26/API 37 completion is
 recorded from the developer's 2026-08-26 confirmation; the raw device-model/test-count transcript was not
 attached to this closure update, so no counts are invented here. The repository-wide Detekt cleanup exposed
-by the broad host gate is intentionally split into M7.1; this checkpoint does not suppress, baseline, or
-relabel those findings as passing.
+by the broad host gate was intentionally split into M7.1 and is now verified without suppressions, config
+weakening, or baseline growth.
 
 The final source tree preserves the HES-v1 constitutional boundary:
 
@@ -129,19 +129,21 @@ Strengthened:
 | package/current-architecture mutation contracts | **PASS** | developer host; 17 production + 1 android-test; Room 1..11 |
 | performance lifecycle policy | **PASS** | developer host |
 | Wave 10 production policy | **PASS** | developer host |
-| `./gradlew test testDebugUnitTest lintDebug detekt :app:assembleDebug --no-daemon` | **FAIL** | developer host; build stops at `:detekt` with `Analysis failed with 74 issues` |
+| Triggering `./gradlew test testDebugUnitTest lintDebug detekt :app:assembleDebug --no-daemon` | **FAIL** | historical developer-host trigger; build stopped at `:detekt` with `Analysis failed with 74 issues` |
+| `./gradlew detekt --no-daemon` after M7.1 cleanup | **PASS** | developer host; `BUILD SUCCESSFUL in 16s`; zero blocking issues |
+| Original unchanged combined Wave 10 host gate after M7.1 | **PASS** | developer host; `BUILD SUCCESSFUL in 3m 34s`; 743 actionable tasks |
 | standalone `lintDebug` + `:app:assembleDebug` without Detekt | **PASS** | developer host; `BUILD SUCCESSFUL in 2m 42s` with `test` + `testDebugUnitTest` |
 | instrumentation compile | **PASS** | developer host; `:storage:room:compileDebugAndroidTestKotlin` + `:app:compileDebugAndroidTestKotlin`; `BUILD SUCCESSFUL in 9s` |
 | exploratory connected aggregate on Redmi Note 9S / API 35 | **PASS AFTER TEST-ONLY REPAIR** | developer-confirmed rerun after selecting MyAnimeList by plugin id; diagnostic only, not a substitute for boundary devices |
 | API 26 connected Reader/cache/Room/Wave-10 matrix | **PASS** | developer-confirmed final boundary run; exact device model/test count not reproduced in this checkpoint |
 | API 37 connected Reader/cache/Room/Wave-10 matrix | **PASS** | developer-confirmed final boundary run; exact device model/test count not reproduced in this checkpoint |
 
-The broad host failure is a real acceptance failure, not an environment blocker. Review against the
+The broad host failure was a real acceptance failure, not an environment blocker. Review against the
 pre-M7 tree showed the blocking Detekt set is repository debt rather than a behavioral regression that
 should be refactored opportunistically inside the HES freeze patch. The cleanup is therefore assigned to
-**M7.1 — Detekt Debt Closure**, a separate docs/quality phase. M7.1 must restore repository-wide Detekt
-GREEN without adding suppressions or expanding a Detekt baseline, then rerun the original combined host
-acceptance command before Wave 10 can close.
+**M7.1 — Detekt Debt Closure**, a separate docs/quality phase. M7.1 restored repository-wide Detekt
+GREEN without adding suppressions or expanding a Detekt baseline, then reran the original combined host
+acceptance command before Wave 10 closed.
 
 ### API 35 verification-harness defect found during final device probing
 
@@ -186,21 +188,21 @@ M7.1 rules:
 - finish with standalone `detekt` GREEN and then rerun the repository's original full host acceptance command;
 - keep API 26/API 37 work separate from this static-quality mini-phase.
 
-M7.1 is now **READY/UNBLOCKED** and should be implemented/reviewed as its own patch/commit.
+M7.1 is **VERIFIED/CLOSED**. The 74 blocking findings from the triggering host report were classified as 57 `MagicNumber`, 13 `ReturnCount`, 3 `ComplexCondition`, and 1 `TooGenericExceptionCaught` across 16 production files. Cleanup is behavior-preserving and owner-scoped: domain constants remain with the policy/evaluator/health owner, control-flow extraction is retained only where it separates a real responsibility, and no Detekt config/suppression/baseline escape hatch is added.
+
+Available pre-closure verification after the cleanup was GREEN for **95/95** pure engine tests, **33/33** focused Reader coordinator/session/snapshot/validator tests, **15/15** focused Downloads cache/document-store tests, and **3/3** plugin-session credential tests; Reader and Downloads touched production surfaces also compiled in the available compiler harness. Final developer-host evidence is now GREEN for standalone `./gradlew detekt --no-daemon` (`BUILD SUCCESSFUL in 16s`), the original unchanged combined Wave 10 host gate (`BUILD SUCCESSFUL in 3m 34s`, 743 actionable tasks), package-boundary policy, and the current architecture contract (17 production modules, 1 android-test module, Room schema 1..11).
 
 ## Wave 10 acceptance-rebase status
 
-R0 selected the explicit acceptance-rebase path. On the final HES tree, developer-host evidence is now
-GREEN for the focused M7 suites, Reader/Feature/Downloads/App/build-logic regression suite,
-`:app:compileDebugKotlin`, standalone test/lint/assembly, instrumentation compile, `verifyArchitecture`,
-package/current-architecture mutation contracts, performance lifecycle policy, and Wave 10 production policy.
+R0 selected the explicit acceptance-rebase path. On the final HES tree, developer-host evidence is GREEN
+for the focused M7 suites, Reader/Feature/Downloads/App/build-logic regression suite,
+`:app:compileDebugKotlin`, standalone Detekt, the unchanged combined host gate, instrumentation compile,
+`verifyArchitecture`, package/current-architecture mutation contracts, performance lifecycle policy, and Wave 10 production policy.
 
-The original Wave 10 combined host acceptance gate is **not green** because `:detekt` fails with 74
-repository-wide issues. Detekt cleanup is deferred to M7.1, after which the **original combined gate must
-be rerun unchanged**; this carve-out does not silently weaken Wave 10 acceptance. The required API 26 and
-API 37 connected acceptance matrix is now developer-confirmed GREEN. Therefore **Wave 10 remains FINAL
-ACCEPTANCE OPEN only on M7.1 Detekt cleanup + the unchanged combined host rerun**, and **Wave 11 remains
-blocked** until that host boundary closes.
+The original Wave 10 combined host acceptance gate is now **GREEN** after M7.1 restored standalone Detekt.
+The command reran unchanged and completed `BUILD SUCCESSFUL in 3m 34s`; this preserves the original Wave 10
+acceptance contract. The required API 26 and API 37 connected acceptance matrix is developer-confirmed GREEN.
+Therefore **Wave 10 is VERIFIED/CLOSED** and **Wave 11 is unblocked**.
 
 ## Closure decision
 
@@ -210,6 +212,4 @@ evidence. The pre-M7 MyAnimeList device-harness defect was repaired test-only an
 developer-confirmed GREEN. Detekt debt is explicitly moved to M7.1 rather than repaired in this HES freeze
 patch.
 
-Therefore **M7 is VERIFIED/CLOSED and HES-v1 is frozen at this boundary**. M7.1 is **READY/UNBLOCKED** as
-the next quality-debt mini-phase. This M7 closure does not close Wave 10: Wave 10 still requires M7.1 to
-restore standalone Detekt GREEN followed by a fresh run of the original unchanged combined host gate.
+Therefore **M7 and M7.1 are VERIFIED/CLOSED and HES-v1 is frozen at this boundary**. Standalone Detekt, the original unchanged combined host gate, and the architecture mutation contracts are GREEN. This also closes Wave 10 final acceptance and unblocks Wave 11.

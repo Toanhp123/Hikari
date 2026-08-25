@@ -25,36 +25,46 @@ internal class ContinuityArbiter {
         snapshot: ReaderRoutingSnapshot,
         policy: ReaderRoutingPolicy,
     ): ArbitrationResult {
-        if (ranked.isEmpty()) {
-            return ArbitrationResult(
-                winner = null,
-                reason = DecisionReason.NO_ELIGIBLE_CANDIDATE,
+        if (ranked.isEmpty()) return noEligibleCandidate()
+        return explicitSelection(ranked, snapshot) ?: automaticSelection(ranked, snapshot, policy)
+    }
+
+    private fun noEligibleCandidate(): ArbitrationResult = ArbitrationResult(
+        winner = null,
+        reason = DecisionReason.NO_ELIGIBLE_CANDIDATE,
+        incumbent = null,
+        incumbentKind = IncumbentKind.NONE,
+        rawChallenger = null,
+        switchAdvantage = null,
+        requiredThreshold = null,
+    )
+
+    private fun explicitSelection(
+        ranked: List<EvaluatedCandidate>,
+        snapshot: ReaderRoutingSnapshot,
+    ): ArbitrationResult? = snapshot.explicitReleaseId
+        ?.let { explicitId -> ranked.firstOrNull { it.candidate.releaseId == explicitId } }
+        ?.let { explicit ->
+            ArbitrationResult(
+                winner = explicit,
+                reason = DecisionReason.EXPLICIT_ELIGIBLE_RELEASE,
                 incumbent = null,
                 incumbentKind = IncumbentKind.NONE,
-                rawChallenger = null,
+                rawChallenger = ranked.first(),
                 switchAdvantage = null,
                 requiredThreshold = null,
             )
         }
 
-        snapshot.explicitReleaseId?.let { explicitId ->
-            ranked.firstOrNull { it.candidate.releaseId == explicitId }?.let { explicit ->
-                return ArbitrationResult(
-                    winner = explicit,
-                    reason = DecisionReason.EXPLICIT_ELIGIBLE_RELEASE,
-                    incumbent = null,
-                    incumbentKind = IncumbentKind.NONE,
-                    rawChallenger = ranked.first(),
-                    switchAdvantage = null,
-                    requiredThreshold = null,
-                )
-            }
-        }
-
+    private fun automaticSelection(
+        ranked: List<EvaluatedCandidate>,
+        snapshot: ReaderRoutingSnapshot,
+        policy: ReaderRoutingPolicy,
+    ): ArbitrationResult {
         val (incumbent, kind) = resolveIncumbent(ranked, snapshot)
         val raw = ranked.first()
-        if (incumbent == null) {
-            return ArbitrationResult(
+        return if (incumbent == null) {
+            ArbitrationResult(
                 winner = raw,
                 reason = if (hasUnavailableExactIncumbent(snapshot, ranked)) {
                     DecisionReason.INCUMBENT_UNAVAILABLE
@@ -67,14 +77,24 @@ internal class ContinuityArbiter {
                 switchAdvantage = null,
                 requiredThreshold = null,
             )
+        } else {
+            applyHysteresis(raw, incumbent, kind, policy)
         }
+    }
 
+    private fun applyHysteresis(
+        raw: EvaluatedCandidate,
+        incumbent: EvaluatedCandidate,
+        kind: IncumbentKind,
+        policy: ReaderRoutingPolicy,
+    ): ArbitrationResult {
         val threshold = if (isDegradedRemote(incumbent)) {
             policy.degradedSwitchThreshold
         } else {
             policy.normalSwitchThreshold
         }
-        val advantage = (raw.weightedScore.value - incumbent.weightedScore.value).coerceIn(0, 10_000)
+        val advantage = (raw.weightedScore.value - incumbent.weightedScore.value)
+            .coerceIn(BasisPoints.MIN_VALUE, BasisPoints.MAX_VALUE)
         val switch = raw.candidate.releaseId != incumbent.candidate.releaseId && advantage >= threshold.value
         val reason = when {
             switch -> DecisionReason.CHALLENGER_EXCEEDED_SWITCH_THRESHOLD
@@ -97,28 +117,40 @@ internal class ContinuityArbiter {
         snapshot: ReaderRoutingSnapshot,
     ): Pair<EvaluatedCandidate?, IncumbentKind> {
         val continuity = snapshot.continuity
-        if (continuity.committedChapterId == snapshot.targetChapterId && continuity.committedReleaseId != null) {
-            ranked.firstOrNull { it.candidate.releaseId == continuity.committedReleaseId }?.let {
-                return it to IncumbentKind.SAME_TARGET_COMMITTED_RELEASE
+        val sameTargetCommitted = continuity.committedReleaseId
+            ?.takeIf { continuity.committedChapterId == snapshot.targetChapterId }
+            ?.let { releaseId ->
+                matchIncumbent(ranked, IncumbentKind.SAME_TARGET_COMMITTED_RELEASE) {
+                    it.candidate.releaseId == releaseId
+                }
+            }
+        val targetResume = continuity.targetResumeReleaseId?.let { releaseId ->
+            matchIncumbent(ranked, IncumbentKind.TARGET_RESUME_RELEASE) {
+                it.candidate.releaseId == releaseId
             }
         }
-        continuity.targetResumeReleaseId?.let { releaseId ->
-            ranked.firstOrNull { it.candidate.releaseId == releaseId }?.let {
-                return it to IncumbentKind.TARGET_RESUME_RELEASE
+        val trustedSourceGroup = continuity.committedSourceGroupKey?.let { group ->
+            matchIncumbent(ranked, IncumbentKind.TRUSTED_SOURCE_GROUP) {
+                it.candidate.sourceGroupKey == group
             }
         }
-        continuity.committedSourceGroupKey?.let { group ->
-            ranked.firstOrNull { it.candidate.sourceGroupKey == group }?.let {
-                return it to IncumbentKind.TRUSTED_SOURCE_GROUP
+        val committedSource = continuity.committedSourceId?.let { sourceId ->
+            matchIncumbent(ranked, IncumbentKind.COMMITTED_SOURCE) {
+                it.candidate.sourceId == sourceId
             }
         }
-        continuity.committedSourceId?.let { sourceId ->
-            ranked.firstOrNull { it.candidate.sourceId == sourceId }?.let {
-                return it to IncumbentKind.COMMITTED_SOURCE
-            }
-        }
-        return null to IncumbentKind.NONE
+        return sameTargetCommitted
+            ?: targetResume
+            ?: trustedSourceGroup
+            ?: committedSource
+            ?: (null to IncumbentKind.NONE)
     }
+
+    private inline fun matchIncumbent(
+        ranked: List<EvaluatedCandidate>,
+        kind: IncumbentKind,
+        predicate: (EvaluatedCandidate) -> Boolean,
+    ): Pair<EvaluatedCandidate, IncumbentKind>? = ranked.firstOrNull(predicate)?.let { it to kind }
 
     private fun hasUnavailableExactIncumbent(
         snapshot: ReaderRoutingSnapshot,
@@ -139,7 +171,7 @@ internal class ContinuityArbiter {
 
     private fun isDegradedRemote(candidate: EvaluatedCandidate): Boolean =
         candidate.preferredAccessMode == AccessMode.REMOTE &&
-            ((candidate.remoteReliability?.value ?: 10_000) < DEGRADED_RELIABILITY ||
+            ((candidate.remoteReliability?.value ?: BasisPoints.MAX_VALUE) < DEGRADED_RELIABILITY ||
                 candidate.remoteCircuitState == CircuitState.HALF_OPEN)
 
     private companion object {

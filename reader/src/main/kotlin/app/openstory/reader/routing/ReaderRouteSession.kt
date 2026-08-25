@@ -421,14 +421,10 @@ class ReaderRouteSession internal constructor(
             val committed = committedIdentity
             val groups = latestChapterGroups
             val preferences = latestPreferences
-            if (
-                scope == null ||
-                prefetch == null ||
-                committed == null ||
-                groups == null ||
-                preferences == null ||
-                activeExecution != null
-            ) {
+            if (scope == null || prefetch == null || committed == null) {
+                return@synchronized PrefetchAction.None
+            }
+            if (groups == null || preferences == null || activeExecution != null) {
                 return@synchronized PrefetchAction.None
             }
 
@@ -447,12 +443,9 @@ class ReaderRouteSession internal constructor(
                 return@synchronized PrefetchAction.Cancel(old)
             }
             val nextChapterId = nextGroup.chapter.id
-            if (
-                !force &&
-                prefetchTargetChapterId == nextChapterId &&
-                prefetchTargetGroup == nextGroup &&
-                prefetchJob != null
-            ) {
+            val samePrefetchTarget = prefetchTargetChapterId == nextChapterId &&
+                prefetchTargetGroup == nextGroup
+            if (!force && samePrefetchTarget && prefetchJob != null) {
                 return@synchronized PrefetchAction.None
             }
 
@@ -548,17 +541,22 @@ class ReaderRouteSession internal constructor(
         active: ActiveExecution,
         nextGroups: List<CanonicalChapterGroup>,
     ): Boolean {
-        val target = nextGroups.firstOrNull { it.chapter.id == active.targetChapterId } ?: return true
-        if (target.chapter.tombstoned || target.releases.isEmpty()) return true
-        val targetReleaseIds = target.releases
-            .asSequence()
-            .filter { it.canonicalChapterId == target.chapter.id }
-            .mapTo(hashSetOf()) { it.id }
-        if (targetReleaseIds.isEmpty()) return true
+        val target = nextGroups.firstOrNull { it.chapter.id == active.targetChapterId }
+        val targetReleaseIds = target
+            ?.releases
+            ?.asSequence()
+            ?.filter { it.canonicalChapterId == target.chapter.id }
+            ?.mapTo(hashSetOf()) { it.id }
+            .orEmpty()
         val plan = activePlan
-        if (plan == null || plan.identity != identityFor(active)) return false
-        if (plan.winnerReleaseId !in targetReleaseIds) return true
-        return plan.plannedReleaseIds.any { it !in targetReleaseIds }
+        return when {
+            target == null -> true
+            target.chapter.tombstoned || target.releases.isEmpty() -> true
+            targetReleaseIds.isEmpty() -> true
+            plan == null || plan.identity != identityFor(active) -> false
+            plan.winnerReleaseId !in targetReleaseIds -> true
+            else -> plan.plannedReleaseIds.any { it !in targetReleaseIds }
+        }
     }
 
     private fun hardInvalidateLocked() {

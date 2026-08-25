@@ -98,20 +98,38 @@ internal class RoutePlanner {
         snapshot: ReaderRoutingSnapshot?,
         policy: ReaderRoutingPolicy,
     ): RawAttempt? {
-        val primary = bounded.firstOrNull() ?: return null
-        if (snapshot == null) return null
-        if (snapshot.routingIntent != RoutingIntent.FOREGROUND) return null
-        if (snapshot.networkClass != ReaderNetworkClass.UNMETERED) return null
-        if (primary.accessMode != AccessMode.REMOTE) return null
+        val primary = bounded.firstOrNull()
+        val eligiblePrimary = primary?.takeIf { isHedgeEligiblePrimary(it, snapshot, policy) }
+        return eligiblePrimary?.let { selectHedgeAlternate(bounded, ranked, it, policy) }
+    }
 
-        val primaryHealth = snapshot.sourceHealth
-            .firstOrNull { it.key.sourceId == primary.candidate.candidate.sourceId }
-            ?.state
-            ?: return null
-        if (primaryHealth.recentLatencySamplesMillis.size < policy.hedge.minimumLatencySamples) return null
-        val primaryP95 = primaryHealth.p95LatencyMillis ?: return null
-        if (primaryP95 < policy.hedge.primaryP95ThresholdMillis) return null
+    private fun isHedgeEligiblePrimary(
+        primary: RawAttempt,
+        snapshot: ReaderRoutingSnapshot?,
+        policy: ReaderRoutingPolicy,
+    ): Boolean {
+        val eligibleSnapshot = snapshot?.takeIf {
+            it.routingIntent == RoutingIntent.FOREGROUND && it.networkClass == ReaderNetworkClass.UNMETERED
+        }
+        val primaryHealth = if (eligibleSnapshot != null && primary.accessMode == AccessMode.REMOTE) {
+            eligibleSnapshot.sourceHealth
+                .firstOrNull { it.key.sourceId == primary.candidate.candidate.sourceId }
+                ?.state
+        } else {
+            null
+        }
+        val primaryP95 = primaryHealth
+            ?.takeIf { it.recentLatencySamplesMillis.size >= policy.hedge.minimumLatencySamples }
+            ?.p95LatencyMillis
+        return primaryP95 != null && primaryP95 >= policy.hedge.primaryP95ThresholdMillis
+    }
 
+    private fun selectHedgeAlternate(
+        bounded: List<RawAttempt>,
+        ranked: List<EvaluatedCandidate>,
+        primary: RawAttempt,
+        policy: ReaderRoutingPolicy,
+    ): RawAttempt? {
         val rankIndex = ranked.mapIndexed { index, candidate -> candidate.candidate.releaseId to index }.toMap()
         return bounded
             .asSequence()
@@ -120,13 +138,11 @@ internal class RoutePlanner {
             .filter { it.candidate.candidate.sourceId != primary.candidate.candidate.sourceId }
             .filter {
                 val score = it.candidate.remoteAccessScore
-                score != null &&
-                    score.value >= policy.hedge.alternateMinimumRemoteAccessScore.value
+                score != null && score.value >= policy.hedge.alternateMinimumRemoteAccessScore.value
             }
             .filter {
                 val reliability = it.candidate.remoteReliability
-                reliability != null &&
-                    reliability.value >= policy.hedge.alternateMinimumReliability.value
+                reliability != null && reliability.value >= policy.hedge.alternateMinimumReliability.value
             }
             .minWithOrNull(
                 compareBy<RawAttempt>(

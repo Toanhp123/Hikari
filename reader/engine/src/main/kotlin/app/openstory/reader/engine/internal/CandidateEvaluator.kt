@@ -75,14 +75,14 @@ internal class CandidateEvaluator {
     }
 
     private fun languageScore(languageTag: String, policy: ReaderRoutingPolicy): BasisPoints {
-        if (policy.languageOrder.isEmpty()) return BasisPoints(10_000)
+        if (policy.languageOrder.isEmpty()) return BasisPoints(FULL_SCORE)
         return BasisPoints(
             when (policy.languagePreferenceRank(languageTag)) {
-                0 -> 10_000
-                1 -> 8_000
-                2 -> 6_000
-                in 3..Int.MAX_VALUE -> 4_000
-                else -> 2_000
+                0 -> FULL_SCORE
+                1 -> LANGUAGE_SECOND_SCORE
+                2 -> LANGUAGE_THIRD_SCORE
+                in LANGUAGE_ORDERED_FALLBACK_START_RANK..Int.MAX_VALUE -> LANGUAGE_ORDERED_FALLBACK_SCORE
+                else -> LANGUAGE_UNPREFERRED_SCORE
             },
         )
     }
@@ -95,13 +95,14 @@ internal class CandidateEvaluator {
         val normalizedLanguage = normalizeLanguageTag(candidate.languageTag)
         val committedLanguage = continuity.committedLanguageTag?.let(::normalizeLanguageTag)
         val score = when {
-            candidate.releaseId == continuity.targetResumeReleaseId -> 10_000
+            candidate.releaseId == continuity.targetResumeReleaseId -> FULL_SCORE
             continuity.committedChapterId == snapshot.targetChapterId &&
-                candidate.releaseId == continuity.committedReleaseId -> 10_000
+                candidate.releaseId == continuity.committedReleaseId -> FULL_SCORE
             continuity.committedSourceGroupKey != null &&
-                candidate.sourceGroupKey == continuity.committedSourceGroupKey -> 8_000
-            continuity.committedSourceId != null && candidate.sourceId == continuity.committedSourceId -> 6_500
-            committedLanguage != null && normalizedLanguage == committedLanguage -> 2_000
+                candidate.sourceGroupKey == continuity.committedSourceGroupKey -> CONTINUITY_SOURCE_GROUP_SCORE
+            continuity.committedSourceId != null &&
+                candidate.sourceId == continuity.committedSourceId -> CONTINUITY_SOURCE_SCORE
+            committedLanguage != null && normalizedLanguage == committedLanguage -> CONTINUITY_LANGUAGE_SCORE
             else -> 0
         }
         return BasisPoints(score)
@@ -111,27 +112,29 @@ internal class CandidateEvaluator {
         publishedAtEpochMillis: Long?,
         newestPublishedAtEpochMillis: Long?,
     ): BasisPoints {
-        if (publishedAtEpochMillis == null || newestPublishedAtEpochMillis == null) return BasisPoints(5_000)
+        if (publishedAtEpochMillis == null || newestPublishedAtEpochMillis == null) {
+            return BasisPoints(FRESHNESS_UNKNOWN_SCORE)
+        }
         val age = (newestPublishedAtEpochMillis - publishedAtEpochMillis).coerceAtLeast(0L)
         return BasisPoints(
             when {
-                age <= HOUR_MILLIS -> 10_000
-                age <= DAY_MILLIS -> 9_000
-                age <= WEEK_MILLIS -> 7_500
-                age <= MONTH_MILLIS -> 6_000
-                else -> 4_000
+                age <= HOUR_MILLIS -> FULL_SCORE
+                age <= DAY_MILLIS -> FRESHNESS_DAY_SCORE
+                age <= WEEK_MILLIS -> FRESHNESS_WEEK_SCORE
+                age <= MONTH_MILLIS -> FRESHNESS_MONTH_SCORE
+                else -> FRESHNESS_OLDER_SCORE
             },
         )
     }
 
     private fun localFeatures(localAccess: CandidateLocalAccess): AccessFeatureVector = AccessFeatureVector(
-        health = BasisPoints(10_000),
-        reliability = BasisPoints(10_000),
-        latency = BasisPoints(10_000),
+        health = BasisPoints(FULL_SCORE),
+        reliability = BasisPoints(FULL_SCORE),
+        latency = BasisPoints(FULL_SCORE),
         cacheUtility = BasisPoints(
             when (localAccess) {
-                is CandidateLocalAccess.AvailableExact -> 10_000
-                is CandidateLocalAccess.AvailableUnverified -> 6_000
+                is CandidateLocalAccess.AvailableExact -> FULL_SCORE
+                is CandidateLocalAccess.AvailableUnverified -> LOCAL_UNVERIFIED_CACHE_SCORE
                 else -> error("LOCAL-preferred candidate must carry a usable local access fact.")
             },
         ),
@@ -140,8 +143,8 @@ internal class CandidateEvaluator {
     private fun remoteFeatures(snapshot: SourceHealthSnapshot?): AccessFeatureVector {
         val state = snapshot?.state ?: SourceHealthState()
         val health = when (state.circuitState) {
-            CircuitState.CLOSED -> 10_000
-            CircuitState.HALF_OPEN -> 6_000
+            CircuitState.CLOSED -> FULL_SCORE
+            CircuitState.HALF_OPEN -> HALF_OPEN_HEALTH_SCORE
             CircuitState.OPEN -> error("OPEN remote paths must be rejected before feature evaluation.")
         }
         return AccessFeatureVector(
@@ -153,15 +156,15 @@ internal class CandidateEvaluator {
     }
 
     private fun latencyScore(state: SourceHealthState): BasisPoints {
-        val p50 = state.p50LatencyMillis ?: return BasisPoints(5_000)
+        val p50 = state.p50LatencyMillis ?: return BasisPoints(LATENCY_UNKNOWN_SCORE)
         return BasisPoints(
             when {
-                p50 <= 250L -> 10_000
-                p50 <= 500L -> 8_500
-                p50 <= 1_000L -> 6_500
-                p50 <= 2_000L -> 4_000
-                p50 <= 4_000L -> 2_000
-                else -> 1_000
+                p50 <= LATENCY_EXCELLENT_MAX_MILLIS -> FULL_SCORE
+                p50 <= LATENCY_GOOD_MAX_MILLIS -> LATENCY_GOOD_SCORE
+                p50 <= LATENCY_FAIR_MAX_MILLIS -> LATENCY_FAIR_SCORE
+                p50 <= LATENCY_SLOW_MAX_MILLIS -> LATENCY_SLOW_SCORE
+                p50 <= LATENCY_VERY_SLOW_MAX_MILLIS -> LATENCY_VERY_SLOW_SCORE
+                else -> LATENCY_POOR_SCORE
             },
         )
     }
@@ -198,6 +201,39 @@ internal class CandidateEvaluator {
     }
 
     private companion object {
+        const val FULL_SCORE = BasisPoints.MAX_VALUE
+
+        const val LANGUAGE_ORDERED_FALLBACK_START_RANK = 3
+        const val LANGUAGE_SECOND_SCORE = 8_000
+        const val LANGUAGE_THIRD_SCORE = 6_000
+        const val LANGUAGE_ORDERED_FALLBACK_SCORE = 4_000
+        const val LANGUAGE_UNPREFERRED_SCORE = 2_000
+
+        const val CONTINUITY_SOURCE_GROUP_SCORE = 8_000
+        const val CONTINUITY_SOURCE_SCORE = 6_500
+        const val CONTINUITY_LANGUAGE_SCORE = 2_000
+
+        const val FRESHNESS_UNKNOWN_SCORE = 5_000
+        const val FRESHNESS_DAY_SCORE = 9_000
+        const val FRESHNESS_WEEK_SCORE = 7_500
+        const val FRESHNESS_MONTH_SCORE = 6_000
+        const val FRESHNESS_OLDER_SCORE = 4_000
+
+        const val LOCAL_UNVERIFIED_CACHE_SCORE = 6_000
+        const val HALF_OPEN_HEALTH_SCORE = 6_000
+
+        const val LATENCY_UNKNOWN_SCORE = 5_000
+        const val LATENCY_EXCELLENT_MAX_MILLIS = 250L
+        const val LATENCY_GOOD_MAX_MILLIS = 500L
+        const val LATENCY_FAIR_MAX_MILLIS = 1_000L
+        const val LATENCY_SLOW_MAX_MILLIS = 2_000L
+        const val LATENCY_VERY_SLOW_MAX_MILLIS = 4_000L
+        const val LATENCY_GOOD_SCORE = 8_500
+        const val LATENCY_FAIR_SCORE = 6_500
+        const val LATENCY_SLOW_SCORE = 4_000
+        const val LATENCY_VERY_SLOW_SCORE = 2_000
+        const val LATENCY_POOR_SCORE = 1_000
+
         const val TOTAL_WEIGHT = 10_000L
         const val HOUR_MILLIS = 60L * 60L * 1000L
         const val DAY_MILLIS = 24L * HOUR_MILLIS

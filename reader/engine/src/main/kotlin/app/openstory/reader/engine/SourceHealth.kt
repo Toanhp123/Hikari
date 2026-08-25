@@ -6,6 +6,12 @@ import kotlin.math.ceil
 
 const val HES_V1_MAX_HEALTH_FAILURE_THRESHOLD: Int = 20
 
+private const val HES_V1_MAX_LATENCY_SAMPLES: Int = 20
+private const val DEFAULT_HEALTH_ALPHA: Int = 2_000
+private const val DEFAULT_OPEN_RELIABILITY_THRESHOLD: Int = 5_500
+private const val MIN_LATENCY_SAMPLES_FOR_PERCENTILE: Int = 3
+private const val PERCENTILE_SCALE: Double = 100.0
+
 enum class SourceOperation {
     READ_DOCUMENT,
 }
@@ -49,7 +55,7 @@ data class HealthPolicy private constructor(
     val maxLatencySamples: Int,
 ) {
     init {
-        require(alpha.value in 1..10_000) { "Health alpha must be in 1..10_000." }
+        require(alpha.value in 1..BasisPoints.MAX_VALUE) { "Health alpha must be valid positive basis points." }
         require(openAfterConsecutivePenalizingFailures in 1..HES_V1_MAX_HEALTH_FAILURE_THRESHOLD) {
             "Health open failure count must be in 1..$HES_V1_MAX_HEALTH_FAILURE_THRESHOLD for HES-v1."
         }
@@ -60,19 +66,19 @@ data class HealthPolicy private constructor(
         require(maximumCooldownMillis >= minimumCooldownMillis) {
             "Health maximum cooldown must be >= minimum cooldown."
         }
-        require(maxLatencySamples in 1..20) {
-            "Health max latency samples must be in 1..20 for HES-v1."
+        require(maxLatencySamples in 1..HES_V1_MAX_LATENCY_SAMPLES) {
+            "Health max latency samples must be in 1..$HES_V1_MAX_LATENCY_SAMPLES for HES-v1."
         }
     }
 
     companion object {
         fun v1(
-            alpha: BasisPoints = BasisPoints(2_000),
+            alpha: BasisPoints = BasisPoints(DEFAULT_HEALTH_ALPHA),
             openAfterConsecutivePenalizingFailures: Int = 3,
-            openAtOrBelowReliability: BasisPoints = BasisPoints(5_500),
+            openAtOrBelowReliability: BasisPoints = BasisPoints(DEFAULT_OPEN_RELIABILITY_THRESHOLD),
             minimumCooldownMillis: Long = 30_000L,
             maximumCooldownMillis: Long = 300_000L,
-            maxLatencySamples: Int = 20,
+            maxLatencySamples: Int = HES_V1_MAX_LATENCY_SAMPLES,
         ): HealthPolicy {
             return HealthPolicy(
                 version = HealthPolicyVersion.HEALTH_POLICY_V1,
@@ -90,7 +96,7 @@ data class HealthPolicy private constructor(
 class SourceHealthState(
     val circuitState: CircuitState = CircuitState.CLOSED,
     val consecutivePenalizingFailures: Int = 0,
-    val successEwmaBasisPoints: BasisPoints = BasisPoints(10_000),
+    val successEwmaBasisPoints: BasisPoints = BasisPoints(BasisPoints.MAX_VALUE),
     recentLatencySamplesMillis: List<Long> = emptyList(),
     val openCount: Int = 0,
     val openedAtEpochMillis: Long? = null,
@@ -109,8 +115,8 @@ class SourceHealthState(
             "consecutivePenalizingFailures must be non-negative."
         }
         require(openCount >= 0) { "openCount must be non-negative." }
-        require(this.recentLatencySamplesMillis.size <= 20) {
-            "HES-v1 health history must retain at most 20 latency samples."
+        require(this.recentLatencySamplesMillis.size <= HES_V1_MAX_LATENCY_SAMPLES) {
+            "HES-v1 health history must retain at most $HES_V1_MAX_LATENCY_SAMPLES latency samples."
         }
         require(this.recentLatencySamplesMillis.all { it >= 0L }) {
             "Latency samples must be non-negative."
@@ -154,9 +160,9 @@ class SourceHealthState(
     )
 
     private fun nearestRankLatency(percentile: Int): Long? {
-        if (recentLatencySamplesMillis.size < 3) return null
+        if (recentLatencySamplesMillis.size < MIN_LATENCY_SAMPLES_FOR_PERCENTILE) return null
         val sorted = recentLatencySamplesMillis.sorted()
-        val rank = ceil(percentile / 100.0 * sorted.size).toInt().coerceIn(1, sorted.size)
+        val rank = ceil(percentile / PERCENTILE_SCALE * sorted.size).toInt().coerceIn(1, sorted.size)
         return sorted[rank - 1]
     }
 
