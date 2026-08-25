@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` — R2 / Wave 10 production-remediation baseline.
 
-**Implementation status (2026-08-25):** **M0–M5 VERIFIED/CLOSED; M6 READY/UNBLOCKED.** M5 Tasks 25–26 cut Feature Reader over to one explicit `ReaderRouteSession`, one persisted-preference collection and one reactive chapter observation; committed content remains authoritative during target transitions; saved identity/progress move only on semantic commit; reactive chapter navigation excludes tombstones and follows later graph emissions; bounded N+1 prefetch reuses HES with `RoutingIntent.PREFETCH`, one process-wide remote-prefetch permit, fresh foreground replanning, foreground preemption and hard network/graph revalidation. Developer-host closure is GREEN for the focused engine/prefetch/limiter/ViewModel tests, the broad `:reader:engine` + `:reader` + `:feature:reader` + Downloads/App regression matrix, `:app:compileDebugKotlin`, `verifyArchitecture`, and package/current-architecture/performance policy gates. The one host-only regression was a test-fixture top-level name collision, fixed by renaming M5-only fixtures without changing production code. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`. Wave 10 final host/API 26/API 37 acceptance remains independently open under the existing acceptance-rebase.
+**Implementation status (2026-08-25):** **M0–M6 VERIFIED/CLOSED; M7 READY/UNBLOCKED.** M6 Tasks 27–30 add one injected monotonic execution scheduler, pure foreground hedge planning, typed single-attempt execution, record-before-notify completion arbitration, committed-state-safe competition, deterministic primary/timestamp/attempt-ID tie breaking, immediate alternate recovery after early primary failure, and seeded navigation/replan/concurrency models. Foreground routing now permits at most one delayed hedge, two concurrent remote attempts, and four total remote attempts while keeping ordinary fallbacks sequential; navigation and hedge-loser cancellation cannot mutate visible state or penalize source health. Developer-host closure is GREEN for the focused scheduler/hedge/competitive/model tests and the broad `:reader:engine` + `:reader` + `:feature:reader` + Downloads/App regression matrix, `:app:compileDebugKotlin`, `verifyArchitecture`, and package/current-architecture/performance policy gates. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`. Wave 10 final host/API 26/API 37 acceptance remains independently open under the existing acceptance-rebase.
 
 ## Global Constraints
 
@@ -1962,6 +1962,21 @@ git add reader/src feature/reader/src
 ```
 
 # M6 — One Foreground Hedge and Deterministic Competitive Execution
+
+**Execution amendment — 2026-08-25:** Pre-implementation review found three runtime details that
+must be explicit for Tasks 27–30. First, the planned hedge remains the first alternate even though
+it is removed from the ordinary recovery chain: if the primary fails before the hedge delay, that
+alternate starts immediately rather than being skipped; if the primary is still unresolved at the
+delay, it starts competitively; if the primary succeeds first, it never starts. Second,
+`ReaderRouteExecutor` exposes one internal typed-attempt primitive so the coordinator can preserve
+`RecoveryScope`, source-scoped suppression, validation, health observation, persistence, and
+cancellation ownership across the competitive pair and the later sequential recovery chain; the
+existing sequential entry points remain compatibility wrappers. Third, production completion
+stamps are strictly increasing within the singleton execution scheduler while the completion
+registry still applies the full `completedAtNanos -> PRIMARY -> attemptId` comparator for replay and
+virtual-time facts. Every valid completion is recorded before notification, and client-owned
+navigation/hedge-loss/prefetch cancellation closes observation ownership before best-effort job
+cancellation. These clarifications do not widen M6 scope or change the public HES-v1 contract.
 
 ### Task 27: Add the injected monotonic execution scheduler and virtual-time test scheduler
 

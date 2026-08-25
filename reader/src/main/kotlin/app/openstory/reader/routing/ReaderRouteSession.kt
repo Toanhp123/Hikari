@@ -302,6 +302,19 @@ class ReaderRouteSession internal constructor(
         true
     }
 
+    internal fun markCompeting(
+        context: ReaderRouteExecutionContext,
+        primaryAttemptId: String,
+        hedgeAttemptId: String,
+    ): Boolean = synchronized(stateLock) {
+        if (!matchesActiveLocked(context.identity)) return@synchronized false
+        mutableExecutionState = ReaderExecutionState.Competing(
+            primary = attemptIdentity(context.identity, primaryAttemptId),
+            hedge = attemptIdentity(context.identity, hedgeAttemptId),
+        )
+        true
+    }
+
     internal fun markKnownInvalidLocal(
         context: ReaderRouteExecutionContext,
         releaseId: ChapterReleaseId,

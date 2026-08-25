@@ -22,7 +22,7 @@ import kotlinx.coroutines.CancellationException
  * Adaptive Reader route coordinator. The pure engine owns eligibility/ranking/hysteresis/route
  * construction; this class materializes process facts, owns probe leases, and executes exactly the
  * bounded route returned by the engine. M5 prefetch reuses this path with [RoutingIntent.PREFETCH]
- * and never enters the visible foreground commit gate; hedging remains disabled until M6.
+ * and never enters the visible foreground commit gate; M6 permits one foreground hedge.
  */
 class ReaderRouteCoordinator(
     store: ReaderDocumentStore,
@@ -38,9 +38,15 @@ class ReaderRouteCoordinator(
     },
     private val networkFacts: ReaderNetworkFactsPort = ReaderNetworkFactsPort { ReaderNetworkState.UNKNOWN },
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
+    private val executionScheduler: ReaderExecutionScheduler = DefaultReaderExecutionScheduler(),
 ) {
     private val healthRegistry = healthRegistry
-    private val executor = ReaderRouteExecutor(store, sources, executionLimiter)
+    private val executor = ReaderRouteExecutor(
+        store = store,
+        sources = sources,
+        executionLimiter = executionLimiter,
+        monotonicNanos = executionScheduler::monotonicNanos,
+    )
     private val assembler = RouteSnapshotAssembler(
         progress = progress,
         sourceAvailability = sourceAvailability,
@@ -67,6 +73,7 @@ class ReaderRouteCoordinator(
             val decision = engine.plan(assembled.snapshot, assembled.policy)
             val plannedAttempts = buildList {
                 decision.competitiveSet.primary?.let(::add)
+                decision.competitiveSet.hedge?.let(::add)
                 addAll(decision.recoveryChain)
             }
             val candidateByRelease = assembled.candidates.associateBy { it.release.id }
@@ -95,29 +102,45 @@ class ReaderRouteCoordinator(
 
             val probeSourceIds = heldProbeLeases.mapTo(linkedSetOf()) { it.key.sourceId }
             val probeAttemptKinds = firstPlannedProbeBySource(plannedAttempts, probeSourceIds)
-            var latestAttempt: RouteAttempt? = null
-            var currentAttemptIndex = -1
-            val loaded = executor.executeAdaptive(
-                attempts = plannedAttempts,
-                candidatesByRelease = candidateByRelease,
-                remoteAttemptKinds = probeAttemptKinds,
-                onSourceObservation = { sourceId, observation ->
-                    recordHealth(sourceId, observation)
-                    if (observation is SourceObservation.TransportFailure.Connection) {
-                        hardInvalidateIfDefinitelyOffline(
-                            session = session,
-                            context = context,
-                            attempts = plannedAttempts,
-                            completedAttemptIndex = currentAttemptIndex,
-                        )
-                    }
+            val attemptIndex = plannedAttempts.mapIndexed { index, attempt ->
+                attempt.attemptId to index
+            }.toMap()
+            val sourceByPlugin = if (plannedAttempts.any { it.accessMode == AccessMode.REMOTE }) {
+                executor.enabledSources()
+            } else {
+                emptyMap()
+            }
+            val primary = checkNotNull(decision.competitiveSet.primary)
+            val execution = ReaderCompetitiveExecution(
+                scheduler = executionScheduler,
+                executeAttempt = { attempt, ownership, onValidCompletion ->
+                    val candidate = checkNotNull(candidateByRelease[attempt.releaseId])
+                    executor.executeAttempt(
+                        attempt = attempt,
+                        candidate = candidate,
+                        sourceByPlugin = sourceByPlugin,
+                        attemptKind = probeAttemptKinds[attempt.releaseId]
+                            ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+                        ownership = ownership,
+                        onValidCompletion = onValidCompletion,
+                        onSourceObservation = { sourceId, observation ->
+                            recordHealth(sourceId, observation)
+                            if (observation is SourceObservation.TransportFailure.Connection) {
+                                hardInvalidateIfDefinitelyOffline(
+                                    session = session,
+                                    context = context,
+                                    attempts = plannedAttempts,
+                                    completedAttemptIndex = attemptIndex.getValue(attempt.attemptId),
+                                )
+                            }
+                        },
+                        onLocalInvalidated = { releaseId, fingerprint ->
+                            // The current deterministic recovery chain gets first chance to recover.
+                            session.markKnownInvalidLocal(context, releaseId, fingerprint)
+                        },
+                    )
                 },
-                onLocalInvalidated = { releaseId, fingerprint ->
-                    // The current deterministic recovery chain gets first chance to recover. The
-                    // exact locator is remembered for any later hard replan/new generation.
-                    session.markKnownInvalidLocal(context, releaseId, fingerprint)
-                },
-                onAttempt = { index, attempt ->
+                onAttemptStarted = { attempt, recovering ->
                     if (
                         attempt.accessMode == AccessMode.REMOTE &&
                         remoteAttemptHardInvalidated(attempt, probeSourceIds)
@@ -125,25 +148,38 @@ class ReaderRouteCoordinator(
                         session.hardInvalidateIfCurrent(context)
                         throw ReaderRoutePlanInvalidatedException()
                     }
-                    currentAttemptIndex = index
-                    latestAttempt = attempt
-                    check(
+                    val marked = if (
+                        attempt.role == app.openstory.reader.engine.AttemptRole.HEDGE && !recovering
+                    ) {
+                        session.markCompeting(
+                            context = context,
+                            primaryAttemptId = primary.attemptId,
+                            hedgeAttemptId = attempt.attemptId,
+                        )
+                    } else {
                         session.markAttempt(
                             context = context,
                             attemptId = attempt.attemptId,
-                            recovering = index > 0,
-                        ),
-                    ) { "Reader adaptive attempt belongs to a superseded plan." }
+                            recovering = recovering,
+                        )
+                    }
+                    check(marked) { "Reader adaptive attempt belongs to a superseded plan." }
                 },
+                onCompetitionLoser = { attempt ->
+                    recordHealth(attempt.sourceId, SourceObservation.Cancellation.HedgeLoser)
+                },
+            ).execute(
+                primary = primary,
+                hedgeDirective = decision.hedgeDirective,
+                recoveryChain = decision.recoveryChain,
             )
-            return when (loaded) {
-                is ReaderLoadResult.Success -> {
-                    val attempt = latestAttempt ?: plannedAttempts.first()
-                    session.markValidating(context, attempt.attemptId)
-                    committed(context, assembled, loaded)
-                }
-                is ReaderLoadResult.Failure -> exhausted(context, loaded.attempts)
-            }
+            return execution.completion?.let { completion ->
+                session.markValidating(context, completion.attempt.attemptId)
+                committed(context, assembled, completion.loaded)
+            } ?: exhausted(
+                context,
+                execution.failures.map(ReaderAttemptFailure::toLegacy),
+            )
         } finally {
             heldProbeLeases.forEach(ReaderHalfOpenProbeLease::release)
         }

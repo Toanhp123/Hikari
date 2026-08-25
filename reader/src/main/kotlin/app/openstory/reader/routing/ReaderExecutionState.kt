@@ -56,6 +56,11 @@ internal sealed interface ReaderExecutionState {
 
     data class Executing(val attempt: ReaderAttemptIdentity) : ReaderExecutionState
 
+    data class Competing(
+        val primary: ReaderAttemptIdentity,
+        val hedge: ReaderAttemptIdentity,
+    ) : ReaderExecutionState
+
     data class Recovering(val attempt: ReaderAttemptIdentity) : ReaderExecutionState
 
     data class Validating(val attempt: ReaderAttemptIdentity) : ReaderExecutionState

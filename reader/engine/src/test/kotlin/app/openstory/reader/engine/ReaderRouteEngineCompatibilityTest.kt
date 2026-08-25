@@ -160,7 +160,7 @@ class ReaderRouteEngineCompatibilityTest {
         assertEquals(listOf(AccessMode.REMOTE, AccessMode.REMOTE), attempts.map { it.accessMode })
         assertEquals(listOf(null, null), attempts.map { it.localFingerprint })
         assertNull(decision.competitiveSet.hedge)
-        assertEquals(HedgeDirective.Omitted(HedgeOmissionReason.NOT_EVALUATED), decision.hedgeDirective)
+        assertEquals(HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE), decision.hedgeDirective)
         assertEquals(attempts, decision.trace.routeConstruction)
     }
 

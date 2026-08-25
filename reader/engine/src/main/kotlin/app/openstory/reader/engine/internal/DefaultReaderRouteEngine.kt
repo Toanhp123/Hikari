@@ -5,14 +5,13 @@ import app.openstory.reader.engine.CandidateEvaluationTrace
 import app.openstory.reader.engine.CompetitiveSet
 import app.openstory.reader.engine.HealthOriginTrace
 import app.openstory.reader.engine.HedgeDirective
-import app.openstory.reader.engine.HedgeOmissionReason
 import app.openstory.reader.engine.ReaderDecisionTrace
 import app.openstory.reader.engine.ReaderRouteDecision
 import app.openstory.reader.engine.ReaderRouteEngine
 import app.openstory.reader.engine.ReaderRoutingPolicy
 import app.openstory.reader.engine.ReaderRoutingSnapshot
 
-/** HES-v1 pure adaptive routing pipeline through M4. Hedging remains deliberately disabled. */
+/** HES-v1 pure adaptive routing pipeline. */
 internal class DefaultReaderRouteEngine : ReaderRouteEngine {
     private val eligibility = EligibilityEvaluator()
     private val evaluator = CandidateEvaluator()
@@ -28,10 +27,11 @@ internal class DefaultReaderRouteEngine : ReaderRouteEngine {
         val evaluations = evaluator.evaluate(eligibilityResult.eligible, snapshot, policy)
         val ranked = ranker.rank(evaluations)
         val arbitration = arbiter.choose(ranked, snapshot, policy)
-        val route = routePlanner.plan(ranked, arbitration.winner, policy)
+        val route = routePlanner.plan(ranked, arbitration.winner, policy, snapshot)
         val primary = route.attempts.firstOrNull()
-        val recovery = route.attempts.drop(1)
-        val hedge = HedgeDirective.Omitted(HedgeOmissionReason.NOT_EVALUATED)
+        val hedge = route.hedgeDirective
+        val hedgeAttempt = (hedge as? HedgeDirective.Launch)?.attempt
+        val recovery = route.attempts.drop(1).filter { it != hedgeAttempt }
         val evaluationByRelease = evaluations.associateBy { it.candidate.releaseId }
         val trace = ReaderDecisionTrace(
             hesContractVersion = policy.hesContractVersion,
@@ -69,7 +69,7 @@ internal class DefaultReaderRouteEngine : ReaderRouteEngine {
             algorithmVersion = policy.algorithmVersion,
             policyVersion = policy.version,
             planRevision = snapshot.planRevision,
-            competitiveSet = CompetitiveSet(primary = primary, hedge = null),
+            competitiveSet = CompetitiveSet(primary = primary, hedge = hedgeAttempt),
             hedgeDirective = hedge,
             recoveryChain = recovery,
             rejections = eligibilityResult.rejections,

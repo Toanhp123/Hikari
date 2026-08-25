@@ -2,21 +2,33 @@ package app.openstory.reader.engine.internal
 
 import app.openstory.reader.engine.AccessMode
 import app.openstory.reader.engine.AttemptRole
+import app.openstory.reader.engine.HedgeDirective
+import app.openstory.reader.engine.HedgeOmissionReason
+import app.openstory.reader.engine.ReaderNetworkClass
 import app.openstory.reader.engine.ReaderRoutingPolicy
+import app.openstory.reader.engine.ReaderRoutingSnapshot
 import app.openstory.reader.engine.RouteAttempt
+import app.openstory.reader.engine.RoutingIntent
 
 internal data class PlannedRoute(
     val attempts: List<RouteAttempt>,
+    val hedgeDirective: HedgeDirective,
 )
 
-/** Builds bounded deterministic LOCAL/REMOTE execution order. Hedging remains disabled in M4. */
+/** Builds bounded deterministic LOCAL/REMOTE execution order with at most one foreground hedge. */
 internal class RoutePlanner {
     fun plan(
         ranked: List<EvaluatedCandidate>,
         winner: EvaluatedCandidate?,
         policy: ReaderRoutingPolicy,
+        snapshot: ReaderRoutingSnapshot? = null,
     ): PlannedRoute {
-        if (winner == null) return PlannedRoute(emptyList())
+        if (winner == null) {
+            return PlannedRoute(
+                attempts = emptyList(),
+                hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
+            )
+        }
         val semanticOrder = buildList {
             add(winner)
             ranked.forEach { if (it.candidate.releaseId != winner.candidate.releaseId) add(it) }
@@ -47,18 +59,82 @@ internal class RoutePlanner {
             )
         }
         val bounded = unique.values.take(maximumAttempts)
-        return PlannedRoute(
-            attempts = bounded.mapIndexed { index, attempt ->
-                RouteAttempt(
-                    attemptId = "attempt-$index",
-                    releaseId = attempt.candidate.candidate.releaseId,
-                    sourceId = attempt.candidate.candidate.sourceId,
-                    accessMode = attempt.accessMode,
-                    localFingerprint = attempt.fingerprint,
-                    role = if (index == 0) AttemptRole.PRIMARY else AttemptRole.FALLBACK,
-                )
-            },
+        val hedgeRaw = selectHedge(
+            bounded = bounded,
+            ranked = ranked,
+            snapshot = snapshot,
+            policy = policy,
         )
+        val finalOrder = buildList {
+            bounded.firstOrNull()?.let(::add)
+            hedgeRaw?.let(::add)
+            bounded.drop(1).forEach { if (it !== hedgeRaw) add(it) }
+        }
+        val attempts = finalOrder.mapIndexed { index, attempt ->
+            RouteAttempt(
+                attemptId = "attempt-$index",
+                releaseId = attempt.candidate.candidate.releaseId,
+                sourceId = attempt.candidate.candidate.sourceId,
+                accessMode = attempt.accessMode,
+                localFingerprint = attempt.fingerprint,
+                role = when {
+                    index == 0 -> AttemptRole.PRIMARY
+                    attempt === hedgeRaw -> AttemptRole.HEDGE
+                    else -> AttemptRole.FALLBACK
+                },
+            )
+        }
+        val hedgeAttempt = attempts.firstOrNull { it.role == AttemptRole.HEDGE }
+        return PlannedRoute(
+            attempts = attempts,
+            hedgeDirective = hedgeAttempt?.let { HedgeDirective.Launch(it, policy.hedge.delayMillis) }
+                ?: HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
+        )
+    }
+
+    private fun selectHedge(
+        bounded: List<RawAttempt>,
+        ranked: List<EvaluatedCandidate>,
+        snapshot: ReaderRoutingSnapshot?,
+        policy: ReaderRoutingPolicy,
+    ): RawAttempt? {
+        val primary = bounded.firstOrNull() ?: return null
+        if (snapshot == null) return null
+        if (snapshot.routingIntent != RoutingIntent.FOREGROUND) return null
+        if (snapshot.networkClass != ReaderNetworkClass.UNMETERED) return null
+        if (primary.accessMode != AccessMode.REMOTE) return null
+
+        val primaryHealth = snapshot.sourceHealth
+            .firstOrNull { it.key.sourceId == primary.candidate.candidate.sourceId }
+            ?.state
+            ?: return null
+        if (primaryHealth.recentLatencySamplesMillis.size < policy.hedge.minimumLatencySamples) return null
+        val primaryP95 = primaryHealth.p95LatencyMillis ?: return null
+        if (primaryP95 < policy.hedge.primaryP95ThresholdMillis) return null
+
+        val rankIndex = ranked.mapIndexed { index, candidate -> candidate.candidate.releaseId to index }.toMap()
+        return bounded
+            .asSequence()
+            .drop(1)
+            .filter { it.accessMode == AccessMode.REMOTE }
+            .filter { it.candidate.candidate.sourceId != primary.candidate.candidate.sourceId }
+            .filter {
+                val score = it.candidate.remoteAccessScore
+                score != null &&
+                    score.value >= policy.hedge.alternateMinimumRemoteAccessScore.value
+            }
+            .filter {
+                val reliability = it.candidate.remoteReliability
+                reliability != null &&
+                    reliability.value >= policy.hedge.alternateMinimumReliability.value
+            }
+            .minWithOrNull(
+                compareBy<RawAttempt>(
+                    { rankIndex.getValue(it.candidate.candidate.releaseId) },
+                    { it.candidate.candidate.sourceId.value },
+                    { it.candidate.candidate.releaseId.value },
+                ),
+            )
     }
 
     private data class RawAttempt(

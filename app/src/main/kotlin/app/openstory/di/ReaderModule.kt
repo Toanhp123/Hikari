@@ -10,6 +10,8 @@ import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.document.ReaderDocumentSanitizer
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.routing.PrefetchCoordinator
+import app.openstory.reader.routing.DefaultReaderExecutionScheduler
+import app.openstory.reader.routing.ReaderExecutionScheduler
 import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderCacheFactsPort
 import app.openstory.reader.AndroidReaderNetworkFactsPort
@@ -97,6 +99,10 @@ object ReaderModule {
 
     @Provides
     @Singleton
+    fun provideReaderExecutionScheduler(): ReaderExecutionScheduler = DefaultReaderExecutionScheduler()
+
+    @Provides
+    @Singleton
     fun provideReaderDocumentRepository(
         store: ReaderDocumentStore,
         sources: ReaderDocumentSourceRegistry,
@@ -124,6 +130,7 @@ object ReaderModule {
         executionLimiter: ReaderSourceExecutionLimiter,
         cacheFacts: ReaderCacheFactsPort,
         networkFacts: ReaderNetworkFactsPort,
+        executionScheduler: ReaderExecutionScheduler,
     ): ReaderRouteCoordinator = ReaderRouteCoordinator(
         store = store,
         sources = sources,
@@ -133,6 +140,7 @@ object ReaderModule {
         executionLimiter = executionLimiter,
         cacheFacts = cacheFacts,
         networkFacts = networkFacts,
+        executionScheduler = executionScheduler,
     )
 
     @Provides
