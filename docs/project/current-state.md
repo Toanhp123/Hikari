@@ -44,19 +44,23 @@ Purpose: single source of truth for the implemented repository boundary.
   That accepted durability boundary is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
   catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
   134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
-- Adaptive Reader Continuity / HES-v1: **M0 VERIFIED/CLOSED; M1 NEXT**. The pure JVM `:reader:engine`
-  module is present with exact production project dependency `:core:common`; `:reader` consumes it via
-  `implementation`, Room remains schema 11, and no adaptive routing production behavior is enabled yet.
-  Fresh developer-host verification on Gradle 9.5.0 passes the constitutional build-logic tests,
-  `:reader:engine` compile/tests, `verifyArchitecture`, current-architecture/package-boundary contract tests,
-  and the production package/current-architecture verifiers. The verified graph is 17 production modules plus
-  the `:benchmark` Android test/performance module, with Room schemas contiguous through 11. The M0 cleanup also
-  removes the Kotlin data-class copy-visibility warning, the Git-Bash awk escaped-colon warning, and the deprecated
-  Gradle `TaskContainer.create()` fixture usage that surfaced during verification.
+- Adaptive Reader Continuity / HES-v1: **M0–M2 VERIFIED/CLOSED; M3 NEXT**. The pure JVM `:reader:engine`
+  remains isolated behind `:reader` with exact production project dependency `:core:common`, Room remains schema 11,
+  and the verified graph remains 17 production modules plus the `:benchmark` Android test/performance module. M1
+  adds the Reader-internal legacy adapter, deterministic compatibility reasoner, and 250-seed differential overlap
+  coverage against `ReleaseSelector`. M2 adds per-screen session/generation/plan identities, a compatibility executor,
+  and a real-target coordinator/session factory behind DI while deliberately keeping Feature Reader on the legacy
+  production facade until M5. Health, adaptive access ranking, hysteresis, reactive hard-invalidation policy, prefetch,
+  and hedging remain disabled until their owning milestones. Fresh developer-host Gradle 9.5.0 evidence passes the
+  M1/M2 targeted Reader suites, full Reader + Feature Reader unit suites, `:reader:engine:test`,
+  `:app:compileDebugKotlin`, `verifyArchitecture`, and current/package-boundary shell contracts/verifiers. The only
+  M2 host warning was a test-only `ExperimentalCoroutinesApi` opt-in for `runCurrent()`; the closeout patch adds the
+  repository-standard explicit opt-in without changing production behavior.
   The normative design and implementation plan are stored in
   `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and
   `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; M0 evidence is recorded in
-  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`. Wave 10 final acceptance remains open under
+  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md` and M1/M2 closure evidence in
+  `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`. Wave 10 final acceptance remains open under
   the explicit acceptance-rebase recorded in its checkpoint.
 - Wave 10: **IMPLEMENTATION PRESENT; FINAL ACCEPTANCE OPEN**. Current source is Room schema 11,
   `MIGRATION_10_11` owns Wave 10 notification persistence, and the required complete host plus API 26/API 37
@@ -103,8 +107,8 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
-| `:reader` | Sanitized document loading, deterministic release selection/fallback, and exact progress policy/contracts |
-| `:reader:engine` | HES-v1 pure JVM Reader routing values, policy, immutable facts/decision contracts, and future pure reasoner boundary; no effects/runtime ownership |
+| `:reader` | Sanitized document loading, legacy selector/fallback facade, session-scoped compatibility routing coordination, and exact progress policy/contracts |
+| `:reader:engine` | HES-v1 pure JVM routing values/policy/facts plus the deterministic legacy-compatible pure reasoner; no effects/runtime ownership |
 | `:feature:reader` | Restorable Reader state and accessible structured text / vertical image-page Compose presentation |
 | `:downloads` | Explicit download state, automatic-cache quota/eviction, Reader resolution, and reconciliation policy |
 | `:settings` | Wave 10 typed settings/auth/background/notification policy contracts and persistence-facing ports |
@@ -214,8 +218,9 @@ system now includes `HikariSegmentedControl` and static `HikariSkeleton` primiti
 catalog metadata-lifecycle unification preserved that presentation and the then-current 14-module graph while
 advancing Room 7 -> 8 and moving Search, Story, and Discover metadata requirements behind the shared
 coordinator. Wave 10 expanded the production graph to 16 modules (`:settings` and `:feature:settings`) and advanced
-Room to schema 11; HES-v1 M0 now adds `:reader:engine` as the seventeenth production module without
-changing that schema. Wave 10 implementation is present while final acceptance remains open.
+Room to schema 11; HES-v1 M0 adds `:reader:engine` as the seventeenth production module without
+changing that schema, and verified M1/M2 add compatibility reasoning/session coordination without any additional
+module or schema change. Wave 10 implementation is present while final acceptance remains open.
 
 ## Architecture Baseline 2 status
 
@@ -320,8 +325,9 @@ Evidence:
 ## Wave 10 execution baseline
 
 Wave 10 implementation entered HES on its 16-production-module / Room-schema-11 boundary. The current
-verified/closed M0 tree has 17 production modules because `:reader:engine` has been added; Room remains
-schema 11. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`.
+verified/closed M0–M2 tree has 17 production modules because `:reader:engine` was added in M0; Room remains
+schema 11. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`, with
+M1/M2 closure evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`.
 Wave 10 final acceptance remains open and is owned by:
 
 - `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`

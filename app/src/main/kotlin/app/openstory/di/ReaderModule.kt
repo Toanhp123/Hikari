@@ -8,6 +8,8 @@ import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.document.ReaderDocumentSanitizer
 import app.openstory.reader.progress.ReadingProgressRepository
+import app.openstory.reader.routing.ReaderRouteCoordinator
+import app.openstory.reader.routing.ReaderRouteSessionFactory
 import app.openstory.reader.selection.ReleaseSelector
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.reader.RoomReadingProgressRepository
@@ -73,4 +75,18 @@ object ReaderModule {
     @Singleton
     fun provideReadingProgressRepository(database: OpenStoryDatabase): ReadingProgressRepository =
         RoomReadingProgressRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideReaderRouteCoordinator(
+        store: ReaderDocumentStore,
+        sources: ReaderDocumentSourceRegistry,
+        progress: ReadingProgressRepository,
+    ): ReaderRouteCoordinator = ReaderRouteCoordinator(store, sources, progress)
+
+    @Provides
+    @Singleton
+    fun provideReaderRouteSessionFactory(
+        coordinator: ReaderRouteCoordinator,
+    ): ReaderRouteSessionFactory = ReaderRouteSessionFactory(coordinator)
 }

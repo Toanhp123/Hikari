@@ -120,6 +120,28 @@ class ReaderDocumentRepositoryTest {
     }
 
     @Test
+    fun selectorStillOwnsOrderingBeforeCompatibilityExecution() = runTest {
+        val source = FakeSource(
+            mutableMapOf(
+                "preferred" to ReaderSourceResult.Failure("preferred.failed", false),
+                "newer" to ReaderSourceResult.Failure("newer.failed", false),
+            ),
+        )
+        val result = assertIs<ReaderLoadResult.Failure>(
+            repository(FakeStore(), source).load(
+                ReaderLoadRequest(
+                    candidates = listOf(candidate("newer", 20), candidate("preferred", 10)),
+                    selectionPolicy = app.openstory.reader.selection.ReleaseSelectionPolicy(
+                        explicitReleaseId = ChapterReleaseId("preferred"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(listOf("preferred", "newer"), result.attempts.map { it.releaseId.value })
+    }
+
+    @Test
     fun reportsEveryAlternateFailureInDeterministicSelectionOrder() = runTest {
         val source = FakeSource(
             mutableMapOf(

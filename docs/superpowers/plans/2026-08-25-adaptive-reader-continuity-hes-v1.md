@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` — R2 / Wave 10 production-remediation baseline.
 
+**Implementation status (2026-08-25):** **M0–M2 VERIFIED/CLOSED; M3 NEXT.** M1 Tasks 6–8 and M2 Tasks 9–11 are implemented and verified on the developer host. Evidence is recorded in `docs/internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md`. The per-task Step 5 commit commands for Tasks 6–11 are intentionally not executed individually; the repository owner requested one combined M1+M2 commit after this closeout patch. Wave 10 final acceptance remains open under the existing acceptance-rebase.
+
 ## Global Constraints
 
 - The entry baseline is the supplied Wave 10 production-remediation tree: **16 production modules plus `:benchmark`, Room schema 11, `MIGRATION_10_11` present, Wave 10 final acceptance still open**.
@@ -611,7 +613,7 @@ git add reader/engine/src
 - Produces engine facts **inside `:reader` only**.
 - Production baseline mapping: `sourceGroupKey = null`, `completeness = 10_000`; legacy differential fixtures may inject explicit completeness/trusted-group facts.
 
-- [ ] **Step 1: Write failing mapping tests**
+- [x] **Step 1: Write failing mapping tests**
 
 Assert production mapping does not invent source group/completeness:
 
@@ -625,17 +627,17 @@ assertEquals(BasisPoints(10_000), mapped.completeness)
 
 Add fixture-only mapping tests that legacy `ReleaseCandidate.completeness` may become `* 100` only for differential fixtures, not production mapping.
 
-- [ ] **Step 2: Run focused Reader test and verify RED**
+- [x] **Step 2: Run focused Reader test and verify RED**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*LegacyReaderRoutingAdapterTest*' --no-daemon
 ```
 
-- [ ] **Step 3: Implement adapter and verify engine types remain internal to Reader module APIs**
+- [x] **Step 3: Implement adapter and verify engine types remain internal to Reader module APIs**
 
 Do not change `ReaderDocumentStore`, `ReaderSourceAvailability`, Downloads, App, or Feature Reader signatures to engine DTOs. Add an architecture/source test that no production file outside `reader/` imports `app.openstory.reader.engine.*`.
 
-- [ ] **Step 4: Run Reader + architecture gates GREEN**
+- [x] **Step 4: Run Reader + architecture gates GREEN**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*LegacyReaderRoutingAdapterTest*' --no-daemon
@@ -643,7 +645,7 @@ Do not change `ReaderDocumentStore`, `ReaderSourceAvailability`, Downloads, App,
 bash scripts/verify-package-boundaries.sh
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [ ] **Step 5: Record checkpoint — intentionally deferred to the combined M1+M2 commit**
 
 ```bash
 git add reader/src
@@ -662,7 +664,7 @@ git add reader/src
 - M1 only reproduces representable legacy tiers; adaptive access-aware scoring replaces compatibility internals in M4.
 - M1 fixtures use REMOTE-only usable paths and neutral source-operation health.
 
-- [ ] **Step 1: Write failing compatibility ordering tests**
+- [x] **Step 1: Write failing compatibility ordering tests**
 
 Cover the overlap tiers that both models can represent:
 
@@ -679,23 +681,23 @@ sourceId/releaseId stable tie
 
 Do not emulate legacy per-release `ReleaseHealth`; keep it HEALTHY in M1 fixtures because HES health is source-operation state.
 
-- [ ] **Step 2: Run focused pure tests and verify RED**
+- [x] **Step 2: Run focused pure tests and verify RED**
 
 ```bash
 ./gradlew :reader:engine:test --tests '*ReaderRouteEngineCompatibilityTest*' --no-daemon
 ```
 
-- [ ] **Step 3: Implement canonicalized compatibility planning**
+- [x] **Step 3: Implement canonicalized compatibility planning**
 
 Canonicalize input by `(sourceId.value, releaseId.value)` first. Emit deterministic REMOTE route attempts (`attempt-0`, `attempt-1`, ...) and return the unchanged `planRevision`. The compatibility reasoner must not read clocks/randomness/global state.
 
-- [ ] **Step 4: Add replay/reversed-input assertions and run GREEN**
+- [x] **Step 4: Add replay/reversed-input assertions and run GREEN**
 
 ```bash
 ./gradlew :reader:engine:test --no-daemon
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [ ] **Step 5: Record checkpoint — intentionally deferred to the combined M1+M2 commit**
 
 ```bash
 git add reader/engine/src
@@ -712,28 +714,28 @@ git add reader/engine/src
 - Consumes old selector + adapter + new pure engine.
 - Produces a documented overlap envelope; intentional future divergences move to named G01-G26 tests rather than disabled differential assertions.
 
-- [ ] **Step 1: Write deterministic differential fixtures/generator**
+- [x] **Step 1: Write deterministic differential fixtures/generator**
 
 Generate at least 200 seeded candidate sets. Keep legacy health `HEALTHY`; use facts both systems can express. Assert selected release and unique alternate semantic order equality.
 
-- [ ] **Step 2: Run differential tests and verify RED for any mapping/comparator gap**
+- [x] **Step 2: Run differential tests and verify RED for any mapping/comparator gap**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*ReaderRouteEngineDifferentialTest*' --no-daemon
 ```
 
-- [ ] **Step 3: Fix only overlap mismatches**
+- [x] **Step 3: Fix only overlap mismatches**
 
 Do not introduce health, network, local-locator ranking, hysteresis, prefetch, or hedge behavior in this task.
 
-- [ ] **Step 4: Run selector + differential + engine suites GREEN**
+- [x] **Step 4: Run selector + differential + engine suites GREEN**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*ReleaseSelectorTest*' --tests '*ReaderRouteEngineDifferentialTest*' --no-daemon
 ./gradlew :reader:engine:test --no-daemon
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [ ] **Step 5: Record checkpoint — intentionally deferred to the combined M1+M2 commit**
 
 ```bash
 git add reader/src/test reader/engine/src
@@ -759,7 +761,7 @@ git add reader/src/test reader/engine/src
 - `ReaderForegroundResult` has `Committed`, `Exhausted`, and `Superseded` outcomes; `Committed` includes target chapter/group context, chosen `ChapterRelease`, `ReaderDocument`, `fromLocal: Boolean`, previous/next chapter IDs, and exact restoration data when safe. No engine `AccessMode` leaks to Feature Reader.
 - Produces per-session latest chapter-group state/revision; process health is deliberately absent from session state.
 
-- [ ] **Step 1: Write failing identity/state tests**
+- [x] **Step 1: Write failing identity/state tests**
 
 Lock user-intent vs hard-replan semantics:
 
@@ -781,13 +783,13 @@ Lock user-intent vs hard-replan semantics:
 
 Also assert explicit release selection/retry after exhaustion starts a new generation, two sessions may both have generation `1` without collision, and no `executionRevision`/plan hash exists.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*ReaderRouteSessionStateTest*' --no-daemon
 ```
 
-- [ ] **Step 3: Implement semantic execution states and session ownership**
+- [x] **Step 3: Implement semantic execution states and session ownership**
 
 Use:
 
@@ -806,13 +808,13 @@ sealed interface ReaderExecutionState {
 
 Session state tracks committed identity, transition target, latest chapter groups/revision, active intent/revision, and prefetch ownership. Do not put singleton source health or process source locks here.
 
-- [ ] **Step 4: Run session tests GREEN**
+- [x] **Step 4: Run session tests GREEN**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*ReaderRouteSessionStateTest*' --no-daemon
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [ ] **Step 5: Record checkpoint — intentionally deferred to the combined M1+M2 commit**
 
 ```bash
 git add reader/src
@@ -832,7 +834,7 @@ git add reader/src
 - Preserves current `ReaderDocumentRepository.load(ReaderLoadRequest): ReaderLoadResult` and current selector behavior during M2.
 - Does **not** force `ReaderLoadRequest` through `ReaderRouteEngine`; legacy façade lacks reliable target chapter identity.
 
-- [ ] **Step 1: Port current repository behavior into executor-focused RED tests**
+- [x] **Step 1: Port current repository behavior into executor-focused RED tests**
 
 Lock existing compatibility behavior before changing ownership:
 
@@ -850,23 +852,23 @@ legacy ReaderLoadFailure surface remains unchanged
 
 Do not yet encode corrected M3 local-I/O/quarantine semantics as compatibility requirements; those are intentional named behavior changes in Task 13.
 
-- [ ] **Step 2: Run focused tests and verify RED before extraction**
+- [x] **Step 2: Run focused tests and verify RED before extraction**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*ReaderRouteExecutorCompatibilityTest*' --no-daemon
 ```
 
-- [ ] **Step 3: Extract the current loop behind repository without changing public behavior**
+- [x] **Step 3: Extract the current loop behind repository without changing public behavior**
 
 `ReaderDocumentRepository` remains selector + façade owner in M2. Move the local/source attempt loop into `ReaderRouteExecutor` with an internal compatibility entry that consumes already ordered `ReleaseCandidate` values. Keep cancellation behavior identical.
 
-- [ ] **Step 4: Run executor + repository regressions GREEN**
+- [x] **Step 4: Run executor + repository regressions GREEN**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*ReaderRouteExecutorCompatibilityTest*' --tests '*ReaderDocumentRepositoryTest*' --no-daemon
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [ ] **Step 5: Record checkpoint — intentionally deferred to the combined M1+M2 commit**
 
 ```bash
 git add reader/src
@@ -887,27 +889,27 @@ git add reader/src
 - Keeps legacy `ReaderDocumentRepository` separately usable until M5 Feature Reader cutover.
 - M2 coordinator may use compatibility candidate ordering/execution with cache/network/health defaults; adaptive behavior stays disabled.
 
-- [ ] **Step 1: Write failing explicit-target/session-isolation tests**
+- [x] **Step 1: Write failing explicit-target/session-isolation tests**
 
 A coordinator request must contain a real target:
 
 ```kotlin
 data class ReaderForegroundIntent(
     val targetChapterId: CanonicalChapterId,
-    val explicitReleaseId: ChapterReleaseId?,
-    val preferences: ReaderPreferences,
+    val explicitReleaseId: ChapterReleaseId? = null,
 )
 ```
 
 Tests prove two independently created sessions cannot cancel each other's generation and that session result identity contains the real target chapter.
+Routing preferences remain session-owned and arrive through `updateRoutingPreferences(...)`; they are not duplicated into each foreground intent.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*ReaderRouteCoordinatorCompatibilityTest*' --no-daemon
 ```
 
-- [ ] **Step 3: Implement coordinator/session factory and DI behind non-production-cutover API**
+- [x] **Step 3: Implement coordinator/session factory and DI behind non-production-cutover API**
 
 `ReaderRouteCoordinator` orchestrates:
 
@@ -917,14 +919,14 @@ session target + latest chapter facts -> snapshot assembly -> engine decision ->
 
 At this milestone, local/cache behavior may still route through the compatibility sequential seam and engine adaptive features remain disabled. The coordinator must not mutate one process-global active generation.
 
-- [ ] **Step 4: Run Reader + Feature Reader compile/regression gates GREEN**
+- [x] **Step 4: Run Reader + Feature Reader compile/regression gates GREEN**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest :feature:reader:testDebugUnitTest --no-daemon
 ./gradlew :app:compileDebugKotlin --no-daemon
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [ ] **Step 5: Record checkpoint — intentionally deferred to the combined M1+M2 commit**
 
 ```bash
 git add reader/src app/src/main/kotlin/app/openstory/di/ReaderModule.kt

@@ -96,6 +96,18 @@ class ReleaseSelectorTest {
     }
 
     @Test
+    fun stableIdTierOrdersSourceIdBeforeReleaseIdForMigrationEnvelope() {
+        val sourceAReleaseZ = candidate("release-z", "en", 1, plugin = "source-a")
+        val sourceZReleaseA = candidate("release-a", "en", 1, plugin = "source-z")
+
+        val result = selected(listOf(sourceZReleaseA, sourceAReleaseZ))
+
+        assertEquals(sourceAReleaseZ, result.candidate)
+        assertEquals(listOf(sourceZReleaseA), result.alternates)
+        assertEquals(SelectionReason.STABLE_ID, result.reason)
+    }
+
+    @Test
     fun emptyInputAndStableIdTieBreakAreExplained() {
         assertSame(ReleaseSelectionResult.NoneAvailable, selector.select(emptyList()))
         val selected = selected(listOf(candidate("z", "en", 1), candidate("a", "en", 1)))
