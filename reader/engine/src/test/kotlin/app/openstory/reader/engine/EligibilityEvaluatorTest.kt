@@ -76,6 +76,38 @@ class EligibilityEvaluatorTest {
         assertTrue(remoteEligible(circuit = CircuitState.HALF_OPEN, probe = true))
     }
 
+
+    @Test
+    fun prefetchRemoteRequiresUnmeteredWhileForegroundAndLocalPathsRemainEligible() {
+        fun remoteEligible(intent: RoutingIntent, network: ReaderNetworkClass): Boolean = evaluator.evaluate(
+            snapshot(
+                candidates = listOf(candidate()),
+                network = network,
+                intent = intent,
+            ),
+            ReaderRoutingPolicy.v1(),
+        ).eligible.firstOrNull()?.remoteEligible == true
+
+        assertTrue(remoteEligible(RoutingIntent.FOREGROUND, ReaderNetworkClass.METERED))
+        assertTrue(remoteEligible(RoutingIntent.FOREGROUND, ReaderNetworkClass.UNKNOWN))
+        assertFalse(remoteEligible(RoutingIntent.PREFETCH, ReaderNetworkClass.OFFLINE))
+        assertFalse(remoteEligible(RoutingIntent.PREFETCH, ReaderNetworkClass.METERED))
+        assertFalse(remoteEligible(RoutingIntent.PREFETCH, ReaderNetworkClass.UNKNOWN))
+        assertTrue(remoteEligible(RoutingIntent.PREFETCH, ReaderNetworkClass.UNMETERED))
+
+        ReaderNetworkClass.entries.forEach { network ->
+            val result = evaluator.evaluate(
+                snapshot(
+                    candidates = listOf(candidate(local = CandidateLocalAccess.AvailableExact("fp"))),
+                    network = network,
+                    intent = RoutingIntent.PREFETCH,
+                ),
+                ReaderRoutingPolicy.v1(),
+            )
+            assertEquals("fp", result.eligible.single().localFingerprint)
+        }
+    }
+
     @Test
     fun strictLanguageRejectsCandidateWideButOrderedAllowNeverDoes() {
         val strict = evaluator.evaluate(
@@ -146,11 +178,12 @@ class EligibilityEvaluatorTest {
         network: ReaderNetworkClass = ReaderNetworkClass.UNKNOWN,
         health: List<SourceHealthSnapshot> = emptyList(),
         explicit: ChapterReleaseId? = null,
+        intent: RoutingIntent = RoutingIntent.FOREGROUND,
     ) = ReaderRoutingSnapshot.create(
         targetChapterId = CanonicalChapterId("chapter"),
         chapterGraphRevision = ReaderChapterGraphRevision(1),
         planRevision = ReaderPlanRevision(0),
-        routingIntent = RoutingIntent.FOREGROUND,
+        routingIntent = intent,
         candidates = candidates,
         sourceHealth = health,
         continuity = ReadingContinuity(),

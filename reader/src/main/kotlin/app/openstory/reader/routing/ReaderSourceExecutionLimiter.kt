@@ -9,6 +9,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 internal enum class ReaderRemoteWorkPriority {
     FOREGROUND,
@@ -59,6 +61,7 @@ class ReaderSourceExecutionLimiter {
     private val lanes = mutableMapOf<PluginId, Lane>()
     private val probeLock = Any()
     private val heldProbes = mutableSetOf<SourceOperationKey>()
+    private val remotePrefetchPermit = Semaphore(permits = 1)
 
     internal fun tryAcquireHalfOpenProbe(key: SourceOperationKey): ReaderHalfOpenProbeLease? =
         synchronized(probeLock) {
@@ -67,6 +70,18 @@ class ReaderSourceExecutionLimiter {
         }
 
     internal suspend fun <T> withRemotePermit(
+        sourceId: PluginId,
+        priority: ReaderRemoteWorkPriority,
+        block: suspend () -> T,
+    ): T = if (priority == ReaderRemoteWorkPriority.PREFETCH) {
+        remotePrefetchPermit.withPermit {
+            withSourceRemotePermit(sourceId, priority, block)
+        }
+    } else {
+        withSourceRemotePermit(sourceId, priority, block)
+    }
+
+    private suspend fun <T> withSourceRemotePermit(
         sourceId: PluginId,
         priority: ReaderRemoteWorkPriority,
         block: suspend () -> T,

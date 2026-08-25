@@ -11,6 +11,7 @@ import app.openstory.reader.engine.AccessMode
 import app.openstory.reader.engine.ReaderRouteEngine
 import app.openstory.reader.engine.RemoteAttemptKind
 import app.openstory.reader.engine.RouteAttempt
+import app.openstory.reader.engine.RoutingIntent
 import app.openstory.reader.engine.SourceObservation
 import app.openstory.reader.engine.SourceOperationKey
 import app.openstory.reader.progress.ReadingProgress
@@ -18,9 +19,10 @@ import app.openstory.reader.progress.ReadingProgressRepository
 import kotlinx.coroutines.CancellationException
 
 /**
- * M4 adaptive foreground coordinator. The pure engine owns eligibility/ranking/hysteresis/route
+ * Adaptive Reader route coordinator. The pure engine owns eligibility/ranking/hysteresis/route
  * construction; this class materializes process facts, owns probe leases, and executes exactly the
- * bounded route returned by the engine. Hedging/prefetch remain disabled until later phases.
+ * bounded route returned by the engine. M5 prefetch reuses this path with [RoutingIntent.PREFETCH]
+ * and never enters the visible foreground commit gate; hedging remains disabled until M6.
  */
 class ReaderRouteCoordinator(
     store: ReaderDocumentStore,
@@ -145,6 +147,71 @@ class ReaderRouteCoordinator(
         } finally {
             heldProbeLeases.forEach(ReaderHalfOpenProbeLease::release)
         }
+    }
+
+
+    internal suspend fun executePrefetch(
+        session: ReaderRouteSession,
+        context: ReaderRoutePlanningContext,
+    ) {
+        val assembled = assembler.assemble(context, RoutingIntent.PREFETCH) ?: return
+        val heldProbeLeases = assembled.probeLeases.toMutableList()
+        try {
+            val decision = engine.plan(assembled.snapshot, assembled.policy)
+            val plannedAttempts = buildList {
+                decision.competitiveSet.primary?.let(::add)
+                addAll(decision.recoveryChain)
+            }
+            if (plannedAttempts.isEmpty()) return
+
+            val candidateByRelease = assembled.candidates.associateBy { it.release.id }
+            plannedAttempts.forEach { attempt ->
+                checkNotNull(candidateByRelease[attempt.releaseId]) {
+                    "Engine planned prefetch release ${attempt.releaseId.value} outside the assembled candidate set."
+                }
+            }
+            releaseUnusedProbeLeases(heldProbeLeases, plannedAttempts)
+            val probeSourceIds = heldProbeLeases.mapTo(linkedSetOf()) { it.key.sourceId }
+            val probeAttemptKinds = firstPlannedProbeBySource(plannedAttempts, probeSourceIds)
+
+            try {
+                executor.executeAdaptive(
+                    attempts = plannedAttempts,
+                    candidatesByRelease = candidateByRelease,
+                    remoteAttemptKinds = probeAttemptKinds,
+                    onSourceObservation = { sourceId, observation ->
+                        recordHealth(sourceId, observation)
+                    },
+                    onLocalInvalidated = { releaseId, fingerprint ->
+                        session.markKnownInvalidLocal(releaseId, fingerprint)
+                    },
+                    onAttempt = { _, attempt ->
+                        if (
+                            attempt.accessMode == AccessMode.REMOTE &&
+                            (
+                                !prefetchRemoteStillPermitted() ||
+                                    remoteAttemptHardInvalidated(attempt, probeSourceIds)
+                            )
+                        ) {
+                            throw ReaderRoutePlanInvalidatedException()
+                        }
+                    },
+                    remotePriority = ReaderRemoteWorkPriority.PREFETCH,
+                )
+            } catch (_: ReaderRoutePlanInvalidatedException) {
+                // Prefetch never owns a visible commit. A stale plan is simply abandoned.
+            }
+        } finally {
+            heldProbeLeases.forEach(ReaderHalfOpenProbeLease::release)
+        }
+    }
+
+    private suspend fun prefetchRemoteStillPermitted(): Boolean = try {
+        networkFacts.current() == ReaderNetworkState.UNMETERED
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        false
     }
 
     private suspend fun remoteAttemptHardInvalidated(

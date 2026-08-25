@@ -12,6 +12,7 @@ import app.openstory.reader.engine.ReaderRoutingPolicy
 import app.openstory.reader.engine.ReaderRoutingSnapshot
 import app.openstory.reader.engine.RejectionCode
 import app.openstory.reader.engine.RoutingCandidate
+import app.openstory.reader.engine.RoutingIntent
 import app.openstory.reader.engine.SourceHealthSnapshot
 import app.openstory.reader.engine.normalizeLanguageTag
 
@@ -42,6 +43,7 @@ internal class EligibilityEvaluator {
             val remoteEligible = remoteEligible(
                 candidate = candidate,
                 networkClass = snapshot.networkClass,
+                routingIntent = snapshot.routingIntent,
                 health = healthBySource[candidate.sourceId],
                 rejections = rejections,
             )
@@ -95,6 +97,7 @@ internal class EligibilityEvaluator {
     private fun remoteEligible(
         candidate: RoutingCandidate,
         networkClass: ReaderNetworkClass,
+        routingIntent: RoutingIntent,
         health: SourceHealthSnapshot?,
         rejections: MutableList<CandidateRejection>,
     ): Boolean {
@@ -102,6 +105,8 @@ internal class EligibilityEvaluator {
             candidate.remoteAccess == CandidateRemoteAccess.SOURCE_UNAVAILABLE ->
                 RejectionCode.REMOTE_SOURCE_DISABLED_OR_UNAVAILABLE
             networkClass == ReaderNetworkClass.OFFLINE -> RejectionCode.REMOTE_NETWORK_UNAVAILABLE
+            routingIntent == RoutingIntent.PREFETCH && networkClass != ReaderNetworkClass.UNMETERED ->
+                RejectionCode.REMOTE_NETWORK_UNAVAILABLE
             health?.state?.circuitState == CircuitState.OPEN -> RejectionCode.REMOTE_CIRCUIT_OPEN
             health?.state?.circuitState == CircuitState.HALF_OPEN && !health.halfOpenProbePermitted ->
                 RejectionCode.HALF_OPEN_PROBE_NOT_PERMITTED

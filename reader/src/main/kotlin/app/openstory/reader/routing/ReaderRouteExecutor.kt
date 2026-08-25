@@ -36,6 +36,7 @@ internal class ReaderRouteExecutor(
         onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit = { _, _ -> },
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit = { _, _ -> },
         onAttempt: suspend (index: Int, attempt: app.openstory.reader.engine.RouteAttempt) -> Unit = { _, _ -> },
+        remotePriority: ReaderRemoteWorkPriority = ReaderRemoteWorkPriority.FOREGROUND,
     ): ReaderLoadResult {
         require(attempts.size <= MAX_TOTAL_FOREGROUND_ATTEMPTS) {
             "Reader adaptive route exceeds HES-v1 total attempt ceiling: ${attempts.size}"
@@ -87,6 +88,7 @@ internal class ReaderRouteExecutor(
                         attemptKind = remoteAttemptKinds[attempt.releaseId]
                             ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
                         onSourceObservation = onSourceObservation,
+                        remotePriority = remotePriority,
                     )
                 }
             }
@@ -135,6 +137,7 @@ internal class ReaderRouteExecutor(
                     sourceByPlugin = enabledSources,
                     attemptKind = attemptKind,
                     onSourceObservation = onSourceObservation,
+                    remotePriority = ReaderRemoteWorkPriority.FOREGROUND,
                 )
             ) {
                 is CandidateLoadResult.Success -> return attempt.value
@@ -191,6 +194,7 @@ internal class ReaderRouteExecutor(
         sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
         attemptKind: RemoteAttemptKind,
         onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
+        remotePriority: ReaderRemoteWorkPriority,
     ): CandidateLoadResult {
         val release = candidate.release
         val sourceId = release.pluginId
@@ -209,7 +213,7 @@ internal class ReaderRouteExecutor(
         }
 
         val startedNanos = monotonicNanos()
-        val fetched = fetch(source, candidate)
+        val fetched = fetch(source, candidate, remotePriority)
         val latencyMillis = elapsedMillis(startedNanos, monotonicNanos())
         return when (fetched) {
             is ReaderSourceResult.Success -> when (
@@ -373,8 +377,9 @@ internal class ReaderRouteExecutor(
     private suspend fun fetch(
         source: ReaderDocumentSource,
         candidate: ReleaseCandidate,
+        remotePriority: ReaderRemoteWorkPriority,
     ): ReaderSourceResult = try {
-        executionLimiter.withRemotePermit(source.pluginId, ReaderRemoteWorkPriority.FOREGROUND) {
+        executionLimiter.withRemotePermit(source.pluginId, remotePriority) {
             source.fetch(candidate.release)
         }
     } catch (cancelled: CancellationException) {

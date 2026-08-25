@@ -79,6 +79,41 @@ class ReaderSourceExecutionLimiterTest {
         assertEquals(1, maximumActive)
     }
 
+
+    @Test
+    fun onlyOneRemotePrefetchIsActiveProcessWideAcrossDifferentSources() = runTest {
+        val limiter = ReaderSourceExecutionLimiter()
+        val firstEntered = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        var active = 0
+        var maximumActive = 0
+
+        val first = launch {
+            limiter.withRemotePermit(PluginId("source-a"), ReaderRemoteWorkPriority.PREFETCH) {
+                active++
+                maximumActive = maxOf(maximumActive, active)
+                firstEntered.complete(Unit)
+                releaseFirst.await()
+                active--
+            }
+        }
+        firstEntered.await()
+        val second = launch {
+            limiter.withRemotePermit(PluginId("source-b"), ReaderRemoteWorkPriority.PREFETCH) {
+                active++
+                maximumActive = maxOf(maximumActive, active)
+                active--
+            }
+        }
+        runCurrent()
+
+        assertEquals(1, maximumActive)
+        releaseFirst.complete(Unit)
+        first.join()
+        second.join()
+        assertEquals(1, maximumActive)
+    }
+
     @Test
     fun queuedForegroundWinsOverQueuedPrefetch() = runTest {
         val limiter = ReaderSourceExecutionLimiter()

@@ -40,14 +40,20 @@ internal class RouteSnapshotAssembler(
     private val networkFacts: ReaderNetworkFactsPort = ReaderNetworkFactsPort { ReaderNetworkState.UNKNOWN },
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun assemble(context: ReaderRouteExecutionContext): AssembledRouteSnapshot? {
+    suspend fun assemble(context: ReaderRouteExecutionContext): AssembledRouteSnapshot? =
+        assemble(context.toPlanningContext(), RoutingIntent.FOREGROUND)
+
+    suspend fun assemble(
+        context: ReaderRoutePlanningContext,
+        routingIntent: RoutingIntent,
+    ): AssembledRouteSnapshot? {
         val targetIndex = context.chapterGroups.indexOfFirst {
-            it.chapter.id == context.identity.targetChapterId
+            it.chapter.id == context.targetChapterId
         }
         if (targetIndex < 0) return null
 
         val targetGroup = context.chapterGroups[targetIndex]
-        val restored = progress.find(context.storyId, context.identity.targetChapterId)
+        val restored = progress.find(context.storyId, context.targetChapterId)
         val candidates = targetGroup.releases.map(::ReleaseCandidate)
         val releaseIds = targetGroup.releases.mapTo(linkedSetOf()) { it.id }
         val resumeFingerprints = restored
@@ -71,6 +77,7 @@ internal class RouteSnapshotAssembler(
                     val base = healthRegistry.snapshot(key, now)
                     if (
                         sourceId in enabledSourceIds &&
+                        remotePlanningPermitted(routingIntent, networkClass) &&
                         base.state.circuitState == CircuitState.HALF_OPEN
                     ) {
                         executionLimiter.tryAcquireHalfOpenProbe(key)?.let { lease ->
@@ -119,10 +126,10 @@ internal class RouteSnapshotAssembler(
                 candidates = candidates,
                 restoredProgress = restored,
                 snapshot = ReaderRoutingSnapshot.create(
-                    targetChapterId = context.identity.targetChapterId,
+                    targetChapterId = context.targetChapterId,
                     chapterGraphRevision = context.chapterGraphRevision,
-                    planRevision = context.identity.planRevision,
-                    routingIntent = RoutingIntent.FOREGROUND,
+                    planRevision = context.planRevision,
+                    routingIntent = routingIntent,
                     candidates = routingCandidates,
                     sourceHealth = sourceHealth,
                     continuity = continuity,
@@ -140,6 +147,15 @@ internal class RouteSnapshotAssembler(
             probeLeases.forEach(ReaderHalfOpenProbeLease::release)
             throw failure
         }
+    }
+
+
+    private fun remotePlanningPermitted(
+        routingIntent: RoutingIntent,
+        networkClass: ReaderNetworkClass,
+    ): Boolean = when (routingIntent) {
+        RoutingIntent.FOREGROUND -> networkClass != ReaderNetworkClass.OFFLINE
+        RoutingIntent.PREFETCH -> networkClass == ReaderNetworkClass.UNMETERED
     }
 
     private suspend fun inspectCacheFacts(

@@ -18,7 +18,6 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.content.ReaderDocumentStore
-import app.openstory.reader.content.ReaderDocumentRepository
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderSourceResult
@@ -29,7 +28,8 @@ import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.preferences.ReaderPreferencesPort
-import app.openstory.reader.selection.ReleaseSelector
+import app.openstory.reader.routing.ReaderRouteCoordinator
+import app.openstory.reader.routing.ReaderRouteSessionFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -68,7 +68,7 @@ class ReaderViewModelTest {
             ReaderAssistedArgs("story", "chapter-2", null),
             savedState,
             chapters,
-            documents(),
+            documents(progress),
             progress,
             FakeClock(100),
             FakeReaderPreferencesPort(preferenceValues),
@@ -109,7 +109,8 @@ class ReaderViewModelTest {
         assertEquals("chapter-1", viewModel.state.value.previousChapterId?.value)
         assertEquals(null, viewModel.state.value.nextChapterId)
         assertEquals("chapter-2", savedState.get<String>("reader.chapter-id"))
-        assertEquals(1, chapters.snapshotCalls)
+        assertEquals(1, chapters.observeCalls)
+        assertEquals(0, chapters.snapshotCalls)
     }
 
     @Test
@@ -247,12 +248,14 @@ class ReaderViewModelTest {
             FakeReaderPreferencesPort(values),
         )
         runCurrent()
+        assertEquals(1, chapters.observeCalls)
         assertEquals(0, chapters.snapshotCalls)
 
         values.emit(ReaderPreferences(fontScale = 1.2f, languageOrder = listOf("ja", "en")))
         runCurrent()
 
-        assertEquals(1, chapters.snapshotCalls)
+        assertEquals(1, chapters.observeCalls)
+        assertEquals(0, chapters.snapshotCalls)
         assertEquals("release-ja", viewModel.state.value.selectedReleaseId?.value)
         assertEquals(1.2f, viewModel.state.value.fontScale)
     }
@@ -279,48 +282,62 @@ class ReaderViewModelTest {
     }
 
 
-    private fun failingDocuments(code: String, retryable: Boolean) = ReaderDocumentRepository(
-        NoOpReaderDocumentStore,
-        object : ReaderDocumentSourceRegistry {
-            override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
-                object : ReaderDocumentSource {
-                    override val pluginId = PluginId("plugin")
-                    override suspend fun fetch(release: ChapterRelease) =
-                        ReaderSourceResult.Failure(code, retryable)
-                },
-            )
-        },
-        ReleaseSelector(),
+    private fun failingDocuments(
+        code: String,
+        retryable: Boolean,
+        progress: ReadingProgressRepository = FakeReaderProgressRepository(null),
+    ) = ReaderRouteSessionFactory(
+        ReaderRouteCoordinator(
+            store = NoOpReaderDocumentStore,
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                    object : ReaderDocumentSource {
+                        override val pluginId = PluginId("plugin")
+                        override suspend fun fetch(release: ChapterRelease) =
+                            ReaderSourceResult.Failure(code, retryable)
+                    },
+                )
+            },
+            progress = progress,
+        ),
     )
 
-    private fun documents() = ReaderDocumentRepository(
-        NoOpReaderDocumentStore,
-        object : ReaderDocumentSourceRegistry {
-            override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
-                object : ReaderDocumentSource {
-                    override val pluginId = PluginId("plugin")
-                    override suspend fun fetch(release: ChapterRelease) = ReaderSourceResult.Success(
-                        ReaderDocument(
-                            release.displayLabel,
-                            listOf(ReaderBlock.Paragraph("block", "Text")),
-                            "fingerprint-${release.id.value.removePrefix("release-")}",
-                        ),
-                    )
-                },
-            )
-        },
-        ReleaseSelector(),
+    private fun documents(
+        progress: ReadingProgressRepository = FakeReaderProgressRepository(null),
+    ) = ReaderRouteSessionFactory(
+        ReaderRouteCoordinator(
+            store = NoOpReaderDocumentStore,
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                    object : ReaderDocumentSource {
+                        override val pluginId = PluginId("plugin")
+                        override suspend fun fetch(release: ChapterRelease) = ReaderSourceResult.Success(
+                            ReaderDocument(
+                                release.displayLabel,
+                                listOf(ReaderBlock.Paragraph("block", "Text")),
+                                "fingerprint-${release.id.value.removePrefix("release-")}",
+                            ),
+                        )
+                    },
+                )
+            },
+            progress = progress,
+        ),
     )
+
 }
 
 private class FakeReaderChapterRepository(
     private val graph: ChapterGraphSnapshot,
 ) : ChapterRepository {
-    private val all = MutableStateFlow<List<CanonicalChapterGroup>>(emptyList())
+    private val all = MutableStateFlow(graph.toReaderGroups())
+    var observeCalls = 0
     var snapshotCalls = 0
     override fun observeAll(): Flow<List<CanonicalChapterGroup>> = all
-    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> =
-        error("Not used")
+    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> {
+        observeCalls++
+        return all
+    }
     override suspend fun snapshot(storyId: StoryId): ChapterGraphSnapshot {
         snapshotCalls++
         return graph

@@ -11,17 +11,16 @@ import app.openstory.common.Clock
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
-import app.openstory.reader.content.ReaderDocumentRepository
-import app.openstory.reader.content.ReaderLoadRequest
-import app.openstory.reader.content.ReaderLoadResult
+import app.openstory.reader.document.ReaderDocument
+import app.openstory.reader.preferences.ReaderPreferences
+import app.openstory.reader.preferences.ReaderPreferencesPort
 import app.openstory.reader.progress.ProgressUpdate
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.progress.ReadingProgressService
-import app.openstory.reader.preferences.ReaderPreferences
-import app.openstory.reader.preferences.ReaderPreferencesPort
-import app.openstory.reader.selection.ReleaseCandidate
-import app.openstory.reader.selection.ReleaseSelectionPolicy
+import app.openstory.reader.routing.ReaderForegroundIntent
+import app.openstory.reader.routing.ReaderForegroundResult
+import app.openstory.reader.routing.ReaderRouteSessionFactory
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -42,71 +41,116 @@ class ReaderViewModel @AssistedInject constructor(
     @Assisted assistedArgs: ReaderAssistedArgs,
     private val savedState: SavedStateHandle,
     private val chapters: ChapterRepository,
-    private val documents: ReaderDocumentRepository,
+    routeSessions: ReaderRouteSessionFactory,
     private val progress: ReadingProgressRepository,
     clock: Clock,
     private val preferences: ReaderPreferencesPort = DefaultReaderPreferencesPort,
 ) : ViewModel() {
+    private data class CommittedReaderContent(
+        val chapterId: CanonicalChapterId,
+        val releaseId: ChapterReleaseId,
+        val document: ReaderDocument,
+    )
+
+    private data class ReaderTransitionTarget(
+        val chapterId: CanonicalChapterId,
+        val explicitReleaseId: ChapterReleaseId?,
+    )
+
     private val storyId = StoryId(assistedArgs.storyId)
-    private var chapterId = CanonicalChapterId(savedState[CHAPTER_ID_KEY] ?: assistedArgs.chapterId)
-    private val initialReleaseId = assistedArgs.releaseId?.let(::ChapterReleaseId)
+    private val initialChapterId = CanonicalChapterId(savedState[CHAPTER_ID_KEY] ?: assistedArgs.chapterId)
+    private val initialReleaseId = savedState.get<String>(RELEASE_ID_KEY)
+        ?.let(::ChapterReleaseId)
+        ?: assistedArgs.releaseId?.let(::ChapterReleaseId)
+    private val routeSession = routeSessions.create(storyId, viewModelScope)
     private val progressService = ReadingProgressService(progress, clock, viewModelScope)
-    private var cachedChapterGroups: List<CanonicalChapterGroup>? = null
+    private var committed: CommittedReaderContent? = null
+    private var transitionTarget: ReaderTransitionTarget? = null
+    private var failedTarget: ReaderTransitionTarget? = null
     private var loadJob: Job? = null
     private var currentPreferences = ReaderPreferences()
-    private val mutableState = MutableStateFlow(
-        ReaderUiState(),
-    )
+    private var preferenceReady = false
+    private var chapterGraphReady = false
+    private var latestChapterOrder: List<CanonicalChapterId> = emptyList()
+    private var initialLoadStarted = false
+    private val mutableState = MutableStateFlow(ReaderUiState())
     val state: StateFlow<ReaderUiState> = mutableState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            var initialized = false
             preferences.preferences.collect { next ->
                 currentPreferences = next.copy(fontScale = next.normalizedFontScale)
+                routeSession.updateRoutingPreferences(currentPreferences)
+                preferenceReady = true
                 mutableState.value = mutableState.value.copy(
                     fontScale = currentPreferences.normalizedFontScale,
                     preferenceFailure = null,
                 )
-                if (!initialized) {
-                    initialized = true
-                    load(savedState.get<String>(RELEASE_ID_KEY)?.let(::ChapterReleaseId) ?: initialReleaseId)
-                }
+                maybeStartInitialLoad()
+            }
+        }
+        viewModelScope.launch {
+            chapters.observe(storyId).collect { groups ->
+                // Keep the reactive graph boundary equivalent to the legacy snapshot projection:
+                // tombstoned canonical chapters are maintenance history, never Reader navigation targets.
+                val readerGroups = groups.filterNot { group -> group.chapter.tombstoned }
+                routeSession.updateChapterGraph(readerGroups)
+                latestChapterOrder = readerGroups.map { group -> group.chapter.id }
+                refreshCommittedNavigation()
+                chapterGraphReady = true
+                maybeStartInitialLoad()
             }
         }
     }
 
-    fun retry() = load(mutableState.value.selectedReleaseId)
+    fun retry() {
+        val target = failedTarget ?: committed?.let { current ->
+            ReaderTransitionTarget(
+                chapterId = current.chapterId,
+                explicitReleaseId = current.releaseId,
+            )
+        } ?: ReaderTransitionTarget(initialChapterId, initialReleaseId)
+        startLoad(target.chapterId, target.explicitReleaseId, flushProgress = committed != null)
+    }
 
     fun selectRelease(releaseId: ChapterReleaseId) {
-        savedState[RELEASE_ID_KEY] = releaseId.value
-        load(releaseId, flushProgress = true)
+        val current = committed ?: return
+        if (transitionTarget == null && current.releaseId == releaseId) return
+        startLoad(current.chapterId, releaseId, flushProgress = true)
     }
 
     fun openChapter(chapterId: CanonicalChapterId) {
-        if (chapterId == this.chapterId) return
-        mutableState.value = mutableState.value.copy(
-            loading = true,
-            document = null,
-            selectedReleaseId = null,
-            failure = null,
-            failureRetryable = true,
-        )
-        this.chapterId = chapterId
-        savedState[CHAPTER_ID_KEY] = chapterId.value
-        savedState.remove<String>(RELEASE_ID_KEY)
-        load(explicitReleaseId = null, flushProgress = true)
+        val pending = transitionTarget
+        if (pending?.chapterId == chapterId && pending.explicitReleaseId == null) {
+            if (failedTarget === pending) {
+                startLoad(pending.chapterId, explicitReleaseId = null, flushProgress = committed != null)
+            }
+            return
+        }
+
+        val current = committed
+        if (current?.chapterId == chapterId) {
+            if (pending != null) cancelTransitionAndKeepCommitted()
+            return
+        }
+        if (current == null && initialLoadStarted && chapterId == initialChapterId && pending != null) return
+        startLoad(chapterId, explicitReleaseId = null, flushProgress = current != null)
     }
 
     fun increaseFont() = setFontScale(mutableState.value.fontScale + FONT_SCALE_STEP)
     fun decreaseFont() = setFontScale(mutableState.value.fontScale - FONT_SCALE_STEP)
 
     fun updatePosition(position: ReadingPosition, completed: Boolean) {
-        val current = mutableState.value
-        val releaseId = current.selectedReleaseId ?: return
-        val document = current.document ?: return
+        val current = committed ?: return
         progressService.update(
-            ProgressUpdate(storyId, chapterId, releaseId, document.fingerprint, position, completed),
+            ProgressUpdate(
+                storyId = storyId,
+                canonicalChapterId = current.chapterId,
+                releaseId = current.releaseId,
+                contentFingerprint = current.document.fingerprint,
+                position = position,
+                completed = completed,
+            ),
         )
     }
 
@@ -116,96 +160,147 @@ class ReaderViewModel @AssistedInject constructor(
         }
     }
 
-    private fun load(explicitReleaseId: ChapterReleaseId?, flushProgress: Boolean = false) {
+    private fun maybeStartInitialLoad() {
+        if (initialLoadStarted || !preferenceReady || !chapterGraphReady) return
+        initialLoadStarted = true
+        startLoad(initialChapterId, initialReleaseId, flushProgress = false)
+    }
+
+    private fun startLoad(
+        chapterId: CanonicalChapterId,
+        explicitReleaseId: ChapterReleaseId?,
+        flushProgress: Boolean,
+    ) {
         loadJob?.cancel()
+        val target = ReaderTransitionTarget(
+            chapterId = chapterId,
+            explicitReleaseId = explicitReleaseId,
+        )
+        transitionTarget = target
+        failedTarget = null
+        mutableState.value = mutableState.value.copy(
+            loading = committed == null,
+            transitionTargetChapterId = chapterId,
+            transitionTargetReleaseId = explicitReleaseId,
+            failure = null,
+            failureRetryable = true,
+        )
         loadJob = viewModelScope.launch {
-            if (flushProgress) progressService.flush()
-            mutableState.value = mutableState.value.copy(loading = true, failure = null, failureRetryable = true)
             try {
-                val groups = chapterGroups()
-                val index = groups.indexOfFirst { it.chapter.id == chapterId }
-                if (index < 0) {
-                    fail(READER_CHAPTER_NOT_FOUND, retryable = false)
-                    return@launch
+                if (flushProgress) flushProgressBestEffort()
+                when (
+                    val result = routeSession.execute(
+                        ReaderForegroundIntent(chapterId, explicitReleaseId),
+                    )
+                ) {
+                    is ReaderForegroundResult.Committed -> commit(target, result)
+                    is ReaderForegroundResult.Exhausted -> fail(target, result.code, result.retryable)
+                    is ReaderForegroundResult.Superseded -> Unit
                 }
-                loadGroup(groups, index, explicitReleaseId)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                fail(READER_LOAD_FAILED, retryable = true)
+                fail(target, READER_LOAD_FAILED, retryable = true)
             }
         }
     }
 
-    private suspend fun loadGroup(
-        groups: List<CanonicalChapterGroup>,
-        index: Int,
-        explicitReleaseId: ChapterReleaseId?,
+    private fun commit(
+        target: ReaderTransitionTarget,
+        result: ReaderForegroundResult.Committed,
     ) {
-        val group = groups[index]
-        val restored = progress.find(storyId, chapterId)
-        val candidates = group.releases.map(::ReleaseCandidate)
-        val policy = ReleaseSelectionPolicy(
-            explicitReleaseId = explicitReleaseId,
-            previousReleaseId = restored?.releaseId,
-            previousPluginId = restored?.releaseId?.let { id ->
-                group.releases.firstOrNull { it.id == id }?.pluginId
-            },
-            languageOrder = currentPreferences.languageOrder,
+        if (!isCurrent(target) || result.identity.targetChapterId != target.chapterId) return
+        val nextCommitted = CommittedReaderContent(
+            chapterId = result.identity.targetChapterId,
+            releaseId = result.release.id,
+            document = result.document,
         )
-        val fingerprints = restored?.let { mapOf(it.releaseId to it.contentFingerprint) }.orEmpty()
-        when (val result = documents.load(ReaderLoadRequest(candidates, policy, fingerprints))) {
-            is ReaderLoadResult.Failure -> {
-                val failure = result.attempts.firstOrNull { attempt -> attempt.retryable }
-                    ?: result.attempts.firstOrNull()
-                fail(
-                    code = failure?.code ?: READER_EMPTY,
-                    retryable = failure?.retryable ?: false,
-                )
-            }
-            is ReaderLoadResult.Success -> show(groups, index, group, result, restored)
-        }
-    }
+        committed = nextCommitted
+        transitionTarget = null
+        failedTarget = null
 
-    private fun show(
-        groups: List<CanonicalChapterGroup>,
-        index: Int,
-        group: CanonicalChapterGroup,
-        result: ReaderLoadResult.Success,
-        restored: app.openstory.reader.progress.ReadingProgress?,
-    ) {
-        val releaseId = result.release.release.id
-        val restoredForRelease = restored?.takeIf { it.releaseId == releaseId }
-        savedState[RELEASE_ID_KEY] = releaseId.value
+        // Saved identity is committed identity only. Publish UI only after both keys are updated.
+        savedState[CHAPTER_ID_KEY] = nextCommitted.chapterId.value
+        savedState[RELEASE_ID_KEY] = nextCommitted.releaseId.value
+
+        val (previousChapterId, nextChapterId) = navigationAround(nextCommitted.chapterId)
         mutableState.value = mutableState.value.copy(
             loading = false,
-            chapterLabel = group.chapter.displayLabel,
-            document = result.document,
-            releases = group.releases.map(ChapterRelease::toUiModel),
-            selectedReleaseId = releaseId,
-            previousChapterId = groups.getOrNull(index - 1)?.chapter?.id,
-            nextChapterId = groups.getOrNull(index + 1)?.chapter?.id,
-            restoredBlockId = restoredForRelease?.position?.blockId,
-            restoredCharacterOffset = restoredForRelease?.position?.characterOffset ?: 0,
-            restoredProgressFraction = restoredForRelease?.position?.fraction ?: 0f,
-            availableOffline = result.fromStore,
+            committedChapterId = nextCommitted.chapterId,
+            chapterLabel = result.chapterGroup.chapter.displayLabel,
+            document = nextCommitted.document,
+            releases = result.chapterGroup.releases.map(ChapterRelease::toUiModel),
+            selectedReleaseId = nextCommitted.releaseId,
+            previousChapterId = previousChapterId,
+            nextChapterId = nextChapterId,
+            transitionTargetChapterId = null,
+            transitionTargetReleaseId = null,
+            restoredBlockId = result.restoration?.blockId,
+            restoredCharacterOffset = result.restoration?.characterOffset ?: 0,
+            restoredProgressFraction = result.restoration?.progressFraction ?: 0f,
+            availableOffline = result.fromLocal,
             failure = null,
             failureRetryable = true,
         )
     }
 
-    private suspend fun chapterGroups(): List<CanonicalChapterGroup> =
-        cachedChapterGroups ?: chapters.snapshot(storyId).toReaderGroups().also { groups ->
-            cachedChapterGroups = groups
-        }
-
-    private fun fail(code: String, retryable: Boolean) {
+    private fun fail(
+        target: ReaderTransitionTarget,
+        code: String,
+        retryable: Boolean,
+    ) {
+        if (!isCurrent(target)) return
+        failedTarget = target
         mutableState.value = mutableState.value.copy(
             loading = false,
-            document = null,
+            transitionTargetChapterId = target.chapterId,
+            transitionTargetReleaseId = target.explicitReleaseId,
             failure = code,
             failureRetryable = retryable,
         )
+    }
+
+    private fun refreshCommittedNavigation() {
+        val current = committed ?: return
+        val (previousChapterId, nextChapterId) = navigationAround(current.chapterId)
+        mutableState.value = mutableState.value.copy(
+            previousChapterId = previousChapterId,
+            nextChapterId = nextChapterId,
+        )
+    }
+
+    private fun navigationAround(
+        chapterId: CanonicalChapterId,
+    ): Pair<CanonicalChapterId?, CanonicalChapterId?> {
+        val index = latestChapterOrder.indexOf(chapterId)
+        if (index < 0) return null to null
+        return latestChapterOrder.getOrNull(index - 1) to latestChapterOrder.getOrNull(index + 1)
+    }
+
+    private fun cancelTransitionAndKeepCommitted() {
+        loadJob?.cancel()
+        loadJob = null
+        transitionTarget = null
+        failedTarget = null
+        mutableState.value = mutableState.value.copy(
+            loading = false,
+            transitionTargetChapterId = null,
+            transitionTargetReleaseId = null,
+            failure = null,
+            failureRetryable = true,
+        )
+    }
+
+    private fun isCurrent(target: ReaderTransitionTarget): Boolean = transitionTarget === target
+
+    private suspend fun flushProgressBestEffort() {
+        try {
+            progressService.flush()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Navigation is not made unavailable because best-effort progress persistence failed.
+        }
     }
 
     private fun setFontScale(value: Float) {
@@ -233,9 +328,7 @@ class ReaderViewModel @AssistedInject constructor(
     private companion object {
         const val RELEASE_ID_KEY = "reader.release-id"
         const val CHAPTER_ID_KEY = "reader.chapter-id"
-        const val READER_CHAPTER_NOT_FOUND = "reader.chapter_not_found"
         const val READER_LOAD_FAILED = "reader.load_failed"
-        const val READER_EMPTY = "reader.no_release_available"
         const val READER_PREFERENCES_WRITE_FAILED = "reader.preferences_write_failed"
     }
 }

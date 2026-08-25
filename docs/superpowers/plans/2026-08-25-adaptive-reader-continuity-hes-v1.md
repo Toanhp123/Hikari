@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` — R2 / Wave 10 production-remediation baseline.
 
-**Implementation status (2026-08-25):** **M0–M4 VERIFIED/CLOSED; M5 READY / UNBLOCKED.** M4 Tasks 17–24 are implemented, self-reviewed, host-verified, and closed against the R2 design/plan: exact access-aware eligibility, fixed-point ranking, continuity/hysteresis, bounded deterministic route construction, Reader-owned cache/network facts, one bounded schema-11 metadata query, reactive graph revisioning, and same-generation hard replanning are present. Developer-host verification closed the remaining regression loop: stale M1/M3 compatibility assertions were rebased to M4 semantics, the session first-graph-emission plan-revision bug was fixed, the language invalidation regression was isolated to one hard fact, and connected Room query-count instrumentation was corrected to count the bounded `chapter_storage_entries` SELECT rather than Room-internal bookkeeping. Final evidence is GREEN for `:reader:engine:test`, `:reader:testDebugUnitTest`, `:downloads:testDebugUnitTest`, `:app:testDebugUnitTest`, `verifyArchitecture`, all package/current-architecture shell gates, and 7/7 connected `RoomDownloadRepositoryTest` tests on a Redmi Note 9S running Android 15. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`. Wave 10 final host/API 26/API 37 acceptance remains independently open under the existing acceptance-rebase, so M4 closure does not close Wave 10 or unblock Wave 11.
+**Implementation status (2026-08-25):** **M0–M5 VERIFIED/CLOSED; M6 READY/UNBLOCKED.** M5 Tasks 25–26 cut Feature Reader over to one explicit `ReaderRouteSession`, one persisted-preference collection and one reactive chapter observation; committed content remains authoritative during target transitions; saved identity/progress move only on semantic commit; reactive chapter navigation excludes tombstones and follows later graph emissions; bounded N+1 prefetch reuses HES with `RoutingIntent.PREFETCH`, one process-wide remote-prefetch permit, fresh foreground replanning, foreground preemption and hard network/graph revalidation. Developer-host closure is GREEN for the focused engine/prefetch/limiter/ViewModel tests, the broad `:reader:engine` + `:reader` + `:feature:reader` + Downloads/App regression matrix, `:app:compileDebugKotlin`, `verifyArchitecture`, and package/current-architecture/performance policy gates. The one host-only regression was a test-fixture top-level name collision, fixed by renaming M5-only fixtures without changing production code. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`. Wave 10 final host/API 26/API 37 acceptance remains independently open under the existing acceptance-rebase.
 
 ## Global Constraints
 
@@ -1777,6 +1777,8 @@ git add reader/src app/src
 
 # M5 — Committed-vs-Target UI Continuity and Bounded Prefetch
 
+**Execution amendment — 2026-08-25:** The implementation review found two plan-scope omissions and one presentation boundary that are normative for M5. First, Task 26 cannot enforce `PREFETCH` METERED/UNKNOWN policy without carrying `RoutingIntent` through `RouteSnapshotAssembler`/`ReaderRouteExecutor` and pure-engine eligibility; those files plus the process-shared limiter/session factory/DI wiring are therefore part of Task 26. Second, the reactive Room chapter stream contains tombstoned canonical history that the legacy `ChapterGraphSnapshot.toReaderGroups()` projection filtered, so Task 25 must preserve that projection at the reactive Feature Reader boundary. The ViewModel also retains only the latest active chapter-ID order for presentation navigation, while the session remains owner of the full latest graph/revision. No second ViewModel generation/revision counter is introduced; stale completion correctness remains session-generation/plan-revision owned, with ViewModel coroutine-target object ownership as a local presentation callback gate.
+
 ### Task 25: Migrate `ReaderViewModel` to one explicit session, one reactive chapter observation, and committed-vs-target presentation semantics
 
 **Files:**
@@ -1784,7 +1786,7 @@ git add reader/src app/src
 - Modify: `feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderUiState.kt`
 - Modify: `feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderScreen.kt`
 - Modify: `feature/reader/src/test/kotlin/app/openstory/reader/ui/ReaderViewModelTest.kt`
-- Modify: `feature/reader/src/test/kotlin/app/openstory/reader/ui/ReaderContentTest.kt`
+- Create: `feature/reader/src/test/kotlin/app/openstory/reader/ui/ReaderViewModelContinuityTest.kt`
 - Modify: `scripts/tests/performance-lifecycle-policy-test.sh`
 - Modify: `app/src/main/kotlin/app/openstory/di/ReaderModule.kt`
 
@@ -1794,7 +1796,7 @@ git add reader/src app/src
 - Initial foreground load starts only when both first emissions exist.
 - Presentation separates committed content from transition target; old `ReaderDocumentRepository` is no longer the primary production Reader UI execution path after this task.
 
-- [ ] **Step 1: Write failing zero-blank/progress/saved-state/reactive-gate tests**
+- [x] **Step 1: Write failing zero-blank/progress/saved-state/reactive-gate tests**
 
 Add focused tests proving the current bug is removed:
 
@@ -1830,7 +1832,7 @@ same release but changed fingerprint -> no stale exact position restoration
 fontScale write failure still rolls back to persisted preference and cancellation still propagates
 ```
 
-- [ ] **Step 2: Run Feature Reader tests and verify RED on current ViewModel behavior**
+- [x] **Step 2: Run Feature Reader tests and verify RED on current ViewModel behavior**
 
 ```bash
 ./gradlew :feature:reader:testDebugUnitTest --tests '*ReaderViewModelTest*' --no-daemon
@@ -1838,7 +1840,7 @@ fontScale write failure still rolls back to persisted preference and cancellatio
 
 Expected current RED includes document clearing and early saved chapter/release mutation.
 
-- [ ] **Step 3: Implement committed/target state and explicit session cutover**
+- [x] **Step 3: Implement committed/target state and explicit session cutover**
 
 Replace mutable target-as-committed fields with explicit state equivalent to:
 
@@ -1868,7 +1870,7 @@ Collect `ChapterRepository.observe(storyId)` once and feed each emission to the 
 
 On commit, update committed chapter/release/document and saved keys together before publishing Ready. Do not persist a pending transition target in v1.
 
-- [ ] **Step 4: Replace the obsolete literal performance guard with the actual session-observation invariant and run regressions**
+- [x] **Step 4: Replace the obsolete literal performance guard with the actual session-observation invariant and run regressions**
 
 Update `performance-lifecycle-policy-test.sh` so it no longer requires a field named `cachedChapterGroups`. Instead require one reactive Reader chapter observation and reject per-navigation `chapters.snapshot(storyId)` usage in `ReaderViewModel`:
 
@@ -1887,7 +1889,7 @@ Then run:
 bash scripts/tests/performance-lifecycle-policy-test.sh
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [x] **Step 5: Record checkpoint**
 
 ```bash
 git add feature/reader/src reader/src app/src/main/kotlin/app/openstory/di/ReaderModule.kt scripts/tests/performance-lifecycle-policy-test.sh
@@ -1896,20 +1898,27 @@ git add feature/reader/src reader/src app/src/main/kotlin/app/openstory/di/Reade
 
 ### Task 26: Add bounded session-owned N+1 prefetch through the same engine
 
-**Files:**
+**Files (rebased to the production seams required by the R2 policy):**
 - Create: `reader/src/main/kotlin/app/openstory/reader/routing/PrefetchCoordinator.kt`
+- Create: `reader/src/main/kotlin/app/openstory/reader/routing/ReaderRoutePlanningContext.kt`
 - Modify: `reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteSession.kt`
+- Modify: `reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteSessionFactory.kt`
 - Modify: `reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteCoordinator.kt`
-- Modify: `feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderViewModel.kt`
+- Modify: `reader/src/main/kotlin/app/openstory/reader/routing/RouteSnapshotAssembler.kt`
+- Modify: `reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteExecutor.kt`
+- Modify: `reader/src/main/kotlin/app/openstory/reader/routing/ReaderSourceExecutionLimiter.kt`
+- Modify: `reader/engine/src/main/kotlin/app/openstory/reader/engine/internal/EligibilityEvaluator.kt`
+- Modify: `app/src/main/kotlin/app/openstory/di/ReaderModule.kt`
 - Create: `reader/src/test/kotlin/app/openstory/reader/routing/PrefetchCoordinatorTest.kt`
-- Modify: `feature/reader/src/test/kotlin/app/openstory/reader/ui/ReaderViewModelTest.kt`
+- Modify: `reader/src/test/kotlin/app/openstory/reader/routing/ReaderSourceExecutionLimiterTest.kt`
+- Modify: `reader/engine/src/test/kotlin/app/openstory/reader/engine/EligibilityEvaluatorTest.kt`
 
 **Interfaces:**
 - Uses `ReaderRouteEngine` with `RoutingIntent.PREFETCH`; no second selector.
 - Window: N foreground, at most N+1 prefetch, no proactive N+2/N+3, no proactive N-1 network fetch.
 - Process remote prefetch concurrency = 1 and still subject to per-source Reader limiter.
 
-- [ ] **Step 1: Write failing prefetch policy/ownership tests**
+- [x] **Step 1: Write failing prefetch policy/ownership tests**
 
 Cover:
 
@@ -1928,24 +1937,24 @@ new foreground target cancels obsolete session-owned prefetch
 graph update that changes the actual N+1 target cancels/replaces obsolete prefetch without touching committed content
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest --tests '*PrefetchCoordinatorTest*' --no-daemon
 ./gradlew :feature:reader:testDebugUnitTest --tests '*ReaderViewModelTest*' --no-daemon
 ```
 
-- [ ] **Step 3: Implement one bounded prefetch owner**
+- [x] **Step 3: Implement one bounded prefetch owner**
 
 Prefetch obtains current graph/cache/network/health/preferences and calls the same engine with `PREFETCH`. It validates source results and records valid remote health observations. Persistence remains best effort. It never calls the visible commit gate and never mutates committed Reader UI state.
 
-- [ ] **Step 4: Run Reader/Feature Reader/Downloads regressions GREEN**
+- [x] **Step 4: Run Reader/Feature Reader/Downloads regressions GREEN**
 
 ```bash
 ./gradlew :reader:testDebugUnitTest :feature:reader:testDebugUnitTest :downloads:testDebugUnitTest --no-daemon
 ```
 
-- [ ] **Step 5: Record checkpoint**
+- [x] **Step 5: Record checkpoint**
 
 ```bash
 git add reader/src feature/reader/src

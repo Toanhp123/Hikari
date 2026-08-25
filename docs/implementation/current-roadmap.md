@@ -57,7 +57,7 @@ Wave 10 acceptance matrix must be rerun on the HES-containing tree and all previ
 remains unsatisfied.
 **Wave 11 must not start while this Wave 10 acceptance boundary remains open.**
 
-Adaptive Reader Continuity / HES-v1 **M0–M4 are verified/closed; M5 is ready/unblocked** under the explicit acceptance-rebase. The graph remains 17 production modules plus `:benchmark`; `:reader:engine` remains JVM-only behind `:reader`; Room remains schema 11. M4 owns access-aware eligibility, fixed-point semantic/access ranking, continuity/hysteresis, bounded deterministic LOCAL/REMOTE recovery, Reader-owned bounded cache/network fact adapters, session-local reactive graph revisioning, and same-generation hard replanning from availability/circuit/network/language/graph facts. Hedge and prefetch stay disabled for their later owning milestones. Developer-host validation is GREEN for the broad Reader/Engine/Downloads/App suites and `verifyArchitecture`; connected `RoomDownloadRepositoryTest` is 7/7 GREEN on a Redmi Note 9S running Android 15; package/current-architecture gates remain GREEN. Host validation also closed the first-graph-emission revision bug and rebased stale compatibility/query-count tests to the M4 contract. Wave 10 API 26/API 37 final acceptance remains independently open, so this M4 closure does not close Wave 10 or unblock Wave 11. The normative sources remain `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; closure evidence is in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m4.md`.
+Adaptive Reader Continuity / HES-v1 **M0–M5 are verified/closed; M6 is ready/unblocked** under the explicit acceptance-rebase. The graph remains 17 production modules plus `:benchmark`; `:reader:engine` remains JVM-only behind `:reader`; Room remains schema 11. M5 owns committed-vs-target zero-blank presentation, one-session/one-preference/one-reactive-chapter observation ownership, reactive tombstone-safe navigation, and bounded session-owned N+1 prefetch through the same HES engine with `RoutingIntent.PREFETCH`, process-wide remote-prefetch concurrency one, foreground preemption, and hard network/graph revalidation. Hedging remains disabled until M6. Developer-host validation is GREEN for the focused M5 engine/prefetch/limiter/ViewModel tests, the broad Reader/Engine/Feature/Downloads/App suites, `:app:compileDebugKotlin`, `verifyArchitecture`, and package/current-architecture/performance policy gates. Host validation found one test-only top-level fixture namespace collision; it was fixed without production changes and the complete M5 matrix reran GREEN. Wave 10 API 26/API 37 final acceptance remains independently open, so this M5 closure does not close Wave 10 or unblock Wave 11. The normative sources remain `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; M5 closure evidence is in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m5.md`.
 Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
 notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
 separately reviewed migration intervenes.
@@ -171,7 +171,8 @@ capability; WorkManager and notification adapters stay in `:app`.
 | HES-M1 | Legacy-compatible pure reasoner + differential overlap envelope | **Verified/closed; Tasks 6–8** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md` |
 | HES-M2 | Session/coordinator compatibility boundary | **Verified/closed; Tasks 9–11** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md` |
 | HES-M3 | Typed observations, validation, and process health | **Verified/closed; Tasks 12–16; host Gradle + architecture gates GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m3.md` |
-| HES-M4 | Adaptive routing, bounded effect facts, reactive graph, and replanning | **Verified/closed; Tasks 17–24; host Gradle + connected Room + architecture gates GREEN; M5 ready** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m4.md` |
+| HES-M4 | Adaptive routing, bounded effect facts, reactive graph, and replanning | **Verified/closed; Tasks 17–24; host Gradle + connected Room + architecture gates GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m4.md` |
+| HES-M5 | Committed-vs-target Reader continuity + bounded N+1 prefetch | **Verified/closed; Tasks 25–26; focused + broad host Gradle + architecture/policy gates GREEN; M6 ready** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m5.md` |
 | 11 | Hardening and open-source release | **Blocked until Wave 10 final host/API 26/API 37 acceptance closes** | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
@@ -270,7 +271,7 @@ architecture
 ## Execution rule
 
 1. Use the current 17-production-module HES graph plus `:benchmark`, Room schema 11, and the Wave 10
-   production-remediation checkpoint as the active source baseline. M0–M4 are verified/closed; M5 is ready/unblocked
+   production-remediation checkpoint as the active source baseline. M0–M5 are verified/closed; M6 is ready/unblocked
    at the HES milestone boundary. The HES entry boundary was the prior
    16-production-module Wave 10 tree; its final
    host/API 26/API 37 acceptance remains open under the explicit acceptance-rebase.

@@ -9,6 +9,7 @@ import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.document.ReaderDocumentSanitizer
 import app.openstory.reader.progress.ReadingProgressRepository
+import app.openstory.reader.routing.PrefetchCoordinator
 import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderCacheFactsPort
 import app.openstory.reader.AndroidReaderNetworkFactsPort
@@ -136,7 +137,14 @@ object ReaderModule {
 
     @Provides
     @Singleton
+    fun providePrefetchCoordinator(
+        coordinator: ReaderRouteCoordinator,
+    ): PrefetchCoordinator = PrefetchCoordinator(coordinator)
+
+    @Provides
+    @Singleton
     fun provideReaderRouteSessionFactory(
         coordinator: ReaderRouteCoordinator,
-    ): ReaderRouteSessionFactory = ReaderRouteSessionFactory(coordinator)
+        prefetchCoordinator: PrefetchCoordinator,
+    ): ReaderRouteSessionFactory = ReaderRouteSessionFactory(coordinator, prefetchCoordinator)
 }

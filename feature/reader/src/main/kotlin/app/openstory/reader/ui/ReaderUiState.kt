@@ -6,6 +6,9 @@ import app.openstory.reader.document.ReaderDocument
 
 data class ReaderUiState(
     val loading: Boolean = true,
+    val committedChapterId: CanonicalChapterId? = null,
+    val transitionTargetChapterId: CanonicalChapterId? = null,
+    val transitionTargetReleaseId: ChapterReleaseId? = null,
     val chapterLabel: String = "",
     val document: ReaderDocument? = null,
     val releases: List<ReaderReleaseUiModel> = emptyList(),

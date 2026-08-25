@@ -13,6 +13,9 @@ import app.openstory.reader.engine.RouteAttempt
 import app.openstory.reader.preferences.ReaderPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 private const val READER_LOAD_FAILED = "reader.load_failed"
 
@@ -97,6 +100,8 @@ class ReaderRouteSession internal constructor(
     val storyId: StoryId,
     val sessionId: ReaderSessionId,
     private val delegate: ReaderRouteExecutionDelegate,
+    private val prefetchDelegate: ReaderPrefetchExecutionDelegate? = null,
+    private val prefetchScope: CoroutineScope? = null,
 ) {
     private data class ActiveExecution(
         val generationId: ReaderGenerationId,
@@ -123,6 +128,10 @@ class ReaderRouteSession internal constructor(
     private var committedIdentity: ReaderCommittedIdentity? = null
     private val knownInvalidLocalFingerprints = mutableMapOf<ChapterReleaseId, MutableSet<String>>()
     private var mutableExecutionState: ReaderExecutionState = ReaderExecutionState.Idle
+    private var prefetchJob: Job? = null
+    private var prefetchTargetChapterId: CanonicalChapterId? = null
+    private var prefetchTargetGroup: CanonicalChapterGroup? = null
+    private var prefetchToken = 0L
 
     internal val executionState: ReaderExecutionState
         get() = synchronized(stateLock) { mutableExecutionState }
@@ -140,8 +149,8 @@ class ReaderRouteSession internal constructor(
                 releases = group.releases.toList(),
             )
         }
-        synchronized(stateLock) {
-            if (latestChapterGroups == ownedGroups) return
+        val changed = synchronized(stateLock) {
+            if (latestChapterGroups == ownedGroups) return@synchronized false
             // The first graph snapshot establishes readiness; there is no prior route fact to revoke yet.
             val isFirstEmission = latestChapterGroups == null
             val active = activeExecution
@@ -152,30 +161,32 @@ class ReaderRouteSession internal constructor(
             chapterGraphRevision = ReaderChapterGraphRevision(chapterGraphRevision.value + 1L)
             firstChapterGraph.complete(Unit)
             if (hardInvalidation) hardInvalidateLocked()
+            true
         }
+        if (changed) refreshPrefetch()
     }
 
     suspend fun updateRoutingPreferences(preferences: ReaderPreferences) {
         val owned = preferences.copy(languageOrder = preferences.languageOrder.toList())
-        synchronized(stateLock) {
+        val routingChanged = synchronized(stateLock) {
             val previous = latestPreferences
             if (previous == owned) {
                 firstRoutingPreferences.complete(Unit)
-                return
+                return@synchronized false
             }
             latestPreferences = owned
             firstRoutingPreferences.complete(Unit)
-            if (
-                activeExecution != null &&
-                previous != null &&
-                previous.languageOrder != owned.languageOrder
-            ) {
+            val languageChanged = previous != null && previous.languageOrder != owned.languageOrder
+            if (activeExecution != null && languageChanged) {
                 hardInvalidateLocked()
             }
+            languageChanged
         }
+        if (routingChanged) refreshPrefetch(force = true)
     }
 
     suspend fun execute(intent: ReaderForegroundIntent): ReaderForegroundResult {
+        cancelPrefetch()
         val generationId = synchronized(stateLock) {
             val next = ReaderGenerationId(nextGenerationValue++)
             activeExecution = ActiveExecution(
@@ -228,7 +239,10 @@ class ReaderRouteSession internal constructor(
 
             when (val completion = completeExecution(context, result)) {
                 CompletionDisposition.Replan -> continue
-                is CompletionDisposition.Finished -> return completion.result
+                is CompletionDisposition.Finished -> {
+                    if (completion.result is ReaderForegroundResult.Committed) refreshPrefetch()
+                    return completion.result
+                }
             }
         }
     }
@@ -294,9 +308,17 @@ class ReaderRouteSession internal constructor(
         fingerprint: String,
     ): Boolean = synchronized(stateLock) {
         if (!matchesActiveLocked(context.identity)) return@synchronized false
-        require(fingerprint.isNotBlank()) { "Known-invalid local fingerprint must not be blank." }
-        knownInvalidLocalFingerprints.getOrPut(releaseId, ::mutableSetOf).add(fingerprint)
+        markKnownInvalidLocalLocked(releaseId, fingerprint)
         true
+    }
+
+    internal fun markKnownInvalidLocal(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+    ) {
+        synchronized(stateLock) {
+            markKnownInvalidLocalLocked(releaseId, fingerprint)
+        }
     }
 
     private fun completeExecution(
@@ -377,6 +399,136 @@ class ReaderRouteSession internal constructor(
             knownInvalidLocalFingerprints = knownInvalidLocalFingerprints
                 .mapValues { (_, fingerprints) -> fingerprints.toSet() },
         )
+    }
+
+    private fun refreshPrefetch(force: Boolean = false) {
+        val action = synchronized(stateLock) {
+            val scope = prefetchScope
+            val prefetch = prefetchDelegate
+            val committed = committedIdentity
+            val groups = latestChapterGroups
+            val preferences = latestPreferences
+            if (
+                scope == null ||
+                prefetch == null ||
+                committed == null ||
+                groups == null ||
+                preferences == null ||
+                activeExecution != null
+            ) {
+                return@synchronized PrefetchAction.None
+            }
+
+            val committedIndex = groups.indexOfFirst { it.chapter.id == committed.chapterId }
+            val nextGroup = if (committedIndex >= 0) {
+                groups.getOrNull(committedIndex + 1)
+            } else {
+                null
+            }
+            if (nextGroup == null) {
+                val old = prefetchJob
+                prefetchToken += 1L
+                prefetchJob = null
+                prefetchTargetChapterId = null
+                prefetchTargetGroup = null
+                return@synchronized PrefetchAction.Cancel(old)
+            }
+            val nextChapterId = nextGroup.chapter.id
+            if (
+                !force &&
+                prefetchTargetChapterId == nextChapterId &&
+                prefetchTargetGroup == nextGroup &&
+                prefetchJob != null
+            ) {
+                return@synchronized PrefetchAction.None
+            }
+
+            val old = prefetchJob
+            val token = prefetchToken + 1L
+            prefetchToken = token
+            prefetchJob = null
+            prefetchTargetChapterId = nextChapterId
+            prefetchTargetGroup = nextGroup
+            PrefetchAction.Launch(
+                oldJob = old,
+                scope = scope,
+                delegate = prefetch,
+                token = token,
+                targetChapterId = nextChapterId,
+                context = ReaderRoutePlanningContext(
+                    storyId = storyId,
+                    targetChapterId = nextChapterId,
+                    chapterGraphRevision = chapterGraphRevision,
+                    planRevision = ReaderPlanRevision(0),
+                    chapterGroups = groups.map { it.copy(releases = it.releases.toList()) },
+                    preferences = preferences,
+                    committedIdentity = committed,
+                    explicitReleaseId = null,
+                    knownInvalidLocalFingerprints = knownInvalidLocalFingerprints
+                        .mapValues { (_, fingerprints) -> fingerprints.toSet() },
+                ),
+            )
+        }
+        when (action) {
+            PrefetchAction.None -> Unit
+            is PrefetchAction.Cancel -> action.job?.cancel()
+            is PrefetchAction.Launch -> {
+                action.oldJob?.cancel()
+                val job = action.scope.launch {
+                    try {
+                        action.delegate.execute(this@ReaderRouteSession, action.context)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        // Opportunistic work must never fail the owning Reader scope.
+                    }
+                }
+                val keep = synchronized(stateLock) {
+                    if (
+                        prefetchToken == action.token &&
+                        prefetchTargetChapterId == action.targetChapterId &&
+                        activeExecution == null
+                    ) {
+                        prefetchJob = job
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (!keep) job.cancel()
+            }
+        }
+    }
+
+    private fun cancelPrefetch() {
+        val job = synchronized(stateLock) {
+            prefetchToken += 1L
+            prefetchTargetChapterId = null
+            prefetchTargetGroup = null
+            prefetchJob.also { prefetchJob = null }
+        }
+        job?.cancel()
+    }
+
+    private fun markKnownInvalidLocalLocked(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+    ) {
+        require(fingerprint.isNotBlank()) { "Known-invalid local fingerprint must not be blank." }
+        knownInvalidLocalFingerprints.getOrPut(releaseId, ::mutableSetOf).add(fingerprint)
+    }
+
+    private sealed interface PrefetchAction {
+        data object None : PrefetchAction
+        data class Cancel(val job: Job?) : PrefetchAction
+        data class Launch(
+            val oldJob: Job?,
+            val scope: CoroutineScope,
+            val delegate: ReaderPrefetchExecutionDelegate,
+            val token: Long,
+            val targetChapterId: CanonicalChapterId,
+            val context: ReaderRoutePlanningContext,
+        ) : PrefetchAction
     }
 
     private fun graphHardInvalidatesLocked(
