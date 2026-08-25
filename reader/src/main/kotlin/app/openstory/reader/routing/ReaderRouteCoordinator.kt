@@ -76,7 +76,7 @@ class ReaderRouteCoordinator(
                 decision.competitiveSet.hedge?.let(::add)
                 addAll(decision.recoveryChain)
             }
-            val candidateByRelease = assembled.candidates.associateBy { it.release.id }
+            val candidateByRelease = assembled.candidates.associateBy { it.id }
             plannedAttempts.forEach { attempt ->
                 checkNotNull(candidateByRelease[attempt.releaseId]) {
                     "Engine planned release ${attempt.releaseId.value} outside the assembled candidate set."
@@ -178,7 +178,7 @@ class ReaderRouteCoordinator(
                 committed(context, assembled, completion.loaded)
             } ?: exhausted(
                 context,
-                execution.failures.map(ReaderAttemptFailure::toLegacy),
+                execution.failures.map(ReaderAttemptFailure::toLoadFailure),
             )
         } finally {
             heldProbeLeases.forEach(ReaderHalfOpenProbeLease::release)
@@ -200,7 +200,7 @@ class ReaderRouteCoordinator(
             }
             if (plannedAttempts.isEmpty()) return
 
-            val candidateByRelease = assembled.candidates.associateBy { it.release.id }
+            val candidateByRelease = assembled.candidates.associateBy { it.id }
             plannedAttempts.forEach { attempt ->
                 checkNotNull(candidateByRelease[attempt.releaseId]) {
                     "Engine planned prefetch release ${attempt.releaseId.value} outside the assembled candidate set."
@@ -344,7 +344,7 @@ class ReaderRouteCoordinator(
         assembled: AssembledRouteSnapshot,
         loaded: ReaderLoadResult.Success,
     ): ReaderForegroundResult.Committed {
-        val release = loaded.release.release
+        val release = loaded.release
         val restoration = exactRestoration(
             progress = assembled.restoredProgress,
             releaseId = release.id,

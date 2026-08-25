@@ -47,6 +47,33 @@ class ArchitectureSmokeTest {
     }
 
     @Test
+    fun readerProductionUsesHesSessionWithoutLegacyReleaseComparator() {
+        val viewModel = File(
+            root,
+            "feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderViewModel.kt",
+        ).readText()
+        val readerModule = File(root, "app/src/main/kotlin/app/openstory/di/ReaderModule.kt").readText()
+        val selectionRoot = File(root, "reader/src/main/kotlin/app/openstory/reader/selection")
+
+        assertTrue("ReaderRouteSessionFactory" in viewModel)
+        assertTrue("routeSession.execute(" in viewModel)
+        assertFalse("ReaderDocumentRepository" in viewModel)
+        val executor = File(
+            root,
+            "reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteExecutor.kt",
+        ).readText()
+
+        assertFalse("ReleaseSelector" in readerModule)
+        assertFalse("provideReaderDocumentRepository" in readerModule)
+        assertFalse(selectionRoot.exists(), "Legacy Reader selection package must be fully retired")
+        assertFalse(
+            File(root, "reader/src/main/kotlin/app/openstory/reader/content/ReaderDocumentRepository.kt").exists(),
+        )
+        assertFalse("executeCompatibility" in executor)
+        assertFalse("ReleaseCandidate" in executor)
+    }
+
+    @Test
     fun repositoryQualityGateFilesAreCommitted() {
         val requiredPaths = listOf(
             ".github/workflows/android.yml",

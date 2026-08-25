@@ -77,7 +77,7 @@ internal class CandidateEvaluator {
     private fun languageScore(languageTag: String, policy: ReaderRoutingPolicy): BasisPoints {
         if (policy.languageOrder.isEmpty()) return BasisPoints(10_000)
         return BasisPoints(
-            when (policy.languageOrder.indexOf(normalizeLanguageTag(languageTag))) {
+            when (policy.languagePreferenceRank(languageTag)) {
                 0 -> 10_000
                 1 -> 8_000
                 2 -> 6_000

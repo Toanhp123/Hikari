@@ -14,7 +14,6 @@ import app.openstory.reader.engine.RejectionCode
 import app.openstory.reader.engine.RoutingCandidate
 import app.openstory.reader.engine.RoutingIntent
 import app.openstory.reader.engine.SourceHealthSnapshot
-import app.openstory.reader.engine.normalizeLanguageTag
 
 internal data class EligibleRoutingCandidate(
     val candidate: RoutingCandidate,
@@ -48,7 +47,7 @@ internal class EligibilityEvaluator {
                 rejections = rejections,
             )
             val languageForbidden = policy.languageFallbackMode == LanguageFallbackMode.STRICT_ALLOWED &&
-                normalizeLanguageTag(candidate.languageTag) !in policy.languageOrder
+                !policy.isLanguageAllowed(candidate.languageTag)
             if (languageForbidden) {
                 rejections += rejection(candidate, null, RejectionCode.LANGUAGE_FORBIDDEN)
             }

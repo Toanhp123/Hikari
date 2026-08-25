@@ -17,7 +17,6 @@ import app.openstory.reader.engine.AttemptRole
 import app.openstory.reader.engine.ReaderPlanRevision
 import app.openstory.reader.engine.RouteAttempt
 import app.openstory.reader.preferences.ReaderPreferences
-import app.openstory.reader.selection.ReleaseCandidate
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -136,7 +135,7 @@ class ReaderCoordinatorModelTest {
         return ReaderValidCompletion(
             attempt = attempt,
             loaded = ReaderLoadResult.Success(
-                release = ReleaseCandidate(RELEASE),
+                release = RELEASE,
                 document = document(attemptId),
                 fromStore = false,
             ),

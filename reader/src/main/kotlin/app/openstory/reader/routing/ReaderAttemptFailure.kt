@@ -10,8 +10,8 @@ import app.openstory.reader.engine.SourceObservation
 import app.openstory.reader.engine.penalizesSourceHealth
 
 /**
- * Reader-internal semantic failure. String error codes survive only for the legacy repository
- * facade and diagnostics; routing/health behavior is driven by typed facts.
+ * Reader-internal semantic failure. String error codes survive only at the UI/diagnostic result
+ * boundary; routing and health behavior are driven by typed facts.
  */
 internal data class ReaderAttemptFailure(
     val releaseId: ChapterReleaseId,
@@ -19,12 +19,12 @@ internal data class ReaderAttemptFailure(
     val accessMode: AccessMode,
     val observation: SourceObservation,
     val recoveryScope: RecoveryScope,
-    val legacyCode: String,
+    val code: String,
     val retryable: Boolean,
     val remoteAttemptKind: RemoteAttemptKind? = null,
 ) {
     init {
-        require(legacyCode.isNotBlank()) { "Reader failure legacy code must not be blank." }
+        require(code.isNotBlank()) { "Reader failure code must not be blank." }
         when (accessMode) {
             AccessMode.REMOTE -> require(remoteAttemptKind != null) {
                 "REMOTE Reader attempt failures require an attempt origin."
@@ -42,9 +42,9 @@ internal data class ReaderAttemptFailure(
     val penalizesSourceHealth: Boolean
         get() = observation.penalizesSourceHealth
 
-    fun toLegacy(): ReaderLoadFailure = ReaderLoadFailure(
+    fun toLoadFailure(): ReaderLoadFailure = ReaderLoadFailure(
         releaseId = releaseId,
-        code = legacyCode,
+        code = code,
         retryable = retryable,
     )
 }

@@ -3,7 +3,6 @@ package app.openstory.di
 import android.content.Context
 import app.openstory.plugins.runtime.PluginRuntime
 import app.openstory.reader.content.PluginReaderDocumentSourceRegistry
-import app.openstory.reader.content.ReaderDocumentRepository
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderSourceAvailability
@@ -19,7 +18,6 @@ import app.openstory.reader.routing.ReaderNetworkFactsPort
 import app.openstory.reader.routing.ReaderSourceExecutionLimiter
 import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import app.openstory.reader.routing.ReaderRouteSessionFactory
-import app.openstory.reader.selection.ReleaseSelector
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.reader.RoomReadingProgressRepository
 import app.openstory.downloads.blob.ChapterBlobStore
@@ -100,19 +98,6 @@ object ReaderModule {
     @Provides
     @Singleton
     fun provideReaderExecutionScheduler(): ReaderExecutionScheduler = DefaultReaderExecutionScheduler()
-
-    @Provides
-    @Singleton
-    fun provideReaderDocumentRepository(
-        store: ReaderDocumentStore,
-        sources: ReaderDocumentSourceRegistry,
-        executionLimiter: ReaderSourceExecutionLimiter,
-    ): ReaderDocumentRepository = ReaderDocumentRepository(
-        store,
-        sources,
-        ReleaseSelector(),
-        executionLimiter,
-    )
 
     @Provides
     @Singleton

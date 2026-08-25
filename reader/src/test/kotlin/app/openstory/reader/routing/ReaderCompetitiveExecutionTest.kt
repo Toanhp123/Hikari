@@ -28,7 +28,6 @@ import app.openstory.reader.engine.SourceOperationKey
 import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
-import app.openstory.reader.selection.ReleaseCandidate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -391,7 +390,7 @@ class ReaderCompetitiveExecutionTest {
         return ReaderValidCompletion(
             attempt = attempt,
             loaded = ReaderLoadResult.Success(
-                release = ReleaseCandidate(release),
+                release = release,
                 document = document(attemptId),
                 fromStore = false,
             ),

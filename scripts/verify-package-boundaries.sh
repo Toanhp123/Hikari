@@ -141,6 +141,9 @@ fail_matches "$reader_root" 'android\.content\.Context(\.|$)|androidx\.(compose|
 validate_project_imports "$reader_root" \
   '^app\.openstory\.(common|chapters|reader|plugins\.api)(\.|$)|^app\.openstory\.plugins\.runtime\.(InstalledPlugin|PluginCallResult|PluginRuntime)$' \
   'reader may import only core common, Chapters, plugin wire contracts, the public runtime facade, and its own packages.'
+fail_references "$reader_root" \
+  '(^|[^A-Za-z0-9_])(ReleaseSelector|ReleaseSelectionPolicy|ReleaseSelectionResult|ReleaseCandidate|ReleaseHealth|SelectionReason|ReaderDocumentRepository|LegacyReaderRoutingAdapter|executeCompatibility)([^A-Za-z0-9_]|$)' \
+  'reader production must not retain the legacy release-ranking comparator contracts.'
 
 fail_matches "$reader_engine_root" '(android|androidx)(\.|$)|kotlinx\.(coroutines|serialization)(\.|$)|java\.(io|net)(\.|$)' \
   'reader/engine must remain free of Android, coroutines, serialization, filesystem, and network APIs.'

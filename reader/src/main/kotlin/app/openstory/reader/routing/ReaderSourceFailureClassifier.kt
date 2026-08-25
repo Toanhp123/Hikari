@@ -116,7 +116,7 @@ internal object ReaderSourceFailureClassifier {
             exactEntries[code]
         }
         val entry = contextual ?: if (retryable && sourceOriginProven) {
-            // Compatibility fallback is allowed only at a proven remote invocation boundary.
+            // Transport fallback is allowed only at a proven remote invocation boundary.
             Entry(Semantic.CONNECTION, RecoveryScope.SOURCE_SCOPED)
         } else {
             Entry(Semantic.CLIENT_RUNTIME, RecoveryScope.CLIENT_SCOPED)
@@ -127,7 +127,7 @@ internal object ReaderSourceFailureClassifier {
             accessMode = AccessMode.REMOTE,
             observation = entry.semantic.toObservation(attemptKind),
             recoveryScope = entry.recoveryScope,
-            legacyCode = code,
+            code = code,
             retryable = retryable,
             remoteAttemptKind = attemptKind,
         )

@@ -13,7 +13,7 @@ internal sealed interface ReaderDocumentValidation {
     data class Invalid(
         val observation: SourceObservation,
         val recoveryScope: RecoveryScope,
-        val legacyCode: String,
+        val code: String,
     ) : ReaderDocumentValidation
 }
 
@@ -29,12 +29,12 @@ internal class ReaderDocumentValidatorAdapter {
             READER_DOCUMENT_EMPTY -> ReaderDocumentValidation.Invalid(
                 observation = SourceObservation.ContentFailure.EmptyDocument(attemptKind),
                 recoveryScope = RecoveryScope.SOURCE_SCOPED,
-                legacyCode = invalidCode,
+                code = invalidCode,
             )
             else -> ReaderDocumentValidation.Invalid(
                 observation = SourceObservation.ContentFailure.InvalidDocument(attemptKind),
                 recoveryScope = RecoveryScope.SOURCE_SCOPED,
-                legacyCode = invalidCode,
+                code = invalidCode,
             )
         }
     }
@@ -56,7 +56,7 @@ internal class ReaderDocumentValidatorAdapter {
     private fun localInvalid(code: String) = ReaderDocumentValidation.Invalid(
         observation = SourceObservation.LocalFailure.FingerprintOrDecodeMismatch,
         recoveryScope = RecoveryScope.LOCAL_SCOPED,
-        legacyCode = code,
+        code = code,
     )
 
     private fun materializedInvalidCode(document: ReaderDocument): String? = when {

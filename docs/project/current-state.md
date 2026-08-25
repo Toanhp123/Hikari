@@ -44,10 +44,10 @@ Purpose: single source of truth for the implemented repository boundary.
   That accepted durability boundary is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
   catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
   134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
-- Adaptive Reader Continuity / HES-v1: **M0–M6 VERIFIED/CLOSED; M7 READY / UNBLOCKED**. The pure JVM `:reader:engine` remains isolated behind `:reader`, the production graph remains 17 modules plus `:benchmark`, and Room remains schema 11 with no `MIGRATION_11_12`. M6 Tasks 27–30 enable one deterministic foreground hedge only when every HES-v1 remote-access predicate passes. Reader runtime uses an injected strictly increasing monotonic completion clock, typed single-attempt execution, record-before-notify arbitration, immediate alternate recovery after early primary failure, one visible semantic winner, non-penalizing loser/navigation cancellation, sequential later fallbacks, maximum two concurrent remote attempts, and maximum four total foreground remote attempts. Developer-host evidence is GREEN for the focused scheduler/hedge/competitive/model tests, the full `:reader:engine` + `:reader` + `:feature:reader` + Downloads/App regression matrix, `:app:compileDebugKotlin`, `verifyArchitecture`, and package/current-architecture/performance policy gates. The independently rebased Wave 10 API 26/API 37 final acceptance matrix remains open, so Wave 10 acceptance remains open. The normative design and plan are `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; M6 closure evidence is in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m6.md`.
-- Wave 10: **IMPLEMENTATION PRESENT; FINAL ACCEPTANCE OPEN**. Current source is Room schema 11,
-  `MIGRATION_10_11` owns Wave 10 notification persistence, and the required complete host plus API 26/API 37
-  acceptance matrix remains open in `../internal/checkpoints/wave-10-production-remediation.md`. Wave 10 does
+- Adaptive Reader Continuity / HES-v1: **M0–M7 VERIFIED/CLOSED; HES-v1 FROZEN; M7.1 DETEKT DEBT CLOSURE READY/UNBLOCKED**. The final source tree freezes G01–G26 plus seeded permutation/replay/property/metamorphic and scale contracts, uses a policy-owned language-rank map to preserve the intended evaluation complexity, and removes the obsolete production `ReleaseSelector` / `ReaderDocumentRepository` ranking path after Feature Reader session cutover. `:reader:engine` remains pure JVM behind `:reader`; the production graph remains 17 modules plus `:benchmark`; Room remains schema 11 with `MIGRATION_10_11` registered and no `MIGRATION_11_12`. Developer-host verification on 2026-08-26 is GREEN for focused M7 engine and Reader/runtime Gradle suites, the broad Reader/Feature/Downloads/App/build-logic regression suite, `:app:compileDebugKotlin`, standalone test/lint/assembly, instrumentation compile, `verifyArchitecture`, package/current-architecture mutation contracts, performance lifecycle policy, and Wave 10 production policy. The pre-M7 MyAnimeList catalog device-harness defect was repaired test-only and its rerun, plus the required API 26/API 37 connected matrix, are developer-confirmed GREEN. The repository-wide broad host command still fails at `:detekt` with 74 issues; that cleanup is explicitly isolated in M7.1 and must not be hidden with suppressions/baseline growth. M7 is therefore closed independently, while Wave 10 remains open only until M7.1 restores Detekt GREEN and the original combined host gate reruns unchanged. The normative design/plan are `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; final M7 evidence is in `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md`.
+- Wave 10: **IMPLEMENTATION PRESENT; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE OPEN**. Current source is Room schema 11,
+  `MIGRATION_10_11` owns Wave 10 notification persistence, and device acceptance is complete. M7.1 Detekt
+  cleanup plus the unchanged combined host rerun remain open in `../internal/checkpoints/wave-10-production-remediation.md`. Wave 10 does
   not redefine `MIGRATION_8_9` or `MIGRATION_9_10`.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
@@ -90,8 +90,8 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
-| `:reader` | Sanitized document loading, legacy selector/fallback facade, session-scoped compatibility routing coordination, and exact progress policy/contracts |
-| `:reader:engine` | HES-v1 pure JVM routing values/policy/facts plus the deterministic legacy-compatible pure reasoner; no effects/runtime ownership |
+| `:reader` | Sanitized document loading, HES-v1 session/effect coordination, process-scoped source health/execution limits, prefetch/competition, and exact progress policy/contracts |
+| `:reader:engine` | HES-v1 pure JVM routing values/policy/facts and deterministic adaptive reasoner; no effects/runtime ownership |
 | `:feature:reader` | Restorable Reader state and accessible structured text / vertical image-page Compose presentation |
 | `:downloads` | Explicit download state, automatic-cache quota/eviction, Reader resolution, and reconciliation policy |
 | `:settings` | Wave 10 typed settings/auth/background/notification policy contracts and persistence-facing ports |
@@ -323,10 +323,11 @@ contracts, request-target-scoped plugin credential handling, bounded periodic ch
 selection, transactional chapter-change/notification persistence, notification recovery, Settings
 presentation, and the Wave 10 startup hooks. `MIGRATION_10_11` remains the sole Wave 10 schema owner.
 
-Focused host/API 35 remediation evidence exists, but the checkpoint still records the complete host
-command and both API 26/API 37 acceptance matrices as unsatisfied until they are actually executed.
-Therefore Wave 10 is **IMPLEMENTATION PRESENT; FINAL ACCEPTANCE OPEN**, not completed/accepted, and
-Wave 11 remains blocked.
+Focused host/API 35 remediation evidence exists, and the required API 26/API 37 acceptance matrix is
+now developer-confirmed GREEN. The complete host acceptance boundary remains unsatisfied only because the
+repository-wide combined command fails at Detekt; M7.1 owns that cleanup and must be followed by the
+unchanged combined host rerun. Therefore Wave 10 is **IMPLEMENTATION PRESENT; DEVICE MATRIX PASS; FINAL
+HOST ACCEPTANCE OPEN**, not completed/accepted, and Wave 11 remains blocked.
 
 ## Source-of-truth rule
 

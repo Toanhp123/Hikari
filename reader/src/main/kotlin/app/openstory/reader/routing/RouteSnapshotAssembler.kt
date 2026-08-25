@@ -1,5 +1,6 @@
 package app.openstory.reader.routing
 
+import app.openstory.chapters.model.ChapterRelease
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
@@ -16,13 +17,12 @@ import app.openstory.reader.engine.RoutingIntent
 import app.openstory.reader.engine.SourceOperationKey
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
-import app.openstory.reader.selection.ReleaseCandidate
 import kotlinx.coroutines.CancellationException
 
 internal data class AssembledRouteSnapshot(
     val targetIndex: Int,
     val targetGroup: CanonicalChapterGroup,
-    val candidates: List<ReleaseCandidate>,
+    val candidates: List<ChapterRelease>,
     val restoredProgress: ReadingProgress?,
     val snapshot: ReaderRoutingSnapshot,
     val policy: ReaderRoutingPolicy,
@@ -54,7 +54,7 @@ internal class RouteSnapshotAssembler(
 
         val targetGroup = context.chapterGroups[targetIndex]
         val restored = progress.find(context.storyId, context.targetChapterId)
-        val candidates = targetGroup.releases.map(::ReleaseCandidate)
+        val candidates = targetGroup.releases
         val releaseIds = targetGroup.releases.mapTo(linkedSetOf()) { it.id }
         val resumeFingerprints = restored
             ?.takeIf { it.releaseId in releaseIds }
@@ -94,7 +94,7 @@ internal class RouteSnapshotAssembler(
                     localFacts[release.id] ?: ReaderLocalCacheFact.Unknown,
                     context.knownInvalidLocalFingerprints[release.id].orEmpty(),
                 )
-                LegacyReaderRoutingAdapter.productionCandidate(
+                ReaderRoutingCandidateMapper.productionCandidate(
                     release = release,
                     remoteAccess = if (release.pluginId in enabledSourceIds) {
                         CandidateRemoteAccess.PERMITTED

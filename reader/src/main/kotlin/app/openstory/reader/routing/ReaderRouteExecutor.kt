@@ -1,5 +1,6 @@
 package app.openstory.reader.routing
 
+import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.content.ReaderDocumentSource
@@ -14,13 +15,9 @@ import app.openstory.reader.engine.AccessMode
 import app.openstory.reader.engine.RecoveryScope
 import app.openstory.reader.engine.RemoteAttemptKind
 import app.openstory.reader.engine.SourceObservation
-import app.openstory.reader.selection.ReleaseCandidate
 import kotlinx.coroutines.CancellationException
 
-/**
- * Bounded Reader executor. Legacy callers retain the compatibility entry point while M4 executes
- * exactly the adaptive LOCAL/REMOTE route emitted by the pure engine.
- */
+/** Executes exactly the bounded LOCAL/REMOTE attempts emitted by the HES-v1 routing engine. */
 internal class ReaderRouteExecutor(
     private val store: ReaderDocumentStore,
     private val sources: ReaderDocumentSourceRegistry,
@@ -33,7 +30,7 @@ internal class ReaderRouteExecutor(
 
     internal suspend fun executeAttempt(
         attempt: app.openstory.reader.engine.RouteAttempt,
-        candidate: ReleaseCandidate,
+        candidate: ChapterRelease,
         sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
         attemptKind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
         ownership: ReaderAttemptOwnership,
@@ -42,10 +39,10 @@ internal class ReaderRouteExecutor(
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit,
         remotePriority: ReaderRemoteWorkPriority = ReaderRemoteWorkPriority.FOREGROUND,
     ): ReaderAttemptOutcome {
-        require(candidate.release.id == attempt.releaseId) {
+        require(candidate.id == attempt.releaseId) {
             "Reader attempt release must match its candidate."
         }
-        require(candidate.release.pluginId == attempt.sourceId) {
+        require(candidate.pluginId == attempt.sourceId) {
             "Reader attempt source must match its candidate."
         }
         return when (attempt.accessMode) {
@@ -72,7 +69,7 @@ internal class ReaderRouteExecutor(
 
     suspend fun executeAdaptive(
         attempts: List<app.openstory.reader.engine.RouteAttempt>,
-        candidatesByRelease: Map<ChapterReleaseId, ReleaseCandidate>,
+        candidatesByRelease: Map<ChapterReleaseId, ChapterRelease>,
         remoteAttemptKinds: Map<ChapterReleaseId, RemoteAttemptKind> = emptyMap(),
         onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit = { _, _ -> },
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit = { _, _ -> },
@@ -96,7 +93,7 @@ internal class ReaderRouteExecutor(
                 "Reader adaptive route first attempt must be PRIMARY."
             }
             require(attempts.drop(1).all { it.role == app.openstory.reader.engine.AttemptRole.FALLBACK }) {
-                "M4 adaptive route recovery attempts must be FALLBACK; hedge is not enabled yet."
+                "Sequential adaptive execution accepts PRIMARY followed only by FALLBACK attempts."
             }
         }
 
@@ -111,7 +108,7 @@ internal class ReaderRouteExecutor(
             val candidate = checkNotNull(candidatesByRelease[attempt.releaseId]) {
                 "Reader adaptive route references release outside candidate set: ${attempt.releaseId.value}"
             }
-            require(candidate.release.pluginId == attempt.sourceId) {
+            require(candidate.pluginId == attempt.sourceId) {
                 "Reader adaptive route source mismatch for ${attempt.releaseId.value}."
             }
             if (attempt.accessMode == AccessMode.REMOTE && attempt.sourceId in suppressedRemoteSources) {
@@ -133,7 +130,7 @@ internal class ReaderRouteExecutor(
             when (result) {
                 is ReaderAttemptOutcome.Success -> return result.completion.loaded
                 is ReaderAttemptOutcome.Failure -> {
-                    failures += result.failure.toLegacy()
+                    failures += result.failure.toLoadFailure()
                     if (
                         attempt.accessMode == AccessMode.REMOTE &&
                         result.failure.recoveryScope == RecoveryScope.SOURCE_SCOPED
@@ -146,59 +143,19 @@ internal class ReaderRouteExecutor(
         return ReaderLoadResult.Failure(failures)
     }
 
-    suspend fun executeCompatibility(
-        orderedCandidates: List<ReleaseCandidate>,
-        expectedFingerprints: Map<ChapterReleaseId, String>,
-        remoteAttemptKinds: Map<ChapterReleaseId, RemoteAttemptKind> = emptyMap(),
-        onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit = { _, _ -> },
-        onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit = { _, _ -> },
-        onAttempt: suspend (index: Int, candidate: ReleaseCandidate) -> Unit = { _, _ -> },
-    ): ReaderLoadResult {
-        val failures = mutableListOf<ReaderLoadFailure>()
-        var sourceByPlugin: Map<PluginId, ReaderDocumentSource>? = null
-        for ((index, candidate) in orderedCandidates.withIndex()) {
-            onAttempt(index, candidate)
-            val cached = loadCached(
-                candidate = candidate,
-                fingerprint = expectedFingerprints[candidate.release.id],
-                onSourceObservation = onSourceObservation,
-                onLocalInvalidated = onLocalInvalidated,
-            )
-            if (cached != null) return cached
-
-            val enabledSources = sourceByPlugin ?: loadFromSources().also { sourceByPlugin = it }
-            val attemptKind = remoteAttemptKinds[candidate.release.id]
-                ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT
-            when (
-                val attempt = loadFromSource(
-                    candidate = candidate,
-                    sourceByPlugin = enabledSources,
-                    attemptKind = attemptKind,
-                    onSourceObservation = onSourceObservation,
-                    remotePriority = ReaderRemoteWorkPriority.FOREGROUND,
-                )
-            ) {
-                is CandidateLoadResult.Success -> return attempt.value
-                is CandidateLoadResult.Failure -> failures += attempt.value.toLegacy()
-            }
-        }
-        return ReaderLoadResult.Failure(failures)
-    }
-
-
     private suspend fun loadFromSources(): Map<PluginId, ReaderDocumentSource> =
         sources.enabled().associateBy(ReaderDocumentSource::pluginId)
 
     private suspend fun executeLocalAttempt(
         attempt: app.openstory.reader.engine.RouteAttempt,
-        candidate: ReleaseCandidate,
+        candidate: ChapterRelease,
         ownership: ReaderAttemptOwnership,
         onValidCompletion: (ReaderValidCompletion) -> Unit,
         onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
         onLocalInvalidated: suspend (ChapterReleaseId, String) -> Unit,
     ): ReaderAttemptOutcome {
         val fingerprint = checkNotNull(attempt.localFingerprint)
-        val release = candidate.release
+        val release = candidate
         return when (val read = readExact(candidate, fingerprint)) {
             is LocalReadResult.Failure -> {
                 ensureOwned(ownership)
@@ -225,7 +182,7 @@ internal class ReaderRouteExecutor(
                         accessMode = AccessMode.LOCAL,
                         observation = validation.observation,
                         recoveryScope = validation.recoveryScope,
-                        legacyCode = validation.legacyCode,
+                        code = validation.code,
                         retryable = false,
                     )
                     ensureOwned(ownership)
@@ -241,7 +198,7 @@ internal class ReaderRouteExecutor(
 
     private suspend fun executeRemoteAttempt(
         attempt: app.openstory.reader.engine.RouteAttempt,
-        candidate: ReleaseCandidate,
+        candidate: ChapterRelease,
         sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
         attemptKind: RemoteAttemptKind,
         ownership: ReaderAttemptOwnership,
@@ -249,7 +206,7 @@ internal class ReaderRouteExecutor(
         onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
         remotePriority: ReaderRemoteWorkPriority,
     ): ReaderAttemptOutcome {
-        val release = candidate.release
+        val release = candidate
         val sourceId = release.pluginId
         val source = sourceByPlugin[sourceId]
         if (source == null) {
@@ -298,7 +255,7 @@ internal class ReaderRouteExecutor(
                         accessMode = AccessMode.REMOTE,
                         observation = validation.observation,
                         recoveryScope = validation.recoveryScope,
-                        legacyCode = validation.legacyCode,
+                        code = validation.code,
                         retryable = false,
                         remoteAttemptKind = attemptKind,
                     )
@@ -329,139 +286,15 @@ internal class ReaderRouteExecutor(
         }
     }
 
-    private suspend fun loadFromSource(
-        candidate: ReleaseCandidate,
-        sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
-        attemptKind: RemoteAttemptKind,
-        onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
-        remotePriority: ReaderRemoteWorkPriority,
-    ): CandidateLoadResult {
-        val release = candidate.release
-        val sourceId = release.pluginId
-        val source = sourceByPlugin[sourceId]
-        if (source == null) {
-            val failure = ReaderSourceFailureClassifier.classifyRemote(
-                releaseId = release.id,
-                sourceId = sourceId,
-                code = "reader.source_unavailable",
-                retryable = false,
-                attemptKind = attemptKind,
-                sourceOriginProven = false,
-            )
-            onSourceObservation(sourceId, failure.observation)
-            return CandidateLoadResult.Failure(failure)
-        }
-
-        val startedNanos = monotonicNanos()
-        val fetched = fetch(source, candidate, remotePriority)
-        val latencyMillis = elapsedMillis(startedNanos, monotonicNanos())
-        return when (fetched) {
-            is ReaderSourceResult.Success -> when (
-                val validation = validator.validateRemote(fetched.document, attemptKind)
-            ) {
-                is ReaderDocumentValidation.Valid -> {
-                    onSourceObservation(
-                        sourceId,
-                        SourceObservation.Success.Remote(attemptKind, latencyMillis),
-                    )
-                    persistBestEffort(release.id, validation.document)
-                    CandidateLoadResult.Success(
-                        ReaderLoadResult.Success(candidate, validation.document, fromStore = false),
-                    )
-                }
-                is ReaderDocumentValidation.Invalid -> {
-                    val failure = ReaderAttemptFailure(
-                        releaseId = release.id,
-                        sourceId = sourceId,
-                        accessMode = AccessMode.REMOTE,
-                        observation = validation.observation,
-                        recoveryScope = validation.recoveryScope,
-                        legacyCode = validation.legacyCode,
-                        retryable = false,
-                        remoteAttemptKind = attemptKind,
-                    )
-                    onSourceObservation(sourceId, failure.observation)
-                    CandidateLoadResult.Failure(failure)
-                }
-            }
-            is ReaderSourceResult.Failure -> {
-                val failure = ReaderSourceFailureClassifier.classifyRemote(
-                    releaseId = release.id,
-                    sourceId = sourceId,
-                    code = fetched.code,
-                    retryable = fetched.retryable,
-                    attemptKind = attemptKind,
-                    sourceOriginProven = true,
-                )
-                onSourceObservation(sourceId, failure.observation)
-                CandidateLoadResult.Failure(failure)
-            }
-        }
-    }
-
-    private suspend fun loadCached(
-        candidate: ReleaseCandidate,
-        fingerprint: String?,
-        onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
-        onLocalInvalidated: suspend (ChapterReleaseId, String) -> Unit,
-    ): ReaderLoadResult.Success? {
-        val release = candidate.release
-        val read = if (fingerprint == null) {
-            readCurrent(candidate)
-        } else {
-            readExact(candidate, fingerprint)
-        }
-        val document = when (read) {
-            is LocalReadResult.Hit -> read.document
-            is LocalReadResult.Failure -> {
-                onSourceObservation(release.pluginId, read.value.observation)
-                return null
-            }
-        }
-
-        return when (val validation = validator.validateLocal(document, fingerprint)) {
-            is ReaderDocumentValidation.Valid -> {
-                onSourceObservation(release.pluginId, SourceObservation.Success.Local)
-                ReaderLoadResult.Success(candidate, validation.document, fromStore = true)
-            }
-            is ReaderDocumentValidation.Invalid -> {
-                val failure = ReaderAttemptFailure(
-                    releaseId = release.id,
-                    sourceId = release.pluginId,
-                    accessMode = AccessMode.LOCAL,
-                    observation = validation.observation,
-                    recoveryScope = validation.recoveryScope,
-                    legacyCode = validation.legacyCode,
-                    retryable = false,
-                )
-                onSourceObservation(release.pluginId, failure.observation)
-                // Quarantine is valid only when the exact requested locator was materialized and
-                // then proven corrupt/mismatched. A current/unversioned read has no requested
-                // locator whose corruption can be asserted.
-                if (fingerprint != null) {
-                    quarantineBestEffort(release.id, fingerprint)
-                    onLocalInvalidated(release.id, fingerprint)
-                }
-                null
-            }
-        }
-    }
-
     private suspend fun readExact(
-        candidate: ReleaseCandidate,
+        candidate: ChapterRelease,
         fingerprint: String,
-    ): LocalReadResult = readLocal(candidate, fingerprint) {
-        store.read(candidate.release.id, fingerprint)
+    ): LocalReadResult = readLocal(candidate) {
+        store.read(candidate.id, fingerprint)
     }
-
-    private suspend fun readCurrent(candidate: ReleaseCandidate): LocalReadResult =
-        readLocal(candidate, requestedFingerprint = null) {
-            store.readCurrent(candidate.release.id)
-        }
 
     private suspend fun readLocal(
-        candidate: ReleaseCandidate,
-        requestedFingerprint: String?,
+        candidate: ChapterRelease,
         read: suspend () -> ReaderDocument?,
     ): LocalReadResult = try {
         val document = read()
@@ -471,11 +304,7 @@ internal class ReaderRouteExecutor(
                     candidate = candidate,
                     observation = SourceObservation.LocalFailure.MissingBlob,
                     recoveryScope = RecoveryScope.LOCAL_SCOPED,
-                    legacyCode = if (requestedFingerprint == null) {
-                        "reader.local_document_missing"
-                    } else {
-                        "reader.local_blob_missing"
-                    },
+                    code = "reader.local_blob_missing",
                     retryable = false,
                 ),
             )
@@ -492,41 +321,41 @@ internal class ReaderRouteExecutor(
                 candidate = candidate,
                 observation = SourceObservation.RuntimeFailure.Unexpected,
                 recoveryScope = RecoveryScope.CLIENT_SCOPED,
-                legacyCode = "reader.local_read_failed",
+                code = "reader.local_read_failed",
                 retryable = true,
             ),
         )
     }
 
     private fun localFailure(
-        candidate: ReleaseCandidate,
+        candidate: ChapterRelease,
         observation: SourceObservation,
         recoveryScope: RecoveryScope,
-        legacyCode: String,
+        code: String,
         retryable: Boolean,
     ) = ReaderAttemptFailure(
-        releaseId = candidate.release.id,
-        sourceId = candidate.release.pluginId,
+        releaseId = candidate.id,
+        sourceId = candidate.pluginId,
         accessMode = AccessMode.LOCAL,
         observation = observation,
         recoveryScope = recoveryScope,
-        legacyCode = legacyCode,
+        code = code,
         retryable = retryable,
     )
 
     private suspend fun fetch(
         source: ReaderDocumentSource,
-        candidate: ReleaseCandidate,
+        candidate: ChapterRelease,
         remotePriority: ReaderRemoteWorkPriority,
     ): ReaderSourceResult = try {
         executionLimiter.withRemotePermit(source.pluginId, remotePriority) {
-            source.fetch(candidate.release)
+            source.fetch(candidate)
         }
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {
         // This catch is exactly at the proven source invocation boundary, so classifier may use the
-        // compatibility transport fallback for the synthesized retryable code.
+        // transport fallback for the synthesized retryable code.
         ReaderSourceResult.Failure("reader.source_failed", true)
     }
 
@@ -567,10 +396,6 @@ internal class ReaderRouteExecutor(
         data class Failure(val value: ReaderAttemptFailure) : LocalReadResult
     }
 
-    private sealed interface CandidateLoadResult {
-        data class Success(val value: ReaderLoadResult.Success) : CandidateLoadResult
-        data class Failure(val value: ReaderAttemptFailure) : CandidateLoadResult
-    }
 
     private companion object {
         const val NANOS_PER_MILLI = 1_000_000L

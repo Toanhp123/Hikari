@@ -49,6 +49,9 @@ run_case 'chapters/src/main/kotlin/F.kt' 'import app.openstory.storage.room.Open
 run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.chapters.model.ChapterRelease' 0
 run_case 'reader/src/main/kotlin/F.kt' 'import androidx.compose.runtime.Composable' 1
 run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.storage.room.OpenStoryDatabase' 1
+run_case 'reader/src/main/kotlin/F.kt' 'val selector = ReleaseSelector()' 1
+run_case 'reader/src/main/kotlin/F.kt' 'val candidate: ReleaseCandidate? = null' 1
+run_case 'reader/src/main/kotlin/F.kt' 'fun load(repository: ReaderDocumentRepository) = repository' 1
 run_case 'reader/engine/src/main/kotlin/F.kt' 'import android.content.Context' 1
 run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.reader.content.ReaderDocument' 1
 run_case 'reader/engine/src/main/kotlin/F.kt' 'import kotlinx.coroutines.CoroutineScope' 1

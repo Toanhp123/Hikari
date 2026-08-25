@@ -175,6 +175,51 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun hesV1FinalArchitectureAndPersistenceBoundaryAreFrozen() {
+        val root = File("..").canonicalFile
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File(root, "config/architecture/module-boundaries.json"),
+        )
+        val productionModules = policy.modules.filterValues {
+            it.platform.policyValue != "android-test"
+        }
+
+        assertEquals(17, productionModules.size)
+        assertEquals("android-test", policy.modules.getValue(":benchmark").platform.policyValue)
+
+        val engine = policy.modules.getValue(":reader:engine")
+        assertEquals("jvm", engine.platform.policyValue)
+        assertEquals("exact", engine.dependencyMode.policyValue)
+        assertEquals(setOf(":core:common"), engine.productionDependencies)
+
+        val reader = policy.modules.getValue(":reader")
+        assertTrue(":reader:engine" in reader.productionDependencies)
+        assertFalse(":settings" in reader.productionDependencies)
+
+        val database = File(
+            root,
+            "storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt",
+        ).readText()
+        assertTrue("version = 11," in database)
+        assertTrue("RoomMigrations.MIGRATION_10_11" in database)
+        assertFalse("MIGRATION_11_12" in database)
+
+        val leakedEngineImports = root.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .filter { "${File.separator}src${File.separator}main${File.separator}" in it.path }
+            .filterNot { "${File.separator}build${File.separator}" in it.path }
+            .filterNot { it.path.startsWith(File(root, "reader/src/main").path) }
+            .filterNot { it.path.startsWith(File(root, "reader/engine/src/main").path) }
+            .filter { "app.openstory.reader.engine" in it.readText() }
+            .map { it.relativeTo(root).path }
+            .toList()
+        assertTrue(
+            leakedEngineImports.isEmpty(),
+            "HES engine types leaked outside :reader: ${leakedEngineImports.joinToString()}",
+        )
+    }
+
+    @Test
     fun libraryContentSearchUsesOnlyApprovedPluginFacadeDependencies() {
         val policy = ModuleBoundaryPolicyLoader.load(
             File("../config/architecture/module-boundaries.json"),

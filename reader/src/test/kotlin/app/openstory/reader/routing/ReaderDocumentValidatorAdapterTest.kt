@@ -20,7 +20,7 @@ class ReaderDocumentValidatorAdapterTest {
 
         val invalid = assertIs<ReaderDocumentValidation.Invalid>(result)
         assertIs<SourceObservation.ContentFailure.EmptyDocument>(invalid.observation)
-        assertEquals("reader.document_empty", invalid.legacyCode)
+        assertEquals("reader.document_empty", invalid.code)
     }
 
     @Test
@@ -35,7 +35,7 @@ class ReaderDocumentValidatorAdapterTest {
 
         val invalid = assertIs<ReaderDocumentValidation.Invalid>(result)
         assertIs<SourceObservation.LocalFailure.FingerprintOrDecodeMismatch>(invalid.observation)
-        assertEquals("reader.local_fingerprint_mismatch", invalid.legacyCode)
+        assertEquals("reader.local_fingerprint_mismatch", invalid.code)
     }
 
     @Test

@@ -72,6 +72,9 @@ class ReaderRoutingPolicy private constructor(
     val hedge: HedgePolicy,
 ) {
     val languageOrder: List<String> = languageOrder.toList()
+    private val languagePreferenceRanks: Map<String, Int> = this.languageOrder
+        .mapIndexed { index, languageTag -> languageTag to index }
+        .toMap()
 
     init {
         require(this.languageOrder.none(String::isBlank)) {
@@ -96,6 +99,12 @@ class ReaderRoutingPolicy private constructor(
                 maxPlannedForegroundRemoteAttempts
         }
     }
+
+    internal fun languagePreferenceRank(languageTag: String): Int? =
+        languagePreferenceRanks[normalizeLanguageTag(languageTag)]
+
+    internal fun isLanguageAllowed(languageTag: String): Boolean =
+        normalizeLanguageTag(languageTag) in languagePreferenceRanks
 
     override fun equals(other: Any?): Boolean =
         other is ReaderRoutingPolicy &&

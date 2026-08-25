@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` — R2 / Wave 10 production-remediation baseline.
 
-**Implementation status (2026-08-25):** **M0–M6 VERIFIED/CLOSED; M7 READY/UNBLOCKED.** M6 Tasks 27–30 add one injected monotonic execution scheduler, pure foreground hedge planning, typed single-attempt execution, record-before-notify completion arbitration, committed-state-safe competition, deterministic primary/timestamp/attempt-ID tie breaking, immediate alternate recovery after early primary failure, and seeded navigation/replan/concurrency models. Foreground routing now permits at most one delayed hedge, two concurrent remote attempts, and four total remote attempts while keeping ordinary fallbacks sequential; navigation and hedge-loser cancellation cannot mutate visible state or penalize source health. Developer-host closure is GREEN for the focused scheduler/hedge/competitive/model tests and the broad `:reader:engine` + `:reader` + `:feature:reader` + Downloads/App regression matrix, `:app:compileDebugKotlin`, `verifyArchitecture`, and package/current-architecture/performance policy gates. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`. Wave 10 final host/API 26/API 37 acceptance remains independently open under the existing acceptance-rebase.
+**Implementation status (updated 2026-08-26):** **M0–M7 VERIFIED/CLOSED; HES-v1 FROZEN; M7.1 DETEKT DEBT CLOSURE READY/UNBLOCKED.** M7 freezes G01–G26 plus seeded permutation/replay/property/metamorphic coverage, adds deterministic scale contracts, replaces repeated linear language-order scans with one policy-owned rank map, retires the unused production `ReleaseSelector` / `ReaderDocumentRepository` compatibility ranking path after session cutover, and strengthens final architecture/source guards. Developer-host Gradle evidence is GREEN for focused M7 engine and Reader/runtime suites, Reader/Feature/Downloads/App/build-logic regression, `:app:compileDebugKotlin`, standalone test/lint/assembly, instrumentation compile, `verifyArchitecture`, package/current-architecture mutation contracts, performance lifecycle policy, and Wave 10 production policy. The repaired MyAnimeList device-harness contract plus the required API 26/API 37 connected matrix are developer-confirmed GREEN. The broad repository host command still fails specifically at `:detekt` with 74 issues; that repository debt is isolated in M7.1 and must not be hidden with suppressions or baseline growth. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`. Wave 10 final acceptance remains independently open only until M7.1 restores Detekt GREEN and the original combined host gate reruns unchanged.
 
 ## Global Constraints
 
@@ -107,14 +107,12 @@
 
 ### Existing integration surfaces deliberately preserved/migrated
 
-- `reader/src/main/kotlin/app/openstory/reader/content/ReaderDocumentRepository.kt`
+M7 retirement note: the obsolete `ReaderDocumentRepository` + production release-selector ranking surface was deleted after session cutover proof; the list below contains only surfaces retained in the frozen HES-v1 tree.
+
 - `reader/src/main/kotlin/app/openstory/reader/content/ReaderDocumentSource.kt`
 - `reader/src/main/kotlin/app/openstory/reader/content/ReaderDocumentStore.kt`
 - `reader/src/main/kotlin/app/openstory/reader/content/PluginReaderDocumentSource.kt`
 - `reader/src/main/kotlin/app/openstory/reader/preferences/ReaderPreferencesPort.kt`
-- `reader/src/main/kotlin/app/openstory/reader/selection/ReleaseSelector.kt`
-- `reader/src/main/kotlin/app/openstory/reader/selection/ReleaseSelectionPolicy.kt`
-- `reader/src/main/kotlin/app/openstory/reader/selection/ReleaseSelectionResult.kt`
 - `feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderViewModel.kt`
 - `feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderUiState.kt`
 - `feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderScreen.kt`
@@ -137,6 +135,7 @@ R0 Wave 10 governance + acceptance boundary
   -> M5 committed-vs-target UI continuity + N+1 prefetch
   -> M6 one foreground hedge + deterministic competitive execution
   -> M7 verification, stress, cleanup, HES-v1 freeze
+  -> M7.1 Detekt debt closure + unchanged combined host rerun
 ```
 
 Do not activate behavior from a later milestone until the prior checkpoint's focused and repository regressions are green.
@@ -2236,12 +2235,15 @@ git add reader/src
 
 # M7 — Golden Verification, Stress, Cleanup, and HES-v1 Freeze
 
+**Status (2026-08-26): VERIFIED/CLOSED.** Tasks 31–34 are complete; the required host/device HES boundary is green from developer evidence, HES-v1 is frozen, and M7.1 is the next READY/UNBLOCKED mini-phase.
+
 ### Task 31: Encode G01-G26 plus HES verification layers L1-L6
 
 **Files:**
 - Create: `reader/engine/src/test/kotlin/app/openstory/reader/engine/ReaderGoldenScenariosTest.kt`
 - Create: `reader/engine/src/test/kotlin/app/openstory/reader/engine/ReaderPermutationPropertyTest.kt`
 - Create: `reader/engine/src/test/kotlin/app/openstory/reader/engine/ReaderMetamorphicTest.kt`
+- Create: `reader/src/test/kotlin/app/openstory/reader/routing/ReaderGoldenRuntimeEvidenceTest.kt`
 - Modify: `reader/src/test/kotlin/app/openstory/reader/routing/ReaderRouteEngineDifferentialTest.kt`
 - Keep runtime golden evidence in: `reader/src/test/kotlin/app/openstory/reader/routing/ReaderCoordinatorModelTest.kt`, `ReaderCompetitiveExecutionTest.kt`, `ReaderRouteReplanTest.kt`, `ReaderSourceHealthRegistryTest.kt`.
 
@@ -2505,6 +2507,18 @@ Then run broader host gates required by the repository/Wave 10 boundary:
 ./gradlew test testDebugUnitTest lintDebug detekt :app:assembleDebug --no-daemon
 ```
 
+**Evidence rebase (2026-08-26):** the developer-host command above runs but fails at `:detekt` with
+74 issues. By explicit governance decision, repository Detekt cleanup moves to M7.1 instead of being
+folded into the HES freeze. For M7 closure, independently prove the non-Detekt host remainder with:
+
+```bash
+./gradlew test testDebugUnitTest lintDebug :app:assembleDebug --no-daemon
+```
+
+`./scripts/verify-fast.sh` includes Detekt and therefore belongs to the M7.1/Wave 10 final rerun after
+that cleanup. The original combined command is **not** weakened or replaced for Wave 10 acceptance: M7.1
+must make Detekt GREEN, then the combined command must rerun unchanged and pass.
+
 Do not infer unrun commands are passing.
 
 - [ ] **Step 3: Compile and, where environment provides devices, run Room/App connected gates**
@@ -2516,6 +2530,8 @@ Always compile instrumentation:
 ```
 
 When API 26/API 37 devices/emulators exist, run the HES-relevant Reader/cache/Room regression plus any Wave 10 final matrix still owed from R0. Record exact devices, API levels, test counts, failures, fixes, reruns.
+
+**Closure evidence (2026-08-26):** the developer subsequently confirmed the repaired device harness and required API 26/API 37 connected matrix GREEN. The closure update does not invent device models or test counts that were not attached to the transcript.
 
 - [ ] **Step 4: Write evidence/checkpoint and update governance only from actual outputs**
 
@@ -2545,6 +2561,49 @@ Update `current-state.md` only after evidence reflects actual implementation/acc
 git add build-logic/src/test app/src/test scripts docs/project docs/implementation docs/internal/checkpoints
  git commit -m "docs(reader): freeze HES-v1 implementation evidence"
 ```
+
+---
+
+# M7.1 — Deferred Detekt Debt Closure Mini-Phase
+
+**Status:** READY/UNBLOCKED — next active HES quality phase after M7 closure.
+
+**Classification:** quality/governance follow-up outside HES R2 Tasks 1–34. It does not add routing behavior, consume a Room migration, or change the module graph.
+
+**Trigger evidence (developer host, 2026-08-26):**
+
+```text
+./gradlew test testDebugUnitTest lintDebug detekt :app:assembleDebug --no-daemon
+> Task :detekt FAILED
+> Analysis failed with 74 issues.
+```
+
+**Goal:** restore repository-wide Detekt GREEN in a dedicated patch without coupling broad cleanup to the HES-v1 behavior freeze.
+
+**Constraints:**
+
+- do not add blanket suppressions, weaken `config/detekt/detekt.yml`, or grow a Detekt baseline to conceal findings;
+- prefer behavior-preserving extraction/constants/control-flow cleanup with focused tests retained;
+- do not change HES public contracts, routing weights, persistence schema, module ownership, or Wave 10 behavior to satisfy style rules;
+- if a cleanup changes executable control flow, use a failing/characterization test first and rerun the owning module suite;
+- keep API 26/API 37 device acceptance outside this static-quality phase.
+
+**Acceptance:**
+
+```bash
+./gradlew detekt --no-daemon
+# expected: BUILD SUCCESSFUL, zero blocking Detekt issues
+
+./gradlew test testDebugUnitTest lintDebug detekt :app:assembleDebug --no-daemon
+# expected: BUILD SUCCESSFUL
+
+./gradlew verifyArchitecture --no-daemon
+bash scripts/verify-package-boundaries.sh
+bash scripts/verify-current-architecture.sh
+# expected: PASS
+```
+
+M7.1 closes only when the standalone Detekt task and the original unchanged combined host gate are both GREEN. Its closure is required before Wave 10 final acceptance/Wave 11 unblocking, but Detekt cleanup is no longer folded into the M7 HES freeze patch.
 
 ---
 
