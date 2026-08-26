@@ -146,6 +146,8 @@ class ReaderRouteReplanTest {
             },
             progress = NoopReplanProgress,
             sourceAvailability = ReaderSourceAvailability { setOf(PluginId("a"), PluginId("b")) },
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
             cacheFacts = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
             networkFacts = ReaderNetworkFactsPort {
                 networkReads += 1
@@ -200,6 +202,7 @@ class ReaderRouteReplanTest {
         network: ReaderNetworkFactsPort = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
         cache: ReaderCacheFactsPort = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
         now: () -> Long = { 100L },
+        limiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
     ) = ReaderRouteCoordinator(
         store = store,
         sources = object : ReaderDocumentSourceRegistry {
@@ -208,6 +211,7 @@ class ReaderRouteReplanTest {
         progress = NoopReplanProgress,
         sourceAvailability = availability,
         healthRegistry = health,
+        executionLimiter = limiter,
         cacheFacts = cache,
         networkFacts = network,
         nowEpochMillis = now,

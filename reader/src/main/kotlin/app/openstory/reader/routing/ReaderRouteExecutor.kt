@@ -21,7 +21,7 @@ import kotlinx.coroutines.CancellationException
 internal class ReaderRouteExecutor(
     private val store: ReaderDocumentStore,
     private val sources: ReaderDocumentSourceRegistry,
-    private val executionLimiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
+    private val executionLimiter: ReaderSourceExecutionLimiter,
     private val validator: ReaderDocumentValidatorAdapter = ReaderDocumentValidatorAdapter(),
     private val monotonicNanos: () -> Long = System::nanoTime,
 ) {

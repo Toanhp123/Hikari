@@ -30,6 +30,8 @@ import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderRouteSessionFactory
+import app.openstory.reader.routing.ReaderSourceExecutionLimiter
+import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import java.util.ArrayDeque
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -379,6 +381,8 @@ class ReaderViewModelContinuityTest {
                 override suspend fun enabled(): List<ReaderDocumentSource> = listOf(source)
             },
             progress = progress,
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
         ),
     )
 }

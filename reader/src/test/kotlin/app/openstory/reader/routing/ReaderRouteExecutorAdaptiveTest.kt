@@ -34,7 +34,7 @@ class ReaderRouteExecutorAdaptiveTest {
         val candidate = candidate("selected", "source")
         val observations = mutableListOf<SourceObservation>()
 
-        val result = ReaderRouteExecutor(store, registry).executeAdaptive(
+        val result = executor(store, registry).executeAdaptive(
             attempts = listOf(local("a0", "selected", "source", "expected", AttemptRole.PRIMARY)),
             candidatesByRelease = mapOf(candidate.id to candidate),
             onSourceObservation = { _, observation -> observations += observation },
@@ -61,7 +61,7 @@ class ReaderRouteExecutorAdaptiveTest {
         )
         val candidates = listOf(candidate("first", "source"), candidate("local", "source"), candidate("later", "source"))
 
-        val result = ReaderRouteExecutor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
+        val result = executor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
             attempts = attempts,
             candidatesByRelease = candidates.associateBy { it.id },
         )
@@ -81,7 +81,7 @@ class ReaderRouteExecutorAdaptiveTest {
             ),
         )
         val candidates = listOf(candidate("first", "source"), candidate("second", "source"))
-        val result = ReaderRouteExecutor(AdaptiveStore(), AdaptiveRegistry(listOf(source))).executeAdaptive(
+        val result = executor(AdaptiveStore(), AdaptiveRegistry(listOf(source))).executeAdaptive(
             attempts = listOf(
                 remote("a0", "first", "source", AttemptRole.PRIMARY),
                 remote("a1", "second", "source"),
@@ -108,7 +108,7 @@ class ReaderRouteExecutorAdaptiveTest {
         )
 
         val failure = assertIs<ReaderLoadResult.Failure>(
-            ReaderRouteExecutor(AdaptiveStore(), AdaptiveRegistry(listOf(newerSource, olderSource))).executeAdaptive(
+            executor(AdaptiveStore(), AdaptiveRegistry(listOf(newerSource, olderSource))).executeAdaptive(
                 attempts = listOf(
                     remote("a0", "newer", "newer-source", AttemptRole.PRIMARY),
                     remote("a1", "older", "older-source"),
@@ -133,7 +133,7 @@ class ReaderRouteExecutorAdaptiveTest {
         val invalidated = mutableListOf<Pair<String, String>>()
         val observations = mutableListOf<SourceObservation>()
 
-        val result = ReaderRouteExecutor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
+        val result = executor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
             attempts = listOf(
                 local("a0", "release", "source", "expected", AttemptRole.PRIMARY),
                 remote("a1", "release", "source"),
@@ -164,7 +164,7 @@ class ReaderRouteExecutorAdaptiveTest {
         val candidate = candidate("release", "source")
         val observations = mutableListOf<SourceObservation>()
 
-        val result = ReaderRouteExecutor(AdaptiveStore(), AdaptiveRegistry(listOf(source))).executeAdaptive(
+        val result = executor(AdaptiveStore(), AdaptiveRegistry(listOf(source))).executeAdaptive(
             attempts = listOf(
                 local("a0", "release", "source", "expected", AttemptRole.PRIMARY),
                 remote("a1", "release", "source"),
@@ -189,7 +189,7 @@ class ReaderRouteExecutorAdaptiveTest {
         val candidate = candidate("release", "source")
         val observations = mutableListOf<SourceObservation>()
 
-        val result = ReaderRouteExecutor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
+        val result = executor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
             attempts = listOf(
                 local("a0", "release", "source", "expected", AttemptRole.PRIMARY),
                 remote("a1", "release", "source"),
@@ -211,7 +211,7 @@ class ReaderRouteExecutorAdaptiveTest {
         val candidate = candidate("release", "source")
 
         assertFailsWith<CancellationException> {
-            ReaderRouteExecutor(AdaptiveStore(), AdaptiveRegistry(listOf(source))).executeAdaptive(
+            executor(AdaptiveStore(), AdaptiveRegistry(listOf(source))).executeAdaptive(
                 attempts = listOf(remote("a0", "release", "source", AttemptRole.PRIMARY)),
                 candidatesByRelease = mapOf(candidate.id to candidate),
             )
@@ -231,7 +231,7 @@ class ReaderRouteExecutorAdaptiveTest {
         val registry = AdaptiveRegistry(listOf(first, second))
         val candidates = listOf(candidate("first", "first-source"), candidate("second", "second-source"))
 
-        ReaderRouteExecutor(AdaptiveStore(), registry).executeAdaptive(
+        executor(AdaptiveStore(), registry).executeAdaptive(
             attempts = listOf(
                 remote("a0", "first", "first-source", AttemptRole.PRIMARY),
                 remote("a1", "second", "second-source"),
@@ -262,7 +262,7 @@ class ReaderRouteExecutorAdaptiveTest {
         )
         val text = candidate("text", "source")
         val image = candidate("image", "source")
-        val executor = ReaderRouteExecutor(store, AdaptiveRegistry(listOf(source)))
+        val executor = executor(store, AdaptiveRegistry(listOf(source)))
 
         executor.executeAdaptive(
             attempts = listOf(remote("a0", "text", "source", AttemptRole.PRIMARY)),
@@ -280,7 +280,7 @@ class ReaderRouteExecutorAdaptiveTest {
     fun malformedPlanOverRemoteCeilingFailsFast() = runTest {
         val candidates = (0..4).map { candidate("r$it", "s$it") }
         assertFailsWith<IllegalArgumentException> {
-            ReaderRouteExecutor(AdaptiveStore(), AdaptiveRegistry(emptyList())).executeAdaptive(
+            executor(AdaptiveStore(), AdaptiveRegistry(emptyList())).executeAdaptive(
                 attempts = candidates.mapIndexed { index, candidate ->
                     remote(
                         "a$index",
@@ -301,6 +301,16 @@ class ReaderRouteExecutorAdaptiveTest {
         accessMode = AccessMode.REMOTE,
         localFingerprint = null,
         role = role,
+    )
+
+    private fun executor(
+        store: ReaderDocumentStore = AdaptiveStore(),
+        registry: ReaderDocumentSourceRegistry = AdaptiveRegistry(emptyList()),
+        limiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
+    ) = ReaderRouteExecutor(
+        store = store,
+        sources = registry,
+        executionLimiter = limiter,
     )
 
     private fun local(

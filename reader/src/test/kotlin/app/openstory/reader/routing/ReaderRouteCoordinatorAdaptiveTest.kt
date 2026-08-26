@@ -104,6 +104,8 @@ class ReaderRouteCoordinatorAdaptiveTest {
         },
         progress = AdaptiveCoordinatorProgress(progress),
         sourceAvailability = ReaderSourceAvailability { setOf(sourceId) },
+        healthRegistry = ReaderSourceHealthRegistry(),
+        executionLimiter = ReaderSourceExecutionLimiter(),
         cacheFacts = cacheFacts,
         networkFacts = networkFacts,
     )

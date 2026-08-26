@@ -99,6 +99,8 @@ class ReaderRouteCoordinatorCompatibilityTest {
                 }
             },
             progress = CoordinatorProgressRepository(null),
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
         )
         val session = ReaderRouteSessionFactory(coordinator).create(StoryId("story"))
         session.updateChapterGraph(listOf(group(target, release)))
@@ -145,6 +147,8 @@ class ReaderRouteCoordinatorCompatibilityTest {
                 )
             },
             progress = CoordinatorProgressRepository(progress),
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
         )
 
     private fun group(id: String) = group(CanonicalChapterId(id))

@@ -329,6 +329,7 @@ class ReaderCompetitiveExecutionTest {
             progress = EmptyCompetitiveProgress,
             sourceAvailability = ReaderSourceAvailability { sourceIds },
             healthRegistry = health,
+            executionLimiter = ReaderSourceExecutionLimiter(),
             cacheFacts = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
             networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
             executionScheduler = FakeReaderExecutionScheduler(testScheduler),

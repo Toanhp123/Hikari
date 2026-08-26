@@ -30,6 +30,8 @@ import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.preferences.ReaderPreferencesPort
 import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderRouteSessionFactory
+import app.openstory.reader.routing.ReaderSourceExecutionLimiter
+import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -299,6 +301,8 @@ class ReaderViewModelTest {
                 )
             },
             progress = progress,
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
         ),
     )
 
@@ -322,6 +326,8 @@ class ReaderViewModelTest {
                 )
             },
             progress = progress,
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
         ),
     )
 

@@ -324,6 +324,7 @@ class PrefetchCoordinatorTest {
                 override suspend fun enabled(): List<ReaderDocumentSource> = listOf(source)
             },
             progress = progress,
+            healthRegistry = ReaderSourceHealthRegistry(),
             executionLimiter = limiter,
             cacheFacts = cacheFacts ?: ReaderCacheFactsPort { releaseIds, _ ->
                 releaseIds.associateWith { id ->

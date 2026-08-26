@@ -33,8 +33,8 @@ class ReaderRouteCoordinator(
     private val sourceAvailability: ReaderSourceAvailability = ReaderSourceAvailability {
         sources.enabled().mapTo(linkedSetOf()) { it.pluginId }
     },
-    healthRegistry: ReaderSourceHealthRegistry = ReaderSourceHealthRegistry(),
-    executionLimiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
+    healthRegistry: ReaderSourceHealthRegistry,
+    executionLimiter: ReaderSourceExecutionLimiter,
     cacheFacts: ReaderCacheFactsPort = ReaderCacheFactsPort { releaseIds, _ ->
         releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
     },
