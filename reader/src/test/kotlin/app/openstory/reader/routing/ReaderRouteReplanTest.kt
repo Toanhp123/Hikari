@@ -11,6 +11,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.content.ReaderSourceResult
@@ -194,6 +195,29 @@ class ReaderRouteReplanTest {
         assertEquals(ReaderPlanRevision(0), assertIs<ReaderExecutionState.Committed>(session.executionState).identity.planRevision)
     }
 
+    @Test
+    fun confirmedTypedCorruptionIsExcludedFromALaterSnapshot() = runTest {
+        val store = ReplanStore(
+            typedResult = ReaderDocumentReadResult.FingerprintOrDecodeMismatch,
+        )
+        val source = ReplanSource { ReaderSourceResult.Success(document("remote-valid")) }
+        val coordinator = coordinator(
+            source = source,
+            store = store,
+            availability = ReaderSourceAvailability { setOf(sourceId) },
+            cache = ReaderCacheFactsPort { ids, _ ->
+                ids.associateWith { ReaderLocalCacheFact.Exact("expected-fingerprint") }
+            },
+        )
+        val session = ready(coordinator)
+
+        assertIs<ReaderForegroundResult.Committed>(session.execute(ReaderForegroundIntent(chapterId)))
+        assertIs<ReaderForegroundResult.Committed>(session.execute(ReaderForegroundIntent(chapterId)))
+
+        assertEquals(1, store.readResultCount)
+        assertEquals(2, source.fetchCount)
+    }
+
     private fun coordinator(
         source: ReplanSource,
         store: ReaderDocumentStore = ReplanStore(),
@@ -294,8 +318,20 @@ private class ReplanSource(
 
 private class ReplanStore(
     private val exact: ReaderDocument? = null,
+    private val typedResult: ReaderDocumentReadResult? = null,
 ) : ReaderDocumentStore {
+    var readResultCount: Int = 0
+
     override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? = exact
+    override suspend fun readResult(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+    ): ReaderDocumentReadResult {
+        readResultCount += 1
+        return typedResult
+            ?: exact?.let(ReaderDocumentReadResult::Hit)
+            ?: ReaderDocumentReadResult.Missing
+    }
     override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? = exact
     override suspend fun write(releaseId: ChapterReleaseId, fingerprint: String, document: ReaderDocument) = Unit
     override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) = Unit

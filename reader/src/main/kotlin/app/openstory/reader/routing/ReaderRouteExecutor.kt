@@ -5,6 +5,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.content.ReaderLoadResult
@@ -143,6 +144,14 @@ internal class ReaderRouteExecutor(
                 onSourceObservation(release.pluginId, read.value.observation)
                 ReaderAttemptOutcome.Failure(read.value)
             }
+            is LocalReadResult.ConfirmedCorruption -> {
+                ensureOwned(ownership)
+                onSourceObservation(release.pluginId, read.value.observation)
+                quarantineBestEffort(release.id, fingerprint)
+                ensureOwned(ownership)
+                onLocalInvalidated(release.id, fingerprint)
+                ReaderAttemptOutcome.Failure(read.value)
+            }
             is LocalReadResult.Hit -> when (val validation = validator.validateLocal(read.document, fingerprint)) {
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
@@ -270,17 +279,10 @@ internal class ReaderRouteExecutor(
     private suspend fun readExact(
         candidate: ChapterRelease,
         fingerprint: String,
-    ): LocalReadResult = readLocal(candidate) {
-        store.read(candidate.id, fingerprint)
-    }
-
-    private suspend fun readLocal(
-        candidate: ChapterRelease,
-        read: suspend () -> ReaderDocument?,
     ): LocalReadResult = try {
-        val document = read()
-        if (document == null) {
-            LocalReadResult.Failure(
+        when (val result = store.readResult(candidate.id, fingerprint)) {
+            is ReaderDocumentReadResult.Hit -> LocalReadResult.Hit(result.document)
+            ReaderDocumentReadResult.Missing -> LocalReadResult.Failure(
                 localFailure(
                     candidate = candidate,
                     observation = SourceObservation.LocalFailure.MissingBlob,
@@ -289,8 +291,15 @@ internal class ReaderRouteExecutor(
                     retryable = false,
                 ),
             )
-        } else {
-            LocalReadResult.Hit(document)
+            ReaderDocumentReadResult.FingerprintOrDecodeMismatch -> LocalReadResult.ConfirmedCorruption(
+                localFailure(
+                    candidate = candidate,
+                    observation = SourceObservation.LocalFailure.FingerprintOrDecodeMismatch,
+                    recoveryScope = RecoveryScope.LOCAL_SCOPED,
+                    code = "reader.local_fingerprint_or_decode_mismatch",
+                    retryable = false,
+                ),
+            )
         }
     } catch (cancelled: CancellationException) {
         throw cancelled
@@ -375,6 +384,7 @@ internal class ReaderRouteExecutor(
     private sealed interface LocalReadResult {
         data class Hit(val document: ReaderDocument) : LocalReadResult
         data class Failure(val value: ReaderAttemptFailure) : LocalReadResult
+        data class ConfirmedCorruption(val value: ReaderAttemptFailure) : LocalReadResult
     }
 
 

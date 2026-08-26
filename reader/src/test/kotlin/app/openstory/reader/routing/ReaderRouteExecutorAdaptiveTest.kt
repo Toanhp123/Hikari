@@ -195,6 +195,62 @@ class ReaderRouteExecutorAdaptiveTest {
     }
 
     @Test
+    fun typedStoreCorruptionIsNotCollapsedIntoMissingBlob() = runTest {
+        val store = AdaptiveStore(
+            readResultOverride = ReaderDocumentReadResult.FingerprintOrDecodeMismatch,
+        )
+        val source = AdaptiveSource(
+            PluginId("source"),
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+        val candidate = candidate("release", "source")
+        val observations = mutableListOf<SourceObservation>()
+        val invalidated = mutableListOf<Pair<String, String>>()
+
+        val result = executor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
+            attempts = listOf(
+                local("a0", "release", "source", "expected", AttemptRole.PRIMARY),
+                remote("a1", "release", "source"),
+            ),
+            candidatesByRelease = mapOf(candidate.id to candidate),
+            onSourceObservation = { _, observation -> observations += observation },
+            onLocalInvalidated = { releaseId, fingerprint -> invalidated += releaseId.value to fingerprint },
+        )
+
+        assertIs<ReaderLoadResult.Success>(result)
+        assertIs<SourceObservation.LocalFailure.FingerprintOrDecodeMismatch>(observations.first())
+        assertEquals(listOf("release" to "expected"), invalidated)
+        assertEquals(listOf("release" to "expected"), store.quarantines)
+    }
+
+    @Test
+    fun typedStoreMissingDoesNotQuarantineOrInvalidateLocator() = runTest {
+        val store = AdaptiveStore(readResultOverride = ReaderDocumentReadResult.Missing)
+        val source = AdaptiveSource(
+            PluginId("source"),
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+        val candidate = candidate("release", "source")
+        val observations = mutableListOf<SourceObservation>()
+        val invalidated = mutableListOf<Pair<String, String>>()
+
+        val result = executor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
+            attempts = listOf(
+                local("a0", "release", "source", "expected", AttemptRole.PRIMARY),
+                remote("a1", "release", "source"),
+            ),
+            candidatesByRelease = mapOf(candidate.id to candidate),
+            onSourceObservation = { _, observation -> observations += observation },
+            onLocalInvalidated = { releaseId, fingerprint -> invalidated += releaseId.value to fingerprint },
+        )
+
+        assertIs<ReaderLoadResult.Success>(result)
+        assertIs<SourceObservation.LocalFailure.MissingBlob>(observations.first())
+        assertEquals(emptyList(), invalidated)
+        assertEquals(emptyList(), store.quarantines)
+    }
+
+    @Test
     fun localStorageIoFailureIsClientScopedAndDoesNotQuarantine() = runTest {
         val store = AdaptiveStore(readFailure = IllegalStateException("disk unavailable"))
         val source = AdaptiveSource(
@@ -362,6 +418,7 @@ class ReaderRouteExecutorAdaptiveTest {
 private class AdaptiveStore(
     private val exact: Map<String, ReaderDocument> = emptyMap(),
     private val readFailure: Throwable? = null,
+    private val readResultOverride: ReaderDocumentReadResult? = null,
 ) : ReaderDocumentStore {
     val reads = mutableListOf<Pair<String, String>>()
     val writes = mutableListOf<Pair<String, String>>()
@@ -372,6 +429,14 @@ private class AdaptiveStore(
         readFailure?.let { throw it }
         return exact[releaseId.value]
     }
+
+    override suspend fun readResult(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+    ): ReaderDocumentReadResult = readResultOverride
+        ?: read(releaseId, fingerprint)
+            ?.let(ReaderDocumentReadResult::Hit)
+        ?: ReaderDocumentReadResult.Missing
 
     override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? = null
 
