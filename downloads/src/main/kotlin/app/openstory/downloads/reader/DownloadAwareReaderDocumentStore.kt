@@ -10,6 +10,7 @@ import app.openstory.downloads.DownloadState
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.cache.CacheService
 import app.openstory.downloads.reconcile.StorageWriteAdmission
+import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.routing.ReaderCacheFactsPort
 import app.openstory.reader.routing.ReaderLocalCacheFact
@@ -101,42 +102,82 @@ class DownloadAwareReaderDocumentStore(
             ?: ReaderLocalCacheFact.Miss
     }
 
-    override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? {
+    override suspend fun readResult(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+    ): ReaderDocumentReadResult {
+        var sawCorruption = false
         for (namespace in LOCAL_READ_ORDER) {
-            readLocal(namespace, releaseId, fingerprint)?.let { return it }
+            when (val result = readPhysical(namespace, releaseId, fingerprint)) {
+                is PhysicalRead.Hit -> return ReaderDocumentReadResult.Hit(result.document)
+                PhysicalRead.Missing -> Unit
+                PhysicalRead.Corrupt -> sawCorruption = true
+            }
         }
-        return null
+        return if (sawCorruption) {
+            ReaderDocumentReadResult.FingerprintOrDecodeMismatch
+        } else {
+            ReaderDocumentReadResult.Missing
+        }
     }
+
+    override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? =
+        when (val result = readResult(releaseId, fingerprint)) {
+            is ReaderDocumentReadResult.Hit -> result.document
+            ReaderDocumentReadResult.Missing,
+            ReaderDocumentReadResult.FingerprintOrDecodeMismatch,
+            -> null
+        }
 
     override suspend fun readCurrent(releaseId: ChapterReleaseId): ReaderDocument? {
         val record = downloads.find(releaseId)?.takeIf { it.state == DownloadState.COMPLETED } ?: return null
-        return readLocal(ChapterBlobNamespace.EXPLICIT_DOWNLOAD, releaseId, record.key.contentFingerprint)
+        return when (
+            val result = readPhysical(
+                ChapterBlobNamespace.EXPLICIT_DOWNLOAD,
+                releaseId,
+                record.key.contentFingerprint,
+            )
+        ) {
+            is PhysicalRead.Hit -> result.document
+            PhysicalRead.Missing,
+            PhysicalRead.Corrupt,
+            -> null
+        }
     }
 
-    private suspend fun readLocal(
+    private suspend fun readPhysical(
         namespace: ChapterBlobNamespace,
         releaseId: ChapterReleaseId,
         fingerprint: String,
-    ): ReaderDocument? {
+    ): PhysicalRead {
         val key = ChapterBlobKey(namespace, releaseId, fingerprint)
-        val blob = blobs.read(key)
-        val document = blob?.let(ReaderDocumentBlobCodec::decode)
-        return when {
-            blob == null -> null
-            document == null || document.fingerprint != fingerprint -> {
-                blobs.delete(key)
-                null
-            }
-            else -> {
-                try {
-                    cacheRepository.touch(key, now())
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    // Access timestamps are best effort and must not invalidate verified content.
-                }
-                document
-            }
+        val blob = blobs.read(key) ?: return PhysicalRead.Missing
+        val document = ReaderDocumentBlobCodec.decode(blob)
+        if (document == null || document.fingerprint != fingerprint) {
+            deleteCorruptBestEffort(key)
+            return PhysicalRead.Corrupt
+        }
+        touchBestEffort(key)
+        return PhysicalRead.Hit(document)
+    }
+
+    private suspend fun deleteCorruptBestEffort(key: ChapterBlobKey) {
+        try {
+            blobs.delete(key)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Corruption is already proven by the bytes; cleanup failure cannot erase that fact.
+        }
+    }
+
+    private suspend fun touchBestEffort(key: ChapterBlobKey) {
+        try {
+            cacheRepository.touch(key, now())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Access timestamps are best effort and must not invalidate verified content.
         }
     }
 
@@ -170,6 +211,12 @@ class DownloadAwareReaderDocumentStore(
             ChapterBlobNamespace.AUTOMATIC_CACHE,
         )
         const val DEFAULT_CACHE_QUOTA_BYTES = 256L * 1024 * 1024
+    }
+
+    private sealed interface PhysicalRead {
+        data class Hit(val document: ReaderDocument) : PhysicalRead
+        data object Missing : PhysicalRead
+        data object Corrupt : PhysicalRead
     }
 }
 
