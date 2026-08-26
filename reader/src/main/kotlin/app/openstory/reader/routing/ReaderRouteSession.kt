@@ -79,7 +79,7 @@ internal data class ReaderRouteExecutionContext(
     val storyId: StoryId,
     val identity: ReaderExecutionIdentity,
     val chapterGraphRevision: ReaderChapterGraphRevision,
-    val chapterGroups: List<CanonicalChapterGroup>,
+    val chapterGraph: ReaderSessionChapterGraph,
     val preferences: ReaderPreferences,
     val committedIdentity: ReaderCommittedIdentity?,
     val explicitReleaseId: ChapterReleaseId?,
@@ -120,7 +120,7 @@ class ReaderRouteSession internal constructor(
     private var nextGenerationValue = 1L
     private var activeExecution: ActiveExecution? = null
     private var activePlan: ActivePlan? = null
-    private var latestChapterGroups: List<CanonicalChapterGroup>? = null
+    private var latestChapterGraph: ReaderSessionChapterGraph? = null
     private var latestPreferences: ReaderPreferences? = null
     private val firstChapterGraph = CompletableDeferred<Unit>()
     private val firstRoutingPreferences = CompletableDeferred<Unit>()
@@ -137,28 +137,19 @@ class ReaderRouteSession internal constructor(
         get() = synchronized(stateLock) { mutableExecutionState }
 
     suspend fun updateChapterGraph(groups: List<CanonicalChapterGroup>) {
-        val ownedGroups = groups.map { group ->
-            require(group.chapter.storyId == storyId) {
-                "Reader session chapter graph must contain only story ${storyId.value}."
-            }
-            require(group.releases.all { it.storyId == storyId }) {
-                "Reader session releases must contain only story ${storyId.value}."
-            }
-            group.copy(
-                chapter = group.chapter.copy(releaseIds = group.chapter.releaseIds.toSet()),
-                releases = group.releases.toList(),
-            )
-        }
+        val candidate = ReaderSessionChapterGraph.create(storyId, groups)
         val changed = synchronized(stateLock) {
-            if (latestChapterGroups == ownedGroups) return@synchronized false
+            val current = latestChapterGraph
+            if (current?.groups == candidate.groups) return@synchronized false
             // The first graph snapshot establishes readiness; there is no prior route fact to revoke yet.
-            val isFirstEmission = latestChapterGroups == null
+            val isFirstEmission = current == null
             val active = activeExecution
             val hardInvalidation = !isFirstEmission &&
                 active != null &&
-                graphHardInvalidatesLocked(active, ownedGroups)
-            latestChapterGroups = ownedGroups
+                graphHardInvalidatesLocked(active, candidate)
+            latestChapterGraph = candidate
             chapterGraphRevision = ReaderChapterGraphRevision(chapterGraphRevision.value + 1L)
+            knownInvalidLocalFingerprints.keys.retainAll(candidate.releaseIds)
             firstChapterGraph.complete(Unit)
             if (hardInvalidation) hardInvalidateLocked()
             true
@@ -257,11 +248,23 @@ class ReaderRouteSession internal constructor(
         require(attempts.any { it.releaseId == winnerReleaseId }) {
             "Reader winner must be represented in the executable route."
         }
-        activePlan = ActivePlan(
+        val plan = ActivePlan(
             identity = context.identity,
             winnerReleaseId = winnerReleaseId,
             plannedReleaseIds = attempts.mapTo(linkedSetOf()) { it.releaseId },
         )
+        if (
+            context.chapterGraphRevision != chapterGraphRevision &&
+            graphInvalidatesPlanLocked(
+                targetChapterId = context.identity.targetChapterId,
+                plan = plan,
+                nextGraph = checkNotNull(latestChapterGraph),
+            )
+        ) {
+            hardInvalidateLocked()
+            return@synchronized false
+        }
+        activePlan = plan
         true
     }
 
@@ -330,6 +333,7 @@ class ReaderRouteSession internal constructor(
         fingerprint: String,
     ) {
         synchronized(stateLock) {
+            if (latestChapterGraph?.release(releaseId) == null) return@synchronized
             markKnownInvalidLocalLocked(releaseId, fingerprint)
         }
     }
@@ -395,9 +399,9 @@ class ReaderRouteSession internal constructor(
     }
 
     private fun buildContext(active: ActiveExecution): ReaderRouteExecutionContext {
-        val groups = checkNotNull(latestChapterGroups) {
+        val graph = checkNotNull(latestChapterGraph) {
             "Reader route execution requires an initialized chapter graph."
-        }.map { it.copy(releases = it.releases.toList()) }
+        }
         val preferences = checkNotNull(latestPreferences) {
             "Reader route execution requires initialized routing preferences."
         }
@@ -405,7 +409,7 @@ class ReaderRouteSession internal constructor(
             storyId = storyId,
             identity = identityFor(active),
             chapterGraphRevision = chapterGraphRevision,
-            chapterGroups = groups,
+            chapterGraph = graph,
             preferences = preferences,
             committedIdentity = committedIdentity,
             explicitReleaseId = active.explicitReleaseId,
@@ -419,21 +423,16 @@ class ReaderRouteSession internal constructor(
             val scope = prefetchScope
             val prefetch = prefetchDelegate
             val committed = committedIdentity
-            val groups = latestChapterGroups
+            val graph = latestChapterGraph
             val preferences = latestPreferences
             if (scope == null || prefetch == null || committed == null) {
                 return@synchronized PrefetchAction.None
             }
-            if (groups == null || preferences == null || activeExecution != null) {
+            if (graph == null || preferences == null || activeExecution != null) {
                 return@synchronized PrefetchAction.None
             }
 
-            val committedIndex = groups.indexOfFirst { it.chapter.id == committed.chapterId }
-            val nextGroup = if (committedIndex >= 0) {
-                groups.getOrNull(committedIndex + 1)
-            } else {
-                null
-            }
+            val nextGroup = graph.nextAfter(committed.chapterId)
             if (nextGroup == null) {
                 val old = prefetchJob
                 prefetchToken += 1L
@@ -466,7 +465,7 @@ class ReaderRouteSession internal constructor(
                     targetChapterId = nextChapterId,
                     chapterGraphRevision = chapterGraphRevision,
                     planRevision = ReaderPlanRevision(0),
-                    chapterGroups = groups.map { it.copy(releases = it.releases.toList()) },
+                    chapterGraph = graph,
                     preferences = preferences,
                     committedIdentity = committed,
                     explicitReleaseId = null,
@@ -539,24 +538,37 @@ class ReaderRouteSession internal constructor(
 
     private fun graphHardInvalidatesLocked(
         active: ActiveExecution,
-        nextGroups: List<CanonicalChapterGroup>,
+        nextGraph: ReaderSessionChapterGraph,
     ): Boolean {
-        val target = nextGroups.firstOrNull { it.chapter.id == active.targetChapterId }
-        val targetReleaseIds = target
-            ?.releases
-            ?.asSequence()
-            ?.filter { it.canonicalChapterId == target.chapter.id }
-            ?.mapTo(hashSetOf()) { it.id }
-            .orEmpty()
-        val plan = activePlan
-        return when {
-            target == null -> true
-            target.chapter.tombstoned || target.releases.isEmpty() -> true
-            targetReleaseIds.isEmpty() -> true
-            plan == null || plan.identity != identityFor(active) -> false
-            plan.winnerReleaseId !in targetReleaseIds -> true
-            else -> plan.plannedReleaseIds.any { it !in targetReleaseIds }
+        val target = nextGraph.group(active.targetChapterId)
+        if (
+            target == null ||
+            target.chapter.tombstoned ||
+            target.releases.isEmpty() ||
+            target.releases.none { it.canonicalChapterId == target.chapter.id }
+        ) {
+            return true
         }
+        val plan = activePlan
+        return plan != null &&
+            plan.identity == identityFor(active) &&
+            graphInvalidatesPlanLocked(active.targetChapterId, plan, nextGraph)
+    }
+
+    private fun graphInvalidatesPlanLocked(
+        targetChapterId: CanonicalChapterId,
+        plan: ActivePlan,
+        nextGraph: ReaderSessionChapterGraph,
+    ): Boolean {
+        val target = nextGraph.group(targetChapterId) ?: return true
+        if (target.chapter.tombstoned || target.releases.isEmpty()) return true
+        val targetReleaseIds = target.releases
+            .asSequence()
+            .filter { it.canonicalChapterId == target.chapter.id }
+            .mapTo(hashSetOf()) { it.id }
+        if (targetReleaseIds.isEmpty()) return true
+        return plan.winnerReleaseId !in targetReleaseIds ||
+            plan.plannedReleaseIds.any { it !in targetReleaseIds }
     }
 
     private fun hardInvalidateLocked() {

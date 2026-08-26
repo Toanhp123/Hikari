@@ -23,6 +23,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReaderRouteSessionStateTest {
@@ -152,6 +154,129 @@ class ReaderRouteSessionStateTest {
     }
 
     @Test
+    fun hardReplanReusesSameChapterGraphObjectAndEqualEmissionKeepsRevision() = runTest {
+        val groups = listOf(
+            group("chapter-a", listOf(release("release-a", "chapter-a"))),
+            group("chapter-b", listOf(release("release-b", "chapter-b"))),
+        )
+        val contexts = mutableListOf<ReaderRouteExecutionContext>()
+        var invalidated = false
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(30),
+            delegate = ReaderRouteExecutionDelegate { owner, context ->
+                contexts += context
+                if (!invalidated) {
+                    invalidated = true
+                    owner.updateChapterGraph(groups.map { it.copy(releases = it.releases.toList()) })
+                    owner.hardInvalidate()
+                }
+                exhausted(context)
+            },
+        )
+        session.updateChapterGraph(groups)
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+
+        assertEquals(2, contexts.size)
+        assertSame(contexts[0].chapterGraph, contexts[1].chapterGraph)
+        assertEquals(contexts[0].chapterGraphRevision, contexts[1].chapterGraphRevision)
+        assertEquals(ReaderPlanRevision(0), contexts[0].identity.planRevision)
+        assertEquals(ReaderPlanRevision(1), contexts[1].identity.planRevision)
+    }
+
+    @Test
+    fun foregroundAndPrefetchReuseSameChapterGraphForOneRevision() = runTest {
+        val foregroundContexts = mutableListOf<ReaderRouteExecutionContext>()
+        val prefetchContexts = mutableListOf<ReaderRoutePlanningContext>()
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(31),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                foregroundContexts += context
+                committed(context)
+            },
+            prefetchDelegate = ReaderPrefetchExecutionDelegate { _, context ->
+                prefetchContexts += context
+            },
+            prefetchScope = this,
+        )
+        session.updateChapterGraph(
+            listOf(
+                group("chapter-a", listOf(release("release-a", "chapter-a"))),
+                group("chapter-b", listOf(release("release-b", "chapter-b"))),
+            ),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+        runCurrent()
+
+        assertEquals(1, foregroundContexts.size)
+        assertEquals(1, prefetchContexts.size)
+        assertSame(foregroundContexts.single().chapterGraph, prefetchContexts.single().chapterGraph)
+        assertEquals(
+            foregroundContexts.single().chapterGraphRevision,
+            prefetchContexts.single().chapterGraphRevision,
+        )
+    }
+
+    @Test
+    fun acceptedGraphChangePrunesKnownInvalidFingerprintsForRemovedReleases() = runTest {
+        val releaseA = release("release-a", "chapter-a")
+        val releaseB = release("release-b", "chapter-b")
+        val contexts = mutableListOf<ReaderRouteExecutionContext>()
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(32),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                contexts += context
+                exhausted(context)
+            },
+        )
+        session.updateChapterGraph(
+            listOf(group("chapter-a", listOf(releaseA)), group("chapter-b", listOf(releaseB))),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+        session.markKnownInvalidLocal(releaseA.id, "bad-fingerprint")
+
+        session.updateChapterGraph(listOf(group("chapter-b", listOf(releaseB))))
+        session.execute(ReaderForegroundIntent(chapter("chapter-b")))
+
+        val context = contexts.single()
+        assertFalse(releaseA.id in context.knownInvalidLocalFingerprints)
+        assertTrue(context.knownInvalidLocalFingerprints.isEmpty())
+    }
+
+    @Test
+    fun staleInvalidationCannotReintroduceReleaseRemovedFromCurrentGraph() = runTest {
+        val releaseA = release("release-a", "chapter-a")
+        val releaseB = release("release-b", "chapter-b")
+        val contexts = mutableListOf<ReaderRouteExecutionContext>()
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(33),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                contexts += context
+                exhausted(context)
+            },
+        )
+        session.updateChapterGraph(
+            listOf(group("chapter-a", listOf(releaseA)), group("chapter-b", listOf(releaseB))),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+        session.updateChapterGraph(listOf(group("chapter-b", listOf(releaseB))))
+
+        session.markKnownInvalidLocal(releaseA.id, "stale-fingerprint")
+        session.execute(ReaderForegroundIntent(chapter("chapter-b")))
+
+        assertFalse(releaseA.id in contexts.single().knownInvalidLocalFingerprints)
+    }
+
+    @Test
     fun retryAfterExhaustionStartsANewGeneration() = runTest {
         val session = session(ReaderSessionId(13))
         ready(session)
@@ -248,6 +373,25 @@ class ReaderRouteSessionStateTest {
     private suspend fun ready(session: ReaderRouteSession) {
         session.updateChapterGraph(emptyList())
         session.updateRoutingPreferences(ReaderPreferences())
+    }
+
+    private fun committed(context: ReaderRouteExecutionContext): ReaderForegroundResult.Committed {
+        val group = requireNotNull(context.chapterGraph.group(context.identity.targetChapterId))
+        val release = group.releases.first()
+        return ReaderForegroundResult.Committed(
+            identity = context.foregroundIdentity,
+            chapterGroup = group,
+            release = release,
+            document = app.openstory.reader.document.ReaderDocument(
+                title = release.displayLabel,
+                blocks = listOf(app.openstory.reader.document.ReaderBlock.Paragraph("block", release.displayLabel)),
+                fingerprint = "fp-${release.id.value}",
+            ),
+            fromLocal = false,
+            previousChapterId = context.chapterGraph.previousBefore(group.chapter.id)?.chapter?.id,
+            nextChapterId = context.chapterGraph.nextAfter(group.chapter.id)?.chapter?.id,
+            restoration = null,
+        )
     }
 
     private fun exhausted(context: ReaderRouteExecutionContext) = ReaderForegroundResult.Exhausted(

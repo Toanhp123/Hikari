@@ -63,7 +63,7 @@ class ReaderRuntimeStressTest {
     }
 
     @Test
-    fun twoSessionsKeepExecutionStateIndependentWhileSharingProcessHealthUnderLoad() = runTest {
+    fun twoSessionsKeepExecutionStateIndependentWhileSharingProcessHealthAndLimiterUnderLoad() = runTest {
         val health = ReaderSourceHealthRegistry()
         val sourceKey = SourceOperationKey(PluginId("shared-source"))
         repeat(100) { index ->
@@ -77,8 +77,9 @@ class ReaderRuntimeStressTest {
             )
         }
 
-        val first = stressSession(ReaderSessionId(901))
-        val second = stressSession(ReaderSessionId(902))
+        val limiter = ReaderSourceExecutionLimiter()
+        val first = stressSession(ReaderSessionId(901), limiter, PluginId("shared-source"))
+        val second = stressSession(ReaderSessionId(902), limiter, PluginId("shared-source"))
         ready(first)
         ready(second)
 
@@ -161,10 +162,17 @@ class ReaderRuntimeStressTest {
         assertEquals(51L, session.executionState.identityGenerationValueOrNull())
     }
 
-    private fun stressSession(id: ReaderSessionId): ReaderRouteSession = ReaderRouteSession(
+    private fun stressSession(
+        id: ReaderSessionId,
+        limiter: ReaderSourceExecutionLimiter,
+        sourceId: PluginId,
+    ): ReaderRouteSession = ReaderRouteSession(
         storyId = STORY_ID,
         sessionId = id,
-        delegate = ReaderRouteExecutionDelegate { _, context -> exhausted(context) },
+        delegate = ReaderRouteExecutionDelegate { _, context ->
+            limiter.withRemotePermit(sourceId, ReaderRemoteWorkPriority.FOREGROUND) { yield() }
+            exhausted(context)
+        },
     )
 
     private suspend fun ready(session: ReaderRouteSession) {
@@ -180,9 +188,8 @@ class ReaderRuntimeStressTest {
     )
 
     private fun committed(context: ReaderRouteExecutionContext): ReaderForegroundResult.Committed {
-        val group = context.chapterGroups.first { it.chapter.id == context.identity.targetChapterId }
+        val group = requireNotNull(context.chapterGraph.group(context.identity.targetChapterId))
         val release = group.releases.single()
-        val index = context.chapterGroups.indexOf(group)
         return ReaderForegroundResult.Committed(
             identity = context.foregroundIdentity,
             chapterGroup = group,
@@ -193,8 +200,8 @@ class ReaderRuntimeStressTest {
                 fingerprint = "fp-${release.id.value}",
             ),
             fromLocal = false,
-            previousChapterId = context.chapterGroups.getOrNull(index - 1)?.chapter?.id,
-            nextChapterId = context.chapterGroups.getOrNull(index + 1)?.chapter?.id,
+            previousChapterId = context.chapterGraph.previousBefore(group.chapter.id)?.chapter?.id,
+            nextChapterId = context.chapterGraph.nextAfter(group.chapter.id)?.chapter?.id,
             restoration = null,
         )
     }

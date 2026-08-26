@@ -196,6 +196,65 @@ class ReaderRouteReplanTest {
     }
 
     @Test
+    fun openRemoteSourceKeepsValidLocalPathUsableWithoutTransport() = runTest {
+        val health = ReaderSourceHealthRegistry()
+        repeat(3) { index ->
+            health.record(
+                SourceOperationKey(sourceId),
+                SourceObservation.TransportFailure.Timeout(RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT),
+                nowEpochMillis = index.toLong(),
+            )
+        }
+        val local = document("expected-fingerprint")
+        val store = ReplanStore(exact = local)
+        val source = ReplanSource { ReaderSourceResult.Success(document("remote-must-not-run")) }
+        val coordinator = coordinator(
+            source = source,
+            store = store,
+            availability = ReaderSourceAvailability { setOf(sourceId) },
+            health = health,
+            cache = ReaderCacheFactsPort { ids, _ ->
+                ids.associateWith { ReaderLocalCacheFact.Exact("expected-fingerprint") }
+            },
+            now = { 100L },
+        )
+        val session = ready(coordinator)
+
+        val result = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapterId)),
+        )
+
+        assertEquals(true, result.fromLocal)
+        assertEquals("expected-fingerprint", result.document.fingerprint)
+        assertEquals(0, source.fetchCount)
+        assertEquals(
+            ReaderPlanRevision(0),
+            assertIs<ReaderExecutionState.Committed>(session.executionState).identity.planRevision,
+        )
+    }
+
+    @Test
+    fun typedMissingDoesNotBecomeKnownInvalidForLaterSnapshot() = runTest {
+        val store = ReplanStore(typedResult = ReaderDocumentReadResult.Missing)
+        val source = ReplanSource { ReaderSourceResult.Success(document("remote-valid")) }
+        val coordinator = coordinator(
+            source = source,
+            store = store,
+            availability = ReaderSourceAvailability { setOf(sourceId) },
+            cache = ReaderCacheFactsPort { ids, _ ->
+                ids.associateWith { ReaderLocalCacheFact.Exact("expected-fingerprint") }
+            },
+        )
+        val session = ready(coordinator)
+
+        assertIs<ReaderForegroundResult.Committed>(session.execute(ReaderForegroundIntent(chapterId)))
+        assertIs<ReaderForegroundResult.Committed>(session.execute(ReaderForegroundIntent(chapterId)))
+
+        assertEquals(2, store.readResultCount)
+        assertEquals(2, source.fetchCount)
+    }
+
+    @Test
     fun confirmedTypedCorruptionIsExcludedFromALaterSnapshot() = runTest {
         val store = ReplanStore(
             typedResult = ReaderDocumentReadResult.FingerprintOrDecodeMismatch,

@@ -34,11 +34,13 @@ import app.openstory.reader.routing.ReaderSourceExecutionLimiter
 import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import java.util.ArrayDeque
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -341,6 +343,67 @@ class ReaderViewModelContinuityTest {
     }
 
     @Test
+    fun boundedAttemptExhaustionProducesOneVisibleFailureTransitionForGeneration() = runTest(dispatcher.scheduler) {
+        val base = chapter("chapter-1", "release-a")
+        val releases = listOf(
+            base.second.copy(pluginId = PluginId("plugin-a")),
+            base.second.copy(
+                id = ChapterReleaseId("release-b"),
+                pluginId = PluginId("plugin-b"),
+                sourceReleaseId = "release-b",
+            ),
+            base.second.copy(
+                id = ChapterReleaseId("release-c"),
+                pluginId = PluginId("plugin-c"),
+                sourceReleaseId = "release-c",
+            ),
+            base.second.copy(
+                id = ChapterReleaseId("release-d"),
+                pluginId = PluginId("plugin-d"),
+                sourceReleaseId = "release-d",
+            ),
+        )
+        val group = CanonicalChapterGroup(
+            chapter = base.first.copy(releaseIds = releases.mapTo(linkedSetOf()) { it.id }),
+            releases = releases,
+        )
+        val chapters = TestChapterRepository(listOf(group))
+        val sources = releases.map { release ->
+            ControlledReaderSource(release.pluginId).apply {
+                enqueueFailure(release.id.value, "reader.source_failed", retryable = true)
+            }
+        }
+        val progress = TestProgressRepository()
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter-1", null),
+            SavedStateHandle(),
+            chapters,
+            routeFactory(sources, progress),
+            progress,
+            FakeClock(100),
+            TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
+        )
+        val visibleFailures = mutableListOf<String>()
+        var previousFailure: String? = null
+        val observer = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            viewModel.state.collect { state ->
+                val failure = state.failure
+                if (failure != previousFailure && failure != null) visibleFailures += failure
+                previousFailure = failure
+            }
+        }
+
+        runCurrent()
+
+        assertEquals(4, sources.sumOf { it.fetches.size })
+        assertEquals(4, sources.flatMap { it.fetches }.distinct().size)
+        assertEquals(listOf("reader.source_failed"), visibleFailures)
+        assertEquals("reader.source_failed", viewModel.state.value.failure)
+        assertNull(viewModel.state.value.document)
+        observer.cancel()
+    }
+
+    @Test
     fun initialExhaustionWithoutCommittedContentBecomesUnavailable() = runTest(dispatcher.scheduler) {
         val chapters = TestChapterRepository(groups(chapter("chapter-1", "release-a")))
         val source = ControlledReaderSource().apply {
@@ -374,11 +437,16 @@ class ReaderViewModelContinuityTest {
     private fun routeFactory(
         source: ControlledReaderSource,
         progress: ReadingProgressRepository,
+    ) = routeFactory(listOf(source), progress)
+
+    private fun routeFactory(
+        sources: List<ControlledReaderSource>,
+        progress: ReadingProgressRepository,
     ) = ReaderRouteSessionFactory(
         ReaderRouteCoordinator(
             store = ContinuityNoOpReaderDocumentStore,
             sources = object : ReaderDocumentSourceRegistry {
-                override suspend fun enabled(): List<ReaderDocumentSource> = listOf(source)
+                override suspend fun enabled(): List<ReaderDocumentSource> = sources
             },
             progress = progress,
             healthRegistry = ReaderSourceHealthRegistry(),
@@ -423,8 +491,9 @@ private class TestChapterRepository(
     ): ChapterSyncState? = null
 }
 
-private class ControlledReaderSource : ReaderDocumentSource {
-    override val pluginId = PluginId("plugin")
+private class ControlledReaderSource(
+    override val pluginId: PluginId = PluginId("plugin"),
+) : ReaderDocumentSource {
     private val responses = mutableMapOf<String, ArrayDeque<CompletableDeferred<ReaderSourceResult>>>()
     val fetches = mutableListOf<String>()
 

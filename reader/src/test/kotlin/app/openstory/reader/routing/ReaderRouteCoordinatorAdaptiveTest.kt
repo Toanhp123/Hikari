@@ -64,6 +64,30 @@ class ReaderRouteCoordinatorAdaptiveTest {
     }
 
     @Test
+    fun committedNeighborsComeFromIndexedSessionGraph() = runTest {
+        val source = AdaptiveCoordinatorSource(document("remote-fp"))
+        val coordinator = coordinator(
+            store = AdaptiveCoordinatorStore(),
+            source = source,
+            cacheFacts = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
+            networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
+        )
+        val session = ReaderRouteSessionFactory(coordinator).create(StoryId("story"))
+        val previous = group(CanonicalChapterId("previous"), ChapterReleaseId("release-previous"))
+        val target = group(CanonicalChapterId("target"), ChapterReleaseId("release-target"))
+        val next = group(CanonicalChapterId("next"), ChapterReleaseId("release-next"))
+        session.updateChapterGraph(listOf(previous, target, next))
+        session.updateRoutingPreferences(ReaderPreferences(languageOrder = listOf("en")))
+
+        val result = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(target.chapter.id)),
+        )
+
+        assertEquals(previous.chapter.id, result.previousChapterId)
+        assertEquals(next.chapter.id, result.nextChapterId)
+    }
+
+    @Test
     fun resumeFingerprintIsNotRemoteIntegrityExpectation() = runTest {
         val source = AdaptiveCoordinatorSource(document("new-remote-fp"))
         val progress = ReadingProgress(
@@ -117,29 +141,38 @@ class ReaderRouteCoordinatorAdaptiveTest {
         return session
     }
 
-    private fun group() = CanonicalChapterGroup(
-        chapter = CanonicalChapter(
-            id = chapterId,
-            storyId = StoryId("story"),
-            parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
-            displayLabel = "chapter",
-            tombstoned = false,
-            releaseIds = setOf(releaseId),
-        ),
-        releases = listOf(release()),
-    )
+    private fun group(
+        id: CanonicalChapterId = chapterId,
+        releaseIdValue: ChapterReleaseId = releaseId,
+    ): CanonicalChapterGroup {
+        val chapterRelease = release(id, releaseIdValue)
+        return CanonicalChapterGroup(
+            chapter = CanonicalChapter(
+                id = id,
+                storyId = StoryId("story"),
+                parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
+                displayLabel = id.value,
+                tombstoned = false,
+                releaseIds = setOf(releaseIdValue),
+            ),
+            releases = listOf(chapterRelease),
+        )
+    }
 
-    private fun release() = ChapterRelease(
-        id = releaseId,
+    private fun release(
+        chapter: CanonicalChapterId = chapterId,
+        id: ChapterReleaseId = releaseId,
+    ) = ChapterRelease(
+        id = id,
         storyId = StoryId("story"),
         pluginId = sourceId,
         sourceStoryId = "source-story",
-        sourceReleaseId = "source-release",
-        displayLabel = "release",
+        sourceReleaseId = "source-${id.value}",
+        displayLabel = id.value,
         parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
         languageTag = "en",
         publishedAtEpochMillis = 1L,
-        canonicalChapterId = chapterId,
+        canonicalChapterId = chapter,
     )
 
     private fun document(fp: String) = ReaderDocument(

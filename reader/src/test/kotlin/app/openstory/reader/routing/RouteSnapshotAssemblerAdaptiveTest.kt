@@ -116,7 +116,10 @@ class RouteSnapshotAssemblerAdaptiveTest {
             targetChapterId = chapterId,
         ),
         chapterGraphRevision = ReaderChapterGraphRevision(3),
-        chapterGroups = listOf(group("chapter", releases)) + extraGroups,
+        chapterGraph = ReaderSessionChapterGraph.create(
+            StoryId("story"),
+            listOf(group("chapter", releases)) + extraGroups,
+        ),
         preferences = ReaderPreferences(languageOrder = listOf("en")),
         committedIdentity = null,
         explicitReleaseId = null,

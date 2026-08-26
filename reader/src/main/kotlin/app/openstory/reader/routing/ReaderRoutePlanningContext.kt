@@ -1,6 +1,5 @@
 package app.openstory.reader.routing
 
-import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
@@ -13,7 +12,7 @@ internal data class ReaderRoutePlanningContext(
     val targetChapterId: CanonicalChapterId,
     val chapterGraphRevision: ReaderChapterGraphRevision,
     val planRevision: ReaderPlanRevision,
-    val chapterGroups: List<CanonicalChapterGroup>,
+    val chapterGraph: ReaderSessionChapterGraph,
     val preferences: ReaderPreferences,
     val committedIdentity: ReaderCommittedIdentity?,
     val explicitReleaseId: ChapterReleaseId?,
@@ -25,7 +24,7 @@ internal fun ReaderRouteExecutionContext.toPlanningContext() = ReaderRoutePlanni
     targetChapterId = identity.targetChapterId,
     chapterGraphRevision = chapterGraphRevision,
     planRevision = identity.planRevision,
-    chapterGroups = chapterGroups,
+    chapterGraph = chapterGraph,
     preferences = preferences,
     committedIdentity = committedIdentity,
     explicitReleaseId = explicitReleaseId,

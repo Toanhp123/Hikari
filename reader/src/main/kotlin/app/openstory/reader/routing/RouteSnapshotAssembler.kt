@@ -20,7 +20,6 @@ import app.openstory.reader.progress.ReadingProgressRepository
 import kotlinx.coroutines.CancellationException
 
 internal data class AssembledRouteSnapshot(
-    val targetIndex: Int,
     val targetGroup: CanonicalChapterGroup,
     val candidates: List<ChapterRelease>,
     val restoredProgress: ReadingProgress?,
@@ -47,12 +46,7 @@ internal class RouteSnapshotAssembler(
         context: ReaderRoutePlanningContext,
         routingIntent: RoutingIntent,
     ): AssembledRouteSnapshot? {
-        val targetIndex = context.chapterGroups.indexOfFirst {
-            it.chapter.id == context.targetChapterId
-        }
-        if (targetIndex < 0) return null
-
-        val targetGroup = context.chapterGroups[targetIndex]
+        val targetGroup = context.chapterGraph.group(context.targetChapterId) ?: return null
         val restored = progress.find(context.storyId, context.targetChapterId)
         val candidates = targetGroup.releases
         val releaseIds = targetGroup.releases.mapTo(linkedSetOf()) { it.id }
@@ -106,12 +100,9 @@ internal class RouteSnapshotAssembler(
                 )
             }
             val committed = context.committedIdentity
-            val committedLanguage = committed?.let { identity ->
-                context.chapterGroups.asSequence()
-                    .flatMap { it.releases.asSequence() }
-                    .firstOrNull { it.id == identity.releaseId }
-                    ?.languageTag
-            }
+            val committedLanguage = committed
+                ?.let { context.chapterGraph.release(it.releaseId) }
+                ?.languageTag
             val continuity = ReadingContinuity(
                 committedChapterId = committed?.chapterId,
                 committedReleaseId = committed?.releaseId,
@@ -122,7 +113,6 @@ internal class RouteSnapshotAssembler(
                 targetResumeFingerprint = restored?.contentFingerprint,
             )
             val assembled = AssembledRouteSnapshot(
-                targetIndex = targetIndex,
                 targetGroup = targetGroup,
                 candidates = candidates,
                 restoredProgress = restored,

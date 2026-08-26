@@ -162,10 +162,17 @@ class PrefetchCoordinatorTest {
         }
         val obsoletePrefetch = source.enqueuePending("release-b")
         source.enqueueSuccess("release-b", textDocument("b"))
+        source.enqueueSuccess("release-c", textDocument("c"))
         val fixture = fixture(source = source, network = ReaderNetworkState.UNMETERED)
         val session = fixture.factory.create(StoryId("story"), this)
         session.updateRoutingPreferences(ReaderPreferences())
-        session.updateChapterGraph(groups(chapter("chapter-1", "release-a"), chapter("chapter-2", "release-b")))
+        session.updateChapterGraph(
+            groups(
+                chapter("chapter-1", "release-a"),
+                chapter("chapter-2", "release-b"),
+                chapter("chapter-3", "release-c"),
+            ),
+        )
         assertIs<ReaderForegroundResult.Committed>(
             session.execute(ReaderForegroundIntent(CanonicalChapterId("chapter-1"))),
         )
@@ -178,7 +185,8 @@ class PrefetchCoordinatorTest {
         runCurrent()
 
         assertIs<ReaderForegroundResult.Committed>(foreground.await())
-        assertEquals(listOf("release-a", "release-b", "release-b"), source.fetches)
+        runCurrent()
+        assertEquals(listOf("release-a", "release-b", "release-b", "release-c"), source.fetches)
         obsoletePrefetch.complete(ReaderSourceResult.Success(textDocument("stale")))
         runCurrent()
         val state = assertIs<ReaderExecutionState.Committed>(session.executionState)

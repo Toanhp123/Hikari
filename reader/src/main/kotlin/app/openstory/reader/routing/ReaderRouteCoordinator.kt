@@ -398,8 +398,14 @@ class ReaderRouteCoordinator(
             release = release,
             document = loaded.document,
             fromLocal = loaded.fromStore,
-            previousChapterId = context.chapterGroups.getOrNull(assembled.targetIndex - 1)?.chapter?.id,
-            nextChapterId = context.chapterGroups.getOrNull(assembled.targetIndex + 1)?.chapter?.id,
+            previousChapterId = context.chapterGraph
+                .previousBefore(context.identity.targetChapterId)
+                ?.chapter
+                ?.id,
+            nextChapterId = context.chapterGraph
+                .nextAfter(context.identity.targetChapterId)
+                ?.chapter
+                ?.id,
             restoration = restoration,
         )
     }

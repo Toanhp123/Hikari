@@ -18,13 +18,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReaderSourceExecutionLimiterTest {
     private val sourceId = PluginId("source")
 
     @Test
-    fun onlyOneHalfOpenProbeLeasePerSourceOperationKeyCanBeHeld() {
+    fun twoSessionsSharingLimiterAllowOnlyOneHalfOpenProbeLease() {
         val limiter = ReaderSourceExecutionLimiter()
         val key = SourceOperationKey(sourceId)
 
@@ -300,5 +301,65 @@ class ReaderSourceExecutionLimiterTest {
         assertEquals("foreground", foreground.await())
         assertIs<ReaderPrefetchPreemptedException>(prefetch.await())
         assertEquals(false, SourceObservation.Cancellation.PrefetchPreempted.penalizesSourceHealth)
+
+        var subsequentEntered = false
+        limiter.withRemotePermit(sourceId, ReaderRemoteWorkPriority.FOREGROUND) {
+            subsequentEntered = true
+        }
+        assertTrue(subsequentEntered)
+    }
+
+    @Test
+    fun twoLogicalSessionsAcrossFourSourcesStayWithinProcessAndSourceCeilings() = runTest {
+        val limiter = ReaderSourceExecutionLimiter()
+        val release = CompletableDeferred<Unit>()
+        val entered = Channel<Pair<String, PluginId>>(Channel.UNLIMITED)
+        var activeProcessWide = 0
+        var maxProcessWide = 0
+        val activeBySource = mutableMapOf<PluginId, Int>()
+        val maxBySource = mutableMapOf<PluginId, Int>()
+        val attemptsBySession = mutableMapOf<String, Int>()
+
+        val jobs = listOf(
+            "session-a" to PluginId("source-a"),
+            "session-a" to PluginId("source-b"),
+            "session-b" to PluginId("source-c"),
+            "session-b" to PluginId("source-d"),
+        ).map { (session, source) ->
+            launch {
+                limiter.withRemotePermit(source, ReaderRemoteWorkPriority.FOREGROUND) {
+                    attemptsBySession[session] = attemptsBySession.getOrDefault(session, 0) + 1
+                    activeProcessWide += 1
+                    maxProcessWide = maxOf(maxProcessWide, activeProcessWide)
+                    activeBySource[source] = activeBySource.getOrDefault(source, 0) + 1
+                    maxBySource[source] = maxOf(
+                        maxBySource.getOrDefault(source, 0),
+                        activeBySource.getValue(source),
+                    )
+                    entered.send(session to source)
+                    release.await()
+                    activeBySource[source] = activeBySource.getValue(source) - 1
+                    activeProcessWide -= 1
+                }
+            }
+        }
+
+        repeat(2) { entered.receive() }
+        runCurrent()
+        assertEquals(2, activeProcessWide)
+        assertEquals(2, maxProcessWide)
+
+        release.complete(Unit)
+        jobs.forEach { it.join() }
+
+        assertEquals(2, maxProcessWide)
+        assertTrue(maxBySource.values.all { it <= 1 })
+        assertEquals(mapOf("session-a" to 2, "session-b" to 2), attemptsBySession)
+        assertEquals(4, ReaderRuntimeLimits.MAX_FOREGROUND_REMOTE_ATTEMPTS)
+        assertTrue(
+            attemptsBySession.values.all {
+                it <= ReaderRuntimeLimits.MAX_FOREGROUND_REMOTE_ATTEMPTS
+            },
+        )
     }
 }

@@ -145,17 +145,20 @@ class RouteSnapshotAssemblerTest {
                 targetChapterId = chapterId,
             ),
             chapterGraphRevision = ReaderChapterGraphRevision(7),
-            chapterGroups = listOf(
-                CanonicalChapterGroup(
-                    chapter = CanonicalChapter(
-                        id = chapterId,
-                        storyId = StoryId("story"),
-                        parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
-                        displayLabel = "chapter",
-                        tombstoned = false,
-                        releaseIds = releases.map { it.id }.toSet(),
+            chapterGraph = ReaderSessionChapterGraph.create(
+                StoryId("story"),
+                listOf(
+                    CanonicalChapterGroup(
+                        chapter = CanonicalChapter(
+                            id = chapterId,
+                            storyId = StoryId("story"),
+                            parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
+                            displayLabel = "chapter",
+                            tombstoned = false,
+                            releaseIds = releases.map { it.id }.toSet(),
+                        ),
+                        releases = releases,
                     ),
-                    releases = releases,
                 ),
             ),
             preferences = ReaderPreferences(languageOrder = listOf("en")),
