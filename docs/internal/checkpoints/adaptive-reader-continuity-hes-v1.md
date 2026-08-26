@@ -1,9 +1,12 @@
 # Adaptive Reader Continuity / HES-v1 Final Checkpoint
 
 Date: 2026-08-25
-Updated: 2026-08-26 (M7.1 and Wave 10 closure verification)
+Updated: 2026-08-26 (M7.2 remediation reopen)
 
-Status: **M0–M7.1 VERIFIED/CLOSED; HES-v1 FROZEN**
+Status: **M0–M7.1 HISTORICALLY VERIFIED/CLOSED; M7.2 OPEN; HES-v1 FREEZE REOPENED FOR REMEDIATION**
+
+M7.2 reopens the freeze prospectively to repair runtime and verification conformance gaps. Historical
+M7/M7.1 command output and closure evidence below remain preserved as historical evidence.
 
 Follow-up: **WAVE 10 FINAL HOST ACCEPTANCE IS CLOSED; WAVE 11 IS UNBLOCKED**
 
