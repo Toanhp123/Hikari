@@ -2,10 +2,12 @@ package app.openstory.reader.routing
 
 import app.openstory.chapters.model.CanonicalChapter
 import app.openstory.chapters.model.ChapterKind
+import app.openstory.chapters.model.ChapterRelease
 import app.openstory.chapters.model.ParsedChapterLabel
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.engine.ReaderPlanRevision
 import app.openstory.reader.preferences.ReaderPreferences
@@ -20,9 +22,74 @@ import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReaderRouteSessionStateTest {
+    @Test
+    fun graphOwnsOneDefensiveCopyAndIndexesChapterAndRelease() {
+        val releaseA = release("release-a", "chapter-a")
+        val releaseB = release("release-b", "chapter-b")
+        val releasesA = mutableListOf(releaseA)
+        val releaseIdsA = linkedSetOf(releaseA.id)
+        val groupA = group("chapter-a", releasesA, releaseIdsA)
+        val groupB = group("chapter-b", listOf(releaseB))
+        val expectedGroupA = group("chapter-a", listOf(releaseA))
+        val sourceGroups = mutableListOf(groupA, groupB)
+
+        val graph = ReaderSessionChapterGraph.create(StoryId("story"), sourceGroups)
+        sourceGroups.clear()
+        releasesA.clear()
+        releaseIdsA.clear()
+
+        assertEquals(0, graph.indexOf(groupA.chapter.id))
+        assertEquals(1, graph.indexOf(groupB.chapter.id))
+        assertEquals(expectedGroupA, graph.group(groupA.chapter.id))
+        assertEquals(expectedGroupA, graph.previousBefore(groupB.chapter.id))
+        assertEquals(groupB, graph.nextAfter(groupA.chapter.id))
+        assertEquals(releaseA, graph.release(releaseA.id))
+        assertEquals(setOf(releaseA.id, releaseB.id), graph.releaseIds)
+        assertEquals(listOf(expectedGroupA, groupB), graph.groups)
+    }
+
+    @Test
+    fun graphIndexesDuplicateIdsUsingFirstOccurrenceSemantics() {
+        val firstRelease = release("shared-release", "shared-chapter", languageTag = "en")
+        val secondRelease = release("shared-release", "shared-chapter", languageTag = "fr")
+        val firstGroup = group("shared-chapter", listOf(firstRelease), displayLabel = "first")
+        val secondGroup = group("shared-chapter", listOf(secondRelease), displayLabel = "second")
+
+        val graph = ReaderSessionChapterGraph.create(
+            StoryId("story"),
+            listOf(firstGroup, secondGroup),
+        )
+
+        assertEquals(0, graph.indexOf(firstGroup.chapter.id))
+        assertEquals(firstGroup, graph.group(firstGroup.chapter.id))
+        assertEquals(firstRelease, graph.release(firstRelease.id))
+        assertNull(graph.previousBefore(firstGroup.chapter.id))
+        assertEquals(secondGroup, graph.nextAfter(firstGroup.chapter.id))
+    }
+
+    @Test
+    fun graphRejectsChapterOwnedByAnotherStory() {
+        val group = group("chapter-a", storyId = StoryId("other-story"))
+
+        assertFailsWith<IllegalArgumentException> {
+            ReaderSessionChapterGraph.create(StoryId("story"), listOf(group))
+        }
+    }
+
+    @Test
+    fun graphRejectsReleaseOwnedByAnotherStory() {
+        val release = release("release-a", "chapter-a", storyId = StoryId("other-story"))
+        val group = group("chapter-a", listOf(release))
+
+        assertFailsWith<IllegalArgumentException> {
+            ReaderSessionChapterGraph.create(StoryId("story"), listOf(group))
+        }
+    }
+
     @Test
     fun initialExecutionWaitsForFirstGraphAndPreferencesWithoutReplanning() = runTest {
         val session = session(ReaderSessionId(10))
@@ -190,15 +257,40 @@ class ReaderRouteSessionStateTest {
         attempts = emptyList(),
     )
 
-    private fun group(value: String) = CanonicalChapterGroup(
+    private fun group(
+        value: String,
+        releases: List<ChapterRelease> = emptyList(),
+        releaseIds: Set<ChapterReleaseId> = releases.mapTo(linkedSetOf(), ChapterRelease::id),
+        storyId: StoryId = StoryId("story"),
+        displayLabel: String = value,
+    ) = CanonicalChapterGroup(
         chapter = CanonicalChapter(
             id = chapter(value),
-            storyId = StoryId("story"),
+            storyId = storyId,
             parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
-            displayLabel = value,
+            displayLabel = displayLabel,
             tombstoned = false,
+            releaseIds = releaseIds,
         ),
-        releases = emptyList(),
+        releases = releases,
+    )
+
+    private fun release(
+        value: String,
+        chapter: String,
+        storyId: StoryId = StoryId("story"),
+        languageTag: String = "en",
+    ) = ChapterRelease(
+        id = ChapterReleaseId(value),
+        storyId = storyId,
+        pluginId = PluginId("plugin-$value"),
+        sourceStoryId = "source-story",
+        sourceReleaseId = "source-$value",
+        displayLabel = value,
+        parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
+        languageTag = languageTag,
+        publishedAtEpochMillis = 1L,
+        canonicalChapterId = chapter(chapter),
     )
 
     private fun chapter(value: String) = CanonicalChapterId(value)
