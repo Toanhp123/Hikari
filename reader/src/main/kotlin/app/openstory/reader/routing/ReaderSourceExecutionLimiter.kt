@@ -61,7 +61,12 @@ class ReaderSourceExecutionLimiter {
     private val lanes = mutableMapOf<PluginId, Lane>()
     private val probeLock = Any()
     private val heldProbes = mutableSetOf<SourceOperationKey>()
-    private val remotePrefetchPermit = Semaphore(permits = 1)
+    private val remoteForegroundPermit = Semaphore(
+        permits = ReaderRuntimeLimits.MAX_CONCURRENT_FOREGROUND_REMOTE,
+    )
+    private val remotePrefetchPermit = Semaphore(
+        permits = ReaderRuntimeLimits.MAX_CONCURRENT_PREFETCH_REMOTE,
+    )
 
     internal fun tryAcquireHalfOpenProbe(key: SourceOperationKey): ReaderHalfOpenProbeLease? =
         synchronized(probeLock) {
@@ -73,12 +78,11 @@ class ReaderSourceExecutionLimiter {
         sourceId: PluginId,
         priority: ReaderRemoteWorkPriority,
         block: suspend () -> T,
-    ): T = if (priority == ReaderRemoteWorkPriority.PREFETCH) {
-        remotePrefetchPermit.withPermit {
-            withSourceRemotePermit(sourceId, priority, block)
+    ): T = withSourceRemotePermit(sourceId, priority) {
+        when (priority) {
+            ReaderRemoteWorkPriority.FOREGROUND -> remoteForegroundPermit.withPermit { block() }
+            ReaderRemoteWorkPriority.PREFETCH -> remotePrefetchPermit.withPermit { block() }
         }
-    } else {
-        withSourceRemotePermit(sourceId, priority, block)
     }
 
     private suspend fun <T> withSourceRemotePermit(
