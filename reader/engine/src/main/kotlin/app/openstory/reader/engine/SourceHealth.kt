@@ -2,7 +2,6 @@ package app.openstory.reader.engine
 
 import app.openstory.common.id.PluginId
 import app.openstory.reader.engine.internal.DefaultSourceHealthReducer
-import kotlin.math.ceil
 
 const val HES_V1_MAX_HEALTH_FAILURE_THRESHOLD: Int = 20
 
@@ -10,7 +9,7 @@ private const val HES_V1_MAX_LATENCY_SAMPLES: Int = 20
 private const val DEFAULT_HEALTH_ALPHA: Int = 2_000
 private const val DEFAULT_OPEN_RELIABILITY_THRESHOLD: Int = 5_500
 private const val MIN_LATENCY_SAMPLES_FOR_PERCENTILE: Int = 3
-private const val PERCENTILE_SCALE: Double = 100.0
+private const val PERCENTILE_SCALE: Long = 100L
 
 enum class SourceOperation {
     READ_DOCUMENT,
@@ -161,8 +160,12 @@ class SourceHealthState(
 
     private fun nearestRankLatency(percentile: Int): Long? {
         if (recentLatencySamplesMillis.size < MIN_LATENCY_SAMPLES_FOR_PERCENTILE) return null
+        require(percentile in 1..PERCENTILE_SCALE.toInt())
         val sorted = recentLatencySamplesMillis.sorted()
-        val rank = ceil(percentile / PERCENTILE_SCALE * sorted.size).toInt().coerceIn(1, sorted.size)
+        val numerator = percentile.toLong() * sorted.size.toLong()
+        val rank = ((numerator + PERCENTILE_SCALE - 1L) / PERCENTILE_SCALE)
+            .toInt()
+            .coerceIn(1, sorted.size)
         return sorted[rank - 1]
     }
 

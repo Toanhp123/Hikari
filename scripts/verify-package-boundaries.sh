@@ -98,6 +98,7 @@ feature_reader_root="$ROOT_DIR/feature/reader/src/main"
 storage_root="$ROOT_DIR/storage/room/src/main"
 plugin_api_root="$ROOT_DIR/plugins/api/src/main"
 plugin_runtime_root="$ROOT_DIR/plugins/runtime/src/main"
+FLOAT_PATTERN='\b(Float|Double)\b|[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?[fF]?\b|[0-9]+[eE][+-]?[0-9]+[fF]?\b|[0-9]+[fF]\b'
 
 fail_matches "$core_root" '(android|androidx)(\.|$)' \
   'core/common must remain free of Android dependencies.'
@@ -153,6 +154,8 @@ validate_project_imports "$reader_engine_root" '^app\.openstory\.(common|reader\
   'reader/engine may import only pure core-common values and its own engine packages.'
 fail_references "$reader_engine_root" '(android|androidx)\.|app\.openstory\.(chapters|reader\.(content|routing)|plugins|downloads|storage)\.|kotlinx\.(coroutines|serialization)\.|java\.(io|net)\.|app\.openstory\.common\.(Clock|SystemClock|FakeClock)([^A-Za-z0-9_]|$)|app\.openstory\.common\.dispatchers\.' \
   'reader/engine contains a forbidden effect/framework reference (including fully-qualified references).'
+fail_references "$reader_engine_root" "$FLOAT_PATTERN" \
+  'reader/engine production must remain integer/fixed-point and free of floating-point types or literals.'
 
 validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|designsystem|catalog|library|chapters|reader|downloads)(\.|$)' \
   'feature/catalog may import only core common, design system, Catalog, Library, Chapters, Reader, and Downloads project packages.'

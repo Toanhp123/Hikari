@@ -62,6 +62,11 @@ run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.common.FakeC
 run_case 'reader/engine/src/main/kotlin/F.kt' 'import app.openstory.common.dispatchers.AppDispatchers' 1
 run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = app.openstory.reader.content.ReaderDocument::class' 1
 run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = app.openstory.common.SystemClock' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked: Double = 1.0' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked: Float = 1f' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = 100.0' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = 25f' 1
+run_case 'reader/engine/src/main/kotlin/F.kt' 'val retained = 100L' 0
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 1
 run_case 'app/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 1
 run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 0

@@ -164,6 +164,25 @@ class SourceHealthReducerTest {
     }
 
     @Test
+    fun nearestRankPercentilesUseExactIntegerRanks() {
+        val three = SourceHealthState(recentLatencySamplesMillis = listOf(10L, 20L, 30L))
+        assertEquals(20L, three.p50LatencyMillis)
+        assertEquals(30L, three.p95LatencyMillis)
+
+        val four = SourceHealthState(recentLatencySamplesMillis = listOf(10L, 20L, 30L, 40L))
+        assertEquals(20L, four.p50LatencyMillis)
+        assertEquals(40L, four.p95LatencyMillis)
+
+        val twenty = SourceHealthState(recentLatencySamplesMillis = (1L..20L).toList())
+        assertEquals(10L, twenty.p50LatencyMillis)
+        assertEquals(19L, twenty.p95LatencyMillis)
+
+        val insufficient = SourceHealthState(recentLatencySamplesMillis = listOf(10L, 20L))
+        assertNull(insufficient.p50LatencyMillis)
+        assertNull(insufficient.p95LatencyMillis)
+    }
+
+    @Test
     fun v1HealthPolicyRejectsInvalidBounds() {
         assertFailsWith<IllegalArgumentException> { HealthPolicy.v1(alpha = BasisPoints(0)) }
         assertFailsWith<IllegalArgumentException> { HealthPolicy.v1(openAfterConsecutivePenalizingFailures = 0) }
