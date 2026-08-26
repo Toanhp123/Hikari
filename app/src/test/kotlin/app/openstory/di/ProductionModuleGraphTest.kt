@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class Wave10ProductionGraphTest {
+class ProductionModuleGraphTest {
     private val root = File("..").canonicalFile
 
     @Test

@@ -4,7 +4,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class Wave10NotificationEntryContractTest {
+class NotificationEntryContractTest {
     private val root = File("..").canonicalFile
 
     @Test

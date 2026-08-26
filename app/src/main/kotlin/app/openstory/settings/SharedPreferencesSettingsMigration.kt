@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 
-class LegacySettingsDataMigration(
+class SharedPreferencesSettingsMigration(
     private val legacy: SharedPreferences,
     private val defaults: SettingsDefaults,
 ) : DataMigration<Preferences> {

@@ -151,14 +151,19 @@ class DownloadAwareReaderDocumentStore(
         fingerprint: String,
     ): PhysicalRead {
         val key = ChapterBlobKey(namespace, releaseId, fingerprint)
-        val blob = blobs.read(key) ?: return PhysicalRead.Missing
-        val document = ReaderDocumentBlobCodec.decode(blob)
-        if (document == null || document.fingerprint != fingerprint) {
-            deleteCorruptBestEffort(key)
-            return PhysicalRead.Corrupt
+        val blob = blobs.read(key)
+        return if (blob == null) {
+            PhysicalRead.Missing
+        } else {
+            val document = ReaderDocumentBlobCodec.decode(blob)
+            if (document == null || document.fingerprint != fingerprint) {
+                deleteCorruptBestEffort(key)
+                PhysicalRead.Corrupt
+            } else {
+                touchBestEffort(key)
+                PhysicalRead.Hit(document)
+            }
         }
-        touchBestEffort(key)
-        return PhysicalRead.Hit(document)
     }
 
     private suspend fun deleteCorruptBestEffort(key: ChapterBlobKey) {

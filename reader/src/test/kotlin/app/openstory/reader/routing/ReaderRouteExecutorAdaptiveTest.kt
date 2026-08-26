@@ -50,7 +50,10 @@ class ReaderRouteExecutorAdaptiveTest {
         val observations = mutableListOf<SourceObservation>()
 
         val result = executor(store, registry).executeAdaptive(
-            attempts = listOf(local("a0", "selected", "source", "expected", AttemptRole.PRIMARY)),
+            attempts = listOf(
+                local("a0", "selected", "source", "expected", AttemptRole.PRIMARY),
+                remote("a1", "selected", "source"),
+            ),
             candidatesByRelease = mapOf(candidate.id to candidate),
             onSourceObservation = { _, observation -> observations += observation },
         )

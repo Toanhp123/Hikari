@@ -9,7 +9,7 @@ import app.openstory.common.dispatchers.AppDispatchers
 import app.openstory.reader.preferences.ReaderPreferencesPort
 import app.openstory.settings.AppSettingsRepository
 import app.openstory.settings.DataStoreAppSettingsRepository
-import app.openstory.settings.LegacySettingsDataMigration
+import app.openstory.settings.SharedPreferencesSettingsMigration
 import app.openstory.settings.RedactedSettingsDiagnosticSink
 import app.openstory.settings.SettingsCorruptionHandler
 import app.openstory.settings.SettingsDefaults
@@ -98,9 +98,9 @@ object SettingsModule {
     ): DataStore<Preferences> = PreferenceDataStoreFactory.create(
         corruptionHandler = SettingsCorruptionHandler(defaults, diagnostics).dataStoreHandler,
         migrations = listOf(
-            LegacySettingsDataMigration(
+            SharedPreferencesSettingsMigration(
                 legacy = context.getSharedPreferences(
-                    LegacySettingsDataMigration.LEGACY_PREFERENCES_NAME,
+                    SharedPreferencesSettingsMigration.LEGACY_PREFERENCES_NAME,
                     Context.MODE_PRIVATE,
                 ),
                 defaults = defaults,

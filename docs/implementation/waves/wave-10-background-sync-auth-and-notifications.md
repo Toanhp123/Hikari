@@ -1,4 +1,4 @@
-<!-- DOCUMENT LIFECYCLE: IMPLEMENTATION PRESENT / VERIFICATION OPEN -->
+<!-- DOCUMENT LIFECYCLE: VERIFIED / CLOSED -->
 
 # Wave 10 Background Work, Authentication, and Notifications Implementation Plan
 
@@ -22,16 +22,14 @@ Android Keystore AES-GCM, Room, Compose, Navigation 3, and Android notification 
 
 ## Current Implementation Status
 
-- Production implementation through remediation Phase 6 is present on
-  `feat/wave-10-production-remediation` with Room schema 11 and the approved 16-module graph.
-- Remediation Phase 7 integration coverage is present for runtime sessions, redirect credential
+- Production implementation and remediation are complete on Room schema 11 with the approved
+  16-module Wave 10 exit graph.
+- Phase 7 integration coverage is present for runtime sessions, redirect credential
   isolation, bounded chapter dispatch, durable notification recovery, terminal permission denial,
   and collision-safe platform IDs.
-- Focused host RED/GREEN and API 35 integration gates have run; the complete host matrix plus the
-  required API 26 and API 37 acceptance gates remain open. Wave 10 is not accepted or closed from
-  source presence alone. See `../../internal/checkpoints/wave-10-production-remediation.md`.
-- Wave 11 is explicitly blocked and must not begin until those remaining Wave 10 acceptance gates
-  pass and this checkpoint is closed.
+- The final host acceptance gate and required API 26/API 37 device matrix are verified. See
+  `../../internal/checkpoints/wave-10-production-remediation.md` for authoritative evidence.
+- Wave 10 is verified/closed and Wave 11 is unblocked.
 
 ## Entry Baseline
 

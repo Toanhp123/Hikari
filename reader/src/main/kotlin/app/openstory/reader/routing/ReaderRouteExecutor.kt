@@ -81,11 +81,7 @@ internal class ReaderRouteExecutor(
 
         val failures = mutableListOf<ReaderLoadFailure>()
         val suppressedRemoteSources = mutableSetOf<PluginId>()
-        val sourceByPlugin = if (attempts.any { it.accessMode == AccessMode.REMOTE }) {
-            loadFromSources()
-        } else {
-            emptyMap()
-        }
+        var sourceByPlugin: Map<PluginId, ReaderDocumentSource>? = null
         attempts.forEachIndexed { index, attempt ->
             val candidate = checkNotNull(candidatesByRelease[attempt.releaseId]) {
                 "Reader adaptive route references release outside candidate set: ${attempt.releaseId.value}"
@@ -96,11 +92,16 @@ internal class ReaderRouteExecutor(
             if (attempt.accessMode == AccessMode.REMOTE && attempt.sourceId in suppressedRemoteSources) {
                 return@forEachIndexed
             }
+            val availableSources = if (attempt.accessMode == AccessMode.REMOTE) {
+                sourceByPlugin ?: loadFromSources().also { sourceByPlugin = it }
+            } else {
+                emptyMap()
+            }
             onAttempt(index, attempt)
             val result = executeAttempt(
                 attempt = attempt,
                 candidate = candidate,
-                sourceByPlugin = sourceByPlugin,
+                sourceByPlugin = availableSources,
                 attemptKind = remoteAttemptKinds[attempt.releaseId]
                     ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
                 ownership = ReaderAttemptOwnership(),

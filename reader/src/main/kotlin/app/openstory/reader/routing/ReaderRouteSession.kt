@@ -1,12 +1,9 @@
 package app.openstory.reader.routing
 
-import app.openstory.chapters.model.ChapterRelease
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
-import app.openstory.reader.content.ReaderLoadFailure
-import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.engine.ReaderPlanRevision
 import app.openstory.reader.engine.RouteAttempt
@@ -19,83 +16,6 @@ import kotlinx.coroutines.launch
 
 private const val READER_LOAD_FAILED = "reader.load_failed"
 
-/** User intent only. Session-owned story/graph/preferences/continuity never ride on each request. */
-data class ReaderForegroundIntent(
-    val targetChapterId: CanonicalChapterId,
-    val explicitReleaseId: ChapterReleaseId? = null,
-)
-
-data class ReaderExactRestoration(
-    val blockId: String,
-    val characterOffset: Int,
-    val progressFraction: Float,
-) {
-    init {
-        require(blockId.isNotBlank()) { "Restoration block ID must not be blank." }
-        require(characterOffset >= 0) { "Restoration character offset must not be negative." }
-        require(progressFraction.isFinite() && progressFraction in 0f..1f) {
-            "Restoration progress fraction must be between zero and one."
-        }
-    }
-}
-
-data class ReaderForegroundIdentity(
-    val sessionId: ReaderSessionId,
-    val generationId: ReaderGenerationId,
-    val targetChapterId: CanonicalChapterId,
-)
-
-sealed interface ReaderForegroundResult {
-    val identity: ReaderForegroundIdentity
-
-    data class Committed(
-        override val identity: ReaderForegroundIdentity,
-        val chapterGroup: CanonicalChapterGroup,
-        val release: ChapterRelease,
-        val document: ReaderDocument,
-        val fromLocal: Boolean,
-        val previousChapterId: CanonicalChapterId?,
-        val nextChapterId: CanonicalChapterId?,
-        val restoration: ReaderExactRestoration?,
-    ) : ReaderForegroundResult
-
-    data class Exhausted(
-        override val identity: ReaderForegroundIdentity,
-        val code: String,
-        val retryable: Boolean,
-        val attempts: List<ReaderLoadFailure>,
-    ) : ReaderForegroundResult {
-        init {
-            require(code.isNotBlank()) { "Reader exhaustion code must not be blank." }
-        }
-    }
-
-    data class Superseded(
-        override val identity: ReaderForegroundIdentity,
-    ) : ReaderForegroundResult
-}
-
-internal data class ReaderRouteExecutionContext(
-    val storyId: StoryId,
-    val identity: ReaderExecutionIdentity,
-    val chapterGraphRevision: ReaderChapterGraphRevision,
-    val chapterGraph: ReaderSessionChapterGraph,
-    val preferences: ReaderPreferences,
-    val committedIdentity: ReaderCommittedIdentity?,
-    val explicitReleaseId: ChapterReleaseId?,
-    val knownInvalidLocalFingerprints: Map<ChapterReleaseId, Set<String>> = emptyMap(),
-) {
-    val foregroundIdentity: ReaderForegroundIdentity
-        get() = identity.toForegroundIdentity()
-}
-
-internal fun interface ReaderRouteExecutionDelegate {
-    suspend fun execute(
-        session: ReaderRouteSession,
-        context: ReaderRouteExecutionContext,
-    ): ReaderForegroundResult
-}
-
 class ReaderRouteSession internal constructor(
     val storyId: StoryId,
     val sessionId: ReaderSessionId,
@@ -103,23 +23,10 @@ class ReaderRouteSession internal constructor(
     private val prefetchDelegate: ReaderPrefetchExecutionDelegate? = null,
     private val prefetchScope: CoroutineScope? = null,
 ) {
-    private data class ActiveExecution(
-        val generationId: ReaderGenerationId,
-        val targetChapterId: CanonicalChapterId,
-        val explicitReleaseId: ChapterReleaseId?,
-        val planRevision: ReaderPlanRevision,
-    )
-
-    private data class ActivePlan(
-        val identity: ReaderExecutionIdentity,
-        val winnerReleaseId: ChapterReleaseId,
-        val plannedReleaseIds: Set<ChapterReleaseId>,
-    )
-
     private val stateLock = Any()
     private var nextGenerationValue = 1L
-    private var activeExecution: ActiveExecution? = null
-    private var activePlan: ActivePlan? = null
+    private var activeExecution: ReaderSessionActiveExecution? = null
+    private var activePlan: ReaderSessionActivePlan? = null
     private var latestChapterGraph: ReaderSessionChapterGraph? = null
     private var latestPreferences: ReaderPreferences? = null
     private val firstChapterGraph = CompletableDeferred<Unit>()
@@ -146,7 +53,12 @@ class ReaderRouteSession internal constructor(
             val active = activeExecution
             val hardInvalidation = !isFirstEmission &&
                 active != null &&
-                graphHardInvalidatesLocked(active, candidate)
+                readerGraphHardInvalidates(
+                    active = active,
+                    activeIdentity = identityFor(active),
+                    plan = activePlan,
+                    nextGraph = candidate,
+                )
             latestChapterGraph = candidate
             chapterGraphRevision = ReaderChapterGraphRevision(chapterGraphRevision.value + 1L)
             knownInvalidLocalFingerprints.keys.retainAll(candidate.releaseIds)
@@ -180,7 +92,7 @@ class ReaderRouteSession internal constructor(
         cancelPrefetch()
         val generationId = synchronized(stateLock) {
             val next = ReaderGenerationId(nextGenerationValue++)
-            activeExecution = ActiveExecution(
+            activeExecution = ReaderSessionActiveExecution(
                 generationId = next,
                 targetChapterId = intent.targetChapterId,
                 explicitReleaseId = intent.explicitReleaseId,
@@ -248,14 +160,14 @@ class ReaderRouteSession internal constructor(
         require(attempts.any { it.releaseId == winnerReleaseId }) {
             "Reader winner must be represented in the executable route."
         }
-        val plan = ActivePlan(
+        val plan = ReaderSessionActivePlan(
             identity = context.identity,
             winnerReleaseId = winnerReleaseId,
             plannedReleaseIds = attempts.mapTo(linkedSetOf()) { it.releaseId },
         )
         if (
             context.chapterGraphRevision != chapterGraphRevision &&
-            graphInvalidatesPlanLocked(
+            readerGraphInvalidatesPlan(
                 targetChapterId = context.identity.targetChapterId,
                 plan = plan,
                 nextGraph = checkNotNull(latestChapterGraph),
@@ -398,7 +310,7 @@ class ReaderRouteSession internal constructor(
         }
     }
 
-    private fun buildContext(active: ActiveExecution): ReaderRouteExecutionContext {
+    private fun buildContext(active: ReaderSessionActiveExecution): ReaderRouteExecutionContext {
         val graph = checkNotNull(latestChapterGraph) {
             "Reader route execution requires an initialized chapter graph."
         }
@@ -536,41 +448,6 @@ class ReaderRouteSession internal constructor(
         ) : PrefetchAction
     }
 
-    private fun graphHardInvalidatesLocked(
-        active: ActiveExecution,
-        nextGraph: ReaderSessionChapterGraph,
-    ): Boolean {
-        val target = nextGraph.group(active.targetChapterId)
-        if (
-            target == null ||
-            target.chapter.tombstoned ||
-            target.releases.isEmpty() ||
-            target.releases.none { it.canonicalChapterId == target.chapter.id }
-        ) {
-            return true
-        }
-        val plan = activePlan
-        return plan != null &&
-            plan.identity == identityFor(active) &&
-            graphInvalidatesPlanLocked(active.targetChapterId, plan, nextGraph)
-    }
-
-    private fun graphInvalidatesPlanLocked(
-        targetChapterId: CanonicalChapterId,
-        plan: ActivePlan,
-        nextGraph: ReaderSessionChapterGraph,
-    ): Boolean {
-        val target = nextGraph.group(targetChapterId) ?: return true
-        if (target.chapter.tombstoned || target.releases.isEmpty()) return true
-        val targetReleaseIds = target.releases
-            .asSequence()
-            .filter { it.canonicalChapterId == target.chapter.id }
-            .mapTo(hashSetOf()) { it.id }
-        if (targetReleaseIds.isEmpty()) return true
-        return plan.winnerReleaseId !in targetReleaseIds ||
-            plan.plannedReleaseIds.any { it !in targetReleaseIds }
-    }
-
     private fun hardInvalidateLocked() {
         val active = activeExecution ?: return
         val revised = active.copy(
@@ -588,7 +465,7 @@ class ReaderRouteSession internal constructor(
             active.targetChapterId == identity.targetChapterId
     }
 
-    private fun identityFor(active: ActiveExecution) = ReaderExecutionIdentity(
+    private fun identityFor(active: ReaderSessionActiveExecution) = ReaderExecutionIdentity(
         sessionId = sessionId,
         generationId = active.generationId,
         planRevision = active.planRevision,
@@ -611,9 +488,3 @@ class ReaderRouteSession internal constructor(
         data class Finished(val result: ReaderForegroundResult) : CompletionDisposition
     }
 }
-
-private fun ReaderExecutionIdentity.toForegroundIdentity() = ReaderForegroundIdentity(
-    sessionId = sessionId,
-    generationId = generationId,
-    targetChapterId = targetChapterId,
-)

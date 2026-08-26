@@ -106,7 +106,7 @@ grep -q 'delay(READER_PROGRESS_SAMPLE_MILLIS)' "$reader_progress" || fail "Reade
 ! grep -q 'snapshotFlow { listState.viewport' "$reader_progress" || fail "Reader still collects viewport changes for every scroll frame"
 grep -q 'rememberReaderTextStyles' "$reader_styles" || fail "Reader scaled text styles are still rebuilt per block"
 grep -q 'restoredProgressFraction' "$reader_state" || fail "Reader UI state does not preserve the restored progress fraction"
-grep -q 'restoredProgressFraction = restoredForRelease' "$reader_vm" || fail "Reader ViewModel does not expose the restored progress fraction"
+grep -q 'restoredProgressFraction = result.restoration?.progressFraction ?: 0f' "$reader_vm" || fail "Reader ViewModel does not expose the restored progress fraction"
 grep -q 'ReaderProgressUiState(fractionToPercent(state.restoredProgressFraction))' "$reader_screen" || fail "Reader chrome does not initialize progress from restored state"
 grep -q 'captureBackdrop = false' "$reader_screen" || fail "Reader production path still captures the expensive backdrop during scrolling"
 ! grep -q 'visibleItemsInfo.firstOrNull()?.index' "$reader_progress" || fail "Reader tracking still emits an initial pre-restoration viewport update"

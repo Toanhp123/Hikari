@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-class ReaderRouteEngineCompatibilityTest {
+class ReaderRouteEngineContractTest {
     private val engine = ReaderRouteEngine.v1()
 
     @Test

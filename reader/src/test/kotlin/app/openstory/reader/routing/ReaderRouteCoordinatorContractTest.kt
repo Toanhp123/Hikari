@@ -28,7 +28,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 
-class ReaderRouteCoordinatorCompatibilityTest {
+class ReaderRouteCoordinatorContractTest {
     @Test
     fun committedResultCarriesRealTargetAndSafeExactRestoration() = runTest {
         val target = CanonicalChapterId("chapter-b")

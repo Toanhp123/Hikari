@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 reader_sanitizer="$root/reader/src/main/kotlin/app/openstory/reader/document/ReaderDocumentSanitizer.kt"
-reader_repository="$root/reader/src/main/kotlin/app/openstory/reader/content/ReaderDocumentRepository.kt"
+reader_executor="$root/reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteExecutor.kt"
 chapter_engine="$root/chapters/src/main/kotlin/app/openstory/chapters/aggregation/ChapterAggregationEngine.kt"
 fixture_manifest="$root/app/src/benchmarkRelease/AndroidManifest.xml"
 fixture_activity="$root/app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt"
@@ -21,8 +21,10 @@ grep -q 'toLowerHex()' "$reader_sanitizer" || fail "reader SHA-256 hex encoding 
 ! grep -q 'sortedWith(compareByDescending<Pair<CanonicalChapter, ChapterMatchScore>>' "$chapter_engine" || \
   fail "chapter candidate selection still sorts every candidate"
 grep -q 'bestCandidate(' "$chapter_engine" || fail "chapter aggregation lacks a single-pass best-candidate path"
-grep -q 'loadCached' "$reader_repository" || fail "reader repository does not try cached content first"
-grep -q 'loadFromSources' "$reader_repository" || fail "reader source enumeration is not lazy behind a cache miss"
+grep -q 'var sourceByPlugin: Map<PluginId, ReaderDocumentSource>? = null' "$reader_executor" || \
+  fail "reader executor does not defer source enumeration behind local attempts"
+grep -q 'sourceByPlugin ?: loadFromSources().also' "$reader_executor" || \
+  fail "reader executor does not enumerate sources lazily on the first remote attempt"
 
 [[ -f "$fixture_manifest" ]] || fail "benchmarkRelease fixture manifest is missing"
 [[ -f "$fixture_activity" ]] || fail "benchmarkRelease fixture activity is missing"

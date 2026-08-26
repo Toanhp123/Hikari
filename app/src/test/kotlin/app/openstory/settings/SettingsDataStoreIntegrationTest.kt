@@ -42,7 +42,7 @@ class SettingsDataStoreIntegrationTest {
 
         val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val firstStore = PreferenceDataStoreFactory.create(
-            migrations = listOf(LegacySettingsDataMigration(legacy, defaults)),
+            migrations = listOf(SharedPreferencesSettingsMigration(legacy, defaults)),
             scope = firstScope,
             produceFile = { file },
         )
@@ -63,7 +63,7 @@ class SettingsDataStoreIntegrationTest {
 
         val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val secondStore = PreferenceDataStoreFactory.create(
-            migrations = listOf(LegacySettingsDataMigration(legacy, defaults)),
+            migrations = listOf(SharedPreferencesSettingsMigration(legacy, defaults)),
             scope = secondScope,
             produceFile = { file },
         )
