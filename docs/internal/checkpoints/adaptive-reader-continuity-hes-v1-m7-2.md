@@ -2,7 +2,7 @@
 
 Date: 2026-08-26
 Status: **OPEN / REMEDIATION IN PROGRESS**
-Updated: 2026-08-26 after Task 8; implementation paused before Task 9 by developer request.
+Updated: 2026-08-26 after Task 9; implementation paused before Task 10 by developer request.
 
 Reason for reopening:
 
@@ -19,7 +19,7 @@ Historical M7/M7.1 command output remains historical evidence and is not rewritt
 
 No final M7.2 completion or HES-v1 re-freeze is claimed while remediation is in progress.
 
-## Progress Through Task 8
+## Progress Through Task 9
 
 | Task | Result | Commit |
 |---|---|---|
@@ -31,7 +31,8 @@ No final M7.2 completion or HES-v1 re-freeze is claimed while remediation is in 
 | 6 - Downloads multi-namespace corruption semantics | complete | `a5a5e8b` |
 | 7 - typed corruption through Reader execution | complete | `aa2ff90` |
 | 8 - integer-only health percentile and static guard | complete | `3660f62` |
-| 9-12 - indexed graph, L7 completion, final gates/re-freeze | not started in this execution segment | - |
+| 9 - immutable indexed session chapter graph | complete | `c9eefec` |
+| 10-12 - graph migration, L7 completion, final gates/re-freeze | not started in this execution segment | - |
 
 ## Implemented Invariants So Far
 
@@ -44,9 +45,10 @@ No final M7.2 completion or HES-v1 re-freeze is claimed while remediation is in 
 - local `Missing` and confirmed fingerprint/decode corruption remain distinct through Downloads and Reader;
 - a valid automatic-cache copy wins over a corrupt explicit-download copy of the same locator;
 - confirmed corruption remains known-invalid for later session snapshots while current bounded recovery continues;
-- `:reader:engine` percentile calculation is integer-only and production Float/Double usage is rejected.
+- `:reader:engine` percentile calculation is integer-only and production Float/Double usage is rejected;
+- `ReaderSessionChapterGraph` owns one defensive chapter-group copy with first-occurrence chapter/release indexes and existing story-ownership validation.
 
-## Fresh Commands Recorded Through Task 8
+## Fresh Commands Recorded Through Task 9
 
 | Command | Result | Notes |
 |---|---|---|
@@ -60,8 +62,11 @@ No final M7.2 completion or HES-v1 re-freeze is claimed while remediation is in 
 | `C:\\Program Files\\Git\\bin\\bash.exe scripts/tests/verify-package-boundaries-test.sh` | **PASS** | Git Bash used explicitly because Windows `bash.exe` resolved to an unavailable WSL runtime |
 | `C:\\Program Files\\Git\\bin\\bash.exe scripts/verify-package-boundaries.sh` | **PASS** | `Package boundary policy verified.` |
 | `rg` Float/Double and floating-literal scan over `reader/engine/src/main/**/*.kt` | **PASS** | no matches |
+| `.\gradlew.bat :reader:testDebugUnitTest --tests '*ReaderRouteSessionStateTest*' --no-daemon` | **PASS** | Task 9 focused graph gate; `BUILD SUCCESSFUL in 16s` |
+| `.\gradlew.bat :reader:testDebugUnitTest --no-daemon` | **PASS** | Task 9 Reader regression gate; `BUILD SUCCESSFUL in 9s` |
 
 ## Pause Boundary
 
-The next implementation unit is Task 9, `ReaderSessionChapterGraph`. Tasks 9-12, the I01-I22 final
+The next implementation unit is Task 10, migration of session/planning/assembler/prefetch ownership to
+`ReaderSessionChapterGraph`. Tasks 10-12, the I01-I22 final
 evidence table, canonical `verify-fast.sh` / `verify.sh`, and HES-v1 re-freeze remain outstanding.
