@@ -77,6 +77,22 @@ class ReaderRoutingPolicyTest {
     }
 
     @Test
+    fun zeroRemoteAccessWeightFailsFast() {
+        assertFailsWith<IllegalArgumentException> {
+            ReaderRoutingWeights(
+                language = BasisPoints(10_000),
+                continuity = BasisPoints(0),
+                health = BasisPoints(0),
+                reliability = BasisPoints(0),
+                completeness = BasisPoints(0),
+                latency = BasisPoints(0),
+                freshness = BasisPoints(0),
+                cacheUtility = BasisPoints(0),
+            )
+        }
+    }
+
+    @Test
     fun invalidWeightsAndBudgetsFailFast() {
         assertFailsWith<IllegalArgumentException> {
             ReaderRoutingWeights(language = BasisPoints(2_499))

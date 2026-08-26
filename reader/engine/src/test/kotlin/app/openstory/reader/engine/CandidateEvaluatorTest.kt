@@ -7,6 +7,7 @@ import app.openstory.reader.engine.internal.CandidateEvaluator
 import app.openstory.reader.engine.internal.EligibilityEvaluator
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class CandidateEvaluatorTest {
     private val eligibility = EligibilityEvaluator()
@@ -56,6 +57,29 @@ class CandidateEvaluatorTest {
             listOf(candidate("local", "source", local = CandidateLocalAccess.AvailableUnverified("fp"))),
         ).single()
         assertEquals(6_000, evaluated.preferredAccessFeatures.cacheUtility.value)
+    }
+
+    @Test
+    fun minimumPositiveRemoteAccessWeightIsSafe() {
+        val policy = ReaderRoutingPolicy.v1(
+            weights = ReaderRoutingWeights(
+                language = BasisPoints(9_999),
+                continuity = BasisPoints(0),
+                health = BasisPoints(1),
+                reliability = BasisPoints(0),
+                completeness = BasisPoints(0),
+                latency = BasisPoints(0),
+                freshness = BasisPoints(0),
+                cacheUtility = BasisPoints(0),
+            ),
+        )
+
+        val evaluated = evaluate(
+            listOf(candidate("minimum-access-weight", "source")),
+            policy = policy,
+        ).single()
+
+        assertTrue(checkNotNull(evaluated.remoteAccessScore).value in 0..10_000)
     }
 
     @Test

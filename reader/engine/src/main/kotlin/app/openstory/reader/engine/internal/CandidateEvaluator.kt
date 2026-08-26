@@ -191,13 +191,11 @@ internal class CandidateEvaluator {
         policy: ReaderRoutingPolicy,
     ): BasisPoints {
         val weights = policy.weights
-        val totalAccessWeight = weights.health.value + weights.reliability.value +
-            weights.latency.value + weights.cacheUtility.value
         val sum = access.health.value.toLong() * weights.health.value +
             access.reliability.value.toLong() * weights.reliability.value +
             access.latency.value.toLong() * weights.latency.value +
             access.cacheUtility.value.toLong() * weights.cacheUtility.value
-        return BasisPoints((sum / totalAccessWeight).toInt())
+        return BasisPoints((sum / weights.totalRemoteAccessWeight).toInt())
     }
 
     private companion object {

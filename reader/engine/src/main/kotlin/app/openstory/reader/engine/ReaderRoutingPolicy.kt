@@ -44,9 +44,15 @@ data class ReaderRoutingWeights(
         cacheUtility,
     ).sumOf(BasisPoints::value)
 
+    internal val totalRemoteAccessWeight: Int =
+        health.value + reliability.value + latency.value + cacheUtility.value
+
     init {
         require(total == ReaderRoutingDefaults.REQUIRED_WEIGHT_TOTAL) {
             "Reader routing weights must total exactly 10_000 basis points: $total"
+        }
+        require(totalRemoteAccessWeight > 0) {
+            "Reader routing REMOTE access weights must contain at least one positive weight."
         }
     }
 }
