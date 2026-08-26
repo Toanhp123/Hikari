@@ -9,6 +9,7 @@ import app.openstory.common.id.StoryId
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
+import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
@@ -27,6 +28,20 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 class ReaderRouteExecutorAdaptiveTest {
+    @Test
+    fun nullableStoreReadGetsTypedCompatibilityProjection() = runTest {
+        val hitStore = AdaptiveStore(exact = mapOf("release" to document("expected")))
+        val missingStore = AdaptiveStore()
+
+        val hit = assertIs<ReaderDocumentReadResult.Hit>(
+            hitStore.readResult(ChapterReleaseId("release"), "expected"),
+        )
+        assertEquals("expected", hit.document.fingerprint)
+        assertIs<ReaderDocumentReadResult.Missing>(
+            missingStore.readResult(ChapterReleaseId("release"), "expected"),
+        )
+    }
+
     @Test
     fun exactLocalAttemptWinsWithoutEnumeratingRemoteSources() = runTest {
         val store = AdaptiveStore(exact = mapOf("selected" to document("expected")))
