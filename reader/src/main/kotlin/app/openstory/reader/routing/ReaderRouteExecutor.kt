@@ -76,26 +76,7 @@ internal class ReaderRouteExecutor(
         onAttempt: suspend (index: Int, attempt: app.openstory.reader.engine.RouteAttempt) -> Unit = { _, _ -> },
         remotePriority: ReaderRemoteWorkPriority = ReaderRemoteWorkPriority.FOREGROUND,
     ): ReaderLoadResult {
-        require(attempts.size <= MAX_TOTAL_FOREGROUND_ATTEMPTS) {
-            "Reader adaptive route exceeds HES-v1 total attempt ceiling: ${attempts.size}"
-        }
-        require(attempts.count { it.accessMode == AccessMode.REMOTE } <= MAX_FOREGROUND_REMOTE_ATTEMPTS) {
-            "Reader adaptive route exceeds HES-v1 REMOTE attempt ceiling."
-        }
-        require(attempts.map { it.attemptId }.distinct().size == attempts.size) {
-            "Reader adaptive route attempt IDs must be unique."
-        }
-        require(
-            attempts.map { Triple(it.releaseId, it.accessMode, it.localFingerprint) }.distinct().size == attempts.size,
-        ) { "Reader adaptive route cannot execute the same release/access/locator twice." }
-        if (attempts.isNotEmpty()) {
-            require(attempts.first().role == app.openstory.reader.engine.AttemptRole.PRIMARY) {
-                "Reader adaptive route first attempt must be PRIMARY."
-            }
-            require(attempts.drop(1).all { it.role == app.openstory.reader.engine.AttemptRole.FALLBACK }) {
-                "Sequential adaptive execution accepts PRIMARY followed only by FALLBACK attempts."
-            }
-        }
+        ReaderRouteRuntimeGuard.validateSequential(attempts)
 
         val failures = mutableListOf<ReaderLoadFailure>()
         val suppressedRemoteSources = mutableSetOf<PluginId>()
@@ -399,7 +380,5 @@ internal class ReaderRouteExecutor(
 
     private companion object {
         const val NANOS_PER_MILLI = 1_000_000L
-        const val MAX_FOREGROUND_REMOTE_ATTEMPTS = 4
-        const val MAX_TOTAL_FOREGROUND_ATTEMPTS = 7
     }
 }

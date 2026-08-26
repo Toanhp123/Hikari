@@ -91,17 +91,7 @@ internal class ReaderCompetitiveExecution(
         recoveryChain: List<RouteAttempt>,
     ): ReaderRouteExecutionOutcome = coroutineScope {
         val hedge = (hedgeDirective as? HedgeDirective.Launch)?.attempt
-        val plannedAttempts = buildList {
-            add(primary)
-            hedge?.let(::add)
-            addAll(recoveryChain)
-        }
-        require(plannedAttempts.count { it.accessMode == AccessMode.REMOTE } <= MAX_FOREGROUND_REMOTE_ATTEMPTS) {
-            "Reader competitive route exceeds HES-v1 REMOTE attempt ceiling."
-        }
-        require(plannedAttempts.map { it.attemptId }.distinct().size == plannedAttempts.size) {
-            "Reader competitive route attempt IDs must be unique."
-        }
+        ReaderRouteRuntimeGuard.validateCompetitive(primary, hedge, recoveryChain)
         val registry = CompetitiveCompletionRegistry()
         val terminalEvents = Channel<TerminalEvent>(Channel.UNLIMITED)
         val ownershipByAttempt = mutableMapOf<String, ReaderAttemptOwnership>()
@@ -231,9 +221,5 @@ internal class ReaderCompetitiveExecution(
             val outcome: ReaderAttemptOutcome,
         ) : TerminalEvent
         data class Cancelled(val attempt: RouteAttempt) : TerminalEvent
-    }
-
-    private companion object {
-        const val MAX_FOREGROUND_REMOTE_ATTEMPTS = 4
     }
 }
