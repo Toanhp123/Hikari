@@ -1,25 +1,30 @@
 # Adaptive Reader Continuity / HES-v1 - M7.2 Constitutional Hardening Checkpoint
 
 Date: 2026-08-26
-Status: **OPEN / REMEDIATION IN PROGRESS**
-Updated: 2026-08-26 after Task 9; implementation paused before Task 10 by developer request.
+Status: **VERIFIED / CLOSED**
+Result: **HES-v1 RE-FROZEN**
 
-Reason for reopening:
+M7.2 reopened the HES-v1 freeze prospectively to repair runtime and verification
+conformance gaps. Historical M7/M7.1 command output remains historical evidence and
+is not rewritten by this checkpoint.
 
-- process-wide foreground Reader REMOTE ceiling `<= 2` is not enforced;
-- competitive runtime validation does not enforce total attempts `<= 7`;
-- production local-store corruption can collapse into `MissingBlob`;
-- pure-engine health percentile uses floating-point arithmetic;
-- Task 30/L7 final evidence is narrower than the parent plan;
-- session graph/process-shared ownership cleanup is required before re-freeze.
+## Closure Scope
 
-Historical M7/M7.1 command output remains historical evidence and is not rewritten.
+M7.2 closes the following remediation boundary:
 
-## Fresh M7.2 Evidence
+- exact foreground route and REMOTE-attempt runtime ceilings;
+- process-wide foreground, prefetch, per-source, and HALF_OPEN ownership limits;
+- explicit process-shared health and limiter construction;
+- typed local missing/corruption semantics through Reader and Downloads;
+- integer-only pure-engine health percentile math;
+- one immutable indexed chapter graph snapshot per accepted session emission;
+- bounded deterministic I01-I22 concurrent-model evidence;
+- final architecture, policy, lint, assembly, and repository verification gates.
 
-No final M7.2 completion or HES-v1 re-freeze is claimed while remediation is in progress.
+The final tree keeps HES-v1 public versions unchanged, keeps Room at schema 11,
+and keeps the graph at 17 production modules plus `:benchmark`.
 
-## Progress Through Task 9
+## Task Progress
 
 | Task | Result | Commit |
 |---|---|---|
@@ -32,41 +37,85 @@ No final M7.2 completion or HES-v1 re-freeze is claimed while remediation is in 
 | 7 - typed corruption through Reader execution | complete | `aa2ff90` |
 | 8 - integer-only health percentile and static guard | complete | `3660f62` |
 | 9 - immutable indexed session chapter graph | complete | `c9eefec` |
-| 10-12 - graph migration, L7 completion, final gates/re-freeze | not started in this execution segment | - |
+| 10 - indexed graph migration through session/planning/assembler/prefetch | complete | `c7c33dd` |
+| 11 - bounded L7 concurrency evidence | complete | `c7c33dd` |
+| late final-gate defect repairs | complete | `c88f447` |
+| 12 - final matrix, contradiction audit, and re-freeze | complete | this closure commit |
 
-## Implemented Invariants So Far
+## Final Invariant-to-Test Evidence
 
-- one Reader runtime ceiling owner and one shared sequential/competitive route guard;
-- total foreground attempts `<= 7` and foreground REMOTE attempts `<= 4` are checked before effects;
-- foreground Reader REMOTE concurrency is `<= 2` process-wide;
-- prefetch Reader REMOTE concurrency remains `<= 1` process-wide;
-- Reader REMOTE concurrency remains `<= 1` per source, with same-source foreground preemption;
-- coordinator/executor construction requires explicit process-shared health/limiter owners;
-- local `Missing` and confirmed fingerprint/decode corruption remain distinct through Downloads and Reader;
-- a valid automatic-cache copy wins over a corrupt explicit-download copy of the same locator;
-- confirmed corruption remains known-invalid for later session snapshots while current bounded recovery continues;
-- `:reader:engine` percentile calculation is integer-only and production Float/Double usage is rejected;
-- `ReaderSessionChapterGraph` owns one defensive chapter-group copy with first-occurrence chapter/release indexes and existing story-ownership validation.
+All listed owners ran through fresh final-tree Reader, Feature Reader, or Downloads
+commands recorded below.
 
-## Fresh Commands Recorded Through Task 9
+| ID | Invariant | Exact test owner | Result |
+|---|---|---|---|
+| I01 | visible commits per generation `<= 1` | `ReaderCoordinatorModelTest.new user intent supersedes an older completion without changing committed state`; `ReaderCoordinatorModelTest.hard invalidation rejects stale plan completion and commits only the revised plan` | **PASS** |
+| I02 | stale generation never commits | `ReaderCoordinatorModelTest.staleGenerationAndPlanRevisionCannotCommit` | **PASS** |
+| I03 | stale plan revision never commits | `ReaderCoordinatorModelTest.staleGenerationAndPlanRevisionCannotCommit` | **PASS** |
+| I04 | committed saved identity never changes before valid commit | `ReaderViewModelContinuityTest.openingNextChapterKeepsCommittedDocumentSavedIdentityAndProgressOwnerUntilCommit`; `ReaderViewModelContinuityTest.selectingReleaseDoesNotPersistOrReplaceCommittedContentUntilTheSelectionCommits` | **PASS** |
+| I05 | navigation cancellation never lowers reliability | `ReaderSourceHealthRegistryTest.navigationHedgeAndPrefetchCancellationDoNotPenalizeProcessHealth`; `ReaderCompetitiveExecutionTest.navigation cancellation blocks late success from health and cache effects` | **PASS** |
+| I06 | hedge-loser cancellation never lowers reliability | `ReaderSourceHealthRegistryTest.navigationHedgeAndPrefetchCancellationDoNotPenalizeProcessHealth`; `ReaderCompetitiveExecutionTest.hedge winner cancellation does not penalize primary health` | **PASS** |
+| I07 | prefetch-preempt cancellation never lowers reliability | `ReaderSourceHealthRegistryTest.navigationHedgeAndPrefetchCancellationDoNotPenalizeProcessHealth`; `ReaderSourceExecutionLimiterTest.foregroundPreemptsActivePrefetchWithTypedNonPenalizingCancellation` | **PASS** |
+| I08 | late normal success while OPEN never closes the circuit | `ReaderSourceHealthRegistryTest.lateNormalRemoteSuccessWhileOpenCannotCloseCircuit` | **PASS** |
+| I09 | HALF_OPEN probe ownership is unique | `ReaderSourceExecutionLimiterTest.twoSessionsSharingLimiterAllowOnlyOneHalfOpenProbeLease` | **PASS** |
+| I10 | ordinary fallbacks remain sequential outside one primary/hedge pair | `ReaderCompetitiveExecutionTest.sequential recovery waits until both competitive attempts fail` | **PASS** |
+| I11 | foreground Reader REMOTE concurrency `<= 2` process-wide | `ReaderSourceExecutionLimiterTest.atMostTwoForegroundRemoteAttemptsAreActiveProcessWide`; `ReaderSourceExecutionLimiterTest.twoLogicalSessionsAcrossFourSourcesStayWithinProcessAndSourceCeilings` | **PASS** |
+| I12 | foreground Reader REMOTE planned/executed total `<= 4` | `ReaderCompetitiveExecutionTest.foreground competition stays at two concurrent and four total remote attempts`; `ReaderRouteRuntimeGuardTest.competitiveRejectsMoreThanFourRemoteAttempts` | **PASS** |
+| I13 | Reader REMOTE per-source lane `<= 1` | `ReaderSourceExecutionLimiterTest.onlyOneReaderRemoteAttemptPerSourceIsActiveAcrossCallers`; `ReaderSourceExecutionLimiterTest.twoLogicalSessionsAcrossFourSourcesStayWithinProcessAndSourceCeilings` | **PASS** |
+| I14 | hard invalidation increments plan revision without incrementing generation | `ReaderCoordinatorModelTest.hardInvalidationReplansWithoutGenerationIncrement` | **PASS** |
+| I15 | every new foreground user intent increments generation | `ReaderCoordinatorModelTest.navigationSelectionAndRetryEachStartNewGeneration` | **PASS** |
+| I16 | soft graph update does not revoke a still-valid plan | `ReaderCoordinatorModelTest.softGraphAdditionDoesNotRevokeActivePlan` | **PASS** |
+| I17 | two sessions share health but not generation/plan/commit state | `ReaderCoordinatorModelTest.twoSessionsShareHealthButKeepGenerationPlanAndCommitStateIsolated`; `ReaderRuntimeStressTest.twoSessionsKeepExecutionStateIndependentWhileSharingProcessHealthAndLimiterUnderLoad` | **PASS** |
+| I18 | bounded exhaustion produces one semantic UI failure transition | `ReaderViewModelContinuityTest.boundedAttemptExhaustionProducesOneVisibleFailureTransitionForGeneration` | **PASS** |
+| I19 | local missing does not create known-invalid state | `ReaderRouteReplanTest.typedMissingDoesNotBecomeKnownInvalidForLaterSnapshot` | **PASS** |
+| I20 | confirmed corruption creates known-invalid state only when no valid exact copy survives | `ReaderRouteReplanTest.confirmedTypedCorruptionIsExcludedFromALaterSnapshot`; `DownloadAwareReaderDocumentStoreTest.valid cache survives corrupt explicit copy` | **PASS** |
+| I21 | cancelled waiters leak no limiter permit or source lane | `ReaderSourceExecutionLimiterTest.cancellingForegroundWaitingForGlobalPermitDoesNotLeakItsSourceLane`; `ReaderSourceExecutionLimiterTest.foregroundPreemptsSameSourcePrefetchWaitingForGlobalPrefetchPermit` | **PASS** |
+| I22 | one final graph context is reused within one graph revision | `ReaderRouteSessionStateTest.foregroundAndPrefetchReuseSameChapterGraphForOneRevision`; `ReaderRouteSessionStateTest.hardReplanReusesSameChapterGraphObjectAndEqualEmissionKeepsRevision` | **PASS** |
 
-| Command | Result | Notes |
+## Fresh M7.2 Final-Tree Commands
+
+| Command | Result | Fresh evidence |
 |---|---|---|
-| `.\\gradlew.bat :reader:engine:test :reader:testDebugUnitTest :downloads:testDebugUnitTest :feature:reader:testDebugUnitTest --no-daemon` | **PASS** | pre-remediation focused baseline; `BUILD SUCCESSFUL in 26s` |
-| `.\\gradlew.bat :reader:testDebugUnitTest --tests '*ReaderRouteRuntimeGuardTest*' --tests '*ReaderRouteExecutorAdaptiveTest*' --tests '*ReaderCompetitiveExecutionTest*' --no-daemon` | **PASS** | Task 2 focused gate; `BUILD SUCCESSFUL in 40s` |
-| `.\\gradlew.bat :reader:testDebugUnitTest --tests '*ReaderSourceExecutionLimiterTest*' --tests '*ReaderRuntimeStressTest*' --no-daemon` | **PASS** | Task 3 focused gate; `BUILD SUCCESSFUL in 32s` |
-| `.\\gradlew.bat :reader:testDebugUnitTest :feature:reader:testDebugUnitTest :app:compileDebugKotlin --no-daemon` | **PASS** | Task 4 shared-owner gate; `BUILD SUCCESSFUL in 39s` |
-| `.\\gradlew.bat :reader:testDebugUnitTest --tests '*ReaderRouteExecutorAdaptiveTest*' --tests '*ReaderRouteReplanTest*' --no-daemon` | **PASS** | Task 7 typed corruption/replan gate; `BUILD SUCCESSFUL in 27s` |
-| `.\\gradlew.bat :downloads:testDebugUnitTest --tests '*DownloadAwareReaderDocumentStoreTest*' --tests '*DownloadAwareReaderCacheFactsTest*' --no-daemon` | **PASS** | Task 6 typed store/cache facts gate; `BUILD SUCCESSFUL in 29s` |
-| `.\\gradlew.bat :reader:engine:test :build-logic:test --tests '*ModuleGraphTest*' --tests '*ModuleBoundaryVerifierTest*' --no-daemon` | **PASS** | Task 8 pure/architecture gate; `BUILD SUCCESSFUL in 30s` |
-| `C:\\Program Files\\Git\\bin\\bash.exe scripts/tests/verify-package-boundaries-test.sh` | **PASS** | Git Bash used explicitly because Windows `bash.exe` resolved to an unavailable WSL runtime |
-| `C:\\Program Files\\Git\\bin\\bash.exe scripts/verify-package-boundaries.sh` | **PASS** | `Package boundary policy verified.` |
-| `rg` Float/Double and floating-literal scan over `reader/engine/src/main/**/*.kt` | **PASS** | no matches |
-| `.\gradlew.bat :reader:testDebugUnitTest --tests '*ReaderRouteSessionStateTest*' --no-daemon` | **PASS** | Task 9 focused graph gate; `BUILD SUCCESSFUL in 16s` |
-| `.\gradlew.bat :reader:testDebugUnitTest --no-daemon` | **PASS** | Task 9 Reader regression gate; `BUILD SUCCESSFUL in 9s` |
+| `.\gradlew.bat :reader:engine:test --no-daemon` | **PASS** | `BUILD SUCCESSFUL in 8s` |
+| `.\gradlew.bat :reader:testDebugUnitTest --no-daemon` | **PASS** | `BUILD SUCCESSFUL in 11s` |
+| `.\gradlew.bat :downloads:testDebugUnitTest :feature:reader:testDebugUnitTest :app:testDebugUnitTest :app:compileDebugKotlin --no-daemon` | **PASS** | `BUILD SUCCESSFUL in 1m 2s` |
+| `.\gradlew.bat :build-logic:test verifyArchitecture --no-daemon` | **PASS** | `BUILD SUCCESSFUL in 23s` |
+| Git Bash package-boundary mutation test and verifier | **PASS** | both scripts reported policy verified |
+| Git Bash current-architecture mutation test and verifier | **PASS** | 17 production modules, 1 android-test module, Room schemas 1..11 |
+| `scripts/verify-fast.sh` through native Git Bash | **PASS** | `BUILD SUCCESSFUL in 33s`; 388 actionable tasks; Room schema export stable |
+| `scripts/verify.sh` through native Git Bash | **PASS** | `BUILD SUCCESSFUL in 1m 58s`; 739 actionable tasks; Room schema export stable |
+| Task 12 negated structural source scans | **PASS** | no engine floating point, no private owner defaults, no duplicated runtime constants, no graph hot-path copies |
+| `scripts/verify-room-schema-stability.sh` through native Git Bash | **PASS** | schema digest `0c5aced22ed5f88395b422cc4171139e9c9081fbdb266893b37239f587b5fac0` |
 
-## Pause Boundary
+No Task 12 blocking command was skipped or replaced with historical output.
 
-The next implementation unit is Task 10, migration of session/planning/assembler/prefetch ownership to
-`ReaderSessionChapterGraph`. Tasks 10-12, the I01-I22 final
-evidence table, canonical `verify-fast.sh` / `verify.sh`, and HES-v1 re-freeze remain outstanding.
+## Explicit Constitutional Assertions
+
+- current architecture verifier reports 17 production modules and 1 android-test module;
+- schema exports are contiguous from 1 through 11;
+- `OpenStoryDatabase` remains version 11;
+- `RoomMigrations.MIGRATION_10_11` remains registered;
+- no `MIGRATION_11_12` exists;
+- `:reader:engine` uses the JVM convention plugin and its only production project dependency is `:core:common`;
+- `:reader` consumes `:reader:engine` with `implementation`, never `api`;
+- `HesContractVersion.HES_V1`, `ReaderRoutingAlgorithmVersion.READER_ROUTING_V1`, `ReaderPolicyVersion.READER_POLICY_V1`, and `HealthPolicyVersion.HEALTH_POLICY_V1` remain unchanged.
+
+## Contradiction and Diff Audit
+
+Final verification exposed and repaired real stale-tree defects before closure:
+
+- Reader source enumeration was eager even when an exact LOCAL attempt won;
+- architecture/performance/roadmap guards referenced retired owners or stale schema/task counts;
+- Wave 10 lifecycle wording contradicted its authoritative closed checkpoint;
+- behavior-preserving source filenames violated current source-layout policy;
+- `ReaderRouteSession.kt` exceeded its source-layout threshold after Task 10;
+- three blocking Detekt findings remained in touched Reader/Downloads code.
+
+The repairs are isolated in `c88f447`; this closure commit is documentation-only.
+Self-review found no remaining behavioral regression or unresolved constitutional conflict.
+
+## Closure Decision
+
+Every blocking Task 12 gate is evidenced on the final tree. M7.2 is therefore
+**VERIFIED/CLOSED**, and **HES-v1 is RE-FROZEN** at the unchanged V1 contract,
+17-production-module, Room-schema-11 boundary.

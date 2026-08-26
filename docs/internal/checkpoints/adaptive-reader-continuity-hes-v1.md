@@ -1,12 +1,13 @@
 # Adaptive Reader Continuity / HES-v1 Final Checkpoint
 
 Date: 2026-08-25
-Updated: 2026-08-26 (M7.2 remediation reopen)
+Updated: 2026-08-26 (M7.2 constitutional hardening closure)
 
-Status: **M0–M7.1 HISTORICALLY VERIFIED/CLOSED; M7.2 OPEN; HES-v1 FREEZE REOPENED FOR REMEDIATION**
+Status: **M0–M7.2 VERIFIED/CLOSED; HES-v1 FROZEN**
 
-M7.2 reopens the freeze prospectively to repair runtime and verification conformance gaps. Historical
-M7/M7.1 command output and closure evidence below remain preserved as historical evidence.
+M7.2 repaired the reopened runtime and verification conformance gaps and re-froze HES-v1 from fresh
+final-tree evidence. Historical M7/M7.1 command output and closure evidence below remain preserved as
+historical evidence; the dedicated M7.2 checkpoint is the authority for the remediation matrix.
 
 Follow-up: **WAVE 10 FINAL HOST ACCEPTANCE IS CLOSED; WAVE 11 IS UNBLOCKED**
 
@@ -207,6 +208,21 @@ The command reran unchanged and completed `BUILD SUCCESSFUL in 3m 34s`; this pre
 acceptance contract. The required API 26 and API 37 connected acceptance matrix is developer-confirmed GREEN.
 Therefore **Wave 10 is VERIFIED/CLOSED** and **Wave 11 is unblocked**.
 
+## M7.2 constitutional hardening closure
+
+The post-freeze M7.2 remediation is **VERIFIED/CLOSED**. Fresh final-tree evidence is GREEN for the pure
+engine, Reader effects, Downloads, Feature Reader, app unit/compile, build-logic and architecture gates,
+all four shell constitutional gates, `scripts/verify-fast.sh`, and the canonical `scripts/verify.sh` gate.
+The canonical final gate completed `BUILD SUCCESSFUL in 1m 58s` with 739 actionable tasks and a stable
+Room schema export. Structural scans independently confirm integer-only engine production, explicit
+process owners, one route-limit authority, and no session graph hot-path copies.
+
+The final boundary remains 17 production modules plus `:benchmark`, Room schema 11 with
+`MIGRATION_10_11` and no `MIGRATION_11_12`, exact `:reader:engine -> :core:common`, and
+`implementation(:reader:engine)` visibility. All HES, routing, policy, and health versions remain V1.
+The exact I01-I22 owner matrix and fresh command ledger are recorded in
+`adaptive-reader-continuity-hes-v1-m7-2.md`.
+
 ## Closure decision
 
 M7 Tasks 31–34 are implementation-complete and the required functional, architecture, lint/assembly,
@@ -215,4 +231,7 @@ evidence. The pre-M7 MyAnimeList device-harness defect was repaired test-only an
 developer-confirmed GREEN. Detekt debt is explicitly moved to M7.1 rather than repaired in this HES freeze
 patch.
 
-Therefore **M7 and M7.1 are VERIFIED/CLOSED and HES-v1 is frozen at this boundary**. Standalone Detekt, the original unchanged combined host gate, and the architecture mutation contracts are GREEN. This also closes Wave 10 final acceptance and unblocks Wave 11.
+Therefore **M0-M7.2 are VERIFIED/CLOSED and HES-v1 is frozen at this boundary**. M7.2 supersedes only
+the prospective reopened freeze state; it does not rewrite historical M7/M7.1 evidence. Standalone
+Detekt, both canonical repository verification scripts, the original Wave 10 host gate, and the
+architecture mutation contracts are GREEN. Wave 10 remains verified/closed and Wave 11 remains unblocked.

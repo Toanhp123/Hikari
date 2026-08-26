@@ -7,6 +7,13 @@
 **Supersedes:** the earlier 2026-08-25 Adaptive Reader Continuity/HES-v1 design draft.  
 **Does not supersede:** Wave 10 ownership of settings/auth/background/notifications, `MIGRATION_10_11`, or the Wave 10 acceptance checkpoint.
 
+> Post-freeze note (2026-08-26): M7.2 constitutional hardening is **VERIFIED/CLOSED** and HES-v1 is
+> re-frozen after repairing runtime and verification conformance gaps. See
+> `2026-08-26-adaptive-reader-continuity-hes-v1-m7-2-constitutional-hardening-design.md` and
+> `../plans/2026-08-26-adaptive-reader-continuity-hes-v1-m7-2-constitutional-hardening.md`. Historical
+> milestone evidence remains preserved; final freeze authority follows
+> `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`.
+
 ---
 
 ## 1. Purpose
