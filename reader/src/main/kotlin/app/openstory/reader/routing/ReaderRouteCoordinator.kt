@@ -206,23 +206,27 @@ class ReaderRouteCoordinator(
             hedgeDirective = decision.hedgeDirective,
             recoveryChain = decision.recoveryChain,
         )
-        val completion = execution.completion
-        if (completion != null) {
-            if (!completion.identity.belongsTo(context.identity)) {
-                return ReaderForegroundResult.Superseded(context.foregroundIdentity)
-            }
-            if (!session.markValidating(completion.identity)) {
-                return ReaderForegroundResult.Superseded(context.foregroundIdentity)
-            }
-            return committed(context, prepared.assembled, completion.loaded)
+        return execution.toForegroundResult(session, context, prepared)
+    }
+
+    private fun ReaderRouteExecutionOutcome.toForegroundResult(
+        session: ReaderRouteSession,
+        context: ReaderRouteExecutionContext,
+        prepared: PreparedForegroundRoute,
+    ): ReaderForegroundResult {
+        val validCompletion = completion
+        return when {
+            validCompletion != null &&
+                validCompletion.identity.belongsTo(context.identity) &&
+                session.markValidating(validCompletion.identity) ->
+                committed(context, prepared.assembled, validCompletion.loaded)
+            validCompletion != null || failures.any { !it.identity.belongsTo(context.identity) } ->
+                ReaderForegroundResult.Superseded(context.foregroundIdentity)
+            else -> exhausted(
+                context,
+                failures.map { it.failure.toLoadFailure() },
+            )
         }
-        if (execution.failures.any { !it.identity.belongsTo(context.identity) }) {
-            return ReaderForegroundResult.Superseded(context.foregroundIdentity)
-        }
-        return exhausted(
-            context,
-            execution.failures.map { it.failure.toLoadFailure() },
-        )
     }
 
     private fun unavailableRoute(

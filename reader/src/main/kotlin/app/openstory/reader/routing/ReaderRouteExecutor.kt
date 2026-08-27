@@ -105,7 +105,6 @@ internal class ReaderRouteExecutor(
                 onValidEffect = onValidEffect,
             )
             AccessMode.REMOTE -> executeRemoteAttempt(
-                attempt = attempt,
                 candidate = candidate,
                 sourceByPlugin = sourceByPlugin,
                 attemptKind = attemptKind,
@@ -241,7 +240,6 @@ internal class ReaderRouteExecutor(
     }
 
     private suspend fun executeRemoteAttempt(
-        attempt: app.openstory.reader.engine.RouteAttempt,
         candidate: ChapterRelease,
         sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
         attemptKind: RemoteAttemptKind,
