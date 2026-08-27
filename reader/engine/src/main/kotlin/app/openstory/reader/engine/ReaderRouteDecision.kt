@@ -75,13 +75,6 @@ enum class DecisionReason {
     NO_ELIGIBLE_CANDIDATE,
 }
 
-enum class AccessReason {
-    LOCAL_PREFERRED,
-    REMOTE_PREFERRED,
-    SAME_RELEASE_REMOTE_RECOVERY,
-    RANKED_FALLBACK,
-}
-
 enum class RejectionCode {
     LOCAL_COPY_KNOWN_INVALID,
     REMOTE_SOURCE_DISABLED_OR_UNAVAILABLE,

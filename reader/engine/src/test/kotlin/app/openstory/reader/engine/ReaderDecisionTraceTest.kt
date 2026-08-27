@@ -49,14 +49,12 @@ class ReaderDecisionTraceTest {
     }
 
     @Test
-    fun decisionReasonAccessReasonRejectionCodeAndDiagnosticNoteStayDistinctTypes() {
+    fun decisionReasonRejectionCodeAndDiagnosticNoteStayDistinctTypes() {
         val decisionReason: DecisionReason = DecisionReason.TOP_RANKED_NO_INCUMBENT
-        val accessReason: AccessReason = AccessReason.REMOTE_PREFERRED
         val rejectionCode: RejectionCode = RejectionCode.NO_USABLE_ACCESS_PATH
         val diagnostic = DiagnosticNote(RejectionCode.EXPLICIT_RELEASE_NOT_PRESENT)
 
         assertEquals(DecisionReason.TOP_RANKED_NO_INCUMBENT, decisionReason)
-        assertEquals(AccessReason.REMOTE_PREFERRED, accessReason)
         assertEquals(RejectionCode.NO_USABLE_ACCESS_PATH, rejectionCode)
         assertEquals(RejectionCode.EXPLICIT_RELEASE_NOT_PRESENT, diagnostic.code)
     }

@@ -17,8 +17,13 @@
 > `2026-08-26-adaptive-reader-continuity-hes-v1-m7-3-conformance-repair.md`; historical M7.2 authority is
 > `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and current M7.3 evidence is
 > `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
+>
+> API-hygiene note (2026-08-27): M7.4 is the active narrow boundary for retiring the unused `AccessReason`
+> exported symbol with no replacement taxonomy and no routing/trace/version/module/schema change. M7.3
+> remains historical accepted evidence. M7.4 stays **IN PROGRESS** until its fresh final-tree closure gates pass.
+> See `2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md`. Current M7.4 evidence is `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`.
 
-**Implementation status (updated 2026-08-27):** **M0–M7.3 VERIFIED/CLOSED; HES-v1 RE-FROZEN; WAVE 10 VERIFIED/CLOSED.** M7.2 remains accepted historical evidence. M7.3 repaired the four scoped conformance defects: fail-fast positive REMOTE access-weight denominator, self-identifying foreground runtime outcomes consumed by stale-result gates, valid-completion timestamps captured after validation with transport latency kept separate and equal timestamps preserved for deterministic tie-breaking, and governance reconciliation. Fresh engine/Reader/downstream tests, architecture gates, package/current-architecture mutation contracts, `verify-fast.sh`, `verify.sh`, Room schema stability, and instrumentation compilation all passed on the final tree. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`; HES/public policy version constants remain unchanged. Deferred API hygiene for `AccessReason` remains intentionally unresolved.
+**Implementation status (updated 2026-08-27):** **M0–M7.3 VERIFIED/CLOSED historically; M7.4 IN PROGRESS; HES-v1 FREEZE REOPENED ONLY FOR API HYGIENE; WAVE 10 VERIFIED/CLOSED.** M7.2/M7.3 remain accepted historical evidence. M7.4 retires the unused `AccessReason` exported symbol rather than wiring a redundant/incomplete reason taxonomy into the trace. The implementation changes no routing behavior, `ReaderDecisionTrace` shape, HES/policy version constant, module graph, or Room schema. Fresh M7.4 final-tree host evidence is still required before re-freeze.
 
 ## Global Constraints
 
@@ -523,7 +528,7 @@ git add reader/engine/src
 **Interfaces:**
 - Produces: `RoutingCandidate`, `CandidateRemoteAccess`, `CandidateLocalAccess`, `ReadingContinuity`, `SourceOperation.READ_DOCUMENT`, `SourceOperationKey`, `CircuitState`, `SourceHealthState`, `SourceHealthSnapshot`, `SourceHealthOrigin`, `ReaderRoutingSnapshot`.
 - Produces the public reducer contract exactly as `advance(previous, nowEpochMillis, policy)` and `reduce(previous, observation, nowEpochMillis, policy)`; Task 14 supplies the v1 implementation.
-- Produces decision contracts: `RouteAttempt`, `CompetitiveSet`, `HedgeDirective`, `CandidateRejection`, `DecisionReason`, `AccessReason`, `RejectionCode`, `DiagnosticNote`, `ReaderDecisionTrace`, `ReaderRouteDecision`.
+- Produces decision contracts: `RouteAttempt`, `CompetitiveSet`, `HedgeDirective`, `CandidateRejection`, `DecisionReason`, `RejectionCode`, `DiagnosticNote`, `ReaderDecisionTrace`, `ReaderRouteDecision`.
 - Does not yet implement scoring/reducer/execution.
 
 - [ ] **Step 1: Write failing contract tests**
@@ -1221,7 +1226,7 @@ snapshot.planRevision == decision.planRevision == trace.planRevision
 snapshot.chapterGraphRevision == trace.chapterGraphRevision
 health origin changes STARTUP_NEUTRAL -> PROCESS_OBSERVED after observation
 trace enable/filter persistence has no effect on primary/recovery decision
-DecisionReason/AccessReason/RejectionCode/DiagnosticNote remain distinct types
+DecisionReason/RejectionCode/DiagnosticNote remain distinct types; access/recovery topology is represented by immutable route facts
 ```
 
 - [ ] **Step 2: Run focused tests and verify RED**

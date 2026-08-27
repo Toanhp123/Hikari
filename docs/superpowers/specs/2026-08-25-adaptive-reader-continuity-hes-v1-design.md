@@ -16,6 +16,13 @@
 > `../plans/2026-08-26-adaptive-reader-continuity-hes-v1-m7-3-conformance-repair.md`, historical M7.2
 > authority at `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and current
 > M7.3 evidence at `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
+>
+> API-hygiene governance note (2026-08-27): M7.4 reopens the HES-v1 freeze only to retire the unused
+> `AccessReason` exported symbol and reconcile the reason/trace contract documentation. M7.3 remains
+> historical accepted evidence. M7.4 introduces no replacement reason taxonomy and no routing, trace-shape,
+> version, module, or schema change. Until fresh M7.4 final-tree gates are green, M7.4 is **IN PROGRESS**
+> and HES-v1 is not re-frozen from this API-hygiene edit. See
+> `2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md`. Current M7.4 evidence is `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`.
 
 ---
 
@@ -2157,7 +2164,7 @@ ReaderRoutingSnapshot
 ReaderRoutingPolicy
 ReaderRouteDecision
 RoutingCandidate
-routing value/reason/rejection types
+routing value/rejection/diagnostic types referenced by returned decision/trace data
 SourceHealthReducer
 SourceHealthState
 SourceObservation
@@ -2224,13 +2231,18 @@ Trace collections use canonical stable ordering.
 
 Diagnostics are observational only: enabling/disabling/persisting them cannot change the decision.
 
-Reason classes are separated rather than overloaded:
+Reason and diagnostic categories are separated rather than overloaded:
 
 ```text
 DecisionReason
-AccessReason
 RejectionCode
 DiagnosticNote
+```
+
+Access/recovery explanation is structural rather than duplicated in a second reason taxonomy:
+
+```text
+AccessMode + AttemptRole + routeConstruction + stableRanking + HedgeDirective
 ```
 
 Stable final decision reasons include at least:
@@ -2636,7 +2648,7 @@ This section records the contradiction/gap review performed after rebasing the d
 
 **Conflict:** prior reason lists mixed semantic winner explanations (`EXPLICIT...`), access preference (`LOCAL...`), filters (`STRICT_LANGUAGE_FILTER`), and terminal state (`NO_ELIGIBLE...`) in one conceptual enum.
 
-**Resolution:** separate `DecisionReason`, `AccessReason`, `RejectionCode`, and `DiagnosticNote`. Trace remains richer while stable semantics are clearer.
+**Resolution:** keep `DecisionReason`, `RejectionCode`, and `DiagnosticNote` as separate semantic categories. Access/recovery topology is represented directly by `AccessMode`, `AttemptRole`, `routeConstruction`, `stableRanking`, and `HedgeDirective`; M7.4 retires the redundant `AccessReason` taxonomy instead of manufacturing a second explanation layer.
 
 ---
 
