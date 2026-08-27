@@ -3,19 +3,37 @@ package app.openstory.catalog.ui.library
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.library.LibraryStatus
 
+sealed interface LibraryCollectionState {
+    data object Resolving : LibraryCollectionState
+
+    data class Ready(
+        val items: List<LibraryItemUiModel>,
+    ) : LibraryCollectionState
+
+    data class Unavailable(
+        val failure: CatalogUiFailure,
+    ) : LibraryCollectionState
+}
+
+data class LibraryContent(
+    val totalCount: Int,
+    val statusCounts: Map<LibraryStatus, Int>,
+    val collection: LibraryCollectionState,
+)
+
 data class LibraryUiState(
-    val items: List<LibraryItemUiModel> = emptyList(),
-    val totalCount: Int = 0,
-    val statusCounts: Map<LibraryStatus, Int> = emptyMap(),
+    val content: ContentState<LibraryContent> = ContentState.Pending,
     val selectedStatus: LibraryStatus? = null,
     val query: String = "",
     val sort: LibrarySort = LibrarySort.LAST_ACTIVITY,
     val displayMode: LibraryDisplayMode = LibraryDisplayMode.GRID,
     val sourceFilter: LibrarySourceState? = null,
-    val loading: Boolean = true,
+    val observationIssue: CatalogUiFailure? = null,
 )
 
 data class LibraryItemUiModel(
@@ -44,6 +62,7 @@ enum class LibraryDisplayMode {
 }
 
 enum class LibrarySourceState {
+    UNKNOWN,
     SEARCHING,
     LINKED,
     REVIEW,

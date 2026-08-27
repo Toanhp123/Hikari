@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.library.LibraryStatus
 import app.openstory.designsystem.control.HikariInlineAction
 import app.openstory.designsystem.control.HikariFilterChip
@@ -28,19 +29,22 @@ internal fun LibraryFilterSheet(
     onSortSelected: (LibrarySort) -> Unit,
     onResetFilters: () -> Unit,
 ) {
+    val content = (state.content as? ContentState.Ready)?.value
     HikariModalSheet(onDismissRequest = onDismiss) {
         HikariSheetContent(title = "Library filters") {
             FilterSection("Status") {
                 LibraryChip(
                     selected = state.selectedStatus == null,
-                    label = "All ${state.totalCount}",
+                    label = content?.let { "All ${it.totalCount}" } ?: "All",
                     tag = "library-status-all",
                     onClick = { onStatusSelected(null) },
                 )
                 LibraryStatus.entries.forEach { status ->
                     LibraryChip(
                         selected = state.selectedStatus == status,
-                        label = "${status.label()} ${state.statusCounts[status] ?: 0}",
+                        label = content?.statusCounts?.get(status)?.let { count ->
+                            "${status.label()} $count"
+                        } ?: status.label(),
                         tag = "library-status-${status.name.lowercase()}",
                         onClick = { onStatusSelected(status) },
                     )
@@ -139,6 +143,7 @@ internal fun LibraryDisplayMode.label(): String = when (this) {
 }
 
 internal fun LibrarySourceState.label(): String = when (this) {
+    LibrarySourceState.UNKNOWN -> "Source status unavailable"
     LibrarySourceState.SEARCHING -> "Finding sources"
     LibrarySourceState.LINKED -> "Source linked"
     LibrarySourceState.REVIEW -> "Source review needed"

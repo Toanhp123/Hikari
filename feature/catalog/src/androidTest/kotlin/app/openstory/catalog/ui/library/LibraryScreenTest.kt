@@ -3,6 +3,7 @@ package app.openstory.catalog.ui.library
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -19,6 +20,8 @@ import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.library.LibraryStatus
@@ -105,7 +108,7 @@ class LibraryScreenTest {
 
     @Test
     fun trueAndFilteredEmptyStatesRemainDistinct() {
-        val state = mutableStateOf(fixtureState().copy(items = emptyList(), totalCount = 0))
+        val state = mutableStateOf(fixtureState(items = emptyList(), totalCount = 0))
         compose.setContent {
             HikariTheme {
                 LibraryScreen(state.value, {}, {}, {}, {}, {}, {}, {}, {})
@@ -115,7 +118,7 @@ class LibraryScreenTest {
         compose.onNodeWithText("Discover stories").assertIsDisplayed()
 
         compose.runOnIdle {
-            state.value = fixtureState().copy(items = emptyList(), totalCount = 4, query = "missing")
+            state.value = fixtureState(items = emptyList(), totalCount = 4, query = "missing")
         }
         compose.onNodeWithText("No stories match these filters").assertIsDisplayed()
         compose.onNodeWithText("Clear filters").assertIsDisplayed()
@@ -126,7 +129,7 @@ class LibraryScreenTest {
         val firstFilterFocus = FocusRequester()
         lateinit var inputModeManager: InputModeManager
         show(
-            fixtureState().copy(items = emptyList(), totalCount = 3, query = "missing"),
+            fixtureState(items = emptyList(), totalCount = 3, query = "missing"),
             firstFilterFocus = firstFilterFocus,
         ) { inputModeManager = LocalInputModeManager.current }
 
@@ -143,10 +146,42 @@ class LibraryScreenTest {
         compose.onNodeWithText("Clear filters").assertIsFocused()
     }
 
+    @Test
+    fun localCollectionFailureRetriesWithoutHidingToolbar() {
+        var retries = 0
+        show(
+            state = fixtureState(
+                collection = LibraryCollectionState.Unavailable(
+                    CatalogUiFailure("library.catalog.observe_failed", retryable = true),
+                ),
+            ),
+            onRetryCollection = { retries += 1 },
+        )
+
+        compose.onNodeWithContentDescription("Search your Library").assertIsDisplayed()
+        compose.onNodeWithText("Library results unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Retry").performClick()
+        assertEquals(1, retries)
+    }
+
+    @Test
+    fun unknownSourceUsesSkeletonWithoutAccessibilityClaim() {
+        show(
+            fixtureState(
+                items = listOf(fixtureItem().copy(sourceState = LibrarySourceState.UNKNOWN)),
+            ),
+        )
+
+        compose.onNodeWithTag("library-source-skeleton-story-1", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Fixture Novel. Want to read. 64% read.").assertIsDisplayed()
+        compose.onNodeWithText("Source status unavailable").assertDoesNotExist()
+    }
+
     private fun show(
         state: LibraryUiState,
         onStorySelected: (StoryId) -> Unit = {},
         onDisplayModeSelected: (LibraryDisplayMode) -> Unit = {},
+        onRetryCollection: () -> Unit = {},
         firstFilterFocus: FocusRequester? = null,
         extraContent: @Composable () -> Unit = {},
     ) {
@@ -163,6 +198,7 @@ class LibraryScreenTest {
                     onClearFilters = {},
                     onDiscover = {},
                     onStorySelected = onStorySelected,
+                    onRetryCollection = onRetryCollection,
                     firstFilterFocusRequester = firstFilterFocus,
                 )
             }
@@ -170,21 +206,30 @@ class LibraryScreenTest {
     }
 }
 
-private fun fixtureState() = LibraryUiState(
-    items = listOf(
-        LibraryItemUiModel(
-            storyId = StoryId("story-1"),
-            title = "Fixture Novel",
-            contentType = ContentType.WEB_NOVEL,
-            coverUrl = null,
-            status = LibraryStatus.WANT_TO_READ,
-            sourceState = LibrarySourceState.NO_MAPPING,
-            progressFraction = 0.64f,
-            addedAt = 10L,
-            updatedAt = 10L,
+private fun fixtureState(
+    items: List<LibraryItemUiModel> = listOf(fixtureItem()),
+    totalCount: Int = items.size,
+    query: String = "",
+    collection: LibraryCollectionState = LibraryCollectionState.Ready(items),
+) = LibraryUiState(
+    content = ContentState.Ready(
+        LibraryContent(
+            totalCount = totalCount,
+            statusCounts = mapOf(LibraryStatus.WANT_TO_READ to totalCount),
+            collection = collection,
         ),
     ),
-    totalCount = 1,
-    statusCounts = mapOf(LibraryStatus.WANT_TO_READ to 1),
-    loading = false,
+    query = query,
+)
+
+private fun fixtureItem() = LibraryItemUiModel(
+    storyId = StoryId("story-1"),
+    title = "Fixture Novel",
+    contentType = ContentType.WEB_NOVEL,
+    coverUrl = null,
+    status = LibraryStatus.WANT_TO_READ,
+    sourceState = LibrarySourceState.NO_MAPPING,
+    progressFraction = 0.64f,
+    addedAt = 10L,
+    updatedAt = 10L,
 )

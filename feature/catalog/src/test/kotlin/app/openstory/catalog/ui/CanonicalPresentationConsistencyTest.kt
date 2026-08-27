@@ -22,6 +22,7 @@ import app.openstory.catalog.projection.toProjection
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.catalog.ui.discover.DiscoverViewModel
 import app.openstory.catalog.ui.discover.projectSemanticDiscoverState
+import app.openstory.catalog.ui.library.LibrarySourceState
 import app.openstory.catalog.ui.library.LibraryViewModel
 import app.openstory.catalog.ui.library.toLibraryItemUiModel
 import app.openstory.catalog.ui.search.SearchViewModel
@@ -55,7 +56,11 @@ class CanonicalPresentationConsistencyTest {
             status = LibraryStatus.READING,
             addedAt = 1L,
             updatedAt = 2L,
-        ).toLibraryItemUiModel(projection, mapped = false, progress = null)
+        ).toLibraryItemUiModel(
+            projection = projection,
+            sourceState = LibrarySourceState.NO_MAPPING,
+            progress = null,
+        )
 
         assertEquals("Canonical title", story.preferredTitle)
         assertEquals(story.preferredTitle, search.title)
