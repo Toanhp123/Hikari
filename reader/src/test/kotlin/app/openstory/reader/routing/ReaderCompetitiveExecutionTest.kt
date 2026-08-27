@@ -121,6 +121,41 @@ class ReaderCompetitiveExecutionTest {
     }
 
     @Test
+    fun `production scheduler preserves equal timestamps for primary tie break`() {
+        val roleTieValues = ArrayDeque(listOf(700L, 700L))
+        val roleTieScheduler = DefaultReaderExecutionScheduler.forTest(
+            delayBlock = {},
+            rawMonotonicNanos = roleTieValues::removeFirst,
+        )
+        val hedge = completion("attempt-h", AttemptRole.HEDGE, roleTieScheduler.monotonicNanos())
+        val primary = completion("attempt-p", AttemptRole.PRIMARY, roleTieScheduler.monotonicNanos())
+
+        listOf(listOf(hedge, primary), listOf(primary, hedge)).forEach { recordOrder ->
+            val registry = CompetitiveCompletionRegistry()
+            recordOrder.forEach(registry::record)
+
+            assertEquals(700L, hedge.completedAtNanos)
+            assertEquals(700L, primary.completedAtNanos)
+            assertEquals(primary, registry.winner())
+        }
+
+        val idTieValues = ArrayDeque(listOf(700L, 700L))
+        val idTieScheduler = DefaultReaderExecutionScheduler.forTest(
+            delayBlock = {},
+            rawMonotonicNanos = idTieValues::removeFirst,
+        )
+        val fallbackZ = completion("attempt-z", AttemptRole.FALLBACK, idTieScheduler.monotonicNanos())
+        val fallbackA = completion("attempt-a", AttemptRole.FALLBACK, idTieScheduler.monotonicNanos())
+        val fallbackOnly = CompetitiveCompletionRegistry()
+        fallbackOnly.record(fallbackZ)
+        fallbackOnly.record(fallbackA)
+
+        assertEquals(700L, fallbackZ.completedAtNanos)
+        assertEquals(700L, fallbackA.completedAtNanos)
+        assertEquals(fallbackA, fallbackOnly.winner())
+    }
+
+    @Test
     fun `competitive execution propagates one attempt identity into runtime failure`() = runTest {
         val executionIdentity = executionIdentity()
         val primary = remoteAttempt("attempt-0", AttemptRole.PRIMARY)

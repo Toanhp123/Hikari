@@ -27,7 +27,7 @@ class DefaultReaderExecutionScheduler private constructor(
         require(raw >= 0L) { "Reader monotonic time must be non-negative." }
         while (true) {
             val previous = lastCompletionNanos.get()
-            val next = maxOf(raw, previous + 1L)
+            val next = maxOf(raw, previous)
             if (lastCompletionNanos.compareAndSet(previous, next)) return next
         }
     }

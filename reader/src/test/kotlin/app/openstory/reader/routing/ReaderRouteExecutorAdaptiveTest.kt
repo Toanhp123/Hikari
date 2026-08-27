@@ -17,6 +17,7 @@ import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.engine.AccessMode
 import app.openstory.reader.engine.AttemptRole
 import app.openstory.reader.engine.RemoteAttemptKind
+import app.openstory.reader.engine.ReaderPlanRevision
 import app.openstory.reader.engine.RouteAttempt
 import app.openstory.reader.engine.SourceObservation
 import app.openstory.reader.engine.penalizesSourceHealth
@@ -28,6 +29,47 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 class ReaderRouteExecutorAdaptiveTest {
+    @Test
+    fun remoteValidCompletionUsesPostValidationClockWhileLatencyUsesFetchClock() = runTest {
+        val source = AdaptiveSource(
+            PluginId("source"),
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+        )
+        val candidate = candidate("release", "source")
+        val attempt = remote("a0", "release", "source", AttemptRole.PRIMARY)
+        val timestamps = ArrayDeque(listOf(0L, 2_000_000L, 9_000_000L))
+        val completions = mutableListOf<ReaderValidCompletion>()
+        val observations = mutableListOf<SourceObservation>()
+
+        val outcome = executor(
+            store = AdaptiveStore(),
+            registry = AdaptiveRegistry(listOf(source)),
+            monotonicNanos = timestamps::removeFirst,
+        ).executeAttempt(
+            identity = ReaderExecutionIdentity(
+                sessionId = ReaderSessionId(1),
+                generationId = ReaderGenerationId(1),
+                planRevision = ReaderPlanRevision(0),
+                targetChapterId = app.openstory.common.id.CanonicalChapterId("chapter"),
+            ).forAttempt(attempt.attemptId),
+            attempt = attempt,
+            candidate = candidate,
+            sourceByPlugin = mapOf(source.pluginId to source),
+            ownership = ReaderAttemptOwnership(),
+            onValidCompletion = completions::add,
+            onSourceObservation = { _, observation -> observations += observation },
+            onLocalInvalidated = { _, _ -> },
+        )
+
+        assertIs<ReaderAttemptOutcome.Success>(outcome)
+        assertEquals(9_000_000L, completions.single().completedAtNanos)
+        assertEquals(
+            2L,
+            assertIs<SourceObservation.Success.Remote>(observations.single()).latencyMillis,
+        )
+        assertEquals(0, timestamps.size)
+    }
+
     @Test
     fun nullableStoreReadGetsTypedCompatibilityProjection() = runTest {
         val hitStore = AdaptiveStore(exact = mapOf("release" to document("expected")))
@@ -381,10 +423,12 @@ class ReaderRouteExecutorAdaptiveTest {
         store: ReaderDocumentStore = AdaptiveStore(),
         registry: ReaderDocumentSourceRegistry = AdaptiveRegistry(emptyList()),
         limiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
+        monotonicNanos: () -> Long = System::nanoTime,
     ) = ReaderRouteExecutor(
         store = store,
         sources = registry,
         executionLimiter = limiter,
+        monotonicNanos = monotonicNanos,
     )
 
     private fun local(

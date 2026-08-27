@@ -1674,7 +1674,7 @@ The alternate threshold uses the alternate's **REMOTE access evaluation**, not a
 
 Pure planning is deterministic. Real execution observes real completion time.
 
-The coordinator uses an injected monotonic scheduler/clock and records `completedAtNanos` immediately after a valid competitive completion and before coordinator notification delivery.
+The coordinator uses an injected monotonic scheduler/clock and records `completedAtNanos` immediately after document validation succeeds, before valid-completion publication or coordinator notification delivery. The clock boundary is monotonic and non-decreasing: identical timestamps are legal and must remain observable by winner policy.
 
 Winner rule:
 

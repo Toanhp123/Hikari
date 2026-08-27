@@ -1,6 +1,7 @@
 package app.openstory.reader.routing
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.launch
@@ -32,15 +33,13 @@ class ReaderExecutionSchedulerTest {
     }
 
     @Test
-    fun `production completion stamps never move backward or repeat`() {
+    fun `production monotonic stamps never move backward and preserve ties`() {
         val rawValues = ArrayDeque(listOf(10L, 9L, 10L, 15L))
         val scheduler = DefaultReaderExecutionScheduler.forTest(
             delayBlock = {},
             rawMonotonicNanos = rawValues::removeFirst,
         )
 
-        val observed = List(4) { scheduler.monotonicNanos() }
-
-        assertTrue(observed.zipWithNext().all { (previous, next) -> next > previous })
+        assertEquals(listOf(10L, 10L, 10L, 15L), List(4) { scheduler.monotonicNanos() })
     }
 }

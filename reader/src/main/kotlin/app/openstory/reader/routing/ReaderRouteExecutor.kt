@@ -269,17 +269,18 @@ internal class ReaderRouteExecutor(
 
         val startedNanos = monotonicNanos()
         val fetched = fetch(source, candidate, remotePriority)
-        val completedNanos = monotonicNanos()
-        val latencyMillis = elapsedMillis(startedNanos, completedNanos)
+        val fetchCompletedNanos = monotonicNanos()
+        val latencyMillis = elapsedMillis(startedNanos, fetchCompletedNanos)
         return when (fetched) {
             is ReaderSourceResult.Success -> when (
                 val validation = validator.validateRemote(fetched.document, attemptKind)
             ) {
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
+                    val validCompletedAtNanos = monotonicNanos()
                     val success = ReaderAttemptEffectOutcome.Success(
                         loaded = ReaderLoadResult.Success(candidate, validation.document, fromStore = false),
-                        completedAtNanos = completedNanos,
+                        completedAtNanos = validCompletedAtNanos,
                     )
                     onValidEffect(success)
                     ensureOwned(ownership)

@@ -1977,9 +1977,10 @@ delay, it starts competitively; if the primary succeeds first, it never starts. 
 `RecoveryScope`, source-scoped suppression, validation, health observation, persistence, and
 cancellation ownership across the competitive pair and the later sequential recovery chain; the
 existing sequential entry points remain compatibility wrappers. Third, production completion
-stamps are strictly increasing within the singleton execution scheduler while the completion
-registry still applies the full `completedAtNanos -> PRIMARY -> attemptId` comparator for replay and
-virtual-time facts. Every valid completion is recorded before notification, and client-owned
+stamps are non-decreasing within the singleton execution scheduler; equal readings are preserved so
+the full `completedAtNanos -> PRIMARY -> attemptId` comparator remains semantically reachable in
+production as well as replay and virtual-time facts. Every valid completion is recorded before
+notification, and client-owned
 navigation/hedge-loss/prefetch cancellation closes observation ownership before best-effort job
 cancellation. These clarifications do not widen M6 scope or change the public HES-v1 contract.
 
@@ -2101,7 +2102,7 @@ git add reader/engine/src
 
 **Interfaces:**
 - PRIMARY starts immediately. HEDGE starts after directive delay only if primary remains unresolved and intent/revision still active.
-- Valid completions record `completedAtNanos` before notification delivery.
+- Valid completions record `completedAtNanos` immediately after successful document validation, not after fetch, and before notification delivery.
 - Winner = earliest logical completion; tie PRIMARY; then stable `attemptId`.
 - Single serialized commit gate enforces `visible commits per generation <= 1`.
 
