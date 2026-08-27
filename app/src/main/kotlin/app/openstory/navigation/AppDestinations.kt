@@ -67,6 +67,8 @@ internal fun DownloadsDestination(
     DownloadsScreen(
         state = state,
         onStorySelected = onStorySelected,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         onRetry = viewModel::retry,
         onCancel = viewModel::cancel,
         onRemove = viewModel::requestRemoval,
