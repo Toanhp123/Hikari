@@ -54,8 +54,9 @@ grep -q 'ReaderSourceAvailability' "$chapter_vm" || fail "ChapterList does not c
 grep -q 'fun openChapter(' "$reader_vm" || fail "ReaderViewModel does not own chapter switching"
 ! grep -A8 'onPreviousChapter' "$host" | grep -q 'navigate(AppRoute.Reader' || fail "Previous chapter still pushes a Reader route"
 ! grep -A8 'onNextChapter' "$host" | grep -q 'navigate(AppRoute.Reader' || fail "Next chapter still pushes a Reader route"
-grep -q 'groupBy.*canonicalChapterId' "$reader_vm" || fail "Reader chapter graph is not grouped in one pass"
-grep -q 'cachedChapterGroups' "$reader_vm" || fail "Reader chapter graph is reloaded for every chapter switch"
+grep -q 'chapters.observe(storyId)' "$reader_vm" || fail "Reader chapter graph is not reactively observed once per ViewModel"
+! grep -q 'chapters.snapshot(storyId)' "$reader_vm" || fail "Reader still reads a stale one-shot chapter graph"
+! grep -q 'cachedChapterGroups' "$reader_vm" || fail "Reader still owns a legacy chapter snapshot cache"
 ! grep -q 'snapshot\.releases\.filter' "$reader_vm" || fail "Reader still scans every release for every chapter"
 
 echo "Performance lifecycle policy verified."

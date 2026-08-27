@@ -9,6 +9,9 @@ SCHEMA_DIR="$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryD
 DATABASE_SOURCE="$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
 BUNDLED_DESCRIPTOR_SOURCE="$ROOT_DIR/app/src/main/kotlin/app/openstory/di/BundledPlugins.kt"
 BASELINE_SCHEMA_ONE_SHA256="adbd52a78feebd2eee197ccb58f0c209852ca059abd9fe1327bbfa962ba2011a"
+HES_V1_PRODUCTION_MODULES=17
+HES_V1_ANDROID_TEST_MODULES=1
+HES_V1_ROOM_SCHEMA=11
 
 fail() {
   echo "$1" >&2
@@ -152,6 +155,29 @@ while IFS= read -r module; do
     fail "Test dependencies for $module do not match module-boundaries.json."
 done <<< "$policy_modules"
 
+[[ "$production_module_count" -eq "$HES_V1_PRODUCTION_MODULES" ]] ||
+  fail "HES-v1 requires exactly $HES_V1_PRODUCTION_MODULES production modules."
+[[ "$android_test_module_count" -eq "$HES_V1_ANDROID_TEST_MODULES" ]] ||
+  fail "HES-v1 requires exactly $HES_V1_ANDROID_TEST_MODULES android-test module."
+
+reader_engine_platform="$(policy_platform ':reader:engine')"
+[[ "$reader_engine_platform" == "jvm" ]] || fail ":reader:engine must remain JVM-only."
+[[ "$(policy_dependency_mode ':reader:engine')" == "exact" ]] ||
+  fail ":reader:engine must keep exact dependency policy."
+[[ "$(policy_dependencies ':reader:engine' productionDependencies)" == ":core:common" ]] ||
+  fail ":reader:engine production dependencies must remain exactly :core:common."
+reader_dependencies="$(policy_dependencies ':reader' productionDependencies)"
+grep -Fxq ':reader:engine' <<< "$reader_dependencies" || fail ":reader must consume :reader:engine."
+if grep -Fxq ':settings' <<< "$reader_dependencies"; then
+  fail ":reader must not depend on :settings."
+fi
+reader_build="$ROOT_DIR/reader/build.gradle.kts"
+grep -Fq 'implementation(project(":reader:engine"))' "$reader_build" ||
+  fail ":reader must consume :reader:engine with implementation()."
+if grep -Fq 'api(project(":reader:engine"))' "$reader_build"; then
+  fail ":reader must not expose :reader:engine with api()."
+fi
+
 for removed in \
   core/model core/database core/matching core/plugin-api core/plugin-host core/network \
   feature/home feature/story test/fixtures; do
@@ -186,6 +212,13 @@ database_version="$(
 [[ -n "$database_version" ]] || fail "Could not read the Room database version."
 [[ "$latest_schema" == "$database_version" ]] ||
   fail "Latest Room schema ($latest_schema) must match OpenStoryDatabase version ($database_version)."
+[[ "$latest_schema" -eq "$HES_V1_ROOM_SCHEMA" ]] ||
+  fail "HES-v1 must preserve Room schema $HES_V1_ROOM_SCHEMA; found $latest_schema."
+grep -Fq 'RoomMigrations.MIGRATION_10_11' "$DATABASE_SOURCE" ||
+  fail "OpenStoryDatabase must keep MIGRATION_10_11 registered."
+if grep -Fq 'MIGRATION_11_12' "$DATABASE_SOURCE"; then
+  fail "HES-v1 must not consume Room schema 12."
+fi
 
 BUNDLED_ASSET_DIR="$ROOT_DIR/app/src/main/assets/plugins"
 [[ -f "$BUNDLED_DESCRIPTOR_SOURCE" ]] || fail "Missing production bundled plugin registry."

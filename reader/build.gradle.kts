@@ -8,6 +8,7 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":reader:engine"))
     implementation(project(":chapters"))
     implementation(project(":plugins:api"))
     implementation(project(":plugins:runtime"))

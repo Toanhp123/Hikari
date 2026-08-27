@@ -47,6 +47,13 @@ internal interface DownloadDao {
     suspend fun find(namespace: String, releaseId: String, fingerprint: String): ChapterStorageEntryEntity?
 
     @Query(
+        "SELECT * FROM chapter_storage_entries " +
+            "WHERE chapter_release_id IN (:releaseIds) " +
+            "AND namespace IN ('EXPLICIT_DOWNLOAD', 'AUTOMATIC_CACHE')",
+    )
+    suspend fun readerEntries(releaseIds: List<String>): List<ChapterStorageEntryEntity>
+
+    @Query(
         "SELECT * FROM chapter_storage_entries WHERE namespace = 'EXPLICIT_DOWNLOAD' " +
             "AND chapter_release_id = :releaseId ORDER BY updated_at_epoch_millis DESC LIMIT 1",
     )

@@ -118,7 +118,6 @@ private fun ReaderBackground(
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         when {
-            state.loading -> Centered { HikariLoadingState(label = "Loading reader") }
             state.document != null -> ReaderContent(
                 document = state.document,
                 fontScale = state.fontScale,
@@ -134,6 +133,7 @@ private fun ReaderBackground(
                 onToggleChrome = onToggleChrome,
                 onReloadDocument = onRetry,
             )
+            state.loading -> Centered { HikariLoadingState(label = "Loading reader") }
             else -> Centered {
                 HikariErrorState(
                     title = "Reader unavailable",

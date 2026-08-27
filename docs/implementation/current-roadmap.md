@@ -21,8 +21,10 @@ acceptance remain separate states.
 ## Current position
 
 Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
-Design System Foundation and the full Product UI checkpoint are accepted, preserving the 14-module
-production graph. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
+Design System Foundation and the full Product UI checkpoint are accepted; they preserved the historical
+14-module production graph at that boundary. Wave 10 expanded the graph to 16 production modules, and
+HES-v1 M0 now adds `:reader:engine` as the seventeenth production module; `:benchmark` remains the
+separate Android test/performance module. The 2026-08-19 Discover semantic-feed redesign is also implemented and verified;
 it advanced Room from schema 6 to **schema 7** without changing module ownership. The 2026-08-20
 catalog metadata-lifecycle unification subsequently advanced Room to **schema 8**, centralized
 Summary/Full freshness and single-flight in `:catalog`, and preserved the same module graph.
@@ -47,9 +49,17 @@ Wave 10 now has production implementation for consumer-owned Reader/cache policy
 request-target credential scope, bounded background candidate selection, transactional
 chapter-change evidence, durable notification delivery, and Settings status ports. Remediation
 Phase 7 adds the planned auth, scheduling, process-death recovery, permission-denial, and ID-collision
-integration contracts. Acceptance remains verification-open until the recorded host and API 26/API
-37 gates are actually run and reviewed.
-**Wave 11 must not start while this Wave 10 acceptance boundary remains open.**
+integration contracts. The required API 26/API 37 connected matrix is now developer-confirmed GREEN. R0 for Adaptive Reader/HES
+selected the explicit acceptance-rebase path after the supplied sandbox could not bootstrap Gradle.
+Developer-host verification on the final HES tree has since replaced that environment-only blocker.
+The triggering canonical combined host gate failed at Detekt with 74 issues, and HES M7.1 repaired that
+debt without suppressions, config weakening, or baseline growth. Standalone Detekt, the original unchanged
+combined host gate, and the package/current-architecture contracts are now GREEN.
+**Wave 10 is accepted/closed and Wave 11 is unblocked.**
+
+Adaptive Reader Continuity / HES-v1 **M0–M7.5 VERIFIED/CLOSED; HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE**. The graph remains 17 production modules plus `:benchmark`; `:reader:engine` remains JVM-only behind `:reader`; Room remains schema 11. M7.4 retired `AccessReason`; M7.5 closed the final completion-publication/ownership race, final session result/payload-coherence gap, and minimal test/implementation-only API debt. The fresh 2026-08-27 final-tree host matrix is GREEN. Routing formulas, trace data fields, versions, module graph, and schema remain unchanged. Wave 10 remains accepted/closed. Canonical M7.5 sources are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
+
+Reader integration architecture cleanup **R1–R5 IMPLEMENTED / verification pending**. This does not reopen HES-v1: `:reader:engine` stays FINAL RE-FROZEN. The effect layer now preserves LOCAL access when remote availability/registry observation fails, resolves remote sources lazily per execution, treats executable route facts—not `ReaderDecisionTrace`—as runtime control input, leaves previous/next navigation projection to Feature Reader, carries only `languageOrder` through routing state, replaces the raw JVM ownership monitor, and prunes retired legacy Reader descriptors from the checked-in baseline profile. Canonical cleanup sources are `../superpowers/specs/2026-08-27-reader-integration-architecture-cleanup-design.md` and `../superpowers/plans/2026-08-27-reader-integration-architecture-cleanup.md`.
 Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
 notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
 separately reviewed migration intervenes.
@@ -68,8 +78,8 @@ remain under `../internal/checkpoints/`. Phase-6 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; Phase-0 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`. Current Discover acceptance
 evidence remains in `../internal/checkpoints/discover-semantic-feed-redesign.md`; keep the accepted Discover semantic-feed checkpoint as part of the Wave 10 entry baseline
-for its completed feed/UI behavior. The schema-10 durability gate is the only open pre-Wave-10
-engineering boundary. The accepted broader Product UI evidence remains in
+for its completed feed/UI behavior. The schema-10 durability gate is the accepted pre-Wave-10
+engineering boundary; the currently open gate is Wave 10 final host acceptance on schema 11 after its required API 26/API 37 matrix passed. The accepted broader Product UI evidence remains in
 `../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -96,13 +106,18 @@ entry evidence, not the number of plugins allowed after that boundary.
 :library
 :chapters
 :reader
+:reader:engine
 :downloads
+:settings
 :feature:catalog
 :feature:reader
+:feature:settings
 :storage:room
 :storage:files
 :plugins:api
 :plugins:runtime
+
+:benchmark  # android-test/performance; not a production module
 ```
 
 Direct dependencies are governed by
@@ -110,9 +125,12 @@ Direct dependencies are governed by
 historical evidence at seven modules; Wave 06 introduced `:library`, Wave 07 introduced
 `:chapters`, Wave 08 added `:reader` and `:feature:reader`, and Wave 09 added
 `:downloads` and `:storage:files`, producing the thirteen-module capability graph.
-The approved between-wave UI foundation adds `:core:designsystem`, producing the
-current fourteen-module graph. The approved post-baseline evolution is defined by
-`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
+The approved between-wave UI foundation added `:core:designsystem`; Wave 10 then added `:settings`
+and `:feature:settings`, reaching sixteen production modules. HES-v1 M0 adds `:reader:engine` as the
+seventeenth production module without changing Room schema 11; verified M1/M2 add no further module/schema
+change. The approved post-baseline evolution
+remains defined by `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`,
+with Reader/HES ownership additionally governed by the 2026-08-25 HES design and plan above.
 
 ## Approved module evolution
 
@@ -124,6 +142,7 @@ current fourteen-module graph. The approved post-baseline evolution is defined b
 | 09 | `:downloads`, `:storage:files` | Offline/cache policy and atomic file adapter |
 | Post-Wave-09 UI foundation | `:core:designsystem` | Application theme, visual tokens, and domain-neutral shared UX |
 | 10 | `:settings`, `:feature:settings` | Typed policies and independent settings presentation |
+| HES-v1 M0 | `:reader:engine` | Pure JVM reference-engine boundary and immutable routing contracts; no adaptive production behavior yet |
 | 11 | `:feature:plugins` | Full plugin-management presentation |
 
 No catch-all synchronization module is planned. Pure orchestration stays with its
@@ -149,8 +168,21 @@ capability; WorkManager and notification adapters stay in `:app`.
 | CML | Catalog metadata lifecycle unification | **Implementation present; Room schema 8; unified Summary/Full lifecycle** | `../project/current-state.md` |
 | CCE | Canonical Catalog Reconciliation & Fusion Engine | **Phases 0–7 / Tasks 1–42 verified/closed; Room schema 9** | `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md` |
 | CED | Canonical engine performance/durability | **Entry baseline accepted on schema 10** | `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md` |
-| 10 | Background work, auth, notifications | **Implementation present on schema 11; final host/device verification open** | `../internal/checkpoints/wave-10-production-remediation.md` |
-| 11 | Hardening and open-source release | **Blocked until Wave 10 final host/API 26/API 37 acceptance closes** | `waves/wave-11-hardening-open-source-release.md` |
+| 10 | Background work, auth, notifications | **Verified/closed on schema 11; API 26/API 37 matrix and final host acceptance PASS** | `../internal/checkpoints/wave-10-production-remediation.md` |
+| HES-M0 | Adaptive Reader Continuity / HES-v1 constitutional boundary | **Verified/closed** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md` |
+| HES-M1 | Legacy-compatible pure reasoner + differential overlap envelope | **Verified/closed; Tasks 6–8** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md` |
+| HES-M2 | Session/coordinator compatibility boundary | **Verified/closed; Tasks 9–11** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m1-m2.md` |
+| HES-M3 | Typed observations, validation, and process health | **Verified/closed; Tasks 12–16; host Gradle + architecture gates GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m3.md` |
+| HES-M4 | Adaptive routing, bounded effect facts, reactive graph, and replanning | **Verified/closed; Tasks 17–24; host Gradle + connected Room + architecture gates GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m4.md` |
+| HES-M5 | Committed-vs-target Reader continuity + bounded N+1 prefetch | **Verified/closed; Tasks 25–26; focused + broad host Gradle + architecture/policy gates GREEN; M6 ready** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m5.md` |
+| HES-M6 | One foreground hedge + deterministic competitive execution | **Verified/closed; Tasks 27–30; focused + broad host Gradle + architecture/policy gates GREEN; M7 subsequently proceeded** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m6.md` |
+| HES-M7 | Golden/property/stress freeze + legacy ranking retirement + final governance | **Verified/closed; Tasks 31–34; required host/device boundary GREEN; HES-v1 frozen** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md` |
+| HES-M7.1 | Detekt debt closure | **Verified/closed; standalone Detekt, unchanged combined host gate, and architecture contracts GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md` |
+| HES-M7.2 | Constitutional hardening | **Verified/closed historical milestone; HES-v1 was re-frozen from fresh final-tree evidence** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md` |
+| HES-M7.3 | Conformance repair | **Verified/closed historical milestone; fresh final-tree closure matrix GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md` |
+| HES-M7.4 | `AccessReason` API hygiene | **Verified/closed by the accepted M7.5 final-tree matrix** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md` |
+| HES-M7.5 | Final Reader/HES-v1 freeze hardening | **Verified/closed; HES-v1 final re-frozen/reference-grade** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-5.md` |
+| 11 | Hardening and open-source release | **Wave 10 boundary accepted; HES-v1 final re-frozen after M7.5 closure** | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
 
@@ -247,9 +279,12 @@ architecture
 
 ## Execution rule
 
-1. Use the current 14-module graph, accepted Room schema-10 durability boundary, and the focused
-   Wave 10 clean-architecture design as the source baseline.
-2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 10 is the active next boundary. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
+1. Use the current 17-production-module HES graph plus `:benchmark`, Room schema 11, and the accepted
+   Wave 10 production-remediation checkpoint as the active source baseline. M0–M7.3 remain verified/closed
+   historical milestones; M7.4 and M7.5 are verified/closed from the accepted final-tree matrix; HES-v1 is final re-frozen
+   until its fresh blocking final-tree matrix is green. Historical M7.3/Wave 10 evidence remains accepted
+   evidence for those milestones; M7.5 is now the accepted final HES-v1 closure evidence.
+2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 11 remains the next product-wave boundary; HES-v1 is final re-frozen/reference-grade after M7.5. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
 3. `MIGRATION_8_9` belongs to canonical foundation and `MIGRATION_9_10` belongs to canonical durability. Wave 10 notification persistence uses `MIGRATION_10_11`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
@@ -261,9 +296,9 @@ architecture
 
 Discover / Home / Library remains the final top-level model. Discover itself is now semantic rather
 than catalog-selector driven: `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.
-Downloads and Updates remain avatar-utility routes. Wave 10 Settings enters through that utility sheet
-and never top-level navigation; Wave 11 Plugin Management follows the same rule. Settings and Plugin
-Management remain planned capability-wave work.
+Downloads and Updates remain avatar-utility routes. Wave 10 Settings is implemented through that utility
+sheet and never top-level navigation; Wave 11 Plugin Management follows the same rule and remains planned.
+Settings is no longer future-only work, but Wave 10 is not accepted until its final matrix closes.
 
 ## Verification workflow
 

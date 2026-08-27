@@ -38,7 +38,8 @@ class MyAnimeListCatalogContractIntegrationTest {
         )
         val payload = (result as PluginCallResult.Success).value
         assertTrue(Json.decodeFromJsonElement(CatalogFiltersOutputDto.serializer(), payload).filters.isEmpty())
-        val installed = runtime.enabled(app.openstory.plugins.api.manifest.PluginService.CATALOG).single()
+        val installed = runtime.enabled(app.openstory.plugins.api.manifest.PluginService.CATALOG)
+            .single { it.pluginId == PluginId(MYANIMELIST_PLUGIN_ID) }
         assertEquals(MYANIMELIST_PLUGIN_VERSION, installed.version)
     }
 }

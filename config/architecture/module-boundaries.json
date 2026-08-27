@@ -116,7 +116,7 @@
       "path": "reader",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":chapters", ":plugins:api", ":plugins:runtime"],
+      "productionDependencies": [":core:common", ":chapters", ":plugins:api", ":plugins:runtime", ":reader:engine"],
       "testDependencies": [],
       "forbiddenProductionImports": [
         "android.content.Context",
@@ -130,6 +130,31 @@
         "app.openstory.plugins.runtime.install.",
         "app.openstory.plugins.runtime.persistence.",
         "app.openstory.plugins.runtime.update."
+      ]
+    },
+    ":reader:engine": {
+      "path": "reader/engine",
+      "platform": "jvm",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.",
+        "app.openstory.chapters.",
+        "app.openstory.reader.content.",
+        "app.openstory.reader.routing.",
+        "app.openstory.plugins.",
+        "app.openstory.downloads.",
+        "app.openstory.storage.",
+        "kotlinx.coroutines.",
+        "kotlinx.serialization.",
+        "java.io.",
+        "java.net.",
+        "app.openstory.common.Clock",
+        "app.openstory.common.SystemClock",
+        "app.openstory.common.FakeClock",
+        "app.openstory.common.dispatchers."
       ]
     },
     ":downloads": {

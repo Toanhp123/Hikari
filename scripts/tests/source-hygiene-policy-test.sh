@@ -52,7 +52,8 @@ grep -q 'bestTitleSimilarity' "$content_matcher" || fail "content matcher is mis
 ! grep -Eq 'val (canonicalTitle|candidateTitle):' "$content_matcher" || fail "content matcher still retains unused title display payload"
 
 grep -q 'data object Discover : AppRoute' "$app_route" || fail "Discover route is missing"
-! grep -Eq 'data object (Plugins|Settings) : AppRoute' "$app_route" || fail "future-only route placeholders remain in the current route model"
+grep -q 'data object Settings : AppRoute' "$app_route" || fail "Wave 10 Settings route is missing"
+! grep -q 'data object Plugins : AppRoute' "$app_route" || fail "future-only Plugins route placeholder remains"
 
 ! grep -q 'protectedBytesExceedQuota' "$cache_models" || fail "test-only cache eviction convenience property remains in production"
 ! grep -q 'ReaderProgressNavigation' "$reader_screen" || fail "single-hop Reader progress navigation wrapper remains in production"
@@ -67,7 +68,7 @@ grep -q 'tasks.registering(CanonicalPluginPackageTask::class)' "$app_build" ||
 ! grep -q 'skips `HikariBackdropHost` entirely' "$p5_checkpoint" || fail "P5 checkpoint still describes the retired focused-route backdrop branch"
 
 for profile in "$baseline_profile" "$startup_profile"; do
-  ! grep -Eq 'ReaderProgressNavigation|CatalogMatchExplanation|ContentTitleEvidence|TitleEvidence|bestTitleEvidence|CatalogDetailsService|AppRoute[$](Plugins|Settings)' "$profile" ||
+  ! grep -Eq 'ReaderProgressNavigation|CatalogMatchExplanation|ContentTitleEvidence|TitleEvidence|bestTitleEvidence|CatalogDetailsService|AppRoute[$]Plugins' "$profile" ||
     fail "generated profile still references retired source symbols: $profile"
 
   stale_reader_profile_descriptors=(

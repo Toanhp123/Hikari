@@ -80,33 +80,35 @@ expect_failure 'a production plugin asset missing from the bundled plugin regist
 make_fixture
 
 production_module_count="$(awk '
-  /"\:[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{/ { module = $0; is_test = 0 }
+  /":[a-z0-9:-]+"[[:space:]]*:[[:space:]]*\{/ { module = $0; is_test = 0 }
   /"platform"[[:space:]]*:[[:space:]]*"android-test"/ { is_test = 1 }
   /^[[:space:]]*}[,]?[[:space:]]*$/ && module != "" { if (!is_test) count++; module = "" }
   END { print count + 0 }
 ' "$FIXTURE/config/architecture/module-boundaries.json")"
-[[ "$production_module_count" == 15 ]] || {
-  echo "Wave 10 foundation boundary must contain exactly fifteen production modules before feature settings." >&2
+[[ "$production_module_count" == 17 ]] || {
+  echo "HES M0 boundary must contain exactly seventeen production modules." >&2
   exit 1
 }
 
-grep -q '"\:benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" || {
+grep -q '":benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" || {
   echo "Performance tooling policy must declare the benchmark test module." >&2
   exit 1
 }
-grep -A4 '"\:benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" |
+grep -A4 '":benchmark"[[:space:]]*:[[:space:]]*{' "$FIXTURE/config/architecture/module-boundaries.json" |
   grep -q '"platform"[[:space:]]*:[[:space:]]*"android-test"' || {
   echo "Benchmark must be classified as android-test, not production." >&2
   exit 1
 }
 
-expected_app_dependencies=$':core:common\n:core:designsystem\n:catalog\n:library\n:chapters\n:reader\n:downloads\n:settings\n:storage:room\n:storage:files\n:plugins:api\n:plugins:runtime\n:feature:catalog\n:feature:reader'
+expected_app_dependencies=$':core:common\n:core:designsystem\n:catalog\n:library\n:chapters\n:reader\n:downloads\n:settings\n:storage:room\n:storage:files\n:plugins:api\n:plugins:runtime\n:feature:catalog\n:feature:reader\n:feature:settings'
+expected_reader_dependencies=$':core:common\n:chapters\n:plugins:api\n:plugins:runtime\n:reader:engine'
 expected_download_dependencies=$':core:common\n:chapters\n:reader'
 expected_file_dependencies=':downloads'
 if [[ "$(module_dependencies ':app')" != "$expected_app_dependencies" ]] ||
+  [[ "$(module_dependencies ':reader')" != "$expected_reader_dependencies" ]] ||
   [[ "$(module_dependencies ':downloads')" != "$expected_download_dependencies" ]] ||
   [[ "$(module_dependencies ':storage:files')" != "$expected_file_dependencies" ]]; then
-  echo "UI foundation policy must preserve the approved app, download, and file-storage edges." >&2
+  echo "Current architecture policy must preserve the approved app, Reader-engine, download, and file-storage edges." >&2
   exit 1
 fi
 
@@ -114,6 +116,17 @@ grep -q 'api(project(":core:common"))' "$FIXTURE/downloads/build.gradle.kts" || 
   echo "Downloads must expose :core:common because ChapterBlobKey exposes ChapterReleaseId." >&2
   exit 1
 }
+
+printf '\napi(project(":reader:engine"))\n' >> "$FIXTURE/reader/build.gradle.kts"
+expect_failure 'Reader exposing HES engine through api()'
+make_fixture
+
+sed -i 's/version = 11,/version = 12,/' \
+  "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
+cp "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/11.json" \
+  "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/12.json"
+expect_failure 'HES consuming Room schema 12'
+make_fixture
 
 printf '\n' >> "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json"
 expect_failure 'a changed frozen schema 1'
@@ -139,7 +152,7 @@ expect_failure 'an edge not declared by policy'
 
 # The policy is the source of truth for current edges: when the reviewed policy changes,
 # the verifier follows it rather than freezing the current Wave 08 graph in shell code.
-sed -i '/"\:library"[[:space:]]*:/,/"\:chapters"[[:space:]]*:/ s/":plugins:runtime"/":plugins:runtime", ":storage:room"/' \
+sed -i '/":library"[[:space:]]*:/,/":chapters"[[:space:]]*:/ s/":plugins:runtime"/":plugins:runtime", ":storage:room"/' \
   "$FIXTURE/config/architecture/module-boundaries.json"
 verify
 

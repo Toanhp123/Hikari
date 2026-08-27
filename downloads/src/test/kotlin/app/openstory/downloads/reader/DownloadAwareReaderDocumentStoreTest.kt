@@ -8,10 +8,13 @@ import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.reconcile.StorageWriteAdmission
+import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -19,6 +22,62 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 
 class DownloadAwareReaderDocumentStoreTest {
+    @Test
+    fun `missing exact locator returns typed Missing`() = runTest {
+        val store = DownloadAwareReaderDocumentStore(
+            FakeBlobs(),
+            FakeCacheRepository(),
+            FakeDownloads(),
+            { 10L },
+        )
+
+        assertIs<ReaderDocumentReadResult.Missing>(store.readResult(releaseId, fingerprint))
+    }
+
+    @Test
+    fun `only corrupt exact copy returns typed fingerprint or decode mismatch`() = runTest {
+        val blobs = FakeBlobs()
+        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), FakeDownloads(), { 10L })
+        blobs.write(
+            key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD),
+            ChapterBlob.fromBytes("broken".encodeToByteArray()),
+        )
+
+        assertIs<ReaderDocumentReadResult.FingerprintOrDecodeMismatch>(
+            store.readResult(releaseId, fingerprint),
+        )
+    }
+
+    @Test
+    fun `valid cache survives corrupt explicit copy`() = runTest {
+        val blobs = FakeBlobs()
+        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), FakeDownloads(), { 10L })
+        val explicitKey = key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD)
+        val cacheKey = key(ChapterBlobNamespace.AUTOMATIC_CACHE)
+        blobs.write(explicitKey, ChapterBlob.fromBytes("broken".encodeToByteArray()))
+        blobs.write(cacheKey, ReaderDocumentBlobCodec.encode(document("cache")))
+
+        val result = assertIs<ReaderDocumentReadResult.Hit>(store.readResult(releaseId, fingerprint))
+
+        assertEquals("cache", result.document.title)
+        assertNull(blobs.read(explicitKey))
+        assertNotNull(blobs.read(cacheKey))
+    }
+
+    @Test
+    fun `cleanup failure does not erase confirmed corruption`() = runTest {
+        val blobs = FakeBlobs(failDeletes = true)
+        val store = DownloadAwareReaderDocumentStore(blobs, FakeCacheRepository(), FakeDownloads(), { 10L })
+        blobs.write(
+            key(ChapterBlobNamespace.EXPLICIT_DOWNLOAD),
+            ChapterBlob.fromBytes("broken".encodeToByteArray()),
+        )
+
+        assertIs<ReaderDocumentReadResult.FingerprintOrDecodeMismatch>(
+            store.readResult(releaseId, fingerprint),
+        )
+    }
+
     @Test
     fun `explicit download wins over automatic cache`() = runTest {
         val blobs = FakeBlobs()
@@ -141,6 +200,7 @@ class DownloadAwareReaderDocumentStoreTest {
 
 private class FakeBlobs(
     private val failWrites: Boolean = false,
+    private val failDeletes: Boolean = false,
 ) : ChapterBlobStore {
     private val values = mutableMapOf<ChapterBlobKey, ChapterBlob>()
     override suspend fun read(key: ChapterBlobKey) = values[key]
@@ -148,7 +208,10 @@ private class FakeBlobs(
         if (failWrites) error("disk full")
         values[key] = blob
     }
-    override suspend fun delete(key: ChapterBlobKey) { values.remove(key) }
+    override suspend fun delete(key: ChapterBlobKey) {
+        if (failDeletes) error("delete failed")
+        values.remove(key)
+    }
 }
 
 private class FakeCacheRepository : CacheRepository {

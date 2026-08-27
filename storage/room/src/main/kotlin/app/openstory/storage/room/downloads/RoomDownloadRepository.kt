@@ -15,6 +15,8 @@ import app.openstory.downloads.reconcile.StorageDownloadFailure
 import app.openstory.downloads.reconcile.StorageMetadataEntry
 import app.openstory.downloads.reconcile.StorageMetadataRepairPlan
 import app.openstory.downloads.reconcile.StorageReconciliationRepository
+import app.openstory.downloads.reader.ReaderCacheMetadata
+import app.openstory.downloads.reader.ReaderCacheMetadataSource
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,7 +24,7 @@ import kotlinx.coroutines.flow.map
 class RoomDownloadRepository internal constructor(
     private val database: OpenStoryDatabase,
     private val dao: DownloadDao,
-) : CacheRepository, DownloadRepository, StorageReconciliationRepository {
+) : CacheRepository, DownloadRepository, StorageReconciliationRepository, ReaderCacheMetadataSource {
     constructor(database: OpenStoryDatabase) : this(database, database.downloadDao())
 
     override fun observeAll(): Flow<List<DownloadRecord>> =
@@ -67,6 +69,12 @@ class RoomDownloadRepository internal constructor(
                 key.takeIf { deleted > 0 }
             }
         }
+
+    override suspend fun entriesFor(releaseIds: Set<ChapterReleaseId>): List<ReaderCacheMetadata> {
+        if (releaseIds.isEmpty()) return emptyList()
+        return dao.readerEntries(releaseIds.map(ChapterReleaseId::value).sorted())
+            .map(ChapterStorageEntryEntity::toReaderCacheMetadata)
+    }
 
     override suspend fun find(releaseId: ChapterReleaseId): DownloadRecord? =
         dao.findDownload(releaseId.value)?.toDownloadRecord()
@@ -205,5 +213,15 @@ private fun ChapterStorageEntryEntity.toStorageMetadataEntry() = StorageMetadata
         contentFingerprint,
     ),
     downloadState = downloadState?.let(DownloadState::valueOf),
+    updatedAtEpochMillis = updatedAtEpochMillis,
+)
+
+private fun ChapterStorageEntryEntity.toReaderCacheMetadata() = ReaderCacheMetadata(
+    releaseId = ChapterReleaseId(chapterReleaseId),
+    fingerprint = contentFingerprint,
+    namespace = ChapterBlobNamespace.valueOf(namespace),
+    checksumPresent = checksum != null,
+    downloadState = downloadState?.let(DownloadState::valueOf),
+    lastAccessedAtEpochMillis = lastAccessedAtEpochMillis,
     updatedAtEpochMillis = updatedAtEpochMillis,
 )

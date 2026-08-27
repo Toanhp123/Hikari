@@ -1,13 +1,13 @@
 # Repository Current State
 
-Date: 2026-08-24
+Date: 2026-08-25
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current production Gradle graph: 14 modules.
+- Current production Gradle graph: 17 modules.
 - Performance tooling graph: 1 `android-test` module (`:benchmark`), excluded from production capability ownership.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
@@ -41,12 +41,15 @@ Purpose: single source of truth for the implemented repository boundary.
   accepted rollout closes on schema 9. Accepted evidence is in
   `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md`.
 - Canonical Engine Performance and Durability: **ENTRY BASELINE ACCEPTED**.
-  Current source is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
+  That accepted durability boundary is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
   catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
   134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
-- Wave 10: **READY TO START; IMPLEMENTATION NOT STARTED**. Its plan is rebased to schema 10 and
-  notification persistence now owns `MIGRATION_10_11`. Wave 10 must not redefine `MIGRATION_8_9` or
-  `MIGRATION_9_10`.
+- Adaptive Reader Continuity / HES-v1: **M0–M7.5 VERIFIED/CLOSED; HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE**. M7.4 retired the unused `AccessReason`; M7.5 then linearized valid-completion publication against ownership sealing/cancellation, hardened final session result/payload coherence, and removed the remaining obvious test/implementation-only engine exports. The fresh 2026-08-27 final-tree host matrix is GREEN across engine/Reader/downstream tests, architecture/package/current-architecture gates, retained host verification, Room schema stability, and instrumentation compilation. Routing formulas, `ReaderDecisionTrace` data fields, HES/policy versions, the 17-production-module plus `:benchmark` graph, and Room schema 11 remain unchanged. The diagnostic-code namespace naming issue is explicitly deferred to HES-v2. Canonical final-hardening design/plan are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
+- Reader integration architecture cleanup: **R1–R5 IMPLEMENTED / verification pending; HES-v1 engine remains frozen.** The effect-layer cleanup isolates LOCAL routing from remote availability/registry failures, makes remote source materialization per-execution/lazy, removes runtime control-flow reads from `ReaderDecisionTrace`, trims duplicated navigation fields from `ReaderForegroundResult`, narrows routing preferences to `languageOrder`, replaces the raw JVM ownership monitor, and removes checked-in baseline-profile descriptors for the retired legacy Reader selector/repository stack. Canonical cleanup design/plan are `../superpowers/specs/2026-08-27-reader-integration-architecture-cleanup-design.md` and `../superpowers/plans/2026-08-27-reader-integration-architecture-cleanup.md`.
+- Wave 10: **VERIFIED/CLOSED; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE PASS**. Current source is Room schema 11,
+  `MIGRATION_10_11` owns Wave 10 notification persistence, and the standalone Detekt, unchanged combined host gate,
+  plus package/current-architecture contracts are GREEN in `../internal/checkpoints/wave-10-production-remediation.md`.
+  Wave 10 does not redefine `MIGRATION_8_9` or `MIGRATION_9_10`; Wave 11 is unblocked.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -67,7 +70,7 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 10 current source; schemas 1-9 remain contiguous historical exports |
+| Room database | schema 11 current source; schemas 1-10 remain contiguous historical exports |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol; optional bounded catalog external-identifier facts added in canonical-engine Phase 0 |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -88,9 +91,12 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
-| `:reader` | Sanitized document loading, deterministic release selection/fallback, and exact progress policy/contracts |
+| `:reader` | Sanitized document loading, HES-v1 session/effect coordination, process-scoped source health/execution limits, prefetch/competition, and exact progress policy/contracts |
+| `:reader:engine` | HES-v1 pure JVM routing values/policy/facts and deterministic adaptive reasoner; no effects/runtime ownership |
 | `:feature:reader` | Restorable Reader state and accessible structured text / vertical image-page Compose presentation |
 | `:downloads` | Explicit download state, automatic-cache quota/eviction, Reader resolution, and reconciliation policy |
+| `:settings` | Wave 10 typed settings/auth/background/notification policy contracts and persistence-facing ports |
+| `:feature:settings` | Independent Wave 10 Settings presentation and status controls |
 | `:storage:files` | Atomic opaque chapter-blob persistence, inventory, and low-space admission |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
@@ -128,16 +134,15 @@ runtime persistence SPI.
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures. Discover uses one outer `LazyColumn`; Popular is a manual pager (max 5),
   Latest Updates is a bounded 3-column grid (max 9), and Top Rated is a ranked list (max 5).
-- Room schema 10 is the current source persistence foundation. It retains the Baseline-2 catalog/runtime state, metadata-only
+- Room schema 11 is the current source persistence foundation. It retains the Baseline-2 catalog/runtime state, metadata-only
   Library membership, protected content mappings, chapter graphs, aggregation overrides,
   synchronization state, canonical plus exact-release reading progress, Wave 09 cache/download
-  metadata, Discover semantic feed/status/latest-update fields, and separate Summary/Full
-  catalog metadata provenance, canonical-engine queue leases, and the transactional catalog-change
-  outbox. Migration 7 -> 8 is additive and intentionally leaves legacy
-  Full stamps unresolved instead of inferring Details freshness from old Summary fields. Schemas 1-9 remain
-  contiguous historical exports, schema 9 remains the accepted CCE closeout export, and schema 1 remains
-  byte-frozen. Room entities/DAOs stay private to
-  `:storage:room`.
+  metadata, Discover semantic feed/status/latest-update fields, separate Summary/Full catalog metadata
+  provenance, canonical-engine queue leases, the transactional catalog-change outbox, and Wave 10
+  notification persistence/claim-recovery state. `MIGRATION_9_10` remains canonical durability ownership;
+  `MIGRATION_10_11` remains Wave 10 notification-persistence ownership. Schemas 1-10 remain contiguous
+  historical exports, schema 9 remains the accepted CCE closeout export, and schema 1 remains byte-frozen.
+  Room entities/DAOs stay private to `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
   does not roll back the committed membership.
@@ -178,8 +183,10 @@ release selection, store-first loading with alternate fallback, exact progress, 
 navigation, restorable state, and accessible Compose rendering. Wave 09 adds atomic opaque
 blob storage, schema-6 cache/download metadata, bounded cache eviction, explicit downloads,
 offline-first Reader resolution, bulk controls, low-space admission, and race-safe storage
-reconciliation. Periodic background sync, authentication, notifications, and release
-hardening remain outside the implemented boundary.
+reconciliation. Wave 10 production source now contains local background scheduling, authentication,
+notifications, Settings presentation, Reader preferences integration, and schema-11 notification
+persistence. Its final complete host/API 26/API 37 acceptance is still open; release hardening remains
+outside the accepted boundary.
 
 The accepted Design System Foundation and Product UI checkpoint add the current artwork/glass,
 responsive shell, shared content/action/state primitives, and screenshot baseline without changing
@@ -192,9 +199,11 @@ wire/source/domain contract, carries semantic metadata through Home/details inge
 6 -> 7 with sparse rich-metadata preservation, projects cached semantic feeds on the shared Default
 dispatcher, and replaces source/category controls with the current semantic UI. The shared design
 system now includes `HikariSegmentedControl` and static `HikariSkeleton` primitives. The later
-catalog metadata-lifecycle unification preserved that presentation and the 14-module graph while
+catalog metadata-lifecycle unification preserved that presentation and the then-current 14-module graph while
 advancing Room 7 -> 8 and moving Search, Story, and Discover metadata requirements behind the shared
-coordinator. Wave 10 capability work has not started.
+coordinator. Wave 10 expanded the production graph to 16 modules (`:settings` and `:feature:settings`) and advanced
+Room to schema 11; HES-v1 M0 adds `:reader:engine` as the seventeenth production module without
+changing that schema. M1–M7.3 remain verified/closed historical milestones. M7.4 retired `AccessReason`, and M7.5 closed the final completion-publication, final-session-coherence, and minimal API-hygiene gaps. The fresh M7.5 final-tree matrix is accepted; HES-v1 is final re-frozen/reference-grade. Wave 10 remains verified/closed.
 
 ## Architecture Baseline 2 status
 
@@ -282,6 +291,7 @@ Acceptance details are in `../internal/checkpoints/discover-semantic-feed-redesi
 
 Evidence:
 
+- `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`
 - `../internal/checkpoints/discover-semantic-feed-redesign.md`
 - `../internal/checkpoints/product-ui-redesign.md`
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -297,18 +307,29 @@ Evidence:
 
 ## Wave 10 execution baseline
 
-Wave 10 remains unimplemented and is ready to start from the focused clean-architecture rebaseline:
+Wave 10 implementation entered HES on its 16-production-module / Room-schema-11 boundary. The current
+M7.5 final-hardening tree still has 17 production modules because `:reader:engine` was added in M0; Room
+remains schema 11. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`,
+M7/M7.1 historical closure evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md`, M7.2
+historical re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and the
+final M7.3 conformance re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
+M7.4 closure-by-final-tree evidence remains in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`; final HES-v1 closure evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-5.md`.
+Wave 10 final acceptance is closed and recorded in:
 
 - `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
 - `../implementation/waves/wave-10-background-sync-auth-and-notifications.md`
 - `../internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`
+- `../internal/checkpoints/wave-10-production-remediation.md`
 
-The rebaseline corrects earlier future-facing assumptions. Current source does not yet contain a
-Reader preferences port, a settings-backed automatic-cache policy port, request-target-scoped plugin
-credentials, bounded periodic chapter candidate selection, or a transactional chapter-change
-notification outbox. Wave 10 creates these boundaries in their consuming capabilities and migrates
-the current consumers rather than preserving SavedState-only, hard-coded, host-only, or
-post-transaction behavior.
+Current source contains the Reader preferences port and settings adapter, settings-backed policy
+contracts, request-target-scoped plugin credential handling, bounded periodic chapter candidate
+selection, transactional chapter-change/notification persistence, notification recovery, Settings
+presentation, and the Wave 10 startup hooks. `MIGRATION_10_11` remains the sole Wave 10 schema owner.
+
+Focused host/API 35 remediation evidence exists, and the required API 26/API 37 Wave 10 acceptance matrix
+is developer-confirmed GREEN. M7.1 repaired the repository-wide Detekt debt and M7.2 later re-froze HES-v1
+from its own fresh accepted matrix. M7.3 reopened only the HES-v1 conformance boundary; that did not rewrite Wave 10's accepted evidence, and its blocking matrix later closed green. M7.4 retired the unused `AccessReason` symbol. M7.5 closed the last Reader Engine hardening boundary from a fresh green final-tree matrix; the unchanged V1/module/schema boundary remains intact and HES-v1 is final re-frozen/reference-grade. Wave 10 therefore remains **VERIFIED/CLOSED; DEVICE MATRIX PASS; FINAL HOST
+ACCEPTANCE PASS**.
 
 ## Source-of-truth rule
 

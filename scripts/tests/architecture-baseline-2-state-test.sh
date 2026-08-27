@@ -9,7 +9,7 @@ grep -q 'Wave 06 Tasks 01-06: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-
 grep -q 'Wave 07 Tasks 01-06: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-state.md"
 grep -q 'Wave 08 Tasks 01-06: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-state.md"
 grep -q 'Wave 09 Tasks 01-06: \*\*VERIFIED\*\*' "$ROOT_DIR/docs/project/current-state.md"
-grep -q 'schema 10 current source; schemas 1-9 remain contiguous historical exports' "$ROOT_DIR/docs/project/current-state.md"
+grep -q 'schema 11 current source; schemas 1-10 remain contiguous historical exports' "$ROOT_DIR/docs/project/current-state.md"
 grep -q 'schema 9 remains the accepted CCE closeout export' "$ROOT_DIR/docs/project/current-state.md"
 grep -q 'Architecture Baseline 2' "$ROOT_DIR/docs/implementation/current-roadmap.md"
 grep -q 'Completed; Tasks 01-06 verified' "$ROOT_DIR/docs/implementation/current-roadmap.md"

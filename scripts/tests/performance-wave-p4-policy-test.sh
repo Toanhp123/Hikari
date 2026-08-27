@@ -3,7 +3,8 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 reader_sanitizer="$root/reader/src/main/kotlin/app/openstory/reader/document/ReaderDocumentSanitizer.kt"
-reader_repository="$root/reader/src/main/kotlin/app/openstory/reader/content/ReaderDocumentRepository.kt"
+reader_executor="$root/reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteExecutor.kt"
+reader_remote_source_resolver="$root/reader/src/main/kotlin/app/openstory/reader/routing/ReaderRemoteSourceResolver.kt"
 chapter_engine="$root/chapters/src/main/kotlin/app/openstory/chapters/aggregation/ChapterAggregationEngine.kt"
 fixture_manifest="$root/app/src/benchmarkRelease/AndroidManifest.xml"
 fixture_activity="$root/app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt"
@@ -21,8 +22,20 @@ grep -q 'toLowerHex()' "$reader_sanitizer" || fail "reader SHA-256 hex encoding 
 ! grep -q 'sortedWith(compareByDescending<Pair<CanonicalChapter, ChapterMatchScore>>' "$chapter_engine" || \
   fail "chapter candidate selection still sorts every candidate"
 grep -q 'bestCandidate(' "$chapter_engine" || fail "chapter aggregation lacks a single-pass best-candidate path"
-grep -q 'loadCached' "$reader_repository" || fail "reader repository does not try cached content first"
-grep -q 'loadFromSources' "$reader_repository" || fail "reader source enumeration is not lazy behind a cache miss"
+[[ -f "$reader_remote_source_resolver" ]] || fail "reader remote source resolver is missing"
+grep -q 'ReaderRemoteSourceResolver(::loadFromSources)' "$reader_executor" || \
+  fail "reader executor does not defer source enumeration through the per-execution resolver"
+grep -q 'val remoteSources = newRemoteSourceResolver()' "$reader_executor" || \
+  fail "reader adaptive execution does not allocate one lazy resolver per execution"
+grep -q 'val sourceByPlugin = remoteSources.resolve()' "$reader_executor" || \
+  fail "reader remote attempt does not resolve sources lazily at the REMOTE boundary"
+grep -q 'private var resolved: Map<PluginId, ReaderDocumentSource>? = null' "$reader_remote_source_resolver" || \
+  fail "reader remote source resolver does not cache the first source enumeration"
+local_attempt=$(sed -n '/private suspend fun executeLocalAttempt(/,/private suspend fun executeRemoteAttempt(/p' "$reader_executor")
+[[ "$local_attempt" != *"remoteSources.resolve()"* ]] || \
+  fail "reader LOCAL attempt resolves remote sources"
+[[ "$local_attempt" != *"sources.enabled()"* ]] || \
+  fail "reader LOCAL attempt enumerates plugin sources"
 
 [[ -f "$fixture_manifest" ]] || fail "benchmarkRelease fixture manifest is missing"
 [[ -f "$fixture_activity" ]] || fail "benchmarkRelease fixture activity is missing"
@@ -66,8 +79,12 @@ grep -q 'MemoryUsageMetric(MemoryUsageMetric.Mode.Max)' "$macrobenchmark" || fai
 frame_helper=$(awk '/private fun measureNavigation\(/,/^    }/' "$macrobenchmark")
 [[ "$frame_helper" != *"MemoryUsageMetric"* ]] || fail "memory metric was mixed into frame timing helper"
 
-if grep -q 'override fun onCreate' "$application"; then
-  fail "production Application.onCreate work was introduced during final performance wave"
-fi
+# Wave 10 intentionally owns three bounded startup hooks. Keep them exact and reject
+# unrelated blocking/heavy startup work rather than banning Application.onCreate itself.
+grep -q 'NotificationChannelConfig.create(this)' "$application" || fail "notification channel startup hook missing"
+grep -q 'backgroundPolicyCoordinator.start()' "$application" || fail "background policy startup hook missing"
+grep -q 'notificationDrainScheduler.ensureRecoveryWork()' "$application" || fail "notification recovery startup hook missing"
+! grep -Eq 'runBlocking|Thread[.]sleep|database[.]|snapshot\(' "$application" || \
+  fail "blocking/heavy startup work introduced"
 
 echo "Performance Wave P4 policy verified."
