@@ -26,6 +26,14 @@ internal data class ReaderExecutionIdentity(
     val targetChapterId: CanonicalChapterId,
 )
 
+internal fun ReaderExecutionIdentity.forAttempt(attemptId: String) = ReaderAttemptIdentity(
+    sessionId = sessionId,
+    generationId = generationId,
+    planRevision = planRevision,
+    attemptId = attemptId,
+    targetChapterId = targetChapterId,
+)
+
 internal data class ReaderAttemptIdentity(
     val sessionId: ReaderSessionId,
     val generationId: ReaderGenerationId,
@@ -37,6 +45,12 @@ internal data class ReaderAttemptIdentity(
         require(attemptId.isNotBlank()) { "Reader attempt ID must not be blank." }
     }
 }
+
+internal fun ReaderAttemptIdentity.belongsTo(execution: ReaderExecutionIdentity): Boolean =
+    sessionId == execution.sessionId &&
+        generationId == execution.generationId &&
+        planRevision == execution.planRevision &&
+        targetChapterId == execution.targetChapterId
 
 internal data class ReaderCommittedIdentity(
     val chapterId: CanonicalChapterId,

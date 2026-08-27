@@ -148,9 +148,10 @@ class ReaderRouteCoordinator(
         val primary = checkNotNull(decision.competitiveSet.primary)
         val execution = ReaderCompetitiveExecution(
             scheduler = executionScheduler,
-            executeAttempt = { attempt, ownership, onValidCompletion ->
+            executeAttempt = { identity, attempt, ownership, onValidCompletion ->
                 val candidate = checkNotNull(prepared.candidateByRelease[attempt.releaseId])
                 executor.executeAttempt(
+                    identity = identity,
                     attempt = attempt,
                     candidate = candidate,
                     sourceByPlugin = sourceByPlugin,
@@ -175,7 +176,7 @@ class ReaderRouteCoordinator(
                     },
                 )
             },
-            onAttemptStarted = { attempt, recovering ->
+            onAttemptStarted = { identity, attempt, recovering, competingWithPrimary ->
                 if (
                     attempt.accessMode == AccessMode.REMOTE &&
                     remoteAttemptHardInvalidated(attempt, probeSourceIds)
@@ -183,18 +184,14 @@ class ReaderRouteCoordinator(
                     session.hardInvalidateIfCurrent(context)
                     throw ReaderRoutePlanInvalidatedException()
                 }
-                val marked = if (
-                    attempt.role == app.openstory.reader.engine.AttemptRole.HEDGE && !recovering
-                ) {
+                val marked = if (competingWithPrimary != null) {
                     session.markCompeting(
-                        context = context,
-                        primaryAttemptId = primary.attemptId,
-                        hedgeAttemptId = attempt.attemptId,
+                        primary = competingWithPrimary,
+                        hedge = identity,
                     )
                 } else {
                     session.markAttempt(
-                        context = context,
-                        attemptId = attempt.attemptId,
+                        attempt = identity,
                         recovering = recovering,
                     )
                 }
@@ -204,16 +201,27 @@ class ReaderRouteCoordinator(
                 recordHealth(attempt.sourceId, SourceObservation.Cancellation.HedgeLoser)
             },
         ).execute(
+            executionIdentity = context.identity,
             primary = primary,
             hedgeDirective = decision.hedgeDirective,
             recoveryChain = decision.recoveryChain,
         )
-        return execution.completion?.let { completion ->
-            session.markValidating(context, completion.attempt.attemptId)
-            committed(context, prepared.assembled, completion.loaded)
-        } ?: exhausted(
+        val completion = execution.completion
+        if (completion != null) {
+            if (!completion.identity.belongsTo(context.identity)) {
+                return ReaderForegroundResult.Superseded(context.foregroundIdentity)
+            }
+            if (!session.markValidating(completion.identity)) {
+                return ReaderForegroundResult.Superseded(context.foregroundIdentity)
+            }
+            return committed(context, prepared.assembled, completion.loaded)
+        }
+        if (execution.failures.any { !it.identity.belongsTo(context.identity) }) {
+            return ReaderForegroundResult.Superseded(context.foregroundIdentity)
+        }
+        return exhausted(
             context,
-            execution.failures.map(ReaderAttemptFailure::toLoadFailure),
+            execution.failures.map { it.failure.toLoadFailure() },
         )
     }
 

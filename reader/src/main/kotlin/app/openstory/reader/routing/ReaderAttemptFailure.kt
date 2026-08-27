@@ -10,8 +10,9 @@ import app.openstory.reader.engine.SourceObservation
 import app.openstory.reader.engine.penalizesSourceHealth
 
 /**
- * Reader-internal semantic failure. String error codes survive only at the UI/diagnostic result
- * boundary; routing and health behavior are driven by typed facts.
+ * Reader-internal identity-free semantic failure. The owning foreground runtime envelope carries
+ * [ReaderAttemptIdentity]. String codes survive only at the UI/diagnostic boundary; routing and
+ * health behavior here remain driven only by typed facts.
  */
 internal data class ReaderAttemptFailure(
     val releaseId: ChapterReleaseId,

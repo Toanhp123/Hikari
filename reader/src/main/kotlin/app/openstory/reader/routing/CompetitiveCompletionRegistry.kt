@@ -14,18 +14,31 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 internal data class ReaderValidCompletion(
+    val identity: ReaderAttemptIdentity,
     val attempt: RouteAttempt,
     val loaded: ReaderLoadResult.Success,
     val completedAtNanos: Long,
 ) {
     init {
+        require(identity.attemptId == attempt.attemptId) {
+            "Reader completion identity must match its route attempt."
+        }
         require(completedAtNanos >= 0L) { "Reader completion time must be non-negative." }
     }
 }
 
 internal sealed interface ReaderAttemptOutcome {
-    data class Success(val completion: ReaderValidCompletion) : ReaderAttemptOutcome
-    data class Failure(val failure: ReaderAttemptFailure) : ReaderAttemptOutcome
+    val identity: ReaderAttemptIdentity
+
+    data class Success(val completion: ReaderValidCompletion) : ReaderAttemptOutcome {
+        override val identity: ReaderAttemptIdentity
+            get() = completion.identity
+    }
+
+    data class Failure(
+        override val identity: ReaderAttemptIdentity,
+        val failure: ReaderAttemptFailure,
+    ) : ReaderAttemptOutcome
 }
 
 internal class ReaderAttemptOwnership {
@@ -72,20 +85,27 @@ internal class CompetitiveCompletionRegistry {
 
 internal data class ReaderRouteExecutionOutcome(
     val completion: ReaderValidCompletion?,
-    val failures: List<ReaderAttemptFailure>,
+    val failures: List<ReaderAttemptOutcome.Failure>,
 )
 
 internal class ReaderCompetitiveExecution(
     private val scheduler: ReaderExecutionScheduler,
     private val executeAttempt: suspend (
+        identity: ReaderAttemptIdentity,
         attempt: RouteAttempt,
         ownership: ReaderAttemptOwnership,
         onValidCompletion: (ReaderValidCompletion) -> Unit,
     ) -> ReaderAttemptOutcome,
-    private val onAttemptStarted: suspend (RouteAttempt, Boolean) -> Unit,
+    private val onAttemptStarted: suspend (
+        identity: ReaderAttemptIdentity,
+        attempt: RouteAttempt,
+        recovering: Boolean,
+        competingWithPrimary: ReaderAttemptIdentity?,
+    ) -> Unit,
     private val onCompetitionLoser: suspend (RouteAttempt) -> Unit,
 ) {
     suspend fun execute(
+        executionIdentity: ReaderExecutionIdentity,
         primary: RouteAttempt,
         hedgeDirective: HedgeDirective,
         recoveryChain: List<RouteAttempt>,
@@ -96,17 +116,25 @@ internal class ReaderCompetitiveExecution(
         val terminalEvents = Channel<TerminalEvent>(Channel.UNLIMITED)
         val ownershipByAttempt = mutableMapOf<String, ReaderAttemptOwnership>()
         val jobsByAttempt = mutableMapOf<String, Job>()
-        val failureByAttempt = mutableMapOf<String, ReaderAttemptFailure>()
+        val failureByAttempt = mutableMapOf<String, ReaderAttemptOutcome.Failure>()
         val attempted = mutableListOf<RouteAttempt>()
 
-        fun launchAttempt(attempt: RouteAttempt, recovering: Boolean): Job {
+        fun launchAttempt(
+            attemptIdentity: ReaderAttemptIdentity,
+            attempt: RouteAttempt,
+            recovering: Boolean,
+            competingWithPrimary: ReaderAttemptIdentity? = null,
+        ): Job {
             val ownership = ReaderAttemptOwnership()
             ownershipByAttempt[attempt.attemptId] = ownership
             attempted += attempt
             return launch {
                 try {
-                    onAttemptStarted(attempt, recovering)
-                    val outcome = executeAttempt(attempt, ownership, registry::record)
+                    onAttemptStarted(attemptIdentity, attempt, recovering, competingWithPrimary)
+                    val outcome = executeAttempt(attemptIdentity, attempt, ownership, registry::record)
+                    check(outcome.identity == attemptIdentity) {
+                        "Reader attempt outcome must retain the launched attempt identity."
+                    }
                     terminalEvents.send(TerminalEvent.Completed(attempt, outcome))
                 } catch (cancelled: CancellationException) {
                     ownership.close()
@@ -119,7 +147,8 @@ internal class ReaderCompetitiveExecution(
         var hedgeStarted = false
         var primaryTerminal = false
         var hedgeTerminal = hedge == null
-        val primaryJob = launchAttempt(primary, recovering = false)
+        val primaryIdentity = executionIdentity.forAttempt(primary.attemptId)
+        val primaryJob = launchAttempt(primaryIdentity, primary, recovering = false)
         val hedgeDelayJob = hedge?.let {
             launch {
                 scheduler.delayMillis(hedgeDirective.delayMillis)
@@ -131,7 +160,12 @@ internal class ReaderCompetitiveExecution(
             if (hedge == null || hedgeStarted) return
             hedgeStarted = true
             hedgeTerminal = false
-            launchAttempt(hedge, recovering)
+            launchAttempt(
+                attemptIdentity = executionIdentity.forAttempt(hedge.attemptId),
+                attempt = hedge,
+                recovering = recovering,
+                competingWithPrimary = primaryIdentity.takeUnless { recovering },
+            )
         }
 
         suspend fun closeCompetitionLosers(winner: ReaderValidCompletion) {
@@ -173,7 +207,7 @@ internal class ReaderCompetitiveExecution(
                             return@coroutineScope ReaderRouteExecutionOutcome(winner, emptyList())
                         }
                         is ReaderAttemptOutcome.Failure -> {
-                            failureByAttempt[event.attempt.attemptId] = outcome.failure
+                            failureByAttempt[event.attempt.attemptId] = outcome
                             if (event.attempt.attemptId == primary.attemptId && !hedgeStarted) {
                                 hedgeDelayJob?.cancel()
                                 startHedge(recovering = true)
@@ -188,19 +222,25 @@ internal class ReaderCompetitiveExecution(
         hedgeDelayJob?.cancel()
         val suppressedSources = failureByAttempt.values
             .asSequence()
+            .map(ReaderAttemptOutcome.Failure::failure)
             .filter { it.recoveryScope == RecoveryScope.SOURCE_SCOPED }
             .mapTo(linkedSetOf()) { it.sourceId }
         for (attempt in recoveryChain) {
             if (attempt.accessMode == AccessMode.REMOTE && attempt.sourceId in suppressedSources) continue
+            val attemptIdentity = executionIdentity.forAttempt(attempt.attemptId)
             val ownership = ReaderAttemptOwnership()
             attempted += attempt
-            onAttemptStarted(attempt, true)
-            when (val outcome = executeAttempt(attempt, ownership, registry::record)) {
+            onAttemptStarted(attemptIdentity, attempt, true, null)
+            val outcome = executeAttempt(attemptIdentity, attempt, ownership, registry::record)
+            check(outcome.identity == attemptIdentity) {
+                "Reader attempt outcome must retain the launched attempt identity."
+            }
+            when (outcome) {
                 is ReaderAttemptOutcome.Success -> {
                     return@coroutineScope ReaderRouteExecutionOutcome(outcome.completion, emptyList())
                 }
                 is ReaderAttemptOutcome.Failure -> {
-                    failureByAttempt[attempt.attemptId] = outcome.failure
+                    failureByAttempt[attempt.attemptId] = outcome
                     if (outcome.failure.recoveryScope == RecoveryScope.SOURCE_SCOPED) {
                         suppressedSources += outcome.failure.sourceId
                     }

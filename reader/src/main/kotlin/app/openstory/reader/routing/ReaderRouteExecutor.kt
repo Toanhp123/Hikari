@@ -30,6 +30,7 @@ internal class ReaderRouteExecutor(
     internal suspend fun enabledSources(): Map<PluginId, ReaderDocumentSource> = loadFromSources()
 
     internal suspend fun executeAttempt(
+        identity: ReaderAttemptIdentity,
         attempt: app.openstory.reader.engine.RouteAttempt,
         candidate: ChapterRelease,
         sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
@@ -40,6 +41,54 @@ internal class ReaderRouteExecutor(
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit,
         remotePriority: ReaderRemoteWorkPriority = ReaderRemoteWorkPriority.FOREGROUND,
     ): ReaderAttemptOutcome {
+        require(identity.attemptId == attempt.attemptId) {
+            "Reader attempt identity must match its route attempt."
+        }
+        var publishedCompletion: ReaderValidCompletion? = null
+        val effect = executeAttemptEffect(
+            attempt = attempt,
+            candidate = candidate,
+            sourceByPlugin = sourceByPlugin,
+            attemptKind = attemptKind,
+            ownership = ownership,
+            onSourceObservation = onSourceObservation,
+            onLocalInvalidated = onLocalInvalidated,
+            remotePriority = remotePriority,
+            onValidEffect = { success ->
+                val completion = ReaderValidCompletion(
+                    identity = identity,
+                    attempt = attempt,
+                    loaded = success.loaded,
+                    completedAtNanos = success.completedAtNanos,
+                )
+                onValidCompletion(completion)
+                publishedCompletion = completion
+            },
+        )
+        return when (effect) {
+            is ReaderAttemptEffectOutcome.Success -> ReaderAttemptOutcome.Success(
+                checkNotNull(publishedCompletion) {
+                    "Foreground Reader success must publish its valid completion."
+                },
+            )
+            is ReaderAttemptEffectOutcome.Failure -> ReaderAttemptOutcome.Failure(
+                identity = identity,
+                failure = effect.failure,
+            )
+        }
+    }
+
+    private suspend fun executeAttemptEffect(
+        attempt: app.openstory.reader.engine.RouteAttempt,
+        candidate: ChapterRelease,
+        sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
+        attemptKind: RemoteAttemptKind,
+        ownership: ReaderAttemptOwnership,
+        onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit,
+        onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit,
+        remotePriority: ReaderRemoteWorkPriority,
+        onValidEffect: (ReaderAttemptEffectOutcome.Success) -> Unit = {},
+    ): ReaderAttemptEffectOutcome {
         require(candidate.id == attempt.releaseId) {
             "Reader attempt release must match its candidate."
         }
@@ -51,9 +100,9 @@ internal class ReaderRouteExecutor(
                 attempt = attempt,
                 candidate = candidate,
                 ownership = ownership,
-                onValidCompletion = onValidCompletion,
                 onSourceObservation = onSourceObservation,
                 onLocalInvalidated = onLocalInvalidated,
+                onValidEffect = onValidEffect,
             )
             AccessMode.REMOTE -> executeRemoteAttempt(
                 attempt = attempt,
@@ -61,9 +110,9 @@ internal class ReaderRouteExecutor(
                 sourceByPlugin = sourceByPlugin,
                 attemptKind = attemptKind,
                 ownership = ownership,
-                onValidCompletion = onValidCompletion,
                 onSourceObservation = onSourceObservation,
                 remotePriority = remotePriority,
+                onValidEffect = onValidEffect,
             )
         }
     }
@@ -98,21 +147,20 @@ internal class ReaderRouteExecutor(
                 emptyMap()
             }
             onAttempt(index, attempt)
-            val result = executeAttempt(
+            val result = executeAttemptEffect(
                 attempt = attempt,
                 candidate = candidate,
                 sourceByPlugin = availableSources,
                 attemptKind = remoteAttemptKinds[attempt.releaseId]
                     ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
                 ownership = ReaderAttemptOwnership(),
-                onValidCompletion = {},
                 onSourceObservation = onSourceObservation,
                 onLocalInvalidated = onLocalInvalidated,
                 remotePriority = remotePriority,
             )
             when (result) {
-                is ReaderAttemptOutcome.Success -> return result.completion.loaded
-                is ReaderAttemptOutcome.Failure -> {
+                is ReaderAttemptEffectOutcome.Success -> return result.loaded
+                is ReaderAttemptEffectOutcome.Failure -> {
                     failures += result.failure.toLoadFailure()
                     if (
                         attempt.accessMode == AccessMode.REMOTE &&
@@ -133,17 +181,17 @@ internal class ReaderRouteExecutor(
         attempt: app.openstory.reader.engine.RouteAttempt,
         candidate: ChapterRelease,
         ownership: ReaderAttemptOwnership,
-        onValidCompletion: (ReaderValidCompletion) -> Unit,
         onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
         onLocalInvalidated: suspend (ChapterReleaseId, String) -> Unit,
-    ): ReaderAttemptOutcome {
+        onValidEffect: (ReaderAttemptEffectOutcome.Success) -> Unit,
+    ): ReaderAttemptEffectOutcome {
         val fingerprint = checkNotNull(attempt.localFingerprint)
         val release = candidate
         return when (val read = readExact(candidate, fingerprint)) {
             is LocalReadResult.Failure -> {
                 ensureOwned(ownership)
                 onSourceObservation(release.pluginId, read.value.observation)
-                ReaderAttemptOutcome.Failure(read.value)
+                ReaderAttemptEffectOutcome.Failure(read.value)
             }
             is LocalReadResult.ConfirmedCorruption -> {
                 ensureOwned(ownership)
@@ -151,20 +199,25 @@ internal class ReaderRouteExecutor(
                 quarantineBestEffort(release.id, fingerprint)
                 ensureOwned(ownership)
                 onLocalInvalidated(release.id, fingerprint)
-                ReaderAttemptOutcome.Failure(read.value)
+                ReaderAttemptEffectOutcome.Failure(read.value)
             }
             is LocalReadResult.Hit -> when (val validation = validator.validateLocal(read.document, fingerprint)) {
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
-                    val completion = ReaderValidCompletion(
-                        attempt = attempt,
-                        loaded = ReaderLoadResult.Success(candidate, validation.document, fromStore = true),
-                        completedAtNanos = monotonicNanos(),
+                    val completedAtNanos = monotonicNanos()
+                    val loaded = ReaderLoadResult.Success(
+                        release = candidate,
+                        document = validation.document,
+                        fromStore = true,
                     )
-                    onValidCompletion(completion)
+                    val success = ReaderAttemptEffectOutcome.Success(
+                        loaded = loaded,
+                        completedAtNanos = completedAtNanos,
+                    )
+                    onValidEffect(success)
                     ensureOwned(ownership)
                     onSourceObservation(release.pluginId, SourceObservation.Success.Local)
-                    ReaderAttemptOutcome.Success(completion)
+                    success
                 }
                 is ReaderDocumentValidation.Invalid -> {
                     val failure = ReaderAttemptFailure(
@@ -181,7 +234,7 @@ internal class ReaderRouteExecutor(
                     quarantineBestEffort(release.id, fingerprint)
                     ensureOwned(ownership)
                     onLocalInvalidated(release.id, fingerprint)
-                    ReaderAttemptOutcome.Failure(failure)
+                    ReaderAttemptEffectOutcome.Failure(failure)
                 }
             }
         }
@@ -193,10 +246,10 @@ internal class ReaderRouteExecutor(
         sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
         attemptKind: RemoteAttemptKind,
         ownership: ReaderAttemptOwnership,
-        onValidCompletion: (ReaderValidCompletion) -> Unit,
         onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
         remotePriority: ReaderRemoteWorkPriority,
-    ): ReaderAttemptOutcome {
+        onValidEffect: (ReaderAttemptEffectOutcome.Success) -> Unit,
+    ): ReaderAttemptEffectOutcome {
         val release = candidate
         val sourceId = release.pluginId
         val source = sourceByPlugin[sourceId]
@@ -211,7 +264,7 @@ internal class ReaderRouteExecutor(
             )
             ensureOwned(ownership)
             onSourceObservation(sourceId, failure.observation)
-            return ReaderAttemptOutcome.Failure(failure)
+            return ReaderAttemptEffectOutcome.Failure(failure)
         }
 
         val startedNanos = monotonicNanos()
@@ -224,12 +277,11 @@ internal class ReaderRouteExecutor(
             ) {
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
-                    val completion = ReaderValidCompletion(
-                        attempt = attempt,
+                    val success = ReaderAttemptEffectOutcome.Success(
                         loaded = ReaderLoadResult.Success(candidate, validation.document, fromStore = false),
                         completedAtNanos = completedNanos,
                     )
-                    onValidCompletion(completion)
+                    onValidEffect(success)
                     ensureOwned(ownership)
                     onSourceObservation(
                         sourceId,
@@ -237,7 +289,7 @@ internal class ReaderRouteExecutor(
                     )
                     ensureOwned(ownership)
                     persistBestEffort(release.id, validation.document)
-                    ReaderAttemptOutcome.Success(completion)
+                    success
                 }
                 is ReaderDocumentValidation.Invalid -> {
                     val failure = ReaderAttemptFailure(
@@ -252,7 +304,7 @@ internal class ReaderRouteExecutor(
                     )
                     ensureOwned(ownership)
                     onSourceObservation(sourceId, failure.observation)
-                    ReaderAttemptOutcome.Failure(failure)
+                    ReaderAttemptEffectOutcome.Failure(failure)
                 }
             }
             is ReaderSourceResult.Failure -> {
@@ -266,7 +318,7 @@ internal class ReaderRouteExecutor(
                 )
                 ensureOwned(ownership)
                 onSourceObservation(sourceId, failure.observation)
-                ReaderAttemptOutcome.Failure(failure)
+                ReaderAttemptEffectOutcome.Failure(failure)
             }
         }
     }
@@ -388,6 +440,16 @@ internal class ReaderRouteExecutor(
         data class ConfirmedCorruption(val value: ReaderAttemptFailure) : LocalReadResult
     }
 
+    private sealed interface ReaderAttemptEffectOutcome {
+        data class Success(
+            val loaded: ReaderLoadResult.Success,
+            val completedAtNanos: Long,
+        ) : ReaderAttemptEffectOutcome
+
+        data class Failure(
+            val failure: ReaderAttemptFailure,
+        ) : ReaderAttemptEffectOutcome
+    }
 
     private companion object {
         const val NANOS_PER_MILLI = 1_000_000L

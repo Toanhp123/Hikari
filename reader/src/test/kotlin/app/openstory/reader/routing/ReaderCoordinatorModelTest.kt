@@ -24,7 +24,9 @@ import app.openstory.reader.preferences.ReaderPreferences
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -163,6 +165,32 @@ class ReaderCoordinatorModelTest {
             ReaderPlanRevision(1),
             assertIs<ReaderExecutionState.Committed>(revisionSession.executionState).identity.planRevision,
         )
+    }
+
+    @Test
+    fun staleResultIdentityCannotEnterValidatingOrMutateCommittedState() = runTest {
+        var staleAccepted = true
+        val revisions = mutableListOf<ReaderPlanRevision>()
+        val session = session(ReaderSessionId(921)) { owner, context ->
+            revisions += context.identity.planRevision
+            if (context.identity.planRevision == ReaderPlanRevision(0)) {
+                val staleResultIdentity = context.identity.forAttempt("attempt-same")
+                owner.hardInvalidate()
+                staleAccepted = owner.markValidating(staleResultIdentity)
+            } else {
+                assertNull(context.committedIdentity)
+            }
+            exhausted(context)
+        }
+        ready(session, listOf(group(RELEASE)))
+
+        val result = session.execute(ReaderForegroundIntent(CHAPTER_ID))
+
+        assertIs<ReaderForegroundResult.Exhausted>(result)
+        assertFalse(staleAccepted)
+        assertEquals(listOf(ReaderPlanRevision(0), ReaderPlanRevision(1)), revisions)
+        val state = assertIs<ReaderExecutionState.Exhausted>(session.executionState)
+        assertEquals(ReaderPlanRevision(1), state.identity.planRevision)
     }
 
     @Test
@@ -395,6 +423,12 @@ class ReaderCoordinatorModelTest {
             role = role,
         )
         return ReaderValidCompletion(
+            identity = ReaderExecutionIdentity(
+                sessionId = ReaderSessionId(1),
+                generationId = ReaderGenerationId(1),
+                planRevision = ReaderPlanRevision(0),
+                targetChapterId = CHAPTER_ID,
+            ).forAttempt(attempt.attemptId),
             attempt = attempt,
             loaded = ReaderLoadResult.Success(
                 release = RELEASE,

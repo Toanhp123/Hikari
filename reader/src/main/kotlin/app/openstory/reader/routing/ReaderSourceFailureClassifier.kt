@@ -7,7 +7,7 @@ import app.openstory.reader.engine.RecoveryScope
 import app.openstory.reader.engine.RemoteAttemptKind
 import app.openstory.reader.engine.SourceObservation
 
-/** Exact adapter for all currently Reader-reachable CONTENT_CHAPTER failure strings. */
+/** Identity-free adapter for all currently Reader-reachable CONTENT_CHAPTER failure strings. */
 internal object ReaderSourceFailureClassifier {
     private const val CONTEXTUAL_SOURCE_FAILED = "reader.source_failed"
 

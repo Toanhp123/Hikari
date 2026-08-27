@@ -22,16 +22,20 @@ import app.openstory.reader.engine.AccessMode
 import app.openstory.reader.engine.AttemptRole
 import app.openstory.reader.engine.HedgeDirective
 import app.openstory.reader.engine.HedgeOmissionReason
+import app.openstory.reader.engine.RecoveryScope
 import app.openstory.reader.engine.RouteAttempt
 import app.openstory.reader.engine.SourceObservation
 import app.openstory.reader.engine.SourceOperationKey
 import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
@@ -46,6 +50,55 @@ import kotlinx.coroutines.test.runTest
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ReaderCompetitiveExecutionTest {
+    @Test
+    fun `foreground completion and failure outcomes own attempt identity`() {
+        val completionFields = ReaderValidCompletion::class.java.declaredFields
+            .filterNot { Modifier.isStatic(it.modifiers) || it.isSynthetic }
+            .mapTo(linkedSetOf()) { it.name }
+        val failureFields = ReaderAttemptOutcome.Failure::class.java.declaredFields
+            .filterNot { Modifier.isStatic(it.modifiers) || it.isSynthetic }
+            .mapTo(linkedSetOf()) { it.name }
+
+        assertEquals(setOf("identity", "attempt", "loaded", "completedAtNanos"), completionFields)
+        assertEquals(setOf("identity", "failure"), failureFields)
+    }
+
+    @Test
+    fun `completion rejects identity whose attempt id differs from route attempt`() {
+        val release = release(0, PRIMARY_SOURCE)
+        val attempt = RouteAttempt(
+            attemptId = "attempt-route",
+            releaseId = release.id,
+            sourceId = release.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.PRIMARY,
+        )
+        val identity = ReaderAttemptIdentity(
+            sessionId = ReaderSessionId(1),
+            generationId = ReaderGenerationId(1),
+            planRevision = app.openstory.reader.engine.ReaderPlanRevision(0),
+            attemptId = "attempt-identity",
+            targetChapterId = CHAPTER_ID,
+        )
+        val constructor = ReaderValidCompletion::class.java.declaredConstructors
+            .singleOrNull { candidate ->
+                candidate.parameterTypes.firstOrNull() == ReaderAttemptIdentity::class.java
+            }
+
+        assertTrue(constructor != null, "ReaderValidCompletion must accept ReaderAttemptIdentity.")
+        constructor.isAccessible = true
+        val thrown = assertFailsWith<InvocationTargetException> {
+            constructor.newInstance(
+                identity,
+                attempt,
+                ReaderLoadResult.Success(release, document("mismatch"), fromStore = false),
+                1L,
+            )
+        }
+        assertIs<IllegalArgumentException>(thrown.cause)
+    }
+
     @Test
     fun `completion registry orders timestamp then primary role then stable attempt id`() {
         val registry = CompetitiveCompletionRegistry()
@@ -65,6 +118,48 @@ class ReaderCompetitiveExecutionTest {
         fallbackOnly.record(fallbackZ)
         fallbackOnly.record(fallbackA)
         assertEquals(fallbackA, fallbackOnly.winner())
+    }
+
+    @Test
+    fun `competitive execution propagates one attempt identity into runtime failure`() = runTest {
+        val executionIdentity = executionIdentity()
+        val primary = remoteAttempt("attempt-0", AttemptRole.PRIMARY)
+        val failure = ReaderAttemptFailure(
+            releaseId = primary.releaseId,
+            sourceId = primary.sourceId,
+            accessMode = primary.accessMode,
+            observation = SourceObservation.TransportFailure.Connection(
+                RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+            ),
+            recoveryScope = RecoveryScope.SOURCE_SCOPED,
+            code = "plugin.http_request_failed",
+            retryable = true,
+            remoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        )
+        var startedIdentity: ReaderAttemptIdentity? = null
+        var executorIdentity: ReaderAttemptIdentity? = null
+        val execution = ReaderCompetitiveExecution(
+            scheduler = FakeReaderExecutionScheduler(testScheduler),
+            executeAttempt = { identity, _, _, _ ->
+                executorIdentity = identity
+                ReaderAttemptOutcome.Failure(identity, failure)
+            },
+            onAttemptStarted = { identity, _, _, _ -> startedIdentity = identity },
+            onCompetitionLoser = {},
+        )
+
+        val result = execution.execute(
+            executionIdentity = executionIdentity,
+            primary = primary,
+            hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
+            recoveryChain = emptyList(),
+        )
+
+        val outcome = result.failures.single()
+        assertSame(startedIdentity, executorIdentity)
+        assertSame(executorIdentity, outcome.identity)
+        assertEquals(executionIdentity.forAttempt(primary.attemptId), outcome.identity)
+        assertSame(failure, outcome.failure)
     }
 
     @Test
@@ -249,13 +344,14 @@ class ReaderCompetitiveExecutionTest {
         }
         val execution = ReaderCompetitiveExecution(
             scheduler = FakeReaderExecutionScheduler(testScheduler),
-            executeAttempt = { _, _, _ -> error("Malformed route must fail before execution.") },
-            onAttemptStarted = { attempt, _ -> started += attempt.attemptId },
+            executeAttempt = { _, _, _, _ -> error("Malformed route must fail before execution.") },
+            onAttemptStarted = { _, attempt, _, _ -> started += attempt.attemptId },
             onCompetitionLoser = {},
         )
 
         assertFailsWith<IllegalArgumentException> {
             execution.execute(
+                executionIdentity = executionIdentity(),
                 primary = primary,
                 hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
                 recoveryChain = recovery,
@@ -270,13 +366,14 @@ class ReaderCompetitiveExecutionTest {
         val fallback = remoteAttempt("duplicate", AttemptRole.FALLBACK)
         val execution = ReaderCompetitiveExecution(
             scheduler = FakeReaderExecutionScheduler(testScheduler),
-            executeAttempt = { _, _, _ -> error("Malformed route must fail before execution.") },
-            onAttemptStarted = { _, _ -> error("Malformed route must fail before execution.") },
+            executeAttempt = { _, _, _, _ -> error("Malformed route must fail before execution.") },
+            onAttemptStarted = { _, _, _, _ -> error("Malformed route must fail before execution.") },
             onCompetitionLoser = {},
         )
 
         assertFailsWith<IllegalArgumentException> {
             execution.execute(
+                executionIdentity = executionIdentity(),
                 primary = primary,
                 hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
                 recoveryChain = listOf(fallback),
@@ -389,6 +486,7 @@ class ReaderCompetitiveExecutionTest {
             role = role,
         )
         return ReaderValidCompletion(
+            identity = executionIdentity().forAttempt(attempt.attemptId),
             attempt = attempt,
             loaded = ReaderLoadResult.Success(
                 release = release,
@@ -409,6 +507,13 @@ class ReaderCompetitiveExecutionTest {
         accessMode = AccessMode.REMOTE,
         localFingerprint = null,
         role = role,
+    )
+
+    private fun executionIdentity() = ReaderExecutionIdentity(
+        sessionId = ReaderSessionId(1),
+        generationId = ReaderGenerationId(1),
+        planRevision = app.openstory.reader.engine.ReaderPlanRevision(0),
+        targetChapterId = CHAPTER_ID,
     )
 
     private data class CompetitiveFixture(

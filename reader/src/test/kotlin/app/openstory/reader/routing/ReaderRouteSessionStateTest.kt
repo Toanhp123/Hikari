@@ -16,6 +16,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -362,6 +363,69 @@ class ReaderRouteSessionStateTest {
 
         assertFalse(fields.any { it.contains("executionRevision", ignoreCase = true) })
         assertFalse(fields.any { it.contains("planHash", ignoreCase = true) })
+    }
+
+    @Test
+    fun attemptIdentityContainsExactlyTheForegroundHesTuple() {
+        val fields = ReaderAttemptIdentity::class.java.declaredFields
+            .filterNot { Modifier.isStatic(it.modifiers) || it.isSynthetic }
+            .mapTo(linkedSetOf()) { it.name }
+
+        assertEquals(
+            setOf("sessionId", "generationId", "planRevision", "attemptId", "targetChapterId"),
+            fields,
+        )
+    }
+
+    @Test
+    fun validatingGateRejectsIdentityFromAnotherSession() = runTest {
+        var acceptedForeignIdentity: Boolean? = null
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(40),
+            delegate = ReaderRouteExecutionDelegate { owner, context ->
+                val foreignIdentity = context.identity
+                    .copy(sessionId = ReaderSessionId(41))
+                    .forAttempt("attempt-0")
+                acceptedForeignIdentity = owner.markValidating(foreignIdentity)
+                exhausted(context)
+            },
+        )
+        ready(session)
+
+        session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+
+        assertEquals(false, acceptedForeignIdentity)
+    }
+
+    @Test
+    fun validatingGateRejectsOldGenerationAndWrongTarget() = runTest {
+        val accepted = mutableListOf<Boolean>()
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(42),
+            delegate = ReaderRouteExecutionDelegate { owner, context ->
+                if (context.identity.generationId == ReaderGenerationId(2)) {
+                    accepted += owner.markValidating(
+                        context.identity
+                            .copy(generationId = ReaderGenerationId(1))
+                            .forAttempt("attempt-same"),
+                    )
+                    accepted += owner.markValidating(
+                        context.identity
+                            .copy(targetChapterId = chapter("chapter-other"))
+                            .forAttempt("attempt-same"),
+                    )
+                }
+                exhausted(context)
+            },
+        )
+        ready(session)
+
+        session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+        session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+
+        assertEquals(listOf(false, false), accepted)
     }
 
     private fun session(id: ReaderSessionId) = ReaderRouteSession(

@@ -192,12 +192,10 @@ class ReaderRouteSession internal constructor(
     }
 
     internal fun markAttempt(
-        context: ReaderRouteExecutionContext,
-        attemptId: String,
+        attempt: ReaderAttemptIdentity,
         recovering: Boolean,
     ): Boolean = synchronized(stateLock) {
-        if (!matchesActiveLocked(context.identity)) return@synchronized false
-        val attempt = attemptIdentity(context.identity, attemptId)
+        if (!matchesActiveLocked(attempt)) return@synchronized false
         mutableExecutionState = if (recovering) {
             ReaderExecutionState.Recovering(attempt)
         } else {
@@ -206,26 +204,20 @@ class ReaderRouteSession internal constructor(
         true
     }
 
-    internal fun markValidating(
-        context: ReaderRouteExecutionContext,
-        attemptId: String,
-    ): Boolean = synchronized(stateLock) {
-        if (!matchesActiveLocked(context.identity)) return@synchronized false
-        mutableExecutionState = ReaderExecutionState.Validating(
-            attemptIdentity(context.identity, attemptId),
-        )
+    internal fun markValidating(attempt: ReaderAttemptIdentity): Boolean = synchronized(stateLock) {
+        if (!matchesActiveLocked(attempt)) return@synchronized false
+        mutableExecutionState = ReaderExecutionState.Validating(attempt)
         true
     }
 
     internal fun markCompeting(
-        context: ReaderRouteExecutionContext,
-        primaryAttemptId: String,
-        hedgeAttemptId: String,
+        primary: ReaderAttemptIdentity,
+        hedge: ReaderAttemptIdentity,
     ): Boolean = synchronized(stateLock) {
-        if (!matchesActiveLocked(context.identity)) return@synchronized false
+        if (!matchesActiveLocked(primary) || !matchesActiveLocked(hedge)) return@synchronized false
         mutableExecutionState = ReaderExecutionState.Competing(
-            primary = attemptIdentity(context.identity, primaryAttemptId),
-            hedge = attemptIdentity(context.identity, hedgeAttemptId),
+            primary = primary,
+            hedge = hedge,
         )
         true
     }
@@ -460,9 +452,15 @@ class ReaderRouteSession internal constructor(
 
     private fun matchesActiveLocked(identity: ReaderExecutionIdentity): Boolean {
         val active = activeExecution ?: return false
-        return active.generationId == identity.generationId &&
+        return identity.sessionId == sessionId &&
+            active.generationId == identity.generationId &&
             active.planRevision == identity.planRevision &&
             active.targetChapterId == identity.targetChapterId
+    }
+
+    private fun matchesActiveLocked(identity: ReaderAttemptIdentity): Boolean {
+        val active = activeExecution ?: return false
+        return identity.belongsTo(identityFor(active))
     }
 
     private fun identityFor(active: ReaderSessionActiveExecution) = ReaderExecutionIdentity(
@@ -470,17 +468,6 @@ class ReaderRouteSession internal constructor(
         generationId = active.generationId,
         planRevision = active.planRevision,
         targetChapterId = active.targetChapterId,
-    )
-
-    private fun attemptIdentity(
-        identity: ReaderExecutionIdentity,
-        attemptId: String,
-    ) = ReaderAttemptIdentity(
-        sessionId = identity.sessionId,
-        generationId = identity.generationId,
-        planRevision = identity.planRevision,
-        attemptId = attemptId,
-        targetChapterId = identity.targetChapterId,
     )
 
     private sealed interface CompletionDisposition {
