@@ -7,12 +7,15 @@
 **Supersedes:** the earlier 2026-08-25 Adaptive Reader Continuity/HES-v1 design draft.  
 **Does not supersede:** Wave 10 ownership of settings/auth/background/notifications, `MIGRATION_10_11`, or the Wave 10 acceptance checkpoint.
 
-> Post-freeze note (2026-08-26): M7.2 constitutional hardening is **VERIFIED/CLOSED** and HES-v1 is
-> re-frozen after repairing runtime and verification conformance gaps. See
-> `2026-08-26-adaptive-reader-continuity-hes-v1-m7-2-constitutional-hardening-design.md` and
-> `../plans/2026-08-26-adaptive-reader-continuity-hes-v1-m7-2-constitutional-hardening.md`. Historical
-> milestone evidence remains preserved; final freeze authority follows
-> `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`.
+> Post-freeze governance note (2026-08-27): M7.2 constitutional hardening remains **historical
+> VERIFIED/CLOSED evidence**. M7.3 subsequently reopened the HES-v1 freeze only for the four scoped
+> conformance repairs and is now **VERIFIED/CLOSED; HES-v1 RE-FROZEN** after fresh final-tree engine,
+> Reader, downstream, architecture, host, schema-stability, and instrumentation-compile gates all passed.
+> Tasks 1-3 repaired the zero REMOTE-access denominator, foreground runtime-result identity, and valid-
+> completion/equal-timestamp semantics; Task 4 reconciled governance and recorded closure evidence. See
+> `../plans/2026-08-26-adaptive-reader-continuity-hes-v1-m7-3-conformance-repair.md`, historical M7.2
+> authority at `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and current
+> M7.3 evidence at `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
 
 ---
 
@@ -1547,7 +1550,8 @@ Ordinary attempt failure normally follows the already-planned recovery chain and
 
 ### 44.3 Attempt identity
 
-Every runtime attempt/result carries:
+Every **foreground execution attempt/result that crosses the executor/competition/coordinator runtime
+boundary** carries:
 
 ```text
 sessionId
@@ -1557,7 +1561,16 @@ attemptId
 targetChapterId
 ```
 
-A result may affect visible Reader state only if session, generation, and plan revision still match the active execution and the semantic commit gate is open.
+`ReaderAttemptFailure` remains an identity-free semantic failure payload. The owning foreground runtime
+envelope (`ReaderAttemptOutcome.Failure`) carries the `ReaderAttemptIdentity`; semantic classification does
+not acquire session-state responsibility.
+
+A foreground result may affect visible Reader state only if its own identity matches the active session,
+generation, plan revision, and target chapter and the semantic commit gate is open. Closure-captured
+execution context may carry surrounding graph/preferences but is not the sole stale-result proof.
+
+Opportunistic prefetch is outside this foreground visible-commit contract. It keeps its existing
+session/token cancellation ownership and does not receive a synthetic foreground generation identity.
 
 No second execution revision or opaque plan hash is introduced.
 
@@ -2115,6 +2128,7 @@ At minimum:
 ```text
 BasisPoints in 0..10_000
 weights non-negative and total exactly 10_000
+REMOTE access-score weight denominator (health + reliability + latency + cacheUtility) > 0
 switch thresholds in 0..10_000
 hedge delay >= 0
 hedge score/reliability thresholds in 0..10_000

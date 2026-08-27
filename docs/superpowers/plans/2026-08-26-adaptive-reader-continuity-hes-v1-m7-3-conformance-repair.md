@@ -94,6 +94,8 @@ Explicitly out of scope:
 - Modify: `docs/superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`
 - Create: `docs/internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`
 - Modify: `docs/project/current-state.md`
+- Modify: `docs/implementation/current-roadmap.md`
+  - keep the second canonical "current" status surface aligned with `current-state.md`; historical checkpoints remain untouched.
 - This M7.3 plan file is retained as implementation evidence.
 
 ---
@@ -704,19 +706,22 @@ git commit -m "fix(reader): order hedge winners by valid completion"
 **Files:**
 
 - Modify: `docs/project/current-state.md`
+- Modify: `docs/implementation/current-roadmap.md`
 - Modify: `docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md`
 - Modify: `docs/superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`
 - Create: `docs/internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`
 
 **Governance rule:** Do not mark M7.3 `VERIFIED/CLOSED` until all final-tree blocking commands below have fresh evidence. Until then wording is `M7.3 IN PROGRESS / HES-v1 freeze reopened for conformance repair`.
 
-- [ ] **Step 1: Reopen status without rewriting accepted M7.2 history**
+**Closure note (2026-08-27):** The initial supplied-ZIP verification was environment-limited, so governance correctly remained open. The patch was then applied in the real repository and the developer supplied fresh final-tree evidence: `:reader:engine:test`, `:reader:testDebugUnitTest`, downstream Reader/Downloads/App tests and compile, `:build-logic:test verifyArchitecture`, package/current-architecture mutation contracts and verifiers, `verify-fast.sh`, `verify.sh`, Room schema stability, and instrumentation compilation all passed. Room digest remains `0c5aced22ed5f88395b422cc4171139e9c9081fbdb266893b37239f587b5fac0`. M7.3 is therefore closed and HES-v1 re-frozen. `docs/implementation/current-roadmap.md` remains in the Task 4 touch set because Task 4 review identified it as a second canonical current-status surface.
+
+- [x] **Step 1: Reopen status without rewriting accepted M7.2 history**
 
 At implementation start, update the design/plan post-freeze note to state that M7.2 remains historical accepted evidence but M7.3 temporarily reopens the freeze for the four scoped conformance repairs.
 
 Do not edit the old M7.2 checkpoint to pretend it never closed.
 
-- [ ] **Step 2: Update policy-validation normative text**
+- [x] **Step 2: Update policy-validation normative text**
 
 Design §62 must add the derived invariant explicitly:
 
@@ -726,7 +731,7 @@ REMOTE access-score weight denominator (health + reliability + latency + cacheUt
 
 This makes Task 1 a normative contract rather than an undocumented implementation guard.
 
-- [ ] **Step 3: Clarify runtime identity wording without widening prefetch scope**
+- [x] **Step 3: Clarify runtime identity wording without widening prefetch scope**
 
 Design §44.3 and canonical plan global constraint must describe the actual repaired boundary precisely:
 
@@ -746,7 +751,7 @@ Do not invent a fake foreground generation for opportunistic prefetch. Prefetch 
 
 This wording resolves the prior over-broad phrase “every runtime attempt/result” without weakening foreground stale-commit safety.
 
-- [ ] **Step 4: Run focused final-tree suites**
+- [x] **Step 4: Run focused final-tree suites**
 
 ```bash
 ./gradlew :reader:engine:test --no-daemon
@@ -755,7 +760,7 @@ This wording resolves the prior over-broad phrase “every runtime attempt/resul
 
 Expected: all engine and Reader tests pass.
 
-- [ ] **Step 5: Run downstream Reader regression suites**
+- [x] **Step 5: Run downstream Reader regression suites**
 
 ```bash
 ./gradlew \
@@ -768,7 +773,7 @@ Expected: all engine and Reader tests pass.
 
 Expected: no behavior regression outside Reader runtime.
 
-- [ ] **Step 6: Run architecture/build-logic gates**
+- [x] **Step 6: Run architecture/build-logic gates**
 
 ```bash
 ./gradlew :build-logic:test verifyArchitecture --no-daemon
@@ -792,7 +797,7 @@ Room schemas 1..11
 
 If the current-architecture mutation test remains pathologically slow specifically under Git Bash/Windows, record exact command, elapsed time, host, and termination as environment evidence; do not silently substitute the non-mutation verifier and claim full closure.
 
-- [ ] **Step 7: Run retained M7.2 final-tree host gates before re-freeze**
+- [x] **Step 7: Run retained M7.2 final-tree host gates before re-freeze**
 
 ```bash
 bash scripts/verify-fast.sh
@@ -810,7 +815,7 @@ Always compile instrumentation as required by the canonical HES closure contract
 
 When API 26/API 37 devices or emulators are available, rerun the HES-relevant connected matrix and record exact device/API evidence. When devices are unavailable, record the connected matrix as `NOT RUN — environment unavailable`; do not fabricate fresh device evidence. M7.3 does not alter Room/schema/device-only code, so prior M7.2 device evidence remains historical evidence, not a substitute for a claimed fresh run.
 
-- [ ] **Step 8: Perform contradiction/diff audit before closure**
+- [x] **Step 8: Perform contradiction/diff audit before closure**
 
 Search the final tree for stale statements:
 
@@ -833,7 +838,7 @@ git status --short
 git diff --stat
 ```
 
-- [ ] **Step 9: Write M7.3 checkpoint only from fresh evidence**
+- [x] **Step 9: Write M7.3 checkpoint only from fresh evidence**
 
 Create `docs/internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md` with:
 
@@ -852,7 +857,7 @@ closure decision
 
 If any blocking final-tree gate is not green, checkpoint status must remain `NOT CLOSED` and `current-state.md` must not claim re-freeze.
 
-- [ ] **Step 10: Update canonical current state after evidence is green**
+- [x] **Step 10: Update canonical current state after evidence is green**
 
 Change `docs/project/current-state.md` HES entry to the final truth, e.g.:
 
@@ -871,10 +876,11 @@ M7.3 conformance-repair checkpoint
 
 and summarize only the four M7.3 repairs. Do not claim `AccessReason` debt resolved.
 
-- [ ] **Step 11: Commit governance closure**
+- [x] **Step 11: Commit governance closure**
 
 ```bash
 git add docs/project/current-state.md \
+        docs/implementation/current-roadmap.md \
         docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md \
         docs/superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md \
         docs/internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md \

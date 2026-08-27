@@ -10,13 +10,15 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` — R2 / Wave 10 production-remediation baseline.
 
-> Post-freeze note (2026-08-26): M7.2 constitutional hardening is **VERIFIED/CLOSED** and HES-v1 is
-> re-frozen after repairing runtime and verification conformance gaps. See
-> `2026-08-26-adaptive-reader-continuity-hes-v1-m7-2-constitutional-hardening.md`. Historical milestone
-> evidence remains preserved; final freeze authority follows
-> `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`.
+> Post-freeze governance note (2026-08-27): M7.2 constitutional hardening remains **historical
+> VERIFIED/CLOSED evidence**. M7.3 subsequently reopened the freeze only for its four scoped conformance
+> repairs and is now **VERIFIED/CLOSED; HES-v1 RE-FROZEN** after the required fresh final-tree blocking
+> matrix passed. See
+> `2026-08-26-adaptive-reader-continuity-hes-v1-m7-3-conformance-repair.md`; historical M7.2 authority is
+> `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and current M7.3 evidence is
+> `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
 
-**Implementation status (updated 2026-08-26):** **M0–M7.2 VERIFIED/CLOSED; HES-v1 FROZEN; WAVE 10 VERIFIED/CLOSED.** M7 freezes G01–G26 plus seeded permutation/replay/property/metamorphic coverage, adds deterministic scale contracts, replaces repeated linear language-order scans with one policy-owned rank map, retires the unused production `ReleaseSelector` / `ReaderDocumentRepository` compatibility ranking path after session cutover, and strengthens final architecture/source guards. Developer-host Gradle evidence is GREEN for focused M7 engine and Reader/runtime suites, Reader/Feature/Downloads/App/build-logic regression, `:app:compileDebugKotlin`, instrumentation compile, standalone Detekt, the original unchanged combined host gate, `verifyArchitecture`, package/current-architecture mutation contracts, performance lifecycle policy, and Wave 10 production policy. The repaired MyAnimeList device-harness contract plus the required API 26/API 37 connected matrix are developer-confirmed GREEN. M7.1 closes the 74 blocking Detekt findings without config weakening, blanket suppressions, or baseline growth; standalone Detekt completed `BUILD SUCCESSFUL in 16s`, and the final combined gate completed `BUILD SUCCESSFUL in 3m 34s` with 743 actionable tasks. M7.2 closes the post-freeze constitutional remediation from fresh final-tree gates. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`. Wave 11 is unblocked.
+**Implementation status (updated 2026-08-27):** **M0–M7.3 VERIFIED/CLOSED; HES-v1 RE-FROZEN; WAVE 10 VERIFIED/CLOSED.** M7.2 remains accepted historical evidence. M7.3 repaired the four scoped conformance defects: fail-fast positive REMOTE access-weight denominator, self-identifying foreground runtime outcomes consumed by stale-result gates, valid-completion timestamps captured after validation with transport latency kept separate and equal timestamps preserved for deterministic tie-breaking, and governance reconciliation. Fresh engine/Reader/downstream tests, architecture gates, package/current-architecture mutation contracts, `verify-fast.sh`, `verify.sh`, Room schema stability, and instrumentation compilation all passed on the final tree. Room remains schema 11 with no `MIGRATION_11_12`; the graph remains 17 production modules plus `:benchmark`; HES/public policy version constants remain unchanged. Deferred API hygiene for `AccessReason` remains intentionally unresolved.
 
 ## Global Constraints
 
@@ -45,7 +47,7 @@
 - A normal remote success that arrives after the circuit has become OPEN cannot close/reset the circuit; only a successful held HALF_OPEN probe can close the OPEN/HALF_OPEN cycle.
 - Reader process-wide execution limits are separate from per-screen sessions: max one active Reader REMOTE attempt per `sourceId`, max two concurrent foreground REMOTE attempts, max four total foreground REMOTE attempts, max one process-wide remote prefetch attempt.
 - Every foreground user intent gets a new `ReaderGenerationId`; `ReaderPlanRevision` changes only for hard external invalidation of that same active uncommitted generation.
-- Every runtime attempt/result identity contains `(sessionId, generationId, planRevision, attemptId, targetChapterId)`; no second revision/hash identity is introduced.
+- Every foreground execution attempt/result crossing the executor/competition/coordinator runtime boundary carries `(sessionId, generationId, planRevision, attemptId, targetChapterId)`; no second revision/hash identity is introduced. `ReaderAttemptFailure` stays identity-free semantic payload while `ReaderAttemptOutcome.Failure` owns the corresponding `ReaderAttemptIdentity`; prefetch keeps its existing session/token cancellation ownership and receives no synthetic foreground generation identity.
 - One generation commits at most one visible semantic document. Cancellation is best effort; stale session/generation/revision validation is the correctness barrier.
 - Current committed content owns saved state and reading progress until an atomic successful replacement commit. Starting chapter/release transitions must not overwrite committed saved keys.
 - One Reader screen owns one chapter-graph observation; do not call full `snapshot()` for every navigation and do not freeze one graph for the entire ViewModel lifetime.

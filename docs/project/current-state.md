@@ -44,7 +44,7 @@ Purpose: single source of truth for the implemented repository boundary.
   That accepted durability boundary is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
   catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
   134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
-- Adaptive Reader Continuity / HES-v1: **M0–M7.1 VERIFIED/CLOSED; HES-v1 FROZEN**. The final source tree freezes G01–G26 plus seeded permutation/replay/property/metamorphic and scale contracts, uses a policy-owned language-rank map to preserve the intended evaluation complexity, and removes the obsolete production `ReleaseSelector` / `ReaderDocumentRepository` ranking path after Feature Reader session cutover. `:reader:engine` remains pure JVM behind `:reader`; the production graph remains 17 modules plus `:benchmark`; Room remains schema 11 with `MIGRATION_10_11` registered and no `MIGRATION_11_12`. Developer-host verification on 2026-08-26 is GREEN for focused M7 engine and Reader/runtime Gradle suites, the broad Reader/Feature/Downloads/App/build-logic regression suite, `:app:compileDebugKotlin`, instrumentation compile, standalone `detekt`, the original unchanged combined host gate, `verifyArchitecture`, package/current-architecture mutation contracts, performance lifecycle policy, and Wave 10 production policy. The pre-M7 MyAnimeList catalog device-harness defect was repaired test-only and its rerun, plus the required API 26/API 37 connected matrix, are developer-confirmed GREEN. M7.1 closes all 74 blocking Detekt findings without config weakening, blanket suppressions, or baseline growth; the final combined gate completed `BUILD SUCCESSFUL` in 3m 34s with 743 actionable tasks. The normative design/plan are `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; final M7/M7.1 evidence is in `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md`.
+- Adaptive Reader Continuity / HES-v1: **M0–M7.3 VERIFIED/CLOSED; HES-v1 RE-FROZEN**. The current source contains the four scoped M7.3 repairs: zero REMOTE access-weight denominator rejection at policy construction, self-identifying foreground execution outcomes consumed by session/coordinator stale-result gates, competitive `completedAtNanos` captured immediately after successful validation while REMOTE health latency remains source/fetch latency, and equal monotonic timestamps preserved so PRIMARY/attempt-id tie-breaks remain reachable. `:reader:engine` remains pure JVM behind `:reader`; the production graph remains 17 modules plus `:benchmark`; Room remains schema 11 with `MIGRATION_10_11` registered and no `MIGRATION_11_12`; HES/public policy version constants remain unchanged. Historical M7.2 closure evidence remains accepted at `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`; fresh M7.3 final-tree closure evidence is recorded separately and does not rewrite that history. The normative design/plan are `../superpowers/specs/2026-08-25-adaptive-reader-continuity-hes-v1-design.md` and `../superpowers/plans/2026-08-25-adaptive-reader-continuity-hes-v1.md`; final M7.3 closure evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`. Deferred API hygiene: `AccessReason` remains intentionally unresolved and unchanged pending a separate retain-vs-retire contract review.
 - Wave 10: **VERIFIED/CLOSED; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE PASS**. Current source is Room schema 11,
   `MIGRATION_10_11` owns Wave 10 notification persistence, and the standalone Detekt, unchanged combined host gate,
   plus package/current-architecture contracts are GREEN in `../internal/checkpoints/wave-10-production-remediation.md`.
@@ -202,8 +202,7 @@ catalog metadata-lifecycle unification preserved that presentation and the then-
 advancing Room 7 -> 8 and moving Search, Story, and Discover metadata requirements behind the shared
 coordinator. Wave 10 expanded the production graph to 16 modules (`:settings` and `:feature:settings`) and advanced
 Room to schema 11; HES-v1 M0 adds `:reader:engine` as the seventeenth production module without
-changing that schema, and verified M1–M7.1 complete the HES-v1 routing, session, verification, cleanup,
-and Detekt-debt closure without any additional module or schema change. Wave 10 is verified/closed.
+changing that schema. M1–M7.2 remain verified/closed historical milestones; M7.3 reopened the HES-v1 freeze only for its four scoped conformance repairs and has now closed from fresh final-tree evidence. HES-v1 is re-frozen; Wave 10 remains verified/closed.
 
 ## Architecture Baseline 2 status
 
@@ -308,9 +307,11 @@ Evidence:
 ## Wave 10 execution baseline
 
 Wave 10 implementation entered HES on its 16-production-module / Room-schema-11 boundary. The current
-verified/closed M0–M7.1 tree has 17 production modules because `:reader:engine` was added in M0; Room remains
-schema 11. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`, with
-final M7/M7.1 closure evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md`.
+M7.3 conformance-repair tree still has 17 production modules because `:reader:engine` was added in M0; Room
+remains schema 11. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`,
+M7/M7.1 historical closure evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md`, M7.2
+historical re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and the
+final M7.3 re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
 Wave 10 final acceptance is closed and recorded in:
 
 - `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
@@ -323,10 +324,10 @@ contracts, request-target-scoped plugin credential handling, bounded periodic ch
 selection, transactional chapter-change/notification persistence, notification recovery, Settings
 presentation, and the Wave 10 startup hooks. `MIGRATION_10_11` remains the sole Wave 10 schema owner.
 
-Focused host/API 35 remediation evidence exists, and the required API 26/API 37 acceptance matrix is
-developer-confirmed GREEN. M7.1 repaired the repository-wide Detekt debt, standalone Detekt is GREEN,
-and the original unchanged combined host command plus package/current-architecture contracts all pass.
-Therefore Wave 10 is **VERIFIED/CLOSED; DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE PASS**, and Wave 11 is unblocked.
+Focused host/API 35 remediation evidence exists, and the required API 26/API 37 Wave 10 acceptance matrix
+is developer-confirmed GREEN. M7.1 repaired the repository-wide Detekt debt and M7.2 later re-froze HES-v1
+from its own fresh accepted matrix. M7.3 reopened only the HES-v1 conformance boundary; that did not rewrite Wave 10's accepted evidence. The M7.3 blocking matrix is now fresh and green, so HES-v1 is re-frozen again at the unchanged V1/module/schema boundary. Wave 10 therefore remains **VERIFIED/CLOSED; DEVICE MATRIX PASS; FINAL HOST
+ACCEPTANCE PASS**.
 
 ## Source-of-truth rule
 
