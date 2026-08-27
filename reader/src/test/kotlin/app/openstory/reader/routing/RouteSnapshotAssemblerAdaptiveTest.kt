@@ -15,7 +15,6 @@ import app.openstory.reader.engine.LanguageFallbackMode
 import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.engine.ReaderNetworkClass
 import app.openstory.reader.engine.ReaderPlanRevision
-import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
@@ -72,7 +71,7 @@ class RouteSnapshotAssemblerAdaptiveTest {
         val targetRelease = release("target", "target-source", "en")
         val assembler = assembler(cacheFacts = RecordingCacheFactsPort(emptyMap()))
         val context = context(releases = listOf(targetRelease), extraGroups = listOf(group("other", listOf(committedRelease)))).copy(
-            preferences = ReaderPreferences(languageOrder = listOf("FR", "en")),
+            preferences = ReaderRoutingPreferences.create(listOf("FR", "en")),
             committedIdentity = ReaderCommittedIdentity(
                 chapterId = CanonicalChapterId("other"),
                 releaseId = committedRelease.id,
@@ -120,7 +119,7 @@ class RouteSnapshotAssemblerAdaptiveTest {
             StoryId("story"),
             listOf(group("chapter", releases)) + extraGroups,
         ),
-        preferences = ReaderPreferences(languageOrder = listOf("en")),
+        preferences = ReaderRoutingPreferences.create(listOf("en")),
         committedIdentity = null,
         explicitReleaseId = null,
     )

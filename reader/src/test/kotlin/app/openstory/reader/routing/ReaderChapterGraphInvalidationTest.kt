@@ -234,8 +234,6 @@ class ReaderChapterGraphInvalidationTest {
                 release = committedRelease,
                 document = committedDocument,
                 fromLocal = true,
-                previousChapterId = null,
-                nextChapterId = null,
                 restoration = null,
             )
         }

@@ -26,14 +26,14 @@ internal class ReaderRouteExecutor(
     private val validator: ReaderDocumentValidatorAdapter = ReaderDocumentValidatorAdapter(),
     private val monotonicNanos: () -> Long = System::nanoTime,
 ) {
-
-    internal suspend fun enabledSources(): Map<PluginId, ReaderDocumentSource> = loadFromSources()
+    internal fun newRemoteSourceResolver(): ReaderRemoteSourceResolver =
+        ReaderRemoteSourceResolver(::loadFromSources)
 
     internal suspend fun executeAttempt(
         identity: ReaderAttemptIdentity,
         attempt: app.openstory.reader.engine.RouteAttempt,
         candidate: ChapterRelease,
-        sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
+        remoteSources: ReaderRemoteSourceResolver,
         attemptKind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
         ownership: ReaderAttemptOwnership,
         publishValidCompletion: (ReaderLoadResult.Success) -> ReaderValidCompletion,
@@ -48,7 +48,7 @@ internal class ReaderRouteExecutor(
         val effect = executeAttemptEffect(
             attempt = attempt,
             candidate = candidate,
-            sourceByPlugin = sourceByPlugin,
+            remoteSources = remoteSources,
             attemptKind = attemptKind,
             ownership = ownership,
             onSourceObservation = onSourceObservation,
@@ -78,7 +78,7 @@ internal class ReaderRouteExecutor(
     private suspend fun executeAttemptEffect(
         attempt: app.openstory.reader.engine.RouteAttempt,
         candidate: ChapterRelease,
-        sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
+        remoteSources: ReaderRemoteSourceResolver,
         attemptKind: RemoteAttemptKind,
         ownership: ReaderAttemptOwnership,
         onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit,
@@ -103,7 +103,7 @@ internal class ReaderRouteExecutor(
             )
             AccessMode.REMOTE -> executeRemoteAttempt(
                 candidate = candidate,
-                sourceByPlugin = sourceByPlugin,
+                remoteSources = remoteSources,
                 attemptKind = attemptKind,
                 ownership = ownership,
                 onSourceObservation = onSourceObservation,
@@ -126,7 +126,7 @@ internal class ReaderRouteExecutor(
 
         val failures = mutableListOf<ReaderLoadFailure>()
         val suppressedRemoteSources = mutableSetOf<PluginId>()
-        var sourceByPlugin: Map<PluginId, ReaderDocumentSource>? = null
+        val remoteSources = newRemoteSourceResolver()
         attempts.forEachIndexed { index, attempt ->
             val candidate = checkNotNull(candidatesByRelease[attempt.releaseId]) {
                 "Reader adaptive route references release outside candidate set: ${attempt.releaseId.value}"
@@ -137,16 +137,11 @@ internal class ReaderRouteExecutor(
             if (attempt.accessMode == AccessMode.REMOTE && attempt.sourceId in suppressedRemoteSources) {
                 return@forEachIndexed
             }
-            val availableSources = if (attempt.accessMode == AccessMode.REMOTE) {
-                sourceByPlugin ?: loadFromSources().also { sourceByPlugin = it }
-            } else {
-                emptyMap()
-            }
             onAttempt(index, attempt)
             val result = executeAttemptEffect(
                 attempt = attempt,
                 candidate = candidate,
-                sourceByPlugin = availableSources,
+                remoteSources = remoteSources,
                 attemptKind = remoteAttemptKinds[attempt.releaseId]
                     ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
                 ownership = ReaderAttemptOwnership(),
@@ -234,7 +229,7 @@ internal class ReaderRouteExecutor(
 
     private suspend fun executeRemoteAttempt(
         candidate: ChapterRelease,
-        sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
+        remoteSources: ReaderRemoteSourceResolver,
         attemptKind: RemoteAttemptKind,
         ownership: ReaderAttemptOwnership,
         onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
@@ -243,6 +238,7 @@ internal class ReaderRouteExecutor(
     ): ReaderAttemptEffectOutcome {
         val release = candidate
         val sourceId = release.pluginId
+        val sourceByPlugin = remoteSources.resolve()
         val source = sourceByPlugin[sourceId]
         if (source == null) {
             val failure = ReaderSourceFailureClassifier.classifyRemote(

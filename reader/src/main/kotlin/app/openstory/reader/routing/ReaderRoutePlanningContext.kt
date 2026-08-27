@@ -5,7 +5,14 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.engine.ReaderPlanRevision
-import app.openstory.reader.preferences.ReaderPreferences
+
+internal data class ReaderRoutingPreferences(
+    val languageOrder: List<String>,
+) {
+    companion object {
+        fun create(languageOrder: List<String>) = ReaderRoutingPreferences(languageOrder.toList())
+    }
+}
 
 internal data class ReaderRoutePlanningContext(
     val storyId: StoryId,
@@ -13,7 +20,7 @@ internal data class ReaderRoutePlanningContext(
     val chapterGraphRevision: ReaderChapterGraphRevision,
     val planRevision: ReaderPlanRevision,
     val chapterGraph: ReaderSessionChapterGraph,
-    val preferences: ReaderPreferences,
+    val preferences: ReaderRoutingPreferences,
     val committedIdentity: ReaderCommittedIdentity?,
     val explicitReleaseId: ChapterReleaseId?,
     val knownInvalidLocalFingerprints: Map<ChapterReleaseId, Set<String>> = emptyMap(),

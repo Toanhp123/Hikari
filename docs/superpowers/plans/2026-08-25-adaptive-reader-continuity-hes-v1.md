@@ -777,7 +777,7 @@ git add reader/src/test reader/engine/src
 - Produces `ReaderRouteSessionFactory.create(storyId: StoryId): ReaderRouteSession`.
 - Produces session calls `suspend fun updateChapterGraph(groups: List<CanonicalChapterGroup>)`, `suspend fun updateRoutingPreferences(preferences: ReaderPreferences)`, and `suspend fun execute(intent: ReaderForegroundIntent): ReaderForegroundResult`.
 - `ReaderForegroundIntent` contains only `targetChapterId` and optional explicit release; the session already owns `storyId`, latest graph, preferences, committed continuity, generation state, and process collaborators.
-- `ReaderForegroundResult` has `Committed`, `Exhausted`, and `Superseded` outcomes; `Committed` includes target chapter/group context, chosen `ChapterRelease`, `ReaderDocument`, `fromLocal: Boolean`, previous/next chapter IDs, and exact restoration data when safe. No engine `AccessMode` leaks to Feature Reader.
+- `ReaderForegroundResult` has `Committed`, `Exhausted`, and `Superseded` outcomes; `Committed` includes target chapter/group context, chosen `ChapterRelease`, `ReaderDocument`, `fromLocal: Boolean`, and exact restoration data when safe. Reactive previous/next navigation is a Feature Reader projection from the observed chapter graph, not a duplicated Reader result fact. No engine `AccessMode` leaks to Feature Reader.
 - Produces per-session latest chapter-group state/revision; process health is deliberately absent from session state.
 
 - [x] **Step 1: Write failing identity/state tests**
@@ -1732,7 +1732,7 @@ git add reader/src
 - Modify: `reader/src/test/kotlin/app/openstory/reader/routing/RouteSnapshotAssemblerTest.kt`
 
 **Interfaces:**
-- Snapshot consumes current target group/revision, `ReaderPreferences.languageOrder`, current `ReaderSourceAvailability`, Reader cache DTOs, session-local confirmed-invalid local locators, Reader network DTO, process health/probe leases, persisted target progress, committed continuity, wall-clock time.
+- Snapshot consumes current target group/revision, the session-owned routing subset `ReaderRoutingPreferences.languageOrder` mapped from `ReaderPreferencesPort`, current `ReaderSourceAvailability`, Reader cache DTOs, session-local confirmed-invalid local locators, Reader network DTO, process health/probe leases, persisted target progress, committed continuity, wall-clock time. Non-cancellation source-availability enumeration failure degrades REMOTE access to unavailable and must not revoke an otherwise valid LOCAL path.
 - Production mapping: `sourceGroupKey = null`, `completeness = 10_000`, `languageFallbackMode = ORDERED_ALLOW` with Wave 10 `languageOrder`.
 - Hard replan increments only `ReaderPlanRevision` inside the same active generation.
 

@@ -11,13 +11,13 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.engine.CandidateRemoteAccess
+import app.openstory.reader.engine.CandidateLocalAccess
 import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.engine.ReaderPlanRevision
 import app.openstory.reader.engine.RemoteAttemptKind
 import app.openstory.reader.engine.SourceHealthOrigin
 import app.openstory.reader.engine.SourceObservation
 import app.openstory.reader.engine.SourceOperationKey
-import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +27,28 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class RouteSnapshotAssemblerTest {
+    @Test
+    fun sourceAvailabilityFailureDegradesRemoteOnlyAndPreservesExactLocalAccess() = runTest {
+        val release = release("release", "source")
+        val assembler = RouteSnapshotAssembler(
+            progress = SnapshotProgressRepository(),
+            sourceAvailability = ReaderSourceAvailability { error("plugin registry unavailable") },
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
+            cacheFacts = ReaderCacheFactsPort { _, _ ->
+                mapOf(release.id to ReaderLocalCacheFact.Exact("local-fp"))
+            },
+            nowEpochMillis = { 100L },
+        )
+
+        val assembled = requireNotNull(assembler.assemble(context(listOf(release))))
+        val candidate = assembled.snapshot.candidates.single()
+
+        assertEquals(CandidateLocalAccess.AvailableExact("local-fp"), candidate.localAccess)
+        assertEquals(CandidateRemoteAccess.SOURCE_UNAVAILABLE, candidate.remoteAccess)
+        assembled.probeLeases.forEach(ReaderHalfOpenProbeLease::release)
+    }
+
     @Test
     fun assemblesCanonicalAvailabilityHealthAndRevisionFactsWithoutAdaptiveRanking() = runTest {
         val health = ReaderSourceHealthRegistry()
@@ -161,7 +183,7 @@ class RouteSnapshotAssemblerTest {
                     ),
                 ),
             ),
-            preferences = ReaderPreferences(languageOrder = listOf("en")),
+            preferences = ReaderRoutingPreferences.create(listOf("en")),
             committedIdentity = null,
             explicitReleaseId = null,
             knownInvalidLocalFingerprints = emptyMap(),

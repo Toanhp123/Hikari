@@ -55,7 +55,7 @@ class ReaderRouteExecutorAdaptiveTest {
             identity = identity,
             attempt = attempt,
             candidate = candidate,
-            sourceByPlugin = mapOf(source.pluginId to source),
+            remoteSources = ReaderRemoteSourceResolver { mapOf(source.pluginId to source) },
             ownership = ReaderAttemptOwnership(),
             publishValidCompletion = { loaded ->
                 ReaderValidCompletion(

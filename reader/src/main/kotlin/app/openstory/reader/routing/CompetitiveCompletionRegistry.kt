@@ -11,6 +11,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 internal data class ReaderValidCompletion(
     val identity: ReaderAttemptIdentity,
@@ -58,29 +60,30 @@ internal class ReaderAttemptOwnership {
         CLOSED,
     }
 
-    private val lock = Object()
+    private val lock = ReentrantLock()
+    private val publicationSettled = lock.newCondition()
     private var state = State.OPEN
 
-    fun isOwned(): Boolean = synchronized(lock) {
+    fun isOwned(): Boolean = lock.withLock {
         state == State.OPEN || state == State.PUBLISHING || state == State.PUBLISHED
     }
 
-    fun close(): Boolean = synchronized(lock) {
-        while (state == State.PUBLISHING) lock.wait()
-        if (state == State.CLOSED) return@synchronized false
+    fun close(): Boolean = lock.withLock {
+        while (state == State.PUBLISHING) publicationSettled.await()
+        if (state == State.CLOSED) return@withLock false
         state = State.CLOSED
         true
     }
 
     fun sealForWinnerSelection() {
-        synchronized(lock) {
-            while (state == State.PUBLISHING) lock.wait()
+        lock.withLock {
+            while (state == State.PUBLISHING) publicationSettled.await()
             if (state == State.OPEN) state = State.SEALED
         }
     }
 
     fun <T : Any> publishIfOwned(block: () -> T): T? {
-        synchronized(lock) {
+        lock.withLock {
             if (state != State.OPEN) return null
             state = State.PUBLISHING
         }
@@ -88,9 +91,9 @@ internal class ReaderAttemptOwnership {
         return try {
             block().also { published = true }
         } finally {
-            synchronized(lock) {
+            lock.withLock {
                 state = if (published) State.PUBLISHED else State.OPEN
-                lock.notifyAll()
+                publicationSettled.signalAll()
             }
         }
     }

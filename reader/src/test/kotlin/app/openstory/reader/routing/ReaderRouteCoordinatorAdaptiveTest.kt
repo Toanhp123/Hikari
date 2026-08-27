@@ -26,8 +26,66 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertFalse
 
 class ReaderRouteCoordinatorAdaptiveTest {
+    @Test
+    fun localPrimaryDoesNotEnumerateRemoteRegistryEvenWhenRemoteRecoveryExists() = runTest {
+        val document = document("local-fp")
+        var registryEnumerated = false
+        val coordinator = ReaderRouteCoordinator(
+            store = AdaptiveCoordinatorStore(mapOf(releaseId to document)),
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> {
+                    registryEnumerated = true
+                    error("remote registry must stay lazy for local winner")
+                }
+            },
+            progress = AdaptiveCoordinatorProgress(null),
+            sourceAvailability = ReaderSourceAvailability { setOf(sourceId) },
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
+            cacheFacts = ReaderCacheFactsPort { ids, _ ->
+                ids.associateWith { ReaderLocalCacheFact.Exact("local-fp") }
+            },
+            networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
+        )
+        val session = ready(coordinator)
+
+        val result = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapterId)),
+        )
+
+        assertEquals(true, result.fromLocal)
+        assertEquals("local-fp", result.document.fingerprint)
+        assertFalse(registryEnumerated)
+    }
+
+    @Test
+    fun remoteRegistryFailureBecomesTypedSourceUnavailableInsteadOfRouteAbort() = runTest {
+        val coordinator = ReaderRouteCoordinator(
+            store = AdaptiveCoordinatorStore(),
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> =
+                    error("remote registry unavailable")
+            },
+            progress = AdaptiveCoordinatorProgress(null),
+            sourceAvailability = ReaderSourceAvailability { setOf(sourceId) },
+            healthRegistry = ReaderSourceHealthRegistry(),
+            executionLimiter = ReaderSourceExecutionLimiter(),
+            cacheFacts = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
+            networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
+        )
+        val session = ready(coordinator)
+
+        val result = assertIs<ReaderForegroundResult.Exhausted>(
+            session.execute(ReaderForegroundIntent(chapterId)),
+        )
+
+        assertEquals("reader.source_unavailable", result.code)
+        assertEquals("reader.source_unavailable", result.attempts.single().code)
+    }
+
     @Test
     fun exactLocalWinnerCommitsWithoutTouchingRemoteTransport() = runTest {
         val document = document("local-fp")
@@ -61,30 +119,6 @@ class ReaderRouteCoordinatorAdaptiveTest {
 
         assertIs<ReaderForegroundResult.Exhausted>(session.execute(ReaderForegroundIntent(chapterId)))
         assertEquals(0, source.fetchCount)
-    }
-
-    @Test
-    fun committedNeighborsComeFromIndexedSessionGraph() = runTest {
-        val source = AdaptiveCoordinatorSource(document("remote-fp"))
-        val coordinator = coordinator(
-            store = AdaptiveCoordinatorStore(),
-            source = source,
-            cacheFacts = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
-            networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
-        )
-        val session = ReaderRouteSessionFactory(coordinator).create(StoryId("story"))
-        val previous = group(CanonicalChapterId("previous"), ChapterReleaseId("release-previous"))
-        val target = group(CanonicalChapterId("target"), ChapterReleaseId("release-target"))
-        val next = group(CanonicalChapterId("next"), ChapterReleaseId("release-next"))
-        session.updateChapterGraph(listOf(previous, target, next))
-        session.updateRoutingPreferences(ReaderPreferences(languageOrder = listOf("en")))
-
-        val result = assertIs<ReaderForegroundResult.Committed>(
-            session.execute(ReaderForegroundIntent(target.chapter.id)),
-        )
-
-        assertEquals(previous.chapter.id, result.previousChapterId)
-        assertEquals(next.chapter.id, result.nextChapterId)
     }
 
     @Test

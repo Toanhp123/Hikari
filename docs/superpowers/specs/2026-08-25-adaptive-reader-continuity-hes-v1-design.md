@@ -496,7 +496,7 @@ The pure engine does not depend on `ChapterRelease` or `CanonicalChapterGroup`.
 ```text
 CanonicalChapterGroup
 ChapterRelease
-ReaderPreferences
+ReaderRoutingPreferences(languageOrder only, adapted from ReaderPreferencesPort)
 ReaderSourceAvailability
 cache metadata facts
 network facts
@@ -519,6 +519,12 @@ completeness          <- 10_000 in production
 remote enabled        <- existing ReaderSourceAvailability
 local access          <- bounded cache metadata inspection
 ```
+
+`ReaderSourceAvailability` is an effect observation, not a prerequisite for LOCAL access. If
+enumeration fails for a non-cancellation reason, the adapter materializes REMOTE as unavailable
+for that snapshot while retaining independently proven LOCAL facts. Foreground execution likewise
+materializes the source registry lazily only when a REMOTE attempt actually begins; a LOCAL primary
+never enumerates remote sources merely because a later recovery attempt exists.
 
 `sourceGroupKey` remains `null` in production until a separately reviewed trusted metadata source exists. Display labels are never used to infer cross-provider translation-group equivalence.
 
@@ -1934,6 +1940,8 @@ schema-11 notification persistence
 HES:
 
 - consumes `ReaderPreferencesPort`;
+- copies only `languageOrder` into session/routing state; presentation-only `fontScale` never enters
+  `ReaderRouteExecutionContext` or `ReaderRoutePlanningContext`;
 - does not add `:reader -> :settings`;
 - does not create a second settings repository/port;
 - does not redefine `MIGRATION_10_11`;

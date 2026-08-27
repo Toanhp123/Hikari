@@ -8,7 +8,6 @@ import app.openstory.common.id.StoryId
 import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.engine.ReaderChapterGraphRevision
-import app.openstory.reader.preferences.ReaderPreferences
 
 /** User intent only. Session-owned story/graph/preferences/continuity never ride on each request. */
 data class ReaderForegroundIntent(
@@ -45,8 +44,6 @@ sealed interface ReaderForegroundResult {
         val release: ChapterRelease,
         val document: ReaderDocument,
         val fromLocal: Boolean,
-        val previousChapterId: CanonicalChapterId?,
-        val nextChapterId: CanonicalChapterId?,
         val restoration: ReaderExactRestoration?,
     ) : ReaderForegroundResult
 
@@ -71,7 +68,7 @@ internal data class ReaderRouteExecutionContext(
     val identity: ReaderExecutionIdentity,
     val chapterGraphRevision: ReaderChapterGraphRevision,
     val chapterGraph: ReaderSessionChapterGraph,
-    val preferences: ReaderPreferences,
+    val preferences: ReaderRoutingPreferences,
     val committedIdentity: ReaderCommittedIdentity?,
     val explicitReleaseId: ChapterReleaseId?,
     val knownInvalidLocalFingerprints: Map<ChapterReleaseId, Set<String>> = emptyMap(),

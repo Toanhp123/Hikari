@@ -58,7 +58,7 @@ internal class RouteSnapshotAssembler(
         val networkClass = networkClass()
         val now = nowEpochMillis()
         require(now >= 0L) { "Reader route snapshot clock must be non-negative." }
-        val enabledSourceIds = sourceAvailability.enabledPluginIds().toSet()
+        val enabledSourceIds = enabledSourceIds()
         val probeLeases = mutableListOf<ReaderHalfOpenProbeLease>()
         var assemblyCompleted = false
 
@@ -161,6 +161,14 @@ internal class RouteSnapshotAssembler(
         throw cancelled
     } catch (_: Exception) {
         releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
+    }
+
+    private suspend fun enabledSourceIds(): Set<PluginId> = try {
+        sourceAvailability.enabledPluginIds().toSet()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        emptySet()
     }
 
     private suspend fun networkClass(): ReaderNetworkClass {

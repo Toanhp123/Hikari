@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 reader_sanitizer="$root/reader/src/main/kotlin/app/openstory/reader/document/ReaderDocumentSanitizer.kt"
 reader_executor="$root/reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteExecutor.kt"
+reader_remote_source_resolver="$root/reader/src/main/kotlin/app/openstory/reader/routing/ReaderRemoteSourceResolver.kt"
 chapter_engine="$root/chapters/src/main/kotlin/app/openstory/chapters/aggregation/ChapterAggregationEngine.kt"
 fixture_manifest="$root/app/src/benchmarkRelease/AndroidManifest.xml"
 fixture_activity="$root/app/src/benchmarkRelease/kotlin/app/openstory/benchmark/BenchmarkFixtureActivity.kt"
@@ -21,10 +22,20 @@ grep -q 'toLowerHex()' "$reader_sanitizer" || fail "reader SHA-256 hex encoding 
 ! grep -q 'sortedWith(compareByDescending<Pair<CanonicalChapter, ChapterMatchScore>>' "$chapter_engine" || \
   fail "chapter candidate selection still sorts every candidate"
 grep -q 'bestCandidate(' "$chapter_engine" || fail "chapter aggregation lacks a single-pass best-candidate path"
-grep -q 'var sourceByPlugin: Map<PluginId, ReaderDocumentSource>? = null' "$reader_executor" || \
-  fail "reader executor does not defer source enumeration behind local attempts"
-grep -q 'sourceByPlugin ?: loadFromSources().also' "$reader_executor" || \
-  fail "reader executor does not enumerate sources lazily on the first remote attempt"
+[[ -f "$reader_remote_source_resolver" ]] || fail "reader remote source resolver is missing"
+grep -q 'ReaderRemoteSourceResolver(::loadFromSources)' "$reader_executor" || \
+  fail "reader executor does not defer source enumeration through the per-execution resolver"
+grep -q 'val remoteSources = newRemoteSourceResolver()' "$reader_executor" || \
+  fail "reader adaptive execution does not allocate one lazy resolver per execution"
+grep -q 'val sourceByPlugin = remoteSources.resolve()' "$reader_executor" || \
+  fail "reader remote attempt does not resolve sources lazily at the REMOTE boundary"
+grep -q 'private var resolved: Map<PluginId, ReaderDocumentSource>? = null' "$reader_remote_source_resolver" || \
+  fail "reader remote source resolver does not cache the first source enumeration"
+local_attempt=$(sed -n '/private suspend fun executeLocalAttempt(/,/private suspend fun executeRemoteAttempt(/p' "$reader_executor")
+[[ "$local_attempt" != *"remoteSources.resolve()"* ]] || \
+  fail "reader LOCAL attempt resolves remote sources"
+[[ "$local_attempt" != *"sources.enabled()"* ]] || \
+  fail "reader LOCAL attempt enumerates plugin sources"
 
 [[ -f "$fixture_manifest" ]] || fail "benchmarkRelease fixture manifest is missing"
 [[ -f "$fixture_activity" ]] || fail "benchmarkRelease fixture activity is missing"

@@ -200,8 +200,6 @@ class ReaderRuntimeStressTest {
                 fingerprint = "fp-${release.id.value}",
             ),
             fromLocal = false,
-            previousChapterId = context.chapterGraph.previousBefore(group.chapter.id)?.chapter?.id,
-            nextChapterId = context.chapterGraph.nextAfter(group.chapter.id)?.chapter?.id,
             restoration = null,
         )
     }

@@ -12,6 +12,7 @@ import app.openstory.common.id.StoryId
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
+import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
@@ -57,8 +58,6 @@ class ReaderRouteCoordinatorContractTest {
         assertEquals(target, committed.identity.targetChapterId)
         assertEquals(target, committed.chapterGroup.chapter.id)
         assertEquals(release.id, committed.release.id)
-        assertEquals(CanonicalChapterId("chapter-a"), committed.previousChapterId)
-        assertEquals(CanonicalChapterId("chapter-c"), committed.nextChapterId)
         assertEquals(ReaderExactRestoration("block", 4, 0.5f), committed.restoration)
     }
 
@@ -88,7 +87,7 @@ class ReaderRouteCoordinatorContractTest {
     }
 
     @Test
-    fun unexpectedCompatibilityFailureBecomesLegacyExhaustion() = runTest {
+    fun executionRegistryFailureBecomesTypedSourceUnavailable() = runTest {
         val target = CanonicalChapterId("chapter")
         val release = release("release", target)
         val coordinator = ReaderRouteCoordinator(
@@ -99,8 +98,13 @@ class ReaderRouteCoordinatorContractTest {
                 }
             },
             progress = CoordinatorProgressRepository(null),
+            sourceAvailability = ReaderSourceAvailability { setOf(release.pluginId) },
             healthRegistry = ReaderSourceHealthRegistry(),
             executionLimiter = ReaderSourceExecutionLimiter(),
+            cacheFacts = ReaderCacheFactsPort { ids, _ ->
+                ids.associateWith { ReaderLocalCacheFact.Miss }
+            },
+            networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
         )
         val session = ReaderRouteSessionFactory(coordinator).create(StoryId("story"))
         session.updateChapterGraph(listOf(group(target, release)))
@@ -110,8 +114,9 @@ class ReaderRouteCoordinatorContractTest {
             session.execute(ReaderForegroundIntent(target)),
         )
 
-        assertEquals("reader.load_failed", exhausted.code)
-        assertEquals(true, exhausted.retryable)
+        assertEquals("reader.source_unavailable", exhausted.code)
+        assertEquals(false, exhausted.retryable)
+        assertEquals("reader.source_unavailable", exhausted.attempts.single().code)
     }
 
     @Test

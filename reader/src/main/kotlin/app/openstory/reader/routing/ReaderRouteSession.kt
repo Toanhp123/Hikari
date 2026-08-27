@@ -28,7 +28,7 @@ class ReaderRouteSession internal constructor(
     private var activeExecution: ReaderSessionActiveExecution? = null
     private var activePlan: ReaderSessionActivePlan? = null
     private var latestChapterGraph: ReaderSessionChapterGraph? = null
-    private var latestPreferences: ReaderPreferences? = null
+    private var latestPreferences: ReaderRoutingPreferences? = null
     private val firstChapterGraph = CompletableDeferred<Unit>()
     private val firstRoutingPreferences = CompletableDeferred<Unit>()
     private var chapterGraphRevision = ReaderChapterGraphRevision(0)
@@ -70,7 +70,7 @@ class ReaderRouteSession internal constructor(
     }
 
     suspend fun updateRoutingPreferences(preferences: ReaderPreferences) {
-        val owned = preferences.copy(languageOrder = preferences.languageOrder.toList())
+        val owned = ReaderRoutingPreferences.create(preferences.languageOrder)
         val routingChanged = synchronized(stateLock) {
             val previous = latestPreferences
             if (previous == owned) {
@@ -79,11 +79,10 @@ class ReaderRouteSession internal constructor(
             }
             latestPreferences = owned
             firstRoutingPreferences.complete(Unit)
-            val languageChanged = previous != null && previous.languageOrder != owned.languageOrder
-            if (activeExecution != null && languageChanged) {
+            if (activeExecution != null && previous != null) {
                 hardInvalidateLocked()
             }
-            languageChanged
+            previous != null
         }
         if (routingChanged) refreshPrefetch(force = true)
     }

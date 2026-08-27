@@ -118,9 +118,10 @@ class ReaderRouteCoordinator(
         context: ReaderRouteExecutionContext,
         prepared: PreparedForegroundRoute,
     ): ReaderForegroundResult {
-        val winnerReleaseId = checkNotNull(prepared.decision.trace.finalWinnerReleaseId) {
-            "A non-empty adaptive route requires a final winner release."
+        val primary = checkNotNull(prepared.decision.competitiveSet.primary) {
+            "A non-empty adaptive route requires a primary attempt."
         }
+        val winnerReleaseId = primary.releaseId
         return if (!session.recordPlannedRoute(context, winnerReleaseId, prepared.plannedAttempts)) {
             ReaderForegroundResult.Superseded(context.foregroundIdentity)
         } else {
@@ -140,11 +141,7 @@ class ReaderRouteCoordinator(
         val attemptIndex = plannedAttempts.mapIndexed { index, attempt ->
             attempt.attemptId to index
         }.toMap()
-        val sourceByPlugin = if (plannedAttempts.any { it.accessMode == AccessMode.REMOTE }) {
-            executor.enabledSources()
-        } else {
-            emptyMap()
-        }
+        val remoteSources = executor.newRemoteSourceResolver()
         val primary = checkNotNull(decision.competitiveSet.primary)
         val execution = ReaderCompetitiveExecution(
             scheduler = executionScheduler,
@@ -154,7 +151,7 @@ class ReaderRouteCoordinator(
                     identity = identity,
                     attempt = attempt,
                     candidate = candidate,
-                    sourceByPlugin = sourceByPlugin,
+                    remoteSources = remoteSources,
                     attemptKind = probeAttemptKinds[attempt.releaseId]
                         ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
                     ownership = ownership,
@@ -410,14 +407,6 @@ class ReaderRouteCoordinator(
             release = release,
             document = loaded.document,
             fromLocal = loaded.fromStore,
-            previousChapterId = context.chapterGraph
-                .previousBefore(context.identity.targetChapterId)
-                ?.chapter
-                ?.id,
-            nextChapterId = context.chapterGraph
-                .nextAfter(context.identity.targetChapterId)
-                ?.chapter
-                ?.id,
             restoration = restoration,
         )
     }

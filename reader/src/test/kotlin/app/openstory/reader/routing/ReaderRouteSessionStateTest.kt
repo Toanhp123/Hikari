@@ -337,6 +337,26 @@ class ReaderRouteSessionStateTest {
     }
 
     @Test
+    fun unexpectedExecutionDelegateFailureBecomesLegacyLoadFailure() = runTest {
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(24),
+            delegate = ReaderRouteExecutionDelegate { _, _ ->
+                error("unexpected delegate failure")
+            },
+        )
+        ready(session)
+
+        val exhausted = assertIs<ReaderForegroundResult.Exhausted>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+
+        assertEquals("reader.load_failed", exhausted.code)
+        assertEquals(true, exhausted.retryable)
+        assertTrue(exhausted.attempts.isEmpty())
+    }
+
+    @Test
     fun cancellationClosesCurrentGenerationEvenAfterPlanRevisionAdvances() = runTest {
         val session = ReaderRouteSession(
             storyId = StoryId("story"),
@@ -524,8 +544,6 @@ class ReaderRouteSessionStateTest {
                 fingerprint = "fp-${release.id.value}",
             ),
             fromLocal = false,
-            previousChapterId = context.chapterGraph.previousBefore(group.chapter.id)?.chapter?.id,
-            nextChapterId = context.chapterGraph.nextAfter(group.chapter.id)?.chapter?.id,
             restoration = null,
         )
     }
