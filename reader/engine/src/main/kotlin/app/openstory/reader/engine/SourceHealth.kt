@@ -3,7 +3,7 @@ package app.openstory.reader.engine
 import app.openstory.common.id.PluginId
 import app.openstory.reader.engine.internal.DefaultSourceHealthReducer
 
-const val HES_V1_MAX_HEALTH_FAILURE_THRESHOLD: Int = 20
+private const val HES_V1_MAX_HEALTH_FAILURE_THRESHOLD: Int = 20
 
 private const val HES_V1_MAX_LATENCY_SAMPLES: Int = 20
 private const val DEFAULT_HEALTH_ALPHA: Int = 2_000

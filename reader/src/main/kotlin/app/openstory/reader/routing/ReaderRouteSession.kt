@@ -265,8 +265,22 @@ class ReaderRouteSession internal constructor(
         check(matchesActiveLocked(context.identity)) {
             "Reader completion gate must hold the active generation and plan revision."
         }
+        check(result.identity == context.foregroundIdentity) {
+            "Reader completion result identity must match the active execution context."
+        }
         when (result) {
             is ReaderForegroundResult.Committed -> {
+                val targetGroup = checkNotNull(
+                    context.chapterGraph.group(context.identity.targetChapterId),
+                ) {
+                    "Reader committed target chapter must exist in the execution graph."
+                }
+                check(result.chapterGroup == targetGroup) {
+                    "Reader committed chapter group must match the execution target chapter."
+                }
+                check(targetGroup.releases.any { it == result.release }) {
+                    "Reader committed release must belong to the execution target chapter."
+                }
                 committedIdentity = ReaderCommittedIdentity(
                     chapterId = result.identity.targetChapterId,
                     releaseId = result.release.id,

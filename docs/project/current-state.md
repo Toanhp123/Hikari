@@ -44,7 +44,7 @@ Purpose: single source of truth for the implemented repository boundary.
   That accepted durability boundary is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
   catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
   134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
-- Adaptive Reader Continuity / HES-v1: **M0–M7.3 VERIFIED/CLOSED historically; M7.4 IN PROGRESS; HES-v1 FREEZE REOPENED ONLY FOR API HYGIENE**. M7.3 remains accepted final-tree conformance evidence. M7.4 resolves its explicitly deferred API-hygiene debt by retiring the unused `AccessReason` exported symbol; no replacement reason taxonomy is introduced because access/recovery explanation is already represented by `AccessMode`, `AttemptRole`, route construction/ranking, and `HedgeDirective`. The implementation does not change routing behavior, `ReaderDecisionTrace` shape, HES/public policy version constants, the 17-production-module plus `:benchmark` graph, or Room schema 11. Fresh M7.4 final-tree closure evidence is still required before HES-v1 is re-frozen. Canonical M7.4 design/plan are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md`; historical M7.3 evidence remains `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
+- Adaptive Reader Continuity / HES-v1: **M0–M7.5 VERIFIED/CLOSED; HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE**. M7.4 retired the unused `AccessReason`; M7.5 then linearized valid-completion publication against ownership sealing/cancellation, hardened final session result/payload coherence, and removed the remaining obvious test/implementation-only engine exports. The fresh 2026-08-27 final-tree host matrix is GREEN across engine/Reader/downstream tests, architecture/package/current-architecture gates, retained host verification, Room schema stability, and instrumentation compilation. Routing formulas, `ReaderDecisionTrace` data fields, HES/policy versions, the 17-production-module plus `:benchmark` graph, and Room schema 11 remain unchanged. The diagnostic-code namespace naming issue is explicitly deferred to HES-v2. Canonical final-hardening design/plan are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
 - Wave 10: **VERIFIED/CLOSED; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE PASS**. Current source is Room schema 11,
   `MIGRATION_10_11` owns Wave 10 notification persistence, and the standalone Detekt, unchanged combined host gate,
   plus package/current-architecture contracts are GREEN in `../internal/checkpoints/wave-10-production-remediation.md`.
@@ -202,7 +202,7 @@ catalog metadata-lifecycle unification preserved that presentation and the then-
 advancing Room 7 -> 8 and moving Search, Story, and Discover metadata requirements behind the shared
 coordinator. Wave 10 expanded the production graph to 16 modules (`:settings` and `:feature:settings`) and advanced
 Room to schema 11; HES-v1 M0 adds `:reader:engine` as the seventeenth production module without
-changing that schema. M1–M7.3 remain verified/closed historical milestones; M7.3 re-froze HES-v1 from fresh final-tree conformance evidence. M7.4 now reopens that freeze only for the narrow `AccessReason` API-hygiene retirement, with no routing/module/schema/version change; re-freeze awaits fresh M7.4 closure evidence. Wave 10 remains verified/closed.
+changing that schema. M1–M7.3 remain verified/closed historical milestones. M7.4 retired `AccessReason`, and M7.5 closed the final completion-publication, final-session-coherence, and minimal API-hygiene gaps. The fresh M7.5 final-tree matrix is accepted; HES-v1 is final re-frozen/reference-grade. Wave 10 remains verified/closed.
 
 ## Architecture Baseline 2 status
 
@@ -307,12 +307,12 @@ Evidence:
 ## Wave 10 execution baseline
 
 Wave 10 implementation entered HES on its 16-production-module / Room-schema-11 boundary. The current
-M7.4 API-hygiene tree still has 17 production modules because `:reader:engine` was added in M0; Room
+M7.5 final-hardening tree still has 17 production modules because `:reader:engine` was added in M0; Room
 remains schema 11. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`,
 M7/M7.1 historical closure evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md`, M7.2
 historical re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and the
 final M7.3 conformance re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
-M7.4 closure evidence will be recorded separately in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`.
+M7.4 closure-by-final-tree evidence remains in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`; final HES-v1 closure evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-5.md`.
 Wave 10 final acceptance is closed and recorded in:
 
 - `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
@@ -327,7 +327,7 @@ presentation, and the Wave 10 startup hooks. `MIGRATION_10_11` remains the sole 
 
 Focused host/API 35 remediation evidence exists, and the required API 26/API 37 Wave 10 acceptance matrix
 is developer-confirmed GREEN. M7.1 repaired the repository-wide Detekt debt and M7.2 later re-froze HES-v1
-from its own fresh accepted matrix. M7.3 reopened only the HES-v1 conformance boundary; that did not rewrite Wave 10's accepted evidence, and its blocking matrix later closed green. M7.4 now reopens only the Reader Engine API-hygiene boundary to retire the unused `AccessReason` symbol; the unchanged V1/module/schema boundary remains intact, but post-hygiene re-freeze waits for fresh M7.4 gates. Wave 10 therefore remains **VERIFIED/CLOSED; DEVICE MATRIX PASS; FINAL HOST
+from its own fresh accepted matrix. M7.3 reopened only the HES-v1 conformance boundary; that did not rewrite Wave 10's accepted evidence, and its blocking matrix later closed green. M7.4 retired the unused `AccessReason` symbol. M7.5 closed the last Reader Engine hardening boundary from a fresh green final-tree matrix; the unchanged V1/module/schema boundary remains intact and HES-v1 is final re-frozen/reference-grade. Wave 10 therefore remains **VERIFIED/CLOSED; DEVICE MATRIX PASS; FINAL HOST
 ACCEPTANCE PASS**.
 
 ## Source-of-truth rule

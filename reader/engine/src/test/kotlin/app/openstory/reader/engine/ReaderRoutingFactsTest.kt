@@ -112,7 +112,7 @@ class ReaderRoutingFactsTest {
     @Test
     fun decisionAndTraceUseTheSameSinglePlanRevisionTypeAndOrderedLists() {
         val revision = ReaderPlanRevision(7)
-        val trace = ReaderDecisionTrace.empty(
+        val trace = emptyTrace(
             planRevision = revision,
             chapterGraphRevision = ReaderChapterGraphRevision(3),
             policyVersion = ReaderPolicyVersion.READER_POLICY_V1,
@@ -124,7 +124,7 @@ class ReaderRoutingFactsTest {
             policyVersion = ReaderPolicyVersion.READER_POLICY_V1,
             planRevision = revision,
             competitiveSet = CompetitiveSet(primary = null, hedge = null),
-            hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_EVALUATED),
+            hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
             recoveryChain = emptyList(),
             rejections = emptyList(),
             trace = trace,
@@ -196,7 +196,7 @@ class ReaderRoutingFactsTest {
             role = AttemptRole.HEDGE,
         )
         val directive = HedgeDirective.Launch(hedge, 650L)
-        val trace = ReaderDecisionTrace.empty(
+        val trace = emptyTrace(
             planRevision = ReaderPlanRevision(7),
             chapterGraphRevision = ReaderChapterGraphRevision(3),
             policyVersion = ReaderPolicyVersion.READER_POLICY_V1,
@@ -234,4 +234,31 @@ class ReaderRoutingFactsTest {
         }
     }
 
+    private fun emptyTrace(
+        planRevision: ReaderPlanRevision,
+        chapterGraphRevision: ReaderChapterGraphRevision,
+        policyVersion: ReaderPolicyVersion,
+        decisionReason: DecisionReason,
+    ) = ReaderDecisionTrace(
+        hesContractVersion = HesContractVersion.HES_V1,
+        algorithmVersion = ReaderRoutingAlgorithmVersion.READER_ROUTING_V1,
+        policyVersion = policyVersion,
+        planRevision = planRevision,
+        chapterGraphRevision = chapterGraphRevision,
+        canonicalCandidateIds = emptyList(),
+        rejections = emptyList(),
+        diagnostics = emptyList(),
+        candidateEvaluations = emptyList(),
+        stableRanking = emptyList(),
+        incumbentReleaseId = null,
+        incumbentKind = IncumbentKind.NONE,
+        rawChallengerReleaseId = null,
+        switchAdvantage = null,
+        requiredHysteresisThreshold = null,
+        finalWinnerReleaseId = null,
+        routeConstruction = emptyList(),
+        hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
+        finalDecisionReason = decisionReason,
+        healthOrigins = emptyList(),
+    )
 }

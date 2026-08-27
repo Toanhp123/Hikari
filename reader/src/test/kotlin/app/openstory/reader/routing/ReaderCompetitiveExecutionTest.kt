@@ -31,6 +31,10 @@ import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Modifier
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -100,6 +104,74 @@ class ReaderCompetitiveExecutionTest {
     }
 
     @Test
+    fun `completion rejects loaded release that differs from its route attempt`() {
+        val attemptRelease = release(0, PRIMARY_SOURCE)
+        val loadedRelease = release(1, ALTERNATE_SOURCE)
+        val attempt = RouteAttempt(
+            attemptId = "attempt-route",
+            releaseId = attemptRelease.id,
+            sourceId = attemptRelease.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.PRIMARY,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            ReaderValidCompletion(
+                identity = executionIdentity().forAttempt(attempt.attemptId),
+                attempt = attempt,
+                loaded = ReaderLoadResult.Success(loadedRelease, document("wrong-release"), fromStore = false),
+                completedAtNanos = 1L,
+            )
+        }
+    }
+
+    @Test
+    fun `completion rejects loaded source that differs from its route attempt`() {
+        val attemptRelease = release(0, PRIMARY_SOURCE)
+        val loadedRelease = attemptRelease.copy(pluginId = ALTERNATE_SOURCE)
+        val attempt = RouteAttempt(
+            attemptId = "attempt-route",
+            releaseId = attemptRelease.id,
+            sourceId = attemptRelease.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.PRIMARY,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            ReaderValidCompletion(
+                identity = executionIdentity().forAttempt(attempt.attemptId),
+                attempt = attempt,
+                loaded = ReaderLoadResult.Success(loadedRelease, document("wrong-source"), fromStore = false),
+                completedAtNanos = 1L,
+            )
+        }
+    }
+
+    @Test
+    fun `completion rejects locality that differs from its route attempt`() {
+        val release = release(0, PRIMARY_SOURCE)
+        val attempt = RouteAttempt(
+            attemptId = "attempt-route",
+            releaseId = release.id,
+            sourceId = release.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.PRIMARY,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            ReaderValidCompletion(
+                identity = executionIdentity().forAttempt(attempt.attemptId),
+                attempt = attempt,
+                loaded = ReaderLoadResult.Success(release, document("wrong-locality"), fromStore = true),
+                completedAtNanos = 1L,
+            )
+        }
+    }
+
+    @Test
     fun `completion registry orders timestamp then primary role then stable attempt id`() {
         val registry = CompetitiveCompletionRegistry()
         val fallbackZ = completion("attempt-z", AttemptRole.FALLBACK, 700L)
@@ -118,6 +190,228 @@ class ReaderCompetitiveExecutionTest {
         fallbackOnly.record(fallbackZ)
         fallbackOnly.record(fallbackA)
         assertEquals(fallbackA, fallbackOnly.winner())
+    }
+
+    @Test
+    fun `valid completion publication linearizes timestamp capture with registry record`() {
+        val primaryRelease = release(0, PRIMARY_SOURCE)
+        val hedgeRelease = release(1, ALTERNATE_SOURCE)
+        val primary = RouteAttempt(
+            attemptId = "attempt-p",
+            releaseId = primaryRelease.id,
+            sourceId = primaryRelease.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.PRIMARY,
+        )
+        val hedge = RouteAttempt(
+            attemptId = "attempt-h",
+            releaseId = hedgeRelease.id,
+            sourceId = hedgeRelease.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.HEDGE,
+        )
+        val primaryIdentity = executionIdentity().forAttempt(primary.attemptId)
+        val hedgeIdentity = executionIdentity().forAttempt(hedge.attemptId)
+        val primaryLoaded = ReaderLoadResult.Success(primaryRelease, document("primary"), fromStore = false)
+        val hedgeLoaded = ReaderLoadResult.Success(hedgeRelease, document("hedge"), fromStore = false)
+        val firstClockEntered = CountDownLatch(1)
+        val releaseFirstClock = CountDownLatch(1)
+        val hedgePublishStarted = CountDownLatch(1)
+        val rawCallIndex = AtomicInteger(0)
+        val scheduler = DefaultReaderExecutionScheduler.forTest(
+            delayBlock = {},
+            rawMonotonicNanos = {
+                if (rawCallIndex.getAndIncrement() == 0) {
+                    firstClockEntered.countDown()
+                    check(releaseFirstClock.await(2, TimeUnit.SECONDS))
+                    100L
+                } else {
+                    90L
+                }
+            },
+        )
+        val registry = CompetitiveCompletionRegistry()
+        val pool = Executors.newFixedThreadPool(2)
+
+        try {
+            val primaryFuture = pool.submit<ReaderValidCompletion> {
+                registry.publish(
+                    identity = primaryIdentity,
+                    attempt = primary,
+                    loaded = primaryLoaded,
+                    monotonicNanos = scheduler::monotonicNanos,
+                )
+            }
+            assertTrue(firstClockEntered.await(2, TimeUnit.SECONDS))
+
+            val hedgeFuture = pool.submit<ReaderValidCompletion> {
+                hedgePublishStarted.countDown()
+                registry.publish(
+                    identity = hedgeIdentity,
+                    attempt = hedge,
+                    loaded = hedgeLoaded,
+                    monotonicNanos = scheduler::monotonicNanos,
+                )
+            }
+            assertTrue(hedgePublishStarted.await(2, TimeUnit.SECONDS))
+            releaseFirstClock.countDown()
+
+            val primaryCompletion = primaryFuture.get(2, TimeUnit.SECONDS)
+            val hedgeCompletion = hedgeFuture.get(2, TimeUnit.SECONDS)
+
+            assertEquals(100L, primaryCompletion.completedAtNanos)
+            assertEquals(100L, hedgeCompletion.completedAtNanos)
+            assertEquals(primaryCompletion, registry.winner())
+        } finally {
+            releaseFirstClock.countDown()
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `loser closure cannot overtake an in flight valid publication`() {
+        val ownership = ReaderAttemptOwnership()
+        val publicationEntered = CountDownLatch(1)
+        val releasePublication = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(2)
+
+        try {
+            val publication = pool.submit<String?> {
+                ownership.publishIfOwned {
+                    publicationEntered.countDown()
+                    check(releasePublication.await(2, TimeUnit.SECONDS))
+                    "published"
+                }
+            }
+            assertTrue(publicationEntered.await(2, TimeUnit.SECONDS))
+
+            val close = pool.submit<Boolean> { ownership.close() }
+            releasePublication.countDown()
+
+            assertEquals("published", publication.get(2, TimeUnit.SECONDS))
+            assertTrue(close.get(2, TimeUnit.SECONDS))
+            assertEquals(null, ownership.publishIfOwned { "late" })
+        } finally {
+            releasePublication.countDown()
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `winner selection waits for an in flight publication before resolving an equal-time tie`() {
+        val primaryRelease = release(0, PRIMARY_SOURCE)
+        val hedgeRelease = release(1, ALTERNATE_SOURCE)
+        val primary = RouteAttempt(
+            attemptId = "attempt-p",
+            releaseId = primaryRelease.id,
+            sourceId = primaryRelease.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.PRIMARY,
+        )
+        val hedge = RouteAttempt(
+            attemptId = "attempt-h",
+            releaseId = hedgeRelease.id,
+            sourceId = hedgeRelease.pluginId,
+            accessMode = AccessMode.REMOTE,
+            localFingerprint = null,
+            role = AttemptRole.HEDGE,
+        )
+        val registry = CompetitiveCompletionRegistry()
+        val scheduler = DefaultReaderExecutionScheduler.forTest(
+            delayBlock = {},
+            rawMonotonicNanos = { 700L },
+        )
+        val primaryOwnership = ReaderAttemptOwnership()
+        val publicationEntered = CountDownLatch(1)
+        val releasePublication = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(2)
+
+        registry.publish(
+            identity = executionIdentity().forAttempt(hedge.attemptId),
+            attempt = hedge,
+            loaded = ReaderLoadResult.Success(hedgeRelease, document("hedge"), fromStore = false),
+            monotonicNanos = scheduler::monotonicNanos,
+        )
+
+        try {
+            val primaryPublication = pool.submit<ReaderValidCompletion?> {
+                primaryOwnership.publishIfOwned {
+                    publicationEntered.countDown()
+                    check(releasePublication.await(2, TimeUnit.SECONDS))
+                    registry.publish(
+                        identity = executionIdentity().forAttempt(primary.attemptId),
+                        attempt = primary,
+                        loaded = ReaderLoadResult.Success(
+                            primaryRelease,
+                            document("primary"),
+                            fromStore = false,
+                        ),
+                        monotonicNanos = scheduler::monotonicNanos,
+                    )
+                }
+            }
+            assertTrue(publicationEntered.await(2, TimeUnit.SECONDS))
+
+            val settlement = pool.submit<ReaderValidCompletion?> {
+                primaryOwnership.sealForWinnerSelection()
+                registry.winner()
+            }
+            releasePublication.countDown()
+
+            val primaryCompletion = primaryPublication.get(2, TimeUnit.SECONDS)
+            assertEquals(primaryCompletion, settlement.get(2, TimeUnit.SECONDS))
+            assertEquals(700L, primaryCompletion?.completedAtNanos)
+        } finally {
+            releasePublication.countDown()
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `winner selection seal blocks a valid publication that has not started`() {
+        val ownership = ReaderAttemptOwnership()
+
+        ownership.sealForWinnerSelection()
+
+        assertEquals(null, ownership.publishIfOwned { "late" })
+        assertTrue(!ownership.isOwned())
+    }
+
+    @Test
+    fun `winner selection seal waits for in flight publication and blocks late publication`() {
+        val inFlightOwnership = ReaderAttemptOwnership()
+        val publicationEntered = CountDownLatch(1)
+        val releasePublication = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(2)
+
+        try {
+            val publication = pool.submit<String?> {
+                inFlightOwnership.publishIfOwned {
+                    publicationEntered.countDown()
+                    check(releasePublication.await(2, TimeUnit.SECONDS))
+                    "published"
+                }
+            }
+            assertTrue(publicationEntered.await(2, TimeUnit.SECONDS))
+
+            val seal = pool.submit<Unit> { inFlightOwnership.sealForWinnerSelection() }
+            releasePublication.countDown()
+
+            assertEquals("published", publication.get(2, TimeUnit.SECONDS))
+            seal.get(2, TimeUnit.SECONDS)
+            assertTrue(inFlightOwnership.isOwned())
+
+            val lateOwnership = ReaderAttemptOwnership()
+            lateOwnership.sealForWinnerSelection()
+            assertEquals(null, lateOwnership.publishIfOwned { "late" })
+            assertTrue(lateOwnership.close())
+        } finally {
+            releasePublication.countDown()
+            pool.shutdownNow()
+        }
     }
 
     @Test
@@ -195,6 +489,38 @@ class ReaderCompetitiveExecutionTest {
         assertSame(executorIdentity, outcome.identity)
         assertEquals(executionIdentity.forAttempt(primary.attemptId), outcome.identity)
         assertSame(failure, outcome.failure)
+    }
+
+    @Test
+    fun `competitive execution rejects failure facts from another route attempt`() = runTest {
+        val primary = remoteAttempt("attempt-0", AttemptRole.PRIMARY)
+        val badFailure = ReaderAttemptFailure(
+            releaseId = primary.releaseId,
+            sourceId = PluginId("wrong-source"),
+            accessMode = primary.accessMode,
+            observation = SourceObservation.TransportFailure.Connection(
+                RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+            ),
+            recoveryScope = RecoveryScope.SOURCE_SCOPED,
+            code = "plugin.http_request_failed",
+            retryable = true,
+            remoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
+        )
+        val execution = ReaderCompetitiveExecution(
+            scheduler = FakeReaderExecutionScheduler(testScheduler),
+            executeAttempt = { identity, _, _, _ -> ReaderAttemptOutcome.Failure(identity, badFailure) },
+            onAttemptStarted = { _, _, _, _ -> },
+            onCompetitionLoser = {},
+        )
+
+        assertFailsWith<IllegalStateException> {
+            execution.execute(
+                executionIdentity = executionIdentity(),
+                primary = primary,
+                hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_ELIGIBLE),
+                recoveryChain = emptyList(),
+            )
+        }
     }
 
     @Test

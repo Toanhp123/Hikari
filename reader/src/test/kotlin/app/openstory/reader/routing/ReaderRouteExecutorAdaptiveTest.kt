@@ -40,23 +40,31 @@ class ReaderRouteExecutorAdaptiveTest {
         val timestamps = ArrayDeque(listOf(0L, 2_000_000L, 9_000_000L))
         val completions = mutableListOf<ReaderValidCompletion>()
         val observations = mutableListOf<SourceObservation>()
+        val identity = ReaderExecutionIdentity(
+            sessionId = ReaderSessionId(1),
+            generationId = ReaderGenerationId(1),
+            planRevision = ReaderPlanRevision(0),
+            targetChapterId = app.openstory.common.id.CanonicalChapterId("chapter"),
+        ).forAttempt(attempt.attemptId)
 
         val outcome = executor(
             store = AdaptiveStore(),
             registry = AdaptiveRegistry(listOf(source)),
             monotonicNanos = timestamps::removeFirst,
         ).executeAttempt(
-            identity = ReaderExecutionIdentity(
-                sessionId = ReaderSessionId(1),
-                generationId = ReaderGenerationId(1),
-                planRevision = ReaderPlanRevision(0),
-                targetChapterId = app.openstory.common.id.CanonicalChapterId("chapter"),
-            ).forAttempt(attempt.attemptId),
+            identity = identity,
             attempt = attempt,
             candidate = candidate,
             sourceByPlugin = mapOf(source.pluginId to source),
             ownership = ReaderAttemptOwnership(),
-            onValidCompletion = completions::add,
+            publishValidCompletion = { loaded ->
+                ReaderValidCompletion(
+                    identity = identity,
+                    attempt = attempt,
+                    loaded = loaded,
+                    completedAtNanos = timestamps.removeFirst(),
+                ).also(completions::add)
+            },
             onSourceObservation = { _, observation -> observations += observation },
             onLocalInvalidated = { _, _ -> },
         )

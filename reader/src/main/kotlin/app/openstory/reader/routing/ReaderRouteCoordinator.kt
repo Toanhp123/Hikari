@@ -148,7 +148,7 @@ class ReaderRouteCoordinator(
         val primary = checkNotNull(decision.competitiveSet.primary)
         val execution = ReaderCompetitiveExecution(
             scheduler = executionScheduler,
-            executeAttempt = { identity, attempt, ownership, onValidCompletion ->
+            executeAttempt = { identity, attempt, ownership, publishValidCompletion ->
                 val candidate = checkNotNull(prepared.candidateByRelease[attempt.releaseId])
                 executor.executeAttempt(
                     identity = identity,
@@ -158,7 +158,7 @@ class ReaderRouteCoordinator(
                     attemptKind = probeAttemptKinds[attempt.releaseId]
                         ?: RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
                     ownership = ownership,
-                    onValidCompletion = onValidCompletion,
+                    publishValidCompletion = publishValidCompletion,
                     onSourceObservation = { sourceId, observation ->
                         recordHealth(sourceId, observation)
                         if (observation is SourceObservation.TransportFailure.Connection) {

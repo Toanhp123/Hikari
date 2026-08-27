@@ -17,12 +17,18 @@
 > authority at `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and current
 > M7.3 evidence at `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
 >
-> API-hygiene governance note (2026-08-27): M7.4 reopens the HES-v1 freeze only to retire the unused
-> `AccessReason` exported symbol and reconcile the reason/trace contract documentation. M7.3 remains
-> historical accepted evidence. M7.4 introduces no replacement reason taxonomy and no routing, trace-shape,
-> version, module, or schema change. Until fresh M7.4 final-tree gates are green, M7.4 is **IN PROGRESS**
-> and HES-v1 is not re-frozen from this API-hygiene edit. See
-> `2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md`. Current M7.4 evidence is `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`.
+> API-hygiene governance note (2026-08-27): M7.4 retired the unused `AccessReason` exported symbol with no
+> replacement reason taxonomy and no routing, trace-shape, version, module, or schema change. Its separate
+> closure was intentionally folded into the accepted M7.5 final-tree verification; M7.4 is **VERIFIED/CLOSED**.
+> See `2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md` and
+> `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`.
+>
+> Final-freeze hardening note (2026-08-27): the post-M7.4 deep audit found one remaining multi-thread
+> completion-publication race, a final session payload-coherence gap, and three obvious test/implementation-only
+> exports. M7.5 repaired only those final correctness/API-surface gaps and recorded the remaining diagnostic-code
+> namespace issue as HES-v2 debt. The fresh 2026-08-27 final-tree host matrix is GREEN; **M0–M7.5 are
+> VERIFIED/CLOSED and HES-v1 is FINAL RE-FROZEN / REFERENCE-GRADE**. See
+> `2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
 
 ---
 
@@ -1572,9 +1578,16 @@ targetChapterId
 envelope (`ReaderAttemptOutcome.Failure`) carries the `ReaderAttemptIdentity`; semantic classification does
 not acquire session-state responsibility.
 
+A foreground valid-completion envelope is internally coherent only when its attempt identity, loaded release/source,
+and LOCAL/REMOTE locality match the launched `RouteAttempt`. Failure envelopes likewise retain the launched
+release/source/access mode. These are runtime boundary invariants, not additional ranking inputs.
+
 A foreground result may affect visible Reader state only if its own identity matches the active session,
-generation, plan revision, and target chapter and the semantic commit gate is open. Closure-captured
-execution context may carry surrounding graph/preferences but is not the sole stale-result proof.
+generation, plan revision, and target chapter and the semantic commit gate is open. The final session gate
+re-checks the returned foreground identity against the active execution context. For a committed result it also
+requires the returned chapter group to be the execution target group and the returned release to belong to that
+group. Closure-captured execution context may carry surrounding graph/preferences but is not the sole
+stale-result proof.
 
 Opportunistic prefetch is outside this foreground visible-commit contract. It keeps its existing
 session/token cancellation ownership and does not receive a synthetic foreground generation identity.
@@ -1612,7 +1625,9 @@ For every foreground generation:
 successful visible commit count <= 1
 ```
 
-The coordinator owns one serialized semantic commit gate.
+The coordinator owns one serialized semantic commit gate, while `ReaderRouteSession` remains the final
+serialized authority for visible-state mutation. The session gate rejects a result whose foreground identity or
+committed chapter/release payload is incoherent with the active execution context.
 
 After a valid result commits:
 
@@ -1694,7 +1709,18 @@ The alternate threshold uses the alternate's **REMOTE access evaluation**, not a
 
 Pure planning is deterministic. Real execution observes real completion time.
 
-The coordinator uses an injected monotonic scheduler/clock and records `completedAtNanos` immediately after document validation succeeds, before valid-completion publication or coordinator notification delivery. The clock boundary is monotonic and non-decreasing: identical timestamps are legal and must remain observable by winner policy.
+The coordinator uses an injected monotonic scheduler/clock. After document validation succeeds, foreground
+completion enters one ownership-protected publication operation in which the completion registry samples
+`completedAtNanos` and records the immutable completion in the same critical section. That registry publication
+is the valid-completion linearization point and occurs before terminal notification delivery. The clock boundary
+is monotonic and non-decreasing: identical timestamps are legal and must remain observable by winner policy.
+
+When a success notification arrives, winner selection first seals attempts that have not begun publication, waits
+for any already-`PUBLISHING` completion to linearize, leaves already-`PUBLISHED` completions eligible, and only
+then recomputes the registry winner. Non-winning ownership is closed after this final comparison. Therefore a
+loser cannot publish a late equal-time completion after cancellation, and an in-flight equal-time PRIMARY
+completion cannot be hidden by an earlier HEDGE notification. No grace delay, unique timestamp, callback-order
+key, or hidden publication sequence participates in policy.
 
 Winner rule:
 
@@ -2156,7 +2182,8 @@ Contradictory values are programming/configuration errors, not silently normaliz
 
 ## 63. Public API Stability
 
-The pure engine exports only Reader-domain contracts actually consumed by `:reader`:
+The pure engine exports only Reader-domain contracts actually consumed by `:reader` or carried in returned
+Reader decision/trace values. Test fixture factories and implementation bounds are not public engine API.
 
 ```text
 ReaderRouteEngine
@@ -2172,6 +2199,11 @@ HealthPolicy
 ```
 
 Room entities, download metadata rows, plugin DTOs, Android network types, analytics payloads, UI state, session IDs, coroutine jobs, probe tokens, and persistence DTOs are not engine API.
+
+Final M7.5 hygiene removes the test-only `ReaderDecisionTrace.empty(...)` factory and its corresponding
+`HedgeOmissionReason.NOT_EVALUATED` state; production omission remains `NOT_ELIGIBLE`. The HES-v1 maximum
+health failure threshold remains an implementation-private validation bound rather than an exported constant.
+`ReaderDecisionTrace` data fields are unchanged.
 
 ---
 
@@ -2244,6 +2276,11 @@ Access/recovery explanation is structural rather than duplicated in a second rea
 ```text
 AccessMode + AttemptRole + routeConstruction + stableRanking + HedgeDirective
 ```
+
+HES-v1 intentionally retains `DiagnosticNote.code: RejectionCode` even though
+`EXPLICIT_RELEASE_NOT_PRESENT` is diagnostic-only. The object categories are already distinct and changing the
+code namespace would alter a durable V1 trace contract for naming cleanliness rather than correctness. A future
+HES-v2 review may introduce a separate `DiagnosticCode` if a concrete consumer justifies it.
 
 Stable final decision reasons include at least:
 

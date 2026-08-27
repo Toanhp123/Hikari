@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md`
 
-**Execution status (sandbox, 2026-08-27):** **IMPLEMENTED / NOT CLOSED.** The API removal, canonical docs reconciliation, stale-roadmap repair, TDD RED/GREEN source probe, local engine production compile, package/current-architecture mutation contracts, package/current-architecture verifiers, and Room schema digest check are complete. Gradle wrapper bootstrap is network-blocked in the supplied sandbox, so the required fresh Gradle/host closure matrix remains unchecked until run on the real repository.
+**Execution status (updated 2026-08-27):** **VERIFIED/CLOSED VIA THE ACCEPTED M7.5 FINAL-TREE MATRIX.** The API removal, canonical docs reconciliation, stale-roadmap repair, TDD RED/GREEN source probe, engine/Reader/downstream tests, architecture/package/current-architecture gates, retained host verification, Room schema stability, and instrumentation compilation are covered by the fresh M7.5 closure evidence. M7.5 is the single accepted final-tree closure boundary for the retained M7.4 implementation and final hardening.
 
 ## Global Constraints
 
@@ -301,7 +301,7 @@ git commit -m "docs(reader): define M7.4 access reason API hygiene"
   - canonical design/plan status notes
   - this implementation plan checkbox state as execution evidence
 
-- [ ] **Step 1: Run engine + Reader/downstream compile regressions**
+- [x] **Step 1: Run engine + Reader/downstream compile regressions**
 
 ```bash
 ./gradlew :reader:engine:test --no-daemon
@@ -309,7 +309,7 @@ git commit -m "docs(reader): define M7.4 access reason API hygiene"
 ./gradlew :feature:reader:testDebugUnitTest :app:compileDebugKotlin --no-daemon
 ```
 
-- [ ] **Step 2: Run architecture and package-boundary gates**
+- [x] **Step 2: Run architecture and package-boundary gates**
 
 ```bash
 ./gradlew :build-logic:test verifyArchitecture --no-daemon
@@ -329,7 +329,7 @@ Required boundary remains:
 Room schema 1..11
 ```
 
-- [ ] **Step 3: Run retained host/schema closure gates**
+- [x] **Step 3: Run retained host/schema closure gates**
 
 ```bash
 bash scripts/verify-fast.sh
@@ -378,7 +378,7 @@ closure decision
 
 Do not fabricate commit SHAs or device evidence not present in the execution environment.
 
-- [ ] **Step 6: Re-freeze only after blocking evidence is green**
+- [x] **Step 6: Re-freeze only after blocking evidence is green**
 
 Update canonical/current status to:
 

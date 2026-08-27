@@ -45,7 +45,6 @@ data class CompetitiveSet(
 }
 
 enum class HedgeOmissionReason {
-    NOT_EVALUATED,
     NOT_ELIGIBLE,
 }
 
@@ -164,37 +163,7 @@ data class ReaderDecisionTrace(
     val hedgeDirective: HedgeDirective,
     val finalDecisionReason: DecisionReason,
     val healthOrigins: List<HealthOriginTrace>,
-) {
-    companion object {
-        fun empty(
-            planRevision: ReaderPlanRevision,
-            chapterGraphRevision: ReaderChapterGraphRevision,
-            policyVersion: ReaderPolicyVersion,
-            decisionReason: DecisionReason,
-        ): ReaderDecisionTrace = ReaderDecisionTrace(
-            hesContractVersion = HesContractVersion.HES_V1,
-            algorithmVersion = ReaderRoutingAlgorithmVersion.READER_ROUTING_V1,
-            policyVersion = policyVersion,
-            planRevision = planRevision,
-            chapterGraphRevision = chapterGraphRevision,
-            canonicalCandidateIds = emptyList(),
-            rejections = emptyList(),
-            diagnostics = emptyList(),
-            candidateEvaluations = emptyList(),
-            stableRanking = emptyList(),
-            incumbentReleaseId = null,
-            incumbentKind = IncumbentKind.NONE,
-            rawChallengerReleaseId = null,
-            switchAdvantage = null,
-            requiredHysteresisThreshold = null,
-            finalWinnerReleaseId = null,
-            routeConstruction = emptyList(),
-            hedgeDirective = HedgeDirective.Omitted(HedgeOmissionReason.NOT_EVALUATED),
-            finalDecisionReason = decisionReason,
-            healthOrigins = emptyList(),
-        )
-    }
-}
+)
 
 data class ReaderRouteDecision(
     val hesContractVersion: HesContractVersion,

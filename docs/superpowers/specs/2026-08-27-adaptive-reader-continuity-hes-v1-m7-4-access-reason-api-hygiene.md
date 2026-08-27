@@ -1,7 +1,7 @@
 # Adaptive Reader Continuity / HES-v1 M7.4 AccessReason API Hygiene Design
 
 **Date:** 2026-08-27
-**Status:** **APPROVED FOR IMPLEMENTATION — HES-v1 FREEZE REOPENED ONLY FOR API HYGIENE**
+**Status:** **VERIFIED/CLOSED — CLOSURE EVIDENCE PROVIDED BY ACCEPTED M7.5 FINAL-TREE VERIFICATION**
 **Scope owner:** `:reader:engine` public decision-contract surface and HES governance documentation.
 **Baseline:** M7.3 `VERIFIED/CLOSED`; HES-v1 re-frozen at the unchanged V1/module/schema boundary.
 **Decision:** **Outcome B — retire `AccessReason` from the exported contract.**
@@ -190,7 +190,7 @@ In scope:
 2. remove the existence-only test reference;
 3. make canonical trace/reason docs match the structural access explanation already implemented;
 4. reconcile the stale current-roadmap M7.3 prose;
-5. record M7.4 verification and re-freeze HES-v1.
+5. retain M7.4 implementation evidence; final re-freeze verification is performed by M7.5 because additional pre-freeze hardening was discovered before M7.4 closure.
 
 Out of scope:
 

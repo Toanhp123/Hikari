@@ -378,6 +378,78 @@ class ReaderRouteSessionStateTest {
     }
 
     @Test
+    fun finalCompletionGateRejectsCommittedChapterGroupOutsideTargetChapter() = runTest {
+        val targetRelease = release("release-a", "chapter-a")
+        val foreignRelease = release("release-b", "chapter-b")
+        val foreignGroup = group("chapter-b", listOf(foreignRelease))
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(37),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                committed(context).copy(chapterGroup = foreignGroup)
+            },
+        )
+        session.updateChapterGraph(
+            listOf(
+                group("chapter-a", listOf(targetRelease)),
+                foreignGroup,
+            ),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        assertFailsWith<IllegalStateException> {
+            session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+        }
+    }
+
+    @Test
+    fun finalCompletionGateRejectsCommittedReleaseOutsideTargetChapter() = runTest {
+        val targetRelease = release("release-a", "chapter-a")
+        val foreignRelease = release("release-b", "chapter-b")
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(38),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                committed(context).copy(release = foreignRelease)
+            },
+        )
+        session.updateChapterGraph(
+            listOf(
+                group("chapter-a", listOf(targetRelease)),
+                group("chapter-b", listOf(foreignRelease)),
+            ),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        assertFailsWith<IllegalStateException> {
+            session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+        }
+    }
+
+    @Test
+    fun finalCompletionGateRejectsResultIdentityThatDoesNotMatchExecutionContext() = runTest {
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(39),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                ReaderForegroundResult.Exhausted(
+                    identity = context.foregroundIdentity.copy(
+                        targetChapterId = chapter("chapter-other"),
+                    ),
+                    code = "reader.no_release_available",
+                    retryable = false,
+                    attempts = emptyList(),
+                )
+            },
+        )
+        ready(session)
+
+        assertFailsWith<IllegalStateException> {
+            session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+        }
+    }
+
+    @Test
     fun validatingGateRejectsIdentityFromAnotherSession() = runTest {
         var acceptedForeignIdentity: Boolean? = null
         val session = ReaderRouteSession(

@@ -1,8 +1,8 @@
 # Adaptive Reader Continuity / HES-v1 - M7.4 AccessReason API Hygiene Checkpoint
 
 Date: 2026-08-27
-Status: **IMPLEMENTED / NOT CLOSED**
-Freeze state: **HES-v1 FREEZE REOPENED ONLY FOR API HYGIENE**
+Status: **VERIFIED/CLOSED VIA M7.5 FINAL-TREE MATRIX**
+Freeze state: **HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE WITH M7.5**
 
 M7.3 remains historical `VERIFIED/CLOSED` evidence and is not rewritten by this phase. M7.4 implements the
 separate retain-vs-retire review that M7.3 explicitly deferred for `AccessReason`.
@@ -164,15 +164,9 @@ Expected interpretation:
 
 ## Closure Decision
 
-**NOT CLOSED.** The API-hygiene implementation is present and source/static gates are clean, but the required fresh
-Gradle/host matrix has not run in this sandbox because Gradle wrapper bootstrap is network-blocked. Until that matrix
-is supplied green from the real repository, current governance must remain:
+**VERIFIED/CLOSED through the accepted M7.5 final-tree verification.** M7.4 was intentionally not re-frozen as an intermediate tree; the fresh 2026-08-27 host matrix verified the retained `AccessReason` retirement together with M7.5 hardening. No replacement taxonomy, routing-semantic change, HES/policy version bump, module-graph change, or Room schema change occurred.
 
 ```text
-M0–M7.3 VERIFIED/CLOSED historically
-M7.4 IN PROGRESS
-HES-v1 FREEZE REOPENED ONLY FOR API HYGIENE
+M0–M7.5 VERIFIED/CLOSED
+HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE
 ```
-
-After fresh host evidence is green, a closure-only docs patch may update this checkpoint and both current-status
-surfaces to `M0–M7.4 VERIFIED/CLOSED; HES-v1 RE-FROZEN` without further production code changes.

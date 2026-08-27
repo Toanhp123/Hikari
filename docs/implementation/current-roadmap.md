@@ -57,7 +57,7 @@ debt without suppressions, config weakening, or baseline growth. Standalone Dete
 combined host gate, and the package/current-architecture contracts are now GREEN.
 **Wave 10 is accepted/closed and Wave 11 is unblocked.**
 
-Adaptive Reader Continuity / HES-v1 **M0–M7.3 remain VERIFIED/CLOSED historical milestones; M7.4 is IN PROGRESS and the HES-v1 freeze is REOPENED ONLY FOR API HYGIENE**. The graph remains 17 production modules plus `:benchmark`; `:reader:engine` remains JVM-only behind `:reader`; Room remains schema 11. M7.3 closed its four conformance repairs from fresh final-tree evidence and remains historical authority. M7.4 is limited to retiring the unused `AccessReason` exported symbol, aligning canonical reason/trace documentation with the existing structural route facts, and correcting stale current-status prose; it does not alter routing, trace shape, versions, module graph, or schema. Wave 10 remains accepted/closed. Canonical M7.4 sources are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md`; historical M7.3 evidence remains `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
+Adaptive Reader Continuity / HES-v1 **M0–M7.5 VERIFIED/CLOSED; HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE**. The graph remains 17 production modules plus `:benchmark`; `:reader:engine` remains JVM-only behind `:reader`; Room remains schema 11. M7.4 retired `AccessReason`; M7.5 closed the final completion-publication/ownership race, final session result/payload-coherence gap, and minimal test/implementation-only API debt. The fresh 2026-08-27 final-tree host matrix is GREEN. Routing formulas, trace data fields, versions, module graph, and schema remain unchanged. Wave 10 remains accepted/closed. Canonical M7.5 sources are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
 Canonical foundation owns `MIGRATION_8_9`; canonical durability owns `MIGRATION_9_10`; Wave 10
 notification persistence is rebased to `MIGRATION_10_11`; Wave 11 enters on schema 11 unless another
 separately reviewed migration intervenes.
@@ -178,8 +178,9 @@ capability; WorkManager and notification adapters stay in `:app`.
 | HES-M7.1 | Detekt debt closure | **Verified/closed; standalone Detekt, unchanged combined host gate, and architecture contracts GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md` |
 | HES-M7.2 | Constitutional hardening | **Verified/closed historical milestone; HES-v1 was re-frozen from fresh final-tree evidence** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md` |
 | HES-M7.3 | Conformance repair | **Verified/closed historical milestone; fresh final-tree closure matrix GREEN** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md` |
-| HES-M7.4 | `AccessReason` API hygiene | **In progress; implementation present; re-freeze pending fresh final-tree gates** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md` |
-| 11 | Hardening and open-source release | **Wave 10 boundary remains accepted; HES-v1 API-hygiene re-freeze pending M7.4 closure** | `waves/wave-11-hardening-open-source-release.md` |
+| HES-M7.4 | `AccessReason` API hygiene | **Verified/closed by the accepted M7.5 final-tree matrix** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md` |
+| HES-M7.5 | Final Reader/HES-v1 freeze hardening | **Verified/closed; HES-v1 final re-frozen/reference-grade** | `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-5.md` |
+| 11 | Hardening and open-source release | **Wave 10 boundary accepted; HES-v1 final re-frozen after M7.5 closure** | `waves/wave-11-hardening-open-source-release.md` |
 
 ## Wave 04 decomposition
 
@@ -278,10 +279,10 @@ architecture
 
 1. Use the current 17-production-module HES graph plus `:benchmark`, Room schema 11, and the accepted
    Wave 10 production-remediation checkpoint as the active source baseline. M0–M7.3 remain verified/closed
-   historical milestones; M7.4 is the active API-hygiene boundary and HES-v1 is not re-frozen from M7.4
+   historical milestones; M7.4 and M7.5 are verified/closed from the accepted final-tree matrix; HES-v1 is final re-frozen
    until its fresh blocking final-tree matrix is green. Historical M7.3/Wave 10 evidence remains accepted
-   evidence for those milestones, not a substitute for M7.4 closure.
-2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 11 remains the next product-wave boundary; M7.4 must close before the post-hygiene HES-v1 boundary is described as re-frozen. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
+   evidence for those milestones; M7.5 is now the accepted final HES-v1 closure evidence.
+2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 11 remains the next product-wave boundary; HES-v1 is final re-frozen/reference-grade after M7.5. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
 3. `MIGRATION_8_9` belongs to canonical foundation and `MIGRATION_9_10` belongs to canonical durability. Wave 10 notification persistence uses `MIGRATION_10_11`.
 4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
 5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.

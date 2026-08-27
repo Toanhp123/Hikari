@@ -18,12 +18,19 @@
 > `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and current M7.3 evidence is
 > `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.
 >
-> API-hygiene note (2026-08-27): M7.4 is the active narrow boundary for retiring the unused `AccessReason`
-> exported symbol with no replacement taxonomy and no routing/trace/version/module/schema change. M7.3
-> remains historical accepted evidence. M7.4 stays **IN PROGRESS** until its fresh final-tree closure gates pass.
-> See `2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md`. Current M7.4 evidence is `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`.
+> API-hygiene note (2026-08-27): M7.4 retired the unused `AccessReason` exported symbol with no replacement
+> taxonomy and no routing/trace/version/module/schema change. Its separate closure was folded into the accepted
+> M7.5 final-tree verification; M7.4 is **VERIFIED/CLOSED**. See
+> `2026-08-27-adaptive-reader-continuity-hes-v1-m7-4-access-reason-api-hygiene.md` and
+> `../../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-4.md`.
+>
+> Final-freeze note (2026-08-27): M7.5 is the final hardening boundary discovered before the M7.4 re-freeze.
+> It linearizes valid-completion publication against ownership cancellation, hardens final session result/payload
+> coherence, removes remaining test/implementation-only exports, and records the diagnostic-code namespace issue
+> as HES-v2 debt. The fresh final-tree matrix is accepted and HES-v1 is final re-frozen/reference-grade. See
+> `2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
 
-**Implementation status (updated 2026-08-27):** **M0–M7.3 VERIFIED/CLOSED historically; M7.4 IN PROGRESS; HES-v1 FREEZE REOPENED ONLY FOR API HYGIENE; WAVE 10 VERIFIED/CLOSED.** M7.2/M7.3 remain accepted historical evidence. M7.4 retires the unused `AccessReason` exported symbol rather than wiring a redundant/incomplete reason taxonomy into the trace. The implementation changes no routing behavior, `ReaderDecisionTrace` shape, HES/policy version constant, module graph, or Room schema. Fresh M7.4 final-tree host evidence is still required before re-freeze.
+**Implementation status (updated 2026-08-27):** **M0–M7.5 VERIFIED/CLOSED; HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE; WAVE 10 VERIFIED/CLOSED.** M7.4 retired `AccessReason`; M7.5 closed the final publication/ownership race, final session result/payload-coherence gap, and remaining obvious test/implementation-only public exports. The fresh 2026-08-27 final-tree host matrix is GREEN. No routing formula, trace data-field shape, HES/policy version, module graph, or Room schema changed.
 
 ## Global Constraints
 
@@ -1983,13 +1990,14 @@ delay, it starts competitively; if the primary succeeds first, it never starts. 
 `ReaderRouteExecutor` exposes one internal typed-attempt primitive so the coordinator can preserve
 `RecoveryScope`, source-scoped suppression, validation, health observation, persistence, and
 cancellation ownership across the competitive pair and the later sequential recovery chain; the
-existing sequential entry points remain compatibility wrappers. Third, production completion
-stamps are non-decreasing within the singleton execution scheduler; equal readings are preserved so
-the full `completedAtNanos -> PRIMARY -> attemptId` comparator remains semantically reachable in
-production as well as replay and virtual-time facts. Every valid completion is recorded before
-notification, and client-owned
-navigation/hedge-loss/prefetch cancellation closes observation ownership before best-effort job
-cancellation. These clarifications do not widen M6 scope or change the public HES-v1 contract.
+existing sequential entry points remain compatibility wrappers. Third, production completion stamps are non-decreasing within the singleton execution scheduler; equal
+readings are preserved so the full `completedAtNanos -> PRIMARY -> attemptId` comparator remains semantically
+reachable in production as well as replay and virtual-time facts. M7.5 clarifies the runtime linearization needed
+to uphold that M6 rule on multi-thread dispatchers: post-validation timestamp capture and registry insertion are
+one ownership-protected publication operation; winner selection seals future publication, waits for already
+in-flight publication, recomputes the registry winner, and only then closes losers. Client-owned
+navigation/hedge-loss/prefetch cancellation still closes observation ownership before best-effort job cancellation.
+These clarifications do not change the public HES-v1 routing algorithm.
 
 ### Task 27: Add the injected monotonic execution scheduler and virtual-time test scheduler
 
@@ -2109,9 +2117,10 @@ git add reader/engine/src
 
 **Interfaces:**
 - PRIMARY starts immediately. HEDGE starts after directive delay only if primary remains unresolved and intent/revision still active.
-- Valid completions record `completedAtNanos` immediately after successful document validation, not after fetch, and before notification delivery.
-- Winner = earliest logical completion; tie PRIMARY; then stable `attemptId`.
-- Single serialized commit gate enforces `visible commits per generation <= 1`.
+- Valid completions publish immediately after successful document validation, not after fetch; registry timestamp capture + insertion are one linearization operation before notification delivery.
+- Winner = earliest logical completion; tie PRIMARY; then stable `attemptId`; future publication is sealed and already-in-flight publication settled before the final winner snapshot.
+- Runtime success envelopes must match the launched attempt identity, release/source, and LOCAL/REMOTE locality; failure envelopes must match launched release/source/access mode.
+- Single serialized commit gate enforces `visible commits per generation <= 1`; the final session gate also checks returned foreground identity and committed target-group/release coherence.
 
 - [ ] **Step 1: Write failing virtual-time competition tests**
 
@@ -2145,9 +2154,13 @@ Attempt worker order:
 ```text
 execute source/local effect
 -> validate document
--> completedAtNanos = scheduler.monotonicNanos()
--> atomically record valid completion
+-> enter ownership-protected valid-completion publication
+-> registry atomically captures completedAtNanos + records completion
+-> publish ownership becomes PUBLISHED
 -> notify coordinator
+-> on first success notification, seal future publication + settle in-flight publication
+-> recompute final winner
+-> close/cancel non-winners
 ```
 
 Coordinator chooses from recorded completion facts, not notification order. Before visible commit, validate active `(sessionId, generationId, planRevision)` and that commit gate is open. A second/stale success cannot modify visible state or saved committed identity.

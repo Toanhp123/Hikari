@@ -36,7 +36,7 @@ internal class ReaderRouteExecutor(
         sourceByPlugin: Map<PluginId, ReaderDocumentSource>,
         attemptKind: RemoteAttemptKind = RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT,
         ownership: ReaderAttemptOwnership,
-        onValidCompletion: (ReaderValidCompletion) -> Unit,
+        publishValidCompletion: (ReaderLoadResult.Success) -> ReaderValidCompletion,
         onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit,
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit,
         remotePriority: ReaderRemoteWorkPriority = ReaderRemoteWorkPriority.FOREGROUND,
@@ -55,14 +55,11 @@ internal class ReaderRouteExecutor(
             onLocalInvalidated = onLocalInvalidated,
             remotePriority = remotePriority,
             onValidEffect = { success ->
-                val completion = ReaderValidCompletion(
-                    identity = identity,
-                    attempt = attempt,
-                    loaded = success.loaded,
-                    completedAtNanos = success.completedAtNanos,
+                publishedCompletion = ownership.publishIfOwned {
+                    publishValidCompletion(success.loaded)
+                } ?: throw CancellationException(
+                    "Reader attempt valid completion ownership was cancelled before publication.",
                 )
-                onValidCompletion(completion)
-                publishedCompletion = completion
             },
         )
         return when (effect) {
@@ -203,16 +200,12 @@ internal class ReaderRouteExecutor(
             is LocalReadResult.Hit -> when (val validation = validator.validateLocal(read.document, fingerprint)) {
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
-                    val completedAtNanos = monotonicNanos()
                     val loaded = ReaderLoadResult.Success(
                         release = candidate,
                         document = validation.document,
                         fromStore = true,
                     )
-                    val success = ReaderAttemptEffectOutcome.Success(
-                        loaded = loaded,
-                        completedAtNanos = completedAtNanos,
-                    )
+                    val success = ReaderAttemptEffectOutcome.Success(loaded)
                     onValidEffect(success)
                     ensureOwned(ownership)
                     onSourceObservation(release.pluginId, SourceObservation.Success.Local)
@@ -275,10 +268,8 @@ internal class ReaderRouteExecutor(
             ) {
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
-                    val validCompletedAtNanos = monotonicNanos()
                     val success = ReaderAttemptEffectOutcome.Success(
-                        loaded = ReaderLoadResult.Success(candidate, validation.document, fromStore = false),
-                        completedAtNanos = validCompletedAtNanos,
+                        ReaderLoadResult.Success(candidate, validation.document, fromStore = false),
                     )
                     onValidEffect(success)
                     ensureOwned(ownership)
@@ -442,7 +433,6 @@ internal class ReaderRouteExecutor(
     private sealed interface ReaderAttemptEffectOutcome {
         data class Success(
             val loaded: ReaderLoadResult.Success,
-            val completedAtNanos: Long,
         ) : ReaderAttemptEffectOutcome
 
         data class Failure(
