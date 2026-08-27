@@ -86,7 +86,14 @@ internal fun UpdatesDestination(
 ) {
     val viewModel = hiltViewModel<UpdatesViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    UpdatesScreen(state, onStorySelected, onRead, contentPadding = contentPadding)
+    UpdatesScreen(
+        state = state,
+        onStorySelected = onStorySelected,
+        onRead = onRead,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
+        contentPadding = contentPadding,
+    )
 }
 
 @Composable

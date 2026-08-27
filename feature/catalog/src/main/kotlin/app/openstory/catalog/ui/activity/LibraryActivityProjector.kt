@@ -27,13 +27,13 @@ data class LibraryActivityItem(
 open class LibraryActivityProjector @Inject constructor() {
     open fun project(
         library: List<LibraryEntry>,
-        catalog: List<CatalogStoryProjection>,
+        catalog: List<CatalogStoryProjection>?,
         chapters: List<CanonicalChapterGroup>,
         mappings: List<ContentMapping>,
-        readerPluginIds: Set<PluginId>,
+        readerPluginIds: Set<PluginId>?,
     ): List<LibraryActivityItem> {
         val libraryStories = library.mapTo(hashSetOf(), LibraryEntry::storyId)
-        val catalogByStory = catalog.associateBy(CatalogStoryProjection::storyId)
+        val catalogByStory = catalog.orEmpty().associateBy(CatalogStoryProjection::storyId)
         val mappedSources = mappings.mapTo(hashSetOf()) {
             Triple(it.storyId, it.pluginId, it.sourceStoryId)
         }
@@ -57,8 +57,8 @@ open class LibraryActivityProjector @Inject constructor() {
                     sourceLabel = release.pluginId.value,
                     languageTag = release.languageTag,
                     publishedAtEpochMillis = release.publishedAtEpochMillis,
-                    readerTarget = release.pluginId
-                        .takeIf(readerPluginIds::contains)
+                    readerTarget = readerPluginIds
+                        ?.let { ids -> release.pluginId.takeIf(ids::contains) }
                         ?.let { ReaderTarget(release.storyId, chapterId, release.id) },
                 )
             }
