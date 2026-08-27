@@ -1,0 +1,253 @@
+diff --git a/docs/superpowers/plans/2026-08-27-content-state-contract-v1-implementation-plan.md b/docs/superpowers/plans/2026-08-27-content-state-contract-v1-implementation-plan.md
+index 7ed5878..62dc795 100644
+--- a/docs/superpowers/plans/2026-08-27-content-state-contract-v1-implementation-plan.md
++++ b/docs/superpowers/plans/2026-08-27-content-state-contract-v1-implementation-plan.md
+@@ -254,12 +254,12 @@ Because the production holder uses `SharingStarted.WhileSubscribed`, every corou
+ 
+ ```kotlin
+ val collected = backgroundScope.launch { holder.state.collect() }
+-advanceUntilIdle()
+-// emit/throw/change key, then assert holder.state.value or recorded states
++runCurrent()
++// emit/throw/change key, then runCurrent() and assert holder.state.value or recorded states
+ collected.cancel()
+ ```
+ 
+-Do not write a test that only reads `holder.state.value` and assumes the upstream repository Flow has started.
++Do not write a test that only reads `holder.state.value` and assumes the upstream repository Flow has started. Because the holder and test collectors intentionally run in `backgroundScope`, drive zero-delay scheduled background work with `runCurrent()` (or `testScheduler.runCurrent()`), not `advanceUntilIdle()`: kotlinx-coroutines-test deliberately lets `advanceUntilIdle()` stop once only background-scope work remains.
+ 
+ - [ ] **Step 6: Run retained-observation tests and confirm RED**
+ 
+@@ -400,7 +400,7 @@ Implementation notes that are part of the contract:
+ - On key change, `takeIf { it.key == currentKey }` fails and the holder emits Pending for the new key.
+ - No automatic retry loop, delay, exponential backoff, or WorkManager integration is permitted.
+ - `key` must be a non-failing identity/readiness-owner Flow, not repository I/O. If identity discovery itself can fail, model that failure in the owning required observation and derive the key only from its real `Available` value.
+-- Tests must actively collect `holder.state` (for example with `backgroundScope.launch { holder.state.collect() }`) before driving upstream flows; reading `.value` alone must not be assumed to start `SharingStarted.WhileSubscribed`.
++- Tests must actively collect `holder.state` (for example with `backgroundScope.launch { holder.state.collect() }`) before driving upstream flows; reading `.value` alone must not be assumed to start `SharingStarted.WhileSubscribed`. Drive zero-delay `backgroundScope` work with `runCurrent()`/`testScheduler.runCurrent()` rather than `advanceUntilIdle()`, which intentionally stops once only background work remains.
+ 
+ - [ ] **Step 8: Run both foundation test classes**
+ 
+diff --git a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/state/RetainedObservationTest.kt b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/state/RetainedObservationTest.kt
+index feb5382..d1920c7 100644
+--- a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/state/RetainedObservationTest.kt
++++ b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/state/RetainedObservationTest.kt
+@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.emptyFlow
+ import kotlinx.coroutines.flow.flow
+ import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.launch
+-import kotlinx.coroutines.test.advanceUntilIdle
++import kotlinx.coroutines.test.runCurrent
+ import kotlinx.coroutines.test.runTest
+ 
+ @OptIn(ExperimentalCoroutinesApi::class)
+@@ -39,7 +39,7 @@ class RetainedObservationTest {
+         val holder = holder(observe = { flowOf(emptyList<String>()) })
+         val collected = backgroundScope.launch { holder.state.collect() }
+ 
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val available = assertIs<ObservationState.Available<String, List<String>>>(holder.state.value)
+         assertEquals("key", available.key)
+@@ -53,7 +53,7 @@ class RetainedObservationTest {
+         val holder = holder<String>(observe = { flow { throw IllegalStateException("boom") } })
+         val collected = backgroundScope.launch { holder.state.collect() }
+ 
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val unavailable = assertIs<ObservationState.Unavailable<String>>(holder.state.value)
+         assertEquals("observe.failed", unavailable.failure.code)
+@@ -72,7 +72,7 @@ class RetainedObservationTest {
+         )
+         val collected = backgroundScope.launch { holder.state.collect() }
+ 
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val available = assertIs<ObservationState.Available<String, String>>(holder.state.value)
+         assertEquals("value", available.value)
+@@ -95,15 +95,15 @@ class RetainedObservationTest {
+             },
+         )
+         val collected = backgroundScope.launch { holder.state.collect() }
+-        advanceUntilIdle()
++        runCurrent()
+         assertIs<ObservationState.Unavailable<String>>(holder.state.value)
+ 
+         holder.retry()
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertIs<ObservationState.Pending<String>>(holder.state.value)
+         recovery.emit("recovered")
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val available = assertIs<ObservationState.Available<String, String>>(holder.state.value)
+         assertEquals("recovered", available.value)
+@@ -129,18 +129,18 @@ class RetainedObservationTest {
+             },
+         )
+         val collected = backgroundScope.launch { holder.state.collect() }
+-        advanceUntilIdle()
++        runCurrent()
+         assertEquals("old", assertIs<ObservationState.Available<String, String>>(holder.state.value).value)
+ 
+         holder.retry()
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val retained = assertIs<ObservationState.Available<String, String>>(holder.state.value)
+         assertEquals("old", retained.value)
+         assertEquals("observe.failed", retained.issue?.code)
+ 
+         recovery.emit("new")
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val recovered = assertIs<ObservationState.Available<String, String>>(holder.state.value)
+         assertEquals("new", recovered.value)
+@@ -166,13 +166,13 @@ class RetainedObservationTest {
+             },
+         )
+         val collected = backgroundScope.launch { holder.state.collect() }
+-        advanceUntilIdle()
++        runCurrent()
+         assertTrue(holder.state.value.hasRetainedIssue())
+ 
+         holder.retry()
+-        advanceUntilIdle()
++        runCurrent()
+         recovery.emit("new")
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertFalse(holder.state.value.hasIssueOrUnavailable())
+         collected.cancel()
+@@ -207,14 +207,14 @@ class RetainedObservationTest {
+         )
+         val firstCollection = backgroundScope.launch { first.state.collect() }
+         val secondCollection = backgroundScope.launch { second.state.collect() }
+-        advanceUntilIdle()
++        runCurrent()
+         assertTrue(first.state.value.hasRetainedIssue())
+         assertTrue(second.state.value.hasRetainedIssue())
+ 
+         first.retry()
+-        advanceUntilIdle()
++        runCurrent()
+         recovery.emit("first-new")
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertFalse(first.state.value.hasIssueOrUnavailable())
+         assertTrue(second.state.value.hasRetainedIssue())
+@@ -227,7 +227,7 @@ class RetainedObservationTest {
+         val holder = holder<String>(observe = { emptyFlow() })
+         val collected = backgroundScope.launch { holder.state.collect() }
+ 
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertIs<ObservationState.Unavailable<String>>(holder.state.value)
+         collected.cancel()
+@@ -238,7 +238,7 @@ class RetainedObservationTest {
+         val holder = holder<String>(observe = { flowOf("value") })
+         val collected = backgroundScope.launch { holder.state.collect() }
+ 
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val available = assertIs<ObservationState.Available<String, String>>(holder.state.value)
+         assertEquals("value", available.value)
+@@ -256,11 +256,11 @@ class RetainedObservationTest {
+             },
+         )
+         val collected = backgroundScope.launch { holder.state.collect() }
+-        advanceUntilIdle()
++        runCurrent()
+         assertNull(assertIs<ObservationState.Available<String, String>>(holder.state.value).issue)
+ 
+         holder.retry()
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val retained = assertIs<ObservationState.Available<String, String>>(holder.state.value)
+         assertEquals("value", retained.value)
+@@ -284,14 +284,14 @@ class RetainedObservationTest {
+         )
+         val states = mutableListOf<ObservationState<String, String>>()
+         val collected = backgroundScope.launch { holder.state.collect { states += it } }
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         sources.getValue("A").emit("A-value")
+-        advanceUntilIdle()
++        runCurrent()
+         assertEquals("A-value", assertIs<ObservationState.Available<String, String>>(holder.state.value).value)
+ 
+         key.value = "B"
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val pending = assertIs<ObservationState.Pending<String>>(holder.state.value)
+         assertEquals("B", pending.key)
+@@ -316,12 +316,18 @@ class RetainedObservationTest {
+ 
+     @Test
+     fun cancellationPropagates() = runTest {
++        var observationCollectionCount = 0
+         var mappedFailureCount = 0
+         val holder = backgroundScope.retainedObservation<String, String>(
+             key = flowOf("key"),
+             initialKey = "key",
+             started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 0),
+-            observe = { flow { throw CancellationException("cancel") } },
++            observe = {
++                flow {
++                    observationCollectionCount += 1
++                    throw CancellationException("cancel")
++                }
++            },
+             mapFailure = { _, _ ->
+                 mappedFailureCount += 1
+                 failure()
+@@ -329,8 +335,9 @@ class RetainedObservationTest {
+         )
+         val collected = backgroundScope.launch { holder.state.collect() }
+ 
+-        advanceUntilIdle()
++        runCurrent()
+ 
++        assertEquals(1, observationCollectionCount)
+         assertEquals(0, mappedFailureCount)
+         assertIs<ObservationState.Pending<String>>(holder.state.value)
+         collected.cancel()
+@@ -355,22 +362,22 @@ class RetainedObservationTest {
+             },
+         )
+         val firstCollector = backgroundScope.launch { holder.state.collect() }
+-        advanceUntilIdle()
++        runCurrent()
+         assertEquals("value", assertIs<ObservationState.Available<String, String>>(holder.state.value).value)
+ 
+         firstCollector.cancel()
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         val restartedStates = mutableListOf<ObservationState<String, String>>()
+         val secondCollector = backgroundScope.launch { holder.state.collect { restartedStates += it } }
+-        advanceUntilIdle()
++        runCurrent()
+ 
+         assertTrue(collections >= 2)
+         assertEquals("value", assertIs<ObservationState.Available<String, String>>(holder.state.value).value)
+         assertFalse(restartedStates.any { it is ObservationState.Pending })
+ 
+         secondCollectionGate.complete(Unit)
+-        advanceUntilIdle()
++        runCurrent()
+         assertEquals("new-value", assertIs<ObservationState.Available<String, String>>(holder.state.value).value)
+         secondCollector.cancel()
+     }

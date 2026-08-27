@@ -1,0 +1,25 @@
+--- a/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/downloads/DownloadsViewModelTest.kt
++++ b/feature/catalog/src/test/kotlin/app/openstory/catalog/ui/downloads/DownloadsViewModelTest.kt
+@@ -170,11 +170,20 @@
+         val states = mutableListOf<DownloadsUiState>()
+         backgroundScope.launch { viewModel.state.collect { states += it } }
+         runCurrent()
++        assertTrue(chapters.subscriptionCount.value > 0)
++        assertTrue(catalog.subscriptionCount.value > 0)
+ 
+-        assertTrue(chapters.tryEmit(listOf(group("completed"))))
++        val chapterEmission = backgroundScope.launch {
++            chapters.emit(listOf(group("completed")))
++        }
+         runCurrent()
+-        assertTrue(catalog.tryEmit(listOf(projection())))
++        assertTrue(chapterEmission.isCompleted)
++
++        val catalogEmission = backgroundScope.launch {
++            catalog.emit(listOf(projection()))
++        }
+         runCurrent()
++        assertTrue(catalogEmission.isCompleted)
+ 
+         val readyStates = states.map { it.content }.filterIsInstance<ContentState.Ready<DownloadsContent>>()
+         assertEquals("completed", readyStates.first().value.completed.single().chapterLabel)
