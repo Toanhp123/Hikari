@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -226,14 +227,13 @@ class StoryScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
-    fun emptyChapterListDoesNotShowFindSource() {
+    fun emptyChapterListOffersFindSource() {
         setStoryContent(
             state = fixture().withoutArtwork().copy(resumeTarget = null),
             chapterState = storyChapterState(chapterCount = 0),
         )
 
-        compose.onNodeWithTag("story-no-chapters").assertIsDisplayed()
-        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+        compose.onNodeWithTag("story-find-source").assertIsDisplayed().assertIsEnabled()
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")

@@ -8,7 +8,6 @@ import app.openstory.catalog.ui.state.ContentState
 internal sealed interface StoryPrimaryReadAction {
     data object CheckingChapters : StoryPrimaryReadAction
     data object ChaptersUnavailable : StoryPrimaryReadAction
-    data object NoChapters : StoryPrimaryReadAction
     data object NoReleases : StoryPrimaryReadAction
     data object CheckingSources : StoryPrimaryReadAction
     data object FindSource : StoryPrimaryReadAction
@@ -28,7 +27,7 @@ internal fun storyPrimaryReadAction(
 private fun ChapterListContent.toPrimaryReadAction(
     resumeTarget: ReaderTarget?,
 ): StoryPrimaryReadAction = when {
-    chapterCount == 0 -> StoryPrimaryReadAction.NoChapters
+    chapterCount == 0 -> StoryPrimaryReadAction.FindSource
     releaseTargets.isEmpty() -> StoryPrimaryReadAction.NoReleases
     !readerAvailabilityResolved -> StoryPrimaryReadAction.CheckingSources
     else -> {

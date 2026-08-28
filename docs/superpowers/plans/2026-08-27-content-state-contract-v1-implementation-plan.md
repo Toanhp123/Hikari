@@ -1297,7 +1297,7 @@ Add:
 @Test fun firstChapterObservationFailureIsBlockingFailed()
 @Test fun readerCapabilityPendingIsNotAuthoritativeUnsupported()
 @Test fun storyHeroDoesNotShowFindSourceBeforeReaderCapabilityResolves()
-@Test fun emptyChapterListDoesNotShowFindSource()
+@Test fun emptyChapterListOffersFindSource()
 @Test fun chapterGroupsWithoutReleasesDoNotShowFindSource()
 @Test fun chapterObservationFailureDoesNotShowFindSource()
 @Test fun readerCapabilityFailureKeepsChapters()
@@ -1362,7 +1362,6 @@ Keep the Story hero decision as a **Story-local presentation model**, not anothe
 internal sealed interface StoryPrimaryReadAction {
     data object CheckingChapters : StoryPrimaryReadAction
     data object ChaptersUnavailable : StoryPrimaryReadAction
-    data object NoChapters : StoryPrimaryReadAction
     data object NoReleases : StoryPrimaryReadAction
     data object CheckingSources : StoryPrimaryReadAction
     data object FindSource : StoryPrimaryReadAction
@@ -1445,7 +1444,7 @@ chapterState missing or chapter content Pending
 chapter content Failed
     -> ChaptersUnavailable
 chapter Ready with chapterCount == 0
-    -> NoChapters
+    -> FindSource
 chapter Ready with chapterCount > 0 but releaseTargets.isEmpty()
     -> NoReleases
 chapter Ready with chapters/releases but any reader capability UNKNOWN
@@ -1462,7 +1461,7 @@ Presentation mapping:
 
 - `CheckingChapters` -> disabled primary action `"Loading chapters"`, test tag `story-chapters-checking`.
 - `ChaptersUnavailable` -> disabled `"Chapters unavailable"`; Chapter section owns Retry, so the hero must not invent a second retry boundary.
-- `NoChapters` -> disabled `"No chapters yet"`, never `"Find source"`.
+- Chapter Ready(empty) -> existing `Find source` action so every first-entry path into Story can open source discovery; the Chapter section still owns the authoritative empty copy.
 - `NoReleases` -> disabled `"No releases available"`, never `"Find source"`; this covers canonical chapter groups whose release list is empty (a shape already exercised by current Chapter/Story tests).
 - `CheckingSources` -> disabled `"Checking sources"`, test tag `story-reader-checking`.
 - `Read` -> existing Read/Resume action.
@@ -2563,7 +2562,7 @@ CSC-v1 is complete only when all spec acceptance criteria are represented by aut
 - Updates empty-Library short-circuit works and Story-ID key changes do not leak retained values;
 - Library mapping Pending is UNKNOWN, not NO_MAPPING/SEARCHING, and control-sensitive filters/sorts never claim false results;
 - Home base content is ready from Library membership, download count can be unknown, and all-DROPPED Library never receives the no-Library CTA;
-- Chapters render before Reader capability, capability `UNKNOWN` is not authoritative unsupported, and Story hero shows “Find source” only for non-empty authoritative Chapters that have release targets, fully resolved Reader capability, and no readable target; empty/failed/pending Chapters and chapter groups with no releases use truthful neutral hero states;
+- Chapters render before Reader capability, capability `UNKNOWN` is not authoritative unsupported, and Story hero shows “Find source” for authoritative empty Chapters or for non-empty Chapters that have release targets, fully resolved Reader capability, and no readable target; failed/pending Chapters and chapter groups with no releases use truthful neutral hero states;
 - Discover empty-cache bootstrap is not manual Refreshing, durable existing projections are pre-seeded before unresolved bootstrap, canonical attempts are terminal, ranked slots are stable, and no-provider/true-empty/failure are distinguishable;
 - Story Preparing has an explicit terminal path and content Retry is distinct from source-detail refresh;
 - refresh attempt failures clear only within RefreshState lifetime;
@@ -2685,7 +2684,7 @@ This matrix is a required execution aid, not documentation decoration. Before a 
 
 - No migrated screen uses unresolved optional data to assert empty, zero, unsupported, no mapping, no source, or no Library.
 - Full-screen blocking state is limited to unavailable **required** screen content. Local-required dependencies use local skeleton/error presentation where the screen base remains usable.
-- Story hero differentiates Chapters Pending, Chapters Failed, authoritative no Chapters, non-empty chapter groups with no releases, Reader capability Pending, real readable target, and authoritative no readable source; only the last case may show `Find source`.
+- Story hero differentiates Chapters Pending, Chapters Failed, authoritative no Chapters, non-empty chapter groups with no releases, Reader capability Pending, real readable target, and authoritative no readable source; authoritative no Chapters and resolved no-readable-source may show `Find source`.
 - Manual refresh retains usable content and has an attempt-scoped failure lifetime. Automatic bootstrap/background observation never turns on pull-refresh chrome.
 - Discover uses durable pre-seeding and stable-prefix projection to reduce perceived loading without temporary hero/rank promotion.
 

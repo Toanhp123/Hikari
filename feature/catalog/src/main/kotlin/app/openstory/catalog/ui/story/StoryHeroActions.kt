@@ -89,11 +89,6 @@ private fun StoryReadAction(
             testTag = "story-chapters-unavailable",
             modifier = modifier,
         )
-        StoryPrimaryReadAction.NoChapters -> DisabledStoryPrimaryAction(
-            label = "No chapters yet",
-            testTag = "story-no-chapters",
-            modifier = modifier,
-        )
         StoryPrimaryReadAction.NoReleases -> DisabledStoryPrimaryAction(
             label = "No releases available",
             testTag = "story-no-releases",
