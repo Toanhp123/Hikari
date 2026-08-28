@@ -238,7 +238,6 @@ fun LazyListScope.chapterListItems(
                     modifier = Modifier.fillMaxWidth().testTag("chapter-loading"),
                 )
             }
-            return
         }
         is ContentState.Failed -> {
             item(key = "chapter-failed", contentType = "chapter-error") {
@@ -250,48 +249,44 @@ fun LazyListScope.chapterListItems(
                     modifier = Modifier.fillMaxWidth().testTag("chapter-content-error"),
                 )
             }
-            return
         }
-        is ContentState.Ready -> Unit
-    }
-
-    if (readyContent == null || chapters.isEmpty()) {
-        item(key = "chapter-empty", contentType = "chapter-empty") {
-            HikariEmptyState(
-                title = if (readyContent?.chapterCount == 0) {
-                    "No chapters available"
-                } else {
-                    "No chapters match this filter"
-                },
-            )
-        }
-        return
-    }
-
-    val storyId = state.storyId
-    var previousVolume: String? = null
-    chapters.forEachIndexed { index, chapter ->
-        val volume = chapter.volumeLabel
-        if (volume != null && volume != previousVolume) {
-            item(
-                key = "chapter-volume:$volume",
-                contentType = "chapter-volume",
-            ) {
-                HikariSectionTitle(
-                    title = volume,
-                    modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8),
+        is ContentState.Ready -> if (chapters.isEmpty()) {
+            item(key = "chapter-empty", contentType = "chapter-empty") {
+                HikariEmptyState(
+                    title = if (content.value.chapterCount == 0) {
+                        "No chapters available"
+                    } else {
+                        "No chapters match this filter"
+                    },
+                )
+            }
+        } else {
+            val storyId = state.storyId
+            var previousVolume: String? = null
+            chapters.forEachIndexed { index, chapter ->
+                val volume = chapter.volumeLabel
+                if (volume != null && volume != previousVolume) {
+                    item(
+                        key = "chapter-volume:$volume",
+                        contentType = "chapter-volume",
+                    ) {
+                        HikariSectionTitle(
+                            title = volume,
+                            modifier = Modifier.padding(top = MaterialTheme.hikariSpacing.space8),
+                        )
+                    }
+                }
+                previousVolume = volume
+                chapterItem(
+                    chapter = chapter,
+                    storyId = storyId,
+                    actions = actions,
+                    isFirst = index == 0,
+                    expanded = chapter.id in expandedChapterIds,
+                    onToggle = { onToggleChapter(chapter.id) },
                 )
             }
         }
-        previousVolume = volume
-        chapterItem(
-            chapter = chapter,
-            storyId = storyId,
-            actions = actions,
-            isFirst = index == 0,
-            expanded = chapter.id in expandedChapterIds,
-            onToggle = { onToggleChapter(chapter.id) },
-        )
     }
 }
 
