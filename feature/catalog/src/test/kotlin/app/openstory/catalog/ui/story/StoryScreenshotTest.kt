@@ -25,6 +25,7 @@ import app.openstory.catalog.ui.chapters.ChapterListUiState
 import app.openstory.catalog.ui.chapters.ChapterReleaseUiModel
 import app.openstory.catalog.ui.state.CatalogUiFailure
 import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.CanonicalChapterId
@@ -163,7 +164,7 @@ class StoryScreenshotTest {
     fun chaptersHideSourceDetailRefreshFailure() {
         setStoryContent(
             state = fixture(StorySection.CHAPTERS).withoutArtwork().copy(
-                failure = StoryRefreshFailure("catalog.offline", retryable = true),
+                refresh = RefreshState(failure = CatalogUiFailure("catalog.offline", retryable = true)),
             ),
         )
 
@@ -175,9 +176,7 @@ class StoryScreenshotTest {
     fun initialNoContentLoadingDoesNotExposePullRefresh() {
         setStoryContent(
             state = fixture().withoutArtwork().copy(
-                story = null,
-                refreshing = true,
-                failure = null,
+                content = ContentState.Pending,
             ),
         )
 
@@ -186,22 +185,15 @@ class StoryScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
-    fun retryableEmptyErrorRemainsVisibleWhileRefreshing() {
+    fun retryableBlockingErrorUsesContentRetryWithoutPullRefresh() {
         setStoryContent(
             state = fixture().withoutArtwork().copy(
-                story = null,
-                refreshing = true,
-                failure = StoryRefreshFailure("catalog.offline", retryable = true),
+                content = ContentState.Failed(CatalogUiFailure("catalog.offline", retryable = true)),
+                refresh = RefreshState(inProgress = true),
             ),
         )
 
-        compose.onNodeWithTag("story-empty-pull-refresh").assertIsDisplayed()
-        compose.onNodeWithTag("story-empty-pull-refresh").assert(
-            androidx.compose.ui.test.SemanticsMatcher.expectValue(
-                androidx.compose.ui.semantics.SemanticsProperties.StateDescription,
-                "Refreshing",
-            ),
-        )
+        compose.onAllNodesWithTag("story-empty-pull-refresh").assertCountEquals(0)
         compose.onNodeWithText("Story unavailable").assertIsDisplayed()
         compose.onNodeWithText("Retry").assertIsDisplayed()
     }
@@ -307,7 +299,9 @@ class StoryScreenshotTest {
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun cachedError() = capture(
-        fixture(StorySection.SOURCES).copy(failure = StoryRefreshFailure("catalog.offline", true)),
+        fixture(StorySection.SOURCES).copy(
+            refresh = RefreshState(failure = CatalogUiFailure("catalog.offline", true)),
+        ),
         "cached-error.png",
     )
 
@@ -380,19 +374,30 @@ private fun fixture(section: StorySection = StorySection.OVERVIEW): StoryUiState
     val sourceB = sourceA.copy(pluginId = PluginId("catalog.mal"), sourceId = "moonlit-b", title = "Moonlit Archive")
     return StoryUiState(
         storyId = storyId,
-        story = StoryUiModel(
-            storyId, sourceA.title, sourceA.contentType, sourceA.aliases, sourceA.description,
-            sourceA.coverUrl, sourceA.score, sourceA.authors, sourceA.genres, sourceA.languageTags,
-            listOf(sourceA, sourceB),
+        content = ContentState.Ready(
+            StoryUiModel(
+                storyId, sourceA.title, sourceA.contentType, sourceA.aliases, sourceA.description,
+                sourceA.coverUrl, sourceA.score, sourceA.authors, sourceA.genres, sourceA.languageTags,
+                listOf(sourceA, sourceB),
+            ),
         ),
         selectedSource = StorySourceIdentity(sourceA.pluginId, sourceA.sourceId),
         libraryStatus = LibraryStatus.READING,
+        libraryStatusResolved = true,
         resumeTarget = ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
         selectedSection = section,
     )
 }
 
-private fun StoryUiState.withoutArtwork() = copy(story = story?.copy(coverUrl = null, sources = story.sources.map { it.copy(coverUrl = null) }))
+private fun StoryUiState.withoutArtwork(): StoryUiState {
+    val ready = content as ContentState.Ready
+    val story = ready.value
+    return copy(
+        content = ContentState.Ready(
+            story.copy(coverUrl = null, sources = story.sources.map { it.copy(coverUrl = null) }),
+        ),
+    )
+}
 
 private fun chapterFixture(): ChapterListUiState {
     val storyId = StoryId("moonlit-archive")

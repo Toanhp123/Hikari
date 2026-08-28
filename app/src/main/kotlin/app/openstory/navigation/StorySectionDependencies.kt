@@ -61,6 +61,7 @@ private fun sourceDependencies(
     snackbarHostState: SnackbarHostState,
 ): StorySectionDependencies {
     val viewModel = hiltViewModel<MappingViewModel, MappingViewModel.Factory>(
+        key = "story-mapping:${storyId.value}",
         creationCallback = { factory -> factory.create(MappingAssistedArgs(storyId)) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -80,6 +81,7 @@ private fun chapterDependencies(
     navigateToReader: (ReaderTarget) -> Unit,
 ): StorySectionDependencies {
     val viewModel = hiltViewModel<ChapterListViewModel, ChapterListViewModel.Factory>(
+        key = "story-chapters:${storyId.value}",
         creationCallback = { factory -> factory.create(ChapterListAssistedArgs(storyId)) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()

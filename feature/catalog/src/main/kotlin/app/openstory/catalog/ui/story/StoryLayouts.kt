@@ -29,6 +29,7 @@ internal fun MediumStoryLayout(
     primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onRefresh: () -> Unit,
+    onRetryObservation: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
@@ -45,7 +46,7 @@ internal fun MediumStoryLayout(
     Row(Modifier.fillMaxSize()) {
         Column(storyPane(MaterialTheme.hikariLayoutRatios.detailSummaryPaneWeight, "story-summary-pane", 0f)) {
             StoryHero(
-                story, state.libraryStatus, primaryReadAction, downloadableReleaseId,
+                story, state.libraryStatus, state.libraryStatusResolved, primaryReadAction, downloadableReleaseId,
                 onLibraryStatusSelected, onRead, onFindSource, onDownload, narrow = true,
             )
             if (state.selectedSection != StorySection.OVERVIEW) {
@@ -54,7 +55,7 @@ internal fun MediumStoryLayout(
         }
         Column(storyPane(MaterialTheme.hikariLayoutRatios.detailContentPaneWeight, "story-content-pane", 1f)) {
             StoryBody(
-                state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+                state, story, onRefresh, onRetryObservation, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
                 onSectionSelected, mappingState, mappingActions, chapterState, chapterActions,
             )
         }
@@ -68,6 +69,7 @@ internal fun CompactStoryLayout(
     primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onRefresh: () -> Unit,
+    onRetryObservation: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
@@ -84,11 +86,11 @@ internal fun CompactStoryLayout(
 ) {
     Column(Modifier.fillMaxSize()) {
         StoryHero(
-            story, state.libraryStatus, primaryReadAction, downloadableReleaseId,
+            story, state.libraryStatus, state.libraryStatusResolved, primaryReadAction, downloadableReleaseId,
             onLibraryStatusSelected, onRead, onFindSource, onDownload, narrow = narrowHero,
         )
         StoryBody(
-            state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+            state, story, onRefresh, onRetryObservation, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
             onSectionSelected, mappingState, mappingActions, chapterState, chapterActions,
         )
     }
@@ -97,7 +99,9 @@ internal fun CompactStoryLayout(
 @Composable
 private fun ColumnScope.StoryBody(
     state: StoryUiState,
+    story: StoryUiModel,
     onRefresh: () -> Unit,
+    onRetryObservation: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
@@ -108,11 +112,13 @@ private fun ColumnScope.StoryBody(
     chapterActions: ChapterListActions,
 ) {
     StorySectionTabs(state.selectedSection, onSectionSelected)
-    state.failure
-        ?.takeIf { state.selectedSection.showsSourceDetailFailure() }
-        ?.let { StoryFailureBanner(it, state.refreshing, onRefresh) }
+    state.observationIssue?.let { StoryObservationIssueBanner(it, onRetryObservation) }
+    if (state.selectedSection.showsSourceDetailFailure()) {
+        state.refresh.failure?.let { StoryRefreshFailureBanner(it, state.refresh.inProgress, onRefresh) }
+    }
+    state.commandFailure?.let { StoryCommandFailureBanner(it) }
     StorySectionContent(
-        state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+        state, story, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
         mappingState, mappingActions, chapterState, chapterActions, Modifier.weight(1f),
     )
 }

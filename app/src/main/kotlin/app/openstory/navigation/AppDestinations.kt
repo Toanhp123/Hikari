@@ -29,6 +29,7 @@ import app.openstory.catalog.ui.search.SearchViewModel
 import app.openstory.catalog.ui.story.StoryAssistedArgs
 import app.openstory.catalog.ui.story.StoryScreen
 import app.openstory.catalog.ui.story.StoryViewModel
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.catalog.ui.updates.UpdatesScreen
 import app.openstory.catalog.ui.updates.UpdatesViewModel
 import app.openstory.common.id.StoryId
@@ -243,23 +244,30 @@ internal fun StoryDestination(
     val downloadViewModel = hiltViewModel<DownloadViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     var prewarmSections by remember(storyId) { mutableStateOf(false) }
-    LaunchedEffect(storyId, state.story != null) {
-        if (state.story == null || prewarmSections) return@LaunchedEffect
+    val storyReady = state.content is ContentState.Ready
+    LaunchedEffect(storyId, storyReady) {
+        if (!storyReady || prewarmSections) return@LaunchedEffect
         withFrameNanos { }
         prewarmSections = true
     }
     val navigateToReader: (ReaderTarget) -> Unit = { target -> navigate(target.readerRoute()) }
-    val dependencies = storySectionDependencies(
-        storyId = storyId,
-        section = state.selectedSection,
-        prewarmSections = prewarmSections,
-        downloadViewModel = downloadViewModel,
-        navigateToReader = navigateToReader,
-        snackbarHostState = snackbarHostState,
-    )
+    val dependencies = if (storyReady) {
+        storySectionDependencies(
+            storyId = state.storyId,
+            section = state.selectedSection,
+            prewarmSections = prewarmSections,
+            downloadViewModel = downloadViewModel,
+            navigateToReader = navigateToReader,
+            snackbarHostState = snackbarHostState,
+        )
+    } else {
+        StorySectionDependencies()
+    }
     StoryScreen(
         state = state,
         onRefresh = viewModel::refresh,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         onSourceSelected = viewModel::selectSource,
         onPinPrimary = viewModel::pinPrimary,
         onUseAutomaticPrimary = viewModel::useAutomaticPrimary,

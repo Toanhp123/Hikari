@@ -23,7 +23,9 @@ import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.chapters.ChapterListContent
 import app.openstory.catalog.ui.chapters.ChapterListUiState
+import app.openstory.catalog.ui.state.CatalogUiFailure
 import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
@@ -247,6 +249,22 @@ class StoryScreenTest {
     }
 
     @Test
+    fun unresolvedLibraryMembershipDisablesMutationChoices() {
+        setStoryContent(
+            state = fixtureState().copy(
+                libraryStatus = null,
+                libraryStatusResolved = false,
+            ),
+        )
+
+        compose.onNodeWithTag("story-more").performClick()
+
+        compose.onNodeWithTag("story-library-loading").assertIsDisplayed()
+        compose.onNodeWithTag("story-library-reading").assertIsNotEnabled()
+        compose.onAllNodesWithTag("story-library-remove").assertCountEquals(0)
+    }
+
+    @Test
     fun libraryActionUsesSelectedStatus() {
         var status: LibraryStatus? = null
         setStoryContent(onLibraryStatusSelected = { status = it })
@@ -258,8 +276,46 @@ class StoryScreenTest {
     }
 
     @Test
+    fun observationIssueRetriesObservationWithoutInvokingSourceRefresh() {
+        var observationRetries = 0
+        var sourceRefreshes = 0
+        setStoryContent(
+            state = fixtureState().copy(
+                observationIssue = CatalogUiFailure("catalog.story.observe_exception", true),
+            ),
+            onRefresh = { sourceRefreshes += 1 },
+            onRetryObservation = { observationRetries += 1 },
+        )
+
+        compose.onNodeWithTag("story-observation-retry").performClick()
+
+        assertEquals(1, observationRetries)
+        assertEquals(0, sourceRefreshes)
+    }
+
+    @Test
+    fun commandFailureRemainsVisibleOnChaptersIndependentlyOfSourceRefresh() {
+        setStoryContent(
+            state = fixtureState().copy(
+                selectedSection = StorySection.CHAPTERS,
+                commandFailure = CatalogUiFailure("catalog.story.preference_failed", true),
+            ),
+        )
+
+        compose.onNodeWithText("Couldn't update the story source preference.").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-retry").assertCountEquals(0)
+    }
+
+    @Test
     fun cachedFailureDisablesRetryWhileRefreshing() {
-        setStoryContent(state = fixtureState(failed = true).copy(refreshing = true))
+        setStoryContent(
+            state = fixtureState(failed = true).copy(
+                refresh = RefreshState(
+                    inProgress = true,
+                    failure = CatalogUiFailure("catalog.offline", true),
+                ),
+            ),
+        )
 
         compose.onNodeWithTag("story-retry").assertHeightIsAtLeast(48.dp).assertIsNotEnabled()
     }
@@ -290,8 +346,10 @@ class StoryScreenTest {
     fun noContentRetryableFailureKeepsRetryAction() {
         var retried = false
         setStoryContent(
-            state = fixtureState(failed = true).copy(story = null),
-            onRefresh = { retried = true },
+            state = fixtureState().copy(
+                content = ContentState.Failed(CatalogUiFailure("catalog.offline", true)),
+            ),
+            onRetryContent = { retried = true },
         )
 
         compose.onNodeWithText("Retry").performClick()
@@ -321,6 +379,8 @@ class StoryScreenTest {
     private fun setStoryContent(
         state: StoryUiState = fixtureState(),
         onRefresh: () -> Unit = {},
+        onRetryContent: () -> Unit = {},
+        onRetryObservation: () -> Unit = {},
         onSourceSelected: (PluginId, String) -> Unit = { _, _ -> },
         onSectionSelected: (StorySection) -> Unit = {},
         onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
@@ -334,6 +394,8 @@ class StoryScreenTest {
                 StoryScreen(
                     state = state,
                     onRefresh = onRefresh,
+                    onRetryContent = onRetryContent,
+                    onRetryObservation = onRetryObservation,
                     onSourceSelected = onSourceSelected,
                     onSectionSelected = onSectionSelected,
                     onLibraryStatusSelected = onLibraryStatusSelected,
@@ -363,19 +425,26 @@ private fun fixtureState(failed: Boolean = false): StoryUiState {
     )
     return StoryUiState(
         storyId = storyId,
-        story = StoryUiModel(
-            storyId = storyId,
-            preferredTitle = entry.title,
-            contentType = entry.contentType,
-            aliases = setOf("Moonlit Archive"),
-            description = entry.description,
-            authors = entry.authors,
-            genres = entry.genres,
-            languageTags = entry.languageTags,
-            sources = listOf(entry),
+        content = ContentState.Ready(
+            StoryUiModel(
+                storyId = storyId,
+                preferredTitle = entry.title,
+                contentType = entry.contentType,
+                aliases = setOf("Moonlit Archive"),
+                description = entry.description,
+                authors = entry.authors,
+                genres = entry.genres,
+                languageTags = entry.languageTags,
+                sources = listOf(entry),
+            ),
         ),
         selectedSource = StorySourceIdentity(entry.pluginId, entry.sourceId),
-        failure = if (failed) StoryRefreshFailure("catalog.offline", true) else null,
+        refresh = if (failed) {
+            RefreshState(failure = CatalogUiFailure("catalog.offline", true))
+        } else {
+            RefreshState()
+        },
+        libraryStatusResolved = true,
     )
 }
 

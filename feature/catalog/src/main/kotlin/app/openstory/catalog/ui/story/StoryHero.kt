@@ -19,6 +19,7 @@ import app.openstory.library.LibraryStatus
 internal fun StoryHero(
     story: StoryUiModel,
     libraryStatus: LibraryStatus?,
+    libraryStatusResolved: Boolean,
     primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
@@ -47,6 +48,7 @@ internal fun StoryHero(
                 story = story,
                 artwork = artwork,
                 libraryStatus = libraryStatus,
+                libraryStatusResolved = libraryStatusResolved,
                 primaryReadAction = primaryReadAction,
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,
@@ -60,6 +62,7 @@ internal fun StoryHero(
                 story = story,
                 artwork = artwork,
                 libraryStatus = libraryStatus,
+                libraryStatusResolved = libraryStatusResolved,
                 primaryReadAction = primaryReadAction,
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,

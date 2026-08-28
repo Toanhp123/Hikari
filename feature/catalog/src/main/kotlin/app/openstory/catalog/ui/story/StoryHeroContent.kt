@@ -31,6 +31,7 @@ internal fun WideHeroContent(
     story: StoryUiModel,
     artwork: HikariArtworkState,
     libraryStatus: LibraryStatus?,
+    libraryStatusResolved: Boolean,
     primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
@@ -63,6 +64,7 @@ internal fun WideHeroContent(
             StoryHeroMetadata(story, compact = false)
             StoryHeroActions(
                 libraryStatus = libraryStatus,
+                libraryStatusResolved = libraryStatusResolved,
                 primaryReadAction = primaryReadAction,
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,
@@ -79,6 +81,7 @@ internal fun NarrowHeroContent(
     story: StoryUiModel,
     artwork: HikariArtworkState,
     libraryStatus: LibraryStatus?,
+    libraryStatusResolved: Boolean,
     primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
@@ -112,6 +115,7 @@ internal fun NarrowHeroContent(
             StoryHeroMetadata(story, compact = true)
             StoryHeroActions(
                 libraryStatus = libraryStatus,
+                libraryStatusResolved = libraryStatusResolved,
                 primaryReadAction = primaryReadAction,
                 downloadableReleaseId = downloadableReleaseId,
                 onLibraryStatusSelected = onLibraryStatusSelected,

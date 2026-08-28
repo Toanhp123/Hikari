@@ -28,6 +28,7 @@ import app.openstory.library.LibraryStatus
 @Composable
 internal fun StoryHeroActions(
     libraryStatus: LibraryStatus?,
+    libraryStatusResolved: Boolean,
     primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
@@ -57,6 +58,7 @@ internal fun StoryHeroActions(
     if (showActions) {
         StoryActionsSheet(
             libraryStatus = libraryStatus,
+            libraryStatusResolved = libraryStatusResolved,
             downloadableReleaseId = downloadableReleaseId,
             onDismiss = { showActions = false },
             onLibraryStatusSelected = { status ->
@@ -132,6 +134,7 @@ private fun DisabledStoryPrimaryAction(
 @Composable
 private fun StoryActionsSheet(
     libraryStatus: LibraryStatus?,
+    libraryStatusResolved: Boolean,
     downloadableReleaseId: ChapterReleaseId?,
     onDismiss: () -> Unit,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
@@ -148,11 +151,18 @@ private fun StoryActionsSheet(
                 }
             }
             HikariSectionTitle("Library")
+            if (!libraryStatusResolved) {
+                Text(
+                    "Checking Library status…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.testTag("story-library-loading"),
+                )
+            }
             LibraryStatus.entries.forEach { status ->
                 val selected = status == libraryStatus
                 HikariUtilityAction(
                     onClick = { onLibraryStatusSelected(status) },
-                    enabled = !selected,
+                    enabled = libraryStatusResolved && !selected,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("story-library-${status.name.lowercase()}"),
@@ -163,7 +173,7 @@ private fun StoryActionsSheet(
                     )
                 }
             }
-            if (libraryStatus != null) {
+            if (libraryStatusResolved && libraryStatus != null) {
                 HikariUtilityAction(
                     onClick = { onLibraryStatusSelected(null) },
                     modifier = Modifier.fillMaxWidth().testTag("story-library-remove"),
