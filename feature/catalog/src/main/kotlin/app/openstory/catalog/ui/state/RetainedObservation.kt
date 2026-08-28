@@ -52,6 +52,8 @@ internal fun <K, T> ObservationState<K, T>.forExpectedKey(
 private class ObservationCompletedWithoutValueException :
     IllegalStateException("Observation completed before emitting a value")
 
+private const val DEFAULT_STOP_TIMEOUT_MILLIS = 5_000L
+
 internal class RetainedObservation<K, T> internal constructor(
     val state: StateFlow<ObservationState<K, T>>,
     private val retryEpoch: MutableStateFlow<Long>,
@@ -62,10 +64,11 @@ internal class RetainedObservation<K, T> internal constructor(
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("TooGenericExceptionCaught")
 internal fun <K, T> CoroutineScope.retainedObservation(
     key: Flow<K>,
     initialKey: K,
-    started: SharingStarted = SharingStarted.WhileSubscribed(5_000L),
+    started: SharingStarted = SharingStarted.WhileSubscribed(DEFAULT_STOP_TIMEOUT_MILLIS),
     observe: (K) -> Flow<T>,
     mapFailure: (K, Exception) -> CatalogUiFailure,
 ): RetainedObservation<K, T> {

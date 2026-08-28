@@ -120,24 +120,24 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun retryObservation() {
-        val membership = membershipObservation.state.value
-        if (membership.hasRetainedIssue()) {
-            membershipObservation.retry()
-            return
-        }
-        if (membership !is ObservationState.Available || membership.value.isEmpty()) return
+        observationRetryAction()?.invoke()
+    }
 
-        val required = requiredLocalDependencies(currentLibraryControls())
-        if (catalogObservation.state.value.hasSurfacedIssue(LibraryDependency.CATALOG in required)) {
-            catalogObservation.retry()
-            return
-        }
-        if (mappingObservation.state.value.hasSurfacedIssue(LibraryDependency.MAPPINGS in required)) {
-            mappingObservation.retry()
-            return
-        }
-        if (progressObservation.state.value.hasSurfacedIssue(LibraryDependency.PROGRESS in required)) {
-            progressObservation.retry()
+    private fun observationRetryAction(): (() -> Unit)? {
+        val membership = membershipObservation.state.value
+        val required = (membership as? ObservationState.Available)
+            ?.takeIf { it.value.isNotEmpty() }
+            ?.let { requiredLocalDependencies(currentLibraryControls()) }
+        return when {
+            membership.hasRetainedIssue() -> membershipObservation::retry
+            required == null -> null
+            catalogObservation.state.value.hasSurfacedIssue(LibraryDependency.CATALOG in required) ->
+                catalogObservation::retry
+            mappingObservation.state.value.hasSurfacedIssue(LibraryDependency.MAPPINGS in required) ->
+                mappingObservation::retry
+            progressObservation.state.value.hasSurfacedIssue(LibraryDependency.PROGRESS in required) ->
+                progressObservation::retry
+            else -> null
         }
     }
 
@@ -288,11 +288,11 @@ private fun projectCollectionState(
         if (dependency !in required) return@firstNotNullOfOrNull null
         observations.stateFor(dependency).unavailableFailureOrNull()
     }
-    if (unavailable != null) return LibraryCollectionState.Unavailable(unavailable)
-    if (required.any { observations.stateFor(it) is ObservationState.Pending }) {
-        return LibraryCollectionState.Resolving
+    return when {
+        unavailable != null -> LibraryCollectionState.Unavailable(unavailable)
+        required.any { observations.stateFor(it) is ObservationState.Pending } -> LibraryCollectionState.Resolving
+        else -> LibraryCollectionState.Ready(projectLibraryCollection(baseItems, controls))
     }
-    return LibraryCollectionState.Ready(projectLibraryCollection(baseItems, controls))
 }
 
 private fun projectLibraryBaseItems(

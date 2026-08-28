@@ -146,33 +146,29 @@ class UpdatesViewModel @Inject constructor(
     }
 
     fun retryObservation() {
+        observationRetryAction()?.invoke()
+    }
+
+    private fun observationRetryAction(): (() -> Unit)? {
         val libraryState = libraryObservation.state.value
-        if (libraryState.hasRetainedIssue()) {
-            libraryObservation.retry()
-            return
-        }
-        if (libraryState !is ObservationState.Available) return
-
-        val expectedKey = libraryState.value.storyIdKey()
-        if (expectedKey.isEmpty()) return
-
-        val chapterState = chapterObservation.state.value.forExpectedKey(expectedKey)
-        if (chapterState.hasIssueOrUnavailable()) {
-            chapterObservation.retry()
-            return
-        }
-        val mappingState = mappingObservation.state.value.forExpectedKey(expectedKey)
-        if (mappingState.hasIssueOrUnavailable()) {
-            mappingObservation.retry()
-            return
-        }
-        val catalogState = catalogObservation.state.value.forExpectedKey(expectedKey)
-        if (catalogState.hasIssueOrUnavailable()) {
-            catalogObservation.retry()
-            return
-        }
-        if (readerObservation.state.value.hasIssueOrUnavailable()) {
-            readerObservation.retry()
+        val expectedKey = (libraryState as? ObservationState.Available)
+            ?.value
+            ?.storyIdKey()
+            ?.takeIf(Set<StoryId>::isNotEmpty)
+        return when {
+            libraryState.hasRetainedIssue() -> libraryObservation::retry
+            expectedKey == null -> null
+            chapterObservation.state.value
+                .forExpectedKey(expectedKey)
+                .hasIssueOrUnavailable() -> chapterObservation::retry
+            mappingObservation.state.value
+                .forExpectedKey(expectedKey)
+                .hasIssueOrUnavailable() -> mappingObservation::retry
+            catalogObservation.state.value
+                .forExpectedKey(expectedKey)
+                .hasIssueOrUnavailable() -> catalogObservation::retry
+            readerObservation.state.value.hasIssueOrUnavailable() -> readerObservation::retry
+            else -> null
         }
     }
 }
@@ -234,23 +230,24 @@ private fun requiredContent(
 ): ContentState<UpdatesContent> {
     val blockingFailure = chapters.unavailableFailureOrNull()
         ?: mappings.unavailableFailureOrNull()
-    if (blockingFailure != null) return ContentState.Failed(blockingFailure)
-    if (chapters is ObservationState.Pending || mappings is ObservationState.Pending) {
-        return ContentState.Pending
+    return when {
+        blockingFailure != null -> ContentState.Failed(blockingFailure)
+        chapters is ObservationState.Pending || mappings is ObservationState.Pending -> ContentState.Pending
+        else -> {
+            val chapterValues = (chapters as ObservationState.Available).value
+            val mappingValues = (mappings as ObservationState.Available).value
+            ContentState.Ready(
+                projectUpdates(
+                    entries = entries,
+                    groups = chapterValues,
+                    mappings = mappingValues,
+                    projections = catalog.availableValueOrNull(),
+                    readerPluginIds = reader.availableValueOrNull(),
+                    projector = projector,
+                ),
+            )
+        }
     }
-
-    val chapterValues = (chapters as ObservationState.Available).value
-    val mappingValues = (mappings as ObservationState.Available).value
-    return ContentState.Ready(
-        projectUpdates(
-            entries = entries,
-            groups = chapterValues,
-            mappings = mappingValues,
-            projections = catalog.availableValueOrNull(),
-            readerPluginIds = reader.availableValueOrNull(),
-            projector = projector,
-        ),
-    )
 }
 
 private fun projectUpdates(
