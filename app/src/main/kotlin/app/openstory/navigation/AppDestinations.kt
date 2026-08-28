@@ -213,7 +213,9 @@ internal fun ReconciliationReviewDestination(
 ) {
     val viewModel = hiltViewModel<ReconciliationReviewViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(route.caseId, state.items) {
+    val reviewItems = (state.content as? ContentState.Ready)?.value
+    LaunchedEffect(route.caseId, reviewItems) {
+        if (reviewItems == null) return@LaunchedEffect
         route.caseId?.let(viewModel::resumeMerge)
     }
     ReconciliationReviewScreen(
@@ -226,6 +228,8 @@ internal fun ReconciliationReviewDestination(
         onProtectedMappingSelected = viewModel::selectProtectedMapping,
         onConfirmProtectedMerge = viewModel::confirmProtectedMerge,
         onDismissProtectedConflict = viewModel::dismissProtectedConflict,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         contentPadding = contentPadding,
     )
 }

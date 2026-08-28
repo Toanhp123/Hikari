@@ -17,6 +17,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.openstory.catalog.ui.feedback.catalogFailureMessage
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
@@ -34,6 +37,8 @@ import app.openstory.designsystem.layout.HikariSheetContent
 import app.openstory.designsystem.layout.HikariStickyDestinationScaffold
 import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.state.HikariEmptyState
+import app.openstory.designsystem.state.HikariErrorState
+import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
@@ -49,6 +54,8 @@ fun ReconciliationReviewScreen(
     onProtectedMappingSelected: (PluginId, String) -> Unit,
     onConfirmProtectedMerge: () -> Unit,
     onDismissProtectedConflict: () -> Unit,
+    onRetryContent: () -> Unit = {},
+    onRetryObservation: () -> Unit = {},
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
@@ -57,7 +64,16 @@ fun ReconciliationReviewScreen(
             contentPadding = contentPadding,
             header = { HikariFocusedHeader("Review duplicates", onBack) },
         ) { bodyPadding ->
-            ReviewQueueContent(state, bodyPadding, onMerge, onReverse, onKeepSeparate, onDefer)
+            ReviewQueueContent(
+                state = state,
+                bodyPadding = bodyPadding,
+                onMerge = onMerge,
+                onReverse = onReverse,
+                onKeepSeparate = onKeepSeparate,
+                onDefer = onDefer,
+                onRetryContent = onRetryContent,
+                onRetryObservation = onRetryObservation,
+            )
         }
     }
     state.protectedConflict?.let { conflict ->
@@ -79,16 +95,44 @@ private fun ReviewQueueContent(
     onReverse: (String, Long) -> Unit,
     onKeepSeparate: (String, Long) -> Unit,
     onDefer: (String, Long) -> Unit,
+    onRetryContent: () -> Unit,
+    onRetryObservation: () -> Unit,
 ) {
-    if (state.items.isEmpty()) {
-        EmptyReviewQueue(state.failureMessage, bodyPadding)
-    } else {
-        ReviewQueueList(state, bodyPadding, onMerge, onReverse, onKeepSeparate, onDefer)
+    when (val content = state.content) {
+        is ContentState.Pending -> HikariLoadingState(
+            label = "Loading duplicate reviews",
+            modifier = Modifier.fillMaxSize().padding(bodyPadding.withScreenContentInsets()),
+        )
+        is ContentState.Failed -> HikariErrorState(
+            title = "Duplicate reviews unavailable",
+            message = catalogFailureMessage(content.failure.code, "Couldn't load duplicate reviews right now."),
+            actionLabel = if (content.failure.retryable) "Retry" else null,
+            onAction = if (content.failure.retryable) onRetryContent else null,
+            modifier = Modifier.fillMaxSize().padding(bodyPadding.withScreenContentInsets()),
+        )
+        is ContentState.Ready -> if (content.value.isEmpty()) {
+            EmptyReviewQueue(state, bodyPadding, onRetryObservation)
+        } else {
+            ReviewQueueList(
+                state,
+                content.value,
+                bodyPadding,
+                onMerge,
+                onReverse,
+                onKeepSeparate,
+                onDefer,
+                onRetryObservation,
+            )
+        }
     }
 }
 
 @Composable
-private fun EmptyReviewQueue(failureMessage: String?, bodyPadding: PaddingValues) {
+private fun EmptyReviewQueue(
+    state: ReconciliationReviewUiState,
+    bodyPadding: PaddingValues,
+    onRetryObservation: () -> Unit,
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -98,8 +142,9 @@ private fun EmptyReviewQueue(failureMessage: String?, bodyPadding: PaddingValues
             title = "No duplicates to review",
             message = "Ambiguous matches will appear here when they need your decision.",
         )
-        failureMessage?.let { message ->
-            HikariInlineFeedback(message = message, modifier = Modifier.align(Alignment.TopCenter))
+        Column(Modifier.align(Alignment.TopCenter)) {
+            state.observationIssue?.let { ReviewObservationFeedback(it, onRetryObservation) }
+            state.failureMessage?.let { message -> HikariInlineFeedback(message = message) }
         }
     }
 }
@@ -107,24 +152,29 @@ private fun EmptyReviewQueue(failureMessage: String?, bodyPadding: PaddingValues
 @Composable
 private fun ReviewQueueList(
     state: ReconciliationReviewUiState,
+    items: List<ReconciliationReviewItemUiModel>,
     bodyPadding: PaddingValues,
     onMerge: (String, Long) -> Unit,
     onReverse: (String, Long) -> Unit,
     onKeepSeparate: (String, Long) -> Unit,
     onDefer: (String, Long) -> Unit,
+    onRetryObservation: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = bodyPadding.withScreenContentInsets(),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
     ) {
+        state.observationIssue?.let { issue ->
+            item(key = "review-observation-issue") { ReviewObservationFeedback(issue, onRetryObservation) }
+        }
         state.failureMessage?.let { message ->
             item(key = "review-failure") { HikariInlineFeedback(message = message) }
         }
         if (state.domainConflictReasonLabels.isNotEmpty()) {
             item(key = "review-domain-conflict") { DomainConflictCard(state.domainConflictReasonLabels) }
         }
-        items(state.items, key = ReconciliationReviewItemUiModel::caseId) { item ->
+        items(items, key = ReconciliationReviewItemUiModel::caseId) { item ->
             ReconciliationReviewCard(
                 item = item,
                 resolving = state.resolvingCaseId == item.caseId,
@@ -135,6 +185,15 @@ private fun ReviewQueueList(
             )
         }
     }
+}
+
+@Composable
+private fun ReviewObservationFeedback(failure: CatalogUiFailure, onRetry: () -> Unit) {
+    HikariInlineFeedback(
+        message = catalogFailureMessage(failure.code, "Duplicate reviews may be out of date."),
+        actionLabel = if (failure.retryable) "Retry" else null,
+        onAction = if (failure.retryable) onRetry else null,
+    )
 }
 
 @Composable
