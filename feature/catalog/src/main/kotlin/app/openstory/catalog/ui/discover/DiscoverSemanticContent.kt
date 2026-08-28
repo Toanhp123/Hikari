@@ -43,6 +43,31 @@ internal data class DiscoverSemanticContent(
     }
 }
 
+internal data class DiscoverFeedSlots(
+    val popular: List<StoryId>,
+    val latestUpdates: List<StoryId>,
+    val topRated: List<StoryId>,
+) {
+    val expectedStoryIds: List<StoryId>
+        get() = buildList {
+            addAll(popular)
+            addAll(latestUpdates)
+            addAll(topRated)
+        }.distinct()
+
+    val size: Int
+        get() = popular.size + latestUpdates.size + topRated.size
+}
+
+internal fun discoverFeedSlots(
+    homes: List<CatalogHomeSnapshot>,
+    selectedContentType: ContentType,
+): DiscoverFeedSlots = DiscoverFeedSlots(
+    popular = projectPopular(homes, selectedContentType),
+    latestUpdates = projectLatest(homes, selectedContentType),
+    topRated = projectTopRated(homes, selectedContentType),
+)
+
 internal fun projectSemanticDiscoverContent(
     homes: List<CatalogHomeSnapshot>,
     projections: List<CatalogStoryProjection>,
@@ -52,12 +77,10 @@ internal fun projectSemanticDiscoverContent(
         .asSequence()
         .filter { it.contentType == selectedContentType }
         .associateBy(CatalogStoryProjection::storyId)
-    val popular = projectPopular(homes, selectedContentType)
-        .mapNotNull { projectionByStory[it]?.toDiscoverItem() }
-    val latestUpdates = projectLatest(homes, selectedContentType)
-        .mapNotNull { projectionByStory[it]?.toDiscoverItem() }
-    val topRated = projectTopRated(homes, selectedContentType)
-        .mapNotNull { projectionByStory[it]?.toDiscoverItem() }
+    val slots = discoverFeedSlots(homes, selectedContentType)
+    val popular = slots.popular.mapNotNull { projectionByStory[it]?.toDiscoverItem() }
+    val latestUpdates = slots.latestUpdates.mapNotNull { projectionByStory[it]?.toDiscoverItem() }
+    val topRated = slots.topRated.mapNotNull { projectionByStory[it]?.toDiscoverItem() }
 
     return DiscoverSemanticContent(
         selectedContentType = selectedContentType,
@@ -71,11 +94,7 @@ internal fun projectSemanticDiscoverContent(
 internal fun discoverCanonicalBootstrapStoryIds(
     homes: List<CatalogHomeSnapshot>,
     selectedContentType: ContentType,
-): List<StoryId> = buildList {
-    addAll(projectPopular(homes, selectedContentType))
-    addAll(projectLatest(homes, selectedContentType))
-    addAll(projectTopRated(homes, selectedContentType))
-}.distinct()
+): List<StoryId> = discoverFeedSlots(homes, selectedContentType).expectedStoryIds
 
 internal fun projectSemanticDiscoverState(
     homes: List<CatalogHomeSnapshot>,
@@ -173,7 +192,7 @@ private fun projectTopRated(
         .map { it.storyId }
 }
 
-private fun CatalogStoryProjection.toDiscoverItem(): DiscoverStoryItem = DiscoverStoryItem(
+internal fun CatalogStoryProjection.toDiscoverItem(): DiscoverStoryItem = DiscoverStoryItem(
     storyId = storyId,
     title = title,
     coverUrl = coverUrl,

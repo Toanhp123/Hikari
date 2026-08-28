@@ -57,7 +57,7 @@ class DiscoverViewModel @Inject constructor(
             RANKING_OBSERVE_EXCEPTION_CODE,
             DiscoverSemanticContent.empty(selectedContentType.value),
         ),
-        refresh = refreshPipeline::refresh,
+        refresh = { refreshPipeline.refresh().report },
     )
     private val initialLoading = MutableStateFlow(true)
     private val refreshing = MutableStateFlow(false)
@@ -104,7 +104,7 @@ class DiscoverViewModel @Inject constructor(
                     cachedHomes,
                     selectedContentType.value,
                 )
-                canonicalBootstrap.prewarm(priorityStoryIds)
+                canonicalBootstrap.settle(priorityStoryIds, selectedContentType.value).collect()
             }
             initialLoading.value = false
         }
@@ -118,8 +118,7 @@ class DiscoverViewModel @Inject constructor(
         if (refreshing.value) return
         refreshing.value = true
         try {
-            val cachedHomes = dependencies.homes.first()
-            refreshReport.value = dependencies.refresh(cachedHomes)
+            refreshReport.value = dependencies.refresh()
             refreshFailure.value = null
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -138,7 +137,7 @@ class DiscoverViewModel @Inject constructor(
     private data class DiscoverDependencies(
         val homes: Flow<List<CatalogHomeSnapshot>>,
         val content: Flow<DiscoverSemanticContent>,
-        val refresh: suspend (List<CatalogHomeSnapshot>) -> DiscoverRefreshReport,
+        val refresh: suspend () -> DiscoverRefreshReport,
     )
 
     private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {

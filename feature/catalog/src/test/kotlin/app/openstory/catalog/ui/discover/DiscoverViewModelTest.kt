@@ -104,8 +104,8 @@ class DiscoverViewModelTest {
         }
 
     @Test
-    fun refreshUsesCommittedSuccessTimestampWithoutSecondHomeObservation() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(cachedHome())
+    fun refreshReportUsesFreshPostRefreshHomeObservation() = runTest(dispatcher.scheduler) {
+        val repository = FakeRepository(cachedHome(), applyHomeRefreshMutation = true)
         val viewModel = viewModel(repository, FakeSource())
         backgroundScope.launch { viewModel.state.collect() }
         runCurrent()
@@ -113,7 +113,7 @@ class DiscoverViewModelTest {
         viewModel.refresh()
         runCurrent()
 
-        assertEquals(1, repository.observeHomesSubscriptions)
+        assertEquals(2, repository.observeHomesSubscriptions)
         assertEquals(
             200L,
             viewModel.state.value.refreshReport?.refreshedAtEpochMillis?.get(PluginId("catalog.a")),
@@ -518,6 +518,7 @@ class DiscoverViewModelTest {
             projections,
             DiscoverRefreshPipeline(
                 refreshService,
+                repository,
                 FixedAppDispatchers(dispatcher, refreshDispatcher, dispatcher),
             ),
             DiscoverProjectionPipeline(
@@ -525,6 +526,7 @@ class DiscoverViewModelTest {
             ),
             DiscoverCanonicalBootstrapPipeline(
                 bootstrap,
+                projections,
                 FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
             ),
         )
@@ -591,6 +593,7 @@ private class FakeRepository(
     private var sourceRecordFailuresRemaining: Int = 0,
     private val observeFailure: Boolean = false,
     private val observeFailureAfterEmission: Boolean = false,
+    private val applyHomeRefreshMutation: Boolean = false,
 ) : CatalogRepository {
     private val homes = MutableStateFlow(initialHomes)
     var observeHomesSubscriptions = 0
@@ -644,7 +647,18 @@ private class FakeRepository(
 
     override suspend fun commitHomeRefresh(
         mutation: CatalogHomeMutation,
-    ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> = Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
+    ): Outcome<app.openstory.catalog.repository.CatalogHomeCommitResult, CatalogStoreFailure> {
+        if (applyHomeRefreshMutation) {
+            val refreshed = CatalogHomeSnapshot(
+                pluginId = mutation.pluginId,
+                pluginVersion = mutation.pluginVersion,
+                refreshedAtEpochMillis = mutation.refreshedAtEpochMillis,
+                sections = mutation.sections,
+            )
+            homes.value = homes.value.filterNot { it.pluginId == mutation.pluginId } + refreshed
+        }
+        return Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
+    }
 
     override suspend fun commitSearchSummaries(
         mutation: app.openstory.catalog.repository.CatalogSearchSummaryMutation,

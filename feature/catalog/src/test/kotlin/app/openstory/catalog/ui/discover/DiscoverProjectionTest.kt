@@ -37,10 +37,17 @@ class DiscoverProjectionTest {
             snapshot(CatalogFeedKind.TOP_RATED, listOf(top)),
         )
 
+        val slots = discoverFeedSlots(homes, ContentType.MANGA)
+
+        assertEquals(listOf(shared, popularSecond.storyId), slots.popular)
+        assertEquals(listOf(latest.storyId, shared), slots.latestUpdates)
+        assertEquals(listOf(top.storyId), slots.topRated)
+        assertEquals(5, slots.size)
         assertEquals(
             listOf(shared, popularSecond.storyId, latest.storyId, top.storyId),
-            discoverCanonicalBootstrapStoryIds(homes, ContentType.MANGA),
+            slots.expectedStoryIds,
         )
+        assertEquals(slots.expectedStoryIds, discoverCanonicalBootstrapStoryIds(homes, ContentType.MANGA))
     }
 
     @Test
