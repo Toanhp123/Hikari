@@ -22,21 +22,21 @@ import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 
 internal fun LazyListScope.continueReadingShelf(
-    state: HomeDashboardUiState,
+    content: HomeDashboardContent,
     onResume: (ReaderTarget) -> Unit,
     continueFocus: FocusRequester,
     readingFocus: FocusRequester,
 ) {
-    if (state.continueReading.isEmpty()) return
+    if (content.continueReading.isEmpty()) return
     item("home-continue") {
         HomeSection("Continue Reading") {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap)) {
-                items(state.continueReading, key = { it.storyId.value }) { item ->
+                items(content.continueReading, key = { it.storyId.value }) { item ->
                     ContinueReadingCard(
                         item = item,
                         onResume = onResume,
-                        focusRequester = continueFocus.takeIf { item == state.continueReading.first() },
-                        downFocusRequester = readingFocus.takeIf { state.reading.isNotEmpty() },
+                        focusRequester = continueFocus.takeIf { item == content.continueReading.first() },
+                        downFocusRequester = readingFocus.takeIf { content.reading.isNotEmpty() },
                     )
                 }
             }
@@ -87,38 +87,38 @@ internal fun LazyListScope.latestUpdatesShelf(
 }
 
 internal fun LazyListScope.libraryShelves(
-    state: HomeDashboardUiState,
+    content: HomeDashboardContent,
     onStorySelected: (StoryId) -> Unit,
     firstContentFocusRequester: FocusRequester?,
     readingFocusRequester: FocusRequester,
 ) {
     itemShelf(
         "Reading",
-        state.reading,
+        content.reading,
         onStorySelected,
-        firstContentFocusRequester.takeIf { state.continueReading.isEmpty() } ?: readingFocusRequester,
+        firstContentFocusRequester.takeIf { content.continueReading.isEmpty() } ?: readingFocusRequester,
     )
     itemShelf(
         "Planned",
-        state.planned,
+        content.planned,
         onStorySelected,
-        firstContentFocusRequester.takeIf { state.continueReading.isEmpty() && state.reading.isEmpty() },
+        firstContentFocusRequester.takeIf { content.continueReading.isEmpty() && content.reading.isEmpty() },
     )
     itemShelf(
         "Paused",
-        state.paused,
+        content.paused,
         onStorySelected,
         firstContentFocusRequester.takeIf {
-            state.continueReading.isEmpty() && state.reading.isEmpty() && state.planned.isEmpty()
+            content.continueReading.isEmpty() && content.reading.isEmpty() && content.planned.isEmpty()
         },
     )
     itemShelf(
         "Completed",
-        state.completed,
+        content.completed,
         onStorySelected,
         firstContentFocusRequester.takeIf {
-            state.continueReading.isEmpty() && state.reading.isEmpty() && state.planned.isEmpty() &&
-                state.paused.isEmpty()
+            content.continueReading.isEmpty() && content.reading.isEmpty() && content.planned.isEmpty() &&
+                content.paused.isEmpty()
         },
     )
 }

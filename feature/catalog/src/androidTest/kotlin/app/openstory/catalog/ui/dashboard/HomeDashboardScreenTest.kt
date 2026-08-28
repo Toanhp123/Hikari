@@ -15,6 +15,8 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
@@ -27,7 +29,7 @@ class HomeDashboardScreenTest {
 
     @Test
     fun headingsAndCardsExposeTalkBackSemantics() {
-        compose.setContent { HikariTheme { HomeDashboardScreen(fixture(), {}, {}, {}) } }
+        compose.setContent { HikariTheme { HomeDashboardScreen(fixture(), {}, {}, {}, {}, {}) } }
 
         compose.onNodeWithText("Continue Reading", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithContentDescription(
@@ -44,7 +46,7 @@ class HomeDashboardScreenTest {
         compose.setContent {
             HikariTheme {
                 inputModeManager = LocalInputModeManager.current
-                HomeDashboardScreen(fixture(), {}, {}, {})
+                HomeDashboardScreen(fixture(), {}, {}, {}, {}, {})
             }
         }
         val continueCard = compose.onNodeWithContentDescription(
@@ -70,23 +72,35 @@ class HomeDashboardScreenTest {
             HikariTheme {
                 HomeDashboardScreen(
                     state = HomeDashboardUiState(
-                        latestUpdates = listOf(
-                            HomeUpdateItem(
-                                storyId = storyId,
-                                title = "List-only story",
-                                coverUrl = null,
-                                chapterId = CanonicalChapterId("chapter-1"),
-                                releaseId = ChapterReleaseId("release-1"),
-                                chapterLabel = "Chapter 1",
-                                publishedAtEpochMillis = 1L,
-                                readerTarget = null,
+                        content = ContentState.Ready(
+                            HomeDashboardContent(
+                                summary = HomeReadingSummary(libraryCount = 1),
+                                continueReading = emptyList(),
+                                reading = emptyList(),
+                                planned = emptyList(),
+                                paused = emptyList(),
+                                completed = emptyList(),
+                                latestUpdates = listOf(
+                                    HomeUpdateItem(
+                                        storyId = storyId,
+                                        title = "List-only story",
+                                        coverUrl = null,
+                                        chapterId = CanonicalChapterId("chapter-1"),
+                                        releaseId = ChapterReleaseId("release-1"),
+                                        chapterLabel = "Chapter 1",
+                                        publishedAtEpochMillis = 1L,
+                                        readerTarget = null,
+                                    ),
+                                ),
+                                noContentReason = null,
                             ),
                         ),
-                        loading = false,
                     ),
                     onDiscover = {},
                     onStorySelected = { openedStory = it },
                     onResume = { openedReader = it },
+                    onRetryContent = {},
+                    onRetryObservation = {},
                 )
             }
         }
@@ -105,10 +119,21 @@ class HomeDashboardScreenTest {
             HikariTheme {
                 HomeDashboardScreen(
                     HomeDashboardUiState(
-                        loading = false,
-                        failure = HomeDashboardFailure("home.catalog.observe_exception", true),
+                        content = ContentState.Ready(
+                            HomeDashboardContent(
+                                summary = HomeReadingSummary(),
+                                continueReading = emptyList(),
+                                reading = emptyList(),
+                                planned = emptyList(),
+                                paused = emptyList(),
+                                completed = emptyList(),
+                                latestUpdates = emptyList(),
+                                noContentReason = HomeNoContentReason.NO_LIBRARY,
+                            ),
+                        ),
+                        observationIssue = CatalogUiFailure("home.catalog.observe_exception", true),
                     ),
-                    {}, {}, {},
+                    {}, {}, {}, {}, {},
                 )
             }
         }
@@ -131,9 +156,17 @@ private fun fixture(): HomeDashboardUiState {
         lastActivityAtEpochMillis = 100L,
     )
     return HomeDashboardUiState(
-        summary = HomeReadingSummary(8, 3, 2, 4),
-        continueReading = listOf(item),
-        reading = listOf(item.copy(readerTarget = null)),
-        loading = false,
+        content = ContentState.Ready(
+            HomeDashboardContent(
+                summary = HomeReadingSummary(8, 3, 2, 4),
+                continueReading = listOf(item),
+                reading = listOf(item.copy(readerTarget = null)),
+                planned = emptyList(),
+                paused = emptyList(),
+                completed = emptyList(),
+                latestUpdates = emptyList(),
+                noContentReason = null,
+            ),
+        ),
     )
 }

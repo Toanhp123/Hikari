@@ -112,6 +112,8 @@ internal fun HomeDestination(
         onDiscover = onDiscover,
         onStorySelected = onStorySelected,
         onResume = onResume,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         firstContentFocusRequester = firstContentFocusRequester,
         onUtilityRequested = shellScope.onUtilityRequested,
         utilityFocusRequester = shellScope.utilityFocusRequester,

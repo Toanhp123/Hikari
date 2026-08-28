@@ -3,6 +3,7 @@ package app.openstory.designsystem.state
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 
 @Composable
 fun HikariErrorState(
@@ -11,6 +12,7 @@ fun HikariErrorState(
     message: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    actionFocusRequester: FocusRequester? = null,
 ) {
     HikariStateContent(
         title = title,
@@ -18,6 +20,7 @@ fun HikariErrorState(
         message = message,
         actionLabel = actionLabel,
         onAction = onAction,
+        actionFocusRequester = actionFocusRequester,
         titleColor = MaterialTheme.colorScheme.error,
     )
 }

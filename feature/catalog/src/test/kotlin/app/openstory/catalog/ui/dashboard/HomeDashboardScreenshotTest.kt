@@ -3,6 +3,7 @@ package app.openstory.catalog.ui.dashboard
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
@@ -26,12 +27,29 @@ class HomeDashboardScreenshotTest {
     @Test @Config(sdk = [35], qualifiers = "w600dp-h960dp") fun mediumDark() = capture(fixture(), true, "medium-dark.png")
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp") fun compactLight() = capture(fixture(), false, "compact-light.png")
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp") fun initialLoading() = capture(HomeDashboardUiState(), true, "initial-loading.png")
-    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp") fun trueEmpty() = capture(HomeDashboardUiState(loading = false), true, "true-empty.png")
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp") fun trueEmpty() = capture(
+        HomeDashboardUiState(
+            content = ContentState.Ready(
+                HomeDashboardContent(
+                    summary = HomeReadingSummary(),
+                    continueReading = emptyList(),
+                    reading = emptyList(),
+                    planned = emptyList(),
+                    paused = emptyList(),
+                    completed = emptyList(),
+                    latestUpdates = emptyList(),
+                    noContentReason = HomeNoContentReason.NO_LIBRARY,
+                ),
+            ),
+        ),
+        true,
+        "true-empty.png",
+    )
 
     private fun capture(state: HomeDashboardUiState, dark: Boolean, fileName: String) {
         compose.setContent {
             HikariTheme(darkTheme = dark, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
-                HomeDashboardScreen(state, {}, {}, {})
+                HomeDashboardScreen(state, {}, {}, {}, {}, {})
             }
         }
         compose.waitForIdle()
@@ -52,13 +70,34 @@ internal fun fixture(): HomeDashboardUiState {
         lastActivityAtEpochMillis = 100L,
     )
     return HomeDashboardUiState(
-        summary = HomeReadingSummary(8, 3, 2, 4),
-        continueReading = listOf(item),
-        reading = listOf(item.copy(readerTarget = null)),
-        planned = listOf(item.copy(storyId = StoryId("story-2"), title = "A Map of Quiet Stars", readerTarget = null)),
-        latestUpdates = listOf(
-            HomeUpdateItem(storyId, item.title, null, target.chapterId, target.releaseId, "Chapter 12", 100L, target),
+        content = ContentState.Ready(
+            HomeDashboardContent(
+                summary = HomeReadingSummary(8, 3, 2, 4),
+                continueReading = listOf(item),
+                reading = listOf(item.copy(readerTarget = null)),
+                planned = listOf(
+                    item.copy(
+                        storyId = StoryId("story-2"),
+                        title = "A Map of Quiet Stars",
+                        readerTarget = null,
+                    ),
+                ),
+                paused = emptyList(),
+                completed = emptyList(),
+                latestUpdates = listOf(
+                    HomeUpdateItem(
+                        storyId,
+                        item.title,
+                        null,
+                        target.chapterId,
+                        target.releaseId,
+                        "Chapter 12",
+                        100L,
+                        target,
+                    ),
+                ),
+                noContentReason = null,
+            ),
         ),
-        loading = false,
     )
 }

@@ -1,15 +1,22 @@
 package app.openstory.catalog.ui.dashboard
 
+import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
-import app.openstory.catalog.ui.components.ReaderTarget
+
+enum class HomeNoContentReason {
+    NO_LIBRARY,
+    LIBRARY_PRESENT_BUT_NO_HOME_SECTIONS,
+}
 
 data class HomeReadingSummary(
     val libraryCount: Int = 0,
     val readingCount: Int = 0,
     val completedCount: Int = 0,
-    val downloadedCount: Int = 0,
+    val downloadedCount: Int? = null,
 )
 
 data class HomeDashboardItem(
@@ -33,7 +40,7 @@ data class HomeUpdateItem(
     val readerTarget: ReaderTarget?,
 )
 
-data class HomeDashboardUiState(
+data class HomeDashboardContent(
     val summary: HomeReadingSummary = HomeReadingSummary(),
     val continueReading: List<HomeDashboardItem> = emptyList(),
     val reading: List<HomeDashboardItem> = emptyList(),
@@ -41,12 +48,10 @@ data class HomeDashboardUiState(
     val paused: List<HomeDashboardItem> = emptyList(),
     val completed: List<HomeDashboardItem> = emptyList(),
     val latestUpdates: List<HomeUpdateItem> = emptyList(),
-    val loading: Boolean = true,
-    val failure: HomeDashboardFailure? = null,
-) {
-    val isEmpty: Boolean
-        get() = continueReading.isEmpty() && reading.isEmpty() && planned.isEmpty() &&
-            paused.isEmpty() && completed.isEmpty() && latestUpdates.isEmpty()
-}
+    val noContentReason: HomeNoContentReason? = null,
+)
 
-data class HomeDashboardFailure(val code: String, val retryable: Boolean)
+data class HomeDashboardUiState(
+    val content: ContentState<HomeDashboardContent> = ContentState.Pending,
+    val observationIssue: CatalogUiFailure? = null,
+)

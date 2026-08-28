@@ -12,29 +12,29 @@ import app.openstory.reader.progress.ReadingProgress
 
 data class HomeDashboardInput(
     val library: List<LibraryEntry>,
-    val catalog: List<CatalogStoryProjection>,
-    val progress: List<ReadingProgress>,
-    val chapters: List<CanonicalChapterGroup>,
-    val mappings: List<ContentMapping>,
-    val readerPluginIds: Set<PluginId>,
-    val downloadedCount: Int,
+    val catalog: List<CatalogStoryProjection>? = null,
+    val progress: List<ReadingProgress>? = null,
+    val chapters: List<CanonicalChapterGroup>? = null,
+    val mappings: List<ContentMapping>? = null,
+    val readerPluginIds: Set<PluginId>? = null,
+    val downloadedCount: Int? = null,
 )
 
 class HomeDashboardProjector(
     private val activityProjector: LibraryActivityProjector = LibraryActivityProjector(),
 ) {
-    fun project(input: HomeDashboardInput): HomeDashboardUiState {
-        val catalog = input.catalog.associateBy(CatalogStoryProjection::storyId)
+    fun project(input: HomeDashboardInput): HomeDashboardContent {
+        val catalog = input.catalog.orEmpty().associateBy(CatalogStoryProjection::storyId)
         val library = input.library.sortedWith(
             compareByDescending<LibraryEntry> { it.updatedAt }.thenBy { it.storyId.value },
         )
-        val latestProgress = input.progress
+        val latestProgress = input.progress.orEmpty()
             .filter { it.completedAtEpochMillis == null }
             .groupBy { it.storyId }
             .mapValues { (_, records) ->
                 records.maxWith(compareBy<ReadingProgress> { it.updatedAtEpochMillis }.thenBy { it.releaseId.value })
             }
-        val groupsByChapter = input.chapters.associateBy { it.chapter.id }
+        val groupsByChapter = input.chapters.orEmpty().associateBy { it.chapter.id }
 
         fun item(entry: LibraryEntry, resumable: ReadingProgress? = null): HomeDashboardItem {
             val projection = catalog[entry.storyId]
@@ -62,24 +62,44 @@ class HomeDashboardProjector(
                 .thenBy { it.storyId.value },
         )
 
-        val updates = activityProjector.project(
-            input.library, input.catalog, input.chapters, input.mappings, input.readerPluginIds,
-        )
-            .distinctBy { it.storyId }
-            .map { activity ->
-                HomeUpdateItem(
-                    storyId = activity.storyId,
-                    title = activity.title,
-                    coverUrl = activity.coverUrl,
-                    chapterId = activity.chapterId,
-                    releaseId = activity.releaseId,
-                    chapterLabel = activity.chapterLabel,
-                    publishedAtEpochMillis = activity.publishedAtEpochMillis,
-                    readerTarget = activity.readerTarget,
-                )
-            }
+        val updates = if (input.chapters != null && input.mappings != null) {
+            activityProjector.project(
+                input.library,
+                input.catalog,
+                input.chapters,
+                input.mappings,
+                input.readerPluginIds,
+            )
+                .distinctBy { it.storyId }
+                .map { activity ->
+                    HomeUpdateItem(
+                        storyId = activity.storyId,
+                        title = activity.title,
+                        coverUrl = activity.coverUrl,
+                        chapterId = activity.chapterId,
+                        releaseId = activity.releaseId,
+                        chapterLabel = activity.chapterLabel,
+                        publishedAtEpochMillis = activity.publishedAtEpochMillis,
+                        readerTarget = activity.readerTarget,
+                    )
+                }
+        } else {
+            emptyList()
+        }
 
-        return HomeDashboardUiState(
+        val reading = shelf(LibraryStatus.READING)
+        val planned = shelf(LibraryStatus.WANT_TO_READ)
+        val paused = shelf(LibraryStatus.PAUSED)
+        val completed = shelf(LibraryStatus.COMPLETED)
+        val noContentReason = when {
+            input.library.isEmpty() -> HomeNoContentReason.NO_LIBRARY
+            continueReading.isEmpty() && reading.isEmpty() && planned.isEmpty() &&
+                paused.isEmpty() && completed.isEmpty() && updates.isEmpty() ->
+                HomeNoContentReason.LIBRARY_PRESENT_BUT_NO_HOME_SECTIONS
+            else -> null
+        }
+
+        return HomeDashboardContent(
             summary = HomeReadingSummary(
                 libraryCount = input.library.size,
                 readingCount = input.library.count { it.status == LibraryStatus.READING },
@@ -87,12 +107,12 @@ class HomeDashboardProjector(
                 downloadedCount = input.downloadedCount,
             ),
             continueReading = continueReading,
-            reading = shelf(LibraryStatus.READING),
-            planned = shelf(LibraryStatus.WANT_TO_READ),
-            paused = shelf(LibraryStatus.PAUSED),
-            completed = shelf(LibraryStatus.COMPLETED),
+            reading = reading,
+            planned = planned,
+            paused = paused,
+            completed = completed,
             latestUpdates = updates,
-            loading = false,
+            noContentReason = noContentReason,
         )
     }
 }
