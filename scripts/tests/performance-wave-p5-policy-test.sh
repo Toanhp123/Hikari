@@ -67,8 +67,9 @@ grep -q 'captureBackdrop: Boolean = true' "$backdrop_host" || fail "backdrop hos
 grep -q 'withFrameNanos' "$story_destination" || fail "Story section prewarm is not deferred past the first frame"
 grep -q 'prewarmSections' "$story_destination" || fail "Story section prewarm state is missing"
 grep -q 'prewarmSections' "$story_deps" || fail "Story dependencies do not honor the prewarm state"
-grep -q 'loading = false' "$chapter_vm" || fail "chapter repository emission does not clear loading"
-grep -q 'state.loading' "$chapter_ui" || fail "chapter UI does not distinguish loading from real empty state"
+grep -q 'ContentState.Pending' "$chapter_vm" || fail "chapter ViewModel no longer models unresolved content explicitly"
+grep -q 'ContentState.Ready' "$chapter_vm" || fail "chapter repository emission does not produce authoritative Ready content"
+grep -q 'when (val content = state.content)' "$chapter_ui" || fail "chapter UI does not distinguish Pending/Failed/Ready from real empty state"
 grep -q 'loading = false' "$mapping_vm" || fail "mapping repository emission does not clear loading"
 grep -q 'state.loading' "$mapping_ui" || fail "mapping UI does not distinguish loading from real empty state"
 

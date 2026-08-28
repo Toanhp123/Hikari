@@ -14,6 +14,7 @@ import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingUiState
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.layout.HikariDestinationScaffold
@@ -74,17 +75,14 @@ fun StoryScreen(
         }
         return
     }
-    val readableTargets = chapterState?.readableTargets.orEmpty()
-    val validatedResumeTarget = state.resumeTarget?.takeIf { target ->
-        chapterState?.releaseTargets?.any { release ->
-            release.chapterId == target.chapterId && release.releaseId == target.releaseId
-        } == true
-    }
-    val firstReadableTarget = readableTargets.firstOrNull()
-    val readerTarget = validatedResumeTarget ?: firstReadableTarget
-    val downloadableReleaseId = readerTarget?.releaseId?.takeIf { selectedReleaseId ->
-        chapterState?.downloadableTargets?.any { target -> target.releaseId == selectedReleaseId } == true
-    }
+    val primaryReadAction = storyPrimaryReadAction(chapterState, state.resumeTarget)
+    val selectedReadTarget = (primaryReadAction as? StoryPrimaryReadAction.Read)?.target
+    val downloadableReleaseId = selectedReadTarget
+        ?.takeIf { target ->
+            val content = (chapterState?.content as? ContentState.Ready)?.value
+            content?.downloadableTargets?.contains(target) == true
+        }
+        ?.releaseId
     HikariDestinationScaffold(modifier) {
         HikariSafeDestinationViewport(contentPadding) { safeBodyPadding ->
             StoryReconciliationPromptHost(
@@ -99,16 +97,14 @@ fun StoryScreen(
                 HikariResponsiveContent(Modifier.weight(1f)) {
                     if (windowClass == HikariWindowClass.MEDIUM) {
                         MediumStoryLayout(
-                            state, story, readerTarget, validatedResumeTarget != null,
-                            downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
+                            state, story, primaryReadAction, downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
                             onUseAutomaticPrimary, onSectionSelected, onLibraryStatusSelected, onRead,
                             { onSectionSelected(StorySection.SOURCES) },
                             onDownload, mappingState, mappingActions, chapterState, chapterActions,
                         )
                     } else {
                         CompactStoryLayout(
-                            state, story, readerTarget, validatedResumeTarget != null,
-                            downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
+                            state, story, primaryReadAction, downloadableReleaseId, onRefresh, onSourceSelected, onPinPrimary,
                             onUseAutomaticPrimary, onSectionSelected, onLibraryStatusSelected, onRead,
                             { onSectionSelected(StorySection.SOURCES) },
                             onDownload, mappingState, mappingActions, chapterState, chapterActions,

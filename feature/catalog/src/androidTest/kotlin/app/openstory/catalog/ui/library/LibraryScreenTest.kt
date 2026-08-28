@@ -3,7 +3,6 @@ package app.openstory.catalog.ui.library
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule

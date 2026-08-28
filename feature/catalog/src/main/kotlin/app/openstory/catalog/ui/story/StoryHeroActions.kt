@@ -28,8 +28,7 @@ import app.openstory.library.LibraryStatus
 @Composable
 internal fun StoryHeroActions(
     libraryStatus: LibraryStatus?,
-    readerTarget: ReaderTarget?,
-    isResume: Boolean,
+    primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onLibraryStatusSelected: (LibraryStatus?) -> Unit,
     onRead: (ReaderTarget) -> Unit,
@@ -44,8 +43,7 @@ internal fun StoryHeroActions(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StoryReadAction(
-            readerTarget = readerTarget,
-            isResume = isResume,
+            action = primaryReadAction,
             onRead = onRead,
             onFindSource = onFindSource,
             modifier = Modifier.weight(1f),
@@ -75,26 +73,64 @@ internal fun StoryHeroActions(
 
 @Composable
 private fun StoryReadAction(
-    readerTarget: ReaderTarget?,
-    isResume: Boolean,
+    action: StoryPrimaryReadAction,
     onRead: (ReaderTarget) -> Unit,
     onFindSource: () -> Unit,
     modifier: Modifier,
 ) {
-    if (readerTarget == null) {
-        HikariPrimaryAction(
+    when (action) {
+        StoryPrimaryReadAction.CheckingChapters -> DisabledStoryPrimaryAction(
+            label = "Loading chapters",
+            testTag = "story-chapters-checking",
+            modifier = modifier,
+        )
+        StoryPrimaryReadAction.ChaptersUnavailable -> DisabledStoryPrimaryAction(
+            label = "Chapters unavailable",
+            testTag = "story-chapters-unavailable",
+            modifier = modifier,
+        )
+        StoryPrimaryReadAction.NoChapters -> DisabledStoryPrimaryAction(
+            label = "No chapters yet",
+            testTag = "story-no-chapters",
+            modifier = modifier,
+        )
+        StoryPrimaryReadAction.NoReleases -> DisabledStoryPrimaryAction(
+            label = "No releases available",
+            testTag = "story-no-releases",
+            modifier = modifier,
+        )
+        StoryPrimaryReadAction.CheckingSources -> DisabledStoryPrimaryAction(
+            label = "Checking sources",
+            testTag = "story-reader-checking",
+            modifier = modifier,
+        )
+        StoryPrimaryReadAction.FindSource -> HikariPrimaryAction(
             onClick = onFindSource,
             modifier = modifier.testTag("story-find-source"),
         ) {
             Text("Find source", maxLines = 1)
         }
-        return
+        is StoryPrimaryReadAction.Read -> HikariPrimaryAction(
+            onClick = { onRead(action.target) },
+            modifier = modifier.testTag("story-read"),
+        ) {
+            Text(if (action.isResume) "Resume" else "Read", maxLines = 1)
+        }
     }
+}
+
+@Composable
+private fun DisabledStoryPrimaryAction(
+    label: String,
+    testTag: String,
+    modifier: Modifier,
+) {
     HikariPrimaryAction(
-        onClick = { onRead(readerTarget) },
-        modifier = modifier.testTag("story-read"),
+        onClick = {},
+        enabled = false,
+        modifier = modifier.testTag(testTag),
     ) {
-        Text(if (isResume) "Resume" else "Read", maxLines = 1)
+        Text(label, maxLines = 1)
     }
 }
 

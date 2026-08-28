@@ -75,7 +75,7 @@ fun ChapterReleaseRow(
                 items = release.metadataItems(downloadState, offlineReadable),
             )
         }
-        if (release.readerCapable || offlineReadable) {
+        if (release.readerCapability == ChapterCapabilityState.SUPPORTED || offlineReadable) {
             HikariInlineAction(
                 onClick = { onRead(ReaderTarget(storyId, chapterId, release.id)) },
                 modifier = Modifier.testTag("chapter-read-${release.id.value}"),
@@ -177,7 +177,9 @@ private fun ChapterReleaseUiModel.downloadMenuAction(state: DownloadState?): Dow
     DownloadState.QUEUED, DownloadState.RUNNING -> DownloadMenuAction("Cancel download", DownloadMenuKind.CANCEL)
     DownloadState.FAILED, DownloadState.CANCELLED -> DownloadMenuAction("Retry download", DownloadMenuKind.RETRY)
     DownloadState.COMPLETED -> DownloadMenuAction("Remove offline", DownloadMenuKind.REMOVE)
-    null -> DownloadMenuAction("Download", DownloadMenuKind.DOWNLOAD).takeIf { downloadCapable }
+    null -> DownloadMenuAction("Download", DownloadMenuKind.DOWNLOAD).takeIf {
+        downloadCapability == ChapterCapabilityState.SUPPORTED
+    }
 }
 
 private fun ChapterReleaseUiModel.metadataItems(
@@ -188,9 +190,11 @@ private fun ChapterReleaseUiModel.metadataItems(
     publishedAtEpochMillis?.freshnessLabel(),
     downloadState?.statusLabel(),
     when {
-        !readerCapable && offlineReadable -> "Offline only"
-        !readerCapable -> "List only"
-        !downloadCapable -> "Online only"
+        readerCapability == ChapterCapabilityState.UNKNOWN ||
+            downloadCapability == ChapterCapabilityState.UNKNOWN -> "Checking availability"
+        readerCapability == ChapterCapabilityState.UNSUPPORTED && offlineReadable -> "Offline only"
+        readerCapability == ChapterCapabilityState.UNSUPPORTED -> "List only"
+        downloadCapability == ChapterCapabilityState.UNSUPPORTED -> "Online only"
         else -> null
     },
 )

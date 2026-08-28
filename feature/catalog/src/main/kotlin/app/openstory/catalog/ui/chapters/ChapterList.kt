@@ -14,18 +14,17 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -33,18 +32,20 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import app.openstory.catalog.ui.feedback.catalogFailureMessage
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.content.HikariDisclosureRow
 import app.openstory.designsystem.content.HikariMetadataBadge
-import app.openstory.designsystem.content.hikariSectionHeader
 import app.openstory.designsystem.content.HikariSectionTitle
+import app.openstory.designsystem.content.hikariSectionHeader
 import app.openstory.designsystem.control.HikariCompactIconAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.icon.HikariFilterGlyph
 import app.openstory.designsystem.navigation.HikariPagination
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariEmptyState
+import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.theme.hikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 import kotlinx.coroutines.launch
@@ -56,14 +57,16 @@ fun ChapterList(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues? = null,
 ) {
-    val pageCount = chapterPageCount(state.chapters.size)
+    val readyContent = (state.content as? ContentState.Ready)?.value
+    val chapters = readyContent?.chapters.orEmpty()
+    val pageCount = chapterPageCount(chapters.size)
     var requestedPage by rememberSaveable(
-        state.storyId?.value,
+        state.storyId.value,
         state.selectedFilter.name,
         state.showTombstones,
     ) { mutableIntStateOf(1) }
     val currentPage = requestedPage.coerceIn(1, pageCount)
-    val visibleChapters = state.chapters.chapterPage(currentPage)
+    val visibleChapters = chapters.chapterPage(currentPage)
     val expandedChapterIds = remember(
         state.storyId,
         state.selectedFilter,
@@ -83,9 +86,11 @@ fun ChapterList(
         bottom = resolvedContentPadding.calculateBottomPadding(),
     )
     val scope = rememberCoroutineScope()
-    var optionsVisible by rememberSaveable(state.storyId?.value) { mutableStateOf(false) }
+    var optionsVisible by rememberSaveable(state.storyId.value) { mutableStateOf(false) }
     val visibleReleaseIds = visibleChapters.flatMap { chapter ->
-        chapter.releases.filter(ChapterReleaseUiModel::downloadCapable).map(ChapterReleaseUiModel::id)
+        chapter.releases
+            .filter { release -> release.downloadCapability == ChapterCapabilityState.SUPPORTED }
+            .map(ChapterReleaseUiModel::id)
     }
 
     LaunchedEffect(pageCount) {
@@ -106,7 +111,7 @@ fun ChapterList(
     }
 
     HikariPullToRefresh(
-        refreshing = state.refreshing,
+        refreshing = state.refresh.inProgress,
         onRefresh = actions.onRefresh,
         modifier = modifier.testTag("chapter-pull-refresh"),
     ) {
@@ -138,7 +143,7 @@ fun ChapterList(
         }
     }
 
-    if (optionsVisible) {
+    if (optionsVisible && readyContent != null) {
         ChapterFiltersSheet(
             state = state,
             actions = actions,
@@ -161,53 +166,109 @@ fun LazyListScope.chapterListItems(
     headerScrolled: Boolean,
     onToggleChapter: (CanonicalChapterId) -> Unit,
 ) {
+    val readyContent = (state.content as? ContentState.Ready)?.value
     hikariSectionHeader(
         key = "chapter-summary",
         title = "Chapters",
-        subtitle = state.chapterCount.chapterCountLabel(),
+        subtitle = when (val content = state.content) {
+            ContentState.Pending -> "Loading"
+            is ContentState.Failed -> "Unavailable"
+            is ContentState.Ready -> content.value.chapterCount.chapterCountLabel()
+        },
         sticky = true,
         contentType = "chapter-header",
         topPadding = headerTopPadding,
         stickyBottomSeparation = true,
         stickyBottomSeparationEnabled = headerScrolled,
         action = {
-            if (pageCount > 1) {
-                HikariPagination(
-                    currentPage = currentPage,
-                    pageCount = pageCount,
-                    onPageSelected = onPageSelected,
-                    modifier = Modifier.testTag("chapter-pagination"),
-                )
-            }
-            HikariCompactIconAction(
-                onClick = onOpenOptions,
-                contentDescription = "Chapter options",
-            ) {
-                HikariFilterGlyph()
+            if (readyContent != null) {
+                if (pageCount > 1) {
+                    HikariPagination(
+                        currentPage = currentPage,
+                        pageCount = pageCount,
+                        onPageSelected = onPageSelected,
+                        modifier = Modifier.testTag("chapter-pagination"),
+                    )
+                }
+                HikariCompactIconAction(
+                    onClick = onOpenOptions,
+                    contentDescription = "Chapter options",
+                ) {
+                    HikariFilterGlyph()
+                }
             }
         },
     )
-    state.failure?.let { failure ->
-        item(key = "chapter-failure", contentType = "chapter-feedback") {
-            HikariInlineFeedback(message = catalogFailureMessage(failure, "Couldn't refresh chapters."))
+
+    if (readyContent != null) {
+        state.refresh.failure?.let { failure ->
+            item(key = "chapter-refresh-failure", contentType = "chapter-feedback") {
+                HikariInlineFeedback(
+                    message = catalogFailureMessage(failure.code, "Couldn't refresh chapters."),
+                    actionLabel = if (failure.retryable) "Retry" else null,
+                    actionEnabled = !state.refresh.inProgress,
+                    onAction = if (failure.retryable) actions.onRefresh else null,
+                    actionModifier = Modifier.testTag("chapter-refresh-retry"),
+                )
+            }
+        }
+        state.observationIssue?.let { failure ->
+            item(key = "chapter-observation-issue", contentType = "chapter-feedback") {
+                HikariInlineFeedback(
+                    message = catalogFailureMessage(failure.code, "Some chapter details couldn't be updated."),
+                    actionLabel = if (failure.retryable) "Retry" else null,
+                    onAction = if (failure.retryable) actions.onRetryObservation else null,
+                    actionModifier = Modifier.testTag("chapter-observation-retry"),
+                )
+            }
+        }
+        state.correctionFailure?.let { failure ->
+            item(key = "chapter-correction-failure", contentType = "chapter-feedback") {
+                HikariInlineFeedback(
+                    message = catalogFailureMessage(failure.code, "Couldn't update chapter grouping."),
+                )
+            }
         }
     }
-    if (state.loading && state.chapters.isEmpty()) {
-        item(key = "chapter-loading", contentType = "chapter-progress") {
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth().testTag("chapter-loading"),
+
+    when (val content = state.content) {
+        ContentState.Pending -> {
+            item(key = "chapter-loading", contentType = "chapter-progress") {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().testTag("chapter-loading"),
+                )
+            }
+            return
+        }
+        is ContentState.Failed -> {
+            item(key = "chapter-failed", contentType = "chapter-error") {
+                HikariErrorState(
+                    title = "Chapters unavailable",
+                    message = catalogFailureMessage(content.failure.code, "Couldn't load chapters."),
+                    actionLabel = if (content.failure.retryable) "Retry" else null,
+                    onAction = if (content.failure.retryable) actions.onRetryContent else null,
+                    modifier = Modifier.fillMaxWidth().testTag("chapter-content-error"),
+                )
+            }
+            return
+        }
+        is ContentState.Ready -> Unit
+    }
+
+    if (readyContent == null || chapters.isEmpty()) {
+        item(key = "chapter-empty", contentType = "chapter-empty") {
+            HikariEmptyState(
+                title = if (readyContent?.chapterCount == 0) {
+                    "No chapters available"
+                } else {
+                    "No chapters match this filter"
+                },
             )
         }
         return
     }
-    if (state.chapters.isEmpty()) {
-        item(key = "chapter-empty", contentType = "chapter-empty") {
-            HikariEmptyState(title = "No chapters available")
-        }
-        return
-    }
 
-    val storyId = requireNotNull(state.storyId)
+    val storyId = state.storyId
     var previousVolume: String? = null
     chapters.forEachIndexed { index, chapter ->
         val volume = chapter.volumeLabel
@@ -232,7 +293,6 @@ fun LazyListScope.chapterListItems(
             onToggle = { onToggleChapter(chapter.id) },
         )
     }
-
 }
 
 private fun LazyListScope.chapterItem(

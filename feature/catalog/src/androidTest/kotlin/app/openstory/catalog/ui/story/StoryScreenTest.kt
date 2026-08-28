@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.chapters.ChapterListContent
 import app.openstory.catalog.ui.chapters.ChapterListUiState
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
@@ -94,7 +96,11 @@ class StoryScreenTest {
         )
         setStoryContent(
             state = fixtureState().copy(resumeTarget = target),
-            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                releaseTargets = listOf(target),
+            ),
             onRead = { opened = it },
         )
 
@@ -112,9 +118,8 @@ class StoryScreenTest {
         var opened: ReaderTarget? = null
         setStoryContent(
             state = fixtureState().copy(resumeTarget = target),
-            chapterState = ChapterListUiState(
-                loading = false,
-                storyId = StoryId("story-1"),
+            chapterState = readyChapterState(
+                chapterCount = 1,
                 releaseTargets = listOf(target),
             ),
             onRead = { opened = it },
@@ -132,7 +137,11 @@ class StoryScreenTest {
         )
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                releaseTargets = listOf(target),
+            ),
             modifier = Modifier.requiredWidth(320.dp),
         )
 
@@ -156,7 +165,12 @@ class StoryScreenTest {
         var status: LibraryStatus? = null
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                downloadableTargets = listOf(target),
+                releaseTargets = listOf(target),
+            ),
             onDownload = { downloaded = it },
             onLibraryStatusSelected = { status = it },
         )
@@ -181,7 +195,8 @@ class StoryScreenTest {
         )
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(
+            chapterState = readyChapterState(
+                chapterCount = 2,
                 readableTargets = listOf(onlineTarget),
                 downloadableTargets = listOf(otherDownload),
                 releaseTargets = listOf(onlineTarget, otherDownload),
@@ -202,7 +217,8 @@ class StoryScreenTest {
         setStoryContent(state = fixtureState().copy(resumeTarget = target))
 
         assertEquals(0, compose.onAllNodesWithText("Resume").fetchSemanticsNodes().size)
-        compose.onNodeWithText("Find source").assertIsDisplayed()
+        compose.onNodeWithTag("story-chapters-checking").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
         assertEquals(0, compose.onAllNodesWithText("Download").fetchSemanticsNodes().size)
     }
 
@@ -211,7 +227,16 @@ class StoryScreenTest {
         var selected: StorySection? = null
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(loading = false),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                releaseTargets = listOf(
+                    ReaderTarget(
+                        StoryId("story-1"),
+                        CanonicalChapterId("chapter-1"),
+                        ChapterReleaseId("release-1"),
+                    ),
+                ),
+            ),
             onSectionSelected = { selected = it },
         )
 
@@ -353,3 +378,24 @@ private fun fixtureState(failed: Boolean = false): StoryUiState {
         failure = if (failed) StoryRefreshFailure("catalog.offline", true) else null,
     )
 }
+
+
+private fun readyChapterState(
+    chapterCount: Int,
+    readableTargets: List<ReaderTarget> = emptyList(),
+    downloadableTargets: List<ReaderTarget> = emptyList(),
+    releaseTargets: List<ReaderTarget> = emptyList(),
+    readerAvailabilityResolved: Boolean = true,
+): ChapterListUiState = ChapterListUiState(
+    storyId = StoryId("story-1"),
+    content = ContentState.Ready(
+        ChapterListContent(
+            chapters = emptyList(),
+            readableTargets = readableTargets,
+            downloadableTargets = downloadableTargets,
+            releaseTargets = releaseTargets,
+            chapterCount = chapterCount,
+            readerAvailabilityResolved = readerAvailabilityResolved,
+        ),
+    ),
+)

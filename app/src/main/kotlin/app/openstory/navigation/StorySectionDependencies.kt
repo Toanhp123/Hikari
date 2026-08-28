@@ -89,6 +89,8 @@ private fun chapterDependencies(
         chapterState = state,
         chapterActions = ChapterListActions(
             onRefresh = viewModel::refresh,
+            onRetryContent = viewModel::retryContent,
+            onRetryObservation = viewModel::retryObservation,
             onFilterSelected = viewModel::selectFilter,
             onTombstonesVisible = viewModel::setTombstonesVisible,
             onKeepGrouped = viewModel::keepGrouped,

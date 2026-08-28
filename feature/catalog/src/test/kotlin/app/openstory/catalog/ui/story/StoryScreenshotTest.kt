@@ -17,9 +17,13 @@ import androidx.compose.ui.test.swipeDown
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.chapters.ChapterCapabilityState
 import app.openstory.catalog.ui.chapters.ChapterItemUiModel
+import app.openstory.catalog.ui.chapters.ChapterListContent
 import app.openstory.catalog.ui.chapters.ChapterListUiState
 import app.openstory.catalog.ui.chapters.ChapterReleaseUiModel
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.CanonicalChapterId
@@ -202,6 +206,106 @@ class StoryScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun storyHeroDoesNotShowFindSourceBeforeReaderCapabilityResolves() {
+        val target = ReaderTarget(
+            StoryId("moonlit-archive"),
+            CanonicalChapterId("chapter-12"),
+            ChapterReleaseId("release-12"),
+        )
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(
+                chapterCount = 1,
+                releaseTargets = listOf(target),
+                readerAvailabilityResolved = false,
+            ),
+        )
+
+        compose.onNodeWithTag("story-reader-checking").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun emptyChapterListDoesNotShowFindSource() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(chapterCount = 0),
+        )
+
+        compose.onNodeWithTag("story-no-chapters").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun chapterGroupsWithoutReleasesDoNotShowFindSource() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(chapterCount = 1, releaseTargets = emptyList()),
+        )
+
+        compose.onNodeWithTag("story-no-releases").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun chapterObservationFailureDoesNotShowFindSource() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = ChapterListUiState(
+                storyId = StoryId("moonlit-archive"),
+                content = ContentState.Failed(
+                    CatalogUiFailure("chapter.list.observe_failed", retryable = true),
+                ),
+            ),
+        )
+
+        compose.onNodeWithTag("story-chapters-unavailable").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun resumeTargetFromAnotherStoryIsNotValidated() {
+        val target = ReaderTarget(
+            StoryId("moonlit-archive"),
+            CanonicalChapterId("chapter-12"),
+            ChapterReleaseId("release-12"),
+        )
+        val staleResume = target.copy(storyId = StoryId("another-story"))
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = staleResume),
+            chapterState = storyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                releaseTargets = listOf(target),
+                readerAvailabilityResolved = true,
+            ),
+        )
+
+        compose.onNodeWithTag("story-read").assertIsDisplayed()
+        compose.onNodeWithText("Read").assertIsDisplayed()
+        compose.onNodeWithText("Resume").assertDoesNotExist()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun resolvedChaptersWithoutReadableSourceShowFindSource() {
+        val target = ReaderTarget(
+            StoryId("moonlit-archive"),
+            CanonicalChapterId("chapter-12"),
+            ChapterReleaseId("release-12"),
+        )
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(
+                chapterCount = 1,
+                releaseTargets = listOf(target),
+                readerAvailabilityResolved = true,
+            ),
+        )
+
+        compose.onNodeWithTag("story-find-source").assertIsDisplayed()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun cachedError() = capture(
         fixture(StorySection.SOURCES).copy(failure = StoryRefreshFailure("catalog.offline", true)),
         "cached-error.png",
@@ -210,6 +314,7 @@ class StoryScreenshotTest {
     private fun setStoryContent(
         state: StoryUiState,
         onRefresh: () -> Unit = {},
+        chapterState: ChapterListUiState? = chapterFixture(),
     ) {
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
@@ -218,7 +323,7 @@ class StoryScreenshotTest {
                     onRefresh = onRefresh,
                     onSourceSelected = { _, _ -> },
                     mappingState = mappingFixture(),
-                    chapterState = chapterFixture(),
+                    chapterState = chapterState,
                 )
             }
         }
@@ -289,13 +394,10 @@ private fun fixture(section: StorySection = StorySection.OVERVIEW): StoryUiState
 
 private fun StoryUiState.withoutArtwork() = copy(story = story?.copy(coverUrl = null, sources = story.sources.map { it.copy(coverUrl = null) }))
 
-private fun chapterFixture() = ChapterListUiState(
-    storyId = StoryId("moonlit-archive"),
-    chapterCount = 2,
-    readableTargets = listOf(
-        ReaderTarget(StoryId("moonlit-archive"), CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
-    ),
-    chapters = listOf(
+private fun chapterFixture(): ChapterListUiState {
+    val storyId = StoryId("moonlit-archive")
+    val target = ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12"))
+    val chapters = listOf(
         ChapterItemUiModel(
             id = CanonicalChapterId("chapter-12"),
             label = "Chapter 12",
@@ -307,7 +409,8 @@ private fun chapterFixture() = ChapterListUiState(
                     "MangaDex",
                     "English",
                     12L,
-                    true,
+                    ChapterCapabilityState.SUPPORTED,
+                    ChapterCapabilityState.SUPPORTED,
                 ),
             ),
             title = "The Locked Constellation",
@@ -318,6 +421,35 @@ private fun chapterFixture() = ChapterListUiState(
             tombstoned = false,
             releases = emptyList(),
             title = "A Fox at Dawn",
+        ),
+    )
+    return storyChapterState(
+        chapters = chapters,
+        chapterCount = 2,
+        readableTargets = listOf(target),
+        downloadableTargets = listOf(target),
+        releaseTargets = listOf(target),
+        readerAvailabilityResolved = true,
+    )
+}
+
+private fun storyChapterState(
+    chapters: List<ChapterItemUiModel> = emptyList(),
+    chapterCount: Int,
+    readableTargets: List<ReaderTarget> = emptyList(),
+    downloadableTargets: List<ReaderTarget> = emptyList(),
+    releaseTargets: List<ReaderTarget> = emptyList(),
+    readerAvailabilityResolved: Boolean = true,
+): ChapterListUiState = ChapterListUiState(
+    storyId = StoryId("moonlit-archive"),
+    content = ContentState.Ready(
+        ChapterListContent(
+            chapters = chapters,
+            readableTargets = readableTargets,
+            downloadableTargets = downloadableTargets,
+            releaseTargets = releaseTargets,
+            chapterCount = chapterCount,
+            readerAvailabilityResolved = readerAvailabilityResolved,
         ),
     ),
 )
