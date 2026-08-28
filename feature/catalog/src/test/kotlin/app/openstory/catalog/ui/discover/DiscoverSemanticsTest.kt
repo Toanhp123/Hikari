@@ -23,6 +23,9 @@ import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
@@ -47,6 +50,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -72,6 +77,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(),
                     onRefresh = { refreshCalls += 1 },
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -94,6 +101,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(),
                     onRefresh = { refreshCalls += 1 },
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -115,6 +124,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(refreshing = true),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -136,6 +147,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(popular = listOf(story(1), story(2))),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -183,6 +196,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(popular = listOf(story(1))),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -201,6 +216,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = { selected = it },
@@ -250,6 +267,8 @@ class DiscoverSemanticsTest {
                         top = (1..6).map(::story),
                     ),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -273,6 +292,8 @@ class DiscoverSemanticsTest {
                 DiscoverScreen(
                     state = semanticState(top = listOf(story(1))),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -287,12 +308,14 @@ class DiscoverSemanticsTest {
 
     @Test
     fun initialLoadingUsesLayoutShapedContentButCachedRefreshKeepsRealContent() {
-        var state by mutableStateOf(semanticState(loading = true))
+        var state by mutableStateOf(pendingState())
         compose.setContent {
             HikariTheme {
                 DiscoverScreen(
                     state = state,
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -308,6 +331,85 @@ class DiscoverSemanticsTest {
         compose.onNodeWithTag("discover-popular-pager").assertIsDisplayed()
     }
 
+
+    @Test
+    fun blockingFailureRetryTargetsContentBoundaryNotManualRefresh() {
+        var contentRetryCalls = 0
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(
+                        content = ContentState.Failed(
+                            CatalogUiFailure("catalog.home.observe_exception", retryable = true),
+                        ),
+                    ),
+                    onRefresh = { refreshCalls += 1 },
+                    onRetryContent = { contentRetryCalls += 1 },
+                    onRetryObservation = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Discover unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Retry").performClick()
+
+        assertEquals(1, contentRetryCalls)
+        assertEquals(0, refreshCalls)
+    }
+
+    @Test
+    fun noEnabledProvidersUsesSetupCopyWithoutGenericRetry() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(noContentReason = DiscoverNoContentReason.NO_ENABLED_PROVIDERS),
+                    onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("No catalog sources enabled").assertIsDisplayed()
+        compose.onNodeWithText("Enable a catalog source before discovering stories.").assertIsDisplayed()
+        compose.onNodeWithText("Retry").assertDoesNotExist()
+    }
+
+    @Test
+    fun observationRetryRemainsIndependentWhileManualRefreshIsInProgress() {
+        var observationRetryCalls = 0
+        var refreshCalls = 0
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(
+                        popular = listOf(story(1)),
+                        refreshing = true,
+                        observationIssue = CatalogUiFailure("catalog.home.ranking_exception", retryable = true),
+                    ),
+                    onRefresh = { refreshCalls += 1 },
+                    onRetryContent = {},
+                    onRetryObservation = { observationRetryCalls += 1 },
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Retry").performClick()
+
+        assertEquals(1, observationRetryCalls)
+        assertEquals(0, refreshCalls)
+    }
+
     @Test
     fun completedEmptyStateIsExplicitAndRetryRemainsNonBlocking() {
         var refreshCalls = 0
@@ -315,9 +417,11 @@ class DiscoverSemanticsTest {
             HikariTheme {
                 DiscoverScreen(
                     state = semanticState(
-                        refreshFailure = DiscoverUiFailure("catalog.offline", retryable = true),
+                        refreshFailure = CatalogUiFailure("catalog.offline", retryable = true),
                     ),
                     onRefresh = { refreshCalls += 1 },
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -335,17 +439,26 @@ private fun semanticState(
     popular: List<DiscoverStoryItem> = emptyList(),
     latest: List<DiscoverStoryItem> = emptyList(),
     top: List<DiscoverStoryItem> = emptyList(),
-    loading: Boolean = false,
     refreshing: Boolean = false,
-    refreshFailure: DiscoverUiFailure? = null,
+    refreshFailure: CatalogUiFailure? = null,
+    observationIssue: CatalogUiFailure? = null,
+    noContentReason: DiscoverNoContentReason = DiscoverNoContentReason.EMPTY_FEED,
 ): DiscoverUiState = DiscoverUiState(
-    popular = popular,
-    latestUpdates = latest,
-    topRated = top,
-    loading = loading,
-    refreshing = refreshing,
-    refreshFailure = refreshFailure,
+    content = ContentState.Ready(
+        DiscoverContent(
+            selectedContentType = ContentType.MANGA,
+            mediaTypeOptions = defaultDiscoverMediaTypeOptions,
+            popular = popular,
+            latestUpdates = latest,
+            topRated = top,
+            noContentReason = noContentReason.takeIf { popular.isEmpty() && latest.isEmpty() && top.isEmpty() },
+        ),
+    ),
+    refresh = RefreshState(inProgress = refreshing, failure = refreshFailure),
+    observationIssue = observationIssue,
 )
+
+private fun pendingState(): DiscoverUiState = DiscoverUiState(content = ContentState.Pending)
 
 private fun story(index: Int): DiscoverStoryItem = DiscoverStoryItem(
     storyId = StoryId("story-$index"),

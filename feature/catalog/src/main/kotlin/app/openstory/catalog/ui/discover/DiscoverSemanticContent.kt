@@ -17,19 +17,18 @@ internal data class DiscoverSemanticContent(
     val topRated: List<DiscoverStoryItem>,
     val sourceEmpty: Boolean,
 ) {
-    fun toUiState(
-        loading: Boolean,
-        refreshing: Boolean,
-        refreshReport: DiscoverRefreshReport?,
-    ) = DiscoverUiState(
+    val hasContent: Boolean
+        get() = popular.isNotEmpty() || latestUpdates.isNotEmpty() || topRated.isNotEmpty()
+
+    fun toContent(
+        noContentReason: DiscoverNoContentReason? = null,
+    ): DiscoverContent = DiscoverContent(
         selectedContentType = selectedContentType,
         mediaTypeOptions = defaultDiscoverMediaTypeOptions,
         popular = popular,
         latestUpdates = latestUpdates,
         topRated = topRated,
-        loading = loading && sourceEmpty,
-        refreshing = refreshing,
-        refreshReport = refreshReport,
+        noContentReason = noContentReason,
     )
 
     companion object {
@@ -95,23 +94,6 @@ internal fun discoverCanonicalBootstrapStoryIds(
     homes: List<CatalogHomeSnapshot>,
     selectedContentType: ContentType,
 ): List<StoryId> = discoverFeedSlots(homes, selectedContentType).expectedStoryIds
-
-internal fun projectSemanticDiscoverState(
-    homes: List<CatalogHomeSnapshot>,
-    projections: List<CatalogStoryProjection>,
-    selectedContentType: ContentType,
-    loading: Boolean,
-    refreshing: Boolean,
-    refreshReport: DiscoverRefreshReport?,
-): DiscoverUiState = projectSemanticDiscoverContent(
-    homes = homes,
-    projections = projections,
-    selectedContentType = selectedContentType,
-).toUiState(
-    loading = loading,
-    refreshing = refreshing,
-    refreshReport = refreshReport,
-)
 
 private data class FeedContribution(
     val entry: CatalogEntry,

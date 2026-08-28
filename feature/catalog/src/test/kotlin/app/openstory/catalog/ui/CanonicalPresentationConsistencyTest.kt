@@ -21,7 +21,7 @@ import app.openstory.catalog.model.Story
 import app.openstory.catalog.projection.toProjection
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.catalog.ui.discover.DiscoverViewModel
-import app.openstory.catalog.ui.discover.projectSemanticDiscoverState
+import app.openstory.catalog.ui.discover.projectSemanticDiscoverContent
 import app.openstory.catalog.ui.library.LibrarySourceState
 import app.openstory.catalog.ui.library.LibraryViewModel
 import app.openstory.catalog.ui.library.toLibraryItemUiModel
@@ -43,13 +43,10 @@ class CanonicalPresentationConsistencyTest {
         val projection = ready.toProjection()
         val story = ready.toStoryUiModel(emptyList())
         val search = CatalogSearchStory(ready.story, projection, emptyList()).presentation
-        val discover = projectSemanticDiscoverState(
+        val discover = projectSemanticDiscoverContent(
             homes = listOf(rawHome(ready.story.id)),
             projections = listOf(projection),
             selectedContentType = ContentType.MANGA,
-            loading = false,
-            refreshing = false,
-            refreshReport = null,
         ).popular.single()
         val library = LibraryEntry(
             storyId = ready.story.id,

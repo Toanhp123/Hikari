@@ -174,6 +174,30 @@ class DiscoverCanonicalBootstrapPipelineTest {
     }
 
     @Test
+    fun canonicalReadyProjectionLookupWithDifferentContentTypeSettlesExcluded() = runTest {
+        val storyId = StoryId("story:projection-anime")
+        val canonical = DiscoverCanonicalRepository(readyDiscoverState(storyId))
+        val animeProjection = CatalogStoryProjection(
+            storyId = storyId,
+            title = "Anime projection",
+            contentType = ContentType.ANIME,
+            coverUrl = null,
+        )
+        val pipeline = pipeline(
+            CanonicalBootstrapUseCase(
+                canonical,
+                CanonicalGenerationRebuilder { id, _ -> CanonicalFusionResult.Preparing(id) },
+            ),
+            TestProjectionRepository(emptyList(), findValues = mapOf(storyId to animeProjection)),
+        )
+
+        val final = pipeline.settle(listOf(storyId), ContentType.MANGA).toList().last()
+
+        val excluded = assertIs<DiscoverCanonicalSettlement.ResolvedExcluded>(final[storyId])
+        assertEquals(DiscoverExclusionReason.CONTENT_TYPE_MISMATCH, excluded.reason)
+    }
+
+    @Test
     fun canonicalReadyWithDifferentContentTypeSettlesExcluded() = runTest {
         val storyId = StoryId("story:anime")
         val ready = readyDiscoverState(storyId).copy(story = Story(storyId, ContentType.ANIME))

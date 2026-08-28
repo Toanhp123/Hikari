@@ -9,6 +9,7 @@ import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.motion.HikariMotionPolicy
 import app.openstory.designsystem.theme.HikariTheme
@@ -82,6 +83,8 @@ class DiscoverScreenshotTest {
                     DiscoverScreen(
                         state = fixture(),
                         onRefresh = {},
+                        onRetryContent = {},
+                        onRetryObservation = {},
                         onSearch = {},
                         onStorySelected = {},
                         onContentTypeSelected = {},
@@ -125,10 +128,15 @@ class DiscoverScreenshotTest {
             )
         }
         return DiscoverUiState(
-            popular = items.take(5),
-            latestUpdates = items.take(9),
-            topRated = items.take(5),
-            loading = false,
+            content = ContentState.Ready(
+                DiscoverContent(
+                    selectedContentType = ContentType.MANGA,
+                    mediaTypeOptions = defaultDiscoverMediaTypeOptions,
+                    popular = items.take(5),
+                    latestUpdates = items.take(9),
+                    topRated = items.take(5),
+                ),
+            ),
         )
     }
 

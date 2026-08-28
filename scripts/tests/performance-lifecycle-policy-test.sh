@@ -29,9 +29,15 @@ for top_level_vm in "$discover_vm" "$home_vm" "$library_vm"; do
         fail "retained top-level UI state is not demand-driven: $top_level_vm"
 done
 
-grep -q 'bootstrapEmptyCache()' "$discover_vm" || fail "Discover empty-cache bootstrap owner is missing"
-grep -q 'dependencies.homes.first()' "$discover_vm" || fail "Discover bootstrap does not wait for the first cache emission"
-grep -q 'bootstrapAttempted' "$discover_vm" || fail "Discover bootstrap is not guarded as a one-shot operation"
+grep -q 'private val homeObservation = viewModelScope.retainedObservation' "$discover_vm" ||
+    fail "Discover Home readiness is not owned by retained observation"
+grep -q 'homeObservation.state.first { it is ObservationState.Available }' "$discover_vm" ||
+    fail "Discover bootstrap does not wait for the first authoritative Home emission"
+grep -q 'private fun startAutomaticBootstrap()' "$discover_vm" || fail "Discover automatic bootstrap owner is missing"
+grep -q 'bootstrapJob?.isActive == true' "$discover_vm" || fail "Discover automatic bootstrap is not guarded against duplicate attempts"
+if sed -n '/private fun startAutomaticBootstrap()/,/private suspend fun buildCandidate/p' "$discover_vm" | grep -q 'refreshState'; then
+    fail "Discover automatic bootstrap is still presented as manual RefreshState"
+fi
 
 grep -q 'val statuses' "$download_vm" || fail "download status aggregation flow is missing"
 ! grep -q 'fun watch(' "$download_vm" || fail "per-release download watch collectors remain"

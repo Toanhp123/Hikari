@@ -54,21 +54,7 @@ class DiscoverProjectionPipeline @Inject constructor(
         )
     }
 
-    /**
-     * Compatibility bridge for the pre-CSC DiscoverViewModel. Task 8 removes this overload when
-     * screen state starts owning settlement explicitly.
-     */
-    internal suspend fun project(
-        homes: List<CatalogHomeSnapshot>,
-        projections: List<CatalogStoryProjection>,
-        selectedContentType: ContentType,
-    ): DiscoverSemanticContent = withContext(dispatcher) {
-        projectSemanticDiscoverContent(
-            homes = homes,
-            projections = projections,
-            selectedContentType = selectedContentType,
-        )
-    }
+
 }
 
 private fun stablePrefix(

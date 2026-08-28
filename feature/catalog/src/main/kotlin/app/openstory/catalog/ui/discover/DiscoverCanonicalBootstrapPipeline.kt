@@ -105,11 +105,19 @@ class DiscoverCanonicalBootstrapPipeline @Inject constructor(
                 CatalogUiFailure(PROJECTION_LOOKUP_FAILED, retryable = true),
             )
         }
-        projection?.let { DiscoverCanonicalSettlement.Projected(storyId, it) }
-            ?: DiscoverCanonicalSettlement.Failed(
-                storyId,
-                CatalogUiFailure(PROJECTION_MISSING, retryable = true),
-            )
+        projection?.let { resolvedProjection ->
+            if (resolvedProjection.contentType == selectedContentType) {
+                DiscoverCanonicalSettlement.Projected(storyId, resolvedProjection)
+            } else {
+                DiscoverCanonicalSettlement.ResolvedExcluded(
+                    storyId,
+                    DiscoverExclusionReason.CONTENT_TYPE_MISMATCH,
+                )
+            }
+        } ?: DiscoverCanonicalSettlement.Failed(
+            storyId,
+            CatalogUiFailure(PROJECTION_MISSING, retryable = true),
+        )
     }
 
     private companion object {

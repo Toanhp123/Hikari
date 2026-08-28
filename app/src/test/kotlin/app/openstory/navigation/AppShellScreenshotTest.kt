@@ -27,9 +27,12 @@ import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.discover.DiscoverContent
+import app.openstory.catalog.ui.discover.DiscoverMediaTypeOption
 import app.openstory.catalog.ui.discover.DiscoverScreen
 import app.openstory.catalog.ui.discover.DiscoverStoryItem
 import app.openstory.catalog.ui.discover.DiscoverUiState
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.catalog.ui.search.SearchScreen
 import app.openstory.catalog.ui.search.SearchUiState
 import app.openstory.common.id.StoryId
@@ -63,6 +66,8 @@ class AppShellScreenshotTest {
                     DiscoverScreen(
                         state = discoverState(),
                         onRefresh = {},
+                        onRetryContent = {},
+                        onRetryObservation = {},
                         onSearch = {},
                         onStorySelected = {},
                         onContentTypeSelected = {},
@@ -114,6 +119,8 @@ class AppShellScreenshotTest {
                     DiscoverScreen(
                         state = discoverState(),
                         onRefresh = {},
+                        onRetryContent = {},
+                        onRetryObservation = {},
                         onSearch = {},
                         onStorySelected = {},
                         onContentTypeSelected = {},
@@ -133,8 +140,10 @@ class AppShellScreenshotTest {
             HikariTheme {
                 HikariAppShell(AppRoute.Discover, {}, {}) { contentPadding ->
                     DiscoverScreen(
-                        state = DiscoverUiState(loading = false),
+                        state = discoverEmptyState(),
                         onRefresh = {},
+                        onRetryContent = {},
+                        onRetryObservation = {},
                         onSearch = {},
                         onStorySelected = {},
                         onContentTypeSelected = {},
@@ -194,6 +203,8 @@ class AppShellScreenshotTest {
                     DiscoverScreen(
                         state = discoverState(),
                         onRefresh = {},
+                        onRetryContent = {},
+                        onRetryObservation = {},
                         onSearch = {},
                         onStorySelected = {},
                         onContentTypeSelected = {},
@@ -256,9 +267,32 @@ private fun discoverState(): DiscoverUiState {
         )
     }
     return DiscoverUiState(
-        popular = stories.take(5),
-        latestUpdates = stories.take(9),
-        topRated = stories.take(5),
-        loading = false,
+        content = ContentState.Ready(
+            DiscoverContent(
+                selectedContentType = ContentType.MANGA,
+                mediaTypeOptions = discoverMediaTypeOptions(),
+                popular = stories.take(5),
+                latestUpdates = stories.take(9),
+                topRated = stories.take(5),
+            ),
+        ),
     )
 }
+
+private fun discoverEmptyState(): DiscoverUiState = DiscoverUiState(
+    content = ContentState.Ready(
+        DiscoverContent(
+            selectedContentType = ContentType.MANGA,
+            mediaTypeOptions = discoverMediaTypeOptions(),
+            popular = emptyList(),
+            latestUpdates = emptyList(),
+            topRated = emptyList(),
+            noContentReason = app.openstory.catalog.ui.discover.DiscoverNoContentReason.EMPTY_FEED,
+        ),
+    ),
+)
+
+private fun discoverMediaTypeOptions(): List<DiscoverMediaTypeOption> = listOf(
+    DiscoverMediaTypeOption(ContentType.MANGA, enabled = true),
+    DiscoverMediaTypeOption(ContentType.LIGHT_NOVEL, enabled = false),
+)

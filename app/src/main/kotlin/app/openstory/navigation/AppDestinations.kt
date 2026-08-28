@@ -137,6 +137,8 @@ internal fun DiscoverDestination(
     DiscoverScreen(
         state = state,
         onRefresh = viewModel::refresh,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         onSearch = onSearch,
         onStorySelected = onStorySelected,
         onContentTypeSelected = viewModel::selectContentType,

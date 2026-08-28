@@ -14,37 +14,47 @@ import app.openstory.designsystem.theme.hikariSpacing
 internal fun LazyListScope.discoverFeedbackItems(
     state: DiscoverUiState,
     onRefresh: () -> Unit,
+    onRetryObservation: () -> Unit,
     separatedFromPreviousSection: Boolean,
 ) {
-    val globalRetryVisible = state.globalFailure?.retryable == true
     var firstFeedback = true
-    state.globalFailure?.let { failure ->
+    state.refresh.failure?.let { failure ->
         val separated = separatedFromPreviousSection && firstFeedback
-        item("discover-global-failure") {
-            val sectionModifier = feedbackSectionModifier(separated)
+        item("discover-refresh-failure") {
             HikariInlineFeedback(
-                message = catalogFailureMessage(
-                    failure.code,
-                    "Couldn't refresh Discover. Cached content is still available.",
-                ),
-                modifier = sectionModifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
+                message = catalogFailureMessage(failure.code, "Couldn't refresh Discover."),
+                modifier = feedbackSectionModifier(separated)
+                    .padding(horizontal = MaterialTheme.hikariSpacing.space4),
                 actionLabel = if (failure.retryable) "Retry" else null,
-                actionEnabled = !state.refreshing,
+                actionEnabled = !state.refresh.inProgress,
                 onAction = if (failure.retryable) onRefresh else null,
             )
         }
         firstFeedback = false
     }
+    state.observationIssue?.let { issue ->
+        val separated = separatedFromPreviousSection && firstFeedback
+        item("discover-observation-issue") {
+            HikariInlineFeedback(
+                message = catalogFailureMessage(issue.code, "Couldn't update Discover data."),
+                modifier = feedbackSectionModifier(separated)
+                    .padding(horizontal = MaterialTheme.hikariSpacing.space4),
+                actionLabel = if (issue.retryable) "Retry" else null,
+                onAction = if (issue.retryable) onRetryObservation else null,
+            )
+        }
+        firstFeedback = false
+    }
     state.failedPluginIds().forEachIndexed { index, pluginId ->
-        val showRetry = !globalRetryVisible && index == 0
+        val showRetry = state.refresh.failure == null && index == 0
         val separated = separatedFromPreviousSection && firstFeedback
         item("discover-failure-${pluginId.value}") {
-            val sectionModifier = feedbackSectionModifier(separated)
             HikariInlineFeedback(
-                message = "${pluginId.catalogDisplayName()} refresh failed; cached content is still available.",
-                modifier = sectionModifier.padding(horizontal = MaterialTheme.hikariSpacing.space4),
+                message = "${pluginId.catalogDisplayName()} refresh failed.",
+                modifier = feedbackSectionModifier(separated)
+                    .padding(horizontal = MaterialTheme.hikariSpacing.space4),
                 actionLabel = if (showRetry) "Retry" else null,
-                actionEnabled = !state.refreshing,
+                actionEnabled = !state.refresh.inProgress,
                 onAction = if (showRetry) onRefresh else null,
             )
         }

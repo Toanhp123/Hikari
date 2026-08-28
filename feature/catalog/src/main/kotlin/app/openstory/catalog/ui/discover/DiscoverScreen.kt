@@ -34,6 +34,8 @@ import kotlinx.coroutines.launch
 fun DiscoverScreen(
     state: DiscoverUiState,
     onRefresh: () -> Unit,
+    onRetryContent: () -> Unit,
+    onRetryObservation: () -> Unit,
     onSearch: () -> Unit,
     onStorySelected: (StoryId) -> Unit,
     onContentTypeSelected: (ContentType) -> Unit,
@@ -90,7 +92,7 @@ fun DiscoverScreen(
                 onScrollToTop = { coroutineScope.launch { listState.animateScrollToItem(0) } },
             ) { bodyPadding ->
                 HikariPullToRefresh(
-                    refreshing = state.refreshing,
+                    refreshing = state.refresh.inProgress,
                     onRefresh = onRefresh,
                     modifier = Modifier
                         .fillMaxSize()
@@ -111,6 +113,8 @@ fun DiscoverScreen(
                         discoverContentItems(
                             state = state,
                             onRefresh = onRefresh,
+                            onRetryContent = onRetryContent,
+                            onRetryObservation = onRetryObservation,
                             onStorySelected = onStorySelected,
                             onContentTypeSelected = onContentTypeSelected,
                             mediaTypeFocusRequester = mediaTypeFocusRequester,

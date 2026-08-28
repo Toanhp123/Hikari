@@ -46,6 +46,10 @@ internal class DiscoverCanonicalRepository(
 
     private val states = states.associateBy { it.story.id }.toMutableMap()
 
+    fun replace(state: CanonicalStoryState) {
+        states[state.story.id] = state
+    }
+
     override fun observeStory(storyId: StoryId): Flow<CanonicalStoryState?> = flowOf(states[storyId])
 
     override fun observeReadyStories(): Flow<List<CanonicalStoryState.Ready>> =

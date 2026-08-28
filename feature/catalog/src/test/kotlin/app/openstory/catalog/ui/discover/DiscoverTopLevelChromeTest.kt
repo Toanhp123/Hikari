@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
@@ -31,12 +32,19 @@ class DiscoverTopLevelChromeTest {
             HikariTheme {
                 DiscoverScreen(
                     state = DiscoverUiState(
-                        popular = listOf(item(1)),
-                        latestUpdates = (1..9).map(::item),
-                        topRated = (10..14).map(::item),
-                        loading = false,
+                        content = ContentState.Ready(
+                            DiscoverContent(
+                                selectedContentType = ContentType.MANGA,
+                                mediaTypeOptions = defaultDiscoverMediaTypeOptions,
+                                popular = listOf(item(1)),
+                                latestUpdates = (1..9).map(::item),
+                                topRated = (10..14).map(::item),
+                            ),
+                        ),
                     ),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},

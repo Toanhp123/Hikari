@@ -1,31 +1,37 @@
 package app.openstory.catalog.ui.discover
 
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
 import app.openstory.common.id.PluginId
 
-data class DiscoverUiState(
-    val selectedContentType: ContentType = ContentType.MANGA,
-    val mediaTypeOptions: List<DiscoverMediaTypeOption> = defaultDiscoverMediaTypeOptions,
-    val popular: List<DiscoverStoryItem> = emptyList(),
-    val latestUpdates: List<DiscoverStoryItem> = emptyList(),
-    val topRated: List<DiscoverStoryItem> = emptyList(),
-    val loading: Boolean = true,
-    val refreshing: Boolean = false,
-    val refreshReport: DiscoverRefreshReport? = null,
-    val observationFailure: DiscoverUiFailure? = null,
-    val refreshFailure: DiscoverUiFailure? = null,
-) {
-    val globalFailure: DiscoverUiFailure?
-        get() = refreshFailure ?: observationFailure
+enum class DiscoverNoContentReason {
+    EMPTY_FEED,
+    NO_ENABLED_PROVIDERS,
+}
 
+data class DiscoverContent(
+    val selectedContentType: ContentType,
+    val mediaTypeOptions: List<DiscoverMediaTypeOption>,
+    val popular: List<DiscoverStoryItem>,
+    val latestUpdates: List<DiscoverStoryItem>,
+    val topRated: List<DiscoverStoryItem>,
+    val noContentReason: DiscoverNoContentReason? = null,
+) {
     val hasContent: Boolean
         get() = popular.isNotEmpty() || latestUpdates.isNotEmpty() || topRated.isNotEmpty()
 }
+
+data class DiscoverUiState(
+    val content: ContentState<DiscoverContent> = ContentState.Pending,
+    val refresh: RefreshState = RefreshState(),
+    val refreshReport: DiscoverRefreshReport? = null,
+    val observationIssue: CatalogUiFailure? = null,
+)
 
 data class DiscoverRefreshReport(
     val succeeded: Set<PluginId> = emptySet(),
     val failed: Map<PluginId, String> = emptyMap(),
     val refreshedAtEpochMillis: Map<PluginId, Long?> = emptyMap(),
 )
-
-data class DiscoverUiFailure(val code: String, val retryable: Boolean)
