@@ -18,9 +18,11 @@ import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.search.CatalogSearchFailure
 import app.openstory.catalog.search.CatalogSearchFilterGroup
+import app.openstory.catalog.search.CatalogSearchResult
 import app.openstory.catalog.search.CatalogSearchSourceCard
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.catalog.projection.CatalogStoryProjection
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.catalog.source.SourceFilterOption
 import app.openstory.catalog.source.SourceOptionFilter
 import app.openstory.catalog.source.SourceTextFilter
@@ -159,7 +161,12 @@ class SearchScreenTest {
         compose.setContent {
             HikariTheme {
                 SearchScreen(
-                    state = SearchUiState(query = "missing title"),
+                    state = SearchUiState(
+                        query = "missing title",
+                        resultState = SearchResultState.Active(
+                            ContentState.Ready(CatalogSearchResult(emptyList(), emptyList())),
+                        ),
+                    ),
                     onQueryChange = {},
                     onRecentSelected = {},
                     onFilterValuesChange = { _, _, _ -> },
@@ -234,34 +241,40 @@ private fun fixtureState(failed: Boolean = false): SearchUiState {
                 ),
             ),
         ),
-        stories = listOf(
-            CatalogSearchStory(
-                story = Story(StoryId("story-1"), ContentType.WEB_NOVEL),
-                presentation = CatalogStoryProjection(
-                    storyId = StoryId("story-1"),
-                    title = "Fixture Novel",
-                    contentType = ContentType.WEB_NOVEL,
-                    coverUrl = null,
-                    authors = setOf("Fixture Author"),
-                    score = app.openstory.catalog.canonical.CanonicalScore(0.84, 1),
-                ),
-                sources = listOf(
-                    CatalogSearchSourceCard(
-                        pluginId = pluginId,
-                        sourceId = "source-1",
-                        title = "Fixture Novel",
-                        contentType = ContentType.WEB_NOVEL,
-                        authors = setOf("Fixture Author"),
-                        coverUrl = null,
-                        score = Score(8.4, 10.0),
+        resultState = SearchResultState.Active(
+            ContentState.Ready(
+                CatalogSearchResult(
+                    stories = listOf(
+                        CatalogSearchStory(
+                            story = Story(StoryId("story-1"), ContentType.WEB_NOVEL),
+                            presentation = CatalogStoryProjection(
+                                storyId = StoryId("story-1"),
+                                title = "Fixture Novel",
+                                contentType = ContentType.WEB_NOVEL,
+                                coverUrl = null,
+                                authors = setOf("Fixture Author"),
+                                score = app.openstory.catalog.canonical.CanonicalScore(0.84, 1),
+                            ),
+                            sources = listOf(
+                                CatalogSearchSourceCard(
+                                    pluginId = pluginId,
+                                    sourceId = "source-1",
+                                    title = "Fixture Novel",
+                                    contentType = ContentType.WEB_NOVEL,
+                                    authors = setOf("Fixture Author"),
+                                    coverUrl = null,
+                                    score = Score(8.4, 10.0),
+                                ),
+                            ),
+                        ),
                     ),
+                    failures = if (failed) {
+                        listOf(CatalogSearchFailure(PluginId("catalog.b"), "catalog.offline", true))
+                    } else {
+                        emptyList()
+                    },
                 ),
             ),
         ),
-        failures = if (failed) {
-            listOf(CatalogSearchFailure(PluginId("catalog.b"), "catalog.offline", true))
-        } else {
-            emptyList()
-        },
     )
 }

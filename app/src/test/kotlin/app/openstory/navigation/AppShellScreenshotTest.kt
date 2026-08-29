@@ -31,10 +31,12 @@ import app.openstory.catalog.ui.discover.DiscoverContent
 import app.openstory.catalog.ui.discover.DiscoverMediaTypeOption
 import app.openstory.catalog.ui.discover.DiscoverScreen
 import app.openstory.catalog.ui.discover.DiscoverStoryItem
+import app.openstory.catalog.search.CatalogSearchResult
 import app.openstory.catalog.ui.discover.DiscoverUiState
-import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.search.SearchResultState
 import app.openstory.catalog.ui.search.SearchScreen
 import app.openstory.catalog.ui.search.SearchUiState
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.ui.HikariAppShell
@@ -85,7 +87,12 @@ class AppShellScreenshotTest {
             HikariTheme(darkTheme = false) {
                 HikariAppShell(AppRoute.Search, {}, {}) { contentPadding ->
                     SearchScreen(
-                        state = SearchUiState(query = "moonlit archive"),
+                        state = SearchUiState(
+                            query = "moonlit archive",
+                            resultState = SearchResultState.Active(
+                                ContentState.Ready(CatalogSearchResult(emptyList(), emptyList())),
+                            ),
+                        ),
                         onQueryChange = {},
                         onRecentSelected = {},
                         onFilterValuesChange = { _, _, _ -> },

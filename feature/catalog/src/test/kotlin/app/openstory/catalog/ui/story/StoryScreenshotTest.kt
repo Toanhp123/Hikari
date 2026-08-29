@@ -460,7 +460,9 @@ private fun storyChapterState(
 )
 
 private fun mappingFixture() = MappingUiState(
-    mappings = listOf(MappingItemUiModel(PluginId("mangadex"), "reading-source", ContentMappingOrigin.USER_APPROVED)),
+    content = ContentState.Ready(
+        listOf(MappingItemUiModel(PluginId("mangadex"), "reading-source", ContentMappingOrigin.USER_APPROVED)),
+    ),
 )
 
 private fun fixtureArtwork(): Bitmap = Bitmap.createBitmap(64, 96, Bitmap.Config.ARGB_8888).apply {

@@ -119,6 +119,7 @@ private fun MappingViewModel.actions() = MappingActions(
     onSearch = ::search,
     onUrlChange = ::updateUrl,
     onResolveUrl = ::resolveUrl,
+    onRetryObservation = ::retryObservation,
     onApprove = ::approve,
     onReject = ::reject,
 )

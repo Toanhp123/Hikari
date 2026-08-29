@@ -1,16 +1,19 @@
 package app.openstory.catalog.ui.mapping
 
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.PluginId
 import app.openstory.library.mapping.ContentMappingOrigin
 import app.openstory.library.matching.ContentMatchDecision
 
 data class MappingUiState(
-    val loading: Boolean = true,
-    val mappings: List<MappingItemUiModel> = emptyList(),
+    val content: ContentState<List<MappingItemUiModel>> = ContentState.Pending,
     val candidates: List<MappingCandidateUiModel> = emptyList(),
     val urlInput: String = "",
     val busy: Boolean = false,
-    val failures: List<String> = emptyList(),
+    val observationIssue: CatalogUiFailure? = null,
+    val searchFailures: List<CatalogUiFailure> = emptyList(),
+    val actionFailure: CatalogUiFailure? = null,
 )
 
 data class MappingItemUiModel(
@@ -35,6 +38,7 @@ data class MappingActions(
     val onSearch: () -> Unit = {},
     val onUrlChange: (String) -> Unit = {},
     val onResolveUrl: () -> Unit = {},
+    val onRetryObservation: () -> Unit = {},
     val onApprove: (PluginId, String) -> Unit = { _, _ -> },
     val onReject: (PluginId, String) -> Unit = { _, _ -> },
 )

@@ -20,6 +20,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.designsystem.theme.hikariSpacing
@@ -35,20 +37,20 @@ class MappingSheetTest {
     val compose = createComposeRule()
 
     @Test
-    fun mappingFailureHidesMachineCode() {
+    fun mappingSearchFailureHidesMachineCode() {
         compose.setContent {
             HikariTheme {
                 MappingItemsTestHost(
                     state = MappingUiState(
-                        loading = false,
-                        failures = listOf("plugin.mangadex_http_status"),
+                        content = ContentState.Ready(emptyList()),
+                        searchFailures = listOf(CatalogUiFailure("plugin.mangadex_http_status", true)),
                     ),
                     actions = MappingActions(),
                 )
             }
         }
 
-        compose.onNodeWithText("Couldn't update reading sources.").assertIsDisplayed()
+        compose.onNodeWithText("Couldn't find reading sources").assertIsDisplayed()
         compose.onNodeWithText("plugin.mangadex_http_status").assertDoesNotExist()
     }
 
@@ -103,7 +105,7 @@ class MappingSheetTest {
         compose.setContent {
             HikariTheme {
                 MappingItemsTestHost(
-                    state = MappingUiState(urlInput = url.value, loading = false),
+                    state = MappingUiState(content = ContentState.Ready(emptyList()), urlInput = url.value),
                     actions = MappingActions(
                         onUrlChange = { value -> url.value = value },
                         onResolveUrl = { resolved = true },
@@ -124,11 +126,13 @@ class MappingSheetTest {
             HikariTheme {
                 MappingItemsTestHost(
                     state = MappingUiState(
-                        mappings = listOf(
-                            MappingItemUiModel(
-                                pluginId = PluginId("org.example.reader"),
-                                sourceStoryId = "chosen",
-                                origin = ContentMappingOrigin.USER_APPROVED,
+                        content = ContentState.Ready(
+                            listOf(
+                                MappingItemUiModel(
+                                    pluginId = PluginId("org.example.reader"),
+                                    sourceStoryId = "chosen",
+                                    origin = ContentMappingOrigin.USER_APPROVED,
+                                ),
                             ),
                         ),
                     ),
@@ -146,7 +150,7 @@ class MappingSheetTest {
         compose.setContent {
             HikariTheme {
                 MappingItemsTestHost(
-                    state = MappingUiState(loading = false),
+                    state = MappingUiState(content = ContentState.Ready(emptyList())),
                     actions = MappingActions(),
                 )
             }
@@ -173,6 +177,7 @@ private fun MappingItemsTestHost(
 }
 
 private fun stateWithCandidate(replacesSourceStoryId: String? = null) = MappingUiState(
+    content = ContentState.Ready(emptyList()),
     candidates = listOf(
         MappingCandidateUiModel(
             pluginId = PluginId("org.example.reader"),

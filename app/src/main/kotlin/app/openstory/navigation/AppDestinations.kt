@@ -168,6 +168,8 @@ internal fun SearchDestination(
         onFilterValuesChange = viewModel::setFilterValues,
         onClearFilters = viewModel::clearFilters,
         onStorySelected = { story -> viewModel.selectStory(story, onStorySelected) },
+        onRetrySearch = viewModel::retrySearch,
+        onRetryFilters = viewModel::retryFilters,
         onBack = onBack,
         contentPadding = contentPadding,
     )
