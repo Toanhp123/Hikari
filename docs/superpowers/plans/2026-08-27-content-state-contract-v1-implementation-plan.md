@@ -30,7 +30,7 @@
 - Observation, refresh, and command failures have separate lifetimes; one success cannot clear an unrelated issue.
 - A failure already consumed as the current blocking `ContentState.Failed` or local-required `Unavailable` state must not also render as a duplicate non-blocking `observationIssue`. Optional-enrichment `Unavailable` and retained `Available(issue)` may surface non-blocking feedback, but issue selection/retry only reads states normalized to the **current readiness key**.
 - Reader HES-v1 and `:feature:reader` remain unchanged through UX-R0–UX-R5.
-- Search, Mapping, and Reconciliation are audit-only in UX-R6; do not migrate them in this implementation plan unless a separate approved spec follows.
+- Search, Mapping, and Reconciliation presentation readiness are an approved 2026-08-29 scope extension inside `:feature:catalog`; Task 10 freezes their existing CSC adoption, while their domain command lifetimes remain screen-local and Reader remains audit-only.
 - No Room schema, repository-domain API, WorkManager scheduling, or module-graph change is required for CSC-v1.
 - Existing Chapter pull-to-refresh remains accepted runtime behavior and active docs must be corrected to match it.
 - **Reuse budget:** share only domain-neutral semantic primitives (`ContentState`, `RefreshState`, `CatalogUiFailure`, keyed retained observation and tiny key/issue helpers). Screen/domain readiness models such as `LibraryCollectionState`, `ChapterCapabilityState`, Discover settlement, Story bootstrap, and no-content reason enums stay local.
@@ -2147,6 +2147,12 @@ git commit -m "refactor(catalog): separate story readiness from refresh"
   - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverUiState.kt`
   - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt`
   - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryUiState.kt`
+  - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchViewModel.kt`
+  - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchUiState.kt`
+  - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingViewModel.kt`
+  - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingUiState.kt`
+  - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/review/ReconciliationReviewViewModel.kt`
+  - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/review/ReconciliationReviewUiState.kt`
 - Create `build-logic/src/test/kotlin/app/openstory/build/ContentStateContractArchitectureTest.kt`
 - Modify `docs/ui/design-system.md:109-114`
 
@@ -2174,6 +2180,9 @@ class ContentStateContractArchitectureTest {
         "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterListViewModel.kt",
         "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt",
         "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt",
+        "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchViewModel.kt",
+        "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingViewModel.kt",
+        "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/review/ReconciliationReviewViewModel.kt",
     )
 
     private val migratedUiStates = listOf(
@@ -2184,23 +2193,31 @@ class ContentStateContractArchitectureTest {
         "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/chapters/ChapterListUiModel.kt",
         "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverUiState.kt",
         "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryUiState.kt",
+        "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchUiState.kt",
+        "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/MappingUiState.kt",
+        "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/review/ReconciliationReviewUiState.kt",
     )
 
     @Test
     fun migratedCatalogViewModelsContainNoLegacyRetainedHelpers() {
-        val forbidden = listOf("preserveLatest(", "preserveLatestOnFailure")
+        val forbidden = Regex("""\bpreserveLatest\w*\s*\(""")
         val offenders = migratedViewModels.flatMap { relative ->
             val source = File(root, relative).readText()
-            forbidden.filter(source::contains).map { pattern -> "$relative -> $pattern" }
+            forbidden.findAll(source).map { match -> "$relative -> ${match.value}" }.toList()
         }
         assertTrue(offenders.isEmpty(), offenders.joinToString("\n"))
     }
 
     @Test
     fun migratedUiStatesContainNoIndependentContentLoadingAuthority() {
-        val loadingAuthority = Regex("""\bval\s+(loading|initialLoading)\s*:\s*Boolean\b""")
-        val offenders = migratedUiStates.mapNotNull { relative ->
-            relative.takeIf { loadingAuthority.containsMatchIn(File(root, relative).readText()) }
+        val storedUiLoading = Regex("""\b(?:val|var)\s+\w*[Ll]oading\w*\s*:\s*Boolean\b(?!\s*get\s*\()""")
+        val mutableViewModelLoading = Regex(
+            """\b(?:val|var)\s+\w*[Ll]oading\w*.*(?:MutableStateFlow|mutableStateOf|=\s*(?:true|false))""",
+        )
+        val offenders = migratedUiStates.filter { relative ->
+            storedUiLoading.containsMatchIn(File(root, relative).readText())
+        } + migratedViewModels.filter { relative ->
+            mutableViewModelLoading.containsMatchIn(File(root, relative).readText())
         }
         assertTrue(offenders.isEmpty(), offenders.joinToString("\n"))
     }
@@ -2215,8 +2232,9 @@ class ContentStateContractArchitectureTest {
         ).map { File(root, "feature/catalog/src/main/kotlin/app/openstory/catalog/ui/state/$it") }
 
         val missing = expected.filterNot(File::isFile).map { it.relativeTo(root).path }
-        val readerImports = File(root, "feature/reader")
-            .walkTopDown()
+        val readerImports = listOf("feature/reader/src/main", "reader/src/main", "reader/engine/src/main")
+            .asSequence()
+            .flatMap { File(root, it).walkTopDown() }
             .filter { it.isFile && it.extension == "kt" }
             .filter { "app.openstory.catalog.ui.state" in it.readText() }
             .map { it.relativeTo(root).path }
@@ -2228,7 +2246,7 @@ class ContentStateContractArchitectureTest {
 }
 ```
 
-The migrated-root scan intentionally excludes Search/Mapping/Reconciliation because UX-R6 is audit-only.
+The production test must additionally scan all ten migrated package roots for extracted `preserveLatest*` helpers and synthetic observation fallbacks, allow only the reviewed optional Story reconciliation fallback, verify the four CSC declarations are unique at the approved path, reject non-Kotlin/non-coroutines imports from the CSC foundation, and reject CSC adoption by `:core:designsystem`, `:feature:reader`, `:reader`, or `:reader:engine`.
 
 - [ ] **Step 2: Run the build-logic freeze test and fix every reported migrated-path match**
 
@@ -2245,7 +2263,8 @@ Expected: PASS only after all duplicated helpers/authorities are gone and CSC is
 Update `docs/ui/design-system.md` so the active policy states:
 
 - pull gesture exists only where the feature has a matching refresh pipeline;
-- Story Overview/metadata and Story Chapters are refreshable because Chapters now have `ChapterSyncService.sync(storyId)`;
+- Story Overview and Sources use Story-owned source-detail metadata refresh, while Story Chapters uses its own `ChapterSyncService.sync(storyId)` pipeline;
+- all three sections are refreshable, but progress and failure channels remain operation-scoped;
 - refresh remains on the Story surface/section rather than reintroducing old visible reload glyphs;
 - background sync does not equal pull-refresh state;
 - the design-system document links to `docs/superpowers/specs/2026-08-27-content-state-contract-v1-design.md` as the authoritative **state-semantics** contract, while explicitly stating that `:core:designsystem` owns only rendering primitives and does not own feature `UiState`, cache lifetime, or refresh scheduling.
@@ -2256,10 +2275,8 @@ Do not rewrite archive/checkpoint documents that were historically correct when 
 
 Run:
 
-```bash
-rg -n 'Story Chapters is intentionally not refreshable|preserveLatest\(|preserveLatestOnFailure|loading: Boolean' \
-  docs/ui \
-  feature/catalog/src/main/kotlin/app/openstory/catalog/ui/{downloads,updates,library,dashboard,chapters,discover,story}
+```powershell
+rg -n 'Story Chapters is intentionally not refreshable|preserveLatest\(|preserveLatestOnFailure|\w*[Ll]oading\w*\s*:\s*Boolean' docs/ui feature/catalog/src/main/kotlin/app/openstory/catalog/ui -g '*.md' -g '*.kt'
 ```
 
 Expected:
@@ -2298,6 +2315,9 @@ git commit -m "test(catalog): freeze CSC presentation boundaries"
   --tests '*DiscoverProjectionPipelineTest*' \
   --tests '*DiscoverViewModelTest*' \
   --tests '*StoryViewModelTest*' \
+  --tests '*SearchViewModelTest*' \
+  --tests '*MappingViewModelTest*' \
+  --tests '*ReconciliationReviewViewModelTest*' \
   --no-daemon
 ```
 
@@ -2309,7 +2329,7 @@ Expected: PASS.
 ./gradlew :feature:catalog:testDebugUnitTest --no-daemon
 ```
 
-Expected: PASS, including Search/Mapping/Reconciliation regressions that remain outside migration scope.
+Expected: PASS, including the approved Search/Mapping/Reconciliation CSC regressions.
 
 - [ ] **Step 3: Run app navigation/unit regressions**
 
@@ -2420,17 +2440,17 @@ git commit -m "docs(catalog): record CSC v1 closure"
 
 ---
 
-## Task 12: UX-R6 — Audit adjacent screens without migrating them
+## Task 12: UX-R6 — Audit accepted adjacent migrations and Reader compatibility
 
 **Files:**
 - Create `docs/internal/checkpoints/content-state-contract-v1-r6-audit.md`
-- Read only for audit unless a separate approved spec follows:
+- Read only for post-migration/compatibility audit; no additional production migration is owned here:
   - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/`
   - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/mapping/`
   - `feature/catalog/src/main/kotlin/app/openstory/catalog/ui/review/`
   - `feature/reader/`
 
-**Goal:** determine whether CSC remains feature-local and whether adjacent screens have related state-semantic debt, without opportunistic migration.
+**Goal:** confirm the approved Search/Mapping/Reconciliation readiness migrations keep their specialized command semantics local, verify Reader remains outside CSC, and decide whether CSC has earned a separate cross-feature promotion proposal.
 
 - [ ] **Step 1: Audit Search**
 
@@ -2441,12 +2461,12 @@ rg -n 'loading|refresh|failure|catch|stateIn|combine|search|query' \
   feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search
 ```
 
-Record:
+Record the accepted CSC presentation boundary:
 
 - what constitutes query Pending vs empty search result;
 - whether partial provider failures retain usable search content;
 - whether query identity changes correctly invalidate retained results;
-- whether current behavior is already specialized enough that CSC should not be applied.
+- which query/filter/selection semantics remain specialized and must not move into a generic CSC reducer.
 
 - [ ] **Step 2: Audit Mapping**
 
@@ -2477,7 +2497,7 @@ rg -n 'reconcil|resolving|failure|loading|retry|stateIn|combine' \
   feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story
 ```
 
-Record blocking/partial state semantics and whether reconciliation command lifecycle is materially different from CSC content observation.
+Record blocking/partial state semantics and confirm reconciliation command lifecycle remains materially different from CSC content observation.
 
 - [ ] **Step 4: Audit Reader only for principle compatibility**
 
@@ -2693,7 +2713,7 @@ This matrix is a required execution aid, not documentation decoration. Before a 
 - Each task has a focused RED→GREEN test gate and a commit boundary before the next screen migration.
 - Discover canonical settlement is verified before Discover ViewModel migration; shared projector changes land with Updates before Home consumes them.
 - Task 11 owns only a closure checkpoint document. Any source/test failure routes back to the owning task so closure cannot conceal a production fix.
-- Reader/Search/Mapping/Reconciliation migration remains outside UX-R0–UX-R5; R6 records a future decision rather than silently expanding scope.
+- Reader migration remains outside UX-R0–UX-R5; the approved Search/Mapping/Reconciliation presentation migrations are frozen in Task 10, and R6 records whether a separate cross-feature proposal is justified.
 
 ### Mechanical review requirements before execution
 

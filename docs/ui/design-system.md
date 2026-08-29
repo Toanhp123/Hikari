@@ -109,9 +109,15 @@ inset from their scroll content padding, so the indicator and content consume sy
 once. A pull gesture is enabled only where the feature has a matching refresh pipeline. Visible
 Retry actions remain for retryable failures, and feature code must not reintroduce manual refresh
 buttons, refresh glyphs, or duplicate refresh progress chrome for the same operation. Story Overview
-and Sources are refreshable; Story Chapters is intentionally not refreshable until chapter
-synchronization has its own pipeline. Source-detail refresh failures render only in Overview/Sources,
-not above Chapters.
+and Sources invoke the Story-owned source-detail metadata refresh, while Story Chapters invokes its
+own `ChapterSyncService.sync(storyId)` pipeline through Chapter state. All three sections are
+refreshable, but their progress and failures remain operation-scoped: source-detail refresh feedback
+renders only in Overview/Sources, and Chapter refresh feedback stays inside Chapters. Background sync
+does not set either manual pull-refresh state.
+
+The [Content State Contract v1](../superpowers/specs/2026-08-27-content-state-contract-v1-design.md)
+is authoritative for feature state semantics. `:core:designsystem` owns only the rendering primitives;
+it does not own feature `UiState`, cache lifetime, readiness classification, or refresh scheduling.
 
 ## Segmented selection and skeleton loading
 

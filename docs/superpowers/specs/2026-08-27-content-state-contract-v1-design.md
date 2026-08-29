@@ -3,7 +3,7 @@
 **Date:** 2026-08-27
 **Status:** Proposed architecture specification; design-only, not yet implemented
 **Primary scope:** `:feature:catalog` presentation state and UX readiness semantics
-**Out of scope for v1 migration:** `:feature:reader`, domain cache/sync engines, WorkManager scheduling, Search/Mapping/Reconciliation screens unless explicitly audited in the follow-up phase
+**Out of scope for v1 migration:** `:feature:reader`, Reader HES-v1, domain cache/sync engines, WorkManager scheduling, and any Search/Mapping/Reconciliation behavior beyond the approved feature-local presentation-readiness adoption
 
 ## 1. Purpose
 
@@ -51,6 +51,8 @@ It does **not** supersede:
 - `:core:designsystem` ownership of generic visual primitives.
 
 It extends the existing design-system rule that the design system owns **how** generic states are rendered while features own **when** those states apply.
+
+**Approved scope amendment — 2026-08-29:** Search, Mapping, and Reconciliation presentation readiness now use the existing feature-local CSC primitives. This is a deliberate extension inside `:feature:catalog`, not permission to add a generic reducer, change their domain command lifetimes, or promote CSC outside the feature. These screens join the UX-R5 freeze; Reader remains audit-only in UX-R6.
 
 ### 2.1 Stale refresh documentation
 
@@ -144,7 +146,7 @@ CSC-v1 must not:
 - add a universal network/offline/freshness model;
 - redesign screen hierarchy or visual styling;
 - migrate Reader HES-v1 to generic content state in this wave;
-- silently broaden v1 into Search, Mapping, or Reconciliation behavior.
+- broaden Search, Mapping, or Reconciliation beyond their approved presentation-readiness migrations or move their domain command lifetimes into CSC.
 
 ## 7. Core architecture decisions
 
@@ -1201,9 +1203,9 @@ Migrate Discover and Story after the simpler reactive screens prove the contract
 
 Remove migrated `loading:Boolean` authorities, duplicated `preserveLatest()` helpers, synthetic fallback observation patterns, stale active refresh docs, and obsolete tests that encode pre-CSC semantics.
 
-### UX-R6 — Follow-up audit only
+### UX-R6 — Follow-up compatibility audit
 
-Audit Search, Mapping, Reconciliation, and Reader for related semantics. Do not automatically migrate them. Decide separately whether the feature-local contract remains local or has earned promotion.
+Audit the accepted Search, Mapping, and Reconciliation migrations for specialized semantics that must remain local, and audit Reader without migrating it. Decide separately whether the feature-local contract remains local or has earned promotion.
 
 This sequence is a delivery boundary, not the implementation plan. A task-by-task plan is written only after this design is approved.
 
@@ -1699,7 +1701,7 @@ These current-tree mismatches and implementation hazards are captured as `GAP-CS
 
 ### Scope review
 
-The design remains an implementation-program-sized presentation refactor. UX-R0 through UX-R5 stay centered on `:feature:catalog`; Reader HES-v1, Search, Mapping UI, Reconciliation UI, domain cache engines, and WorkManager policy remain excluded.
+The design remains an implementation-program-sized presentation refactor. UX-R0 through UX-R5 stay centered on `:feature:catalog`; the approved Search, Mapping UI, and Reconciliation UI readiness migrations remain inside that feature. Reader HES-v1, domain cache engines, and WorkManager policy remain excluded.
 
 CSC-v1 is allowed to consume an existing domain readiness signal, but it must not invent a WorkManager/domain lifecycle API merely to satisfy presentation. The Library mapping rule was intentionally narrowed to current durable mapping-observation readiness so the design does not silently expand into a mapping-work-state subsystem.
 
