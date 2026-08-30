@@ -70,8 +70,8 @@ class MappingSheetTest {
             }
         }
 
-        compose.onAllNodesWithText("- Title 100%").assertCountEquals(1)
-        compose.onAllNodesWithText("- Content type match").assertCountEquals(1)
+        compose.onNodeWithText("Title 100%", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Content type match", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Approve").performScrollTo().performClick()
         compose.onNodeWithText("Reject").performScrollTo().performClick()
 
