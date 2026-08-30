@@ -31,12 +31,13 @@ import app.openstory.catalog.orchestration.CatalogEvidenceLevel
 import app.openstory.common.Outcome
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RoomCatalogRepository internal constructor(
@@ -54,14 +55,24 @@ class RoomCatalogRepository internal constructor(
         RoomStoryIdentityResolver(database),
     )
 
-    override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = combine(
-        homeDao.observeSnapshots(),
-        homeDao.observeSections(),
-        homeDao.observeItems(),
-        dao.observeHomeEntries(),
-    ) { snapshots, sections, items, storedEntries ->
+    // Invalidation is only a reload trigger; the public Home graph is assembled from one DB read state.
+    override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = database.invalidationTracker
+        .createFlow(
+            "catalog_home_snapshots",
+            "catalog_home_sections",
+            "catalog_home_items",
+            "catalog_entries",
+        )
+        .map { readCoherentHomes() }
+        .distinctUntilChanged()
+
+    private suspend fun readCoherentHomes(): List<CatalogHomeSnapshot> = database.withTransaction {
+        val snapshots = homeDao.snapshots()
+        val sections = homeDao.sections()
+        val items = homeDao.items()
         val sectionsByPlugin = sections.groupBy(CatalogHomeSectionEntity::pluginId)
         val itemsByPlugin = items.groupBy(CatalogHomeItemEntity::pluginId)
+        val storedEntries = dao.homeEntries()
         val entries = storedEntries.associate { entry ->
             (entry.pluginId to entry.sourceId) to entry.toModel()
         }

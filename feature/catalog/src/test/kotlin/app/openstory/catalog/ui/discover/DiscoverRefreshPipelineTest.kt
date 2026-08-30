@@ -54,7 +54,7 @@ class DiscoverRefreshPipelineTest {
         assertTrue(execution.noEnabledProviders)
         assertFalse(execution.allProvidersFailed)
         assertFalse(execution.anyRetryableFailure)
-        assertEquals(emptyList(), execution.homes)
+        assertEquals(0, repository.observeHomesCalls)
     }
 
     @Test
@@ -94,7 +94,7 @@ class DiscoverRefreshPipelineTest {
 
         assertTrue(execution.allProvidersFailed)
         assertFalse(execution.anyRetryableFailure)
-        assertEquals(1, repository.observeHomesCalls)
+        assertEquals(0, repository.observeHomesCalls)
     }
 
     @Test
@@ -121,17 +121,9 @@ class DiscoverRefreshPipelineTest {
     }
 
     @Test
-    fun successfulRefreshReturnsFreshRepositoryHomesAndTimestamps() = runTest {
+    fun successfulRefreshUsesCommittedResultTimestampWithoutReobservingHome() = runTest {
         val pluginId = PluginId("catalog.success")
-        val postRefreshHomes = listOf(
-            CatalogHomeSnapshot(
-                pluginId = pluginId,
-                pluginVersion = "1.0.0",
-                refreshedAtEpochMillis = 777L,
-                sections = emptyList(),
-            ),
-        )
-        val repository = RefreshRepository(postRefreshHomes, requireCommitBeforeObserve = true)
+        val repository = RefreshRepository(emptyList())
         val source = RefreshSource(
             pluginId = pluginId,
             homeResult = CatalogSourceResult.Success(emptyList()),
@@ -140,12 +132,11 @@ class DiscoverRefreshPipelineTest {
 
         val execution = pipeline.refresh()
 
-        assertEquals(postRefreshHomes, execution.homes)
-        assertEquals(mapOf(pluginId to 777L), execution.report.refreshedAtEpochMillis)
+        assertEquals(mapOf(pluginId to 100L), execution.report.refreshedAtEpochMillis)
         assertEquals(setOf(pluginId), execution.report.succeeded)
         assertFalse(execution.noEnabledProviders)
         assertFalse(execution.allProvidersFailed)
-        assertEquals(1, repository.observeHomesCalls)
+        assertEquals(0, repository.observeHomesCalls)
     }
 
     private fun kotlinx.coroutines.test.TestScope.pipeline(
@@ -167,7 +158,6 @@ class DiscoverRefreshPipelineTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         return DiscoverRefreshPipeline(
             refreshService = refreshService,
-            repository = repository,
             dispatchers = FixedAppDispatchers(dispatcher, dispatcher, dispatcher),
         )
     }
@@ -192,15 +182,11 @@ private class RefreshSource(
 
 private class RefreshRepository(
     private val postRefreshHomes: List<CatalogHomeSnapshot>,
-    private val requireCommitBeforeObserve: Boolean = false,
     private val commitFailure: CatalogStoreFailure? = null,
 ) : CatalogRepository {
     var observeHomesCalls: Int = 0
         private set
-    private var committed = false
-
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> {
-        check(!requireCommitBeforeObserve || committed) { "post-refresh homes were observed before commit" }
         observeHomesCalls += 1
         return flowOf(postRefreshHomes)
     }
@@ -217,7 +203,6 @@ private class RefreshRepository(
     ): Outcome<CatalogHomeCommitResult, CatalogStoreFailure> {
         val failure = commitFailure
         if (failure != null) return Outcome.Failure(failure)
-        committed = true
         return Outcome.Success(CatalogHomeCommitResult(emptyList()))
     }
 

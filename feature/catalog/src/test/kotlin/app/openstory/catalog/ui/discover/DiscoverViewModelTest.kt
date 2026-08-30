@@ -106,7 +106,7 @@ class DiscoverViewModelTest {
         }
 
     @Test
-    fun refreshReportUsesFreshPostRefreshHomeObservation() = runTest(dispatcher.scheduler) {
+    fun refreshReportUsesCommittedResultWithoutOpeningSecondHomeObservation() = runTest(dispatcher.scheduler) {
         val repository = FakeRepository(cachedHome(), applyHomeRefreshMutation = true)
         val viewModel = viewModel(repository, FakeSource())
         backgroundScope.launch { viewModel.state.collect() }
@@ -115,7 +115,7 @@ class DiscoverViewModelTest {
         viewModel.refresh()
         runCurrent()
 
-        assertEquals(2, repository.observeHomesSubscriptions)
+        assertEquals(1, repository.observeHomesSubscriptions)
         assertEquals(
             200L,
             viewModel.state.value.refreshReport?.refreshedAtEpochMillis?.get(PluginId("catalog.a")),
@@ -229,7 +229,7 @@ class DiscoverViewModelTest {
     @Test
     fun manualRefreshRecoversBlockingBootstrapFailureWithAuthoritativeEmptyFeed() =
         runTest(dispatcher.scheduler) {
-            val repository = FakeRepository(emptyList())
+            val repository = FakeRepository(emptyList(), applyHomeRefreshMutation = true)
             val source = FakeSource().apply {
                 homeAction = {
                     CatalogSourceResult.Failure(CatalogSourceFailure("catalog.offline", retryable = true))
@@ -254,7 +254,7 @@ class DiscoverViewModelTest {
     @Test
     fun manualProviderFailureKeepsReadyEmptyWithoutDuplicatingBootstrapIssue() =
         runTest(dispatcher.scheduler) {
-            val repository = FakeRepository(emptyList())
+            val repository = FakeRepository(emptyList(), applyHomeRefreshMutation = true)
             val source = FakeSource()
             val viewModel = viewModel(repository, source)
             backgroundScope.launch { viewModel.state.collect() }
@@ -459,7 +459,7 @@ class DiscoverViewModelTest {
 
     @Test
     fun successfulProviderWithEmptyFeedBecomesReadyEmptyFeed() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(emptyList())
+        val repository = FakeRepository(emptyList(), applyHomeRefreshMutation = true)
         val source = FakeSource()
         val release = CompletableDeferred<Unit>()
         source.homeAction = {
@@ -483,31 +483,78 @@ class DiscoverViewModelTest {
     }
 
     @Test
-    fun bootstrapCandidateRetiresWhenLongLivedHomeCatchesUpToAuthoritativeEmpty() =
+    fun bootstrapWaitsForEverySuccessfulProviderHomeBeforePublishingEmpty() =
         runTest(dispatcher.scheduler) {
-            val candidateHomes = cachedHome()
-            val repository = FakeRepository(
-                initialHomes = emptyList(),
-                refreshReadHomesOverride = candidateHomes,
-            )
-            val candidateProjections = FakeRepository(candidateHomes).projections()
+            val firstProviderHomes = emptyHome("catalog.a", refreshedAtEpochMillis = 200L)
+            val committedHomes = firstProviderHomes + cachedHome("catalog.b").map { home ->
+                home.copy(refreshedAtEpochMillis = 200L)
+            }
+            val repository = FakeRepository(initialHomes = emptyList())
+            val candidateProjections = FakeRepository(committedHomes).projections()
             val storyId = StoryId("story-1")
+            val sourceA = FakeSource(PluginId("catalog.a"))
+            val sourceB = FakeSource(PluginId("catalog.b"))
             val bootstrap = CanonicalBootstrapUseCase(
                 DiscoverCanonicalRepository(readyDiscoverState(storyId)),
                 CanonicalGenerationRebuilder { id, _ -> CanonicalFusionResult.Preparing(id) },
             )
             val viewModel = viewModel(
                 repository = repository,
-                source = FakeSource(),
+                source = sourceA,
                 bootstrap = bootstrap,
                 projections = FakeProjectionRepository(candidateProjections),
+                enabledSources = listOf(sourceA, sourceB),
+            )
+            val observedContent = mutableListOf<ContentState<DiscoverContent>>()
+            backgroundScope.launch {
+                viewModel.state.collect { state -> observedContent += state.content }
+            }
+            runCurrent()
+
+            assertTrue(viewModel.state.value.content is ContentState.Pending)
+
+            repository.replaceHomes(firstProviderHomes)
+            runCurrent()
+            assertTrue(viewModel.state.value.content is ContentState.Pending)
+
+            repository.replaceHomes(committedHomes)
+            runCurrent()
+
+            assertEquals("Fixture Novel", viewModel.state.value.readyContent().popular.single().title)
+            assertFalse(
+                observedContent.any { content ->
+                    (content as? ContentState.Ready)?.value?.let { !it.hasContent } == true
+                },
+            )
+        }
+
+    @Test
+    fun newerProviderCommitsSupersedeTheBootstrapCommitsStillAwaitingObservation() =
+        runTest(dispatcher.scheduler) {
+            val repository = FakeRepository(initialHomes = emptyList())
+            val sourceA = FakeSource(PluginId("catalog.a"))
+            val sourceB = FakeSource(PluginId("catalog.b"))
+            val viewModel = viewModel(
+                repository = repository,
+                source = sourceA,
+                enabledSources = listOf(sourceA, sourceB),
             )
             backgroundScope.launch { viewModel.state.collect() }
             runCurrent()
 
-            assertEquals("Fixture Novel", viewModel.state.value.readyContent().popular.single().title)
+            assertTrue(viewModel.state.value.content is ContentState.Pending)
+            assertEquals(
+                mapOf(
+                    PluginId("catalog.a") to 200L,
+                    PluginId("catalog.b") to 200L,
+                ),
+                viewModel.state.value.refreshReport?.refreshedAtEpochMillis,
+            )
 
-            repository.replaceHomes(emptyList())
+            repository.replaceHomes(
+                emptyHome("catalog.a", refreshedAtEpochMillis = 300L) +
+                    emptyHome("catalog.b", refreshedAtEpochMillis = 300L),
+            )
             runCurrent()
 
             val content = viewModel.state.value.readyContent()
@@ -854,7 +901,7 @@ class DiscoverViewModelTest {
 
     @Test
     fun retryContentRestartsRetryableBootstrapWithoutPullRefreshChrome() = runTest(dispatcher.scheduler) {
-        val repository = FakeRepository(emptyList())
+        val repository = FakeRepository(emptyList(), applyHomeRefreshMutation = true)
         val source = FakeSource().apply {
             homeAction = { CatalogSourceResult.Failure(CatalogSourceFailure("catalog.offline", true)) }
         }
@@ -1030,7 +1077,6 @@ class DiscoverViewModelTest {
             projections,
             DiscoverRefreshPipeline(
                 refreshService,
-                repository,
                 FixedAppDispatchers(dispatcher, refreshDispatcher, dispatcher),
             ),
             DiscoverProjectionPipeline(
@@ -1068,8 +1114,9 @@ private class Registry(private val sources: List<CatalogSource>) : CatalogSource
     override suspend fun source(pluginId: PluginId) = sources.firstOrNull { it.pluginId == pluginId }
 }
 
-private class FakeSource : CatalogSource {
-    override val pluginId = PluginId("catalog.a")
+private class FakeSource(
+    override val pluginId: PluginId = PluginId("catalog.a"),
+) : CatalogSource {
     override val version = "1.0.0"
     var homeCalls = 0
     var detailsCalls = 0
@@ -1114,19 +1161,16 @@ private class FakeRepository(
     private val observeFailureAfterEmission: Boolean = false,
     private var observeFailuresBeforeSuccess: Int = 0,
     private val applyHomeRefreshMutation: Boolean = false,
-    private val refreshReadHomesOverride: List<CatalogHomeSnapshot>? = null,
 ) : CatalogRepository {
-    private var homeEmissionVersion = 0L
-    private val homes = MutableStateFlow(homeEmissionVersion to initialHomes)
+    private val homes = MutableStateFlow(initialHomes)
     var observeHomesSubscriptions = 0
         private set
 
     fun replaceHomes(value: List<CatalogHomeSnapshot>) {
-        homeEmissionVersion += 1L
-        homes.value = homeEmissionVersion to value
+        homes.value = value
     }
 
-    fun projections(): List<CatalogStoryProjection> = homes.value.second
+    fun projections(): List<CatalogStoryProjection> = homes.value
         .flatMap { it.sections }
         .flatMap { it.items }
         .distinctBy { it.storyId }
@@ -1147,10 +1191,6 @@ private class FakeRepository(
 
     override fun observeHomes(): Flow<List<CatalogHomeSnapshot>> = flow {
         observeHomesSubscriptions++
-        if (refreshReadHomesOverride != null && observeHomesSubscriptions > 1) {
-            emit(refreshReadHomesOverride)
-            return@flow
-        }
         when {
             observeFailure -> error("catalog observation unavailable")
             observeFailuresBeforeSuccess > 0 -> {
@@ -1158,10 +1198,10 @@ private class FakeRepository(
                 error("catalog observation unavailable")
             }
             observeFailureAfterEmission -> {
-                emit(homes.value.second)
+                emit(homes.value)
                 error("catalog observation unavailable")
             }
-            else -> homes.collect { emit(it.second) }
+            else -> homes.collect { emit(it) }
         }
     }
     override fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?> = flowOf(null)
@@ -1190,7 +1230,7 @@ private class FakeRepository(
                 refreshedAtEpochMillis = mutation.refreshedAtEpochMillis,
                 sections = mutation.sections,
             )
-            replaceHomes(homes.value.second.filterNot { it.pluginId == mutation.pluginId } + refreshed)
+            replaceHomes(homes.value.filterNot { it.pluginId == mutation.pluginId } + refreshed)
         }
         return Outcome.Success(app.openstory.catalog.repository.CatalogHomeCommitResult(emptyList()))
     }
@@ -1303,6 +1343,18 @@ private fun cachedHome(pluginId: String = "catalog.a"): List<CatalogHomeSnapshot
         ),
     )
 }
+
+private fun emptyHome(
+    pluginId: String,
+    refreshedAtEpochMillis: Long,
+): List<CatalogHomeSnapshot> = listOf(
+    CatalogHomeSnapshot(
+        pluginId = PluginId(pluginId),
+        pluginVersion = "1.0.0",
+        refreshedAtEpochMillis = refreshedAtEpochMillis,
+        sections = emptyList(),
+    ),
+)
 
 private fun popularHome(vararg storyIds: String): List<CatalogHomeSnapshot> {
     val pluginId = PluginId("catalog.a")

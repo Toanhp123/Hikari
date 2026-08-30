@@ -1644,20 +1644,13 @@ Required tests:
 @Test fun terminalFailuresWithNoProjectedItemsAreNotFalseEmpty()
 ```
 
-- [ ] **Step 7: Make Discover refresh execution classify provider availability from real post-refresh homes**
+- [ ] **Step 7: Make Discover refresh execution classify provider availability from committed refresh results**
 
-Refactor `DiscoverRefreshPipeline` to inject `CatalogRepository` and change its feature API to:
-
-```kotlin
-internal suspend fun refresh(): DiscoverRefreshExecution
-```
-
-The old `cachedHomes` argument is removed; the post-refresh repository snapshot becomes the sole report baseline. Return:
+Keep `DiscoverRefreshPipeline` independent of `CatalogRepository` observation and expose:
 
 ```kotlin
 internal data class DiscoverRefreshExecution(
     val report: DiscoverRefreshReport,
-    val homes: List<CatalogHomeSnapshot>,
     val anyRetryableFailure: Boolean,
 ) {
     val noEnabledProviders: Boolean
@@ -1668,7 +1661,18 @@ internal data class DiscoverRefreshExecution(
 }
 ```
 
-After `CatalogRefreshService.refresh(...)` completes, obtain a fresh repository snapshot using a **new** `repository.observeHomes().first()` collection so the returned execution reflects committed durable state, including successful empty sections. Build `refreshedAtEpochMillis` from this post-refresh snapshot, not stale pre-refresh homes. Compute `anyRetryableFailure` from the raw `CatalogRefreshResult` failures **before** converting them into the existing code-only `DiscoverRefreshReport`; do not infer retryability from a string code.
+After `CatalogRefreshService.refresh(...)` completes, build `refreshedAtEpochMillis` directly from
+`CatalogRefreshResult.Success.refreshedAtEpochMillis`. A success result is created only after
+`commitHomeRefresh()` succeeds, so this is the durable commit timestamp and does not require a second
+`repository.observeHomes().first()` read. Compute `anyRetryableFailure` from the raw
+`CatalogRefreshResult` failures before converting them into the existing code-only
+`DiscoverRefreshReport`; do not infer retryability from a string code.
+
+`DiscoverRefreshExecution` must not carry Home snapshots. The ViewModel's one long-lived coherent
+`observeHomes()` subscription is the sole content authority. Successful bootstrap refreshes retain
+the successful `(pluginId, refreshedAtEpochMillis)` commit set in `AwaitingCommittedHome` and remain
+Pending until that observation contains every successful commit from the refresh attempt or a newer
+commit that supersedes it for the same provider.
 
 Keep Catalog refresh service/domain API unchanged.
 
@@ -1793,22 +1797,26 @@ Use a private bootstrap state such as:
 
 ```kotlin
 private sealed interface DiscoverBootstrapState {
+    data object AwaitingHome : DiscoverBootstrapState
     data object NotNeeded : DiscoverBootstrapState
     data object InFlight : DiscoverBootstrapState
-    data class Completed(val execution: DiscoverRefreshExecution) : DiscoverBootstrapState
+    data class AwaitingCommittedHome(
+        val successfulCommits: Map<PluginId, Long>,
+    ) : DiscoverBootstrapState
+    data object NoEnabledProviders : DiscoverBootstrapState
     data class Failed(val failure: CatalogUiFailure) : DiscoverBootstrapState
 }
 ```
 
 On first real Home snapshot:
 
-- non-empty homes -> NotNeeded; do not auto source-refresh.
-- empty homes -> InFlight, call `DiscoverRefreshPipeline.refresh()` without mutating `RefreshState`.
-- execution no providers -> Completed and `Ready(no providers)`.
-- execution all providers failed and no usable homes -> Failed.
-- execution with success -> treat `DiscoverRefreshExecution.homes` as an immediate bootstrap candidate snapshot while the long-lived Home observation catches up; feed that candidate through the exact same slot/settlement projection path, then replace it with the real observed snapshot when it arrives. Never maintain two projection algorithms.
+- non-empty coherent homes observed before bootstrap -> `NotNeeded`; do not auto source-refresh.
+- empty homes -> `InFlight`, call `DiscoverRefreshPipeline.refresh()` without mutating `RefreshState`.
+- execution no providers -> `NoEnabledProviders` and `Ready(no providers)`.
+- execution all providers failed and no usable homes -> `Failed`.
+- execution with at least one successful commit -> `AwaitingCommittedHome(successfulCommits)`; remain Pending until the existing long-lived coherent Home observation contains, for every successful commit, the same provider with an equal or newer refresh timestamp. A coherent header from only the first provider is not batch-terminal. Never promote refresh-side mutation snapshots into UI content.
 
-A completed bootstrap that still has no observable path toward content must leave Pending and become Ready no-content or Failed; it may not wait indefinitely.
+Once a non-empty coherent Home graph has been observed, retire bootstrap monotonically so a later authoritative empty repository state cannot resurrect stale bootstrap failure/loading state.
 
 - [ ] **Step 6: Implement a candidate projection and retain last usable Ready across same-identity convergence**
 

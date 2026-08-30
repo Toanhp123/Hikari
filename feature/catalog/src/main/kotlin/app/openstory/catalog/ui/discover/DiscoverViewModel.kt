@@ -16,9 +16,9 @@ import app.openstory.catalog.ui.state.completeSuccess
 import app.openstory.catalog.ui.state.forExpectedKey
 import app.openstory.catalog.ui.state.retainedObservation
 import app.openstory.catalog.ui.state.startAttempt
+import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,7 +29,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.stateIn
@@ -50,7 +49,6 @@ class DiscoverViewModel @Inject constructor(
     private val bootstrapState = MutableStateFlow<DiscoverBootstrapState>(DiscoverBootstrapState.AwaitingHome)
     private val refreshState = MutableStateFlow(RefreshState())
     private val refreshReport = MutableStateFlow<DiscoverRefreshReport?>(null)
-    private val homeEmissionVersion = AtomicLong(0L)
     private var bootstrapJob: Job? = null
     private var refreshJob: Job? = null
 
@@ -58,25 +56,21 @@ class DiscoverViewModel @Inject constructor(
         key = flowOf(Unit),
         initialKey = Unit,
         started = started,
-        observe = {
-            repository.observeHomes().map { homes ->
-                DiscoverObservedHomes(
-                    version = homeEmissionVersion.incrementAndGet(),
-                    homes = homes,
-                )
-            }
-        },
+        observe = { repository.observeHomes() },
         mapFailure = { _, _ -> CatalogUiFailure(HOME_OBSERVE_EXCEPTION_CODE, retryable = true) },
     )
 
-    private val bootstrapRetired = homeObservation.state
-        .runningFold(false) { retired, homeState ->
-            retired || (
-                (homeState as? ObservationState.Available<Unit, DiscoverObservedHomes>)
-                    ?.value
-                    ?.homes
-                    ?.isNotEmpty() == true
-                )
+    private val bootstrapSuperseded = combine(
+        bootstrapState,
+        homeObservation.state,
+    ) { bootstrap, homeState ->
+        val homes = (homeState as? ObservationState.Available<Unit, List<CatalogHomeSnapshot>>)
+            ?.value
+            .orEmpty()
+        bootstrap.isSupersededBy(homes)
+    }
+        .runningFold(false) { superseded, current ->
+            superseded || current
         }
         .stateIn(
             scope = viewModelScope,
@@ -86,10 +80,9 @@ class DiscoverViewModel @Inject constructor(
 
     private val effectiveBootstrapState = combine(
         bootstrapState,
-        bootstrapRetired,
-        homeObservation.state,
-    ) { bootstrap, retired, homeState ->
-        bootstrap.effectiveFor(homeState, retired)
+        bootstrapSuperseded,
+    ) { bootstrap, superseded ->
+        if (superseded) DiscoverBootstrapState.NotNeeded else bootstrap
     }.stateIn(
         scope = viewModelScope,
         started = started,
@@ -98,14 +91,9 @@ class DiscoverViewModel @Inject constructor(
 
     private val settlementKey = combine(
         homeObservation.state,
-        effectiveBootstrapState,
         selectedContentType,
-    ) { homeState, bootstrap, contentType ->
-        discoverSettlementKey(
-            homeState = homeState,
-            bootstrap = bootstrap,
-            contentType = contentType,
-        )
+    ) { homeState, contentType ->
+        discoverSettlementKey(homeState, contentType)
     }
         .distinctUntilChanged()
         .stateIn(
@@ -158,7 +146,7 @@ class DiscoverViewModel @Inject constructor(
             homeState = homeState,
             bootstrap = bootstrap,
             contentType = contentType,
-            settlementKey = discoverSettlementKey(homeState, bootstrap, contentType),
+            settlementKey = discoverSettlementKey(homeState, contentType),
             canonical = canonical,
         )
     }.mapLatest(::buildCandidate)
@@ -193,8 +181,8 @@ class DiscoverViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val firstAvailable = homeObservation.state.first { it is ObservationState.Available }
-                as ObservationState.Available<Unit, DiscoverObservedHomes>
-            if (firstAvailable.value.homes.isEmpty()) {
+                as ObservationState.Available<Unit, List<CatalogHomeSnapshot>>
+            if (firstAvailable.value.isEmpty()) {
                 startAutomaticBootstrap()
             } else {
                 bootstrapState.value = DiscoverBootstrapState.NotNeeded
@@ -266,27 +254,23 @@ class DiscoverViewModel @Inject constructor(
     private fun startAutomaticBootstrap() {
         if (bootstrapJob?.isActive == true) return
         val currentHome = (homeObservation.state.value as? ObservationState.Available)?.value ?: return
-        if (currentHome.homes.isNotEmpty()) {
+        if (currentHome.isNotEmpty()) {
             bootstrapState.value = DiscoverBootstrapState.NotNeeded
         } else {
-            val startedAfterHomeVersion = currentHome.version
             bootstrapJob = viewModelScope.launch {
-                bootstrapState.value = DiscoverBootstrapState.InFlight(startedAfterHomeVersion)
+                bootstrapState.value = DiscoverBootstrapState.InFlight
                 try {
                     val execution = refreshPipeline.refresh()
                     refreshReport.value = execution.report
-                    val inFlight = bootstrapState.value as? DiscoverBootstrapState.InFlight
-                    if (inFlight != null) {
-                        bootstrapState.value = execution.toBootstrapState(inFlight.startedAfterHomeVersion)
+                    if (bootstrapState.value == DiscoverBootstrapState.InFlight) {
+                        bootstrapState.value = execution.toBootstrapState()
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    val inFlight = bootstrapState.value as? DiscoverBootstrapState.InFlight
-                    if (inFlight != null) {
+                    if (bootstrapState.value == DiscoverBootstrapState.InFlight) {
                         bootstrapState.value = DiscoverBootstrapState.Failed(
-                            failure = CatalogUiFailure(BOOTSTRAP_EXCEPTION_CODE, retryable = true),
-                            startedAfterHomeVersion = inFlight.startedAfterHomeVersion,
+                            CatalogUiFailure(BOOTSTRAP_EXCEPTION_CODE, retryable = true),
                         )
                     }
                 }
@@ -297,34 +281,32 @@ class DiscoverViewModel @Inject constructor(
     private fun reclassifyBootstrapAfterManualRefresh(execution: DiscoverRefreshExecution) {
         val currentHome = (homeObservation.state.value as? ObservationState.Available)?.value ?: return
         if (
-            currentHome.homes.isNotEmpty() ||
-            bootstrapRetired.value ||
+            currentHome.isNotEmpty() ||
+            bootstrapSuperseded.value ||
             !bootstrapState.value.allowsManualReclassification(execution)
         ) {
             return
         }
-        bootstrapState.value = execution.toBootstrapState(currentHome.version)
+        bootstrapState.value = execution.toBootstrapState()
     }
 
-    private fun DiscoverRefreshExecution.toBootstrapState(
-        startedAfterHomeVersion: Long,
-    ): DiscoverBootstrapState = when {
-        homes.isNotEmpty() || noEnabledProviders -> DiscoverBootstrapState.Completed(
-            execution = this,
-            startedAfterHomeVersion = startedAfterHomeVersion,
-        )
+    private fun DiscoverRefreshExecution.toBootstrapState(): DiscoverBootstrapState = when {
+        noEnabledProviders -> DiscoverBootstrapState.NoEnabledProviders
         allProvidersFailed -> DiscoverBootstrapState.Failed(
-            failure = CatalogUiFailure(
+            CatalogUiFailure(
                 BOOTSTRAP_ALL_PROVIDERS_FAILED_CODE,
                 retryable = anyRetryableFailure,
             ),
-            startedAfterHomeVersion = startedAfterHomeVersion,
         )
-        else -> DiscoverBootstrapState.Completed(
-            execution = this,
-            startedAfterHomeVersion = startedAfterHomeVersion,
-        )
+        else -> DiscoverBootstrapState.AwaitingCommittedHome(successfulCommits())
     }
+
+    private fun DiscoverRefreshExecution.successfulCommits(): Map<PluginId, Long> =
+        report.succeeded.associateWith { pluginId ->
+            checkNotNull(report.refreshedAtEpochMillis[pluginId]) {
+                "Successful Discover refresh is missing its committed timestamp for ${pluginId.value}"
+            }
+        }
 
     private suspend fun buildCandidate(input: DiscoverCandidateInput): DiscoverCandidate =
         when (val homeState = input.homeState) {
@@ -339,12 +321,17 @@ class DiscoverViewModel @Inject constructor(
 
     private suspend fun buildAvailableHomeCandidate(
         input: DiscoverCandidateInput,
-        availableHome: ObservationState.Available<Unit, DiscoverObservedHomes>,
+        availableHome: ObservationState.Available<Unit, List<CatalogHomeSnapshot>>,
     ): DiscoverCandidate {
         val identity = input.contentType
-        val homes = availableHome.effectiveHomes(input.bootstrap)
+        val homes = availableHome.value
         val canonical = input.canonical
         return when {
+            input.bootstrap.blocksHomeReadiness -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Pending,
+                observationIssue = availableHome.issue,
+            )
             homes.isEmpty() -> emptyHomesCandidate(
                 identity = identity,
                 homeIssue = availableHome.issue,
@@ -362,7 +349,7 @@ class DiscoverViewModel @Inject constructor(
     private suspend fun buildCanonicalCandidate(
         identity: ContentType,
         homes: List<CatalogHomeSnapshot>,
-        availableHome: ObservationState.Available<Unit, DiscoverObservedHomes>,
+        availableHome: ObservationState.Available<Unit, List<CatalogHomeSnapshot>>,
         canonical: DiscoverCanonicalReadiness,
     ): DiscoverCandidate {
         val baseIssue = availableHome.issue
@@ -388,7 +375,7 @@ class DiscoverViewModel @Inject constructor(
     private suspend fun buildProjectedCandidate(
         identity: ContentType,
         homes: List<CatalogHomeSnapshot>,
-        availableHome: ObservationState.Available<Unit, DiscoverObservedHomes>,
+        availableHome: ObservationState.Available<Unit, List<CatalogHomeSnapshot>>,
         canonical: DiscoverCanonicalReadiness,
         availableSettlements: ObservationState.Available<
             DiscoverSettlementKey,
@@ -496,69 +483,46 @@ private data class DiscoverSettlementKey(
 private sealed interface DiscoverBootstrapState {
     data object AwaitingHome : DiscoverBootstrapState
     data object NotNeeded : DiscoverBootstrapState
-    data class InFlight(val startedAfterHomeVersion: Long) : DiscoverBootstrapState
-    data class Completed(
-        val execution: DiscoverRefreshExecution,
-        val startedAfterHomeVersion: Long,
+    data object InFlight : DiscoverBootstrapState
+    data class AwaitingCommittedHome(
+        val successfulCommits: Map<PluginId, Long>,
     ) : DiscoverBootstrapState
-    data class Failed(
-        val failure: CatalogUiFailure,
-        val startedAfterHomeVersion: Long,
-    ) : DiscoverBootstrapState
+    data object NoEnabledProviders : DiscoverBootstrapState
+    data class Failed(val failure: CatalogUiFailure) : DiscoverBootstrapState
 }
 
 private fun DiscoverBootstrapState.allowsManualReclassification(
     newExecution: DiscoverRefreshExecution,
 ): Boolean = when (this) {
     DiscoverBootstrapState.NotNeeded -> false
-    is DiscoverBootstrapState.Completed -> execution.homes.isEmpty() && !newExecution.allProvidersFailed
+    DiscoverBootstrapState.NoEnabledProviders,
+    is DiscoverBootstrapState.AwaitingCommittedHome -> !newExecution.allProvidersFailed
     DiscoverBootstrapState.AwaitingHome,
-    is DiscoverBootstrapState.InFlight,
+    DiscoverBootstrapState.InFlight,
     is DiscoverBootstrapState.Failed -> true
 }
 
-private data class DiscoverObservedHomes(
-    val version: Long,
-    val homes: List<CatalogHomeSnapshot>,
-)
-
-private fun DiscoverBootstrapState.effectiveFor(
-    homeState: ObservationState<Unit, DiscoverObservedHomes>,
-    retired: Boolean,
-): DiscoverBootstrapState {
-    val observed = (homeState as? ObservationState.Available)?.value
-    return when {
-        retired -> DiscoverBootstrapState.NotNeeded
-        observed == null -> this
-        else -> when (this) {
-            DiscoverBootstrapState.AwaitingHome,
-            DiscoverBootstrapState.NotNeeded -> this
-            is DiscoverBootstrapState.InFlight -> if (
-                observed.version > startedAfterHomeVersion && observed.homes.isNotEmpty()
-            ) {
-                DiscoverBootstrapState.NotNeeded
-            } else {
-                this
-            }
-            is DiscoverBootstrapState.Completed -> if (
-                observed.homes.isNotEmpty() ||
-                (execution.homes.isNotEmpty() && observed.version > startedAfterHomeVersion)
-            ) {
-                DiscoverBootstrapState.NotNeeded
-            } else {
-                this
-            }
-            is DiscoverBootstrapState.Failed -> if (observed.homes.isNotEmpty()) {
-                DiscoverBootstrapState.NotNeeded
-            } else {
-                this
-            }
-        }
-    }
+private fun DiscoverBootstrapState.isSupersededBy(
+    homes: List<CatalogHomeSnapshot>,
+): Boolean = when (this) {
+    DiscoverBootstrapState.InFlight -> false
+    is DiscoverBootstrapState.AwaitingCommittedHome -> homes.containsAllSuccessfulCommits(successfulCommits)
+    DiscoverBootstrapState.AwaitingHome,
+    DiscoverBootstrapState.NotNeeded,
+    DiscoverBootstrapState.NoEnabledProviders,
+    is DiscoverBootstrapState.Failed -> homes.isNotEmpty()
 }
 
-private fun ObservationState<Unit, DiscoverObservedHomes>.availableHomeVersionOrNull(): Long? =
-    (this as? ObservationState.Available)?.value?.version
+private val DiscoverBootstrapState.blocksHomeReadiness: Boolean
+    get() = this == DiscoverBootstrapState.InFlight || this is DiscoverBootstrapState.AwaitingCommittedHome
+
+private fun List<CatalogHomeSnapshot>.containsAllSuccessfulCommits(
+    successfulCommits: Map<PluginId, Long>,
+): Boolean = successfulCommits.isNotEmpty() && successfulCommits.all { (pluginId, committedAt) ->
+    any { home ->
+        home.pluginId == pluginId && home.refreshedAtEpochMillis >= committedAt
+    }
+}
 
 private data class DiscoverCanonicalReadiness(
     val key: DiscoverSettlementKey,
@@ -567,7 +531,7 @@ private data class DiscoverCanonicalReadiness(
 )
 
 private data class DiscoverCandidateInput(
-    val homeState: ObservationState<Unit, DiscoverObservedHomes>,
+    val homeState: ObservationState<Unit, List<CatalogHomeSnapshot>>,
     val bootstrap: DiscoverBootstrapState,
     val contentType: ContentType,
     val settlementKey: DiscoverSettlementKey,
@@ -628,7 +592,8 @@ private fun emptyHomesCandidate(
     bootstrap: DiscoverBootstrapState,
 ): DiscoverCandidate = when (bootstrap) {
     DiscoverBootstrapState.AwaitingHome,
-    is DiscoverBootstrapState.InFlight -> DiscoverCandidate(identity, ContentState.Pending, homeIssue)
+    DiscoverBootstrapState.InFlight,
+    is DiscoverBootstrapState.AwaitingCommittedHome -> DiscoverCandidate(identity, ContentState.Pending, homeIssue)
     DiscoverBootstrapState.NotNeeded -> DiscoverCandidate(
         identity,
         ContentState.Ready(
@@ -636,18 +601,13 @@ private fun emptyHomesCandidate(
         ),
         homeIssue,
     )
-    is DiscoverBootstrapState.Completed -> {
-        val reason = if (bootstrap.execution.noEnabledProviders) {
-            DiscoverNoContentReason.NO_ENABLED_PROVIDERS
-        } else {
-            DiscoverNoContentReason.EMPTY_FEED
-        }
-        DiscoverCandidate(
-            identity,
-            ContentState.Ready(DiscoverSemanticContent.empty(identity).toContent(reason)),
-            homeIssue,
-        )
-    }
+    DiscoverBootstrapState.NoEnabledProviders -> DiscoverCandidate(
+        identity,
+        ContentState.Ready(
+            DiscoverSemanticContent.empty(identity).toContent(DiscoverNoContentReason.NO_ENABLED_PROVIDERS),
+        ),
+        homeIssue,
+    )
     is DiscoverBootstrapState.Failed -> DiscoverCandidate(
         identity,
         ContentState.Failed(bootstrap.failure),
@@ -656,28 +616,17 @@ private fun emptyHomesCandidate(
 }
 
 private fun discoverSettlementKey(
-    homeState: ObservationState<Unit, DiscoverObservedHomes>,
-    bootstrap: DiscoverBootstrapState,
+    homeState: ObservationState<Unit, List<CatalogHomeSnapshot>>,
     contentType: ContentType,
 ): DiscoverSettlementKey = DiscoverSettlementKey(
     contentType = contentType,
-    storyIds = homeState.effectiveHomesOrNull(bootstrap)
+    storyIds = homeState.availableHomesOrNull()
         ?.let { discoverFeedSlots(it, contentType).expectedStoryIds }
         .orEmpty(),
 )
 
-private fun ObservationState<Unit, DiscoverObservedHomes>.effectiveHomesOrNull(
-    bootstrap: DiscoverBootstrapState,
-): List<CatalogHomeSnapshot>? = (this as? ObservationState.Available)
-    ?.effectiveHomes(bootstrap)
-
-private fun ObservationState.Available<Unit, DiscoverObservedHomes>.effectiveHomes(
-    bootstrap: DiscoverBootstrapState,
-): List<CatalogHomeSnapshot> = when {
-    value.homes.isNotEmpty() -> value.homes
-    bootstrap is DiscoverBootstrapState.Completed && bootstrap.execution.homes.isNotEmpty() -> bootstrap.execution.homes
-    else -> value.homes
-}
+private fun ObservationState<Unit, List<CatalogHomeSnapshot>>.availableHomesOrNull(): List<CatalogHomeSnapshot>? =
+    (this as? ObservationState.Available)?.value
 
 private fun ObservationState<DiscoverSettlementKey, List<CatalogStoryProjection>>.availableProjectionsOrEmpty():
     List<CatalogStoryProjection> = when (this) {

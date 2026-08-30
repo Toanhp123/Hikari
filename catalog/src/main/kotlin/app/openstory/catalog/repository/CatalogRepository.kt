@@ -11,6 +11,10 @@ import app.openstory.common.id.StoryId
 import kotlinx.coroutines.flow.Flow
 
 interface CatalogRepository {
+    /**
+     * Emits authoritative Home graphs. Every emission must be internally coherent: snapshot headers,
+     * sections, item membership, and referenced catalog entries belong to one repository read state.
+     */
     fun observeHomes(): Flow<List<CatalogHomeSnapshot>>
     fun observeStory(storyId: StoryId): Flow<StoryCatalogSnapshot?>
     suspend fun matchSnapshot(): CatalogMatchSnapshot

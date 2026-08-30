@@ -61,6 +61,14 @@ grep -q 'ContentState.Ready(projected.content.toContent())' "$discover_vm" ||
   fail "DiscoverViewModel must not own platform scheduling"
 grep -q 'withContext(dispatcher)' "$discover_refresh_pipeline" ||
   fail "Discover refresh CPU work is not isolated behind the feature scheduling boundary"
+! grep -q 'observeHomes()' "$discover_refresh_pipeline" ||
+  fail "Discover refresh report re-observes Home instead of using committed refresh results"
+grep -q 'result.refreshedAtEpochMillis' "$discover_refresh_pipeline" ||
+  fail "Discover refresh report does not use the successful commit timestamp"
+grep -q 'containsAllSuccessfulCommits' "$discover_vm" ||
+  fail "Discover bootstrap does not wait for every successful provider commit"
+grep -q 'blocksHomeReadiness' "$discover_vm" ||
+  fail "Discover can project partial Home graphs while bootstrap is unsettled"
 ! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
   fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
 ! grep -Eq 'CatalogFusionEngine|CanonicalFusionService|CatalogDetailsLoader|CatalogMetadataCoordinator' "$discover_vm" "$discover_pipeline" ||
