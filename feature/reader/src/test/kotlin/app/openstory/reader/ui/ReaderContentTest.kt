@@ -27,7 +27,7 @@ class ReaderContentTest {
 
     @Test
     fun imagePagesDoNotInventCharacterOffsets() {
-        val page = ReaderBlock.ImagePage("page", "https://node.example/page.png")
+        val page = ReaderBlock.ImagePage("page", "hash/page.png", "https://node.example/page.png")
 
         assertEquals(0, page.progressExtent())
         assertEquals(5, ReaderBlock.Paragraph("text", "Hello").progressExtent())

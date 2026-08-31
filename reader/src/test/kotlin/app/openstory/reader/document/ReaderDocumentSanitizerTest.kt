@@ -90,7 +90,9 @@ class ReaderDocumentSanitizerTest {
         assertEquals(first.fingerprint, refreshed.fingerprint)
         assertEquals(false, first.isLocalPersistable)
         assertTrue(first.fingerprint != changedPage.fingerprint)
-        assertEquals("image-0-d5fe7805d6c0", first.blocks.single().id)
+        val image = assertIs<ReaderBlock.ImagePage>(first.blocks.single())
+        assertEquals("image-0-d5fe7805d6c0", image.id)
+        assertEquals("hash/page-001.png", image.stableAssetId)
     }
 
     @Test

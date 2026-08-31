@@ -185,6 +185,7 @@ class ReaderScreenTest {
             blocks = listOf(
                 ReaderBlock.ImagePage(
                     id = "image-page-1",
+                    stableAssetId = "hash/page-1.jpg",
                     imageUrl = "https://example.com/page-1.jpg",
                 ),
             ),

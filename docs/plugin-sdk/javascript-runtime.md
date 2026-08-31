@@ -56,9 +56,20 @@ Packages that declare the `CONTENT` service may implement these operations:
 - `content.chapter` receives `{sourceReleaseId}` and returns a validated structured chapter
   document. Blocks may be sanitized text blocks or remote image blocks of the form
   `{type: "image", stableId, imageUrl}`. `stableId` must remain stable when an expiring delivery URL
-  changes; `imageUrl` must be HTTPS and is fetched by the host without plugin authentication headers.
+  changes; this is only the delivery-stability baseline and does not imply that the ID changes when
+  image content changes. `imageUrl` must be HTTPS and is fetched by the host without plugin
+  authentication headers.
   Packages emitting image blocks must explicitly declare `capabilities.reader.remoteImages: true`; otherwise
   the Reader rejects those blocks before any image request is created.
+  Image cache behavior is fail-closed unless the package also declares explicit contracts:
+  `imageIdentity: STABLE_ID_CHANGES_WITH_CONTENT` means the stable ID changes whenever the logical image
+  content changes; `imageLocator: LOCATOR_CHANGES_WITH_CONTENT` separately means the normalized delivery
+  locator changes whenever the encoded image bytes can change. `imagePersistence` is independently
+  `NON_PERSISTENT`, `PUBLIC`, or `ACCOUNT_SCOPED`; persistence permission never substitutes for a safe
+  identity contract. Packages must not declare stronger contracts based only on an ID or URL looking hash-like.
+  Plugins do not configure a separate RICC source namespace. Hikari derives it from the installed source's
+  canonical plugin ID, so normal package-version changes do not invalidate keys. An intentional break in
+  source identity semantics requires a reviewed key/namespace migration.
   Read surfaces only treat releases from packages that support this operation as reader-capable.
   Packages whose chapter documents depend on remote media that is not fully persisted must declare
   `capabilities.reader.offlineDownload: false`; those releases remain readable online but are excluded
@@ -69,9 +80,10 @@ packages without that field keep legacy service-level discovery for compatibilit
 operation declarations for capability discovery and returns `plugin.operation_unavailable` before
 script execution when an explicitly declared package does not support the requested operation.
 The bundled MangaDex package declares `content.search`, `content.resolveUrl`, `content.chapters`,
-and `content.chapter`. Its chapter operation returns MangaDex@Home image-page descriptors and declares
-`capabilities.reader.remoteImages: true` and `capabilities.reader.offlineDownload: false`, so it
-participates in online Reader flows without advertising incomplete offline support.
+and `content.chapter`. Its chapter operation returns MangaDex@Home image-page descriptors and explicitly
+declares `STABLE_ID_CHANGES_WITH_CONTENT`, public persistence, remote images, and no offline download.
+That opt-in is a maintained Hikari adapter contract backed by the bundled package tests; it is not a
+general inference rule for third-party sources.
 
 ## Host capabilities
 

@@ -290,7 +290,9 @@ class PrefetchCoordinatorTest {
                 "release-c",
                 ReaderDocument(
                     title = "images",
-                    blocks = listOf(ReaderBlock.ImagePage("p", "https://example.test/page.jpg")),
+                    blocks = listOf(
+                        ReaderBlock.ImagePage("p", "hash/page.jpg", "https://example.test/page.jpg"),
+                    ),
                     fingerprint = "fp-image",
                 ),
             )

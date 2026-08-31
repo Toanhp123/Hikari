@@ -40,7 +40,7 @@ class ReaderDownloadContentSourceTest {
         val source = FakeReaderSource(
             ReaderDocument(
                 null,
-                listOf(ReaderBlock.ImagePage("page", "https://node.example/page.png")),
+                listOf(ReaderBlock.ImagePage("page", "hash/page.png", "https://node.example/page.png")),
                 "image-fingerprint",
             ),
         )

@@ -19,8 +19,8 @@ internal object BundledPlugins {
         BundledPluginDescriptor(
             assetPath = "plugins/mangadex-content.osp",
             pluginId = "org.openstory.content.mangadex",
-            version = "1.3.0",
-            sha256 = "d967cc65604d27bfb972d84664eaa3c5d2005d5635344a12ee9284d83efa1709",
+            version = "1.3.1",
+            sha256 = "2edb6c048d75210b29a3063dc8027c04ab619bffef78238ac1e22552d3282b96",
         ),
     )
 }

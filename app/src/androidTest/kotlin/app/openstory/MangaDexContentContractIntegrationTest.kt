@@ -5,6 +5,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.openstory.common.id.PluginId
 import app.openstory.plugins.api.packageformat.PluginArtifact
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.plugins.api.protocol.PageDto
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.api.protocol.content.ContentResolveUrlRequestDto
@@ -59,12 +62,24 @@ class MangaDexContentContractIntegrationTest {
         assertEquals(setOf("api.mangadex.org", "mangadex.org"), manifest.capabilities.network?.hosts)
         assertEquals(false, manifest.capabilities.reader?.offlineDownload)
         assertEquals(true, manifest.capabilities.reader?.remoteImages)
+        assertEquals(
+            ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            manifest.capabilities.reader?.imageIdentity,
+        )
+        assertEquals(ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN, manifest.capabilities.reader?.imageLocator)
+        assertEquals(ReaderImagePersistenceContract.PUBLIC, manifest.capabilities.reader?.imagePersistence)
         val script = pluginPackage.entries.getValue("main.js").decodeToString()
+        val atHomeBody = fixtureText(testContext, "at-home.json")
         val dispatcher = FixtureMangaDexDispatcher(
             searchBody = fixtureText(testContext, "search.json"),
             detailsBody = fixtureText(testContext, "details.json"),
             chaptersBody = fixtureText(testContext, "chapters.json"),
-            atHomeBody = fixtureText(testContext, "at-home.json"),
+            atHomeBodies = listOf(
+                atHomeBody,
+                atHomeBody.replace("https://uploads.mangadex.org", "https://rotated.mangadex.example"),
+                atHomeBody.replace(FIXTURE_CHAPTER_HASH, CHANGED_CHAPTER_HASH),
+                atHomeBody.replace(FIXTURE_FIRST_FILENAME, CHANGED_FIRST_FILENAME),
+            ),
         )
         val engine = AndroidxJavaScriptEngine(appContext)
         try {
@@ -130,15 +145,50 @@ class MangaDexContentContractIntegrationTest {
             val imagePages = chapterDocument.blocks.map { block -> block as ImagePageBlockDto }
             assertEquals(2, imagePages.size)
             assertEquals(
-                "3303dd03ac8d27452cce3f2a882e94b2/" +
-                    "1-f7a76de10d346de7ba01786762ebbedc666b412ad0d4b73baa330a2a392dbcdd.png",
+                "$FIXTURE_CHAPTER_HASH/$FIXTURE_FIRST_FILENAME",
                 imagePages.first().stableId,
             )
             assertEquals(
-                "https://uploads.mangadex.org/data/3303dd03ac8d27452cce3f2a882e94b2/" +
-                    "1-f7a76de10d346de7ba01786762ebbedc666b412ad0d4b73baa330a2a392dbcdd.png",
+                "https://uploads.mangadex.org/data/$FIXTURE_CHAPTER_HASH/$FIXTURE_FIRST_FILENAME",
                 imagePages.first().imageUrl,
             )
+
+            val rotated = runner.run(
+                PluginId(MANGADEX_PLUGIN_ID),
+                manifest,
+                script,
+                PluginOperation.CONTENT_CHAPTER,
+                Json.encodeToJsonElement(ContentChapterRequestDto(FIXTURE_CHAPTER_ID)),
+            ).requireSuccess("content.chapter rotated", dispatcher.requestedUrls)
+            val rotatedPage = Json.decodeFromJsonElement<ChapterDocumentDto>(rotated)
+                .blocks.first() as ImagePageBlockDto
+            assertEquals(imagePages.first().stableId, rotatedPage.stableId)
+            assertEquals(
+                "https://rotated.mangadex.example/data/$FIXTURE_CHAPTER_HASH/$FIXTURE_FIRST_FILENAME",
+                rotatedPage.imageUrl,
+            )
+
+            val changedHash = runner.run(
+                PluginId(MANGADEX_PLUGIN_ID),
+                manifest,
+                script,
+                PluginOperation.CONTENT_CHAPTER,
+                Json.encodeToJsonElement(ContentChapterRequestDto(FIXTURE_CHAPTER_ID)),
+            ).requireSuccess("content.chapter changed hash", dispatcher.requestedUrls)
+            val changedHashPage = Json.decodeFromJsonElement<ChapterDocumentDto>(changedHash)
+                .blocks.first() as ImagePageBlockDto
+            assertEquals("$CHANGED_CHAPTER_HASH/$FIXTURE_FIRST_FILENAME", changedHashPage.stableId)
+
+            val changedFilename = runner.run(
+                PluginId(MANGADEX_PLUGIN_ID),
+                manifest,
+                script,
+                PluginOperation.CONTENT_CHAPTER,
+                Json.encodeToJsonElement(ContentChapterRequestDto(FIXTURE_CHAPTER_ID)),
+            ).requireSuccess("content.chapter changed filename", dispatcher.requestedUrls)
+            val changedFilenamePage = Json.decodeFromJsonElement<ChapterDocumentDto>(changedFilename)
+                .blocks.first() as ImagePageBlockDto
+            assertEquals("$FIXTURE_CHAPTER_HASH/$CHANGED_FIRST_FILENAME", changedFilenamePage.stableId)
             assertTrue(dispatcher.requestedUrls.any { it.endsWith("/at-home/server/$FIXTURE_CHAPTER_ID") })
         } finally {
             engine.close()
@@ -161,9 +211,10 @@ private class FixtureMangaDexDispatcher(
     private val searchBody: String,
     private val detailsBody: String,
     private val chaptersBody: String,
-    private val atHomeBody: String,
+    private val atHomeBodies: List<String>,
 ) : CapabilityDispatcher {
     val requestedUrls = mutableListOf<String>()
+    private var atHomeRequestCount = 0
 
     override suspend fun dispatch(
         pluginId: PluginId,
@@ -189,7 +240,8 @@ private class FixtureMangaDexDispatcher(
             request.url.startsWith("https://api.mangadex.org/manga?") -> searchBody
             request.url.startsWith("https://api.mangadex.org/manga/$ONE_PIECE_MANGADEX_ID?") -> detailsBody
             request.url.startsWith("https://api.mangadex.org/manga/$ONE_PIECE_MANGADEX_ID/feed?") -> chaptersBody
-            request.url == "https://api.mangadex.org/at-home/server/$FIXTURE_CHAPTER_ID" -> atHomeBody
+            request.url == "https://api.mangadex.org/at-home/server/$FIXTURE_CHAPTER_ID" ->
+                atHomeBodies.getOrElse(atHomeRequestCount++) { atHomeBodies.last() }
             else -> return PluginCallResult.Failure("plugin.fixture_url_unexpected", false)
         }
         return PluginCallResult.Success(
@@ -205,3 +257,9 @@ private object NoOpDiagnostics : PluginDiagnosticsSink {
 
 private const val HTTP_OK = 200
 private const val FIXTURE_CHAPTER_ID = "11111111-2222-4333-8444-555555555555"
+private const val FIXTURE_CHAPTER_HASH = "3303dd03ac8d27452cce3f2a882e94b2"
+private const val CHANGED_CHAPTER_HASH = "4404ee14bd9e38563ddf4f3b993fa5c3"
+private const val FIXTURE_FIRST_FILENAME =
+    "1-f7a76de10d346de7ba01786762ebbedc666b412ad0d4b73baa330a2a392dbcdd.png"
+private const val CHANGED_FIRST_FILENAME =
+    "1-a8b87ef21e457ef8cb12897873fcce777c523be1e5c84cbb441b3b4a403cedee.png"

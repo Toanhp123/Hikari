@@ -378,7 +378,9 @@ class ReaderRouteExecutorAdaptiveTest {
                 "image" to ReaderSourceResult.Success(
                     ReaderDocument(
                         title = null,
-                        blocks = listOf(ReaderBlock.ImagePage("image", "https://node.example/image.png")),
+                        blocks = listOf(
+                            ReaderBlock.ImagePage("image", "hash/image.png", "https://node.example/image.png"),
+                        ),
                         fingerprint = "image-fp",
                     ),
                 ),

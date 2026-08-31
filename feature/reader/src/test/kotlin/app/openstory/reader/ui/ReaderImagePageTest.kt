@@ -53,7 +53,11 @@ class ReaderImagePageTest {
             compose.setContent {
                 HikariTheme {
                     ReaderImagePage(
-                        block = ReaderBlock.ImagePage("page-1", "https://example.test/page-1.jpg"),
+                        block = ReaderBlock.ImagePage(
+                            "page-1",
+                            "hash/page-1.jpg",
+                            "https://example.test/page-1.jpg",
+                        ),
                         documentFingerprint = "document-1",
                         onReloadDocument = {},
                         onImageMeasured = { measuredHeight = it },

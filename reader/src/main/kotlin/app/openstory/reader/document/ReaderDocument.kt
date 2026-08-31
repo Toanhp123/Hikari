@@ -13,7 +13,11 @@ sealed interface ReaderBlock {
     data class Heading(override val id: String, val level: Int, val text: String) : ReaderBlock
     data class Divider(override val id: String) : ReaderBlock
     data class Note(override val id: String, val text: String) : ReaderBlock
-    data class ImagePage(override val id: String, val imageUrl: String) : ReaderBlock
+    data class ImagePage(
+        override val id: String,
+        val stableAssetId: String,
+        val imageUrl: String,
+    ) : ReaderBlock
 }
 
 val ReaderDocument.isLocalPersistable: Boolean
