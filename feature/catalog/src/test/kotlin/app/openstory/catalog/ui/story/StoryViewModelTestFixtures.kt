@@ -68,8 +68,8 @@ import app.openstory.reader.progress.ReadingProgressRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -114,8 +114,11 @@ internal class FakeCanonicalRepository(
     initial: CanonicalStoryState,
     aliases: Set<StoryId> = emptySet(),
     var observeFails: Boolean = false,
+    observedInitial: CanonicalStoryState? = initial,
 ) : CanonicalCatalogRepository {
     private val state = MutableStateFlow<CanonicalStoryState?>(initial)
+    private val observationEvents = MutableSharedFlow<CanonicalObservationEvent>(replay = 1, extraBufferCapacity = 1)
+        .apply { tryEmit(CanonicalObservationEvent.Value(observedInitial)) }
     private val acceptedIds = aliases + initial.story.id
     val requestId: StoryId = initial.story.id
     val observedIds = mutableListOf<StoryId>()
@@ -125,15 +128,33 @@ internal class FakeCanonicalRepository(
 
     fun current(): CanonicalStoryState = requireNotNull(state.value)
 
-    fun emit(value: CanonicalStoryState?) {
+    fun setCurrent(value: CanonicalStoryState?) {
         state.value = value
+    }
+
+    fun emit(value: CanonicalStoryState?) {
+        setCurrent(value)
+        check(observationEvents.tryEmit(CanonicalObservationEvent.Value(value)))
+    }
+
+    fun failObservation() {
+        check(observationEvents.tryEmit(CanonicalObservationEvent.Failure))
     }
 
     override fun observeStory(storyId: StoryId): Flow<CanonicalStoryState?> = flow {
         observedIds += storyId
         observeAttempts += 1
         if (observeFails) error("test canonical observation failure")
-        if (storyId in acceptedIds) emitAll(state) else emit(null)
+        if (storyId !in acceptedIds) {
+            emit(null)
+            return@flow
+        }
+        observationEvents.collect { event ->
+            when (event) {
+                CanonicalObservationEvent.Failure -> error("test canonical observation failure")
+                is CanonicalObservationEvent.Value -> emit(event.value)
+            }
+        }
     }
 
     override fun observeReadyStories(): Flow<List<CanonicalStoryState.Ready>> = flowOf(emptyList())
@@ -166,6 +187,11 @@ internal class FakeCanonicalRepository(
 
     override suspend fun markHealth(storyId: StoryId, health: CanonicalHealth) = Unit
     override suspend fun cleanupObsoleteGenerations(storyId: StoryId) = Unit
+}
+
+private sealed interface CanonicalObservationEvent {
+    data class Value(val value: CanonicalStoryState?) : CanonicalObservationEvent
+    data object Failure : CanonicalObservationEvent
 }
 
 internal class RecordingRebuilder(

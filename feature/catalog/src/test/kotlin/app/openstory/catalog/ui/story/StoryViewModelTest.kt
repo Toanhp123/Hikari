@@ -175,6 +175,29 @@ class StoryViewModelTest {
     }
 
     @Test
+    fun observationFailureAfterPreparingSnapshotKeepsBootstrapReadyUsable() = runTest(dispatcher.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        val canonical = FakeCanonicalRepository(
+            initial = preparingState(),
+            observedInitial = preparingState(),
+        )
+        val viewModel = viewModel(canonical, RecordingRebuilder(canonical, gate = gate))
+        runCurrent()
+        assertTrue(viewModel.state.value.content is ContentState.Pending)
+
+        canonical.setCurrent(readyState())
+        gate.complete(Unit)
+        runCurrent()
+        assertTrue(viewModel.state.value.content is ContentState.Ready)
+
+        canonical.failObservation()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.content is ContentState.Ready)
+        assertEquals("catalog.story.observe_exception", viewModel.state.value.observationIssue?.code)
+    }
+
+    @Test
     fun bootstrapReadyNeverTransitionsThroughFalseStillPreparingFailure() = runTest(dispatcher.scheduler) {
         val gate = CompletableDeferred<Unit>()
         val canonical = FakeCanonicalRepository(preparingState(), observeFails = true)

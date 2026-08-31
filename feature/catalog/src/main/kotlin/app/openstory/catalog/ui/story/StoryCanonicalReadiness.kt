@@ -246,9 +246,11 @@ private fun reduceCanonicalReducerState(
 
 private fun ObservationState<StoryId, CanonicalStoryState?>.invalidates(
     bootstrapReady: StoryBootstrapReady,
-): Boolean = this is ObservationState.Available &&
-    value != null &&
-    this != bootstrapReady.observationAtCompletion
+): Boolean {
+    val valueAtCompletion =
+        (bootstrapReady.observationAtCompletion as? ObservationState.Available)?.value
+    return this is ObservationState.Available && value != null && value != valueAtCompletion
+}
 
 private fun reduceCanonicalReadiness(
     routeStoryId: StoryId,
