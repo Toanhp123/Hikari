@@ -62,6 +62,38 @@ class LibraryActivityProjectorTest {
         assertEquals(null, item.readerTarget)
     }
 
+
+    @Test
+    fun nullCatalogUsesStoryIdFallback() {
+        val storyId = StoryId("story")
+
+        val item = projector.project(
+            library = listOf(entry(storyId)),
+            catalog = null,
+            chapters = listOf(group(storyId, "12", "mapped", 20L)),
+            mappings = listOf(mapping(storyId, "mapped")),
+            readerPluginIds = setOf(PluginId("content.fixture")),
+        ).single()
+
+        assertEquals("story", item.title)
+    }
+
+    @Test
+    fun nullReaderCapabilityKeepsActivityButOmitsReaderTarget() {
+        val storyId = StoryId("story")
+
+        val item = projector.project(
+            library = listOf(entry(storyId)),
+            catalog = listOf(projection(storyId, "Library Story")),
+            chapters = listOf(group(storyId, "12", "mapped", 20L)),
+            mappings = listOf(mapping(storyId, "mapped")),
+            readerPluginIds = null,
+        ).single()
+
+        assertEquals("Library Story", item.title)
+        assertEquals(null, item.readerTarget)
+    }
+
     @Test
     fun `suppresses duplicate release identities and exposes valid navigation targets`() {
         val storyId = StoryId("story")

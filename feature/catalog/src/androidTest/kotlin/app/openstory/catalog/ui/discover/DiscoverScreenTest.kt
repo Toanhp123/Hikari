@@ -11,6 +11,7 @@ import app.openstory.catalog.model.CatalogLatestUpdate
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
@@ -27,6 +28,8 @@ class DiscoverScreenTest {
                 DiscoverScreen(
                     state = state(),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -56,6 +59,8 @@ class DiscoverScreenTest {
                         top = (1..6).map(::story),
                     ),
                     onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
@@ -77,10 +82,15 @@ private fun state(
     latest: List<DiscoverStoryItem> = (1..9).map(::story),
     top: List<DiscoverStoryItem> = (1..5).map(::story),
 ) = DiscoverUiState(
-    popular = (1..5).map(::story),
-    latestUpdates = latest,
-    topRated = top,
-    loading = false,
+    content = ContentState.Ready(
+        DiscoverContent(
+            selectedContentType = ContentType.MANGA,
+            mediaTypeOptions = defaultDiscoverMediaTypeOptions,
+            popular = (1..5).map(::story),
+            latestUpdates = latest,
+            topRated = top,
+        ),
+    ),
 )
 
 private fun story(index: Int) = DiscoverStoryItem(

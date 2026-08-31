@@ -67,31 +67,38 @@ grep -q 'captureBackdrop: Boolean = true' "$backdrop_host" || fail "backdrop hos
 grep -q 'withFrameNanos' "$story_destination" || fail "Story section prewarm is not deferred past the first frame"
 grep -q 'prewarmSections' "$story_destination" || fail "Story section prewarm state is missing"
 grep -q 'prewarmSections' "$story_deps" || fail "Story dependencies do not honor the prewarm state"
-grep -q 'loading = false' "$chapter_vm" || fail "chapter repository emission does not clear loading"
-grep -q 'state.loading' "$chapter_ui" || fail "chapter UI does not distinguish loading from real empty state"
+grep -q 'ContentState.Pending' "$chapter_vm" || fail "chapter ViewModel no longer models unresolved content explicitly"
+grep -q 'ContentState.Ready' "$chapter_vm" || fail "chapter repository emission does not produce authoritative Ready content"
+grep -q 'when (val content = state.content)' "$chapter_ui" || fail "chapter UI does not distinguish Pending/Failed/Ready from real empty state"
 grep -q 'loading = false' "$mapping_vm" || fail "mapping repository emission does not clear loading"
 grep -q 'state.loading' "$mapping_ui" || fail "mapping UI does not distinguish loading from real empty state"
 
-# Discover preparation and semantic projection must be one main-safe pipeline, not multiple homes-derived flows recombined later.
+# Discover preparation and semantic projection must remain one main-safe CSC pipeline.
 [[ -f "$discover_pipeline" ]] || fail "DiscoverProjectionPipeline owner is missing"
 grep -q 'AppDispatchers' "$discover_pipeline" || fail "Discover projection does not use the injected dispatcher boundary"
 grep -q 'dispatchers.default' "$discover_pipeline" || fail "Discover CPU projection is not routed to the Default dispatcher"
-grep -q 'projectSemanticDiscoverContent' "$discover_pipeline" ||
+grep -q 'DiscoverSemanticContent(' "$discover_pipeline" ||
   fail "Discover semantic content is not computed inside the same pipeline"
-grep -q 'homes = homes' "$discover_pipeline" ||
+grep -q 'discoverFeedSlots(homes, selectedContentType)' "$discover_pipeline" ||
   fail "Discover semantic projection is not derived from the shared homes emission"
-grep -q 'projections = projections' "$discover_pipeline" ||
+grep -q 'val liveByStory = projections' "$discover_pipeline" ||
   fail "Discover presentation is not derived from canonical projections"
 ! grep -Eq 'loading|refreshing|refreshReport' "$discover_pipeline" ||
   fail "Discover projection pipeline still recomputes semantic content for transient UI flags"
-grep -q 'flatMapLatest(projections::observeForStories)' "$discover_vm" ||
+grep -q 'private val settlementKey = combine(' "$discover_vm" ||
+  fail "Discover ranked canonical readiness is not keyed to current feed identity"
+grep -q 'private val settlementObservation = viewModelScope.retainedObservation' "$discover_vm" ||
+  fail "Discover terminal settlement is not retained by feed identity"
+grep -q 'projections.observeForStories(key.storyIds.toSet())' "$discover_vm" ||
   fail "Discover canonical presentation is not scoped to the visible Story set"
-grep -q 'combine(homes, visibleProjections, selectedContentType)' "$discover_vm" ||
-  fail "Discover semantic projection must combine Home feed semantics with scoped canonical presentation"
+grep -q 'forExpectedKey(key)' "$discover_vm" ||
+  fail "Discover does not discard stale settlement/projection state from prior feed identities"
 ! grep -q 'projections.observe()' "$discover_vm" ||
   fail "Discover regressed to the unbounded canonical projection stream"
-grep -q 'content.toUiState' "$discover_vm" ||
-  fail "Discover transient UI flags are not assembled after semantic projection"
+grep -q 'projectionPipeline.project(' "$discover_vm" ||
+  fail "Discover semantic projection is not assembled from one canonical settlement result"
+grep -q 'ContentState.Ready(projected.content.toContent())' "$discover_vm" ||
+  fail "Discover transient CSC state is not assembled after semantic projection"
 ! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
   fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
 ! grep -Eq 'CatalogFusionEngine|CanonicalFusionService|CatalogDetailsLoader|CatalogMetadataCoordinator' "$discover_vm" "$discover_pipeline" ||

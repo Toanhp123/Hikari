@@ -28,7 +28,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import app.openstory.catalog.ui.components.catalogDisplayName
 import app.openstory.catalog.ui.feedback.catalogFailureMessage
+import app.openstory.catalog.search.CatalogSearchResult
 import app.openstory.catalog.search.CatalogSearchStory
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.content.HikariSectionTitle
 import app.openstory.designsystem.control.HikariSuggestionChip
@@ -50,6 +52,8 @@ fun SearchScreen(
     onFilterValuesChange: (PluginId, String, List<String>) -> Unit,
     onClearFilters: (PluginId) -> Unit,
     onStorySelected: (CatalogSearchStory) -> Unit,
+    onRetrySearch: () -> Unit = {},
+    onRetryFilters: () -> Unit = {},
     modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues.Zero,
@@ -91,7 +95,7 @@ fun SearchScreen(
                 if (state.filterGroups.any { it.definitions.isNotEmpty() }) {
                     searchFilterItems(state.filterGroups, state.filterValues, onFilterValuesChange, onClearFilters)
                 }
-                searchResultItems(state, onStorySelected)
+                searchResultItems(state, onStorySelected, onRetrySearch, onRetryFilters)
             }
         }
     }
@@ -155,17 +159,52 @@ private fun RecentSearches(queries: List<String>, onSelected: (String) -> Unit) 
 private fun LazyListScope.searchResultItems(
     state: SearchUiState,
     onStorySelected: (CatalogSearchStory) -> Unit,
+    onRetrySearch: () -> Unit,
+    onRetryFilters: () -> Unit,
 ) {
-    if (state.searching) item(key = "search-progress") { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-    state.globalFailure?.let { failure ->
-        item(key = "search-global-failure") {
+    state.filterIssue?.let { failure ->
+        item(key = "search-filter-failure") {
             HikariInlineFeedback(
-                message = "Search unavailable",
-                supportingText = catalogFailureMessage(failure.code, "Try again in a moment."),
+                message = "Filters unavailable",
+                supportingText = catalogFailureMessage(failure.code, "Search still works without filters."),
+                actionLabel = "Retry".takeIf { failure.retryable },
+                onAction = onRetryFilters.takeIf { failure.retryable },
             )
         }
     }
-    state.failures.forEach { failure ->
+    state.selectionIssue?.let { failure ->
+        item(key = "search-selection-failure") {
+            HikariInlineFeedback(
+                message = "Couldn't open story",
+                supportingText = catalogFailureMessage(failure.code, "Try selecting the story again."),
+            )
+        }
+    }
+
+    when (val resultState = state.resultState) {
+        SearchResultState.Idle -> Unit
+        is SearchResultState.Active -> when (val content = resultState.content) {
+            ContentState.Pending -> item(key = "search-progress") {
+                LinearProgressIndicator(Modifier.fillMaxWidth().testTag("search-progress"))
+            }
+            is ContentState.Failed -> item(key = "search-global-failure") {
+                HikariInlineFeedback(
+                    message = "Search unavailable",
+                    supportingText = catalogFailureMessage(content.failure.code, "Try again in a moment."),
+                    actionLabel = "Retry".takeIf { content.failure.retryable },
+                    onAction = onRetrySearch.takeIf { content.failure.retryable },
+                )
+            }
+            is ContentState.Ready -> readySearchResultItems(content.value, onStorySelected)
+        }
+    }
+}
+
+private fun LazyListScope.readySearchResultItems(
+    result: CatalogSearchResult,
+    onStorySelected: (CatalogSearchStory) -> Unit,
+) {
+    result.failures.forEach { failure ->
         item(key = "search-failure-${failure.pluginId.value}") {
             HikariInlineFeedback(
                 message = "${failure.pluginId.catalogDisplayName()} unavailable",
@@ -173,7 +212,7 @@ private fun LazyListScope.searchResultItems(
             )
         }
     }
-    if (state.shouldShowEmptyState) {
+    if (result.stories.isEmpty() && result.failures.isEmpty()) {
         item(key = "search-empty") {
             HikariEmptyState(
                 title = "No matches found",
@@ -181,20 +220,10 @@ private fun LazyListScope.searchResultItems(
             )
         }
     }
-    items(state.stories, key = { it.story.id.value }) { result ->
-        SearchResultCard(result, { onStorySelected(result) })
+    items(result.stories, key = { it.story.id.value }) { story ->
+        SearchResultCard(story, { onStorySelected(story) })
     }
 }
-
-private val SearchUiState.shouldShowEmptyState: Boolean
-    get() = when {
-        query.isBlank() -> false
-        searching -> false
-        stories.isNotEmpty() -> false
-        failures.isNotEmpty() -> false
-        globalFailure != null -> false
-        else -> true
-    }
 
 private const val MAX_VISIBLE_RECENT = 4
 private const val SCROLL_TO_TOP_ITEM_THRESHOLD = 3

@@ -15,10 +15,17 @@ Performance Wave P2 targets growth-dependent work in catalog matching, Room cata
 
 ### Room catalog
 
-- Home observation watches only catalog entries referenced by `catalog_home_items`, not all catalog entries.
-- Home sections/items are grouped and catalog entries converted once per combined emission.
-- Home refresh bulk-loads existing source rows with one `IN` query instead of one `findEntry` query per item.
+- Home observation watches `catalog_home_snapshots`, `catalog_home_sections`, `catalog_home_items`, and `catalog_entries` through one Room invalidation Flow.
+- Each public Home emission is rebuilt inside one Room transaction, so headers, sections, items, and entry metadata come from one coherent database snapshot rather than independently observed generations.
+- Catalog entries remain Home-scoped through the `catalog_home_items` JOIN; Home observation never materializes all `catalog_entries`.
+- Home sections/items are grouped and catalog entries converted once per accepted coherent emission; duplicate identical rebuilds are suppressed with `distinctUntilChanged()`.
+- Home refresh bulk-loads existing source rows with one bounded `IN` query path instead of one `findEntry` query per item.
 - `matchSnapshot()` reads stories/entries transactionally and collapses rows by canonical Story without changing the Room schema.
+
+Transactional coherence is not the same as refresh-attempt completion: catalog providers commit
+sequentially. Discover therefore keeps initial content Pending until Home contains the plugin ID and
+commit timestamp (or a newer superseding commit) of every successful provider result from the
+bootstrap attempt.
 
 ### Chapter pagination
 
@@ -52,6 +59,8 @@ Then run the repository verification entry point:
 ```bash
 ./scripts/verify.sh
 ```
+
+The P2 policy additionally guards the coherent-observation boundary: `RoomCatalogRepository.observeHomes()` must use Room invalidation tracking plus transactional rebuild, must not return to a four-Flow `combine`, and must keep entry reads Home-scoped.
 
 Expected static checkpoint lines include:
 

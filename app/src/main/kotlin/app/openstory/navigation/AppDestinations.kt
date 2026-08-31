@@ -12,6 +12,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.focus.FocusRequester
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.dashboard.HomeDashboardScreen
 import app.openstory.catalog.ui.dashboard.HomeDashboardViewModel
@@ -29,6 +30,7 @@ import app.openstory.catalog.ui.search.SearchViewModel
 import app.openstory.catalog.ui.story.StoryAssistedArgs
 import app.openstory.catalog.ui.story.StoryScreen
 import app.openstory.catalog.ui.story.StoryViewModel
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.catalog.ui.updates.UpdatesScreen
 import app.openstory.catalog.ui.updates.UpdatesViewModel
 import app.openstory.common.id.StoryId
@@ -67,6 +69,8 @@ internal fun DownloadsDestination(
     DownloadsScreen(
         state = state,
         onStorySelected = onStorySelected,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         onRetry = viewModel::retry,
         onCancel = viewModel::cancel,
         onRemove = viewModel::requestRemoval,
@@ -84,7 +88,14 @@ internal fun UpdatesDestination(
 ) {
     val viewModel = hiltViewModel<UpdatesViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    UpdatesScreen(state, onStorySelected, onRead, contentPadding = contentPadding)
+    UpdatesScreen(
+        state = state,
+        onStorySelected = onStorySelected,
+        onRead = onRead,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
+        contentPadding = contentPadding,
+    )
 }
 
 @Composable
@@ -103,6 +114,8 @@ internal fun HomeDestination(
         onDiscover = onDiscover,
         onStorySelected = onStorySelected,
         onResume = onResume,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         firstContentFocusRequester = firstContentFocusRequester,
         onUtilityRequested = shellScope.onUtilityRequested,
         utilityFocusRequester = shellScope.utilityFocusRequester,
@@ -126,6 +139,8 @@ internal fun DiscoverDestination(
     DiscoverScreen(
         state = state,
         onRefresh = viewModel::refresh,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         onSearch = onSearch,
         onStorySelected = onStorySelected,
         onContentTypeSelected = viewModel::selectContentType,
@@ -154,6 +169,8 @@ internal fun SearchDestination(
         onFilterValuesChange = viewModel::setFilterValues,
         onClearFilters = viewModel::clearFilters,
         onStorySelected = { story -> viewModel.selectStory(story, onStorySelected) },
+        onRetrySearch = viewModel::retrySearch,
+        onRetryFilters = viewModel::retryFilters,
         onBack = onBack,
         contentPadding = contentPadding,
     )
@@ -180,6 +197,9 @@ internal fun LibraryDestination(
         onResetFilters = viewModel::resetFilterSelections,
         onDiscover = onDiscover,
         onStorySelected = onStorySelected,
+        onRetryContent = viewModel::retryContent,
+        onRetryCollection = viewModel::retryCollection,
+        onRetryObservation = viewModel::retryObservation,
         firstFilterFocusRequester = firstFilterFocusRequester,
         onUtilityRequested = shellScope.onUtilityRequested,
         utilityFocusRequester = shellScope.utilityFocusRequester,
@@ -196,7 +216,9 @@ internal fun ReconciliationReviewDestination(
 ) {
     val viewModel = hiltViewModel<ReconciliationReviewViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(route.caseId, state.items) {
+    val reviewItems = (state.content as? ContentState.Ready)?.value
+    LaunchedEffect(route.caseId, reviewItems) {
+        if (reviewItems == null) return@LaunchedEffect
         route.caseId?.let(viewModel::resumeMerge)
     }
     ReconciliationReviewScreen(
@@ -209,6 +231,8 @@ internal fun ReconciliationReviewDestination(
         onProtectedMappingSelected = viewModel::selectProtectedMapping,
         onConfirmProtectedMerge = viewModel::confirmProtectedMerge,
         onDismissProtectedConflict = viewModel::dismissProtectedConflict,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         contentPadding = contentPadding,
     )
 }
@@ -227,24 +251,32 @@ internal fun StoryDestination(
     val downloadViewModel = hiltViewModel<DownloadViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     var prewarmSections by remember(storyId) { mutableStateOf(false) }
-    LaunchedEffect(storyId, state.story != null) {
-        if (state.story == null || prewarmSections) return@LaunchedEffect
+    val storyReady = state.content is ContentState.Ready
+    LaunchedEffect(storyId, storyReady) {
+        if (!storyReady || prewarmSections) return@LaunchedEffect
         withFrameNanos { }
         prewarmSections = true
     }
     val navigateToReader: (ReaderTarget) -> Unit = { target -> navigate(target.readerRoute()) }
-    val dependencies = storySectionDependencies(
-        storyId = storyId,
-        section = state.selectedSection,
-        prewarmSections = prewarmSections,
-        downloadViewModel = downloadViewModel,
-        navigateToReader = navigateToReader,
-        snackbarHostState = snackbarHostState,
-    )
+    val dependencies = if (storyReady) {
+        storySectionDependencies(
+            storyId = state.storyId,
+            section = state.selectedSection,
+            prewarmSections = prewarmSections,
+            downloadViewModel = downloadViewModel,
+            navigateToReader = navigateToReader,
+            snackbarHostState = snackbarHostState,
+        )
+    } else {
+        StorySectionDependencies()
+    }
     StoryScreen(
         state = state,
         onRefresh = viewModel::refresh,
+        onRetryContent = viewModel::retryContent,
+        onRetryObservation = viewModel::retryObservation,
         onSourceSelected = viewModel::selectSource,
+        onSourceRefresh = { pluginId, sourceId -> viewModel.refresh(SourceKey(pluginId, sourceId)) },
         onPinPrimary = viewModel::pinPrimary,
         onUseAutomaticPrimary = viewModel::useAutomaticPrimary,
         onSectionSelected = viewModel::selectSection,

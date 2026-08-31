@@ -26,11 +26,12 @@ import app.openstory.library.LibraryStatus
 internal fun MediumStoryLayout(
     state: StoryUiState,
     story: StoryUiModel,
-    readerTarget: ReaderTarget?,
-    isResume: Boolean,
+    primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onRefresh: () -> Unit,
+    onRetryObservation: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onSourceRefresh: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
     onSectionSelected: (StorySection) -> Unit,
@@ -46,7 +47,7 @@ internal fun MediumStoryLayout(
     Row(Modifier.fillMaxSize()) {
         Column(storyPane(MaterialTheme.hikariLayoutRatios.detailSummaryPaneWeight, "story-summary-pane", 0f)) {
             StoryHero(
-                story, state.libraryStatus, readerTarget, isResume, downloadableReleaseId,
+                story, state.libraryStatus, state.libraryStatusResolved, primaryReadAction, downloadableReleaseId,
                 onLibraryStatusSelected, onRead, onFindSource, onDownload, narrow = true,
             )
             if (state.selectedSection != StorySection.OVERVIEW) {
@@ -55,7 +56,8 @@ internal fun MediumStoryLayout(
         }
         Column(storyPane(MaterialTheme.hikariLayoutRatios.detailContentPaneWeight, "story-content-pane", 1f)) {
             StoryBody(
-                state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+                state, story, onRefresh, onRetryObservation, onSourceSelected, onSourceRefresh,
+                onPinPrimary, onUseAutomaticPrimary,
                 onSectionSelected, mappingState, mappingActions, chapterState, chapterActions,
             )
         }
@@ -66,11 +68,12 @@ internal fun MediumStoryLayout(
 internal fun CompactStoryLayout(
     state: StoryUiState,
     story: StoryUiModel,
-    readerTarget: ReaderTarget?,
-    isResume: Boolean,
+    primaryReadAction: StoryPrimaryReadAction,
     downloadableReleaseId: ChapterReleaseId?,
     onRefresh: () -> Unit,
+    onRetryObservation: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onSourceRefresh: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
     onSectionSelected: (StorySection) -> Unit,
@@ -86,11 +89,12 @@ internal fun CompactStoryLayout(
 ) {
     Column(Modifier.fillMaxSize()) {
         StoryHero(
-            story, state.libraryStatus, readerTarget, isResume, downloadableReleaseId,
+            story, state.libraryStatus, state.libraryStatusResolved, primaryReadAction, downloadableReleaseId,
             onLibraryStatusSelected, onRead, onFindSource, onDownload, narrow = narrowHero,
         )
         StoryBody(
-            state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+            state, story, onRefresh, onRetryObservation, onSourceSelected, onSourceRefresh,
+            onPinPrimary, onUseAutomaticPrimary,
             onSectionSelected, mappingState, mappingActions, chapterState, chapterActions,
         )
     }
@@ -99,8 +103,11 @@ internal fun CompactStoryLayout(
 @Composable
 private fun ColumnScope.StoryBody(
     state: StoryUiState,
+    story: StoryUiModel,
     onRefresh: () -> Unit,
+    onRetryObservation: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onSourceRefresh: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
     onSectionSelected: (StorySection) -> Unit,
@@ -110,11 +117,13 @@ private fun ColumnScope.StoryBody(
     chapterActions: ChapterListActions,
 ) {
     StorySectionTabs(state.selectedSection, onSectionSelected)
-    state.failure
-        ?.takeIf { state.selectedSection.showsSourceDetailFailure() }
-        ?.let { StoryFailureBanner(it, state.refreshing, onRefresh) }
+    state.observationIssue?.let { StoryObservationIssueBanner(it, onRetryObservation) }
+    if (state.selectedSection.showsSourceDetailFailure()) {
+        state.refresh.failure?.let { StoryRefreshFailureBanner(it, state.refresh.inProgress, onRefresh) }
+    }
+    state.commandFailure?.let { StoryCommandFailureBanner(it) }
     StorySectionContent(
-        state, onRefresh, onSourceSelected, onPinPrimary, onUseAutomaticPrimary,
+        state, story, onRefresh, onSourceSelected, onSourceRefresh, onPinPrimary, onUseAutomaticPrimary,
         mappingState, mappingActions, chapterState, chapterActions, Modifier.weight(1f),
     )
 }

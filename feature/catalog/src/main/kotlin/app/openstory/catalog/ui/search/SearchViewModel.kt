@@ -7,60 +7,74 @@ import app.openstory.catalog.search.CatalogSearchResult
 import app.openstory.catalog.search.CatalogSearchSelectionResult
 import app.openstory.catalog.search.CatalogSearchService
 import app.openstory.catalog.search.CatalogSearchStory
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
-class SearchViewModel @Inject constructor(
+class SearchViewModel private constructor(
     private val searchService: CatalogSearchService,
+    private val storySelector: SearchStorySelector,
 ) : ViewModel() {
-    private val query = MutableStateFlow("")
-    private val filterValues = MutableStateFlow<Map<PluginId, Map<String, List<String>>>>(emptyMap())
+    @Inject
+    constructor(searchService: CatalogSearchService) : this(
+        searchService = searchService,
+        storySelector = SearchStorySelector(searchService::select),
+    )
+
     private val mutableState = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = mutableState.asStateFlow()
 
+    private var attemptSequence = 0L
+    private var selectionAttemptSequence = 0L
+    private var filterLoadJob: Job? = null
+    private val searchAttempt = MutableStateFlow(
+        SearchAttempt(
+            request = CatalogSearchRequest(query = ""),
+            sequence = attemptSequence,
+        ),
+    )
+
     init {
+        loadFilters()
         viewModelScope.launch {
-            mutableState.value = try {
-                mutableState.value.copy(
-                    filterGroups = searchService.filters(),
-                    filterFailure = null,
-                )
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                mutableState.value.copy(
-                    filterFailure = SearchUiFailure(FILTERS_EXCEPTION_CODE, retryable = true),
-                )
-            }
-        }
-        viewModelScope.launch {
-            combine(query, filterValues) { queryValue, filters ->
-                CatalogSearchRequest(queryValue.trim(), filters)
-            }
-                .mapLatest { request ->
-                    delay(SEARCH_DEBOUNCE_MILLIS)
-                    execute(request)
+            searchAttempt
+                .mapLatest { attempt ->
+                    if (!attempt.request.isSearchable()) {
+                        null
+                    } else {
+                        delay(SEARCH_DEBOUNCE_MILLIS)
+                        execute(attempt)
+                    }
                 }
-                .collect(::publish)
+                .collect { execution ->
+                    execution?.let(::publish)
+                }
         }
     }
 
     fun updateQuery(value: String) {
-        query.value = value
-        mutableState.value = mutableState.value.copy(query = value)
+        val current = mutableState.value
+        val nextRequest = request(value, current.filterValues)
+        if (searchAttempt.value.request == nextRequest) {
+            mutableState.update { it.copy(query = value) }
+        } else {
+            startAttempt(nextRequest) { it.copy(query = value) }
+        }
     }
 
     fun selectRecent(value: String) {
@@ -68,87 +82,180 @@ class SearchViewModel @Inject constructor(
     }
 
     fun setFilterValues(pluginId: PluginId, filterId: String, values: List<String>) {
-        val current = filterValues.value
+        val current = mutableState.value.filterValues
         val sourceValues = current[pluginId].orEmpty()
         val nextSourceValues = if (values.isEmpty()) {
             sourceValues - filterId
         } else {
-            sourceValues + (filterId to values)
+            sourceValues + (filterId to values.toList())
         }
-        filterValues.value = if (nextSourceValues.isEmpty()) {
+        val nextFilters = if (nextSourceValues.isEmpty()) {
             current - pluginId
         } else {
             current + (pluginId to nextSourceValues)
         }
-        mutableState.value = mutableState.value.copy(filterValues = filterValues.value)
+        val nextRequest = request(mutableState.value.query, nextFilters)
+        if (searchAttempt.value.request == nextRequest) {
+            mutableState.update { it.copy(filterValues = nextFilters) }
+        } else {
+            startAttempt(nextRequest) { it.copy(filterValues = nextFilters) }
+        }
     }
 
     fun clearFilters(pluginId: PluginId) {
-        filterValues.value = filterValues.value - pluginId
-        mutableState.value = mutableState.value.copy(filterValues = filterValues.value)
+        val nextFilters = mutableState.value.filterValues - pluginId
+        val nextRequest = request(mutableState.value.query, nextFilters)
+        if (searchAttempt.value.request == nextRequest) {
+            mutableState.update { it.copy(filterValues = nextFilters) }
+        } else {
+            startAttempt(nextRequest) { it.copy(filterValues = nextFilters) }
+        }
+    }
+
+    fun retrySearch() {
+        val request = searchAttempt.value.request
+        if (!request.isSearchable()) return
+        startAttempt(request)
+    }
+
+    fun retryFilters() {
+        loadFilters()
     }
 
     fun selectStory(story: CatalogSearchStory, onSelected: (StoryId) -> Unit) {
+        val attempt = ++selectionAttemptSequence
+        mutableState.update { it.copy(selectionIssue = null) }
         viewModelScope.launch {
-            when (val result = searchService.select(story)) {
-                is CatalogSearchSelectionResult.Success -> onSelected(result.storyId)
+            when (val result = storySelector.select(story)) {
+                is CatalogSearchSelectionResult.Success -> {
+                    if (selectionAttemptSequence != attempt) return@launch
+                    onSelected(result.storyId)
+                }
                 is CatalogSearchSelectionResult.Failure -> {
-                    mutableState.value = mutableState.value.copy(
-                        operationFailure = SearchUiFailure(result.code, result.retryable),
+                    if (selectionAttemptSequence != attempt) return@launch
+                    mutableState.update {
+                        it.copy(selectionIssue = CatalogUiFailure(result.code, result.retryable))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadFilters() {
+        filterLoadJob?.cancel()
+        filterLoadJob = viewModelScope.launch {
+            try {
+                val filters = searchService.filters()
+                mutableState.update {
+                    it.copy(
+                        filterGroups = filters,
+                        filterIssue = null,
+                    )
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                mutableState.update {
+                    it.copy(
+                        filterIssue = CatalogUiFailure(FILTERS_EXCEPTION_CODE, retryable = true),
                     )
                 }
             }
         }
     }
 
-    private suspend fun execute(request: CatalogSearchRequest): SearchExecution {
-        if (request.query.length < MINIMUM_QUERY_LENGTH) {
-            return SearchExecution(request.query, CatalogSearchResult(emptyList(), emptyList()), null)
-        }
-        mutableState.value = mutableState.value.copy(searching = true)
-        return try {
-            SearchExecution(request.query, searchService.search(request), null)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (_: Exception) {
-            SearchExecution(
-                request.query,
-                CatalogSearchResult(emptyList(), emptyList()),
-                SearchUiFailure(SEARCH_EXCEPTION_CODE, retryable = true),
+    private fun startAttempt(
+        request: CatalogSearchRequest,
+        updateState: (SearchUiState) -> SearchUiState = { it },
+    ) {
+        selectionAttemptSequence += 1L
+        val next = SearchAttempt(
+            request = request,
+            sequence = ++attemptSequence,
+        )
+        searchAttempt.value = next
+        mutableState.update { current ->
+            updateState(current).copy(
+                resultState = if (request.isSearchable()) {
+                    SearchResultState.Active(ContentState.Pending)
+                } else {
+                    SearchResultState.Idle
+                },
+                selectionIssue = null,
             )
         }
     }
 
-    private fun publish(execution: SearchExecution) {
-        val recent = if (execution.query.length >= MINIMUM_QUERY_LENGTH) {
-            buildList {
-                add(execution.query)
-                addAll(mutableState.value.recentQueries.filterNot { it == execution.query })
-            }.take(MAX_RECENT_QUERIES)
-        } else {
-            mutableState.value.recentQueries
-        }
-        mutableState.value = mutableState.value.copy(
-            query = query.value,
-            stories = execution.result.stories,
-            failures = execution.result.failures,
-            operationFailure = execution.operationFailure,
-            searching = false,
-            recentQueries = recent,
+    private suspend fun execute(attempt: SearchAttempt): SearchExecution = try {
+        SearchExecution(
+            attempt = attempt,
+            content = ContentState.Ready(searchService.search(attempt.request)),
+        )
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        SearchExecution(
+            attempt = attempt,
+            content = ContentState.Failed(
+                CatalogUiFailure(SEARCH_EXCEPTION_CODE, retryable = true),
+            ),
         )
     }
 
-    private data class SearchExecution(
-        val query: String,
-        val result: CatalogSearchResult,
-        val operationFailure: SearchUiFailure?,
+    private fun publish(execution: SearchExecution) {
+        if (searchAttempt.value != execution.attempt) return
+
+        val recent = buildList {
+            add(execution.attempt.request.query)
+            addAll(
+                mutableState.value.recentQueries.filterNot {
+                    it == execution.attempt.request.query
+                },
+            )
+        }.take(MAX_RECENT_QUERIES)
+
+        mutableState.update {
+            it.copy(
+                resultState = SearchResultState.Active(execution.content),
+                recentQueries = recent,
+            )
+        }
+    }
+
+    private fun request(
+        rawQuery: String,
+        filters: Map<PluginId, Map<String, List<String>>>,
+    ): CatalogSearchRequest = CatalogSearchRequest(
+        query = rawQuery.trim(),
+        filterValues = filters,
     )
 
-    private companion object {
-        const val MINIMUM_QUERY_LENGTH = 2
-        const val SEARCH_DEBOUNCE_MILLIS = 300L
-        const val MAX_RECENT_QUERIES = 8
-        const val FILTERS_EXCEPTION_CODE = "catalog.search.filters_exception"
-        const val SEARCH_EXCEPTION_CODE = "catalog.search.exception"
+    private data class SearchAttempt(
+        val request: CatalogSearchRequest,
+        val sequence: Long,
+    )
+
+    private data class SearchExecution(
+        val attempt: SearchAttempt,
+        val content: ContentState<CatalogSearchResult>,
+    )
+
+    companion object {
+        internal fun createForTest(
+            searchService: CatalogSearchService,
+            storySelector: SearchStorySelector,
+        ): SearchViewModel = SearchViewModel(searchService, storySelector)
+
+        private const val MINIMUM_QUERY_LENGTH = 2
+        private const val SEARCH_DEBOUNCE_MILLIS = 300L
+        private const val MAX_RECENT_QUERIES = 8
+        private const val FILTERS_EXCEPTION_CODE = "catalog.search.filters_exception"
+        private const val SEARCH_EXCEPTION_CODE = "catalog.search.exception"
     }
+
+    private fun CatalogSearchRequest.isSearchable(): Boolean = query.length >= MINIMUM_QUERY_LENGTH
+}
+
+internal fun interface SearchStorySelector {
+    suspend fun select(story: CatalogSearchStory): CatalogSearchSelectionResult
 }

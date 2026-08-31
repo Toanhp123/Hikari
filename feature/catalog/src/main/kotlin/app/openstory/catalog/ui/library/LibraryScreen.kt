@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import app.openstory.common.id.StoryId
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.HikariTopLevelScaffold
@@ -39,6 +40,9 @@ fun LibraryScreen(
     onClearFilters: () -> Unit,
     onDiscover: () -> Unit,
     onStorySelected: (StoryId) -> Unit,
+    onRetryContent: () -> Unit = {},
+    onRetryCollection: () -> Unit = {},
+    onRetryObservation: () -> Unit = {},
     onResetFilters: () -> Unit = onClearFilters,
     firstFilterFocusRequester: FocusRequester? = null,
     onUtilityRequested: () -> Unit = {},
@@ -57,7 +61,9 @@ fun LibraryScreen(
     val coroutineScope = rememberCoroutineScope()
     var showFilters by remember { mutableStateOf(false) }
     val displayMode = state.displayMode
-    val hasItems = state.items.isNotEmpty()
+    val readyContent = (state.content as? ContentState.Ready)?.value
+    val readyCollection = readyContent?.collection as? LibraryCollectionState.Ready
+    val hasItems = readyCollection?.items?.isNotEmpty() == true
     val showScrollToTop by remember(displayMode, hasItems) {
         derivedStateOf {
             val firstVisibleItemIndex = when (displayMode) {
@@ -125,6 +131,9 @@ fun LibraryScreen(
                     onClearFilters = onClearFilters,
                     onDiscover = onDiscover,
                     onStorySelected = onStorySelected,
+                    onRetryContent = onRetryContent,
+                    onRetryCollection = onRetryCollection,
+                    onRetryObservation = onRetryObservation,
                     contentPadding = bodyPadding,
                     listState = listState,
                     gridState = gridState,

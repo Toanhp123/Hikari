@@ -14,6 +14,7 @@ home_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/dashboar
 library_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/library/LibraryViewModel.kt"
 story_vm="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryViewModel.kt"
 story_screen="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryScreen.kt"
+story_read_action="$root/feature/catalog/src/main/kotlin/app/openstory/catalog/ui/story/StoryPrimaryReadAction.kt"
 reader_vm="$root/feature/reader/src/main/kotlin/app/openstory/reader/ui/ReaderViewModel.kt"
 nav_state="$root/app/src/main/kotlin/app/openstory/navigation/AppNavigationState.kt"
 
@@ -28,9 +29,15 @@ for top_level_vm in "$discover_vm" "$home_vm" "$library_vm"; do
         fail "retained top-level UI state is not demand-driven: $top_level_vm"
 done
 
-grep -q 'bootstrapEmptyCache()' "$discover_vm" || fail "Discover empty-cache bootstrap owner is missing"
-grep -q 'dependencies.homes.first()' "$discover_vm" || fail "Discover bootstrap does not wait for the first cache emission"
-grep -q 'bootstrapAttempted' "$discover_vm" || fail "Discover bootstrap is not guarded as a one-shot operation"
+grep -q 'private val homeObservation = viewModelScope.retainedObservation' "$discover_vm" ||
+    fail "Discover Home readiness is not owned by retained observation"
+grep -q 'homeObservation.state.first { it is ObservationState.Available }' "$discover_vm" ||
+    fail "Discover bootstrap does not wait for the first authoritative Home emission"
+grep -q 'private fun startAutomaticBootstrap()' "$discover_vm" || fail "Discover automatic bootstrap owner is missing"
+grep -q 'bootstrapJob?.isActive == true' "$discover_vm" || fail "Discover automatic bootstrap is not guarded against duplicate attempts"
+if sed -n '/private fun startAutomaticBootstrap()/,/private suspend fun buildCandidate/p' "$discover_vm" | grep -q 'refreshState'; then
+    fail "Discover automatic bootstrap is still presented as manual RefreshState"
+fi
 
 grep -q 'val statuses' "$download_vm" || fail "download status aggregation flow is missing"
 ! grep -q 'fun watch(' "$download_vm" || fail "per-release download watch collectors remain"
@@ -46,9 +53,13 @@ grep -q 'withFrameNanos' "$story_destination" || fail "Story section prewarm doe
 ! grep -q 'SharingStarted\.Eagerly' "$story_vm" || fail "Story UI state is still eager while its retained NavEntry can be off-screen"
 ! grep -q 'ChapterRepository' "$story_vm" || fail "StoryViewModel still owns duplicate chapter availability state"
 ! grep -q 'chapters\.snapshot(storyId)' "$story_vm" || fail "Story hero still reads stale one-shot chapter targets"
-grep -q 'chapterState?.readableTargets' "$story_screen" ||
-    fail "Story hero does not consume reactive ChapterList reader targets"
-grep -q 'repository.observe(storyId)' "$chapter_vm" || fail "ChapterList reader availability is not driven by chapter observation"
+grep -q 'storyPrimaryReadAction(chapterState, state.resumeTarget)' "$story_screen" ||
+    fail "Story hero does not derive its action from reactive Chapter content state"
+grep -q 'readerAvailabilityResolved' "$story_read_action" ||
+    fail "Story hero does not gate source discovery on authoritative Reader capability"
+grep -q 'observe = repository::observe' "$chapter_vm" ||
+    fail "ChapterList content is not driven by the retained Chapter observation"
+grep -q 'retainedObservation' "$chapter_vm" || fail "ChapterList does not retain/restart Chapter observation state"
 grep -q 'ReaderSourceAvailability' "$chapter_vm" || fail "ChapterList does not capability-gate reader targets"
 
 grep -q 'fun openChapter(' "$reader_vm" || fail "ReaderViewModel does not own chapter switching"

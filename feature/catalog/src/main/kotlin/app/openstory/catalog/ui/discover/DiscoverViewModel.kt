@@ -4,23 +4,35 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.ContentType
-import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
+import app.openstory.catalog.repository.CatalogRepository
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.ObservationState
+import app.openstory.catalog.ui.state.RefreshState
+import app.openstory.catalog.ui.state.completeFailure
+import app.openstory.catalog.ui.state.completeSuccess
+import app.openstory.catalog.ui.state.forExpectedKey
+import app.openstory.catalog.ui.state.retainedObservation
+import app.openstory.catalog.ui.state.startAttempt
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -28,106 +40,210 @@ import kotlinx.coroutines.launch
 class DiscoverViewModel @Inject constructor(
     repository: CatalogRepository,
     projections: CatalogStoryProjectionRepository,
-    refreshPipeline: DiscoverRefreshPipeline,
-    projection: DiscoverProjectionPipeline,
+    private val refreshPipeline: DiscoverRefreshPipeline,
+    private val projectionPipeline: DiscoverProjectionPipeline,
     private val canonicalBootstrap: DiscoverCanonicalBootstrapPipeline,
 ) : ViewModel() {
-    private val observationFailure = MutableStateFlow<DiscoverUiFailure?>(null)
-    private val refreshFailure = MutableStateFlow<DiscoverUiFailure?>(null)
-    private val projection = projection
-    private val homes = repository.observeHomes()
-        .preserveLatestOnFailure(HOME_OBSERVE_EXCEPTION_CODE, emptyList())
-        .shareIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
-            replay = 1,
-    )
+    private val started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS)
     private val selectedContentType = MutableStateFlow(ContentType.MANGA)
-    private val visibleStoryIds = combine(homes, selectedContentType) { currentHomes, contentType ->
-        discoverCanonicalBootstrapStoryIds(currentHomes, contentType).toSet()
-    }.distinctUntilChanged()
-    private val visibleProjections = visibleStoryIds
-        .flatMapLatest(projections::observeForStories)
-        .distinctUntilChanged()
-    private val dependencies = DiscoverDependencies(
-        homes = homes,
-        content = combine(homes, visibleProjections, selectedContentType) { currentHomes, canonical, contentType ->
-            projection.project(currentHomes, canonical, contentType)
-        }.distinctUntilChanged().preserveLatestOnFailure(
-            RANKING_OBSERVE_EXCEPTION_CODE,
-            DiscoverSemanticContent.empty(selectedContentType.value),
-        ),
-        refresh = refreshPipeline::refresh,
-    )
-    private val initialLoading = MutableStateFlow(true)
-    private val refreshing = MutableStateFlow(false)
+    private val bootstrapState = MutableStateFlow<DiscoverBootstrapState>(DiscoverBootstrapState.AwaitingHome)
+    private val refreshState = MutableStateFlow(RefreshState())
     private val refreshReport = MutableStateFlow<DiscoverRefreshReport?>(null)
-    private var bootstrapAttempted = false
+    private var bootstrapJob: Job? = null
+    private var refreshJob: Job? = null
 
-    init {
-        bootstrapEmptyCache()
+    private val homeObservation = viewModelScope.retainedObservation(
+        key = flowOf(Unit),
+        initialKey = Unit,
+        started = started,
+        observe = { repository.observeHomes() },
+        mapFailure = { _, _ -> CatalogUiFailure(HOME_OBSERVE_EXCEPTION_CODE, retryable = true) },
+    )
+
+    private val bootstrapSuperseded = combine(
+        bootstrapState,
+        homeObservation.state,
+    ) { bootstrap, homeState ->
+        val homes = (homeState as? ObservationState.Available<Unit, List<CatalogHomeSnapshot>>)
+            ?.value
+            .orEmpty()
+        bootstrap.isSupersededBy(homes)
     }
+        .runningFold(false) { superseded, current ->
+            superseded || current
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = started,
+            initialValue = false,
+        )
 
-    private val contentState = combine(
-        dependencies.content,
-        initialLoading,
-        refreshing,
-        refreshReport,
-    ) { content, loading, busy, report ->
-        content.toUiState(
-            loading = loading,
-            refreshing = busy,
-            refreshReport = report,
+    private val effectiveBootstrapState = combine(
+        bootstrapState,
+        bootstrapSuperseded,
+    ) { bootstrap, superseded ->
+        if (superseded) DiscoverBootstrapState.NotNeeded else bootstrap
+    }.stateIn(
+        scope = viewModelScope,
+        started = started,
+        initialValue = DiscoverBootstrapState.AwaitingHome,
+    )
+
+    private val settlementKey = combine(
+        homeObservation.state,
+        selectedContentType,
+    ) { homeState, contentType ->
+        discoverSettlementKey(homeState, contentType)
+    }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = started,
+            initialValue = DiscoverSettlementKey(ContentType.MANGA, emptyList()),
+        )
+
+    private val settlementObservation = viewModelScope.retainedObservation(
+        key = settlementKey,
+        initialKey = DiscoverSettlementKey(ContentType.MANGA, emptyList()),
+        started = started,
+        observe = { key -> canonicalBootstrap.settle(key.storyIds, key.contentType) },
+        mapFailure = { _, _ -> CatalogUiFailure(SETTLEMENT_OBSERVE_EXCEPTION_CODE, retryable = true) },
+    )
+
+    private val projectionObservation = viewModelScope.retainedObservation(
+        key = settlementKey,
+        initialKey = DiscoverSettlementKey(ContentType.MANGA, emptyList()),
+        started = started,
+        observe = { key ->
+            if (key.storyIds.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                projections.observeForStories(key.storyIds.toSet())
+            }
+        },
+        mapFailure = { _, _ -> CatalogUiFailure(PROJECTION_OBSERVE_EXCEPTION_CODE, retryable = true) },
+    )
+
+    private val canonicalReadiness = combine(
+        settlementKey,
+        settlementObservation.state,
+        projectionObservation.state,
+    ) { key, settlements, liveProjections ->
+        DiscoverCanonicalReadiness(
+            key = key,
+            settlements = settlements.forExpectedKey(key),
+            liveProjections = liveProjections.forExpectedKey(key),
         )
     }
 
-    val state = combine(contentState, observationFailure, refreshFailure) { content, observation, refresh ->
-        content.copy(
-            observationFailure = observation,
-            refreshFailure = refresh,
+    private val candidate = combine(
+        homeObservation.state,
+        effectiveBootstrapState,
+        selectedContentType,
+        canonicalReadiness,
+    ) { homeState, bootstrap, contentType, canonical ->
+        DiscoverCandidateInput(
+            homeState = homeState,
+            bootstrap = bootstrap,
+            contentType = contentType,
+            settlementKey = discoverSettlementKey(homeState, contentType),
+            canonical = canonical,
+        )
+    }.mapLatest(::buildCandidate)
+
+    private val retainedCandidate = candidate
+        .runningFold(DiscoverReducedContent()) { previous, current ->
+            reduceDiscoverCandidate(previous, current)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = started,
+            initialValue = DiscoverReducedContent(),
+        )
+
+    val state = combine(
+        retainedCandidate,
+        refreshState,
+        refreshReport,
+    ) { reduced, refresh, report ->
+        DiscoverUiState(
+            content = reduced.content,
+            refresh = refresh,
+            refreshReport = report,
+            observationIssue = reduced.observationIssue,
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+        started = started,
         initialValue = DiscoverUiState(),
     )
 
-    private fun bootstrapEmptyCache() {
+    init {
         viewModelScope.launch {
-            if (bootstrapAttempted) return@launch
-            bootstrapAttempted = true
-            val cachedHomes = dependencies.homes.first()
-            if (cachedHomes.isEmpty() && observationFailure.value == null) {
-                performRefresh()
-            } else if (cachedHomes.isNotEmpty()) {
-                val priorityStoryIds = discoverCanonicalBootstrapStoryIds(
-                    cachedHomes,
-                    selectedContentType.value,
-                )
-                canonicalBootstrap.prewarm(priorityStoryIds)
+            val firstAvailable = homeObservation.state.first { it is ObservationState.Available }
+                as ObservationState.Available<Unit, List<CatalogHomeSnapshot>>
+            if (firstAvailable.value.isEmpty()) {
+                startAutomaticBootstrap()
+            } else {
+                bootstrapState.value = DiscoverBootstrapState.NotNeeded
             }
-            initialLoading.value = false
         }
     }
 
     fun refresh() {
-        viewModelScope.launch { performRefresh() }
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            refreshState.update(RefreshState::startAttempt)
+            try {
+                val execution = refreshPipeline.refresh()
+                refreshReport.value = execution.report
+                reclassifyBootstrapAfterManualRefresh(execution)
+                refreshState.update(RefreshState::completeSuccess)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                refreshState.update {
+                    it.completeFailure(CatalogUiFailure(REFRESH_EXCEPTION_CODE, retryable = true))
+                }
+            }
+        }
     }
 
-    private suspend fun performRefresh() {
-        if (refreshing.value) return
-        refreshing.value = true
-        try {
-            val cachedHomes = dependencies.homes.first()
-            refreshReport.value = dependencies.refresh(cachedHomes)
-            refreshFailure.value = null
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (_: Exception) {
-            refreshFailure.value = DiscoverUiFailure(REFRESH_EXCEPTION_CODE, retryable = true)
-        } finally {
-            refreshing.value = false
+    fun retryContent() {
+        when (val homeState = homeObservation.state.value) {
+            is ObservationState.Unavailable -> {
+                if (homeState.failure.retryable) homeObservation.retry()
+                return
+            }
+            is ObservationState.Pending,
+            is ObservationState.Available -> Unit
         }
+
+        val bootstrap = effectiveBootstrapState.value
+        if (bootstrap is DiscoverBootstrapState.Failed) {
+            if (bootstrap.failure.retryable) startAutomaticBootstrap()
+            return
+        }
+
+        val key = settlementKey.value
+        when (val settlements = settlementObservation.state.value.forExpectedKey(key)) {
+            is ObservationState.Unavailable -> {
+                if (settlements.failure.retryable) settlementObservation.retry()
+            }
+            is ObservationState.Available -> {
+                if (
+                    state.value.content is ContentState.Failed &&
+                    settlements.value.preferredSettlementFailure(key.storyIds)?.retryable == true
+                ) {
+                    settlementObservation.retry()
+                }
+            }
+            is ObservationState.Pending -> Unit
+        }
+    }
+
+    fun retryObservation() {
+        observationRetryAction()?.invoke()
     }
 
     fun selectContentType(contentType: ContentType) {
@@ -135,31 +251,408 @@ class DiscoverViewModel @Inject constructor(
         selectedContentType.value = contentType
     }
 
-    private data class DiscoverDependencies(
-        val homes: Flow<List<CatalogHomeSnapshot>>,
-        val content: Flow<DiscoverSemanticContent>,
-        val refresh: suspend (List<CatalogHomeSnapshot>) -> DiscoverRefreshReport,
-    )
-
-    private fun <T> Flow<T>.preserveLatestOnFailure(code: String, initial: T): Flow<T> = flow {
-        var latest = initial
-        try {
-            this@preserveLatestOnFailure.collect { value ->
-                latest = value
-                emit(value)
+    private fun startAutomaticBootstrap() {
+        if (bootstrapJob?.isActive == true) return
+        val currentHome = (homeObservation.state.value as? ObservationState.Available)?.value ?: return
+        if (currentHome.isNotEmpty()) {
+            bootstrapState.value = DiscoverBootstrapState.NotNeeded
+        } else {
+            bootstrapJob = viewModelScope.launch {
+                bootstrapState.value = DiscoverBootstrapState.InFlight
+                try {
+                    val execution = refreshPipeline.refresh()
+                    refreshReport.value = execution.report
+                    if (bootstrapState.value == DiscoverBootstrapState.InFlight) {
+                        bootstrapState.value = execution.toBootstrapState()
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    if (bootstrapState.value == DiscoverBootstrapState.InFlight) {
+                        bootstrapState.value = DiscoverBootstrapState.Failed(
+                            CatalogUiFailure(BOOTSTRAP_EXCEPTION_CODE, retryable = true),
+                        )
+                    }
+                }
             }
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (_: Exception) {
-            observationFailure.value = DiscoverUiFailure(code, retryable = true)
-            emit(latest)
         }
     }
+
+    private fun reclassifyBootstrapAfterManualRefresh(execution: DiscoverRefreshExecution) {
+        val currentHome = (homeObservation.state.value as? ObservationState.Available)?.value ?: return
+        if (
+            currentHome.isNotEmpty() ||
+            bootstrapSuperseded.value ||
+            !bootstrapState.value.allowsManualReclassification(execution)
+        ) {
+            return
+        }
+        bootstrapState.value = execution.toBootstrapState()
+    }
+
+    private fun DiscoverRefreshExecution.toBootstrapState(): DiscoverBootstrapState = when {
+        noEnabledProviders -> DiscoverBootstrapState.NoEnabledProviders
+        allProvidersFailed -> DiscoverBootstrapState.Failed(
+            CatalogUiFailure(
+                BOOTSTRAP_ALL_PROVIDERS_FAILED_CODE,
+                retryable = anyRetryableFailure,
+            ),
+        )
+        else -> DiscoverBootstrapState.AwaitingCommittedHome(successfulCommits())
+    }
+
+    private fun DiscoverRefreshExecution.successfulCommits(): Map<PluginId, Long> =
+        report.succeeded.associateWith { pluginId ->
+            checkNotNull(report.refreshedAtEpochMillis[pluginId]) {
+                "Successful Discover refresh is missing its committed timestamp for ${pluginId.value}"
+            }
+        }
+
+    private suspend fun buildCandidate(input: DiscoverCandidateInput): DiscoverCandidate =
+        when (val homeState = input.homeState) {
+            is ObservationState.Pending -> DiscoverCandidate(input.contentType, ContentState.Pending)
+            is ObservationState.Unavailable -> DiscoverCandidate(
+                identity = input.contentType,
+                content = ContentState.Failed(homeState.failure),
+                observationIssue = homeState.failure,
+            )
+            is ObservationState.Available -> buildAvailableHomeCandidate(input, homeState)
+        }
+
+    private suspend fun buildAvailableHomeCandidate(
+        input: DiscoverCandidateInput,
+        availableHome: ObservationState.Available<Unit, List<CatalogHomeSnapshot>>,
+    ): DiscoverCandidate {
+        val identity = input.contentType
+        val homes = availableHome.value
+        val canonical = input.canonical
+        return when {
+            input.bootstrap.blocksHomeReadiness -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Pending,
+                observationIssue = availableHome.issue,
+            )
+            homes.isEmpty() -> emptyHomesCandidate(
+                identity = identity,
+                homeIssue = availableHome.issue,
+                bootstrap = input.bootstrap,
+            )
+            canonical.key != input.settlementKey -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Pending,
+                observationIssue = availableHome.issue,
+            )
+            else -> buildCanonicalCandidate(identity, homes, availableHome, canonical)
+        }
+    }
+
+    private suspend fun buildCanonicalCandidate(
+        identity: ContentType,
+        homes: List<CatalogHomeSnapshot>,
+        availableHome: ObservationState.Available<Unit, List<CatalogHomeSnapshot>>,
+        canonical: DiscoverCanonicalReadiness,
+    ): DiscoverCandidate {
+        val baseIssue = availableHome.issue
+            ?: canonical.settlements.issueOrUnavailable()
+            ?: canonical.liveProjections.issueOrUnavailable()
+        return when (val settlements = canonical.settlements) {
+            is ObservationState.Pending -> DiscoverCandidate(identity, ContentState.Pending, baseIssue)
+            is ObservationState.Unavailable -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Failed(settlements.failure),
+                observationIssue = baseIssue ?: settlements.failure,
+            )
+            is ObservationState.Available -> buildProjectedCandidate(
+                identity = identity,
+                homes = homes,
+                availableHome = availableHome,
+                canonical = canonical,
+                availableSettlements = settlements,
+            )
+        }
+    }
+
+    private suspend fun buildProjectedCandidate(
+        identity: ContentType,
+        homes: List<CatalogHomeSnapshot>,
+        availableHome: ObservationState.Available<Unit, List<CatalogHomeSnapshot>>,
+        canonical: DiscoverCanonicalReadiness,
+        availableSettlements: ObservationState.Available<
+            DiscoverSettlementKey,
+            Map<StoryId, DiscoverCanonicalSettlement>,
+        >,
+    ): DiscoverCandidate {
+        val liveProjections = canonical.liveProjections.availableProjectionsOrEmpty()
+        val projected = projectionPipeline.project(
+            homes = homes,
+            projections = liveProjections,
+            selectedContentType = identity,
+            settlements = availableSettlements.value,
+        )
+        val terminalFailure = projected.failures.preferredProjectionFailure(canonical.key.storyIds)
+        val observationIssue = availableHome.issue
+            ?: availableSettlements.issue
+            ?: terminalFailure
+            ?: canonical.liveProjections.issueOrUnavailable()
+
+        return when {
+            projected.content.hasContent -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Ready(projected.content.toContent()),
+                observationIssue = observationIssue,
+            )
+            projected.pendingSlots > 0 -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Pending,
+                observationIssue = observationIssue,
+            )
+            terminalFailure != null -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Failed(terminalFailure),
+                observationIssue = observationIssue,
+            )
+            else -> DiscoverCandidate(
+                identity = identity,
+                content = ContentState.Ready(
+                    projected.content.toContent(DiscoverNoContentReason.EMPTY_FEED),
+                ),
+                observationIssue = observationIssue,
+            )
+        }
+    }
+
+    private fun observationRetryAction(): (() -> Unit)? {
+        if (state.value.content !is ContentState.Ready) return null
+
+        val homeIssue = (homeObservation.state.value as? ObservationState.Available)?.issue
+        return if (homeIssue != null) {
+            if (homeIssue.retryable) homeObservation::retry else null
+        } else {
+            settlementObservationRetryAction(settlementKey.value)
+        }
+    }
+
+    private fun settlementObservationRetryAction(key: DiscoverSettlementKey): (() -> Unit)? =
+        when (val settlements = settlementObservation.state.value.forExpectedKey(key)) {
+            is ObservationState.Unavailable -> if (settlements.failure.retryable) {
+                settlementObservation::retry
+            } else {
+                null
+            }
+            is ObservationState.Available -> {
+                val failure = settlements.issue
+                    ?: settlements.value.preferredSettlementFailure(key.storyIds)
+                if (failure != null) {
+                    if (failure.retryable) settlementObservation::retry else null
+                } else {
+                    projectionObservationRetryAction(key)
+                }
+            }
+            is ObservationState.Pending -> projectionObservationRetryAction(key)
+        }
+
+    private fun projectionObservationRetryAction(key: DiscoverSettlementKey): (() -> Unit)? =
+        when (val projections = projectionObservation.state.value.forExpectedKey(key)) {
+            is ObservationState.Unavailable -> if (projections.failure.retryable) {
+                projectionObservation::retry
+            } else {
+                null
+            }
+            is ObservationState.Available -> projections.issue?.let { issue ->
+                if (issue.retryable) projectionObservation::retry else null
+            }
+            is ObservationState.Pending -> null
+        }
 
     private companion object {
         const val STOP_TIMEOUT_MILLIS = 5_000L
         const val HOME_OBSERVE_EXCEPTION_CODE = "catalog.home.observe_exception"
-        const val RANKING_OBSERVE_EXCEPTION_CODE = "catalog.home.ranking_exception"
+        const val SETTLEMENT_OBSERVE_EXCEPTION_CODE = "catalog.discover.settlement_observe_exception"
+        const val PROJECTION_OBSERVE_EXCEPTION_CODE = "catalog.home.ranking_exception"
+        const val BOOTSTRAP_ALL_PROVIDERS_FAILED_CODE = "catalog.discover.bootstrap_all_providers_failed"
+        const val BOOTSTRAP_EXCEPTION_CODE = "catalog.discover.bootstrap_refresh_exception"
         const val REFRESH_EXCEPTION_CODE = "catalog.home.refresh_exception"
     }
+}
+
+private data class DiscoverSettlementKey(
+    val contentType: ContentType,
+    val storyIds: List<StoryId>,
+)
+
+private sealed interface DiscoverBootstrapState {
+    data object AwaitingHome : DiscoverBootstrapState
+    data object NotNeeded : DiscoverBootstrapState
+    data object InFlight : DiscoverBootstrapState
+    data class AwaitingCommittedHome(
+        val successfulCommits: Map<PluginId, Long>,
+    ) : DiscoverBootstrapState
+    data object NoEnabledProviders : DiscoverBootstrapState
+    data class Failed(val failure: CatalogUiFailure) : DiscoverBootstrapState
+}
+
+private fun DiscoverBootstrapState.allowsManualReclassification(
+    newExecution: DiscoverRefreshExecution,
+): Boolean = when (this) {
+    DiscoverBootstrapState.NotNeeded -> false
+    DiscoverBootstrapState.NoEnabledProviders,
+    is DiscoverBootstrapState.AwaitingCommittedHome -> !newExecution.allProvidersFailed
+    DiscoverBootstrapState.AwaitingHome,
+    DiscoverBootstrapState.InFlight,
+    is DiscoverBootstrapState.Failed -> true
+}
+
+private fun DiscoverBootstrapState.isSupersededBy(
+    homes: List<CatalogHomeSnapshot>,
+): Boolean = when (this) {
+    DiscoverBootstrapState.InFlight -> false
+    is DiscoverBootstrapState.AwaitingCommittedHome -> homes.containsAllSuccessfulCommits(successfulCommits)
+    DiscoverBootstrapState.AwaitingHome,
+    DiscoverBootstrapState.NotNeeded,
+    DiscoverBootstrapState.NoEnabledProviders,
+    is DiscoverBootstrapState.Failed -> homes.isNotEmpty()
+}
+
+private val DiscoverBootstrapState.blocksHomeReadiness: Boolean
+    get() = this == DiscoverBootstrapState.InFlight || this is DiscoverBootstrapState.AwaitingCommittedHome
+
+private fun List<CatalogHomeSnapshot>.containsAllSuccessfulCommits(
+    successfulCommits: Map<PluginId, Long>,
+): Boolean = successfulCommits.isNotEmpty() && successfulCommits.all { (pluginId, committedAt) ->
+    any { home ->
+        home.pluginId == pluginId && home.refreshedAtEpochMillis >= committedAt
+    }
+}
+
+private data class DiscoverCanonicalReadiness(
+    val key: DiscoverSettlementKey,
+    val settlements: ObservationState<DiscoverSettlementKey, Map<StoryId, DiscoverCanonicalSettlement>>,
+    val liveProjections: ObservationState<DiscoverSettlementKey, List<CatalogStoryProjection>>,
+)
+
+private data class DiscoverCandidateInput(
+    val homeState: ObservationState<Unit, List<CatalogHomeSnapshot>>,
+    val bootstrap: DiscoverBootstrapState,
+    val contentType: ContentType,
+    val settlementKey: DiscoverSettlementKey,
+    val canonical: DiscoverCanonicalReadiness,
+)
+
+private data class DiscoverCandidate(
+    val identity: ContentType,
+    val content: ContentState<DiscoverContent>,
+    val observationIssue: CatalogUiFailure? = null,
+)
+
+private data class DiscoverReducedContent(
+    val identity: ContentType = ContentType.MANGA,
+    val content: ContentState<DiscoverContent> = ContentState.Pending,
+    val observationIssue: CatalogUiFailure? = null,
+)
+
+private fun reduceDiscoverCandidate(
+    previous: DiscoverReducedContent,
+    current: DiscoverCandidate,
+): DiscoverReducedContent {
+    val previousReady = previous.content as? ContentState.Ready
+    val canRetain = previousReady != null && previous.identity == current.identity
+    return when (val candidate = current.content) {
+        is ContentState.Ready -> DiscoverReducedContent(
+            identity = current.identity,
+            content = candidate,
+            observationIssue = current.observationIssue,
+        )
+        ContentState.Pending -> if (canRetain) {
+            DiscoverReducedContent(
+                identity = current.identity,
+                content = previousReady,
+                observationIssue = current.observationIssue,
+            )
+        } else {
+            DiscoverReducedContent(identity = current.identity)
+        }
+        is ContentState.Failed -> if (canRetain) {
+            DiscoverReducedContent(
+                identity = current.identity,
+                content = previousReady,
+                observationIssue = current.observationIssue ?: candidate.failure,
+            )
+        } else {
+            DiscoverReducedContent(
+                identity = current.identity,
+                content = candidate,
+            )
+        }
+    }
+}
+
+private fun emptyHomesCandidate(
+    identity: ContentType,
+    homeIssue: CatalogUiFailure?,
+    bootstrap: DiscoverBootstrapState,
+): DiscoverCandidate = when (bootstrap) {
+    DiscoverBootstrapState.AwaitingHome,
+    DiscoverBootstrapState.InFlight,
+    is DiscoverBootstrapState.AwaitingCommittedHome -> DiscoverCandidate(identity, ContentState.Pending, homeIssue)
+    DiscoverBootstrapState.NotNeeded -> DiscoverCandidate(
+        identity,
+        ContentState.Ready(
+            DiscoverSemanticContent.empty(identity).toContent(DiscoverNoContentReason.EMPTY_FEED),
+        ),
+        homeIssue,
+    )
+    DiscoverBootstrapState.NoEnabledProviders -> DiscoverCandidate(
+        identity,
+        ContentState.Ready(
+            DiscoverSemanticContent.empty(identity).toContent(DiscoverNoContentReason.NO_ENABLED_PROVIDERS),
+        ),
+        homeIssue,
+    )
+    is DiscoverBootstrapState.Failed -> DiscoverCandidate(
+        identity,
+        ContentState.Failed(bootstrap.failure),
+        homeIssue ?: bootstrap.failure,
+    )
+}
+
+private fun discoverSettlementKey(
+    homeState: ObservationState<Unit, List<CatalogHomeSnapshot>>,
+    contentType: ContentType,
+): DiscoverSettlementKey = DiscoverSettlementKey(
+    contentType = contentType,
+    storyIds = homeState.availableHomesOrNull()
+        ?.let { discoverFeedSlots(it, contentType).expectedStoryIds }
+        .orEmpty(),
+)
+
+private fun ObservationState<Unit, List<CatalogHomeSnapshot>>.availableHomesOrNull(): List<CatalogHomeSnapshot>? =
+    (this as? ObservationState.Available)?.value
+
+private fun ObservationState<DiscoverSettlementKey, List<CatalogStoryProjection>>.availableProjectionsOrEmpty():
+    List<CatalogStoryProjection> = when (this) {
+        is ObservationState.Available -> value
+        is ObservationState.Pending,
+        is ObservationState.Unavailable -> emptyList()
+    }
+
+private fun ObservationState<*, *>.issueOrUnavailable(): CatalogUiFailure? = when (this) {
+    is ObservationState.Available<*, *> -> issue
+    is ObservationState.Unavailable<*> -> failure
+    is ObservationState.Pending<*> -> null
+}
+
+private fun Map<StoryId, DiscoverCanonicalSettlement>.preferredSettlementFailure(
+    storyIds: List<StoryId>,
+): CatalogUiFailure? {
+    val ordered = storyIds.mapNotNull { storyId ->
+        (this[storyId] as? DiscoverCanonicalSettlement.Failed)?.failure
+    }
+    return ordered.firstOrNull(CatalogUiFailure::retryable) ?: ordered.firstOrNull()
+}
+
+private fun Map<StoryId, CatalogUiFailure>.preferredProjectionFailure(
+    storyIds: List<StoryId>,
+): CatalogUiFailure? {
+    val ordered = storyIds.mapNotNull(::get)
+    return ordered.firstOrNull(CatalogUiFailure::retryable) ?: ordered.firstOrNull()
 }

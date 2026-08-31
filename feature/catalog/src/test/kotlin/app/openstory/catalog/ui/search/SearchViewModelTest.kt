@@ -31,6 +31,8 @@ import app.openstory.catalog.repository.CatalogHomeMutation
 import app.openstory.catalog.repository.CatalogMatchSnapshot
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.search.CatalogFilterCache
+import app.openstory.catalog.search.CatalogSearchResult
+import app.openstory.catalog.search.CatalogSearchSelectionResult
 import app.openstory.catalog.search.CatalogSearchService
 import app.openstory.catalog.source.CatalogSource
 import app.openstory.catalog.source.CatalogSourceFailure
@@ -50,14 +52,17 @@ import app.openstory.common.Outcome
 import app.openstory.common.Clock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.catalog.ui.state.ContentState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -67,6 +72,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -84,15 +91,83 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun queryUnderMinimumLengthDoesNotExecuteSearch() = runTest(dispatcher.scheduler) {
+    fun queryUnderMinimumLengthIsIdleAndDoesNotExecuteSearch() = runTest(dispatcher.scheduler) {
         val source = FakeSearchSource("catalog.a")
         val viewModel = viewModel(source)
 
         viewModel.updateQuery("a")
-        advanceSearch()
 
+        assertIs<SearchResultState.Idle>(viewModel.state.value.resultState)
+        advanceSearch()
         assertEquals(0, source.searchCalls)
-        assertTrue(viewModel.state.value.stories.isEmpty())
+        assertIs<SearchResultState.Idle>(viewModel.state.value.resultState)
+    }
+
+    @Test
+    fun validQueryBecomesPendingSynchronouslyBeforeDebounce() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val viewModel = viewModel(source)
+
+        viewModel.updateQuery("novel")
+
+        assertIs<ContentState.Pending>(viewModel.state.value.activeContent())
+        assertEquals(0, source.searchCalls)
+    }
+
+    @Test
+    fun queryChangeNeverEmitsNewQueryWithPreviousReadyResult() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val viewModel = viewModel(source)
+        viewModel.updateQuery("first")
+        advanceSearch()
+        val observed = mutableListOf<SearchUiState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.state.collect(observed::add)
+        }
+
+        viewModel.updateQuery("second")
+
+        val secondQueryStates = observed.filter { it.query == "second" }
+        assertTrue(secondQueryStates.isNotEmpty())
+        assertTrue(
+            secondQueryStates.none { state ->
+                val active = state.resultState as? SearchResultState.Active
+                active?.content is ContentState.Ready
+            },
+        )
+        assertIs<ContentState.Pending>(viewModel.state.value.activeContent())
+    }
+
+    @Test
+    fun newEffectiveQueryInvalidatesPreviousReadyResultSynchronously() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val viewModel = viewModel(source)
+        viewModel.updateQuery("first")
+        advanceSearch()
+        assertEquals("first", viewModel.state.value.readyResult().stories.single().sources.single().title)
+
+        viewModel.updateQuery("second")
+
+        assertIs<ContentState.Pending>(viewModel.state.value.activeContent())
+        assertEquals(1, source.searchCalls)
+        advanceSearch()
+        assertEquals("second", viewModel.state.value.readyResult().stories.single().sources.single().title)
+    }
+
+    @Test
+    fun equivalentNormalizedQueryKeepsReadyResultAndDoesNotRestartSearch() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val viewModel = viewModel(source)
+        viewModel.updateQuery("novel")
+        advanceSearch()
+        val ready = viewModel.state.value.readyResult()
+
+        viewModel.updateQuery("  novel  ")
+
+        assertEquals(ready, viewModel.state.value.readyResult())
+        assertEquals(1, source.searchCalls)
+        advanceSearch()
+        assertEquals(1, source.searchCalls)
     }
 
     @Test
@@ -113,7 +188,7 @@ class SearchViewModelTest {
         firstRelease.complete(Unit)
         runCurrent()
 
-        assertEquals("second", viewModel.state.value.stories.single().sources.single().title)
+        assertEquals("second", viewModel.state.value.readyResult().stories.single().sources.single().title)
     }
 
     @Test
@@ -142,27 +217,46 @@ class SearchViewModelTest {
         runCurrent()
 
         assertTrue(firstCancelled.isCompleted)
+        assertIs<ContentState.Pending>(viewModel.state.value.activeContent())
         assertEquals(1, source.searchCalls)
     }
 
     @Test
-    fun perSourceFilterStateRemainsSourceScoped() = runTest(dispatcher.scheduler) {
+    fun filterChangeInvalidatesReadyResultSynchronouslyAndRemainsSourceScoped() = runTest(dispatcher.scheduler) {
         val sourceA = FakeSearchSource("catalog.a")
         val sourceB = FakeSearchSource("catalog.b")
         val viewModel = viewModel(sourceA, sourceB)
         runCurrent()
-
-        viewModel.setFilterValues(sourceA.pluginId, "genre", listOf("fantasy"))
-        viewModel.setFilterValues(sourceB.pluginId, "status", listOf("complete"))
         viewModel.updateQuery("novel")
         advanceSearch()
 
+        viewModel.setFilterValues(sourceA.pluginId, "genre", listOf("fantasy"))
+        viewModel.setFilterValues(sourceB.pluginId, "status", listOf("complete"))
+
+        assertIs<ContentState.Pending>(viewModel.state.value.activeContent())
+        advanceSearch()
         assertEquals(mapOf("genre" to listOf("fantasy")), sourceA.lastRequest?.filterValues)
         assertEquals(mapOf("status" to listOf("complete")), sourceB.lastRequest?.filterValues)
     }
 
     @Test
-    fun partialSourceFailuresCoexistWithSuccessfulResults() = runTest(dispatcher.scheduler) {
+    fun filterValuesAreOwnedByStateAndCannotMutateRequestIdentityFromCaller() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val viewModel = viewModel(source)
+        viewModel.updateQuery("novel")
+        advanceSearch()
+        val values = mutableListOf("fantasy")
+
+        viewModel.setFilterValues(source.pluginId, "genre", values)
+        values += "mystery"
+        advanceSearch()
+
+        assertEquals(listOf("fantasy"), viewModel.state.value.filterValues[source.pluginId]?.get("genre"))
+        assertEquals(mapOf("genre" to listOf("fantasy")), source.lastRequest?.filterValues)
+    }
+
+    @Test
+    fun partialSourceFailuresStayInsideReadyResult() = runTest(dispatcher.scheduler) {
         val success = FakeSearchSource("catalog.a")
         val failure = FakeSearchSource("catalog.b").apply {
             searchAction = { CatalogSourceResult.Failure(CatalogSourceFailure("catalog.offline", true)) }
@@ -172,40 +266,80 @@ class SearchViewModelTest {
         viewModel.updateQuery("novel")
         advanceSearch()
 
-        assertEquals(1, viewModel.state.value.stories.size)
-        assertEquals("catalog.offline", viewModel.state.value.failures.single().code)
+        val result = viewModel.state.value.readyResult()
+        assertEquals(1, result.stories.size)
+        assertEquals("catalog.offline", result.failures.single().code)
     }
 
     @Test
-    fun globalSearchFailureIsReportedAndLaterQueriesStillRun() = runTest(dispatcher.scheduler) {
+    fun blockingSearchFailureUsesFailedAndRetryRestartsSameRequest() = runTest(dispatcher.scheduler) {
         val repository = EmptyRepository(sourceRecordFailuresRemaining = 1)
         val source = FakeSearchSource("catalog.a")
         val viewModel = viewModel(repository, source)
 
-        viewModel.updateQuery("first")
+        viewModel.updateQuery("novel")
         advanceSearch()
-        assertEquals("catalog.search.exception", viewModel.state.value.globalFailure?.code)
+        val failed = assertIs<ContentState.Failed>(viewModel.state.value.activeContent())
+        assertEquals("catalog.search.exception", failed.failure.code)
+        assertEquals(listOf("novel"), viewModel.state.value.recentQueries)
 
-        viewModel.updateQuery("second")
+        viewModel.retrySearch()
+        assertIs<ContentState.Pending>(viewModel.state.value.activeContent())
         advanceSearch()
-        assertEquals("second", viewModel.state.value.stories.single().sources.single().title)
-        assertEquals(null, viewModel.state.value.globalFailure)
+
+        assertEquals("novel", viewModel.state.value.readyResult().stories.single().sources.single().title)
+        assertEquals(1, source.searchCalls)
     }
 
     @Test
-    fun blankQueryDoesNotEraseFilterDiscoveryFailure() = runTest(dispatcher.scheduler) {
+    fun blankQueryDoesNotEraseFilterDiscoveryFailureAndFilterRetryTargetsOnlyFilters() = runTest(dispatcher.scheduler) {
         val source = FakeSearchSource("catalog.a")
-        val viewModel = viewModel(
-            Registry(listOf(source), enabledFailuresRemaining = 1),
-            EmptyRepository(),
-        )
+        val registry = Registry(listOf(source), enabledFailuresRemaining = 1)
+        val viewModel = viewModel(registry, EmptyRepository())
         runCurrent()
-        assertEquals("catalog.search.filters_exception", viewModel.state.value.globalFailure?.code)
+        assertEquals("catalog.search.filters_exception", viewModel.state.value.filterIssue?.code)
+        assertIs<SearchResultState.Idle>(viewModel.state.value.resultState)
 
-        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
+        viewModel.retryFilters()
         runCurrent()
 
-        assertEquals("catalog.search.filters_exception", viewModel.state.value.globalFailure?.code)
+        assertNull(viewModel.state.value.filterIssue)
+        assertTrue(viewModel.state.value.filterGroups.isNotEmpty())
+        assertEquals(0, source.searchCalls)
+        assertIs<SearchResultState.Idle>(viewModel.state.value.resultState)
+    }
+
+    @Test
+    fun filterRetryCancelsOlderDiscoverySoStaleCompletionCannotOverwriteNewerState() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val firstStarted = CompletableDeferred<Unit>()
+        val firstCancelled = CompletableDeferred<Unit>()
+        var enabledCalls = 0
+        val registry = Registry(listOf(source)).apply {
+            enabledAction = {
+                enabledCalls += 1
+                if (enabledCalls == 1) {
+                    firstStarted.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        firstCancelled.complete(Unit)
+                    }
+                }
+                listOf(source)
+            }
+        }
+        val viewModel = viewModel(registry, EmptyRepository())
+        runCurrent()
+        firstStarted.await()
+
+        viewModel.retryFilters()
+        runCurrent()
+
+        assertTrue(firstCancelled.isCompleted)
+        assertNull(viewModel.state.value.filterIssue)
+        assertTrue(viewModel.state.value.filterGroups.isNotEmpty())
+        assertEquals(2, enabledCalls)
     }
 
     @Test
@@ -227,7 +361,7 @@ class SearchViewModelTest {
         val viewModel = viewModel(source)
         viewModel.updateQuery("novel")
         advanceSearch()
-        val result = viewModel.state.value.stories.single()
+        val result = viewModel.state.value.readyResult().stories.single()
         var selectedStoryId: StoryId? = null
 
         viewModel.selectStory(result) { selectedStoryId = it }
@@ -235,8 +369,108 @@ class SearchViewModelTest {
 
         assertEquals(result.story.id, selectedStoryId)
         assertEquals(0, source.detailsCalls)
+        assertNull(viewModel.state.value.selectionIssue)
     }
 
+    @Test
+    fun requestIdentityChangeClearsPreviousSelectionIssue() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val viewModel = viewModel(
+            Registry(listOf(source)),
+            EmptyRepository(),
+            SearchStorySelector {
+                CatalogSearchSelectionResult.Failure("catalog.search.selection_failed", retryable = true)
+            },
+        )
+        viewModel.updateQuery("first")
+        advanceSearch()
+
+        viewModel.selectStory(viewModel.state.value.readyResult().stories.single()) {}
+        runCurrent()
+        assertEquals("catalog.search.selection_failed", viewModel.state.value.selectionIssue?.code)
+
+        viewModel.updateQuery("second")
+
+        assertNull(viewModel.state.value.selectionIssue)
+    }
+
+    @Test
+    fun startingAnotherSelectionClearsPreviousSelectionIssue() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val pendingSelection = CompletableDeferred<CatalogSearchSelectionResult>()
+        var selectionCalls = 0
+        val viewModel = viewModel(
+            Registry(listOf(source)),
+            EmptyRepository(),
+            SearchStorySelector {
+                selectionCalls += 1
+                if (selectionCalls == 1) {
+                    CatalogSearchSelectionResult.Failure("catalog.search.selection_failed", retryable = true)
+                } else {
+                    pendingSelection.await()
+                }
+            },
+        )
+        viewModel.updateQuery("novel")
+        advanceSearch()
+        val story = viewModel.state.value.readyResult().stories.single()
+        viewModel.selectStory(story) {}
+        runCurrent()
+        assertEquals("catalog.search.selection_failed", viewModel.state.value.selectionIssue?.code)
+
+        viewModel.selectStory(story) {}
+        runCurrent()
+
+        assertNull(viewModel.state.value.selectionIssue)
+    }
+
+    @Test
+    fun staleSelectionCompletionCannotPublishIntoNewRequest() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val selection = CompletableDeferred<CatalogSearchSelectionResult>()
+        val viewModel = viewModel(
+            Registry(listOf(source)),
+            EmptyRepository(),
+            SearchStorySelector { selection.await() },
+        )
+        viewModel.updateQuery("first")
+        advanceSearch()
+        var selectedStoryId: StoryId? = null
+        viewModel.selectStory(viewModel.state.value.readyResult().stories.single()) { selectedStoryId = it }
+        runCurrent()
+
+        viewModel.updateQuery("second")
+        selection.complete(
+            CatalogSearchSelectionResult.Failure("catalog.search.selection_failed", retryable = true),
+        )
+        runCurrent()
+
+        assertNull(viewModel.state.value.selectionIssue)
+        assertNull(selectedStoryId)
+    }
+
+    @Test
+    fun staleSelectionSuccessCannotNavigateFromNewRequest() = runTest(dispatcher.scheduler) {
+        val source = FakeSearchSource("catalog.a")
+        val selection = CompletableDeferred<CatalogSearchSelectionResult>()
+        val viewModel = viewModel(
+            Registry(listOf(source)),
+            EmptyRepository(),
+            SearchStorySelector { selection.await() },
+        )
+        viewModel.updateQuery("first")
+        advanceSearch()
+        var selectedStoryId: StoryId? = null
+        val firstStory = viewModel.state.value.readyResult().stories.single()
+        viewModel.selectStory(firstStory) { selectedStoryId = it }
+        runCurrent()
+
+        viewModel.updateQuery("second")
+        selection.complete(CatalogSearchSelectionResult.Success(firstStory.story.id))
+        runCurrent()
+
+        assertNull(selectedStoryId)
+    }
 
     @Test
     fun rangeSliderSnapsToConfiguredStep() {
@@ -253,6 +487,16 @@ class SearchViewModelTest {
     ): SearchViewModel = viewModel(Registry(sources.toList()), repository)
 
     private fun TestScope.viewModel(registry: Registry, repository: EmptyRepository): SearchViewModel {
+        return SearchViewModel(searchService(registry, repository))
+    }
+
+    private fun TestScope.viewModel(
+        registry: Registry,
+        repository: EmptyRepository,
+        selector: SearchStorySelector,
+    ): SearchViewModel = SearchViewModel.createForTest(searchService(registry, repository), selector)
+
+    private fun searchService(registry: Registry, repository: EmptyRepository): CatalogSearchService {
         val clock = Clock { 100L }
         val rebuilder = app.openstory.catalog.fusion.CanonicalGenerationRebuilder { storyId, _ ->
             val ready = repository.canonical.state(storyId) as? CanonicalStoryState.Ready
@@ -263,21 +507,25 @@ class SearchViewModelTest {
             }
         }
         val bootstrap = CanonicalBootstrapUseCase(repository.canonical, rebuilder)
-        return SearchViewModel(
-            CatalogSearchService(
-                sources = registry,
-                repository = repository,
-                reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
-                    app.openstory.catalog.reconciliation.ReconciliationPolicy(),
-                ),
-                storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
-                orchestrator = app.openstory.catalog.FeatureNoOpCanonicalEngineEventSink,
-                clock = clock,
-                bootstrap = bootstrap,
-                filterCache = CatalogFilterCache(),
+        return CatalogSearchService(
+            sources = registry,
+            repository = repository,
+            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
             ),
+            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            orchestrator = app.openstory.catalog.FeatureNoOpCanonicalEngineEventSink,
+            clock = clock,
+            bootstrap = bootstrap,
+            filterCache = CatalogFilterCache(),
         )
     }
+
+    private fun SearchUiState.activeContent(): ContentState<CatalogSearchResult> =
+        assertIs<SearchResultState.Active>(resultState).content
+
+    private fun SearchUiState.readyResult(): CatalogSearchResult =
+        assertIs<ContentState.Ready<CatalogSearchResult>>(activeContent()).value
 
     private suspend fun kotlinx.coroutines.test.TestScope.advanceSearch() {
         advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
@@ -293,7 +541,10 @@ private class Registry(
     private val sources: List<CatalogSource>,
     private var enabledFailuresRemaining: Int = 0,
 ) : CatalogSourceRegistry {
+    var enabledAction: (suspend () -> List<CatalogSource>)? = null
+
     override suspend fun enabled(): List<CatalogSource> {
+        enabledAction?.let { action -> return action() }
         if (enabledFailuresRemaining > 0) {
             enabledFailuresRemaining--
             error("catalog registry unavailable")

@@ -36,7 +36,7 @@ internal interface CatalogDao {
             "ON item.plugin_id = entry.plugin_id AND item.source_id = entry.source_id " +
             "ORDER BY entry.plugin_id, entry.source_id",
     )
-    fun observeHomeEntries(): Flow<List<CatalogEntryEntity>>
+    suspend fun homeEntries(): List<CatalogEntryEntity>
 
     @Query(
         "SELECT * FROM catalog_entries WHERE plugin_id = :pluginId AND source_id IN (:sourceIds) " +

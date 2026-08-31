@@ -35,13 +35,16 @@ import app.openstory.catalog.reconciliation.ReconciliationReviewService
 import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
 import app.openstory.catalog.reconciliation.StoryMergeLineage
 import app.openstory.catalog.reconciliation.StoryMergeLineageReader
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.Clock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -66,6 +69,79 @@ class ReconciliationReviewViewModelTest {
 
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun queueStartsPendingUntilARealSnapshotArrives() = runTest(dispatcher.scheduler) {
+        val viewModel = viewModel(FakeCases(emptyList()))
+
+        assertTrue(viewModel.state.value.content is ContentState.Pending)
+    }
+
+    @Test
+    fun realEmptySnapshotBecomesAuthoritativeReadyEmpty() = runTest(dispatcher.scheduler) {
+        val viewModel = viewModel(FakeCases(emptyList()))
+        backgroundScope.launch { viewModel.state.collect {} }
+        runCurrent()
+
+        val ready = viewModel.state.value.content as ContentState.Ready<List<ReconciliationReviewItemUiModel>>
+        assertTrue(ready.value.isEmpty())
+    }
+
+    @Test
+    fun firstObservationFailureIsBlockingFailedNotReadyEmpty() = runTest(dispatcher.scheduler) {
+        val viewModel = viewModel(FakeCases(emptyList(), observeFailure = true))
+        backgroundScope.launch { viewModel.state.collect {} }
+        runCurrent()
+
+        val failed = viewModel.state.value.content as ContentState.Failed
+        assertEquals("catalog.reconciliation.review.observe_exception", failed.failure.code)
+        assertTrue(failed.failure.retryable)
+    }
+
+    @Test
+    fun retryContentRestartsBlockingQueueObservation() = runTest(dispatcher.scheduler) {
+        val cases = FakeCases(emptyList(), failFirstObservation = true)
+        val viewModel = viewModel(cases)
+        backgroundScope.launch { viewModel.state.collect {} }
+        runCurrent()
+
+        assertTrue(viewModel.state.value.content is ContentState.Failed)
+
+        viewModel.retryContent()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.requireItems().isEmpty())
+        assertEquals(2, cases.observeCalls)
+    }
+
+    @Test
+    fun observationFailureAfterSnapshotRetainsReadyQueueAndSurfacesIssue() = runTest(dispatcher.scheduler) {
+        val cases = FakeCases(
+            initial = listOf(case("case-1", "a", "b")),
+            failAfterFirstSnapshot = true,
+        )
+        val viewModel = viewModel(cases)
+        backgroundScope.launch { viewModel.state.collect {} }
+        runCurrent()
+
+        assertEquals(listOf("case-1"), viewModel.state.value.requireItems().map { it.caseId })
+
+        testScheduler.advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(listOf("case-1"), viewModel.state.value.requireItems().map { it.caseId })
+        assertEquals(
+            "catalog.reconciliation.review.observe_exception",
+            viewModel.state.value.observationIssue?.code,
+        )
+
+        viewModel.retryObservation()
+        runCurrent()
+
+        assertEquals(listOf("case-1"), viewModel.state.value.requireItems().map { it.caseId })
+        assertNull(viewModel.state.value.observationIssue)
+        assertEquals(2, cases.observeCalls)
+    }
 
     @Test
     fun queueRankingIsDeterministicAndPresentationOnly() = runTest(dispatcher.scheduler) {
@@ -98,7 +174,7 @@ class ReconciliationReviewViewModelTest {
 
         assertEquals(
             listOf("case-high", "case-impact", "case-a", "case-aa", "case-b", "case-z"),
-            viewModel.state.value.items.map { it.caseId },
+            viewModel.state.value.requireItems().map { it.caseId },
         )
         assertEquals(assessmentBefore, cases.current().associate { it.id to it.assessment })
     }
@@ -115,8 +191,8 @@ class ReconciliationReviewViewModelTest {
         backgroundScope.launch { viewModel.state.collect {} }
         runCurrent()
 
-        assertTrue(viewModel.state.value.items.first { it.caseId == "mergeable" }.mergeAllowed)
-        assertFalse(viewModel.state.value.items.first { it.caseId == "blocked" }.mergeAllowed)
+        assertTrue(viewModel.state.value.requireItems().first { it.caseId == "mergeable" }.mergeAllowed)
+        assertFalse(viewModel.state.value.requireItems().first { it.caseId == "blocked" }.mergeAllowed)
     }
 
     @Test
@@ -130,7 +206,7 @@ class ReconciliationReviewViewModelTest {
         runCurrent()
 
         assertEquals(listOf("case-1" to 7L), cases.resolveSeparateCalls)
-        assertTrue(viewModel.state.value.items.isEmpty())
+        assertTrue(viewModel.state.value.requireItems().isEmpty())
     }
 
     @Test
@@ -147,7 +223,7 @@ class ReconciliationReviewViewModelTest {
         assertEquals("case-1", cases.deferCalls.single().first)
         assertEquals(4L, cases.deferCalls.single().second)
         assertEquals(86_401_000L, cases.deferCalls.single().third)
-        assertEquals(listOf("case-1"), viewModel.state.value.items.map { it.caseId })
+        assertEquals(listOf("case-1"), viewModel.state.value.requireItems().map { it.caseId })
     }
 
     @Test
@@ -208,7 +284,7 @@ class ReconciliationReviewViewModelTest {
 
         assertNull(viewModel.state.value.protectedConflict)
         assertEquals(listOf("Chapter state change required"), viewModel.state.value.domainConflictReasonLabels)
-        assertEquals(listOf("case-1"), viewModel.state.value.items.map { it.caseId })
+        assertEquals(listOf("case-1"), viewModel.state.value.requireItems().map { it.caseId })
     }
 
     @Test
@@ -258,7 +334,7 @@ class ReconciliationReviewViewModelTest {
         backgroundScope.launch { viewModel.state.collect {} }
         runCurrent()
 
-        val item = viewModel.state.value.items.single()
+        val item = viewModel.state.value.requireItems().single()
         assertTrue(item.isPostMergeCorrection)
         assertTrue(item.reverseAllowed)
 
@@ -268,7 +344,7 @@ class ReconciliationReviewViewModelTest {
         assertEquals(1, reversal.requests.size)
         assertEquals(3L, reversal.requests.single().expectedReconciliationCaseRevision)
         assertTrue(viewModel.state.value.failureMessage == null)
-        assertEquals("case-1", viewModel.state.value.items.single().caseId)
+        assertEquals("case-1", viewModel.state.value.requireItems().single().caseId)
     }
 
     private fun viewModel(
@@ -349,15 +425,36 @@ private class VmLineageReader(
     override suspend fun lineagesFor(storyId: StoryId): List<StoryMergeLineage> = values.toList()
 }
 
-private class FakeCases(initial: List<ReconciliationCase>) : ReconciliationCaseRepository {
+private class FakeCases(
+    initial: List<ReconciliationCase>,
+    private val observeFailure: Boolean = false,
+    private val failFirstObservation: Boolean = false,
+    private val failAfterFirstSnapshot: Boolean = false,
+) : ReconciliationCaseRepository {
     private val all = linkedMapOf<String, ReconciliationCase>().apply { initial.forEach { put(it.id, it) } }
     private val pending = MutableStateFlow(all.values.filter { it.status == ReconciliationCaseStatus.PENDING })
     val resolveSeparateCalls = mutableListOf<Pair<String, Long>>()
     val deferCalls = mutableListOf<Triple<String, Long, Long>>()
+    var observeCalls = 0
+        private set
 
     fun current(): List<ReconciliationCase> = all.values.toList()
 
-    override fun observePending(): Flow<List<ReconciliationCase>> = pending
+    override fun observePending(): Flow<List<ReconciliationCase>> {
+        observeCalls += 1
+        return when {
+            observeFailure || failFirstObservation && observeCalls == 1 ->
+                flow { error("test reconciliation observation failure") }
+            failAfterFirstSnapshot -> failingAfterSnapshot()
+            else -> pending
+        }
+    }
+
+    private fun failingAfterSnapshot(): Flow<List<ReconciliationCase>> = flow {
+        emit(pending.value)
+        delay(1)
+        error("test reconciliation observation failure after snapshot")
+    }
     override fun observeForStory(storyId: StoryId): Flow<List<ReconciliationCase>> = flowOf(
         all.values.filter { storyId == it.key.left || storyId == it.key.right },
     )
@@ -425,6 +522,9 @@ private class SequenceMergeExecutor(
         return results.removeAt(0)
     }
 }
+
+private fun ReconciliationReviewUiState.requireItems(): List<ReconciliationReviewItemUiModel> =
+    (content as ContentState.Ready<List<ReconciliationReviewItemUiModel>>).value
 
 private fun case(
     id: String,

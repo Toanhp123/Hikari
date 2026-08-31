@@ -6,6 +6,7 @@ import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.Clock
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
@@ -28,10 +29,13 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flow
@@ -60,7 +64,7 @@ class LibraryViewModelTest {
         viewModel.updateQuery("moon")
         runCurrent()
 
-        assertEquals(listOf(StoryId("a")), viewModel.state.value.items.map { it.storyId })
+        assertEquals(listOf(StoryId("a")), viewModel.state.value.readyItems().map { it.storyId })
     }
 
     @Test
@@ -77,9 +81,9 @@ class LibraryViewModelTest {
         viewModel.selectStatus(LibraryStatus.COMPLETED)
         runCurrent()
 
-        assertEquals(2, viewModel.state.value.statusCounts[LibraryStatus.READING])
-        assertEquals(1, viewModel.state.value.statusCounts[LibraryStatus.COMPLETED])
-        assertEquals(listOf(StoryId("c")), viewModel.state.value.items.map { it.storyId })
+        assertEquals(2, viewModel.state.value.readyContent().statusCounts[LibraryStatus.READING])
+        assertEquals(1, viewModel.state.value.readyContent().statusCounts[LibraryStatus.COMPLETED])
+        assertEquals(listOf(StoryId("c")), viewModel.state.value.readyItems().map { it.storyId })
     }
 
     @Test
@@ -93,13 +97,13 @@ class LibraryViewModelTest {
         val viewModel = fixtures.viewModel(this)
         runCurrent()
 
-        assertEquals(listOf(StoryId("a"), StoryId("b")), viewModel.state.value.items.map { it.storyId })
+        assertEquals(listOf(StoryId("a"), StoryId("b")), viewModel.state.value.readyItems().map { it.storyId })
         viewModel.selectSort(LibrarySort.TITLE)
         runCurrent()
-        assertEquals(listOf(StoryId("b"), StoryId("a")), viewModel.state.value.items.map { it.storyId })
+        assertEquals(listOf(StoryId("b"), StoryId("a")), viewModel.state.value.readyItems().map { it.storyId })
         viewModel.selectSort(LibrarySort.DATE_ADDED)
         runCurrent()
-        assertEquals(listOf(StoryId("b"), StoryId("a")), viewModel.state.value.items.map { it.storyId })
+        assertEquals(listOf(StoryId("b"), StoryId("a")), viewModel.state.value.readyItems().map { it.storyId })
     }
 
     @Test
@@ -113,7 +117,7 @@ class LibraryViewModelTest {
         viewModel.selectSourceFilter(LibrarySourceState.LINKED)
         runCurrent()
 
-        assertEquals(listOf(StoryId("linked")), viewModel.state.value.items.map { it.storyId })
+        assertEquals(listOf(StoryId("linked")), viewModel.state.value.readyItems().map { it.storyId })
     }
 
     @Test
@@ -124,7 +128,7 @@ class LibraryViewModelTest {
         val viewModel = fixtures.viewModel(this)
         runCurrent()
 
-        assertEquals(0.8f, viewModel.state.value.items.single().progressFraction)
+        assertEquals(0.8f, viewModel.state.value.readyItems().single().progressFraction)
     }
 
     @Test
@@ -144,7 +148,7 @@ class LibraryViewModelTest {
         val viewModel = fixtures.viewModel(this)
         runCurrent()
 
-        val item = viewModel.state.value.items.single()
+        val item = viewModel.state.value.readyItems().single()
         assertEquals("Canonical title", item.title)
         assertEquals("https://example.test/canonical.jpg", item.coverUrl)
         assertEquals(PublicationStatus.COMPLETED, item.publicationStatus)
@@ -203,30 +207,169 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun missingEnrichmentNeverRemovesLibraryMembership() = runTest(dispatcher.scheduler) {
+    fun firstEmptyMembershipIsReadyTrueEmpty() = runTest(dispatcher.scheduler) {
         val fixtures = Fixtures()
-        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
-        fixtures.catalogFlow = flow { throw IllegalStateException("catalog unavailable") }
-        fixtures.mappingFlow = flow { throw IllegalStateException("mapping unavailable") }
-        fixtures.progressFlow = flow { throw IllegalStateException("progress unavailable") }
+        fixtures.catalogFlow = MutableSharedFlow()
+        fixtures.mappingFlow = MutableSharedFlow()
+        fixtures.progressFlow = MutableSharedFlow()
 
         val viewModel = fixtures.viewModel(this)
         runCurrent()
 
-        assertEquals(listOf(StoryId("a")), viewModel.state.value.items.map { it.storyId })
-        assertEquals("a", viewModel.state.value.items.single().title)
-        assertEquals(false, viewModel.state.value.loading)
+        val content = viewModel.state.value.readyContent()
+        assertEquals(0, content.totalCount)
+        assertTrue(viewModel.state.value.readyItems().isEmpty())
     }
 
     @Test
-    fun stateRemainsLoadingUntilLibraryMembershipEmits() = runTest(dispatcher.scheduler) {
+    fun dateAddedMembershipRendersBeforeCatalogMappingAndProgressWhenControlsDoNotRequireThem() =
+        runTest(dispatcher.scheduler) {
+            val fixtures = Fixtures()
+            fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+            fixtures.catalogFlow = MutableSharedFlow()
+            fixtures.mappingFlow = MutableSharedFlow()
+            fixtures.progressFlow = MutableSharedFlow()
+            val viewModel = fixtures.viewModel(
+                this,
+                SavedStateHandle(mapOf("library.sort" to LibrarySort.DATE_ADDED.name)),
+            )
+            runCurrent()
+
+            val item = viewModel.state.value.readyItems().single()
+            assertEquals(StoryId("a"), item.storyId)
+            assertEquals("a", item.title)
+            assertEquals(LibrarySourceState.UNKNOWN, item.sourceState)
+        }
+
+    @Test
+    fun unresolvedMappingUsesUnknownNotNoMapping() = runTest(dispatcher.scheduler) {
         val fixtures = Fixtures()
-        fixtures.entryFlow = flow { }
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.mappingFlow = MutableSharedFlow()
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(mapOf("library.sort" to LibrarySort.DATE_ADDED.name)),
+        )
+        runCurrent()
+
+        assertEquals(LibrarySourceState.UNKNOWN, viewModel.state.value.readyItems().single().sourceState)
+    }
+
+    @Test
+    fun unresolvedMappingDoesNotUseSearchingWithoutLifecycleSignal() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.mappingFlow = MutableSharedFlow()
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(mapOf("library.sort" to LibrarySort.DATE_ADDED.name)),
+        )
+        runCurrent()
+
+        assertTrue(viewModel.state.value.readyItems().none { it.sourceState == LibrarySourceState.SEARCHING })
+    }
+
+    @Test
+    fun sourceFilterShowsLocalResolvingInsteadOfFalseFilteredEmpty() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.mappingFlow = MutableSharedFlow()
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(
+                mapOf(
+                    "library.sort" to LibrarySort.DATE_ADDED.name,
+                    "library.source-filter" to LibrarySourceState.NO_MAPPING.name,
+                ),
+            ),
+        )
+        runCurrent()
+
+        assertIs<LibraryCollectionState.Resolving>(viewModel.state.value.readyContent().collection)
+    }
+
+    @Test
+    fun titleQueryWaitsLocallyForFirstCatalogSnapshot() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.catalogFlow = MutableSharedFlow()
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(
+                mapOf(
+                    "library.query" to "a",
+                    "library.sort" to LibrarySort.DATE_ADDED.name,
+                ),
+            ),
+        )
+        runCurrent()
+
+        assertIs<LibraryCollectionState.Resolving>(viewModel.state.value.readyContent().collection)
+    }
+
+    @Test
+    fun titleSortWaitsLocallyForFirstCatalogSnapshot() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.catalogFlow = MutableSharedFlow()
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(mapOf("library.sort" to LibrarySort.TITLE.name)),
+        )
+        runCurrent()
+
+        assertIs<LibraryCollectionState.Resolving>(viewModel.state.value.readyContent().collection)
+    }
+
+    @Test
+    fun lastActivitySortWaitsLocallyForFirstProgressSnapshot() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.progressFlow = MutableSharedFlow()
+        val viewModel = fixtures.viewModel(this)
+        runCurrent()
+
+        assertIs<LibraryCollectionState.Resolving>(viewModel.state.value.readyContent().collection)
+    }
+
+    @Test
+    fun membershipFirstFailureIsBlockingFailed() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entryFlow = flow { throw IllegalStateException("membership unavailable") }
+        val viewModel = fixtures.viewModel(this)
+        runCurrent()
+
+        val failed = assertIs<ContentState.Failed>(viewModel.state.value.content)
+        assertEquals("library.membership.observe_failed", failed.failure.code)
+        assertTrue(failed.failure.retryable)
+    }
+
+    @Test
+    fun enrichmentFailurePreservesMembershipAndSurfacesIssue() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.catalogFlow = flow { throw IllegalStateException("catalog unavailable") }
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(mapOf("library.sort" to LibrarySort.DATE_ADDED.name)),
+        )
+        runCurrent()
+
+        val item = viewModel.state.value.readyItems().single()
+        assertEquals(StoryId("a"), item.storyId)
+        assertEquals("a", item.title)
+        assertEquals("library.catalog.observe_failed", viewModel.state.value.observationIssue?.code)
+    }
+
+    @Test
+    fun stateRemainsPendingUntilLibraryMembershipEmits() = runTest(dispatcher.scheduler) {
+        val fixtures = Fixtures()
+        fixtures.entryFlow = MutableSharedFlow()
 
         val viewModel = fixtures.viewModel(this)
         runCurrent()
 
-        assertTrue(viewModel.state.value.loading)
+        assertIs<ContentState.Pending>(viewModel.state.value.content)
     }
 
     @Test
@@ -239,6 +382,99 @@ class LibraryViewModelTest {
         runCurrent()
 
         assertEquals(null, viewModel.state.value.sourceFilter)
+    }
+
+    @Test
+    fun unknownSourceStateCannotBecomePersistedFilter() = runTest(dispatcher.scheduler) {
+        val savedState = SavedStateHandle()
+        val viewModel = Fixtures().viewModel(this, savedState)
+        runCurrent()
+
+        viewModel.selectSourceFilter(LibrarySourceState.UNKNOWN)
+        runCurrent()
+
+        assertNull(viewModel.state.value.sourceFilter)
+        assertNull(savedState.get<String>("library.source-filter"))
+    }
+
+    @Test
+    fun retryContentRestartsOnlyUnavailableMembership() = runTest(dispatcher.scheduler) {
+        var membershipAttempts = 0
+        val fixtures = Fixtures()
+        fixtures.entryFlow = flow {
+            membershipAttempts += 1
+            if (membershipAttempts == 1) throw IllegalStateException("membership unavailable")
+            emit(emptyList())
+        }
+        val viewModel = fixtures.viewModel(this)
+        runCurrent()
+
+        viewModel.retryContent()
+        runCurrent()
+
+        assertEquals(2, membershipAttempts)
+        assertEquals(0, viewModel.state.value.readyContent().totalCount)
+    }
+
+    @Test
+    fun retryCollectionRestartsOnlyUnavailableActiveDependencies() = runTest(dispatcher.scheduler) {
+        var catalogAttempts = 0
+        var mappingAttempts = 0
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.catalogFlow = flow {
+            catalogAttempts += 1
+            if (catalogAttempts == 1) throw IllegalStateException("catalog unavailable")
+            emit(listOf(projection("a", "Alpha")))
+        }
+        fixtures.mappingFlow = flow {
+            mappingAttempts += 1
+            emit(emptyList())
+        }
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(mapOf("library.query" to "alpha", "library.sort" to LibrarySort.DATE_ADDED.name)),
+        )
+        runCurrent()
+        assertIs<LibraryCollectionState.Unavailable>(viewModel.state.value.readyContent().collection)
+        assertNull(viewModel.state.value.observationIssue)
+
+        viewModel.retryCollection()
+        runCurrent()
+
+        assertEquals(listOf(StoryId("a")), viewModel.state.value.readyItems().map { it.storyId })
+        assertEquals(2, catalogAttempts)
+        assertEquals(1, mappingAttempts)
+    }
+
+    @Test
+    fun retryObservationRestartsOnlySurfacedInactiveIssue() = runTest(dispatcher.scheduler) {
+        var catalogAttempts = 0
+        var progressAttempts = 0
+        val fixtures = Fixtures()
+        fixtures.entries.value = listOf(entry("a", LibraryStatus.READING))
+        fixtures.catalogFlow = flow {
+            catalogAttempts += 1
+            if (catalogAttempts == 1) throw IllegalStateException("catalog unavailable")
+            emit(listOf(projection("a", "Alpha")))
+        }
+        fixtures.progressFlow = flow {
+            progressAttempts += 1
+            emit(emptyList())
+        }
+        val viewModel = fixtures.viewModel(
+            this,
+            SavedStateHandle(mapOf("library.sort" to LibrarySort.DATE_ADDED.name)),
+        )
+        runCurrent()
+        assertEquals("library.catalog.observe_failed", viewModel.state.value.observationIssue?.code)
+
+        viewModel.retryObservation()
+        runCurrent()
+
+        assertEquals(2, catalogAttempts)
+        assertEquals(1, progressAttempts)
+        assertNull(viewModel.state.value.observationIssue)
     }
 
     @Test
@@ -318,3 +554,9 @@ private fun progress(id: String, fraction: Float, updatedAt: Long) = ReadingProg
 private object NoOpMappingScheduler : LibraryMappingScheduler {
     override fun schedule(storyId: StoryId) = Unit
 }
+
+private fun LibraryUiState.readyContent(): LibraryContent =
+    assertIs<ContentState.Ready<LibraryContent>>(content).value
+
+private fun LibraryUiState.readyItems(): List<LibraryItemUiModel> =
+    assertIs<LibraryCollectionState.Ready>(readyContent().collection).items

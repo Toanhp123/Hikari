@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.library.LibraryStatus
@@ -30,7 +31,7 @@ class LibrarySemanticsTest {
         compose.setContent {
             HikariTheme {
                 LibraryScreen(
-                    state = LibraryUiState(
+                    state = libraryState(
                         items = listOf(
                             LibraryItemUiModel(
                                 storyId = StoryId("story"),
@@ -43,8 +44,6 @@ class LibrarySemanticsTest {
                                 updatedAt = 1L,
                             ),
                         ),
-                        totalCount = 1,
-                        loading = false,
                     ),
                     onQueryChange = {},
                     onStatusSelected = {},
@@ -95,9 +94,34 @@ class LibrarySemanticsTest {
         compose.onNodeWithText("Source").assertExists()
         compose.onNodeWithText("Sort").assertExists()
         compose.onNodeWithText("Clear filters").assertIsDisplayed()
+        compose.onNodeWithTag("library-source-unknown").assertDoesNotExist()
 
         compose.onNodeWithContentDescription("Switch to list view").performClick()
         assertTrue(selectedMode == LibraryDisplayMode.LIST)
+    }
+
+    @Test
+    fun pendingMembershipDoesNotClaimZeroStatusCounts() {
+        compose.setContent {
+            HikariTheme {
+                LibraryScreen(
+                    state = LibraryUiState(),
+                    onQueryChange = {},
+                    onStatusSelected = {},
+                    onSourceFilterSelected = {},
+                    onSortSelected = {},
+                    onDisplayModeSelected = {},
+                    onClearFilters = {},
+                    onDiscover = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Open Library filters").performClick()
+        compose.onNodeWithText("All").assertIsDisplayed()
+        compose.onNodeWithText("All 0").assertDoesNotExist()
+        compose.onNodeWithText("Reading 0").assertDoesNotExist()
     }
 
     @Test
@@ -120,21 +144,75 @@ class LibrarySemanticsTest {
 
         compose.onNodeWithTag("story-poster-card", useUnmergedTree = true).assertIsDisplayed()
     }
+
+    @Test
+    fun localResolvingKeepsToolbarInteractiveAndUsesCollectionSkeleton() {
+        compose.setContent {
+            HikariTheme {
+                LibraryScreen(
+                    state = libraryState(collection = LibraryCollectionState.Resolving),
+                    onQueryChange = {},
+                    onStatusSelected = {},
+                    onSourceFilterSelected = {},
+                    onSortSelected = {},
+                    onDisplayModeSelected = {},
+                    onClearFilters = {},
+                    onDiscover = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Search your Library").assertIsDisplayed()
+        compose.onNodeWithTag("library-collection-skeleton").assertIsDisplayed()
+        compose.onNodeWithText("Loading your Library").assertDoesNotExist()
+    }
+
+    @Test
+    fun unknownMappingUsesSkeletonAndOmitsSourceAccessibilityClaim() {
+        val item = libraryItem().copy(sourceState = LibrarySourceState.UNKNOWN)
+        compose.setContent {
+            HikariTheme {
+                LibraryScreen(
+                    state = libraryState(items = listOf(item)),
+                    onQueryChange = {},
+                    onStatusSelected = {},
+                    onSourceFilterSelected = {},
+                    onSortSelected = {},
+                    onDisplayModeSelected = {},
+                    onClearFilters = {},
+                    onDiscover = {},
+                    onStorySelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("library-source-skeleton-story", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Story. Reading.").assertIsDisplayed()
+        compose.onNodeWithText("Source status unavailable").assertDoesNotExist()
+    }
 }
 
-private fun libraryState() = LibraryUiState(
-    items = listOf(
-        LibraryItemUiModel(
-            storyId = StoryId("story"),
-            title = "Story",
-            contentType = ContentType.WEB_NOVEL,
-            coverUrl = null,
-            status = LibraryStatus.READING,
-            sourceState = LibrarySourceState.LINKED,
-            addedAt = 1L,
-            updatedAt = 1L,
+private fun libraryState(
+    items: List<LibraryItemUiModel> = listOf(libraryItem()),
+    collection: LibraryCollectionState = LibraryCollectionState.Ready(items),
+) = LibraryUiState(
+    content = ContentState.Ready(
+        LibraryContent(
+            totalCount = items.size,
+            statusCounts = LibraryStatus.entries.associateWith { status -> items.count { it.status == status } },
+            collection = collection,
         ),
     ),
-    totalCount = 1,
-    loading = false,
+)
+
+private fun libraryItem() = LibraryItemUiModel(
+    storyId = StoryId("story"),
+    title = "Story",
+    contentType = ContentType.WEB_NOVEL,
+    coverUrl = null,
+    status = LibraryStatus.READING,
+    sourceState = LibrarySourceState.LINKED,
+    addedAt = 1L,
+    updatedAt = 1L,
 )

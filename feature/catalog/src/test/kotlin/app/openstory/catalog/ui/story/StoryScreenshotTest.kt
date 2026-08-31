@@ -7,19 +7,27 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.Score
+import app.openstory.catalog.ui.chapters.ChapterCapabilityState
 import app.openstory.catalog.ui.chapters.ChapterItemUiModel
+import app.openstory.catalog.ui.chapters.ChapterListContent
 import app.openstory.catalog.ui.chapters.ChapterListUiState
 import app.openstory.catalog.ui.chapters.ChapterReleaseUiModel
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.mapping.MappingUiState
 import app.openstory.common.id.CanonicalChapterId
@@ -139,6 +147,29 @@ class StoryScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun sourceFactsStayCollapsedUntilCardIsInspected() {
+        val sourceUrl = "https://example.test/story"
+        val sources = fixture(StorySection.SOURCES).withoutArtwork()
+
+        setStoryContent(state = sources.copy(selectedSource = null))
+        compose.onAllNodesWithText(sourceUrl).assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun inspectedSourceOffersExplicitRefreshAction() {
+        var refreshed: Pair<PluginId, String>? = null
+        setStoryContent(
+            state = fixture(StorySection.SOURCES).withoutArtwork(),
+            onSourceRefresh = { pluginId, sourceId -> refreshed = pluginId to sourceId },
+        )
+
+        compose.onNodeWithText("https://example.test/story").assertIsDisplayed()
+        compose.onNodeWithTag("story-source-refresh-catalog.mangadex-moonlit-a").performClick()
+
+        assertEquals(PluginId("catalog.mangadex") to "moonlit-a", refreshed)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun chaptersDoNotExposePullRefresh() {
         setStoryContent(state = fixture(StorySection.CHAPTERS).withoutArtwork())
 
@@ -158,7 +189,7 @@ class StoryScreenshotTest {
     fun chaptersHideSourceDetailRefreshFailure() {
         setStoryContent(
             state = fixture(StorySection.CHAPTERS).withoutArtwork().copy(
-                failure = StoryRefreshFailure("catalog.offline", retryable = true),
+                refresh = RefreshState(failure = CatalogUiFailure("catalog.offline", retryable = true)),
             ),
         )
 
@@ -170,9 +201,7 @@ class StoryScreenshotTest {
     fun initialNoContentLoadingDoesNotExposePullRefresh() {
         setStoryContent(
             state = fixture().withoutArtwork().copy(
-                story = null,
-                refreshing = true,
-                failure = null,
+                content = ContentState.Pending,
             ),
         )
 
@@ -181,35 +210,131 @@ class StoryScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
-    fun retryableEmptyErrorRemainsVisibleWhileRefreshing() {
+    fun retryableBlockingErrorUsesContentRetryWithoutPullRefresh() {
         setStoryContent(
             state = fixture().withoutArtwork().copy(
-                story = null,
-                refreshing = true,
-                failure = StoryRefreshFailure("catalog.offline", retryable = true),
+                content = ContentState.Failed(CatalogUiFailure("catalog.offline", retryable = true)),
+                refresh = RefreshState(inProgress = true),
             ),
         )
 
-        compose.onNodeWithTag("story-empty-pull-refresh").assertIsDisplayed()
-        compose.onNodeWithTag("story-empty-pull-refresh").assert(
-            androidx.compose.ui.test.SemanticsMatcher.expectValue(
-                androidx.compose.ui.semantics.SemanticsProperties.StateDescription,
-                "Refreshing",
-            ),
-        )
+        compose.onAllNodesWithTag("story-empty-pull-refresh").assertCountEquals(0)
         compose.onNodeWithText("Story unavailable").assertIsDisplayed()
         compose.onNodeWithText("Retry").assertIsDisplayed()
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun storyHeroDoesNotShowFindSourceBeforeReaderCapabilityResolves() {
+        val target = ReaderTarget(
+            StoryId("moonlit-archive"),
+            CanonicalChapterId("chapter-12"),
+            ChapterReleaseId("release-12"),
+        )
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(
+                chapterCount = 1,
+                releaseTargets = listOf(target),
+                readerAvailabilityResolved = false,
+            ),
+        )
+
+        compose.onNodeWithTag("story-reader-checking").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun emptyChapterListOffersFindSource() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(chapterCount = 0),
+        )
+
+        compose.onNodeWithTag("story-find-source").assertIsDisplayed().assertIsEnabled()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun chapterGroupsWithoutReleasesDoNotShowFindSource() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(chapterCount = 1, releaseTargets = emptyList()),
+        )
+
+        compose.onNodeWithTag("story-no-releases").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun chapterObservationFailureDoesNotShowFindSource() {
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = ChapterListUiState(
+                storyId = StoryId("moonlit-archive"),
+                content = ContentState.Failed(
+                    CatalogUiFailure("chapter.list.observe_failed", retryable = true),
+                ),
+            ),
+        )
+
+        compose.onNodeWithTag("story-chapters-unavailable").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun resumeTargetFromAnotherStoryIsNotValidated() {
+        val target = ReaderTarget(
+            StoryId("moonlit-archive"),
+            CanonicalChapterId("chapter-12"),
+            ChapterReleaseId("release-12"),
+        )
+        val staleResume = target.copy(storyId = StoryId("another-story"))
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = staleResume),
+            chapterState = storyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                releaseTargets = listOf(target),
+                readerAvailabilityResolved = true,
+            ),
+        )
+
+        compose.onNodeWithTag("story-read").assertIsDisplayed()
+        compose.onNodeWithText("Read").assertIsDisplayed()
+        compose.onNodeWithText("Resume").assertDoesNotExist()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun resolvedChaptersWithoutReadableSourceShowFindSource() {
+        val target = ReaderTarget(
+            StoryId("moonlit-archive"),
+            CanonicalChapterId("chapter-12"),
+            ChapterReleaseId("release-12"),
+        )
+        setStoryContent(
+            state = fixture().withoutArtwork().copy(resumeTarget = null),
+            chapterState = storyChapterState(
+                chapterCount = 1,
+                releaseTargets = listOf(target),
+                readerAvailabilityResolved = true,
+            ),
+        )
+
+        compose.onNodeWithTag("story-find-source").assertIsDisplayed()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun cachedError() = capture(
-        fixture(StorySection.SOURCES).copy(failure = StoryRefreshFailure("catalog.offline", true)),
+        fixture(StorySection.SOURCES).copy(
+            refresh = RefreshState(failure = CatalogUiFailure("catalog.offline", true)),
+        ),
         "cached-error.png",
     )
 
     private fun setStoryContent(
         state: StoryUiState,
         onRefresh: () -> Unit = {},
+        onSourceRefresh: (PluginId, String) -> Unit = { _, _ -> },
+        chapterState: ChapterListUiState? = chapterFixture(),
     ) {
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
@@ -217,8 +342,9 @@ class StoryScreenshotTest {
                     state = state,
                     onRefresh = onRefresh,
                     onSourceSelected = { _, _ -> },
+                    onSourceRefresh = onSourceRefresh,
                     mappingState = mappingFixture(),
-                    chapterState = chapterFixture(),
+                    chapterState = chapterState,
                 )
             }
         }
@@ -275,27 +401,35 @@ private fun fixture(section: StorySection = StorySection.OVERVIEW): StoryUiState
     val sourceB = sourceA.copy(pluginId = PluginId("catalog.mal"), sourceId = "moonlit-b", title = "Moonlit Archive")
     return StoryUiState(
         storyId = storyId,
-        story = StoryUiModel(
-            storyId, sourceA.title, sourceA.contentType, sourceA.aliases, sourceA.description,
-            sourceA.coverUrl, sourceA.score, sourceA.authors, sourceA.genres, sourceA.languageTags,
-            listOf(sourceA, sourceB),
+        content = ContentState.Ready(
+            StoryUiModel(
+                storyId, sourceA.title, sourceA.contentType, sourceA.aliases, sourceA.description,
+                sourceA.coverUrl, sourceA.score, sourceA.authors, sourceA.genres, sourceA.languageTags,
+                listOf(sourceA, sourceB),
+            ),
         ),
         selectedSource = StorySourceIdentity(sourceA.pluginId, sourceA.sourceId),
         libraryStatus = LibraryStatus.READING,
+        libraryStatusResolved = true,
         resumeTarget = ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
         selectedSection = section,
     )
 }
 
-private fun StoryUiState.withoutArtwork() = copy(story = story?.copy(coverUrl = null, sources = story.sources.map { it.copy(coverUrl = null) }))
+private fun StoryUiState.withoutArtwork(): StoryUiState {
+    val ready = content as ContentState.Ready
+    val story = ready.value
+    return copy(
+        content = ContentState.Ready(
+            story.copy(coverUrl = null, sources = story.sources.map { it.copy(coverUrl = null) }),
+        ),
+    )
+}
 
-private fun chapterFixture() = ChapterListUiState(
-    storyId = StoryId("moonlit-archive"),
-    chapterCount = 2,
-    readableTargets = listOf(
-        ReaderTarget(StoryId("moonlit-archive"), CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12")),
-    ),
-    chapters = listOf(
+private fun chapterFixture(): ChapterListUiState {
+    val storyId = StoryId("moonlit-archive")
+    val target = ReaderTarget(storyId, CanonicalChapterId("chapter-12"), ChapterReleaseId("release-12"))
+    val chapters = listOf(
         ChapterItemUiModel(
             id = CanonicalChapterId("chapter-12"),
             label = "Chapter 12",
@@ -307,7 +441,8 @@ private fun chapterFixture() = ChapterListUiState(
                     "MangaDex",
                     "English",
                     12L,
-                    true,
+                    ChapterCapabilityState.SUPPORTED,
+                    ChapterCapabilityState.SUPPORTED,
                 ),
             ),
             title = "The Locked Constellation",
@@ -319,11 +454,42 @@ private fun chapterFixture() = ChapterListUiState(
             releases = emptyList(),
             title = "A Fox at Dawn",
         ),
+    )
+    return storyChapterState(
+        chapters = chapters,
+        chapterCount = 2,
+        readableTargets = listOf(target),
+        downloadableTargets = listOf(target),
+        releaseTargets = listOf(target),
+        readerAvailabilityResolved = true,
+    )
+}
+
+private fun storyChapterState(
+    chapters: List<ChapterItemUiModel> = emptyList(),
+    chapterCount: Int,
+    readableTargets: List<ReaderTarget> = emptyList(),
+    downloadableTargets: List<ReaderTarget> = emptyList(),
+    releaseTargets: List<ReaderTarget> = emptyList(),
+    readerAvailabilityResolved: Boolean = true,
+): ChapterListUiState = ChapterListUiState(
+    storyId = StoryId("moonlit-archive"),
+    content = ContentState.Ready(
+        ChapterListContent(
+            chapters = chapters,
+            readableTargets = readableTargets,
+            downloadableTargets = downloadableTargets,
+            releaseTargets = releaseTargets,
+            chapterCount = chapterCount,
+            readerAvailabilityResolved = readerAvailabilityResolved,
+        ),
     ),
 )
 
 private fun mappingFixture() = MappingUiState(
-    mappings = listOf(MappingItemUiModel(PluginId("mangadex"), "reading-source", ContentMappingOrigin.USER_APPROVED)),
+    content = ContentState.Ready(
+        listOf(MappingItemUiModel(PluginId("mangadex"), "reading-source", ContentMappingOrigin.USER_APPROVED)),
+    ),
 )
 
 private fun fixtureArtwork(): Bitmap = Bitmap.createBitmap(64, 96, Bitmap.Config.ARGB_8888).apply {

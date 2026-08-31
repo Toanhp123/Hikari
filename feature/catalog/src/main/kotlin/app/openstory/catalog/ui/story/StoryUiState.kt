@@ -5,19 +5,24 @@ import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
-import app.openstory.common.id.PluginId
-import app.openstory.common.id.StoryId
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
 import app.openstory.library.LibraryStatus
 
 data class StoryUiState(
     val storyId: StoryId,
-    val story: StoryUiModel? = null,
+    val content: ContentState<StoryUiModel> = ContentState.Pending,
     val selectedSource: StorySourceIdentity? = null,
-    val refreshing: Boolean = false,
-    val failure: StoryRefreshFailure? = null,
+    val refresh: RefreshState = RefreshState(),
+    val observationIssue: CatalogUiFailure? = null,
+    val commandFailure: CatalogUiFailure? = null,
     val libraryStatus: LibraryStatus? = null,
+    val libraryStatusResolved: Boolean = false,
     val resumeTarget: ReaderTarget? = null,
     val selectedSection: StorySection = StorySection.OVERVIEW,
     val reconciliationPrompt: StoryReconciliationPromptUiModel? = null,
@@ -58,9 +63,4 @@ enum class StorySection { OVERVIEW, CHAPTERS, SOURCES }
 data class StorySourceIdentity(
     val pluginId: PluginId,
     val sourceId: String,
-)
-
-data class StoryRefreshFailure(
-    val code: String,
-    val retryable: Boolean,
 )

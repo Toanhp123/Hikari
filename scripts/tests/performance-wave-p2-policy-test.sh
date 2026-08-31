@@ -9,6 +9,7 @@ refresh="$root/catalog/src/main/kotlin/app/openstory/catalog/home/CatalogRefresh
 details="$root/catalog/src/main/kotlin/app/openstory/catalog/details/CatalogDetailsLoader.kt"
 room_repo="$root/storage/room/src/main/kotlin/app/openstory/storage/room/catalog/RoomCatalogRepository.kt"
 catalog_dao="$root/storage/room/src/main/kotlin/app/openstory/storage/room/catalog/CatalogDao.kt"
+home_dao="$root/storage/room/src/main/kotlin/app/openstory/storage/room/catalog/CatalogHomeDao.kt"
 chapter_sync="$root/chapters/src/main/kotlin/app/openstory/chapters/sync/ChapterPageSynchronizer.kt"
 chapter_repo="$root/storage/room/src/main/kotlin/app/openstory/storage/room/chapters/RoomChapterRepository.kt"
 chapter_dao="$root/storage/room/src/main/kotlin/app/openstory/storage/room/chapters/ChapterDao.kt"
@@ -35,12 +36,26 @@ grep -q 'ingest.fork()' "$refresh" || fail "home source-page reconciliation is n
 grep -q 'applyDurableOwnership' "$search" || fail "search does not reconcile the committed durable owner back into its ingest fork"
 grep -q 'applyDurableOwnership' "$refresh" || fail "home refresh does not reconcile the committed durable owner back into its ingest fork"
 
-# Home observation must scope catalog entries to home membership and pre-group rows once per emission.
-grep -q 'observeHomeEntries()' "$catalog_dao" || fail "Room catalog DAO lacks home-scoped entry observation"
-grep -q 'dao.observeHomeEntries()' "$room_repo" || fail "Home observation still consumes all catalog entries"
-! grep -q 'dao.observeAllEntries()' "$room_repo" || fail "Room home observation still materializes all catalog entries"
-grep -q 'sectionsByPlugin' "$room_repo" || fail "Home sections are not grouped once per emission"
-grep -q 'itemsByPlugin' "$room_repo" || fail "Home items are not grouped once per emission"
+# Home observation must use one invalidation stream, rebuild a coherent snapshot transactionally,
+# and keep catalog-entry materialization scoped to Home membership.
+home_observation_block="$(sed -n '/override fun observeHomes()/,/private suspend fun readCoherentHomes/p' "$room_repo")"
+coherent_home_block="$(sed -n '/private suspend fun readCoherentHomes()/,/override fun observeStory/p' "$room_repo")"
+grep -q 'database.invalidationTracker' <<<"$home_observation_block" || fail "Home observation lacks Room invalidation tracking"
+grep -q '\.createFlow(' <<<"$home_observation_block" || fail "Home observation lacks a single Room invalidation Flow"
+! grep -q 'combine(' <<<"$home_observation_block" || fail "Home observation still combines independently observed Room state"
+grep -q 'database.withTransaction' <<<"$coherent_home_block" || fail "Home observation is not rebuilt from a transactional database snapshot"
+! grep -q 'dao.observeAllEntries()' <<<"$coherent_home_block" || fail "Room home observation still materializes all catalog entries"
+! grep -q 'dao.observeHomeEntries()' <<<"$coherent_home_block" || fail "Room home observation still composes independently observed entry state"
+grep -q 'suspend fun snapshots()' "$home_dao" || fail "Room Home DAO lacks transactional snapshot read"
+grep -q 'suspend fun sections()' "$home_dao" || fail "Room Home DAO lacks transactional section read"
+grep -q 'suspend fun items()' "$home_dao" || fail "Room Home DAO lacks transactional item read"
+! grep -q 'fun observeSnapshots()' "$home_dao" || fail "Room Home DAO restored independently observed snapshots"
+! grep -q 'fun observeSections()' "$home_dao" || fail "Room Home DAO restored independently observed sections"
+! grep -q 'fun observeItems()' "$home_dao" || fail "Room Home DAO restored independently observed items"
+grep -q 'suspend fun homeEntries()' "$catalog_dao" || fail "Room catalog DAO lacks transactional home-scoped entry read"
+grep -q 'dao.homeEntries()' <<<"$coherent_home_block" || fail "Home observation does not use the home-scoped entry query"
+grep -q 'sectionsByPlugin' <<<"$coherent_home_block" || fail "Home sections are not grouped once per accepted emission"
+grep -q 'itemsByPlugin' <<<"$coherent_home_block" || fail "Home items are not grouped once per accepted emission"
 
 # Home refresh must bulk load existing entries in bounded SQLite-safe chunks.
 grep -q 'suspend fun entries(pluginId: String, sourceIds: Collection<String>)' "$catalog_dao" || fail "bulk existing-entry query is missing"

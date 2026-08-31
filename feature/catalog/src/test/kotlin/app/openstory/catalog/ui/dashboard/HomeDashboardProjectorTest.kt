@@ -27,14 +27,14 @@ class HomeDashboardProjectorTest {
 
     @Test
     fun latestIncompleteProgressPerStoryBecomesContinueReading() {
-        val state = project(
+        val content = project(
             library = listOf(entry("story-a", LibraryStatus.READING)),
             progress = listOf(progress("story-a", "1", 10L), progress("story-a", "2", 20L)),
             catalog = listOf(projection("story-a", "Alpha")),
             chapters = listOf(group(StoryId("story-a"), "2", "source-a", 20L)),
         )
 
-        val item = state.continueReading.single()
+        val item = content.continueReading.single()
         assertEquals("Alpha", item.title)
         assertEquals(CanonicalChapterId("chapter-2"), item.readerTarget?.chapterId)
         assertEquals(20L, item.lastActivityAtEpochMillis)
@@ -43,29 +43,29 @@ class HomeDashboardProjectorTest {
     @Test
     fun existingProgressRemainsResumableWhenLiveSourceIsUnavailable() {
         val story = StoryId("story-a")
-        val state = project(
+        val content = project(
             library = listOf(entry(story.value, LibraryStatus.READING)),
             progress = listOf(progress(story.value, "1", 10L)),
             chapters = listOf(group(story, "1", "source-a", 10L)),
             readerPluginIds = emptySet(),
         )
 
-        assertEquals(ChapterReleaseId("release-1"), state.continueReading.single().readerTarget?.releaseId)
+        assertEquals(ChapterReleaseId("release-1"), content.continueReading.single().readerTarget?.releaseId)
     }
 
     @Test
     fun completedProgressDoesNotBecomeContinueReading() {
-        val state = project(
+        val content = project(
             library = listOf(entry("story-a", LibraryStatus.READING)),
             progress = listOf(progress("story-a", "1", 10L, completed = true)),
         )
 
-        assertEquals(emptyList(), state.continueReading)
+        assertEquals(emptyList(), content.continueReading)
     }
 
     @Test
     fun libraryStatusCreatesReadingPlannedPausedCompletedShelves() {
-        val state = project(
+        val content = project(
             library = listOf(
                 entry("reading", LibraryStatus.READING),
                 entry("planned", LibraryStatus.WANT_TO_READ),
@@ -75,23 +75,23 @@ class HomeDashboardProjectorTest {
             ),
         )
 
-        assertEquals(listOf(StoryId("reading")), state.reading.map { it.storyId })
-        assertEquals(listOf(StoryId("planned")), state.planned.map { it.storyId })
-        assertEquals(listOf(StoryId("paused")), state.paused.map { it.storyId })
-        assertEquals(listOf(StoryId("completed")), state.completed.map { it.storyId })
+        assertEquals(listOf(StoryId("reading")), content.reading.map { it.storyId })
+        assertEquals(listOf(StoryId("planned")), content.planned.map { it.storyId })
+        assertEquals(listOf(StoryId("paused")), content.paused.map { it.storyId })
+        assertEquals(listOf(StoryId("completed")), content.completed.map { it.storyId })
     }
 
     @Test
     fun latestMappedReleaseCreatesLibraryUpdate() {
         val story = StoryId("story-a")
-        val state = project(
+        val content = project(
             library = listOf(entry(story.value, LibraryStatus.READING)),
             catalog = listOf(projection(story.value, "Alpha")),
             mappings = listOf(mapping(story, "source-a")),
             chapters = listOf(group(story, "1", "source-a", 10L), group(story, "2", "source-a", 20L)),
         )
 
-        val update = state.latestUpdates.single()
+        val update = content.latestUpdates.single()
         assertEquals("Alpha", update.title)
         assertEquals("Chapter 2", update.chapterLabel)
         assertEquals(ChapterReleaseId("release-2"), update.readerTarget?.releaseId)
@@ -101,38 +101,92 @@ class HomeDashboardProjectorTest {
     @Test
     fun listOnlyLatestReleaseRemainsVisibleWithoutReaderTarget() {
         val story = StoryId("story-a")
-        val state = project(
+        val content = project(
             library = listOf(entry(story.value, LibraryStatus.READING)),
             mappings = listOf(mapping(story, "source-a")),
             chapters = listOf(group(story, "1", "source-a", 10L)),
             readerPluginIds = emptySet(),
         )
 
-        assertEquals(ChapterReleaseId("release-1"), state.latestUpdates.single().releaseId)
-        assertNull(state.latestUpdates.single().readerTarget)
+        assertEquals(ChapterReleaseId("release-1"), content.latestUpdates.single().releaseId)
+        assertNull(content.latestUpdates.single().readerTarget)
     }
 
     @Test
     fun missingCatalogProjectionKeepsStoryVisibleWithStableFallback() {
-        val state = project(library = listOf(entry("story-orphan", LibraryStatus.WANT_TO_READ)))
+        val content = project(library = listOf(entry("story-orphan", LibraryStatus.WANT_TO_READ)))
 
-        val item = state.planned.single()
+        val item = content.planned.single()
         assertEquals("story-orphan", item.title)
         assertNull(item.coverUrl)
     }
 
+    @Test
+    fun nonEmptyLibraryRendersBaseShelvesBeforeOtherDependencies() {
+        val content = project(
+            library = listOf(entry("story-a", LibraryStatus.READING)),
+        )
+
+        assertEquals(listOf(StoryId("story-a")), content.reading.map { it.storyId })
+        assertEquals("story-a", content.reading.single().title)
+        assertNull(content.noContentReason)
+    }
+
+    @Test
+    fun allDroppedLibraryNeverUsesNoLibraryReason() {
+        val content = project(
+            library = listOf(entry("story-a", LibraryStatus.DROPPED)),
+        )
+
+        assertEquals(HomeNoContentReason.LIBRARY_PRESENT_BUT_NO_HOME_SECTIONS, content.noContentReason)
+        assertEquals(1, content.summary.libraryCount)
+    }
+
+    @Test
+    fun missingDownloadCountIsUnknownNotZero() {
+        val content = project()
+
+        assertNull(content.summary.downloadedCount)
+    }
+
+    @Test
+    fun unresolvedProgressDoesNotFabricateAnEmptyProgressFact() {
+        val content = project(
+            library = listOf(entry("story-a", LibraryStatus.READING)),
+            progress = null,
+        )
+
+        assertEquals(emptyList(), content.continueReading)
+        assertEquals(listOf(StoryId("story-a")), content.reading.map { it.storyId })
+    }
+
+    @Test
+    fun chapterAndMappingArrivalAddsUpdatesBeforeReaderCapability() {
+        val story = StoryId("story-a")
+        val content = project(
+            library = listOf(entry(story.value, LibraryStatus.READING)),
+            chapters = listOf(group(story, "1", "source-a", 10L)),
+            mappings = listOf(mapping(story, "source-a")),
+            readerPluginIds = null,
+        )
+
+        assertEquals(ChapterReleaseId("release-1"), content.latestUpdates.single().releaseId)
+        assertNull(content.latestUpdates.single().readerTarget)
+    }
+
     private fun project(
         library: List<LibraryEntry> = emptyList(),
-        catalog: List<CatalogStoryProjection> = emptyList(),
-        progress: List<ReadingProgress> = emptyList(),
-        chapters: List<CanonicalChapterGroup> = emptyList(),
-        mappings: List<ContentMapping> = emptyList(),
-        readerPluginIds: Set<PluginId> = setOf(PluginId("content.a")),
+        catalog: List<CatalogStoryProjection>? = null,
+        progress: List<ReadingProgress>? = null,
+        chapters: List<CanonicalChapterGroup>? = null,
+        mappings: List<ContentMapping>? = null,
+        readerPluginIds: Set<PluginId>? = setOf(PluginId("content.a")),
+        downloadedCount: Int? = null,
     ) = projector.project(
         HomeDashboardInput(
             library, catalog, progress, chapters, mappings,
             readerPluginIds = readerPluginIds,
-            downloadedCount = 0,
+            downloadedCount = downloadedCount,
         ),
     )
 }

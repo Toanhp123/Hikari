@@ -12,6 +12,10 @@ import app.openstory.catalog.reconciliation.ReconciliationReviewAction
 import app.openstory.catalog.reconciliation.ReconciliationReviewCommand
 import app.openstory.catalog.reconciliation.ReconciliationReviewResult
 import app.openstory.catalog.reconciliation.ReconciliationReviewService
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.ObservationState
+import app.openstory.catalog.ui.state.retainedObservation
 import app.openstory.common.Clock
 import app.openstory.common.id.PluginId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +24,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -38,21 +41,26 @@ class ReconciliationReviewViewModel @Inject constructor(
     private val review: ReconciliationReviewService,
     private val clock: Clock,
 ) : ViewModel() {
+    private val started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS)
     private val operation = MutableStateFlow(ReviewOperationState())
     private val resumedCaseRevisions = mutableSetOf<String>()
 
-    private val queueItems = cases.observePending()
-        .flatMapLatest { pending -> observeQueueItems(pending) }
-        .catch {
-            operation.update { state ->
-                state.copy(failureMessage = "Couldn't load duplicate reviews right now.")
+    private val queueObservation = viewModelScope.retainedObservation(
+        key = flowOf(Unit),
+        initialKey = Unit,
+        started = started,
+        observe = {
+            cases.observePending().flatMapLatest { pending ->
+                observeQueueItems(pending, projections, footprints, review)
             }
-            emit(emptyList())
-        }
+        },
+        mapFailure = { _, _ -> CatalogUiFailure(OBSERVE_EXCEPTION_CODE, retryable = true) },
+    )
 
-    val state = combine(queueItems, operation) { items, operationState ->
+    val state = combine(queueObservation.state, operation) { queueState, operationState ->
         ReconciliationReviewUiState(
-            items = items,
+            content = queueState.toContentState(),
+            observationIssue = (queueState as? ObservationState.Available)?.issue,
             resolvingCaseId = operationState.resolvingCaseId,
             protectedConflict = operationState.protectedConflict,
             domainConflictReasonLabels = operationState.domainConflictReasonLabels,
@@ -60,9 +68,20 @@ class ReconciliationReviewViewModel @Inject constructor(
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+        started = started,
         initialValue = ReconciliationReviewUiState(),
     )
+
+    fun retryContent() {
+        if (queueObservation.state.value is ObservationState.Unavailable) queueObservation.retry()
+    }
+
+    fun retryObservation() {
+        val snapshot = state.value
+        if (snapshot.content is ContentState.Ready && snapshot.observationIssue != null) {
+            queueObservation.retry()
+        }
+    }
 
     fun merge(caseId: String, expectedRevision: Long) {
         val item = currentItem(caseId, expectedRevision) ?: return markStale()
@@ -174,30 +193,9 @@ class ReconciliationReviewViewModel @Inject constructor(
 
     /** Resume a user-approved contextual MERGE that was handed off after a protected conflict. */
     fun resumeMerge(caseId: String) {
-        val item = state.value.items.firstOrNull { it.caseId == caseId } ?: return
+        val item = state.value.readyItems()?.firstOrNull { it.caseId == caseId } ?: return
         val key = "$caseId:${item.caseRevision}"
         if (resumedCaseRevisions.add(key)) merge(caseId, item.caseRevision)
-    }
-
-    private fun observeQueueItems(pending: List<ReconciliationCase>) = if (pending.isEmpty()) {
-        flowOf(emptyList())
-    } else {
-        val storyIds = pending.flatMapTo(linkedSetOf()) { listOf(it.key.left, it.key.right) }
-        projections.observeForStories(storyIds).mapLatest { catalog ->
-            val footprintByStory = footprints.read(storyIds)
-            projectReviewQueue(pending, catalog, footprintByStory).map { item ->
-                val reversal = review.reversalOption(item.caseId, item.caseRevision)
-                if (reversal == null) {
-                    item
-                } else {
-                    item.copy(
-                        isPostMergeCorrection = true,
-                        reverseAllowed = reversal.reversibility == StoryMergeReversibility.REVERSIBLE,
-                        reversalBlockerLabels = reversal.reasonCodes.sorted().map(String::domainConflictLabel),
-                    )
-                }
-            }
-        }
     }
 
     private fun resolve(command: ReconciliationReviewCommand) {
@@ -229,7 +227,7 @@ class ReconciliationReviewViewModel @Inject constructor(
     }
 
     private fun currentItem(caseId: String, expectedRevision: Long): ReconciliationReviewItemUiModel? =
-        state.value.items.firstOrNull { it.caseId == caseId && it.caseRevision == expectedRevision }
+        state.value.readyItems()?.firstOrNull { it.caseId == caseId && it.caseRevision == expectedRevision }
 
     private fun markStale() {
         operation.update { it.copy(failureMessage = "This review changed. Check the latest evidence and try again.") }
@@ -237,6 +235,44 @@ class ReconciliationReviewViewModel @Inject constructor(
 
     private companion object {
         const val STOP_TIMEOUT_MILLIS = 5_000L
+        const val OBSERVE_EXCEPTION_CODE = "catalog.reconciliation.review.observe_exception"
+    }
+}
+
+private fun ObservationState<Unit, List<ReconciliationReviewItemUiModel>>.toContentState():
+    ContentState<List<ReconciliationReviewItemUiModel>> = when (this) {
+    is ObservationState.Pending -> ContentState.Pending
+    is ObservationState.Unavailable -> ContentState.Failed(failure)
+    is ObservationState.Available -> ContentState.Ready(value)
+}
+
+private fun ReconciliationReviewUiState.readyItems(): List<ReconciliationReviewItemUiModel>? =
+    (content as? ContentState.Ready)?.value
+
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun observeQueueItems(
+    pending: List<ReconciliationCase>,
+    projections: CatalogStoryProjectionRepository,
+    footprints: StoryUserStateFootprintReader,
+    review: ReconciliationReviewService,
+) = if (pending.isEmpty()) {
+    flowOf(emptyList())
+} else {
+    val storyIds = pending.flatMapTo(linkedSetOf()) { listOf(it.key.left, it.key.right) }
+    projections.observeForStories(storyIds).mapLatest { catalog ->
+        val footprintByStory = footprints.read(storyIds)
+        projectReviewQueue(pending, catalog, footprintByStory).map { item ->
+            val reversal = review.reversalOption(item.caseId, item.caseRevision)
+            if (reversal == null) {
+                item
+            } else {
+                item.copy(
+                    isPostMergeCorrection = true,
+                    reverseAllowed = reversal.reversibility == StoryMergeReversibility.REVERSIBLE,
+                    reversalBlockerLabels = reversal.reasonCodes.sorted().map(String::domainConflictLabel),
+                )
+            }
+        }
     }
 }
 

@@ -15,9 +15,12 @@ import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
 import app.openstory.catalog.search.CatalogSearchFailure
 import app.openstory.catalog.search.CatalogSearchFilterGroup
+import app.openstory.catalog.search.CatalogSearchResult
 import app.openstory.catalog.search.CatalogSearchSourceCard
 import app.openstory.catalog.search.CatalogSearchStory
 import app.openstory.catalog.projection.CatalogStoryProjection
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.catalog.source.SourceFilterOption
 import app.openstory.catalog.source.SourceOptionFilter
 import app.openstory.common.id.PluginId
@@ -43,9 +46,88 @@ class SearchScreenshotTest {
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun partialSourceFailure() = capture(
-        fixture().copy(failures = listOf(CatalogSearchFailure(PluginId("catalog.b"), "catalog.offline", true))),
+        fixtureWithResult { result ->
+            result.copy(failures = listOf(CatalogSearchFailure(PluginId("catalog.b"), "catalog.offline", true)))
+        },
         "partial-source-failure.png",
     )
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun idleShortQueryDoesNotClaimEmptyResults() {
+        setContent(SearchUiState(query = "a", resultState = SearchResultState.Idle))
+
+        compose.onNodeWithText("No matches found").assertDoesNotExist()
+        compose.onNodeWithTag("search-progress").assertDoesNotExist()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun pendingRequestShowsProgressWithoutEmptyState() {
+        setContent(
+            SearchUiState(
+                query = "novel",
+                resultState = SearchResultState.Active(ContentState.Pending),
+            ),
+        )
+
+        compose.onNodeWithTag("search-progress").assertIsDisplayed()
+        compose.onNodeWithText("No matches found").assertDoesNotExist()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun authoritativeReadyEmptyShowsEmptyState() {
+        setContent(
+            SearchUiState(
+                query = "novel",
+                resultState = SearchResultState.Active(
+                    ContentState.Ready(CatalogSearchResult(emptyList(), emptyList())),
+                ),
+            ),
+        )
+
+        compose.onNodeWithText("No matches found").assertIsDisplayed()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun blockingSearchFailureRetriesSearchWithoutMasqueradingFilterIssue() {
+        var retried = false
+        compose.setContent {
+            HikariTheme(darkTheme = true) {
+                SearchScreen(
+                    state = SearchUiState(
+                        query = "novel",
+                        filterIssue = CatalogUiFailure("catalog.search.filters_exception", false),
+                        resultState = SearchResultState.Active(
+                            ContentState.Failed(CatalogUiFailure("catalog.search.exception", true)),
+                        ),
+                    ),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                    onRetrySearch = { retried = true },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Search unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Filters unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Retry").performClick()
+        assertTrue(retried)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun selectionIssueDoesNotReplaceReadySearchContent() {
+        setContent(
+            fixture().copy(
+                selectionIssue = CatalogUiFailure("catalog.search.selection_failed", retryable = true),
+            ),
+        )
+
+        compose.onNodeWithText("Couldn't open story").assertIsDisplayed()
+        compose.onNodeWithText("The Fox of the Moonlit Archive").assertIsDisplayed()
+        compose.onNodeWithText("Search unavailable").assertDoesNotExist()
+    }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun focusedHeaderRespectsProvidedSafeInsetAndNavigatesBack() {
@@ -119,6 +201,14 @@ class SearchScreenshotTest {
         compose.onNodeWithText("Find your next story").assertDoesNotExist()
     }
 
+    private fun setContent(state: SearchUiState) {
+        compose.setContent {
+            HikariTheme(darkTheme = true) {
+                SearchScreen(state, {}, {}, { _, _, _ -> }, {}, {})
+            }
+        }
+    }
+
     private fun capture(state: SearchUiState, fileName: String) {
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
@@ -132,11 +222,18 @@ class SearchScreenshotTest {
 
 private fun scrollFixture(): SearchUiState {
     val base = fixture()
-    val result = base.stories.single()
+    val ready = base.readyResult()
+    val story = ready.stories.single()
     return base.copy(
-        stories = (1..30).map { index ->
-            result.copy(story = result.story.copy(id = StoryId("moonlit-$index")))
-        },
+        resultState = SearchResultState.Active(
+            ContentState.Ready(
+                ready.copy(
+                    stories = (1..30).map { index ->
+                        story.copy(story = story.story.copy(id = StoryId("moonlit-$index")))
+                    },
+                ),
+            ),
+        ),
     )
 }
 
@@ -164,19 +261,37 @@ private fun fixture(): SearchUiState {
             ),
         ),
         filterValues = mapOf(plugin to mapOf("language" to listOf("en"))),
-        stories = listOf(
-            CatalogSearchStory(
-                Story(StoryId("moonlit"), ContentType.MANGA),
-                CatalogStoryProjection(
-                    StoryId("moonlit"),
-                    "The Fox of the Moonlit Archive",
-                    ContentType.MANGA,
-                    null,
-                    authors = setOf("Mira Hoshino"),
+        resultState = SearchResultState.Active(
+            ContentState.Ready(
+                CatalogSearchResult(
+                    stories = listOf(
+                        CatalogSearchStory(
+                            Story(StoryId("moonlit"), ContentType.MANGA),
+                            CatalogStoryProjection(
+                                StoryId("moonlit"),
+                                "The Fox of the Moonlit Archive",
+                                ContentType.MANGA,
+                                null,
+                                authors = setOf("Mira Hoshino"),
+                            ),
+                            listOf(source),
+                        ),
+                    ),
+                    failures = emptyList(),
                 ),
-                listOf(source),
             ),
         ),
         recentQueries = listOf("quiet stars", "winter index"),
     )
 }
+
+private fun fixtureWithResult(
+    transform: (CatalogSearchResult) -> CatalogSearchResult,
+): SearchUiState {
+    val state = fixture()
+    val ready = state.readyResult()
+    return state.copy(resultState = SearchResultState.Active(ContentState.Ready(transform(ready))))
+}
+
+private fun SearchUiState.readyResult(): CatalogSearchResult =
+    ((resultState as SearchResultState.Active).content as ContentState.Ready<CatalogSearchResult>).value

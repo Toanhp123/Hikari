@@ -2,6 +2,11 @@ package app.openstory.catalog.ui.mapping
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.ObservationState
+import app.openstory.catalog.ui.state.forExpectedKey
+import app.openstory.catalog.ui.state.retainedObservation
 import app.openstory.chapters.sync.InitialChapterSyncScheduler
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
@@ -17,13 +22,15 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel(assistedFactory = MappingViewModel.Factory::class)
@@ -33,39 +40,54 @@ class MappingViewModel @AssistedInject constructor(
     private val chapterSync: InitialChapterSyncScheduler,
 ) : ViewModel() {
     private val storyId = assistedArgs.storyId
-    private val candidates = MutableStateFlow<List<PendingCandidate>>(emptyList())
-    private val urlInput = MutableStateFlow("")
-    private val busy = MutableStateFlow(false)
-    private val failures = MutableStateFlow<List<String>>(emptyList())
+    private val commandState = MutableStateFlow(MappingCommandState())
     private val mutableEvents = MutableSharedFlow<MappingEvent>()
+    private var searchAttemptSequence = 0L
+    private var activeSearchAttempt: MappingSearchAttempt? = null
+    private var searchJob: Job? = null
+
+    private val mappingObservation = viewModelScope.retainedObservation(
+        key = flowOf(storyId),
+        initialKey = storyId,
+        observe = { currentStoryId -> mappings.observe(currentStoryId) },
+        mapFailure = { _, _ -> CatalogUiFailure(OBSERVE_FAILURE, retryable = true) },
+    )
 
     val events = mutableEvents.asSharedFlow()
 
     val state = combine(
-        mappings.observe(storyId).catch {
-            failures.value = listOf(OBSERVE_FAILURE)
-            emit(emptyList())
-        },
-        candidates,
-        urlInput,
-        busy,
-        failures,
-    ) { currentMappings, pending, url, isBusy, currentFailures ->
-        val mappingsByPlugin = currentMappings.associateBy(ContentMapping::pluginId)
+        mappingObservation.state,
+        commandState,
+    ) { observation, command ->
+        val expectedObservation = observation.forExpectedKey(storyId)
+        val currentMappings = (expectedObservation as? ObservationState.Available)?.value
+        val mappingsByPlugin = currentMappings.orEmpty().associateBy(ContentMapping::pluginId)
+        val content = when (expectedObservation) {
+            is ObservationState.Pending -> ContentState.Pending
+            is ObservationState.Unavailable -> ContentState.Failed(expectedObservation.failure)
+            is ObservationState.Available -> ContentState.Ready(
+                expectedObservation.value.map(ContentMapping::toUiModel),
+            )
+        }
         MappingUiState(
-            loading = false,
-            mappings = currentMappings.map(ContentMapping::toUiModel),
-            candidates = pending
-                .filterNot { pendingCandidate ->
-                    mappingsByPlugin[pendingCandidate.candidate.pluginId]
-                        ?.sourceStoryId == pendingCandidate.candidate.sourceStoryId
-                }
-                .map { pendingCandidate ->
-                    pendingCandidate.toUiModel(mappingsByPlugin[pendingCandidate.candidate.pluginId])
-                },
-            urlInput = url,
-            busy = isBusy,
-            failures = currentFailures,
+            content = content,
+            candidates = if (currentMappings == null) {
+                emptyList()
+            } else {
+                command.candidates
+                    .filterNot { pendingCandidate ->
+                        mappingsByPlugin[pendingCandidate.candidate.pluginId]
+                            ?.sourceStoryId == pendingCandidate.candidate.sourceStoryId
+                    }
+                    .map { pendingCandidate ->
+                        pendingCandidate.toUiModel(mappingsByPlugin[pendingCandidate.candidate.pluginId])
+                    }
+            },
+            urlInput = command.urlInput,
+            busy = command.busy,
+            observationIssue = (expectedObservation as? ObservationState.Available)?.issue,
+            searchFailures = command.searchFailures,
+            actionFailure = command.actionFailure,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -73,27 +95,49 @@ class MappingViewModel @AssistedInject constructor(
         initialValue = MappingUiState(),
     )
 
+    fun retryObservation() {
+        mappingObservation.retry()
+    }
+
     fun updateUrl(value: String) {
-        urlInput.value = value
-        failures.value = emptyList()
+        val activeUrlSuperseded = (activeSearchAttempt?.origin as? MappingSearchOrigin.Url)
+            ?.let { origin -> origin.value != value } == true
+        if (activeUrlSuperseded) {
+            activeSearchAttempt = null
+            searchJob?.cancel()
+            searchJob = null
+        }
+        commandState.update { current ->
+            val urlOutputSuperseded = (current.searchOrigin as? MappingSearchOrigin.Url)
+                ?.let { origin -> origin.value != value } == true
+            current.copy(
+                urlInput = value,
+                busy = if (activeUrlSuperseded) false else current.busy,
+                candidates = if (urlOutputSuperseded) emptyList() else current.candidates,
+                searchFailures = if (urlOutputSuperseded) emptyList() else current.searchFailures,
+                searchOrigin = if (urlOutputSuperseded) null else current.searchOrigin,
+            )
+        }
     }
 
     fun search() {
-        executeSearch(fromUrl = false) { mappings.searchForReview(storyId) }
+        executeSearch(MappingSearchOrigin.Discovery) { mappings.searchForReview(storyId) }
     }
 
     fun resolveUrl() {
-        val url = urlInput.value
-        executeSearch(fromUrl = true) { mappings.resolveUrl(storyId, url) }
+        val url = commandState.value.urlInput
+        executeSearch(MappingSearchOrigin.Url(url)) { mappings.resolveUrl(storyId, url) }
     }
 
     fun approve(pluginId: PluginId, sourceStoryId: String) {
-        if (busy.value) return
-        val pending = candidates.value.find(pluginId, sourceStoryId) ?: return
-        val replacing = state.value.mappings.any { mapping ->
+        val command = commandState.value
+        val currentMappings = currentMappingsOrNull()
+        val pending = command.candidates.find(pluginId, sourceStoryId)
+        if (command.busy || currentMappings == null || pending == null) return
+        val replacing = currentMappings.any { mapping ->
             mapping.pluginId == pluginId && mapping.sourceStoryId != sourceStoryId
         }
-        busy.value = true
+        commandState.update { it.copy(busy = true) }
         viewModelScope.launch {
             runAction {
                 val result = if (pending.fromUrl) {
@@ -103,8 +147,12 @@ class MappingViewModel @AssistedInject constructor(
                 }
                 when (result) {
                     is ContentMappingWriteResult.Written -> {
-                        candidates.value = candidates.value.filterNot { candidate ->
-                            candidate.candidate.pluginId == pending.candidate.pluginId
+                        commandState.update { current ->
+                            current.copy(
+                                candidates = current.candidates.filterNot { candidate ->
+                                    candidate.candidate.pluginId == pending.candidate.pluginId
+                                },
+                            )
                         }
                         if (result.changed) {
                             chapterSync.schedule(storyId)
@@ -116,7 +164,9 @@ class MappingViewModel @AssistedInject constructor(
                         }
                     }
                     is ContentMappingWriteResult.Protected -> {
-                        failures.value = listOf(ACTION_FAILURE)
+                        commandState.update {
+                            it.copy(actionFailure = CatalogUiFailure(ACTION_FAILURE, retryable = false))
+                        }
                     }
                 }
             }
@@ -124,51 +174,101 @@ class MappingViewModel @AssistedInject constructor(
     }
 
     fun reject(pluginId: PluginId, sourceStoryId: String) {
-        if (busy.value) return
-        val pending = candidates.value.find(pluginId, sourceStoryId) ?: return
-        busy.value = true
+        if (commandState.value.busy || currentMappingsOrNull() == null) return
+        val pending = commandState.value.candidates.find(pluginId, sourceStoryId) ?: return
+        commandState.update { it.copy(busy = true) }
         viewModelScope.launch {
             runAction {
                 mappings.reject(storyId, pending.candidate)
-                candidates.value = candidates.value - pending
+                commandState.update { it.copy(candidates = it.candidates - pending) }
             }
         }
     }
 
     private fun executeSearch(
-        fromUrl: Boolean,
+        origin: MappingSearchOrigin,
         search: suspend () -> ContentMappingSearchReport,
     ) {
-        if (busy.value) return
-        busy.value = true
-        failures.value = emptyList()
-        viewModelScope.launch {
+        if (commandState.value.busy || currentMappingsOrNull() == null) return
+        val attempt = MappingSearchAttempt(origin, ++searchAttemptSequence)
+        activeSearchAttempt = attempt
+        commandState.update {
+            it.copy(
+                busy = true,
+                candidates = emptyList(),
+                searchFailures = emptyList(),
+                searchOrigin = null,
+            )
+        }
+        searchJob = viewModelScope.launch {
             try {
                 val report = search()
-                candidates.value = report.candidates.map { candidate -> PendingCandidate(candidate, fromUrl) }
-                failures.value = report.failures.map { failure -> failure.code }.distinct()
+                if (activeSearchAttempt == attempt && origin.isCurrent(commandState.value.urlInput)) {
+                    commandState.update { current ->
+                        current.copy(
+                            candidates = report.candidates.map { candidate ->
+                                PendingCandidate(candidate, fromUrl = origin is MappingSearchOrigin.Url)
+                            },
+                            searchFailures = report.failures
+                                .map { failure -> CatalogUiFailure(failure.code, failure.retryable) }
+                                .distinctBy(CatalogUiFailure::code),
+                            searchOrigin = origin,
+                        )
+                    }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                failures.value = listOf(SEARCH_FAILURE)
+                if (activeSearchAttempt == attempt && origin.isCurrent(commandState.value.urlInput)) {
+                    commandState.update { current ->
+                        current.copy(
+                            searchFailures = listOf(
+                                CatalogUiFailure(SEARCH_FAILURE, retryable = true),
+                            ),
+                            searchOrigin = origin,
+                        )
+                    }
+                }
             } finally {
-                busy.value = false
+                if (activeSearchAttempt == attempt) {
+                    activeSearchAttempt = null
+                    searchJob = null
+                    commandState.update { it.copy(busy = false) }
+                }
             }
         }
     }
 
     private suspend fun runAction(block: suspend () -> Unit) {
-        failures.value = emptyList()
+        commandState.update { it.copy(actionFailure = null) }
         try {
             block()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            failures.value = listOf(ACTION_FAILURE)
+            commandState.update {
+                it.copy(actionFailure = CatalogUiFailure(ACTION_FAILURE, retryable = true))
+            }
         } finally {
-            busy.value = false
+            commandState.update { it.copy(busy = false) }
         }
     }
+
+    private fun currentMappingsOrNull(): List<ContentMapping>? =
+        when (val observation = mappingObservation.state.value.forExpectedKey(storyId)) {
+            is ObservationState.Available -> observation.value
+            is ObservationState.Pending,
+            is ObservationState.Unavailable -> null
+        }
+
+    private data class MappingCommandState(
+        val candidates: List<PendingCandidate> = emptyList(),
+        val urlInput: String = "",
+        val busy: Boolean = false,
+        val searchFailures: List<CatalogUiFailure> = emptyList(),
+        val actionFailure: CatalogUiFailure? = null,
+        val searchOrigin: MappingSearchOrigin? = null,
+    )
 
     @AssistedFactory
     interface Factory {
@@ -190,6 +290,23 @@ enum class MappingEvent {
     SOURCE_REPLACED,
     SOURCE_ALREADY_LINKED,
 }
+
+private data class MappingSearchAttempt(
+    val origin: MappingSearchOrigin,
+    val sequence: Long,
+)
+
+private sealed interface MappingSearchOrigin {
+    data object Discovery : MappingSearchOrigin
+
+    data class Url(val value: String) : MappingSearchOrigin
+}
+
+private fun MappingSearchOrigin.isCurrent(urlInput: String): Boolean =
+    when (this) {
+        MappingSearchOrigin.Discovery -> true
+        is MappingSearchOrigin.Url -> value == urlInput
+    }
 
 private data class PendingCandidate(
     val candidate: ContentMappingCandidate,

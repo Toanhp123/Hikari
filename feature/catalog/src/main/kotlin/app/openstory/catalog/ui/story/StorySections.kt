@@ -19,6 +19,7 @@ import app.openstory.catalog.ui.chapters.ChapterListUiState
 import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.catalog.ui.mapping.MappingActions
 import app.openstory.catalog.ui.mapping.MappingUiState
+import app.openstory.catalog.ui.state.CatalogUiFailure
 import app.openstory.common.id.PluginId
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariDimensions
@@ -48,8 +49,10 @@ internal fun StorySectionTabs(selectedSection: StorySection, onSelected: (StoryS
 @Composable
 internal fun StorySectionContent(
     state: StoryUiState,
+    story: StoryUiModel,
     onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onSourceRefresh: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
     mappingState: MappingUiState?,
@@ -60,9 +63,9 @@ internal fun StorySectionContent(
 ) {
     when (state.selectedSection) {
         StorySection.OVERVIEW -> StoryOverview(
-            story = requireNotNull(state.story),
+            story = story,
             modifier = modifier,
-            refreshing = state.refreshing,
+            refreshing = state.refresh.inProgress,
             onRefresh = onRefresh,
         )
         StorySection.CHAPTERS -> ChapterList(
@@ -72,11 +75,12 @@ internal fun StorySectionContent(
             contentPadding = storySectionContentPadding(),
         )
         StorySection.SOURCES -> StorySources(
-            story = requireNotNull(state.story),
+            story = story,
             selectedSource = state.selectedSource,
-            refreshing = state.refreshing,
+            refreshing = state.refresh.inProgress,
             onRefresh = onRefresh,
             onSourceSelected = onSourceSelected,
+            onSourceRefresh = onSourceRefresh,
             onPinPrimary = onPinPrimary,
             onUseAutomaticPrimary = onUseAutomaticPrimary,
             mappingState = mappingState,
@@ -87,13 +91,37 @@ internal fun StorySectionContent(
 }
 
 @Composable
-internal fun StoryFailureBanner(failure: StoryRefreshFailure, refreshing: Boolean, onRefresh: () -> Unit) {
+internal fun StoryRefreshFailureBanner(
+    failure: CatalogUiFailure,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+) {
     HikariInlineFeedback(
         message = catalogFailureMessage(failure.code, "Couldn't refresh story details."),
         actionLabel = if (failure.retryable) "Retry" else null,
         actionEnabled = !refreshing,
         onAction = if (failure.retryable) onRefresh else null,
         actionModifier = Modifier.testTag("story-retry"),
+    )
+}
+
+@Composable
+internal fun StoryObservationIssueBanner(
+    failure: CatalogUiFailure,
+    onRetryObservation: () -> Unit,
+) {
+    HikariInlineFeedback(
+        message = catalogFailureMessage(failure.code, "Some story details may be out of date."),
+        actionLabel = if (failure.retryable) "Retry" else null,
+        onAction = if (failure.retryable) onRetryObservation else null,
+        actionModifier = Modifier.testTag("story-observation-retry"),
+    )
+}
+
+@Composable
+internal fun StoryCommandFailureBanner(failure: CatalogUiFailure) {
+    HikariInlineFeedback(
+        message = catalogFailureMessage(failure.code, "Couldn't update the story source preference."),
     )
 }
 

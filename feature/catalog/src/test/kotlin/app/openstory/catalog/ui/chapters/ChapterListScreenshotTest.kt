@@ -13,6 +13,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.semantics.SemanticsActions
 import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
@@ -48,10 +50,8 @@ class ChapterListScreenshotTest {
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
                 ChapterList(
-                    state = ChapterListUiState(
+                    state = readyChapterState(
                         storyId = StoryId("moonlit"),
-                        chapterCount = 1,
-                        loading = false,
                         chapters = listOf(
                             ChapterItemUiModel(
                                 id = CanonicalChapterId("chapter-12"),
@@ -64,7 +64,7 @@ class ChapterListScreenshotTest {
                                         "MangaDex",
                                         "English",
                                         1_786_560_000_000L,
-                                        true,
+                                        ChapterCapabilityState.SUPPORTED,
                                     ),
                                 ),
                                 title = "The Locked Constellation",
@@ -90,7 +90,7 @@ class ChapterListScreenshotTest {
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
                 ChapterList(
-                    state = ChapterListUiState(storyId = StoryId("moonlit"), chapterCount = 1, loading = false),
+                    state = readyChapterState(StoryId("moonlit"), emptyList()),
                     actions = ChapterListActions(),
                 )
             }
@@ -124,10 +124,8 @@ class ChapterListScreenshotTest {
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
                 ChapterList(
-                    state = ChapterListUiState(
+                    state = readyChapterState(
                         storyId = StoryId("moonlit"),
-                        chapterCount = chapters.size,
-                        loading = false,
                         chapters = chapters,
                     ),
                     actions = ChapterListActions(),
@@ -153,10 +151,8 @@ class ChapterListScreenshotTest {
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
                 ChapterList(
-                    state = ChapterListUiState(
+                    state = readyChapterState(
                         storyId = StoryId("moonlit"),
-                        chapterCount = chapters.size,
-                        loading = false,
                         chapters = chapters,
                     ),
                     actions = ChapterListActions(),
@@ -178,12 +174,27 @@ class ChapterListScreenshotTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun filteredReadyStateDoesNotRenderAuthoritativeEmptyCopy() {
+        compose.setContent {
+            HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
+                ChapterList(
+                    state = readyChapterState(StoryId("moonlit"), emptyList(), chapterCount = 1),
+                    actions = ChapterListActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("No chapters match this filter").assertIsDisplayed()
+        compose.onNodeWithText("No chapters available").assertDoesNotExist()
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun chaptersExposeSharedPullToRefreshAction() {
         var refreshes = 0
         compose.setContent {
             HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
                 ChapterList(
-                    state = ChapterListUiState(storyId = StoryId("moonlit"), loading = false),
+                    state = readyChapterState(StoryId("moonlit"), emptyList()),
                     actions = ChapterListActions(onRefresh = { refreshes += 1 }),
                 )
             }
@@ -197,11 +208,69 @@ class ChapterListScreenshotTest {
         assertEquals(1, refreshes)
     }
 
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun blockingChapterFailureOwnsContentRetry() {
+        var retries = 0
+        compose.setContent {
+            HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
+                ChapterList(
+                    state = ChapterListUiState(
+                        storyId = StoryId("moonlit"),
+                        content = ContentState.Failed(
+                            CatalogUiFailure("chapter.list.observe_failed", retryable = true),
+                        ),
+                    ),
+                    actions = ChapterListActions(onRetryContent = { retries += 1 }),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("chapter-content-error").assertIsDisplayed()
+        compose.onNodeWithText("Retry").performClick()
+        assertEquals(1, retries)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun unresolvedCapabilityUsesNeutralCopy() {
+        val release = ChapterReleaseUiModel(
+            ChapterReleaseId("release-pending"),
+            PluginId("mangadex"),
+            "MangaDex",
+            "English",
+            null,
+            ChapterCapabilityState.UNKNOWN,
+            ChapterCapabilityState.UNKNOWN,
+        )
+        compose.setContent {
+            HikariTheme(darkTheme = true, motionPolicy = HikariMotionPolicy(reduceMotion = true)) {
+                ChapterList(
+                    state = readyChapterState(
+                        StoryId("moonlit"),
+                        listOf(
+                            ChapterItemUiModel(
+                                CanonicalChapterId("chapter-pending"),
+                                "Chapter 1",
+                                false,
+                                listOf(release),
+                            ),
+                        ),
+                        readerAvailabilityResolved = false,
+                    ),
+                    actions = ChapterListActions(),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Chapter 1").performClick()
+        compose.onNodeWithText("Checking availability", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("List only").assertDoesNotExist()
+        compose.onNodeWithText("Online only").assertDoesNotExist()
+    }
+
     private fun capture(offline: Boolean, fileName: String) {
         val releaseId = ChapterReleaseId("release-12")
-        val state = ChapterListUiState(
+        val state = readyChapterState(
             storyId = StoryId("moonlit"),
-            chapterCount = 2,
             chapters = listOf(
                 ChapterItemUiModel(
                     id = CanonicalChapterId("chapter-12"),
@@ -214,7 +283,7 @@ class ChapterListScreenshotTest {
                             "MangaDex",
                             "English",
                             1_786_560_000_000L,
-                            true,
+                            ChapterCapabilityState.SUPPORTED,
                         ),
                     ),
                     title = "The Locked Constellation",
@@ -243,3 +312,38 @@ class ChapterListScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/snapshots/chapters/$fileName")
     }
 }
+
+
+private fun readyChapterState(
+    storyId: StoryId,
+    chapters: List<ChapterItemUiModel>,
+    chapterCount: Int = chapters.count { !it.tombstoned },
+    readableTargets: List<app.openstory.catalog.ui.components.ReaderTarget> = chapters.flatMap { chapter ->
+        chapter.releases
+            .filter { release -> release.readerCapability == ChapterCapabilityState.SUPPORTED }
+            .map { release -> app.openstory.catalog.ui.components.ReaderTarget(storyId, chapter.id, release.id) }
+    },
+    downloadableTargets: List<app.openstory.catalog.ui.components.ReaderTarget> = chapters.flatMap { chapter ->
+        chapter.releases
+            .filter { release -> release.downloadCapability == ChapterCapabilityState.SUPPORTED }
+            .map { release -> app.openstory.catalog.ui.components.ReaderTarget(storyId, chapter.id, release.id) }
+    },
+    releaseTargets: List<app.openstory.catalog.ui.components.ReaderTarget> = chapters.flatMap { chapter ->
+        chapter.releases.map { release ->
+            app.openstory.catalog.ui.components.ReaderTarget(storyId, chapter.id, release.id)
+        }
+    },
+    readerAvailabilityResolved: Boolean = true,
+): ChapterListUiState = ChapterListUiState(
+    storyId = storyId,
+    content = ContentState.Ready(
+        ChapterListContent(
+            chapters = chapters,
+            readableTargets = readableTargets,
+            downloadableTargets = downloadableTargets,
+            releaseTargets = releaseTargets,
+            chapterCount = chapterCount,
+            readerAvailabilityResolved = readerAvailabilityResolved,
+        ),
+    ),
+)

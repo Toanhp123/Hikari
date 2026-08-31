@@ -1,6 +1,8 @@
 package app.openstory.catalog.ui.review
 
 import app.openstory.catalog.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 
@@ -35,7 +37,8 @@ data class ProtectedConflictUiModel(
 )
 
 data class ReconciliationReviewUiState(
-    val items: List<ReconciliationReviewItemUiModel> = emptyList(),
+    val content: ContentState<List<ReconciliationReviewItemUiModel>> = ContentState.Pending,
+    val observationIssue: CatalogUiFailure? = null,
     val resolvingCaseId: String? = null,
     val protectedConflict: ProtectedConflictUiModel? = null,
     val domainConflictReasonLabels: List<String> = emptyList(),

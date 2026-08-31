@@ -25,7 +25,11 @@ import app.openstory.common.Outcome
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -556,6 +560,44 @@ class RoomCatalogRepositoryTest {
             assertEquals(listOf(storyId), observed.map { it.storyId })
             assertEquals("Canonical A", observed.single().title)
             assertEquals(emptyList(), projections.observeForStories(emptySet()).first())
+        }
+    }
+
+    @Test
+    fun homeObservationNeverEmitsMixedRefreshGeneration() = runTest {
+        withDatabase { database ->
+            val repository = RoomCatalogRepository(database)
+            assertIs<Outcome.Success<*>>(repository.commitHomeRefresh(mutation("a", listOf("a-1"), 1)))
+            val emissions = mutableListOf<List<CatalogHomeSnapshot>>()
+            val initialObserved = CompletableDeferred<Unit>()
+            val refreshedObserved = CompletableDeferred<Unit>()
+            val collector = backgroundScope.launch {
+                repository.observeHomes().collect { homes ->
+                    emissions += homes
+                    when (homes.singleOrNull()?.refreshedAtEpochMillis) {
+                        1L -> initialObserved.complete(Unit)
+                        2L -> refreshedObserved.complete(Unit)
+                    }
+                }
+            }
+            initialObserved.await()
+
+            assertIs<Outcome.Success<*>>(repository.commitHomeRefresh(mutation("a", listOf("a-2"), 2)))
+            refreshedObserved.await()
+            collector.cancelAndJoin()
+
+            val observedHomes = emissions.mapNotNull { homes -> homes.singleOrNull() }
+            assertTrue(observedHomes.any { it.refreshedAtEpochMillis == 2L })
+            assertTrue(
+                observedHomes.all { home ->
+                    val sourceIds = home.sections.flatMap { it.items }.map { it.sourceId }
+                    when (home.refreshedAtEpochMillis) {
+                        1L -> sourceIds == listOf("a-1")
+                        2L -> sourceIds == listOf("a-2")
+                        else -> false
+                    }
+                },
+            )
         }
     }
 

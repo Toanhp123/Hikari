@@ -13,6 +13,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
@@ -31,7 +34,11 @@ class ChapterListTest {
         compose.setContent {
             HikariTheme {
                 ChapterList(
-                    state = fixtureState().copy(failure = "plugin.mangadex_http_status"),
+                    state = fixtureState().copy(
+                        refresh = RefreshState(
+                            failure = CatalogUiFailure("plugin.mangadex_http_status", retryable = true),
+                        ),
+                    ),
                     actions = ChapterListActions(),
                 )
             }
@@ -71,7 +78,7 @@ class ChapterListTest {
     fun paginationLimitsChapterGroupsToFiftyPerPage() {
         val base = fixtureState()
         val chapters = (1..51).map { number ->
-            base.chapters.single().copy(
+            base.readyContent().chapters.single().copy(
                 id = CanonicalChapterId("chapter:$number"),
                 label = "Chapter $number",
                 releases = emptyList(),
@@ -81,7 +88,7 @@ class ChapterListTest {
         compose.setContent {
             HikariTheme {
                 ChapterList(
-                    state = base.copy(chapterCount = chapters.size, chapters = chapters),
+                    state = base.withChapters(chapters),
                     actions = ChapterListActions(),
                 )
             }
@@ -135,7 +142,7 @@ class ChapterListTest {
         compose.onNodeWithContentDescription("Chapter options").performClick()
         compose.onNodeWithText("Download visible").performClick()
 
-        kotlin.test.assertEquals(state.chapters.single().releases.map { it.id }, filtered)
+        kotlin.test.assertEquals(state.readyContent().chapters.single().releases.map { it.id }, filtered)
     }
 
     @Test
@@ -165,7 +172,7 @@ class ChapterListTest {
         compose.onNodeWithTag("chapter-download-release:10:a").performClick()
 
         kotlin.test.assertEquals(
-            ReaderTarget(state.storyId!!, CanonicalChapterId("chapter:10"), ChapterReleaseId("release:10:a")),
+            ReaderTarget(state.storyId, CanonicalChapterId("chapter:10"), ChapterReleaseId("release:10:a")),
             readTarget,
         )
         kotlin.test.assertEquals(ChapterReleaseId("release:10:a"), downloaded)
@@ -174,11 +181,14 @@ class ChapterListTest {
     @Test
     fun listOnlyReleaseHasNoReadOrDownloadAndBulkDownloadSkipsIt() {
         val base = fixtureState()
-        val state = base.copy(
-            chapters = base.chapters.map { chapter ->
+        val state = base.withChapters(
+            base.readyContent().chapters.map { chapter ->
                 chapter.copy(
                     releases = chapter.releases.mapIndexed { index, release ->
-                        release.copy(readerCapable = index != 0, downloadCapable = index != 0)
+                        release.copy(
+                            readerCapability = if (index != 0) ChapterCapabilityState.SUPPORTED else ChapterCapabilityState.UNSUPPORTED,
+                            downloadCapability = if (index != 0) ChapterCapabilityState.SUPPORTED else ChapterCapabilityState.UNSUPPORTED,
+                        )
                     },
                 )
             },
@@ -207,11 +217,13 @@ class ChapterListTest {
     @Test
     fun onlineOnlyReleaseKeepsReadButHidesDownloadAndBulkSkipsIt() {
         val base = fixtureState()
-        val state = base.copy(
-            chapters = base.chapters.map { chapter ->
+        val state = base.withChapters(
+            base.readyContent().chapters.map { chapter ->
                 chapter.copy(
                     releases = chapter.releases.mapIndexed { index, release ->
-                        release.copy(downloadCapable = index != 0)
+                        release.copy(
+                            downloadCapability = if (index != 0) ChapterCapabilityState.SUPPORTED else ChapterCapabilityState.UNSUPPORTED,
+                        )
                     },
                 )
             },
@@ -240,11 +252,14 @@ class ChapterListTest {
     @Test
     fun completedListOnlyReleaseRemainsReadableOfflineAndExposesRemoval() {
         val base = fixtureState()
-        val state = base.copy(
-            chapters = base.chapters.map { chapter ->
+        val state = base.withChapters(
+            base.readyContent().chapters.map { chapter ->
                 chapter.copy(
                     releases = chapter.releases.mapIndexed { index, release ->
-                        release.copy(readerCapable = index != 0, downloadCapable = index != 0)
+                        release.copy(
+                            readerCapability = if (index != 0) ChapterCapabilityState.SUPPORTED else ChapterCapabilityState.UNSUPPORTED,
+                            downloadCapability = if (index != 0) ChapterCapabilityState.SUPPORTED else ChapterCapabilityState.UNSUPPORTED,
+                        )
                     },
                 )
             },
@@ -275,7 +290,7 @@ class ChapterListTest {
         compose.setContent {
             HikariTheme {
                 ChapterList(
-                    state = fixtureState().copy(chapters = emptyList()),
+                    state = fixtureState().withChapters(emptyList()),
                     actions = ChapterListActions(),
                 )
             }
@@ -285,36 +300,79 @@ class ChapterListTest {
     }
 }
 
-private fun fixtureState() = ChapterListUiState(
-    loading = false,
-    storyId = StoryId("story:chapter-list-test"),
-    chapterCount = 1,
-    chapters = listOf(
-        ChapterItemUiModel(
-            id = CanonicalChapterId("chapter:10"),
-            label = "Chapter 10",
-            tombstoned = false,
-            releases = listOf(
-                ChapterReleaseUiModel(
-                    id = ChapterReleaseId("release:10:a"),
-                    pluginId = PluginId("org.mangadex.content"),
-                    sourceName = "MangaDex",
-                    languageLabel = "English",
-                    publishedAtEpochMillis = 1L,
-                    readerCapable = true,
-                    downloadCapable = true,
-                ),
-                ChapterReleaseUiModel(
-                    id = ChapterReleaseId("release:10:b"),
-                    pluginId = PluginId("org.example.content"),
-                    sourceName = "Content",
-                    languageLabel = "Vietnamese",
-                    publishedAtEpochMillis = 2L,
-                    readerCapable = true,
-                    downloadCapable = true,
-                ),
-            ),
-            title = "The Locked Constellation",
+private fun fixtureState(): ChapterListUiState {
+    val storyId = StoryId("story:chapter-list-test")
+    val chapterId = CanonicalChapterId("chapter:10")
+    val releases = listOf(
+        ChapterReleaseUiModel(
+            id = ChapterReleaseId("release:10:a"),
+            pluginId = PluginId("org.mangadex.content"),
+            sourceName = "MangaDex",
+            languageLabel = "English",
+            publishedAtEpochMillis = 1L,
+            readerCapability = ChapterCapabilityState.SUPPORTED,
+            downloadCapability = ChapterCapabilityState.SUPPORTED,
         ),
-    ),
-)
+        ChapterReleaseUiModel(
+            id = ChapterReleaseId("release:10:b"),
+            pluginId = PluginId("org.example.content"),
+            sourceName = "Content",
+            languageLabel = "Vietnamese",
+            publishedAtEpochMillis = 2L,
+            readerCapability = ChapterCapabilityState.SUPPORTED,
+            downloadCapability = ChapterCapabilityState.SUPPORTED,
+        ),
+    )
+    val targets = releases.map { release -> ReaderTarget(storyId, chapterId, release.id) }
+    return ChapterListUiState(
+        storyId = storyId,
+        content = ContentState.Ready(
+            ChapterListContent(
+                chapters = listOf(
+                    ChapterItemUiModel(
+                        id = chapterId,
+                        label = "Chapter 10",
+                        tombstoned = false,
+                        releases = releases,
+                        title = "The Locked Constellation",
+                    ),
+                ),
+                readableTargets = targets,
+                downloadableTargets = targets,
+                releaseTargets = targets,
+                chapterCount = 1,
+                readerAvailabilityResolved = true,
+            ),
+        ),
+    )
+}
+
+private fun ChapterListUiState.readyContent(): ChapterListContent =
+    (content as ContentState.Ready<ChapterListContent>).value
+
+private fun ChapterListUiState.withChapters(chapters: List<ChapterItemUiModel>): ChapterListUiState {
+    val releaseTargets = chapters.flatMap { chapter ->
+        chapter.releases.map { release -> ReaderTarget(storyId, chapter.id, release.id) }
+    }
+    val readableTargets = chapters.flatMap { chapter ->
+        chapter.releases
+            .filter { release -> release.readerCapability == ChapterCapabilityState.SUPPORTED }
+            .map { release -> ReaderTarget(storyId, chapter.id, release.id) }
+    }
+    val downloadableTargets = chapters.flatMap { chapter ->
+        chapter.releases
+            .filter { release -> release.downloadCapability == ChapterCapabilityState.SUPPORTED }
+            .map { release -> ReaderTarget(storyId, chapter.id, release.id) }
+    }
+    return copy(
+        content = ContentState.Ready(
+            readyContent().copy(
+                chapters = chapters,
+                readableTargets = readableTargets,
+                downloadableTargets = downloadableTargets,
+                releaseTargets = releaseTargets,
+                chapterCount = chapters.size,
+            ),
+        ),
+    )
+}

@@ -20,15 +20,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
 import app.openstory.designsystem.artwork.HikariArtwork
 import app.openstory.designsystem.artwork.HikariArtworkModel
 import app.openstory.designsystem.artwork.HikariListArtworkFrame
 import app.openstory.designsystem.artwork.rememberHikariArtwork
 import app.openstory.designsystem.surface.HikariContentCard
+import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.catalog.ui.components.StoryPosterCard
 import kotlin.math.roundToInt
 import app.openstory.designsystem.theme.hikariDimensions
+import app.openstory.designsystem.theme.hikariShapes
 
 @Composable
 internal fun LibraryStoryCard(
@@ -114,18 +117,28 @@ private fun LibrarySupportingContent(item: LibraryItemUiModel, progress: Float?)
         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
         Text(progress.label(), style = MaterialTheme.typography.labelMedium)
     }
-    Text(item.sourceState.label(), style = MaterialTheme.typography.bodySmall)
+    if (item.sourceState == LibrarySourceState.UNKNOWN) {
+        val lineHeight = with(LocalDensity.current) {
+            MaterialTheme.typography.bodySmall.lineHeight.toDp()
+        }
+        HikariSkeleton(
+            modifier = Modifier
+                .width(MaterialTheme.hikariDimensions.posterShelfNarrowWidth)
+                .height(lineHeight)
+                .testTag("library-source-skeleton-${item.storyId.value}"),
+            shape = MaterialTheme.hikariShapes.compactControl,
+        )
+    } else {
+        Text(item.sourceState.label(), style = MaterialTheme.typography.bodySmall)
+    }
 }
 
-private fun LibraryItemUiModel.accessibilityDescription(): String = buildString {
-    append(title)
-    append(". ")
-    append(status.label())
-    append(". ")
-    progressFraction?.let { append(it.coerceIn(0f, 1f).label()); append(". ") }
-    append(sourceState.label())
-    append('.')
-}
+private fun LibraryItemUiModel.accessibilityDescription(): String = buildList {
+    add(title)
+    add(status.label())
+    progressFraction?.let { add(it.coerceIn(0f, 1f).label()) }
+    if (sourceState != LibrarySourceState.UNKNOWN) add(sourceState.label())
+}.joinToString(separator = ". ", postfix = ".")
 
 private fun Float.label(): String = "${(this * PERCENT_MULTIPLIER).roundToInt()}% read"
 

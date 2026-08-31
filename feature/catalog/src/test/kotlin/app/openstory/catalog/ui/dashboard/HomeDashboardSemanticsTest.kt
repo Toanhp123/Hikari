@@ -14,6 +14,8 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.onNodeWithText
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
 import org.junit.Test
@@ -31,7 +33,7 @@ class HomeDashboardSemanticsTest {
     fun titleAndUtilityShareTheScrollableHeaderBand() {
         compose.setContent {
             HikariTheme {
-                HomeDashboardScreen(fixture(), {}, {}, {}, onUtilityRequested = {})
+                HomeDashboardScreen(fixture(), {}, {}, {}, {}, {}, onUtilityRequested = {})
             }
         }
 
@@ -45,14 +47,19 @@ class HomeDashboardSemanticsTest {
     @Test
     fun topLevelHeaderStaysPinnedAndBackToTopReturnsToTheStart() {
         val base = fixture()
-        val seed = base.reading.single()
+        val baseContent = base.readyContent()
+        val seed = baseContent.reading.single()
         val state = base.copy(
-            paused = listOf(seed.copy(storyId = app.openstory.common.id.StoryId("story-paused"))),
-            completed = listOf(seed.copy(storyId = app.openstory.common.id.StoryId("story-completed"))),
+            content = ContentState.Ready(
+                baseContent.copy(
+                    paused = listOf(seed.copy(storyId = app.openstory.common.id.StoryId("story-paused"))),
+                    completed = listOf(seed.copy(storyId = app.openstory.common.id.StoryId("story-completed"))),
+                ),
+            ),
         )
         compose.setContent {
             HikariTheme {
-                HomeDashboardScreen(state, {}, {}, {}, onUtilityRequested = {})
+                HomeDashboardScreen(state, {}, {}, {}, {}, {}, onUtilityRequested = {})
             }
         }
 
@@ -69,7 +76,7 @@ class HomeDashboardSemanticsTest {
         compose.setContent {
             HikariTheme {
                 HomeDashboardScreen(
-                    fixture(), {}, {}, {}, firstContentFocusRequester = continueFocus,
+                    fixture(), {}, {}, {}, {}, {}, firstContentFocusRequester = continueFocus,
                 )
             }
         }
@@ -92,7 +99,7 @@ class HomeDashboardSemanticsTest {
     fun atmosphereExtendsBehindTheTopLevelHeader() {
         compose.setContent {
             HikariTheme {
-                HomeDashboardScreen(fixture(), {}, {}, {}, onUtilityRequested = {})
+                HomeDashboardScreen(fixture(), {}, {}, {}, {}, {}, onUtilityRequested = {})
             }
         }
 
@@ -109,7 +116,7 @@ class HomeDashboardSemanticsTest {
     fun readingShelvesExposeTheSharedPosterCard() {
         compose.setContent {
             HikariTheme {
-                HomeDashboardScreen(fixture(), {}, {}, {})
+                HomeDashboardScreen(fixture(), {}, {}, {}, {}, {})
             }
         }
 
@@ -122,10 +129,109 @@ class HomeDashboardSemanticsTest {
     fun continueReadingUsesTheSharedPosterCard() {
         compose.setContent {
             HikariTheme {
-                ContinueReadingCard(fixture().continueReading.single(), {})
+                ContinueReadingCard(fixture().readyContent().continueReading.single(), {})
             }
         }
 
         compose.onNodeWithTag("story-poster-card", useUnmergedTree = true).assertIsDisplayed()
     }
+
+    @Test
+    fun libraryPresentWithoutShelvesUsesTruthfulLocalEmptyCopy() {
+        val contentFocus = FocusRequester()
+        val content = fixture().readyContent().copy(
+            summary = HomeReadingSummary(libraryCount = 1),
+            continueReading = emptyList(),
+            reading = emptyList(),
+            planned = emptyList(),
+            paused = emptyList(),
+            completed = emptyList(),
+            latestUpdates = emptyList(),
+            noContentReason = HomeNoContentReason.LIBRARY_PRESENT_BUT_NO_HOME_SECTIONS,
+        )
+        compose.setContent {
+            HikariTheme {
+                HomeDashboardScreen(
+                    HomeDashboardUiState(ContentState.Ready(content)),
+                    {}, {}, {}, {}, {},
+                    firstContentFocusRequester = contentFocus,
+                )
+            }
+        }
+
+        compose.onNodeWithText("No active reading shelves yet").assertIsDisplayed()
+        compose.onNodeWithText("Discover stories").assertDoesNotExist()
+        compose.runOnIdle { contentFocus.requestFocus() }
+        compose.onNodeWithTag("home-local-empty").assertIsFocused()
+    }
+
+    @Test
+    fun unknownDownloadCountRendersAnEmDash() {
+        val content = fixture().readyContent().copy(
+            summary = fixture().readyContent().summary.copy(downloadedCount = null),
+        )
+        compose.setContent {
+            HikariTheme {
+                HomeDashboardScreen(
+                    HomeDashboardUiState(ContentState.Ready(content)),
+                    {}, {}, {}, {}, {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("—").assertIsDisplayed()
+    }
+
+    @Test
+    fun observationIssueRetryUsesObservationCallback() {
+        var retried = false
+        compose.setContent {
+            HikariTheme {
+                HomeDashboardScreen(
+                    state = fixture().copy(
+                        observationIssue = CatalogUiFailure("home.catalog.observe_exception", true),
+                    ),
+                    onDiscover = {},
+                    onStorySelected = {},
+                    onResume = {},
+                    onRetryContent = {},
+                    onRetryObservation = { retried = true },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Retry").performClick()
+        assertTrue(retried)
+    }
+
+    @Test
+    fun blockingFailureRetryUsesContentCallback() {
+        var retried = false
+        val contentFocus = FocusRequester()
+        compose.setContent {
+            HikariTheme {
+                HomeDashboardScreen(
+                    state = HomeDashboardUiState(
+                        content = ContentState.Failed(
+                            CatalogUiFailure("home.library.observe_exception", true),
+                        ),
+                    ),
+                    onDiscover = {},
+                    onStorySelected = {},
+                    onResume = {},
+                    onRetryContent = { retried = true },
+                    onRetryObservation = {},
+                    firstContentFocusRequester = contentFocus,
+                )
+            }
+        }
+
+        compose.runOnIdle { contentFocus.requestFocus() }
+        compose.onNodeWithText("Retry").assertIsFocused()
+        compose.onNodeWithText("Retry").performClick()
+        assertTrue(retried)
+    }
 }
+
+private fun HomeDashboardUiState.readyContent(): HomeDashboardContent =
+    (content as ContentState.Ready<HomeDashboardContent>).value

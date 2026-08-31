@@ -28,13 +28,16 @@ import app.openstory.library.mapping.ContentMappingRejection
 import app.openstory.library.mapping.ContentMappingRepository
 import app.openstory.library.mapping.ContentMappingWriteResult
 import app.openstory.reader.content.ReaderSourceAvailability
+import app.openstory.catalog.ui.state.ContentState
 import java.math.BigDecimal
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -61,23 +64,313 @@ class ChapterListViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun projectsCanonicalChapterCountAndFilters() = runTest(dispatcher.scheduler) {
-        val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2")))
-        val viewModel = chapterViewModel(repository)
-        assertTrue(viewModel.state.value.loading)
-
+    fun chapterSnapshotRendersBeforeReaderCapability() = runTest(dispatcher.scheduler) {
+        val capabilityGate = CompletableDeferred<Unit>()
+        val viewModel = chapterViewModel(
+            repository = FakeChapterRepository(listOf(group("1"))),
+            readerSources = gatedReaderSources(capabilityGate),
+        )
         observe(viewModel.state)
         runCurrent()
 
-        assertFalse(viewModel.state.value.loading)
-        assertEquals(2, viewModel.state.value.chapterCount)
+        val content = assertIs<ContentState.Ready<ChapterListContent>>(viewModel.state.value.content).value
+        assertEquals(1, content.chapterCount)
+        assertEquals(ChapterCapabilityState.UNKNOWN, content.chapters.single().releases.single().readerCapability)
+        assertEquals(null, viewModel.state.value.observationIssue)
+    }
+
+    @Test
+    fun firstEmptyChapterSnapshotIsReadyEmpty() = runTest(dispatcher.scheduler) {
+        val viewModel = chapterViewModel(FakeChapterRepository(emptyList()))
+        observe(viewModel.state)
+        runCurrent()
+
+        val content = assertIs<ContentState.Ready<ChapterListContent>>(viewModel.state.value.content).value
+        assertEquals(0, content.chapterCount)
+        assertTrue(content.chapters.isEmpty())
+    }
+
+    @Test
+    fun firstChapterObservationFailureIsBlockingFailed() = runTest(dispatcher.scheduler) {
+        val repository = FakeChapterRepository(
+            initial = emptyList(),
+            observeFactory = { flow { error("db") } },
+        )
+        val viewModel = chapterViewModel(repository)
+        observe(viewModel.state)
+        runCurrent()
+
+        val failed = assertIs<ContentState.Failed>(viewModel.state.value.content)
+        assertEquals("chapter.list.observe_failed", failed.failure.code)
+        assertTrue(failed.failure.retryable)
+    }
+
+    @Test
+    fun readerCapabilityPendingIsNotAuthoritativeUnsupported() = runTest(dispatcher.scheduler) {
+        val capabilityGate = CompletableDeferred<Unit>()
+        val viewModel = chapterViewModel(
+            repository = FakeChapterRepository(listOf(group("1"))),
+            readerSources = gatedReaderSources(capabilityGate),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        val release = viewModel.state.value.readyContent().chapters.single().releases.single()
+        assertEquals(ChapterCapabilityState.UNKNOWN, release.readerCapability)
+        assertEquals(ChapterCapabilityState.UNKNOWN, release.downloadCapability)
+        assertFalse(viewModel.state.value.readyContent().readerAvailabilityResolved)
+    }
+
+    @Test
+    fun readerCapabilityPendingRemainsUnresolvedWhenFilterHidesAllChapters() = runTest(dispatcher.scheduler) {
+        val capabilityGate = CompletableDeferred<Unit>()
+        val viewModel = chapterViewModel(
+            repository = FakeChapterRepository(listOf(group("1"))),
+            readerSources = gatedReaderSources(capabilityGate),
+        )
+        observe(viewModel.state)
+        runCurrent()
 
         viewModel.selectFilter(ChapterListFilter.MULTI_RELEASE)
         runCurrent()
 
-        assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.chapters.map { it.id })
-        assertEquals(2, viewModel.state.value.chapters.single().releases.size)
-        assertEquals(3, viewModel.state.value.readableTargets.size)
+        val content = viewModel.state.value.readyContent()
+        assertTrue(content.chapters.isEmpty())
+        assertEquals(1, content.chapterCount)
+        assertEquals(1, content.releaseTargets.size)
+        assertFalse(content.readerAvailabilityResolved)
+    }
+
+    @Test
+    fun partialReaderCapabilityLookupFailureDoesNotPublishHalfAuthoritativeSnapshot() = runTest(dispatcher.scheduler) {
+        val readerSources = object : ReaderSourceAvailability {
+            override suspend fun enabledPluginIds(): Set<PluginId> = setOf(PluginId("content.0"))
+            override suspend fun offlineDownloadPluginIds(): Set<PluginId> = error("offline capability failed")
+        }
+        val viewModel = chapterViewModel(
+            repository = FakeChapterRepository(listOf(group("1"))),
+            readerSources = readerSources,
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        val release = viewModel.state.value.readyContent().chapters.single().releases.single()
+        assertEquals(ChapterCapabilityState.UNKNOWN, release.readerCapability)
+        assertEquals(ChapterCapabilityState.UNKNOWN, release.downloadCapability)
+        assertFalse(viewModel.state.value.readyContent().readerAvailabilityResolved)
+        assertEquals("chapter.list.reader_capability_failed", viewModel.state.value.observationIssue?.code)
+    }
+
+    @Test
+    fun readerCapabilityFailureKeepsChapters() = runTest(dispatcher.scheduler) {
+        val viewModel = chapterViewModel(
+            repository = FakeChapterRepository(listOf(group("1"))),
+            readerSources = failingReaderSources(),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        val content = viewModel.state.value.readyContent()
+        assertEquals(1, content.chapterCount)
+        assertEquals(ChapterCapabilityState.UNKNOWN, content.chapters.single().releases.single().readerCapability)
+        assertEquals("chapter.list.reader_capability_failed", viewModel.state.value.observationIssue?.code)
+    }
+
+    @Test
+    fun manualRefreshKeepsReadyChaptersVisible() = runTest(dispatcher.scheduler) {
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = chapterViewModel(
+            FakeChapterRepository(listOf(group("1"))),
+            syncService = chapterSyncService(
+                mappings = object : ContentMappingRepository by EmptyMappingRepository {
+                    override fun observe(storyId: StoryId): Flow<List<ContentMapping>> = flow {
+                        gate.await()
+                        emit(emptyList())
+                    }
+                },
+            ),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        viewModel.refresh()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.refresh.inProgress)
+        assertEquals(1, viewModel.state.value.readyContent().chapterCount)
+        gate.complete(Unit)
+        runCurrent()
+    }
+
+    @Test
+    fun newRefreshAttemptClearsOnlyPriorRefreshFailure() = runTest(dispatcher.scheduler) {
+        val secondAttemptGate = CompletableDeferred<Unit>()
+        var sourceCalls = 0
+        val sources = object : ChapterSourceRegistry {
+            override suspend fun enabled(): List<ChapterSource> {
+                sourceCalls += 1
+                if (sourceCalls == 1) error("first failure")
+                secondAttemptGate.await()
+                return emptyList()
+            }
+        }
+        val viewModel = chapterViewModel(
+            FakeChapterRepository(listOf(group("1"))),
+            syncService = chapterSyncService(sources = sources),
+        )
+        observe(viewModel.state)
+        runCurrent()
+
+        viewModel.refresh()
+        runCurrent()
+        assertEquals("chapter.sync_failed", viewModel.state.value.refresh.failure?.code)
+
+        viewModel.refresh()
+        runCurrent()
+        assertTrue(viewModel.state.value.refresh.inProgress)
+        assertEquals(null, viewModel.state.value.refresh.failure)
+        secondAttemptGate.complete(Unit)
+        runCurrent()
+    }
+
+    @Test
+    fun correctionFailureDoesNotOverwriteRefreshOrObservationIssue() = runTest(dispatcher.scheduler) {
+        val repository = FakeChapterRepository(
+            initial = listOf(group("1")),
+            saveOverrideFailure = IllegalStateException("write failed"),
+        )
+        val viewModel = chapterViewModel(
+            repository = repository,
+            readerSources = failingReaderSources(),
+            syncService = chapterSyncService(
+                sources = object : ChapterSourceRegistry {
+                    override suspend fun enabled(): List<ChapterSource> = error("sync failed")
+                },
+            ),
+        )
+        observe(viewModel.state)
+        runCurrent()
+        viewModel.refresh()
+        runCurrent()
+        viewModel.separate(ChapterReleaseId("release:1:0"))
+        runCurrent()
+
+        assertEquals("chapter.list.reader_capability_failed", viewModel.state.value.observationIssue?.code)
+        assertEquals("chapter.sync_failed", viewModel.state.value.refresh.failure?.code)
+        assertEquals("chapter.list.correction_failed", viewModel.state.value.correctionFailure?.code)
+    }
+
+    @Test
+    fun retryObservationRestartsPostValueChapterFailureAndClearsOnlyThatIssue() = runTest(dispatcher.scheduler) {
+        var attempts = 0
+        val repository = FakeChapterRepository(
+            initial = emptyList(),
+            observeFactory = {
+                attempts += 1
+                if (attempts == 1) {
+                    flow {
+                        emit(listOf(group("1")))
+                        error("db after value")
+                    }
+                } else {
+                    flowOf(listOf(group("2")))
+                }
+            },
+        )
+        val viewModel = chapterViewModel(repository)
+        observe(viewModel.state)
+        runCurrent()
+
+        assertEquals(CanonicalChapterId("chapter:1"), viewModel.state.value.readyContent().chapters.single().id)
+        assertEquals("chapter.list.observe_failed", viewModel.state.value.observationIssue?.code)
+
+        viewModel.retryObservation()
+        runCurrent()
+
+        assertEquals(2, attempts)
+        assertEquals(CanonicalChapterId("chapter:2"), viewModel.state.value.readyContent().chapters.single().id)
+        assertEquals(null, viewModel.state.value.observationIssue)
+    }
+
+    @Test
+    fun retryObservationRestartsReaderCapabilityWithoutRestartingChapters() = runTest(dispatcher.scheduler) {
+        var capabilityAttempts = 0
+        val readerSources = object : ReaderSourceAvailability {
+            override suspend fun enabledPluginIds(): Set<PluginId> {
+                capabilityAttempts += 1
+                if (capabilityAttempts == 1) error("reader unavailable")
+                return setOf(PluginId("content.0"))
+            }
+
+            override suspend fun offlineDownloadPluginIds(): Set<PluginId> = setOf(PluginId("content.0"))
+        }
+        val repository = FakeChapterRepository(listOf(group("1")))
+        val viewModel = chapterViewModel(repository, readerSources = readerSources)
+        observe(viewModel.state)
+        runCurrent()
+        assertEquals("chapter.list.reader_capability_failed", viewModel.state.value.observationIssue?.code)
+
+        viewModel.retryObservation()
+        runCurrent()
+
+        assertEquals(2, capabilityAttempts)
+        assertEquals(1, repository.observeCalls)
+        assertEquals(null, viewModel.state.value.observationIssue)
+        assertEquals(ChapterCapabilityState.SUPPORTED, viewModel.state.value.readyContent().chapters.single().releases.single().readerCapability)
+    }
+
+    @Test
+    fun retryContentRestartsChapterObservationNotChapterSync() = runTest(dispatcher.scheduler) {
+        var attempts = 0
+        val repository = FakeChapterRepository(
+            initial = emptyList(),
+            observeFactory = {
+                attempts += 1
+                if (attempts == 1) flow { error("db") } else flowOf(listOf(group("1")))
+            },
+        )
+        var syncCalls = 0
+        val viewModel = chapterViewModel(
+            repository = repository,
+            syncService = chapterSyncService(
+                sources = object : ChapterSourceRegistry {
+                    override suspend fun enabled(): List<ChapterSource> {
+                        syncCalls += 1
+                        return emptyList()
+                    }
+                },
+            ),
+        )
+        observe(viewModel.state)
+        runCurrent()
+        assertIs<ContentState.Failed>(viewModel.state.value.content)
+
+        viewModel.retryContent()
+        runCurrent()
+
+        assertEquals(2, attempts)
+        assertEquals(0, syncCalls)
+        assertEquals(1, viewModel.state.value.readyContent().chapterCount)
+    }
+
+    @Test
+    fun projectsCanonicalChapterCountAndFilters() = runTest(dispatcher.scheduler) {
+        val repository = FakeChapterRepository(listOf(group("1", releaseCount = 2), group("2")))
+        val viewModel = chapterViewModel(repository)
+        assertIs<ContentState.Pending>(viewModel.state.value.content)
+
+        observe(viewModel.state)
+        runCurrent()
+
+        assertIs<ContentState.Ready<ChapterListContent>>(viewModel.state.value.content)
+        assertEquals(2, viewModel.state.value.readyContent().chapterCount)
+
+        viewModel.selectFilter(ChapterListFilter.MULTI_RELEASE)
+        runCurrent()
+
+        assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.readyContent().chapters.map { it.id })
+        assertEquals(2, viewModel.state.value.readyContent().chapters.single().releases.size)
+        assertEquals(3, viewModel.state.value.readyContent().readableTargets.size)
     }
 
     @Test
@@ -98,10 +391,10 @@ class ChapterListViewModelTest {
         observe(viewModel.state)
         runCurrent()
 
-        assertEquals(2, viewModel.state.value.chapterCount)
-        assertEquals(listOf("Chapter 12", "Chapter 1"), viewModel.state.value.chapters.map { it.label })
-        assertEquals("The Locked Constellation", viewModel.state.value.chapters.first().title)
-        assertEquals("MangaDex", viewModel.state.value.chapters.first().releases.first().sourceName)
+        assertEquals(2, viewModel.state.value.readyContent().chapterCount)
+        assertEquals(listOf("Chapter 12", "Chapter 1"), viewModel.state.value.readyContent().chapters.map { it.label })
+        assertEquals("The Locked Constellation", viewModel.state.value.readyContent().chapters.first().title)
+        assertEquals("MangaDex", viewModel.state.value.readyContent().chapters.first().releases.first().sourceName)
     }
 
     @Test
@@ -151,10 +444,10 @@ class ChapterListViewModelTest {
         observe(viewModel.state)
         runCurrent()
 
-        assertEquals("Chapter 12 · Part 2", viewModel.state.value.chapters[0].label)
-        assertEquals("The Split", viewModel.state.value.chapters[0].title)
-        assertEquals("Prologue", viewModel.state.value.chapters[1].label)
-        assertEquals("Prologue to the War", viewModel.state.value.chapters[1].title)
+        assertEquals("Chapter 12 · Part 2", viewModel.state.value.readyContent().chapters[0].label)
+        assertEquals("The Split", viewModel.state.value.readyContent().chapters[0].title)
+        assertEquals("Prologue", viewModel.state.value.readyContent().chapters[1].label)
+        assertEquals("Prologue to the War", viewModel.state.value.readyContent().chapters[1].title)
     }
 
     @Test
@@ -164,13 +457,13 @@ class ChapterListViewModelTest {
         )
         observe(viewModel.state)
         runCurrent()
-        val targets = viewModel.state.value.readableTargets
+        val targets = viewModel.state.value.readyContent().readableTargets
 
         viewModel.selectFilter(ChapterListFilter.MULTI_RELEASE)
         runCurrent()
 
-        assertEquals(targets, viewModel.state.value.readableTargets)
-        assertEquals(3, viewModel.state.value.readableTargets.size)
+        assertEquals(targets, viewModel.state.value.readyContent().readableTargets)
+        assertEquals(3, viewModel.state.value.readyContent().readableTargets.size)
     }
 
     @Test
@@ -182,14 +475,14 @@ class ChapterListViewModelTest {
         )
         observe(viewModel.state)
         runCurrent()
-        assertEquals(emptyList(), viewModel.state.value.readableTargets)
+        assertEquals(emptyList(), viewModel.state.value.readyContent().readableTargets)
 
         repository.replace(listOf(group("1")))
         runCurrent()
 
         assertEquals(
             listOf(ChapterReleaseId("release:1:0")),
-            viewModel.state.value.readableTargets.map { it.releaseId },
+            viewModel.state.value.readyContent().readableTargets.map { it.releaseId },
         )
     }
 
@@ -203,13 +496,13 @@ class ChapterListViewModelTest {
         observe(viewModel.state)
         runCurrent()
 
-        val releases = viewModel.state.value.chapters.single().releases
-        assertEquals(listOf(false, true), releases.map { it.readerCapable })
+        val releases = viewModel.state.value.readyContent().chapters.single().releases
+        assertEquals(listOf(ChapterCapabilityState.UNSUPPORTED, ChapterCapabilityState.SUPPORTED), releases.map { it.readerCapability })
         assertEquals(
             listOf(ChapterReleaseId("release:1:0"), ChapterReleaseId("release:1:1")),
-            viewModel.state.value.releaseTargets.map { it.releaseId },
+            viewModel.state.value.readyContent().releaseTargets.map { it.releaseId },
         )
-        assertEquals(listOf(ChapterReleaseId("release:1:1")), viewModel.state.value.readableTargets.map { it.releaseId })
+        assertEquals(listOf(ChapterReleaseId("release:1:1")), viewModel.state.value.readyContent().readableTargets.map { it.releaseId })
     }
 
 
@@ -224,16 +517,16 @@ class ChapterListViewModelTest {
         observe(viewModel.state)
         runCurrent()
 
-        val releases = viewModel.state.value.chapters.single().releases
-        assertEquals(listOf(true, true), releases.map { it.readerCapable })
-        assertEquals(listOf(false, true), releases.map { it.downloadCapable })
+        val releases = viewModel.state.value.readyContent().chapters.single().releases
+        assertEquals(listOf(ChapterCapabilityState.SUPPORTED, ChapterCapabilityState.SUPPORTED), releases.map { it.readerCapability })
+        assertEquals(listOf(ChapterCapabilityState.UNSUPPORTED, ChapterCapabilityState.SUPPORTED), releases.map { it.downloadCapability })
         assertEquals(
             listOf(ChapterReleaseId("release:1:0"), ChapterReleaseId("release:1:1")),
-            viewModel.state.value.readableTargets.map { it.releaseId },
+            viewModel.state.value.readyContent().readableTargets.map { it.releaseId },
         )
         assertEquals(
             listOf(ChapterReleaseId("release:1:1")),
-            viewModel.state.value.downloadableTargets.map { it.releaseId },
+            viewModel.state.value.readyContent().downloadableTargets.map { it.releaseId },
         )
     }
 
@@ -244,12 +537,12 @@ class ChapterListViewModelTest {
         observe(viewModel.state)
         runCurrent()
 
-        assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.chapters.map { it.id })
+        assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.readyContent().chapters.map { it.id })
 
         viewModel.setTombstonesVisible(true)
         runCurrent()
 
-        assertEquals(2, viewModel.state.value.chapters.size)
+        assertEquals(2, viewModel.state.value.readyContent().chapters.size)
     }
 
     @Test
@@ -294,13 +587,13 @@ class ChapterListViewModelTest {
         viewModel.refresh()
         runCurrent()
 
-        assertTrue(viewModel.state.value.refreshing)
+        assertTrue(viewModel.state.value.refresh.inProgress)
 
         gate.complete(Unit)
         runCurrent()
 
-        assertFalse(viewModel.state.value.refreshing)
-        assertEquals(null, viewModel.state.value.failure)
+        assertFalse(viewModel.state.value.refresh.inProgress)
+        assertEquals(null, viewModel.state.value.refresh.failure?.code)
     }
 
     @Test
@@ -320,9 +613,9 @@ class ChapterListViewModelTest {
         viewModel.refresh()
         runCurrent()
 
-        assertFalse(viewModel.state.value.refreshing)
-        assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.chapters.map { it.id })
-        assertEquals("chapter.sync_failed", viewModel.state.value.failure)
+        assertFalse(viewModel.state.value.refresh.inProgress)
+        assertEquals(listOf(CanonicalChapterId("chapter:1")), viewModel.state.value.readyContent().chapters.map { it.id })
+        assertEquals("chapter.sync_failed", viewModel.state.value.refresh.failure?.code)
     }
 
     private fun TestScope.observe(state: StateFlow<ChapterListUiState>) {
@@ -334,11 +627,12 @@ private fun chapterViewModel(
     repository: ChapterRepository,
     readerPlugins: Set<PluginId> = setOf(PluginId("content.0"), PluginId("content.1")),
     offlineDownloadPlugins: Set<PluginId> = readerPlugins,
+    readerSources: ReaderSourceAvailability? = null,
     syncService: ChapterSyncService = chapterSyncService(),
 ) = ChapterListViewModel(
     ChapterListAssistedArgs(STORY_ID),
     repository,
-    object : ReaderSourceAvailability {
+    readerSources ?: object : ReaderSourceAvailability {
         override suspend fun enabledPluginIds(): Set<PluginId> = readerPlugins
         override suspend fun offlineDownloadPluginIds(): Set<PluginId> = offlineDownloadPlugins
     },
@@ -376,19 +670,29 @@ private object EmptyMappingRepository : ContentMappingRepository {
     ): Boolean = false
 }
 
-private class FakeChapterRepository(initial: List<CanonicalChapterGroup>) : ChapterRepository {
+private class FakeChapterRepository(
+    initial: List<CanonicalChapterGroup>,
+    private val observeFactory: (() -> Flow<List<CanonicalChapterGroup>>)? = null,
+    private val saveOverrideFailure: Exception? = null,
+) : ChapterRepository {
     private val groups = MutableStateFlow(initial)
     val savedOverrides = mutableListOf<ChapterAggregationOverride>()
+    var observeCalls: Int = 0
+        private set
 
     fun replace(value: List<CanonicalChapterGroup>) {
         groups.value = value
     }
 
     override fun observeAll(): Flow<List<CanonicalChapterGroup>> = groups
-    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> = groups
+    override fun observe(storyId: StoryId): Flow<List<CanonicalChapterGroup>> {
+        observeCalls += 1
+        return observeFactory?.invoke() ?: groups
+    }
     override suspend fun snapshot(storyId: StoryId) = ChapterGraphSnapshot(emptyList(), emptyList(), emptyList())
     override suspend fun commit(mutation: ChapterMutation): ChapterCommitResult = ChapterCommitResult.Success
     override suspend fun saveOverride(storyId: StoryId, override: ChapterAggregationOverride) {
+        saveOverrideFailure?.let { throw it }
         savedOverrides += override
     }
     override suspend fun syncState(
@@ -424,6 +728,23 @@ private fun group(
         CanonicalChapter(chapterId, STORY_ID, label, displayLabel, tombstoned, releases.mapTo(linkedSetOf()) { it.id }),
         releases,
     )
+}
+
+private fun ChapterListUiState.readyContent(): ChapterListContent =
+    (content as ContentState.Ready<ChapterListContent>).value
+
+private fun gatedReaderSources(gate: CompletableDeferred<Unit>) = object : ReaderSourceAvailability {
+    override suspend fun enabledPluginIds(): Set<PluginId> {
+        gate.await()
+        return setOf(PluginId("content.0"))
+    }
+
+    override suspend fun offlineDownloadPluginIds(): Set<PluginId> = setOf(PluginId("content.0"))
+}
+
+private fun failingReaderSources() = object : ReaderSourceAvailability {
+    override suspend fun enabledPluginIds(): Set<PluginId> = error("reader capability failed")
+    override suspend fun offlineDownloadPluginIds(): Set<PluginId> = error("reader capability failed")
 }
 
 private val STORY_ID = StoryId("story:chapters-ui")

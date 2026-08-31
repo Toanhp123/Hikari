@@ -21,7 +21,11 @@ import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.ui.components.ReaderTarget
+import app.openstory.catalog.ui.chapters.ChapterListContent
 import app.openstory.catalog.ui.chapters.ChapterListUiState
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
@@ -94,7 +98,11 @@ class StoryScreenTest {
         )
         setStoryContent(
             state = fixtureState().copy(resumeTarget = target),
-            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                releaseTargets = listOf(target),
+            ),
             onRead = { opened = it },
         )
 
@@ -112,9 +120,8 @@ class StoryScreenTest {
         var opened: ReaderTarget? = null
         setStoryContent(
             state = fixtureState().copy(resumeTarget = target),
-            chapterState = ChapterListUiState(
-                loading = false,
-                storyId = StoryId("story-1"),
+            chapterState = readyChapterState(
+                chapterCount = 1,
                 releaseTargets = listOf(target),
             ),
             onRead = { opened = it },
@@ -132,7 +139,11 @@ class StoryScreenTest {
         )
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                releaseTargets = listOf(target),
+            ),
             modifier = Modifier.requiredWidth(320.dp),
         )
 
@@ -156,7 +167,12 @@ class StoryScreenTest {
         var status: LibraryStatus? = null
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(readableTargets = listOf(target)),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                readableTargets = listOf(target),
+                downloadableTargets = listOf(target),
+                releaseTargets = listOf(target),
+            ),
             onDownload = { downloaded = it },
             onLibraryStatusSelected = { status = it },
         )
@@ -181,7 +197,8 @@ class StoryScreenTest {
         )
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(
+            chapterState = readyChapterState(
+                chapterCount = 2,
                 readableTargets = listOf(onlineTarget),
                 downloadableTargets = listOf(otherDownload),
                 releaseTargets = listOf(onlineTarget, otherDownload),
@@ -202,7 +219,8 @@ class StoryScreenTest {
         setStoryContent(state = fixtureState().copy(resumeTarget = target))
 
         assertEquals(0, compose.onAllNodesWithText("Resume").fetchSemanticsNodes().size)
-        compose.onNodeWithText("Find source").assertIsDisplayed()
+        compose.onNodeWithTag("story-chapters-checking").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-find-source").assertCountEquals(0)
         assertEquals(0, compose.onAllNodesWithText("Download").fetchSemanticsNodes().size)
     }
 
@@ -211,7 +229,16 @@ class StoryScreenTest {
         var selected: StorySection? = null
         setStoryContent(
             state = fixtureState(),
-            chapterState = ChapterListUiState(loading = false),
+            chapterState = readyChapterState(
+                chapterCount = 1,
+                releaseTargets = listOf(
+                    ReaderTarget(
+                        StoryId("story-1"),
+                        CanonicalChapterId("chapter-1"),
+                        ChapterReleaseId("release-1"),
+                    ),
+                ),
+            ),
             onSectionSelected = { selected = it },
         )
 
@@ -219,6 +246,22 @@ class StoryScreenTest {
         compose.onNodeWithTag("story-find-source").assertIsDisplayed().performClick()
 
         assertEquals(StorySection.SOURCES, selected)
+    }
+
+    @Test
+    fun unresolvedLibraryMembershipDisablesMutationChoices() {
+        setStoryContent(
+            state = fixtureState().copy(
+                libraryStatus = null,
+                libraryStatusResolved = false,
+            ),
+        )
+
+        compose.onNodeWithTag("story-more").performClick()
+
+        compose.onNodeWithTag("story-library-loading").assertIsDisplayed()
+        compose.onNodeWithTag("story-library-reading").assertIsNotEnabled()
+        compose.onAllNodesWithTag("story-library-remove").assertCountEquals(0)
     }
 
     @Test
@@ -233,8 +276,46 @@ class StoryScreenTest {
     }
 
     @Test
+    fun observationIssueRetriesObservationWithoutInvokingSourceRefresh() {
+        var observationRetries = 0
+        var sourceRefreshes = 0
+        setStoryContent(
+            state = fixtureState().copy(
+                observationIssue = CatalogUiFailure("catalog.story.observe_exception", true),
+            ),
+            onRefresh = { sourceRefreshes += 1 },
+            onRetryObservation = { observationRetries += 1 },
+        )
+
+        compose.onNodeWithTag("story-observation-retry").performClick()
+
+        assertEquals(1, observationRetries)
+        assertEquals(0, sourceRefreshes)
+    }
+
+    @Test
+    fun commandFailureRemainsVisibleOnChaptersIndependentlyOfSourceRefresh() {
+        setStoryContent(
+            state = fixtureState().copy(
+                selectedSection = StorySection.CHAPTERS,
+                commandFailure = CatalogUiFailure("catalog.story.preference_failed", true),
+            ),
+        )
+
+        compose.onNodeWithText("Couldn't update the story source preference.").assertIsDisplayed()
+        compose.onAllNodesWithTag("story-retry").assertCountEquals(0)
+    }
+
+    @Test
     fun cachedFailureDisablesRetryWhileRefreshing() {
-        setStoryContent(state = fixtureState(failed = true).copy(refreshing = true))
+        setStoryContent(
+            state = fixtureState(failed = true).copy(
+                refresh = RefreshState(
+                    inProgress = true,
+                    failure = CatalogUiFailure("catalog.offline", true),
+                ),
+            ),
+        )
 
         compose.onNodeWithTag("story-retry").assertHeightIsAtLeast(48.dp).assertIsNotEnabled()
     }
@@ -265,8 +346,10 @@ class StoryScreenTest {
     fun noContentRetryableFailureKeepsRetryAction() {
         var retried = false
         setStoryContent(
-            state = fixtureState(failed = true).copy(story = null),
-            onRefresh = { retried = true },
+            state = fixtureState().copy(
+                content = ContentState.Failed(CatalogUiFailure("catalog.offline", true)),
+            ),
+            onRetryContent = { retried = true },
         )
 
         compose.onNodeWithText("Retry").performClick()
@@ -296,6 +379,8 @@ class StoryScreenTest {
     private fun setStoryContent(
         state: StoryUiState = fixtureState(),
         onRefresh: () -> Unit = {},
+        onRetryContent: () -> Unit = {},
+        onRetryObservation: () -> Unit = {},
         onSourceSelected: (PluginId, String) -> Unit = { _, _ -> },
         onSectionSelected: (StorySection) -> Unit = {},
         onLibraryStatusSelected: (LibraryStatus?) -> Unit = {},
@@ -309,6 +394,8 @@ class StoryScreenTest {
                 StoryScreen(
                     state = state,
                     onRefresh = onRefresh,
+                    onRetryContent = onRetryContent,
+                    onRetryObservation = onRetryObservation,
                     onSourceSelected = onSourceSelected,
                     onSectionSelected = onSectionSelected,
                     onLibraryStatusSelected = onLibraryStatusSelected,
@@ -338,18 +425,46 @@ private fun fixtureState(failed: Boolean = false): StoryUiState {
     )
     return StoryUiState(
         storyId = storyId,
-        story = StoryUiModel(
-            storyId = storyId,
-            preferredTitle = entry.title,
-            contentType = entry.contentType,
-            aliases = setOf("Moonlit Archive"),
-            description = entry.description,
-            authors = entry.authors,
-            genres = entry.genres,
-            languageTags = entry.languageTags,
-            sources = listOf(entry),
+        content = ContentState.Ready(
+            StoryUiModel(
+                storyId = storyId,
+                preferredTitle = entry.title,
+                contentType = entry.contentType,
+                aliases = setOf("Moonlit Archive"),
+                description = entry.description,
+                authors = entry.authors,
+                genres = entry.genres,
+                languageTags = entry.languageTags,
+                sources = listOf(entry),
+            ),
         ),
         selectedSource = StorySourceIdentity(entry.pluginId, entry.sourceId),
-        failure = if (failed) StoryRefreshFailure("catalog.offline", true) else null,
+        refresh = if (failed) {
+            RefreshState(failure = CatalogUiFailure("catalog.offline", true))
+        } else {
+            RefreshState()
+        },
+        libraryStatusResolved = true,
     )
 }
+
+
+private fun readyChapterState(
+    chapterCount: Int,
+    readableTargets: List<ReaderTarget> = emptyList(),
+    downloadableTargets: List<ReaderTarget> = emptyList(),
+    releaseTargets: List<ReaderTarget> = emptyList(),
+    readerAvailabilityResolved: Boolean = true,
+): ChapterListUiState = ChapterListUiState(
+    storyId = StoryId("story-1"),
+    content = ContentState.Ready(
+        ChapterListContent(
+            chapters = emptyList(),
+            readableTargets = readableTargets,
+            downloadableTargets = downloadableTargets,
+            releaseTargets = releaseTargets,
+            chapterCount = chapterCount,
+            readerAvailabilityResolved = readerAvailabilityResolved,
+        ),
+    ),
+)

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.model.ContentType
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.library.LibraryStatus
@@ -68,10 +69,13 @@ private fun libraryState(): LibraryUiState {
         )
     }
     return LibraryUiState(
-        items = items,
-        totalCount = items.size,
-        statusCounts = mapOf(LibraryStatus.WANT_TO_READ to items.size),
+        content = ContentState.Ready(
+            LibraryContent(
+                totalCount = items.size,
+                statusCounts = mapOf(LibraryStatus.WANT_TO_READ to items.size),
+                collection = LibraryCollectionState.Ready(items),
+            ),
+        ),
         displayMode = LibraryDisplayMode.LIST,
-        loading = false,
     )
 }

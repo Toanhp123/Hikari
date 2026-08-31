@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import app.openstory.catalog.ui.feedback.catalogFailureMessage
+import app.openstory.catalog.ui.state.CatalogUiFailure
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.surface.HikariContentCard
 import app.openstory.designsystem.surface.HikariContentCardStyle
@@ -47,9 +48,9 @@ internal fun HomeSummary(summary: HomeReadingSummary) {
 }
 
 @Composable
-private fun SummaryMetric(value: Int, label: String) {
+private fun SummaryMetric(value: Int?, label: String) {
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
-        Text(value.toString(), style = MaterialTheme.typography.titleLarge)
+        Text(value?.toString() ?: "—", style = MaterialTheme.typography.titleLarge)
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
@@ -59,9 +60,15 @@ private fun SummaryMetric(value: Int, label: String) {
 }
 
 @Composable
-internal fun ObservationFailure(failure: HomeDashboardFailure, modifier: Modifier = Modifier) {
+internal fun ObservationFailure(
+    failure: CatalogUiFailure,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     HikariInlineFeedback(
         message = catalogFailureMessage(failure.code, "Some reading data could not be refreshed."),
+        actionLabel = if (failure.retryable) "Retry" else null,
+        onAction = if (failure.retryable) onRetry else null,
         modifier = modifier,
     )
 }

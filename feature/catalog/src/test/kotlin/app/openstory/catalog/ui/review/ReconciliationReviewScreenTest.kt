@@ -3,6 +3,8 @@ package app.openstory.catalog.ui.review
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.StoryId
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Rule
@@ -18,25 +20,49 @@ class ReconciliationReviewScreenTest {
     val compose = createComposeRule()
 
     @Test
+    fun pendingQueueShowsLoadingWithoutFalseEmptyState() {
+        setContent(ReconciliationReviewUiState(content = ContentState.Pending))
+
+        compose.onNodeWithText("Loading duplicate reviews").assertIsDisplayed()
+        compose.onNodeWithText("No duplicates to review").assertDoesNotExist()
+    }
+
+    @Test
+    fun blockingQueueFailureDoesNotPretendTheQueueIsEmpty() {
+        setContent(
+            ReconciliationReviewUiState(
+                content = ContentState.Failed(
+                    CatalogUiFailure("catalog.reconciliation.review.observe_exception", retryable = true),
+                ),
+            ),
+        )
+
+        compose.onNodeWithText("Duplicate reviews unavailable").assertIsDisplayed()
+        compose.onNodeWithText("No duplicates to review").assertDoesNotExist()
+    }
+
+    @Test
     fun blockedReviewExplainsEvidenceAndOmitsMergeAction() {
         compose.setContent {
             HikariTheme {
                 ReconciliationReviewScreen(
                     state = ReconciliationReviewUiState(
-                        items = listOf(
-                            ReconciliationReviewItemUiModel(
-                                caseId = "case-1",
-                                caseRevision = 1,
-                                leftStoryId = StoryId("left"),
-                                rightStoryId = StoryId("right"),
-                                leftTitle = "Left story",
-                                rightTitle = "Right story",
-                                leftCoverUrl = null,
-                                rightCoverUrl = null,
-                                confidence = 0.92,
-                                reasonLabels = listOf("Titles are very similar", "Different content types"),
-                                mergeAllowed = false,
-                                userStateImpact = 2,
+                        content = ContentState.Ready(
+                            listOf(
+                                ReconciliationReviewItemUiModel(
+                                    caseId = "case-1",
+                                    caseRevision = 1,
+                                    leftStoryId = StoryId("left"),
+                                    rightStoryId = StoryId("right"),
+                                    leftTitle = "Left story",
+                                    rightTitle = "Right story",
+                                    leftCoverUrl = null,
+                                    rightCoverUrl = null,
+                                    confidence = 0.92,
+                                    reasonLabels = listOf("Titles are very similar", "Different content types"),
+                                    mergeAllowed = false,
+                                    userStateImpact = 2,
+                                ),
                             ),
                         ),
                     ),
@@ -62,7 +88,7 @@ class ReconciliationReviewScreenTest {
         compose.setContent {
             HikariTheme {
                 ReconciliationReviewScreen(
-                    state = ReconciliationReviewUiState(),
+                    state = ReconciliationReviewUiState(content = ContentState.Ready(emptyList())),
                     onBack = {},
                     onMerge = { _, _ -> },
                     onKeepSeparate = { _, _ -> },
@@ -77,11 +103,14 @@ class ReconciliationReviewScreenTest {
         compose.onNodeWithText("No duplicates to review").assertIsDisplayed()
     }
     @Test
-    fun emptyQueueStillSurfacesLoadFailure() {
+    fun emptyQueueStillSurfacesCommandFailure() {
         compose.setContent {
             HikariTheme {
                 ReconciliationReviewScreen(
-                    state = ReconciliationReviewUiState(failureMessage = "Couldn't load duplicate reviews right now."),
+                    state = ReconciliationReviewUiState(
+                        content = ContentState.Ready(emptyList()),
+                        failureMessage = "Couldn't resolve this review right now.",
+                    ),
                     onBack = {},
                     onMerge = { _, _ -> },
                     onKeepSeparate = { _, _ -> },
@@ -93,7 +122,7 @@ class ReconciliationReviewScreenTest {
             }
         }
 
-        compose.onNodeWithText("Couldn't load duplicate reviews right now.").assertIsDisplayed()
+        compose.onNodeWithText("Couldn't resolve this review right now.").assertIsDisplayed()
         compose.onNodeWithText("No duplicates to review").assertIsDisplayed()
     }
 
@@ -103,8 +132,10 @@ class ReconciliationReviewScreenTest {
             HikariTheme {
                 ReconciliationReviewScreen(
                     state = ReconciliationReviewUiState(
-                        items = listOf(
-                            correctionItem(reverseAllowed = true),
+                        content = ContentState.Ready(
+                            listOf(
+                                correctionItem(reverseAllowed = true),
+                            ),
                         ),
                     ),
                     onBack = {},
@@ -131,10 +162,12 @@ class ReconciliationReviewScreenTest {
             HikariTheme {
                 ReconciliationReviewScreen(
                     state = ReconciliationReviewUiState(
-                        items = listOf(
-                            correctionItem(
-                                reverseAllowed = false,
-                                blockerLabels = listOf("Story merge reversal graph changed"),
+                        content = ContentState.Ready(
+                            listOf(
+                                correctionItem(
+                                    reverseAllowed = false,
+                                    blockerLabels = listOf("Story merge reversal graph changed"),
+                                ),
                             ),
                         ),
                     ),
@@ -177,5 +210,22 @@ class ReconciliationReviewScreenTest {
         reverseAllowed = reverseAllowed,
         reversalBlockerLabels = blockerLabels,
     )
+
+    private fun setContent(state: ReconciliationReviewUiState) {
+        compose.setContent {
+            HikariTheme {
+                ReconciliationReviewScreen(
+                    state = state,
+                    onBack = {},
+                    onMerge = { _, _ -> },
+                    onKeepSeparate = { _, _ -> },
+                    onDefer = { _, _ -> },
+                    onProtectedMappingSelected = { _, _ -> },
+                    onConfirmProtectedMerge = {},
+                    onDismissProtectedConflict = {},
+                )
+            }
+        }
+    }
 
 }

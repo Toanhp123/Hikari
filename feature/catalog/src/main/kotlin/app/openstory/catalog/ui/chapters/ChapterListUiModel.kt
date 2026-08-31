@@ -1,11 +1,14 @@
 package app.openstory.catalog.ui.chapters
 
-import app.openstory.chapters.model.ChapterKind
-import app.openstory.chapters.model.ParsedChapterLabel
-import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.components.catalogDisplayName
 import app.openstory.catalog.ui.download.DownloadActions
+import app.openstory.catalog.ui.state.CatalogUiFailure
+import app.openstory.catalog.ui.state.ContentState
+import app.openstory.catalog.ui.state.RefreshState
+import app.openstory.chapters.model.ChapterKind
+import app.openstory.chapters.model.ParsedChapterLabel
+import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
@@ -25,18 +28,30 @@ enum class ChapterListFilter {
     }
 }
 
+enum class ChapterCapabilityState {
+    UNKNOWN,
+    SUPPORTED,
+    UNSUPPORTED,
+}
+
+data class ChapterListContent(
+    val chapters: List<ChapterItemUiModel>,
+    val readableTargets: List<ReaderTarget>,
+    val downloadableTargets: List<ReaderTarget>,
+    val releaseTargets: List<ReaderTarget>,
+    val chapterCount: Int,
+    // Authority belongs to the Reader capability observation, not to the currently filtered rows.
+    val readerAvailabilityResolved: Boolean,
+)
+
 data class ChapterListUiState(
-    val storyId: StoryId? = null,
-    val loading: Boolean = true,
-    val refreshing: Boolean = false,
-    val chapters: List<ChapterItemUiModel> = emptyList(),
-    val readableTargets: List<ReaderTarget> = emptyList(),
-    val downloadableTargets: List<ReaderTarget> = readableTargets,
-    val releaseTargets: List<ReaderTarget> = readableTargets,
-    val chapterCount: Int = 0,
+    val storyId: StoryId,
+    val content: ContentState<ChapterListContent> = ContentState.Pending,
+    val refresh: RefreshState = RefreshState(),
     val selectedFilter: ChapterListFilter = ChapterListFilter.ALL,
     val showTombstones: Boolean = false,
-    val failure: String? = null,
+    val observationIssue: CatalogUiFailure? = null,
+    val correctionFailure: CatalogUiFailure? = null,
 )
 
 data class ChapterItemUiModel(
@@ -54,12 +69,14 @@ data class ChapterReleaseUiModel(
     val sourceName: String,
     val languageLabel: String,
     val publishedAtEpochMillis: Long?,
-    val readerCapable: Boolean,
-    val downloadCapable: Boolean = readerCapable,
+    val readerCapability: ChapterCapabilityState,
+    val downloadCapability: ChapterCapabilityState = readerCapability,
 )
 
 data class ChapterListActions(
     val onRefresh: () -> Unit = {},
+    val onRetryContent: () -> Unit = {},
+    val onRetryObservation: () -> Unit = {},
     val onFilterSelected: (ChapterListFilter) -> Unit = {},
     val onTombstonesVisible: (Boolean) -> Unit = {},
     val onKeepGrouped: (ChapterReleaseId, CanonicalChapterId) -> Unit = { _, _ -> },
@@ -72,8 +89,8 @@ data class ChapterListActions(
 )
 
 internal data class ReaderAvailability(
-    val readablePluginIds: Set<PluginId> = emptySet(),
-    val offlineDownloadPluginIds: Set<PluginId> = emptySet(),
+    val readablePluginIds: Set<PluginId>,
+    val offlineDownloadPluginIds: Set<PluginId>,
 )
 
 internal val chapterNewestFirstComparator = compareByDescending<CanonicalChapterGroup> {
@@ -89,7 +106,7 @@ internal val chapterNewestFirstComparator = compareByDescending<CanonicalChapter
 }
 
 internal fun CanonicalChapterGroup.toUiModel(
-    availability: ReaderAvailability,
+    availability: ReaderAvailability?,
 ): ChapterItemUiModel {
     val primaryLabel = chapter.parsedLabel.primaryLabel(chapter.displayLabel)
     return ChapterItemUiModel(
@@ -103,8 +120,11 @@ internal fun CanonicalChapterGroup.toUiModel(
                 sourceName = release.pluginId.catalogDisplayName(),
                 languageLabel = release.languageTag.languageDisplayName(),
                 publishedAtEpochMillis = release.publishedAtEpochMillis,
-                readerCapable = release.pluginId in availability.readablePluginIds,
-                downloadCapable = release.pluginId in availability.offlineDownloadPluginIds,
+                readerCapability = availability.capabilityFor(release.pluginId, ReaderAvailability::readablePluginIds),
+                downloadCapability = availability.capabilityFor(
+                    release.pluginId,
+                    ReaderAvailability::offlineDownloadPluginIds,
+                ),
             )
         },
         title = releases.asSequence()
@@ -113,6 +133,15 @@ internal fun CanonicalChapterGroup.toUiModel(
             ?: chapter.displayLabel.secondaryTitle(primaryLabel),
         volumeLabel = chapter.parsedLabel.volume?.let { volume -> "Volume ${volume.stableValue()}" },
     )
+}
+
+private fun ReaderAvailability?.capabilityFor(
+    pluginId: PluginId,
+    supportedIds: (ReaderAvailability) -> Set<PluginId>,
+): ChapterCapabilityState = when {
+    this == null -> ChapterCapabilityState.UNKNOWN
+    pluginId in supportedIds(this) -> ChapterCapabilityState.SUPPORTED
+    else -> ChapterCapabilityState.UNSUPPORTED
 }
 
 private fun ParsedChapterLabel.primaryLabel(fallback: String): String {

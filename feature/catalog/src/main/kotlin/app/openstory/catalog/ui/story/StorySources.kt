@@ -39,6 +39,7 @@ internal fun StorySources(
     refreshing: Boolean,
     onRefresh: () -> Unit,
     onSourceSelected: (PluginId, String) -> Unit,
+    onSourceRefresh: (PluginId, String) -> Unit,
     onPinPrimary: (PluginId, String) -> Unit,
     onUseAutomaticPrimary: () -> Unit,
     mappingState: MappingUiState?,
@@ -82,6 +83,7 @@ internal fun StorySources(
                             effectivePrimary = story.effectivePrimary.matches(source),
                             pinned = story.pinnedSource.matches(source),
                             onSelected = { onSourceSelected(source.pluginId, source.sourceId) },
+                            onRefresh = { onSourceRefresh(source.pluginId, source.sourceId) },
                             onPin = { onPinPrimary(source.pluginId, source.sourceId) },
                         )
                     }
@@ -97,6 +99,7 @@ internal fun StorySources(
                                     effectivePrimary = story.effectivePrimary.matches(firstSource),
                                     pinned = false,
                                     onSelected = { onSourceSelected(firstSource.pluginId, firstSource.sourceId) },
+                                    onRefresh = { onSourceRefresh(firstSource.pluginId, firstSource.sourceId) },
                                     onPin = { onPinPrimary(firstSource.pluginId, firstSource.sourceId) },
                                 )
                             },
@@ -109,6 +112,7 @@ internal fun StorySources(
                             effectivePrimary = story.effectivePrimary.matches(source),
                             pinned = false,
                             onSelected = { onSourceSelected(source.pluginId, source.sourceId) },
+                            onRefresh = { onSourceRefresh(source.pluginId, source.sourceId) },
                             onPin = { onPinPrimary(source.pluginId, source.sourceId) },
                         )
                     }
@@ -126,7 +130,7 @@ private fun StorySourcesHeader(mode: CanonicalSourcePreferenceMode) {
     HikariSectionHeader(
         title = "Sources",
         subtitle = if (mode == CanonicalSourcePreferenceMode.AUTO) {
-            "Automatic canonical presentation; select a row to inspect raw provider facts."
+            "Automatic canonical presentation; tap a source to inspect raw provider facts."
         } else {
             "Pinned primary with field-specific canonical fusion; raw sources remain inspectable."
         },
@@ -140,6 +144,7 @@ private fun SourceCard(
     effectivePrimary: Boolean,
     pinned: Boolean,
     onSelected: () -> Unit,
+    onRefresh: () -> Unit,
     onPin: () -> Unit,
 ) {
     HikariContentCard(
@@ -166,23 +171,8 @@ private fun SourceCard(
                     if (pinned) add("Pinned")
                 },
             )
-            source.description?.takeIf(String::isNotBlank)?.let { description ->
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            source.sourceUrl?.takeIf(String::isNotBlank)?.let { url ->
-                Text(
-                    url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (selected) {
+                SourceInspectionDetails(source, onRefresh)
             }
             if (!pinned) {
                 HikariCompactAction(
@@ -194,6 +184,35 @@ private fun SourceCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SourceInspectionDetails(source: CatalogEntry, onRefresh: () -> Unit) {
+    source.description?.takeIf(String::isNotBlank)?.let { description ->
+        Text(
+            description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    source.sourceUrl?.takeIf(String::isNotBlank)?.let { url ->
+        Text(
+            url,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    HikariCompactAction(
+        onClick = onRefresh,
+        modifier = Modifier.testTag("story-source-refresh-${source.pluginId.value}-${source.sourceId}"),
+        contentDescription = "Refresh ${source.pluginId.value} source details",
+    ) {
+        Text("Refresh this source")
     }
 }
 

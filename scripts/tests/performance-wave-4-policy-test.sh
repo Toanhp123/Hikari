@@ -30,33 +30,45 @@ fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
 [[ -f "$profile_test" ]] || fail "Baseline Profile generator is missing"
 [[ -f "$backdrop_mode" ]] || fail "benchmark backdrop mode owner is missing"
 
-# Discover must have one repository home observation and derive semantic projection from that same emission.
+# Discover must have one retained Home observation, keyed canonical settlement, and one projection pipeline.
 [[ $(grep -o 'repository\.observeHomes()' "$discover_vm" | wc -l) -eq 1 ]] ||
   fail "DiscoverViewModel must own exactly one repository.observeHomes() source"
 [[ -f "$discover_pipeline" ]] || fail "Discover projection pipeline is missing"
 [[ -f "$discover_refresh_pipeline" ]] || fail "Discover refresh scheduling pipeline is missing"
-grep -q 'flatMapLatest(projections::observeForStories)' "$discover_vm" ||
-  fail "Discover canonical presentation is not scoped to the visible Story set"
-grep -q 'combine(homes, visibleProjections, selectedContentType)' "$discover_vm" ||
-  fail "Discover semantic projection must combine Home feed semantics with scoped canonical presentation"
+grep -q 'private val homeObservation = viewModelScope.retainedObservation' "$discover_vm" ||
+  fail "Discover Home observation is not retained/restartable"
+grep -q 'private val settlementObservation = viewModelScope.retainedObservation' "$discover_vm" ||
+  fail "Discover canonical settlement is not retained/restartable"
+grep -q 'projections.observeForStories(key.storyIds.toSet())' "$discover_vm" ||
+  fail "Discover canonical presentation is not scoped to the current ranked Story set"
+grep -q 'projectionPipeline.project(' "$discover_vm" ||
+  fail "Discover Home feed semantics and canonical presentation do not share one projection call"
+grep -q 'settlements = availableSettlements.value' "$discover_vm" ||
+  fail "Discover projection is not driven by terminal canonical settlement"
 ! grep -q 'projections.observe()' "$discover_vm" ||
   fail "Discover regressed to the unbounded canonical projection stream"
-grep -q 'projection.project(currentHomes, canonical, contentType)' "$discover_vm" ||
-  fail "Discover Home feed semantics and canonical presentation do not share one projection call"
-grep -q 'projectSemanticDiscoverContent' "$discover_pipeline" ||
+grep -q 'DiscoverSemanticContent(' "$discover_pipeline" ||
   fail "Discover semantic content is not computed inside the projection pipeline"
-grep -q 'homes = homes' "$discover_pipeline" ||
+grep -q 'discoverFeedSlots(homes, selectedContentType)' "$discover_pipeline" ||
   fail "Discover semantic projection is not derived from the shared homes emission"
-grep -q 'projections = projections' "$discover_pipeline" ||
+grep -q 'val liveByStory = projections' "$discover_pipeline" ||
   fail "Discover presentation is not derived from canonical projections"
 ! grep -Eq 'loading|refreshing|refreshReport' "$discover_pipeline" ||
   fail "Discover projection pipeline still depends on transient UI flags"
-grep -q 'content.toUiState' "$discover_vm" ||
-  fail "Discover transient UI flags are not assembled after semantic projection"
+grep -q 'ContentState.Ready(projected.content.toContent())' "$discover_vm" ||
+  fail "Discover CSC content is not assembled after semantic projection"
 ! grep -q 'AppDispatchers' "$discover_vm" ||
   fail "DiscoverViewModel must not own platform scheduling"
 grep -q 'withContext(dispatcher)' "$discover_refresh_pipeline" ||
   fail "Discover refresh CPU work is not isolated behind the feature scheduling boundary"
+! grep -q 'observeHomes()' "$discover_refresh_pipeline" ||
+  fail "Discover refresh report re-observes Home instead of using committed refresh results"
+grep -q 'result.refreshedAtEpochMillis' "$discover_refresh_pipeline" ||
+  fail "Discover refresh report does not use the successful commit timestamp"
+grep -q 'containsAllSuccessfulCommits' "$discover_vm" ||
+  fail "Discover bootstrap does not wait for every successful provider commit"
+grep -q 'blocksHomeReadiness' "$discover_vm" ||
+  fail "Discover can project partial Home graphs while bootstrap is unsettled"
 ! grep -q 'CatalogHomeQuery' "$discover_pipeline" ||
   fail "Discover semantic pipeline still depends on the legacy aggregate ranking projector"
 ! grep -Eq 'CatalogFusionEngine|CanonicalFusionService|CatalogDetailsLoader|CatalogMetadataCoordinator' "$discover_vm" "$discover_pipeline" ||
