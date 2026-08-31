@@ -1,0 +1,19 @@
+package app.openstory.reader.assets
+
+object ReaderAssetRuntimePolicy {
+    const val MAX_READER_ASSET_BYTES = 16 * 1024 * 1024
+    const val MAX_TRANSIENT_ASSET_RETRIES = 1
+    const val TRANSIENT_ASSET_RETRY_DELAY_MILLIS = 250L
+    const val MAX_TOTAL_CONTENT_FETCHES = 3
+    const val RESERVED_CRITICAL_INTERACTIVE_SLOTS = 1
+    const val MAX_NEXT_CHAPTER_SPECULATIVE_FETCHES = 1
+    const val COIL_PREWARM_BEHIND = 2
+    const val INTERACTIVE_CURRENT_AHEAD = 4
+    const val METERED_NEAR_AHEAD_MAX = 2
+    const val NEXT_CHAPTER_OPENING_BURST = 4
+    const val APPROACHING_END_BASIS_POINTS = 8_000
+    const val NEAR_END_BASIS_POINTS = 9_000
+    const val APPROACHING_END_TRANSITION_FRONTIER = 1
+    const val NEAR_END_TRANSITION_FRONTIER = 4
+    const val RECENT_COMMITTED_HISTORY_DEPTH = 2
+}
