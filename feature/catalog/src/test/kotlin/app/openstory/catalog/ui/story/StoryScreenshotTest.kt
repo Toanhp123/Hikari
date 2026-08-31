@@ -10,9 +10,11 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import app.openstory.catalog.model.CatalogEntry
@@ -142,6 +144,29 @@ class StoryScreenshotTest {
         compose.waitForIdle()
 
         assertEquals(1, refreshCalls)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun sourceFactsStayCollapsedUntilCardIsInspected() {
+        val sourceUrl = "https://example.test/story"
+        val sources = fixture(StorySection.SOURCES).withoutArtwork()
+
+        setStoryContent(state = sources.copy(selectedSource = null))
+        compose.onAllNodesWithText(sourceUrl).assertCountEquals(0)
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun inspectedSourceOffersExplicitRefreshAction() {
+        var refreshed: Pair<PluginId, String>? = null
+        setStoryContent(
+            state = fixture(StorySection.SOURCES).withoutArtwork(),
+            onSourceRefresh = { pluginId, sourceId -> refreshed = pluginId to sourceId },
+        )
+
+        compose.onNodeWithText("https://example.test/story").assertIsDisplayed()
+        compose.onNodeWithTag("story-source-refresh-catalog.mangadex-moonlit-a").performClick()
+
+        assertEquals(PluginId("catalog.mangadex") to "moonlit-a", refreshed)
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
@@ -308,6 +333,7 @@ class StoryScreenshotTest {
     private fun setStoryContent(
         state: StoryUiState,
         onRefresh: () -> Unit = {},
+        onSourceRefresh: (PluginId, String) -> Unit = { _, _ -> },
         chapterState: ChapterListUiState? = chapterFixture(),
     ) {
         compose.setContent {
@@ -316,6 +342,7 @@ class StoryScreenshotTest {
                     state = state,
                     onRefresh = onRefresh,
                     onSourceSelected = { _, _ -> },
+                    onSourceRefresh = onSourceRefresh,
                     mappingState = mappingFixture(),
                     chapterState = chapterState,
                 )

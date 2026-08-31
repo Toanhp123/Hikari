@@ -9,6 +9,7 @@ import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.details.CatalogFullMetadataFallbackService
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.metadata.CatalogMetadataAccess
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
 import app.openstory.catalog.metadata.CatalogMetadataFailure
 import app.openstory.catalog.metadata.CatalogMetadataKey
@@ -44,17 +45,40 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel(assistedFactory = StoryViewModel.Factory::class)
-class StoryViewModel @AssistedInject internal constructor(
-    @Assisted private val assistedArgs: StoryAssistedArgs,
+class StoryViewModel internal constructor(
+    private val assistedArgs: StoryAssistedArgs,
     private val canonical: CanonicalCatalogRepository,
     private val bootstrap: CanonicalBootstrapUseCase,
     private val fullMetadata: CatalogFullMetadataFallbackService,
-    private val metadata: CatalogMetadataCoordinator,
+    private val metadata: CatalogMetadataAccess,
     private val orchestrator: CanonicalEngineEventSink,
     private val library: LibraryService,
     private val progress: ReadingProgressRepository,
     private val reconciliation: StoryReconciliationController,
 ) : ViewModel() {
+    @AssistedInject
+    internal constructor(
+        @Assisted assistedArgs: StoryAssistedArgs,
+        canonical: CanonicalCatalogRepository,
+        bootstrap: CanonicalBootstrapUseCase,
+        fullMetadata: CatalogFullMetadataFallbackService,
+        metadata: CatalogMetadataCoordinator,
+        orchestrator: CanonicalEngineEventSink,
+        library: LibraryService,
+        progress: ReadingProgressRepository,
+        reconciliation: StoryReconciliationController,
+    ) : this(
+        assistedArgs,
+        canonical,
+        bootstrap,
+        fullMetadata,
+        metadata as CatalogMetadataAccess,
+        orchestrator,
+        library,
+        progress,
+        reconciliation,
+    )
+
     private val routeStoryId = assistedArgs.storyId
     private val started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS)
     private val selectedSource = MutableStateFlow<SourceKey?>(null)
@@ -128,7 +152,8 @@ class StoryViewModel @AssistedInject internal constructor(
     }
 
     fun selectSource(pluginId: PluginId, sourceId: String) {
-        selectInspectionSource(SourceKey(pluginId, sourceId))
+        val sourceKey = SourceKey(pluginId, sourceId)
+        selectInspectionSource(sourceKey.takeUnless { it == selectedSource.value })
     }
 
     fun pinPrimary(sourceKey: SourceKey) {
@@ -165,6 +190,9 @@ class StoryViewModel @AssistedInject internal constructor(
 
     fun selectSection(section: StorySection) {
         selectedSection.value = section
+        if (section != StorySection.SOURCES) {
+            selectedSource.value = null
+        }
     }
 
     fun changeLibraryStatus(status: LibraryStatus?) {
@@ -208,18 +236,16 @@ class StoryViewModel @AssistedInject internal constructor(
         }
     }
 
-    fun refresh() {
+    fun refresh(requestedSource: SourceKey? = null) {
         if (state.value.content !is ContentState.Ready) return
         if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             refreshState.update(RefreshState::startAttempt)
             try {
                 val currentState = canonical.state(routeStoryId)
-                val source = currentState?.sources.orEmpty()
-                    .firstOrNull { it.sourceKey == selectedSource.value }
-                    ?: (currentState as? CanonicalStoryState.Ready)?.let { ready ->
-                        ready.sources.firstOrNull { it.sourceKey == ready.generation.effectivePrimary }
-                    }
+                val targetSource = requestedSource
+                    ?: (currentState as? CanonicalStoryState.Ready)?.generation?.effectivePrimary
+                val source = currentState?.sources.orEmpty().firstOrNull { it.sourceKey == targetSource }
                 if (currentState == null || source == null) {
                     refreshState.update {
                         it.completeFailure(CatalogUiFailure(SOURCE_UNAVAILABLE_CODE, retryable = false))

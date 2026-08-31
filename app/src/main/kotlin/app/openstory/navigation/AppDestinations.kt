@@ -12,6 +12,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.focus.FocusRequester
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.ui.components.ReaderTarget
 import app.openstory.catalog.ui.dashboard.HomeDashboardScreen
 import app.openstory.catalog.ui.dashboard.HomeDashboardViewModel
@@ -275,6 +276,7 @@ internal fun StoryDestination(
         onRetryContent = viewModel::retryContent,
         onRetryObservation = viewModel::retryObservation,
         onSourceSelected = viewModel::selectSource,
+        onSourceRefresh = { pluginId, sourceId -> viewModel.refresh(SourceKey(pluginId, sourceId)) },
         onPinPrimary = viewModel::pinPrimary,
         onUseAutomaticPrimary = viewModel::useAutomaticPrimary,
         onSectionSelected = viewModel::selectSection,

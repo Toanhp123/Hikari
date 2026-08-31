@@ -10,8 +10,12 @@ import app.openstory.catalog.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.metadata.CatalogMetadataAccess
 import app.openstory.catalog.metadata.CatalogMetadataCoordinator
+import app.openstory.catalog.metadata.CatalogMetadataKey
+import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
+import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
@@ -90,6 +94,64 @@ class StoryViewModelTest {
             viewModel.state.value.selectedSource,
         )
         assertEquals("gen:ready", (canonical.current() as CanonicalStoryState.Ready).generation.id)
+    }
+
+    @Test
+    fun selectingInspectedSourceAgainClearsInspection() = runTest(dispatcher.scheduler) {
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()))
+        runCurrent()
+
+        viewModel.selectSource(PluginId("catalog.b"), "source-b")
+        runCurrent()
+        viewModel.selectSource(PluginId("catalog.b"), "source-b")
+        runCurrent()
+
+        assertNull(viewModel.state.value.selectedSource)
+    }
+
+    @Test
+    fun leavingSourcesClearsInspection() = runTest(dispatcher.scheduler) {
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()))
+        runCurrent()
+
+        viewModel.selectSection(StorySection.SOURCES)
+        viewModel.selectSource(PluginId("catalog.b"), "source-b")
+        runCurrent()
+        viewModel.selectSection(StorySection.OVERVIEW)
+        runCurrent()
+
+        assertNull(viewModel.state.value.selectedSource)
+    }
+
+    @Test
+    fun generalRefreshUsesEffectivePrimaryInsteadOfInspectionSource() = runTest(dispatcher.scheduler) {
+        val metadata = RecordingStoryMetadataAccess()
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()), metadata = metadata)
+        runCurrent()
+
+        viewModel.selectInspectionSource(SourceKey(PluginId("catalog.a"), "source-a"))
+        viewModel.refresh()
+        runCurrent()
+
+        assertEquals(
+            listOf(CatalogMetadataKey(PluginId("catalog.b"), "source-b")),
+            metadata.refreshKeys,
+        )
+    }
+
+    @Test
+    fun explicitSourceRefreshUsesRequestedProvider() = runTest(dispatcher.scheduler) {
+        val metadata = RecordingStoryMetadataAccess()
+        val viewModel = viewModel(FakeCanonicalRepository(readyState()), metadata = metadata)
+        runCurrent()
+
+        viewModel.refresh(SourceKey(PluginId("catalog.a"), "source-a"))
+        runCurrent()
+
+        assertEquals(
+            listOf(CatalogMetadataKey(PluginId("catalog.a"), "source-a")),
+            metadata.refreshKeys,
+        )
     }
 
     @Test
@@ -612,11 +674,12 @@ class StoryViewModelTest {
         reviewClock: Clock = Clock { 100L },
         libraryRepository: LibraryRepository = FakeLibraryRepository(),
         progressRepository: ReadingProgressRepository = FakeProgressRepository(),
+        metadata: CatalogMetadataAccess = RecordingStoryMetadataAccess(),
     ): StoryViewModel {
         val legacy = EmptyCatalogRepository()
         val registry = EmptySourceRegistry
         val clock = reviewClock
-        val metadata = CatalogMetadataCoordinator(
+        val fallbackMetadata = CatalogMetadataCoordinator(
             repository = legacy,
             sources = registry,
             loader = CatalogDetailsLoader(
@@ -636,7 +699,7 @@ class StoryViewModelTest {
         val identity = StoryViewModelIdentityRepository(canonical)
         val fullMetadata = CatalogFullMetadataFallbackService(
             canonical = canonical,
-            metadata = metadata,
+            metadata = fallbackMetadata,
             fusion = CatalogFusionEngine(),
             availability = CatalogSourceAvailabilityResolver(registry, CatalogMetadataPolicy(clock)),
             identity = identity,
@@ -659,5 +722,22 @@ class StoryViewModelTest {
         ).also { viewModel ->
             backgroundScope.launch { viewModel.state.collect {} }
         }
+    }
+}
+
+private class RecordingStoryMetadataAccess : CatalogMetadataAccess {
+    val refreshKeys = mutableListOf<CatalogMetadataKey>()
+
+    override suspend fun require(
+        key: CatalogMetadataKey,
+        level: CatalogMetadataLevel,
+    ): CatalogMetadataResult = CatalogMetadataResult.Missing
+
+    override suspend fun refresh(
+        key: CatalogMetadataKey,
+        level: CatalogMetadataLevel,
+    ): CatalogMetadataResult {
+        refreshKeys += key
+        return CatalogMetadataResult.Missing
     }
 }
