@@ -97,7 +97,7 @@ class RouteSnapshotAssemblerAdaptiveTest {
         progress = AdaptiveProgressRepository(progress),
         sourceAvailability = ReaderSourceAvailability { setOf(PluginId("source"), PluginId("target-source"), PluginId("committed-source")) },
         healthRegistry = ReaderSourceHealthRegistry(),
-        executionLimiter = ReaderSourceExecutionLimiter(),
+        halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         cacheFacts = cacheFacts,
         networkFacts = networkFacts,
         nowEpochMillis = { 10_000L },

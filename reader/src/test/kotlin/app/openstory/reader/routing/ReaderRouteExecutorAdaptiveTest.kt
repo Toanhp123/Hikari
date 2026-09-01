@@ -432,12 +432,13 @@ class ReaderRouteExecutorAdaptiveTest {
     private fun executor(
         store: ReaderDocumentStore = AdaptiveStore(),
         registry: ReaderDocumentSourceRegistry = AdaptiveRegistry(emptyList()),
-        limiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
+        limiter: ReaderExecutionTestOwners = ReaderExecutionTestOwners(),
         monotonicNanos: () -> Long = System::nanoTime,
     ) = ReaderRouteExecutor(
         store = store,
         sources = registry,
-        executionLimiter = limiter,
+        sourceLane = limiter.sourceLane,
+        fetchArbiter = limiter.fetchArbiter,
         monotonicNanos = monotonicNanos,
     )
 

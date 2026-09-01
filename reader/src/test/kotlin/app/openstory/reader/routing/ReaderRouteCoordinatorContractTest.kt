@@ -100,7 +100,9 @@ class ReaderRouteCoordinatorContractTest {
             progress = CoordinatorProgressRepository(null),
             sourceAvailability = ReaderSourceAvailability { setOf(release.pluginId) },
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             cacheFacts = ReaderCacheFactsPort { ids, _ ->
                 ids.associateWith { ReaderLocalCacheFact.Miss }
             },
@@ -153,7 +155,9 @@ class ReaderRouteCoordinatorContractTest {
             },
             progress = CoordinatorProgressRepository(progress),
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         )
 
     private fun group(id: String) = group(CanonicalChapterId(id))

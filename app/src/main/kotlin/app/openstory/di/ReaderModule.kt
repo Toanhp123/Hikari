@@ -15,7 +15,9 @@ import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderCacheFactsPort
 import app.openstory.reader.AndroidReaderNetworkFactsPort
 import app.openstory.reader.routing.ReaderNetworkFactsPort
-import app.openstory.reader.routing.ReaderSourceExecutionLimiter
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.routing.ContentSourceExecutionLane
+import app.openstory.reader.routing.ReaderHalfOpenProbeRegistry
 import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import app.openstory.reader.routing.ReaderRouteSessionFactory
 import app.openstory.storage.room.OpenStoryDatabase
@@ -33,6 +35,8 @@ import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
+import app.openstory.common.MonotonicClock
+import app.openstory.common.SystemMonotonicClock
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -93,7 +97,21 @@ object ReaderModule {
 
     @Provides
     @Singleton
-    fun provideReaderSourceExecutionLimiter(): ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter()
+    fun provideMonotonicClock(): MonotonicClock = SystemMonotonicClock
+
+    @Provides
+    @Singleton
+    fun provideContentFetchArbiter(monotonicClock: MonotonicClock): ContentFetchArbiter =
+        ContentFetchArbiter(monotonicClock = monotonicClock)
+
+    @Provides
+    @Singleton
+    fun provideContentSourceExecutionLane(): ContentSourceExecutionLane = ContentSourceExecutionLane()
+
+    @Provides
+    @Singleton
+    fun provideReaderHalfOpenProbeRegistry(): ReaderHalfOpenProbeRegistry =
+        ReaderHalfOpenProbeRegistry()
 
     @Provides
     @Singleton
@@ -112,7 +130,9 @@ object ReaderModule {
         progress: ReadingProgressRepository,
         sourceAvailability: ReaderSourceAvailability,
         healthRegistry: ReaderSourceHealthRegistry,
-        executionLimiter: ReaderSourceExecutionLimiter,
+        sourceLane: ContentSourceExecutionLane,
+        fetchArbiter: ContentFetchArbiter,
+        halfOpenProbeRegistry: ReaderHalfOpenProbeRegistry,
         cacheFacts: ReaderCacheFactsPort,
         networkFacts: ReaderNetworkFactsPort,
         executionScheduler: ReaderExecutionScheduler,
@@ -122,7 +142,9 @@ object ReaderModule {
         progress = progress,
         sourceAvailability = sourceAvailability,
         healthRegistry = healthRegistry,
-        executionLimiter = executionLimiter,
+        sourceLane = sourceLane,
+        fetchArbiter = fetchArbiter,
+        halfOpenProbeRegistry = halfOpenProbeRegistry,
         cacheFacts = cacheFacts,
         networkFacts = networkFacts,
         executionScheduler = executionScheduler,

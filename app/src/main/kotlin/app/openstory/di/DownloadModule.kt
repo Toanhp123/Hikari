@@ -16,6 +16,8 @@ import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderSourceAvailability
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.routing.ContentSourceExecutionLane
 import app.openstory.storage.files.AtomicFileChapterBlobStore
 import app.openstory.storage.files.FileBlobInventory
 import app.openstory.storage.room.OpenStoryDatabase
@@ -65,7 +67,15 @@ object DownloadModule {
         chapters: ChapterReleaseLookup,
         sources: ReaderDocumentSourceRegistry,
         availability: ReaderSourceAvailability,
-    ): DownloadContentSource = ReaderDownloadContentSource(chapters, sources, availability)
+        sourceLane: ContentSourceExecutionLane,
+        fetchArbiter: ContentFetchArbiter,
+    ): DownloadContentSource = ReaderDownloadContentSource(
+        chapters,
+        sources,
+        availability,
+        sourceLane,
+        fetchArbiter,
+    )
 
     @Provides @Singleton
     fun provideDownloadService(

@@ -16,6 +16,8 @@ import app.openstory.reader.engine.RouteAttempt
 import app.openstory.reader.engine.RoutingIntent
 import app.openstory.reader.engine.SourceObservation
 import app.openstory.reader.engine.SourceOperationKey
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ContentFetchPriority
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import kotlinx.coroutines.CancellationException
@@ -34,7 +36,9 @@ class ReaderRouteCoordinator(
         sources.enabled().mapTo(linkedSetOf()) { it.pluginId }
     },
     healthRegistry: ReaderSourceHealthRegistry,
-    executionLimiter: ReaderSourceExecutionLimiter,
+    sourceLane: ContentSourceExecutionLane,
+    fetchArbiter: ContentFetchArbiter,
+    halfOpenProbeRegistry: ReaderHalfOpenProbeRegistry,
     cacheFacts: ReaderCacheFactsPort = ReaderCacheFactsPort { releaseIds, _ ->
         releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
     },
@@ -46,14 +50,15 @@ class ReaderRouteCoordinator(
     private val executor = ReaderRouteExecutor(
         store = store,
         sources = sources,
-        executionLimiter = executionLimiter,
+        sourceLane = sourceLane,
+        fetchArbiter = fetchArbiter,
         monotonicNanos = executionScheduler::monotonicNanos,
     )
     private val assembler = RouteSnapshotAssembler(
         progress = progress,
         sourceAvailability = sourceAvailability,
         healthRegistry = healthRegistry,
-        executionLimiter = executionLimiter,
+        halfOpenProbeRegistry = halfOpenProbeRegistry,
         cacheFacts = cacheFacts,
         networkFacts = networkFacts,
         nowEpochMillis = nowEpochMillis,
@@ -283,7 +288,7 @@ class ReaderRouteCoordinator(
                             throw ReaderRoutePlanInvalidatedException()
                         }
                     },
-                    remotePriority = ReaderRemoteWorkPriority.PREFETCH,
+                    remotePriority = ContentFetchPriority.PREFETCH,
                 )
             } catch (_: ReaderRoutePlanInvalidatedException) {
                 // Prefetch never owns a visible commit. A stale plan is simply abandoned.

@@ -34,7 +34,7 @@ class RouteSnapshotAssemblerTest {
             progress = SnapshotProgressRepository(),
             sourceAvailability = ReaderSourceAvailability { error("plugin registry unavailable") },
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             cacheFacts = ReaderCacheFactsPort { _, _ ->
                 mapOf(release.id to ReaderLocalCacheFact.Exact("local-fp"))
             },
@@ -61,7 +61,7 @@ class RouteSnapshotAssemblerTest {
             progress = SnapshotProgressRepository(),
             sourceAvailability = ReaderSourceAvailability { setOf(PluginId("z-source")) },
             healthRegistry = health,
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             nowEpochMillis = { 1234L },
         )
         val context = context(
@@ -102,12 +102,12 @@ class RouteSnapshotAssemblerTest {
                 index.toLong(),
             )
         }
-        val limiter = ReaderSourceExecutionLimiter()
+        val limiter = ReaderExecutionTestOwners()
         val assembler = RouteSnapshotAssembler(
             progress = SnapshotProgressRepository(),
             sourceAvailability = ReaderSourceAvailability { setOf(PluginId("source")) },
             healthRegistry = health,
-            executionLimiter = limiter,
+            halfOpenProbeRegistry = limiter.halfOpenProbeRegistry,
             nowEpochMillis = { 30_002L },
         )
 
@@ -137,7 +137,7 @@ class RouteSnapshotAssemblerTest {
             progress = SnapshotProgressRepository(progress),
             sourceAvailability = ReaderSourceAvailability { setOf(PluginId("source")) },
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             cacheFacts = ReaderCacheFactsPort { _, _ ->
                 mapOf(release.id to ReaderLocalCacheFact.Exact("bad-fingerprint"))
             },

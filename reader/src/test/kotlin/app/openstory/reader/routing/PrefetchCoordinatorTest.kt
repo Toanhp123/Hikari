@@ -327,7 +327,7 @@ class PrefetchCoordinatorTest {
         networkFacts: ReaderNetworkFactsPort? = null,
     ): Fixture {
         val progress = EmptyProgressRepository()
-        val limiter = ReaderSourceExecutionLimiter()
+        val limiter = ReaderExecutionTestOwners()
         val coordinator = ReaderRouteCoordinator(
             store = store,
             sources = object : ReaderDocumentSourceRegistry {
@@ -335,7 +335,9 @@ class PrefetchCoordinatorTest {
             },
             progress = progress,
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = limiter,
+            sourceLane = limiter.sourceLane,
+            fetchArbiter = limiter.fetchArbiter,
+            halfOpenProbeRegistry = limiter.halfOpenProbeRegistry,
             cacheFacts = cacheFacts ?: ReaderCacheFactsPort { releaseIds, _ ->
                 releaseIds.associateWith { id ->
                     store.currentFingerprint(id)?.let(ReaderLocalCacheFact::Exact)

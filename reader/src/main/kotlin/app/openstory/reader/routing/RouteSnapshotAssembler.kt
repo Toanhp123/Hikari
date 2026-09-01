@@ -32,7 +32,7 @@ internal class RouteSnapshotAssembler(
     private val progress: ReadingProgressRepository,
     private val sourceAvailability: ReaderSourceAvailability,
     private val healthRegistry: ReaderSourceHealthRegistry,
-    private val executionLimiter: ReaderSourceExecutionLimiter,
+    private val halfOpenProbeRegistry: ReaderHalfOpenProbeRegistry,
     private val cacheFacts: ReaderCacheFactsPort = ReaderCacheFactsPort { releaseIds, _ ->
         releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
     },
@@ -75,7 +75,7 @@ internal class RouteSnapshotAssembler(
                         remotePlanningPermitted(routingIntent, networkClass) &&
                         base.state.circuitState == CircuitState.HALF_OPEN
                     ) {
-                        executionLimiter.tryAcquireHalfOpenProbe(key)?.let { lease ->
+                        halfOpenProbeRegistry.tryAcquire(key)?.let { lease ->
                             probeLeases += lease
                             base.copy(halfOpenProbePermitted = true)
                         } ?: base
