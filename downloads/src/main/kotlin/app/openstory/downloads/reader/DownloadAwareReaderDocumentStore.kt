@@ -7,9 +7,15 @@ import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.DownloadState
+import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
+import app.openstory.downloads.cache.AutomaticCachePublicationResult
+import app.openstory.downloads.cache.AutomaticCacheReservation
 import app.openstory.downloads.cache.CacheRepository
-import app.openstory.downloads.cache.CacheService
+import app.openstory.downloads.cache.AutomaticCacheWriteAuthority
+import app.openstory.downloads.cache.AutomaticCacheWriteScope
+import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.reconcile.StorageWriteAdmission
+import app.openstory.reader.content.ReaderDocumentDurableWriteIntent
 import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.routing.ReaderCacheFactsPort
@@ -21,19 +27,18 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 class DownloadAwareReaderDocumentStore(
     private val blobs: ChapterBlobStore,
     private val cacheRepository: CacheRepository,
     private val downloads: DownloadRepository,
     private val now: () -> Long,
+    private val automaticCacheBudgetCoordinator: AutomaticCacheBudgetCoordinator,
     private val writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
-    private val cacheQuotaBytes: Long = DEFAULT_CACHE_QUOTA_BYTES,
     private val metadataSource: ReaderCacheMetadataSource = ReaderCacheMetadataSource { emptyList() },
 ) : ReaderDocumentStore, ReaderCacheFactsPort {
-    private val cache = CacheService(cacheRepository, blobs)
-
-
     override suspend fun inspect(
         releaseIds: Set<ChapterReleaseId>,
         resumeFingerprints: Map<ChapterReleaseId, String>,
@@ -186,23 +191,102 @@ class DownloadAwareReaderDocumentStore(
         }
     }
 
-    override suspend fun write(releaseId: ChapterReleaseId, fingerprint: String, document: ReaderDocument) {
-        require(document.fingerprint == fingerprint)
-        val blob = ReaderDocumentBlobCodec.encode(document)
-        if (!writeAdmission.canStore(blob.sizeBytes.toLong())) return
+    override suspend fun captureAutomaticWriteIntent(): ReaderDocumentDurableWriteIntent? =
+        automaticCacheBudgetCoordinator.captureWriteAuthority(AutomaticCacheWriteScope.GlobalAutomatic)
+            ?.let(::DocumentWriteIntent)
+
+    override suspend fun write(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+        document: ReaderDocument,
+    ) {
+        writeWithIntent(releaseId, fingerprint, document, captureAutomaticWriteIntent())
+    }
+
+    override suspend fun writeWithIntent(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+        document: ReaderDocument,
+        intent: ReaderDocumentDurableWriteIntent?,
+    ) {
+        val prepared = prepareAutomaticWrite(releaseId, fingerprint, document, intent) ?: return
         try {
-            cache.store(
-                ChapterBlobKey(ChapterBlobNamespace.AUTOMATIC_CACHE, releaseId, fingerprint),
-                blob,
-                now(),
+            blobs.write(prepared.key, prepared.blob)
+            when (
+                automaticCacheBudgetCoordinator.publishIfCurrent(prepared.authority, prepared.reservation) {
+                    cacheRepository.upsert(
+                        CacheEntry(
+                            key = prepared.key,
+                            checksum = prepared.blob.checksum,
+                            sizeBytes = prepared.blob.sizeBytes.toLong(),
+                            lastAccessedAtEpochMillis = now(),
+                        ),
+                    )
+                }
+            ) {
+                is AutomaticCachePublicationResult.Published -> Unit
+                AutomaticCachePublicationResult.Revoked -> deleteAutomaticBlobBestEffort(prepared.key)
+            }
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) { deleteAutomaticBlobBestEffort(prepared.key) }
+            throw cancelled
+        } catch (_: Exception) {
+            deleteAutomaticBlobBestEffort(prepared.key)
+        } finally {
+            withContext(NonCancellable) {
+                automaticCacheBudgetCoordinator.release(prepared.reservation)
+            }
+        }
+    }
+
+    private suspend fun prepareAutomaticWrite(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+        document: ReaderDocument,
+        intent: ReaderDocumentDurableWriteIntent?,
+    ): PreparedAutomaticWrite? {
+        require(document.fingerprint == fingerprint)
+        val authority = (intent as? DocumentWriteIntent)?.authority
+            ?.takeIf { it.scope == AutomaticCacheWriteScope.GlobalAutomatic }
+        val blob = document.takeIf { it.isLocalPersistable }?.let(ReaderDocumentBlobCodec::encode)
+        val admitted = authority != null && blob != null && writeAdmission.canStore(blob.sizeBytes.toLong())
+        val reservation = if (admitted) {
+            automaticCacheBudgetCoordinator.reserve(checkNotNull(blob).sizeBytes.toLong(), checkNotNull(authority))
+        } else {
+            null
+        }
+        return if (authority != null && blob != null && reservation != null) {
+            PreparedAutomaticWrite(
+                key = ChapterBlobKey(ChapterBlobNamespace.AUTOMATIC_CACHE, releaseId, fingerprint),
+                blob = blob,
+                authority = authority,
+                reservation = reservation,
             )
-            cache.enforceQuota(cacheQuotaBytes, emptySet())
+        } else {
+            null
+        }
+    }
+
+    private suspend fun deleteAutomaticBlobBestEffort(key: ChapterBlobKey) {
+        try {
+            blobs.delete(key)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            // Cache persistence is best effort; reconciliation cleans partial metadata or blobs.
+            // A failed durable publication must not fail the visible Reader result.
         }
     }
+
+    private data class DocumentWriteIntent(
+        val authority: AutomaticCacheWriteAuthority,
+    ) : ReaderDocumentDurableWriteIntent
+
+    private data class PreparedAutomaticWrite(
+        val key: ChapterBlobKey,
+        val blob: ChapterBlob,
+        val authority: AutomaticCacheWriteAuthority,
+        val reservation: AutomaticCacheReservation,
+    )
 
     override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) {
         ChapterBlobNamespace.entries.forEach { namespace ->
@@ -215,7 +299,6 @@ class DownloadAwareReaderDocumentStore(
             ChapterBlobNamespace.EXPLICIT_DOWNLOAD,
             ChapterBlobNamespace.AUTOMATIC_CACHE,
         )
-        const val DEFAULT_CACHE_QUOTA_BYTES = 256L * 1024 * 1024
     }
 
     private sealed interface PhysicalRead {

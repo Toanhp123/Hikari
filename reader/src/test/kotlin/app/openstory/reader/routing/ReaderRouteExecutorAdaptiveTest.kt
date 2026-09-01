@@ -8,6 +8,7 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentDurableWriteIntent
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderLoadResult
@@ -403,6 +404,27 @@ class ReaderRouteExecutorAdaptiveTest {
     }
 
     @Test
+    fun automaticWriteIntentIsCapturedImmediatelyBeforeEachRemoteFetchAndReusedForItsWrite() = runTest {
+        val events = mutableListOf<String>()
+        val intent = TestWriteIntent("attempt-intent")
+        val store = AdaptiveStore(events = events, capturedIntent = intent)
+        val source = AdaptiveSource(
+            PluginId("source"),
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+            events = events,
+        )
+        val candidate = candidate("release", "source")
+
+        executor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
+            attempts = listOf(remote("a0", "release", "source", AttemptRole.PRIMARY)),
+            candidatesByRelease = mapOf(candidate.id to candidate),
+        )
+
+        assertEquals(listOf("capture", "fetch:release", "write:attempt-intent"), events)
+        assertEquals(intent, store.writeIntents.single())
+    }
+
+    @Test
     fun malformedPlanOverRemoteCeilingFailsFast() = runTest {
         val candidates = (0..4).map { candidate("r$it", "s$it") }
         assertFailsWith<IllegalArgumentException> {
@@ -477,10 +499,13 @@ private class AdaptiveStore(
     private val exact: Map<String, ReaderDocument> = emptyMap(),
     private val readFailure: Throwable? = null,
     private val readResultOverride: ReaderDocumentReadResult? = null,
+    private val events: MutableList<String>? = null,
+    private val capturedIntent: ReaderDocumentDurableWriteIntent? = null,
 ) : ReaderDocumentStore {
     val reads = mutableListOf<Pair<String, String>>()
     val writes = mutableListOf<Pair<String, String>>()
     val quarantines = mutableListOf<Pair<String, String>>()
+    val writeIntents = mutableListOf<ReaderDocumentDurableWriteIntent?>()
 
     override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? {
         reads += releaseId.value to fingerprint
@@ -502,6 +527,22 @@ private class AdaptiveStore(
         writes += releaseId.value to fingerprint
     }
 
+    override suspend fun captureAutomaticWriteIntent(): ReaderDocumentDurableWriteIntent? {
+        events?.add("capture")
+        return capturedIntent
+    }
+
+    override suspend fun writeWithIntent(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+        document: ReaderDocument,
+        intent: ReaderDocumentDurableWriteIntent?,
+    ) {
+        writeIntents += intent
+        events?.add("write:${(intent as? TestWriteIntent)?.value}")
+        write(releaseId, fingerprint, document)
+    }
+
     override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) {
         quarantines += releaseId.value to fingerprint
     }
@@ -520,12 +561,16 @@ private class AdaptiveSource(
     override val pluginId: PluginId,
     private val results: MutableMap<String, ReaderSourceResult>,
     private val cancel: Boolean = false,
+    private val events: MutableList<String>? = null,
 ) : ReaderDocumentSource {
     val fetches = mutableListOf<String>()
 
     override suspend fun fetch(release: ChapterRelease): ReaderSourceResult {
         fetches += release.id.value
+        events?.add("fetch:${release.id.value}")
         if (cancel) throw CancellationException("cancelled test source")
         return results[release.id.value] ?: ReaderSourceResult.Failure("reader.source_failed", true)
     }
 }
+
+private data class TestWriteIntent(val value: String) : ReaderDocumentDurableWriteIntent

@@ -77,6 +77,9 @@ internal interface DownloadDao {
     )
     suspend fun deleteAutomaticCache(releaseId: String, fingerprint: String): Int
 
+    @Query("DELETE FROM chapter_storage_entries WHERE namespace = 'AUTOMATIC_CACHE'")
+    suspend fun deleteAllAutomaticCache()
+
     @Upsert
     suspend fun upsert(entry: ChapterStorageEntryEntity)
 

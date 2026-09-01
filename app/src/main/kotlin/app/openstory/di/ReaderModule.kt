@@ -24,6 +24,7 @@ import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.reader.RoomReadingProgressRepository
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
 import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.reader.DownloadAwareReaderDocumentStore
 import app.openstory.downloads.reader.ReaderCacheMetadataSource
@@ -49,6 +50,7 @@ object ReaderModule {
         downloads: DownloadRepository,
         writeAdmission: StorageWriteAdmission,
         metadataSource: ReaderCacheMetadataSource,
+        automaticCacheBudgetCoordinator: AutomaticCacheBudgetCoordinator,
     ): DownloadAwareReaderDocumentStore = DownloadAwareReaderDocumentStore(
         blobs = blobs,
         cacheRepository = cache,
@@ -56,6 +58,7 @@ object ReaderModule {
         now = System::currentTimeMillis,
         writeAdmission = writeAdmission,
         metadataSource = metadataSource,
+        automaticCacheBudgetCoordinator = automaticCacheBudgetCoordinator,
     )
 
     @Provides

@@ -5,6 +5,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentDurableWriteIntent
 import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderLoadFailure
@@ -257,6 +258,13 @@ internal class ReaderRouteExecutor(
             return ReaderAttemptEffectOutcome.Failure(failure)
         }
 
+        val writeIntent = try {
+            store.captureAutomaticWriteIntent()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
         val startedNanos = monotonicNanos()
         val fetched = fetch(source, candidate, remotePriority)
         val fetchCompletedNanos = monotonicNanos()
@@ -277,7 +285,7 @@ internal class ReaderRouteExecutor(
                         SourceObservation.Success.Remote(attemptKind, latencyMillis),
                     )
                     ensureOwned(ownership)
-                    persistBestEffort(release.id, validation.document)
+                    persistBestEffort(release.id, validation.document, writeIntent)
                     success
                 }
                 is ReaderDocumentValidation.Invalid -> {
@@ -396,10 +404,11 @@ internal class ReaderRouteExecutor(
     private suspend fun persistBestEffort(
         releaseId: ChapterReleaseId,
         document: ReaderDocument,
+        intent: ReaderDocumentDurableWriteIntent?,
     ) {
         if (!document.isLocalPersistable) return
         try {
-            store.write(releaseId, document.fingerprint, document)
+            store.writeWithIntent(releaseId, document.fingerprint, document, intent)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {

@@ -7,4 +7,9 @@ interface ChapterBlobStore {
     suspend fun write(key: ChapterBlobKey, blob: ChapterBlob)
 
     suspend fun delete(key: ChapterBlobKey)
+
+    suspend fun deleteIfPresent(key: ChapterBlobKey): Boolean {
+        delete(key)
+        return true
+    }
 }

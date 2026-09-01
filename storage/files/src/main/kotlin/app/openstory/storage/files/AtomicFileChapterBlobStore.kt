@@ -73,6 +73,20 @@ class AtomicFileChapterBlobStore internal constructor(
         }
     }
 
+    override suspend fun deleteIfPresent(key: ChapterBlobKey): Boolean {
+        val target = blobFile(key)
+        return ChapterBlobFileLocks.withLock(target) {
+            withContext(ioDispatcher) {
+                if (!files.exists(target)) {
+                    false
+                } else {
+                    files.delete(target)
+                    true
+                }
+            }
+        }
+    }
+
     private fun blobFile(key: ChapterBlobKey): File = ChapterBlobFileLayout.blobFile(rootDirectory, key)
 
     private fun decode(encoded: ByteArray): ChapterBlob? = try {
