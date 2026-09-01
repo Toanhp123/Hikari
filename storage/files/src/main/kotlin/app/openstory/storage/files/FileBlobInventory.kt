@@ -1,6 +1,7 @@
 package app.openstory.storage.files
 
 import android.content.Context
+import app.openstory.downloads.assets.ReaderAssetBlobId
 import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.reconcile.StorageArtifactId
@@ -14,6 +15,7 @@ import kotlinx.coroutines.withContext
 
 class FileBlobInventory internal constructor(
     private val rootDirectory: File,
+    private val readerAssetRootDirectory: File = File(rootDirectory, ReaderAssetBlobFileLayout.ROOT_DIRECTORY_NAME),
     private val reserveBytes: Long,
     private val availableBytes: () -> Long,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -27,6 +29,7 @@ class FileBlobInventory internal constructor(
         reserveBytes: Long = DEFAULT_RESERVE_BYTES,
     ) : this(
         rootDirectory = ChapterBlobFileLayout.root(context),
+        readerAssetRootDirectory = ReaderAssetBlobFileLayout.root(context),
         reserveBytes = reserveBytes,
         availableBytes = { context.filesDir.usableSpace },
         ioDispatcher = Dispatchers.IO,
@@ -62,14 +65,49 @@ class FileBlobInventory internal constructor(
         withContext(ioDispatcher) {
             artifacts.distinct().forEach { artifact ->
                 artifactFile(artifact)?.let { file ->
-                    if (artifact.value.startsWith("$BLOB_ARTIFACT:")) {
-                        ChapterBlobFileLocks.withLock(file) { deleteArtifact(file) }
-                    } else {
-                        deleteArtifact(file)
+                    when {
+                        artifact.value.startsWith("$BLOB_ARTIFACT:") ->
+                            ChapterBlobFileLocks.withLock(file) { deleteArtifact(file) }
+                        artifact.value.startsWith("$READER_ASSET_BLOB_ARTIFACT:") ->
+                            ReaderAssetBlobFileLocks.Shared.withLock(file) { entry ->
+                                if (!ReaderAssetBlobFileLocks.Shared.hasActiveLeases(entry)) {
+                                    deleteArtifact(file)
+                                }
+                            }
+                        else -> deleteArtifact(file)
                     }
                 }
             }
         }
+    }
+
+    suspend fun scanReaderAssets(
+        expectedBlobIds: Set<ReaderAssetBlobId>,
+        staleBeforeEpochMillis: Long,
+        limit: Int,
+    ): ReaderAssetStorageInventorySnapshot = withContext(ioDispatcher) {
+        require(limit >= 0) { "Reader asset inventory limit must not be negative." }
+        val present = linkedSetOf<ReaderAssetBlobId>()
+        val orphans = mutableListOf<StorageArtifactId>()
+        val interrupted = mutableListOf<StorageArtifactId>()
+        val expected = expectedBlobIds.associateBy(ReaderAssetBlobId::value)
+        readerAssetRootDirectory.listFiles()
+            ?.sortedBy(File::getName)
+            ?.forEach { file ->
+                if (orphans.size + interrupted.size >= limit) return@forEach
+                when {
+                    file.isFile && ReaderAssetBlobFileLayout.BLOB_FILE.matches(file.name) -> {
+                        val id = file.nameWithoutExtension
+                        expected[id]?.let(present::add)
+                            ?: orphans.add(readerAssetBlobArtifactId(id))
+                    }
+                    file.isFile && ReaderAssetBlobFileLayout.TEMP_FILE.matches(file.name) &&
+                        file.lastModified() < staleBeforeEpochMillis -> {
+                        interrupted += readerAssetTempArtifactId(file.name)
+                    }
+                }
+            }
+        ReaderAssetStorageInventorySnapshot(present, orphans, interrupted)
     }
 
     private fun deleteArtifact(file: File) {
@@ -86,6 +124,7 @@ class FileBlobInventory internal constructor(
     }
 
     private fun artifactFile(artifact: StorageArtifactId): File? {
+        readerAssetArtifactFile(artifact)?.let { return it }
         val parts = artifact.value.split(':', limit = ARTIFACT_PARTS)
         val namespace = parts.getOrNull(1)
             ?.let { runCatching { ChapterBlobNamespace.valueOf(it) }.getOrNull() }
@@ -105,6 +144,24 @@ class FileBlobInventory internal constructor(
         }
     }
 
+    private fun readerAssetArtifactFile(artifact: StorageArtifactId): File? = when {
+        artifact.value.startsWith("$READER_ASSET_BLOB_ARTIFACT:") ->
+            artifact.value.removePrefix("$READER_ASSET_BLOB_ARTIFACT:")
+                .takeIf(READER_ASSET_BLOB_STEM::matches)
+                ?.let { File(readerAssetRootDirectory, "$it.blob") }
+        artifact.value.startsWith("$READER_ASSET_TEMP_ARTIFACT:") ->
+            artifact.value.removePrefix("$READER_ASSET_TEMP_ARTIFACT:")
+                .takeIf(ReaderAssetBlobFileLayout.TEMP_FILE::matches)
+                ?.let { File(readerAssetRootDirectory, it) }
+        else -> null
+    }
+
+    private fun readerAssetBlobArtifactId(stem: String) =
+        StorageArtifactId("$READER_ASSET_BLOB_ARTIFACT:$stem")
+
+    private fun readerAssetTempArtifactId(name: String) =
+        StorageArtifactId("$READER_ASSET_TEMP_ARTIFACT:$name")
+
     private fun blobArtifactId(key: ChapterBlobKey): StorageArtifactId = blobArtifactId(
         key.namespace,
         ChapterBlobFileLayout.blobStem(key),
@@ -123,13 +180,22 @@ class FileBlobInventory internal constructor(
     private companion object {
         const val BLOB_ARTIFACT = "blob"
         const val TEMP_ARTIFACT = "temp"
+        const val READER_ASSET_BLOB_ARTIFACT = "reader-asset-blob"
+        const val READER_ASSET_TEMP_ARTIFACT = "reader-asset-temp"
         const val ARTIFACT_PARTS = 3
         const val DEFAULT_RESERVE_BYTES = 64L * 1024 * 1024
         val BLOB_STEM = Regex("[0-9a-f]{64}")
         val BLOB_FILE = Regex("[0-9a-f]{64}\\.blob")
         val TEMP_FILE = Regex("\\.stage-[A-Za-z0-9._-]+\\.tmp")
+        val READER_ASSET_BLOB_STEM = Regex("[0-9a-f]{64}")
     }
 }
+
+data class ReaderAssetStorageInventorySnapshot(
+    val presentBlobIds: Set<ReaderAssetBlobId>,
+    val orphanArtifacts: List<StorageArtifactId>,
+    val interruptedWriteArtifacts: List<StorageArtifactId>,
+)
 
 internal object ChapterBlobFileLayout {
     const val ROOT_DIRECTORY_NAME = "chapter-blobs"

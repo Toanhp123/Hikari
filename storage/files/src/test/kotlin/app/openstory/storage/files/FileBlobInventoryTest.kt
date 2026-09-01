@@ -4,6 +4,7 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.downloads.blob.ChapterBlob
 import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
+import app.openstory.downloads.assets.ReaderAssetBlobId
 import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -87,6 +88,43 @@ class FileBlobInventoryTest {
             FileBlobInventory(root, reserveBytes = 20, availableBytes = { 20 })
                 .canStore(0),
         )
+    }
+
+    @Test
+    fun `reader asset scan reports bounded orphan blobs and stale interrupted writes`() = runTest {
+        val readerRoot = root.resolve("reader-assets").apply { mkdirs() }
+        val known = ReaderAssetBlobId("1".repeat(64))
+        val orphan = ReaderAssetBlobId("2".repeat(64))
+        readerRoot.resolve("${known.value}.blob").writeText("known")
+        readerRoot.resolve("${orphan.value}.blob").writeText("orphan")
+        val stale = readerRoot.resolve(".stage-stale.tmp").apply {
+            writeText("partial")
+            setLastModified(100)
+        }
+        readerRoot.resolve(".stage-active.tmp").apply {
+            writeText("active")
+            setLastModified(900)
+        }
+        val inventory = FileBlobInventory(
+            rootDirectory = root,
+            readerAssetRootDirectory = readerRoot,
+            reserveBytes = 0,
+            availableBytes = { 100 },
+        )
+
+        val snapshot = inventory.scanReaderAssets(
+            expectedBlobIds = setOf(known),
+            staleBeforeEpochMillis = 500,
+            limit = 2,
+        )
+
+        assertEquals(setOf(known), snapshot.presentBlobIds)
+        assertEquals(1, snapshot.orphanArtifacts.size)
+        assertEquals(1, snapshot.interruptedWriteArtifacts.size)
+        assertFalse(snapshot.orphanArtifacts.single().value.contains(root.absolutePath))
+        inventory.delete(snapshot.orphanArtifacts + snapshot.interruptedWriteArtifacts)
+        assertFalse(readerRoot.resolve("${orphan.value}.blob").exists())
+        assertFalse(stale.exists())
     }
 
     private fun key(id: String) = ChapterBlobKey(
