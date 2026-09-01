@@ -1,0 +1,2905 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 12,
+    "identityHash": "3cd46757b52dd77df98c89a0c1a0adef",
+    "entities": [
+      {
+        "tableName": "stories",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `content_type` TEXT NOT NULL, PRIMARY KEY(`story_id`))",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentType",
+            "columnName": "content_type",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        }
+      },
+      {
+        "tableName": "catalog_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `source_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, `title` TEXT NOT NULL, `aliases` TEXT NOT NULL, `authors` TEXT NOT NULL, `description` TEXT, `genres` TEXT NOT NULL, `content_type` TEXT NOT NULL, `language_tags` TEXT NOT NULL, `cover_url` TEXT, `source_url` TEXT, `score_value` REAL, `score_scale` REAL, `popularity_rank` INTEGER, `publication_status` TEXT, `latest_update_at_epoch_millis` INTEGER, `latest_update_release_label` TEXT, `plugin_version` TEXT NOT NULL, `fetched_at_epoch_millis` INTEGER NOT NULL, `full_plugin_version` TEXT, `full_resolved_at_epoch_millis` INTEGER, PRIMARY KEY(`plugin_id`, `source_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "source_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aliases",
+            "columnName": "aliases",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authors",
+            "columnName": "authors",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "genres",
+            "columnName": "genres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentType",
+            "columnName": "content_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "languageTags",
+            "columnName": "language_tags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverUrl",
+            "columnName": "cover_url",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceUrl",
+            "columnName": "source_url",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "scoreValue",
+            "columnName": "score_value",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "scoreScale",
+            "columnName": "score_scale",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "popularityRank",
+            "columnName": "popularity_rank",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "publicationStatus",
+            "columnName": "publication_status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latestUpdateAtEpochMillis",
+            "columnName": "latest_update_at_epoch_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latestUpdateReleaseLabel",
+            "columnName": "latest_update_release_label",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pluginVersion",
+            "columnName": "plugin_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fetchedAtEpochMillis",
+            "columnName": "fetched_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fullPluginVersion",
+            "columnName": "full_plugin_version",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fullResolvedAtEpochMillis",
+            "columnName": "full_resolved_at_epoch_millis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id",
+            "source_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_catalog_entries_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_entries_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "catalog_home_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `plugin_version` TEXT NOT NULL, `refreshed_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`plugin_id`))",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pluginVersion",
+            "columnName": "plugin_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "refreshedAtEpochMillis",
+            "columnName": "refreshed_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id"
+          ]
+        }
+      },
+      {
+        "tableName": "catalog_home_sections",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `section_id` TEXT NOT NULL, `title` TEXT NOT NULL, `position` INTEGER NOT NULL, `feed_kind` TEXT NOT NULL DEFAULT 'OTHER', PRIMARY KEY(`plugin_id`, `section_id`), FOREIGN KEY(`plugin_id`) REFERENCES `catalog_home_snapshots`(`plugin_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sectionId",
+            "columnName": "section_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedKind",
+            "columnName": "feed_kind",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'OTHER'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id",
+            "section_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_catalog_home_sections_plugin_id",
+            "unique": false,
+            "columnNames": [
+              "plugin_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_home_sections_plugin_id` ON `${TABLE_NAME}` (`plugin_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "catalog_home_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "plugin_id"
+            ],
+            "referencedColumns": [
+              "plugin_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "catalog_home_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `section_id` TEXT NOT NULL, `position` INTEGER NOT NULL, `source_id` TEXT NOT NULL, PRIMARY KEY(`plugin_id`, `section_id`, `position`), FOREIGN KEY(`plugin_id`, `section_id`) REFERENCES `catalog_home_sections`(`plugin_id`, `section_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`plugin_id`, `source_id`) REFERENCES `catalog_entries`(`plugin_id`, `source_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sectionId",
+            "columnName": "section_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "source_id",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id",
+            "section_id",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_catalog_home_items_plugin_id_section_id",
+            "unique": false,
+            "columnNames": [
+              "plugin_id",
+              "section_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_home_items_plugin_id_section_id` ON `${TABLE_NAME}` (`plugin_id`, `section_id`)"
+          },
+          {
+            "name": "index_catalog_home_items_plugin_id_source_id",
+            "unique": false,
+            "columnNames": [
+              "plugin_id",
+              "source_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_home_items_plugin_id_source_id` ON `${TABLE_NAME}` (`plugin_id`, `source_id`)"
+          },
+          {
+            "name": "index_catalog_home_items_plugin_id_section_id_source_id",
+            "unique": true,
+            "columnNames": [
+              "plugin_id",
+              "section_id",
+              "source_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_catalog_home_items_plugin_id_section_id_source_id` ON `${TABLE_NAME}` (`plugin_id`, `section_id`, `source_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "catalog_home_sections",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "plugin_id",
+              "section_id"
+            ],
+            "referencedColumns": [
+              "plugin_id",
+              "section_id"
+            ]
+          },
+          {
+            "table": "catalog_entries",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "plugin_id",
+              "source_id"
+            ],
+            "referencedColumns": [
+              "plugin_id",
+              "source_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "catalog_entry_identifiers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `source_id` TEXT NOT NULL, `namespace` TEXT NOT NULL, `value` TEXT NOT NULL, `scope` TEXT NOT NULL, PRIMARY KEY(`plugin_id`, `source_id`, `namespace`, `value`, `scope`), FOREIGN KEY(`plugin_id`, `source_id`) REFERENCES `catalog_entries`(`plugin_id`, `source_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "source_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "namespace",
+            "columnName": "namespace",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scope",
+            "columnName": "scope",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id",
+            "source_id",
+            "namespace",
+            "value",
+            "scope"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_catalog_entry_identifiers_namespace_value_scope",
+            "unique": false,
+            "columnNames": [
+              "namespace",
+              "value",
+              "scope"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_entry_identifiers_namespace_value_scope` ON `${TABLE_NAME}` (`namespace`, `value`, `scope`)"
+          },
+          {
+            "name": "index_catalog_entry_identifiers_plugin_id_source_id",
+            "unique": false,
+            "columnNames": [
+              "plugin_id",
+              "source_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_entry_identifiers_plugin_id_source_id` ON `${TABLE_NAME}` (`plugin_id`, `source_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "catalog_entries",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "plugin_id",
+              "source_id"
+            ],
+            "referencedColumns": [
+              "plugin_id",
+              "source_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_canonical_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `active_generation_id` TEXT, `health` TEXT NOT NULL, `preference_mode` TEXT NOT NULL, `pinned_plugin_id` TEXT, `pinned_source_id` TEXT, `preference_revision` INTEGER NOT NULL, `identity_revision` INTEGER NOT NULL, `created_at_epoch_millis` INTEGER, PRIMARY KEY(`story_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeGenerationId",
+            "columnName": "active_generation_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "health",
+            "columnName": "health",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "preferenceMode",
+            "columnName": "preference_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinnedPluginId",
+            "columnName": "pinned_plugin_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pinnedSourceId",
+            "columnName": "pinned_source_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "preferenceRevision",
+            "columnName": "preference_revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identityRevision",
+            "columnName": "identity_revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at_epoch_millis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "canonical_generations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`generation_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, `fusion_policy_version` INTEGER NOT NULL, `primary_policy_version` INTEGER NOT NULL, `fusion_fingerprint` TEXT NOT NULL, `primary_plugin_id` TEXT NOT NULL, `primary_source_id` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `cover_url` TEXT, `source_url` TEXT, `popularity_rank` INTEGER, `aliases` TEXT NOT NULL, `authors` TEXT NOT NULL, `genres` TEXT NOT NULL, `language_tags` TEXT NOT NULL, `publication_status` TEXT, `latest_update_at_epoch_millis` INTEGER, `latest_update_release_label` TEXT, `score_normalized_value` REAL, `score_contributor_count` INTEGER, `health` TEXT NOT NULL, `created_at_epoch_millis` INTEGER NOT NULL, `valid` INTEGER NOT NULL, PRIMARY KEY(`generation_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "generationId",
+            "columnName": "generation_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fusionPolicyVersion",
+            "columnName": "fusion_policy_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primaryPolicyVersion",
+            "columnName": "primary_policy_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fusionFingerprint",
+            "columnName": "fusion_fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primaryPluginId",
+            "columnName": "primary_plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primarySourceId",
+            "columnName": "primary_source_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverUrl",
+            "columnName": "cover_url",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceUrl",
+            "columnName": "source_url",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "popularityRank",
+            "columnName": "popularity_rank",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "aliases",
+            "columnName": "aliases",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authors",
+            "columnName": "authors",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "genres",
+            "columnName": "genres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "languageTags",
+            "columnName": "language_tags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "publicationStatus",
+            "columnName": "publication_status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latestUpdateAtEpochMillis",
+            "columnName": "latest_update_at_epoch_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latestUpdateReleaseLabel",
+            "columnName": "latest_update_release_label",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "scoreNormalizedValue",
+            "columnName": "score_normalized_value",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "scoreContributorCount",
+            "columnName": "score_contributor_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "health",
+            "columnName": "health",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valid",
+            "columnName": "valid",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "generation_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_canonical_generations_story_id_created_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "story_id",
+              "created_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_canonical_generations_story_id_created_at_epoch_millis` ON `${TABLE_NAME}` (`story_id`, `created_at_epoch_millis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "canonical_field_provenance",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`generation_id` TEXT NOT NULL, `field_key` TEXT NOT NULL, `contributor_plugin_id` TEXT NOT NULL, `contributor_source_id` TEXT NOT NULL, `strategy` TEXT NOT NULL, `contributor_fusion_fingerprint` TEXT NOT NULL, `metadata_level` TEXT NOT NULL, `reason_codes` TEXT NOT NULL, `policy_version` INTEGER NOT NULL, PRIMARY KEY(`generation_id`, `field_key`, `contributor_plugin_id`, `contributor_source_id`), FOREIGN KEY(`generation_id`) REFERENCES `canonical_generations`(`generation_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "generationId",
+            "columnName": "generation_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fieldKey",
+            "columnName": "field_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contributorPluginId",
+            "columnName": "contributor_plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contributorSourceId",
+            "columnName": "contributor_source_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "strategy",
+            "columnName": "strategy",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contributorFusionFingerprint",
+            "columnName": "contributor_fusion_fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "metadataLevel",
+            "columnName": "metadata_level",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasonCodes",
+            "columnName": "reason_codes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "policyVersion",
+            "columnName": "policy_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "generation_id",
+            "field_key",
+            "contributor_plugin_id",
+            "contributor_source_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_canonical_field_provenance_generation_id",
+            "unique": false,
+            "columnNames": [
+              "generation_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_canonical_field_provenance_generation_id` ON `${TABLE_NAME}` (`generation_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "canonical_generations",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "generation_id"
+            ],
+            "referencedColumns": [
+              "generation_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "reconciliation_cases",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`case_id` TEXT NOT NULL, `left_story_id` TEXT NOT NULL, `right_story_id` TEXT NOT NULL, `status` TEXT NOT NULL, `current_revision_id` TEXT, `contextual_deferred_at_epoch_millis` INTEGER, `created_at_epoch_millis` INTEGER NOT NULL, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`case_id`))",
+        "fields": [
+          {
+            "fieldPath": "caseId",
+            "columnName": "case_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leftStoryId",
+            "columnName": "left_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rightStoryId",
+            "columnName": "right_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentRevisionId",
+            "columnName": "current_revision_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contextualDeferredAtEpochMillis",
+            "columnName": "contextual_deferred_at_epoch_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "case_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reconciliation_cases_left_story_id_right_story_id",
+            "unique": true,
+            "columnNames": [
+              "left_story_id",
+              "right_story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reconciliation_cases_left_story_id_right_story_id` ON `${TABLE_NAME}` (`left_story_id`, `right_story_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reconciliation_case_revisions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`revision_id` TEXT NOT NULL, `case_id` TEXT NOT NULL, `left_story_id` TEXT NOT NULL, `right_story_id` TEXT NOT NULL, `decision` TEXT NOT NULL, `identity_fingerprint` TEXT NOT NULL, `policy_version` INTEGER NOT NULL, `score` REAL NOT NULL, `title_similarity` REAL, `author_similarity` REAL, `reason_codes` TEXT NOT NULL, `hard_conflicts` TEXT NOT NULL, `resolution_origin` TEXT, `evaluated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`revision_id`), FOREIGN KEY(`case_id`) REFERENCES `reconciliation_cases`(`case_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "revisionId",
+            "columnName": "revision_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "caseId",
+            "columnName": "case_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leftStoryId",
+            "columnName": "left_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rightStoryId",
+            "columnName": "right_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decision",
+            "columnName": "decision",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identityFingerprint",
+            "columnName": "identity_fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "policyVersion",
+            "columnName": "policy_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleSimilarity",
+            "columnName": "title_similarity",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "authorSimilarity",
+            "columnName": "author_similarity",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "reasonCodes",
+            "columnName": "reason_codes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hardConflicts",
+            "columnName": "hard_conflicts",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resolutionOrigin",
+            "columnName": "resolution_origin",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "evaluatedAtEpochMillis",
+            "columnName": "evaluated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "revision_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reconciliation_case_revisions_case_id",
+            "unique": false,
+            "columnNames": [
+              "case_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reconciliation_case_revisions_case_id` ON `${TABLE_NAME}` (`case_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "reconciliation_cases",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "case_id"
+            ],
+            "referencedColumns": [
+              "case_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_merge_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`merge_event_id` TEXT NOT NULL, `survivor_story_id` TEXT NOT NULL, `retired_story_id` TEXT NOT NULL, `origin` TEXT NOT NULL, `reconciliation_case_id` TEXT, `evidence_fingerprint` TEXT NOT NULL, `policy_version` INTEGER NOT NULL, `merged_at_epoch_millis` INTEGER NOT NULL, `reversibility_state` TEXT NOT NULL, `reversal_payload_version` INTEGER NOT NULL, `reversal_payload` TEXT NOT NULL, PRIMARY KEY(`merge_event_id`))",
+        "fields": [
+          {
+            "fieldPath": "mergeEventId",
+            "columnName": "merge_event_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "survivorStoryId",
+            "columnName": "survivor_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "retiredStoryId",
+            "columnName": "retired_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reconciliationCaseId",
+            "columnName": "reconciliation_case_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "evidenceFingerprint",
+            "columnName": "evidence_fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "policyVersion",
+            "columnName": "policy_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mergedAtEpochMillis",
+            "columnName": "merged_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reversibilityState",
+            "columnName": "reversibility_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reversalPayloadVersion",
+            "columnName": "reversal_payload_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reversalPayload",
+            "columnName": "reversal_payload",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "merge_event_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_merge_events_survivor_story_id_retired_story_id_evidence_fingerprint_policy_version",
+            "unique": true,
+            "columnNames": [
+              "survivor_story_id",
+              "retired_story_id",
+              "evidence_fingerprint",
+              "policy_version"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_story_merge_events_survivor_story_id_retired_story_id_evidence_fingerprint_policy_version` ON `${TABLE_NAME}` (`survivor_story_id`, `retired_story_id`, `evidence_fingerprint`, `policy_version`)"
+          }
+        ]
+      },
+      {
+        "tableName": "story_merge_reversal_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`reversal_event_id` TEXT NOT NULL, `merge_event_id` TEXT NOT NULL, `restored_story_id` TEXT NOT NULL, `surviving_story_id` TEXT NOT NULL, `origin` TEXT NOT NULL, `reason_codes` TEXT NOT NULL, `reversed_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`reversal_event_id`), FOREIGN KEY(`merge_event_id`) REFERENCES `story_merge_events`(`merge_event_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "reversalEventId",
+            "columnName": "reversal_event_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mergeEventId",
+            "columnName": "merge_event_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restoredStoryId",
+            "columnName": "restored_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "survivingStoryId",
+            "columnName": "surviving_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasonCodes",
+            "columnName": "reason_codes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reversedAtEpochMillis",
+            "columnName": "reversed_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "reversal_event_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_merge_reversal_events_merge_event_id",
+            "unique": true,
+            "columnNames": [
+              "merge_event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_story_merge_reversal_events_merge_event_id` ON `${TABLE_NAME}` (`merge_event_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "story_merge_events",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "merge_event_id"
+            ],
+            "referencedColumns": [
+              "merge_event_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_redirects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`retired_story_id` TEXT NOT NULL, `canonical_story_id` TEXT NOT NULL, `merge_event_id` TEXT NOT NULL, `created_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`retired_story_id`), FOREIGN KEY(`canonical_story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`merge_event_id`) REFERENCES `story_merge_events`(`merge_event_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "retiredStoryId",
+            "columnName": "retired_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canonicalStoryId",
+            "columnName": "canonical_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mergeEventId",
+            "columnName": "merge_event_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "retired_story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_redirects_canonical_story_id",
+            "unique": false,
+            "columnNames": [
+              "canonical_story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_redirects_canonical_story_id` ON `${TABLE_NAME}` (`canonical_story_id`)"
+          },
+          {
+            "name": "index_story_redirects_merge_event_id",
+            "unique": false,
+            "columnNames": [
+              "merge_event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_redirects_merge_event_id` ON `${TABLE_NAME}` (`merge_event_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "canonical_story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          },
+          {
+            "table": "story_merge_events",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "merge_event_id"
+            ],
+            "referencedColumns": [
+              "merge_event_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "canonical_engine_work",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `work_type` TEXT NOT NULL, `reason` TEXT NOT NULL, `attempt_count` INTEGER NOT NULL, `next_attempt_at_epoch_millis` INTEGER NOT NULL, `last_error_code` TEXT, `required_policy_version` INTEGER, `lease_token` TEXT, `lease_expires_at_epoch_millis` INTEGER, PRIMARY KEY(`story_id`, `work_type`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "workType",
+            "columnName": "work_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attemptCount",
+            "columnName": "attempt_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextAttemptAtEpochMillis",
+            "columnName": "next_attempt_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastErrorCode",
+            "columnName": "last_error_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "requiredPolicyVersion",
+            "columnName": "required_policy_version",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "leaseToken",
+            "columnName": "lease_token",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "leaseExpiresAtEpochMillis",
+            "columnName": "lease_expires_at_epoch_millis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "work_type"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_canonical_engine_work_lease_expires_at_epoch_millis_next_attempt_at_epoch_millis_work_type_story_id",
+            "unique": false,
+            "columnNames": [
+              "lease_expires_at_epoch_millis",
+              "next_attempt_at_epoch_millis",
+              "work_type",
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_canonical_engine_work_lease_expires_at_epoch_millis_next_attempt_at_epoch_millis_work_type_story_id` ON `${TABLE_NAME}` (`lease_expires_at_epoch_millis`, `next_attempt_at_epoch_millis`, `work_type`, `story_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "catalog_change_outbox",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`event_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `story_id` TEXT NOT NULL, `plugin_id` TEXT NOT NULL, `source_id` TEXT NOT NULL, `identity_fingerprint_changed` INTEGER NOT NULL, `fusion_fingerprint_changed` INTEGER NOT NULL, `availability_changed` INTEGER NOT NULL, `evidence_level` TEXT NOT NULL, `reason` TEXT NOT NULL, `created_at_epoch_millis` INTEGER NOT NULL, FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "eventId",
+            "columnName": "event_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "source_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identityFingerprintChanged",
+            "columnName": "identity_fingerprint_changed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fusionFingerprintChanged",
+            "columnName": "fusion_fingerprint_changed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "availabilityChanged",
+            "columnName": "availability_changed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "evidenceLevel",
+            "columnName": "evidence_level",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "event_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_catalog_change_outbox_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_change_outbox_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          },
+          {
+            "name": "index_catalog_change_outbox_created_at_epoch_millis_event_id",
+            "unique": false,
+            "columnNames": [
+              "created_at_epoch_millis",
+              "event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_catalog_change_outbox_created_at_epoch_millis_event_id` ON `${TABLE_NAME}` (`created_at_epoch_millis`, `event_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "plugin_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `active_version` TEXT NOT NULL, `previous_version` TEXT, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`plugin_id`))",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeVersion",
+            "columnName": "active_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "previousVersion",
+            "columnName": "previous_version",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id"
+          ]
+        }
+      },
+      {
+        "tableName": "plugin_versions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`plugin_id` TEXT NOT NULL, `version` TEXT NOT NULL, `package_location` TEXT NOT NULL, `sha256` TEXT NOT NULL, `signer_fingerprint` TEXT, `services` TEXT NOT NULL, `accepted_network_hosts` TEXT NOT NULL, `installed_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`plugin_id`, `version`), FOREIGN KEY(`plugin_id`) REFERENCES `plugin_state`(`plugin_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageLocation",
+            "columnName": "package_location",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sha256",
+            "columnName": "sha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signerFingerprint",
+            "columnName": "signer_fingerprint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "services",
+            "columnName": "services",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "acceptedNetworkHosts",
+            "columnName": "accepted_network_hosts",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "installedAtEpochMillis",
+            "columnName": "installed_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "plugin_id",
+            "version"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_plugin_versions_plugin_id",
+            "unique": false,
+            "columnNames": [
+              "plugin_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plugin_versions_plugin_id` ON `${TABLE_NAME}` (`plugin_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "plugin_state",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "plugin_id"
+            ],
+            "referencedColumns": [
+              "plugin_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "plugin_diagnostics",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `plugin_id` TEXT NOT NULL, `code` TEXT NOT NULL, `operation` TEXT, `occurred_at_epoch_millis` INTEGER NOT NULL, `safe_detail` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operation",
+            "columnName": "operation",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "occurredAtEpochMillis",
+            "columnName": "occurred_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "safeDetail",
+            "columnName": "safe_detail",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_plugin_diagnostics_plugin_id",
+            "unique": false,
+            "columnNames": [
+              "plugin_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plugin_diagnostics_plugin_id` ON `${TABLE_NAME}` (`plugin_id`)"
+          },
+          {
+            "name": "index_plugin_diagnostics_occurred_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "occurred_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_plugin_diagnostics_occurred_at_epoch_millis` ON `${TABLE_NAME}` (`occurred_at_epoch_millis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "library_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `status` TEXT NOT NULL, `added_at_epoch_millis` INTEGER NOT NULL, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`story_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addedAtEpochMillis",
+            "columnName": "added_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_library_entries_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_library_entries_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_library_entries_updated_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "updated_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_library_entries_updated_at_epoch_millis` ON `${TABLE_NAME}` (`updated_at_epoch_millis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "content_mappings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `plugin_id` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, `origin` TEXT NOT NULL, `policy_version` INTEGER NOT NULL, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`story_id`, `plugin_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "policyVersion",
+            "columnName": "policy_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "plugin_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_content_mappings_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_content_mappings_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          },
+          {
+            "name": "index_content_mappings_plugin_id",
+            "unique": false,
+            "columnNames": [
+              "plugin_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_content_mappings_plugin_id` ON `${TABLE_NAME}` (`plugin_id`)"
+          },
+          {
+            "name": "index_content_mappings_origin",
+            "unique": false,
+            "columnNames": [
+              "origin"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_content_mappings_origin` ON `${TABLE_NAME}` (`origin`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "content_mapping_rejections",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `plugin_id` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, `policy_version` INTEGER NOT NULL, `rejected_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`story_id`, `plugin_id`, `source_story_id`, `policy_version`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "policyVersion",
+            "columnName": "policy_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rejectedAtEpochMillis",
+            "columnName": "rejected_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "plugin_id",
+            "source_story_id",
+            "policy_version"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_content_mapping_rejections_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_content_mapping_rejections_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "canonical_chapters",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`canonical_chapter_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, `kind` TEXT NOT NULL, `volume` TEXT, `chapter` TEXT, `part` INTEGER, `normalized_title` TEXT, `display_label` TEXT NOT NULL, `tombstoned` INTEGER NOT NULL, PRIMARY KEY(`canonical_chapter_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "canonicalChapterId",
+            "columnName": "canonical_chapter_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volume",
+            "columnName": "volume",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "chapter",
+            "columnName": "chapter",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "part",
+            "columnName": "part",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "normalizedTitle",
+            "columnName": "normalized_title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "displayLabel",
+            "columnName": "display_label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tombstoned",
+            "columnName": "tombstoned",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "canonical_chapter_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_canonical_chapters_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_canonical_chapters_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          },
+          {
+            "name": "index_canonical_chapters_story_id_tombstoned",
+            "unique": false,
+            "columnNames": [
+              "story_id",
+              "tombstoned"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_canonical_chapters_story_id_tombstoned` ON `${TABLE_NAME}` (`story_id`, `tombstoned`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "chapter_releases",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chapter_release_id` TEXT NOT NULL, `story_id` TEXT NOT NULL, `plugin_id` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, `source_release_id` TEXT NOT NULL, `display_label` TEXT NOT NULL, `kind` TEXT NOT NULL, `volume` TEXT, `chapter` TEXT, `part` INTEGER, `normalized_title` TEXT, `language_tag` TEXT NOT NULL, `published_at_epoch_millis` INTEGER, `canonical_chapter_id` TEXT, PRIMARY KEY(`chapter_release_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`canonical_chapter_id`) REFERENCES `canonical_chapters`(`canonical_chapter_id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "chapterReleaseId",
+            "columnName": "chapter_release_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceReleaseId",
+            "columnName": "source_release_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayLabel",
+            "columnName": "display_label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volume",
+            "columnName": "volume",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "chapter",
+            "columnName": "chapter",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "part",
+            "columnName": "part",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "normalizedTitle",
+            "columnName": "normalized_title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "languageTag",
+            "columnName": "language_tag",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "publishedAtEpochMillis",
+            "columnName": "published_at_epoch_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "canonicalChapterId",
+            "columnName": "canonical_chapter_id",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chapter_release_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chapter_releases_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_releases_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          },
+          {
+            "name": "index_chapter_releases_canonical_chapter_id",
+            "unique": false,
+            "columnNames": [
+              "canonical_chapter_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_releases_canonical_chapter_id` ON `${TABLE_NAME}` (`canonical_chapter_id`)"
+          },
+          {
+            "name": "index_chapter_releases_plugin_id_source_story_id_source_release_id",
+            "unique": true,
+            "columnNames": [
+              "plugin_id",
+              "source_story_id",
+              "source_release_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_chapter_releases_plugin_id_source_story_id_source_release_id` ON `${TABLE_NAME}` (`plugin_id`, `source_story_id`, `source_release_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          },
+          {
+            "table": "canonical_chapters",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "canonical_chapter_id"
+            ],
+            "referencedColumns": [
+              "canonical_chapter_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "chapter_aggregation_overrides",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `chapter_release_id` TEXT NOT NULL, `canonical_chapter_id` TEXT, `kind` TEXT NOT NULL, PRIMARY KEY(`story_id`, `chapter_release_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`chapter_release_id`) REFERENCES `chapter_releases`(`chapter_release_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`canonical_chapter_id`) REFERENCES `canonical_chapters`(`canonical_chapter_id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterReleaseId",
+            "columnName": "chapter_release_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canonicalChapterId",
+            "columnName": "canonical_chapter_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "chapter_release_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chapter_aggregation_overrides_chapter_release_id",
+            "unique": false,
+            "columnNames": [
+              "chapter_release_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_aggregation_overrides_chapter_release_id` ON `${TABLE_NAME}` (`chapter_release_id`)"
+          },
+          {
+            "name": "index_chapter_aggregation_overrides_canonical_chapter_id",
+            "unique": false,
+            "columnNames": [
+              "canonical_chapter_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_aggregation_overrides_canonical_chapter_id` ON `${TABLE_NAME}` (`canonical_chapter_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          },
+          {
+            "table": "chapter_releases",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "chapter_release_id"
+            ],
+            "referencedColumns": [
+              "chapter_release_id"
+            ]
+          },
+          {
+            "table": "canonical_chapters",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "canonical_chapter_id"
+            ],
+            "referencedColumns": [
+              "canonical_chapter_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "chapter_sync_states",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `plugin_id` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, `phase` TEXT NOT NULL, `cursor` TEXT, `checkpoint` TEXT, `fingerprint` TEXT, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`story_id`, `plugin_id`, `source_story_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pluginId",
+            "columnName": "plugin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phase",
+            "columnName": "phase",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cursor",
+            "columnName": "cursor",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "checkpoint",
+            "columnName": "checkpoint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fingerprint",
+            "columnName": "fingerprint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "plugin_id",
+            "source_story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chapter_sync_states_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_sync_states_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "chapter_change_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`event_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `event_key` TEXT NOT NULL, `story_id` TEXT NOT NULL, `chapter_id` TEXT NOT NULL, `release_id` TEXT, `change_kind` TEXT NOT NULL, `chapter_commit_fingerprint` TEXT NOT NULL, `occurred_at_epoch_millis` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "eventId",
+            "columnName": "event_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventKey",
+            "columnName": "event_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterId",
+            "columnName": "chapter_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "releaseId",
+            "columnName": "release_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "changeKind",
+            "columnName": "change_kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterCommitFingerprint",
+            "columnName": "chapter_commit_fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurredAtEpochMillis",
+            "columnName": "occurred_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "event_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chapter_change_events_event_key",
+            "unique": true,
+            "columnNames": [
+              "event_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_chapter_change_events_event_key` ON `${TABLE_NAME}` (`event_key`)"
+          },
+          {
+            "name": "index_chapter_change_events_story_id_chapter_id_change_kind",
+            "unique": false,
+            "columnNames": [
+              "story_id",
+              "chapter_id",
+              "change_kind"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_change_events_story_id_chapter_id_change_kind` ON `${TABLE_NAME}` (`story_id`, `chapter_id`, `change_kind`)"
+          },
+          {
+            "name": "index_chapter_change_events_occurred_at_epoch_millis_event_id",
+            "unique": false,
+            "columnNames": [
+              "occurred_at_epoch_millis",
+              "event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_change_events_occurred_at_epoch_millis_event_id` ON `${TABLE_NAME}` (`occurred_at_epoch_millis`, `event_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "notification_deliveries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`event_id` INTEGER NOT NULL, `status` TEXT NOT NULL, `claim_token` TEXT, `claim_expires_at_epoch_millis` INTEGER, `attempt_count` INTEGER NOT NULL, `next_attempt_at_epoch_millis` INTEGER NOT NULL, `notification_id` INTEGER, `reason_code` TEXT, `last_error_code` TEXT, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`event_id`), FOREIGN KEY(`event_id`) REFERENCES `chapter_change_events`(`event_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "eventId",
+            "columnName": "event_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "claimToken",
+            "columnName": "claim_token",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "claimExpiresAtEpochMillis",
+            "columnName": "claim_expires_at_epoch_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "attemptCount",
+            "columnName": "attempt_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextAttemptAtEpochMillis",
+            "columnName": "next_attempt_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationId",
+            "columnName": "notification_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reasonCode",
+            "columnName": "reason_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastErrorCode",
+            "columnName": "last_error_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "event_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_notification_deliveries_status_next_attempt_at_epoch_millis_event_id",
+            "unique": false,
+            "columnNames": [
+              "status",
+              "next_attempt_at_epoch_millis",
+              "event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_deliveries_status_next_attempt_at_epoch_millis_event_id` ON `${TABLE_NAME}` (`status`, `next_attempt_at_epoch_millis`, `event_id`)"
+          },
+          {
+            "name": "index_notification_deliveries_claim_expires_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "claim_expires_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_deliveries_claim_expires_at_epoch_millis` ON `${TABLE_NAME}` (`claim_expires_at_epoch_millis`)"
+          },
+          {
+            "name": "index_notification_deliveries_claim_token",
+            "unique": false,
+            "columnNames": [
+              "claim_token"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_deliveries_claim_token` ON `${TABLE_NAME}` (`claim_token`)"
+          },
+          {
+            "name": "index_notification_deliveries_notification_id",
+            "unique": true,
+            "columnNames": [
+              "notification_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_notification_deliveries_notification_id` ON `${TABLE_NAME}` (`notification_id`)"
+          },
+          {
+            "name": "index_notification_deliveries_updated_at_epoch_millis_status",
+            "unique": false,
+            "columnNames": [
+              "updated_at_epoch_millis",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_deliveries_updated_at_epoch_millis_status` ON `${TABLE_NAME}` (`updated_at_epoch_millis`, `status`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "chapter_change_events",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "event_id"
+            ],
+            "referencedColumns": [
+              "event_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "reading_progress",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `canonical_chapter_id` TEXT NOT NULL, `chapter_release_id` TEXT NOT NULL, `content_fingerprint` TEXT NOT NULL, `block_id` TEXT NOT NULL, `character_offset` INTEGER NOT NULL, `fraction` REAL NOT NULL, `completed_at_epoch_millis` INTEGER, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`story_id`, `canonical_chapter_id`), FOREIGN KEY(`story_id`) REFERENCES `stories`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`canonical_chapter_id`) REFERENCES `canonical_chapters`(`canonical_chapter_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canonicalChapterId",
+            "columnName": "canonical_chapter_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterReleaseId",
+            "columnName": "chapter_release_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentFingerprint",
+            "columnName": "content_fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "blockId",
+            "columnName": "block_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterOffset",
+            "columnName": "character_offset",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fraction",
+            "columnName": "fraction",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAtEpochMillis",
+            "columnName": "completed_at_epoch_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "canonical_chapter_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reading_progress_canonical_chapter_id",
+            "unique": false,
+            "columnNames": [
+              "canonical_chapter_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_progress_canonical_chapter_id` ON `${TABLE_NAME}` (`canonical_chapter_id`)"
+          },
+          {
+            "name": "index_reading_progress_chapter_release_id",
+            "unique": false,
+            "columnNames": [
+              "chapter_release_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_progress_chapter_release_id` ON `${TABLE_NAME}` (`chapter_release_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          },
+          {
+            "table": "canonical_chapters",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "canonical_chapter_id"
+            ],
+            "referencedColumns": [
+              "canonical_chapter_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "chapter_storage_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`namespace` TEXT NOT NULL, `chapter_release_id` TEXT NOT NULL, `content_fingerprint` TEXT NOT NULL, `checksum` TEXT, `size_bytes` INTEGER NOT NULL, `last_accessed_at_epoch_millis` INTEGER NOT NULL, `pinned` INTEGER NOT NULL, `current` INTEGER NOT NULL, `download_state` TEXT, `failure_reason` TEXT, `attempt` INTEGER NOT NULL, `updated_at_epoch_millis` INTEGER NOT NULL, PRIMARY KEY(`namespace`, `chapter_release_id`, `content_fingerprint`))",
+        "fields": [
+          {
+            "fieldPath": "namespace",
+            "columnName": "namespace",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterReleaseId",
+            "columnName": "chapter_release_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentFingerprint",
+            "columnName": "content_fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checksum",
+            "columnName": "checksum",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "size_bytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastAccessedAtEpochMillis",
+            "columnName": "last_accessed_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinned",
+            "columnName": "pinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "current",
+            "columnName": "current",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "downloadState",
+            "columnName": "download_state",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "failureReason",
+            "columnName": "failure_reason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "attempt",
+            "columnName": "attempt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "namespace",
+            "chapter_release_id",
+            "content_fingerprint"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chapter_storage_entries_chapter_release_id",
+            "unique": false,
+            "columnNames": [
+              "chapter_release_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_storage_entries_chapter_release_id` ON `${TABLE_NAME}` (`chapter_release_id`)"
+          },
+          {
+            "name": "index_chapter_storage_entries_last_accessed_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "last_accessed_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_storage_entries_last_accessed_at_epoch_millis` ON `${TABLE_NAME}` (`last_accessed_at_epoch_millis`)"
+          },
+          {
+            "name": "index_chapter_storage_entries_download_state",
+            "unique": false,
+            "columnNames": [
+              "download_state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapter_storage_entries_download_state` ON `${TABLE_NAME}` (`download_state`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reader_asset_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`logical_asset_key_hash` TEXT NOT NULL, `key_schema_version` INTEGER NOT NULL, `story_id` TEXT NOT NULL, `canonical_chapter_id` TEXT NOT NULL, `chapter_release_id` TEXT NOT NULL, `source_namespace` TEXT NOT NULL, `security_scope_hash` TEXT, `content_variant` TEXT NOT NULL, `identity_mode` TEXT NOT NULL, `persistence_mode` TEXT NOT NULL, `image_set_namespace_hash` TEXT NOT NULL, `page_identity_hash` TEXT NOT NULL, `page_ordinal` INTEGER NOT NULL, `blob_id` TEXT NOT NULL, `byte_size` INTEGER NOT NULL, `local_blob_checksum` TEXT NOT NULL, `source_integrity_hash` TEXT, `created_at_epoch_millis` INTEGER NOT NULL, `last_accessed_at_epoch_millis` INTEGER NOT NULL, `last_consumed_at_epoch_millis` INTEGER, PRIMARY KEY(`logical_asset_key_hash`))",
+        "fields": [
+          {
+            "fieldPath": "logicalAssetKeyHash",
+            "columnName": "logical_asset_key_hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keySchemaVersion",
+            "columnName": "key_schema_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canonicalChapterId",
+            "columnName": "canonical_chapter_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterReleaseId",
+            "columnName": "chapter_release_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceNamespace",
+            "columnName": "source_namespace",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "securityScopeHash",
+            "columnName": "security_scope_hash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contentVariant",
+            "columnName": "content_variant",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identityMode",
+            "columnName": "identity_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "persistenceMode",
+            "columnName": "persistence_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageSetNamespaceHash",
+            "columnName": "image_set_namespace_hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pageIdentityHash",
+            "columnName": "page_identity_hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pageOrdinal",
+            "columnName": "page_ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "blobId",
+            "columnName": "blob_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "byteSize",
+            "columnName": "byte_size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localBlobChecksum",
+            "columnName": "local_blob_checksum",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceIntegrityHash",
+            "columnName": "source_integrity_hash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastAccessedAtEpochMillis",
+            "columnName": "last_accessed_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastConsumedAtEpochMillis",
+            "columnName": "last_consumed_at_epoch_millis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "logical_asset_key_hash"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reader_asset_entries_chapter_release_id",
+            "unique": false,
+            "columnNames": [
+              "chapter_release_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reader_asset_entries_chapter_release_id` ON `${TABLE_NAME}` (`chapter_release_id`)"
+          },
+          {
+            "name": "index_reader_asset_entries_story_id_canonical_chapter_id",
+            "unique": false,
+            "columnNames": [
+              "story_id",
+              "canonical_chapter_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reader_asset_entries_story_id_canonical_chapter_id` ON `${TABLE_NAME}` (`story_id`, `canonical_chapter_id`)"
+          },
+          {
+            "name": "index_reader_asset_entries_last_consumed_at_epoch_millis_last_accessed_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "last_consumed_at_epoch_millis",
+              "last_accessed_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reader_asset_entries_last_consumed_at_epoch_millis_last_accessed_at_epoch_millis` ON `${TABLE_NAME}` (`last_consumed_at_epoch_millis`, `last_accessed_at_epoch_millis`)"
+          },
+          {
+            "name": "index_reader_asset_entries_source_namespace_security_scope_hash",
+            "unique": false,
+            "columnNames": [
+              "source_namespace",
+              "security_scope_hash"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reader_asset_entries_source_namespace_security_scope_hash` ON `${TABLE_NAME}` (`source_namespace`, `security_scope_hash`)"
+          },
+          {
+            "name": "index_reader_asset_entries_blob_id",
+            "unique": true,
+            "columnNames": [
+              "blob_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reader_asset_entries_blob_id` ON `${TABLE_NAME}` (`blob_id`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3cd46757b52dd77df98c89a0c1a0adef')"
+    ]
+  }
+}

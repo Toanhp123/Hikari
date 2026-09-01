@@ -52,6 +52,7 @@ class DatabaseBaselineTest {
                 "notification_deliveries",
                 "reading_progress",
                 "chapter_storage_entries",
+                "reader_asset_entries",
             ),
             names,
         )

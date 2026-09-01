@@ -4,6 +4,48 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 object RoomMigrations {
+    val MIGRATION_11_12: Migration = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `reader_asset_entries` (" +
+                    "`logical_asset_key_hash` TEXT NOT NULL, `key_schema_version` INTEGER NOT NULL, " +
+                    "`story_id` TEXT NOT NULL, `canonical_chapter_id` TEXT NOT NULL, " +
+                    "`chapter_release_id` TEXT NOT NULL, `source_namespace` TEXT NOT NULL, " +
+                    "`security_scope_hash` TEXT, `content_variant` TEXT NOT NULL, " +
+                    "`identity_mode` TEXT NOT NULL, `persistence_mode` TEXT NOT NULL, " +
+                    "`image_set_namespace_hash` TEXT NOT NULL, `page_identity_hash` TEXT NOT NULL, " +
+                    "`page_ordinal` INTEGER NOT NULL, `blob_id` TEXT NOT NULL, `byte_size` INTEGER NOT NULL, " +
+                    "`local_blob_checksum` TEXT NOT NULL, `source_integrity_hash` TEXT, " +
+                    "`created_at_epoch_millis` INTEGER NOT NULL, " +
+                    "`last_accessed_at_epoch_millis` INTEGER NOT NULL, " +
+                    "`last_consumed_at_epoch_millis` INTEGER, PRIMARY KEY(`logical_asset_key_hash`))",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_reader_asset_entries_chapter_release_id` " +
+                    "ON `reader_asset_entries` (`chapter_release_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_reader_asset_entries_story_id_canonical_chapter_id` " +
+                    "ON `reader_asset_entries` (`story_id`, `canonical_chapter_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_reader_asset_entries_last_consumed_at_epoch_millis_" +
+                    "last_accessed_at_epoch_millis` ON `reader_asset_entries` " +
+                    "(`last_consumed_at_epoch_millis`, `last_accessed_at_epoch_millis`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_reader_asset_entries_source_namespace_security_scope_hash` " +
+                    "ON `reader_asset_entries` (`source_namespace`, `security_scope_hash`)",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_reader_asset_entries_blob_id` " +
+                    "ON `reader_asset_entries` (`blob_id`)",
+            )
+        }
+    }
+
     val MIGRATION_10_11: Migration = object : Migration(10, 11) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(

@@ -47,6 +47,8 @@ import app.openstory.storage.room.plugins.PluginStateEntity
 import app.openstory.storage.room.plugins.PluginVersionEntity
 import app.openstory.storage.room.reader.ReadingProgressDao
 import app.openstory.storage.room.reader.ReadingProgressEntity
+import app.openstory.storage.room.readerassets.ReaderAssetDao
+import app.openstory.storage.room.readerassets.ReaderAssetEntryEntity
 
 @Database(
     entities = [
@@ -80,8 +82,9 @@ import app.openstory.storage.room.reader.ReadingProgressEntity
         NotificationDeliveryEntity::class,
         ReadingProgressEntity::class,
         ChapterStorageEntryEntity::class,
+        ReaderAssetEntryEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -98,6 +101,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
     internal abstract fun notificationEventDao(): NotificationEventDao
     internal abstract fun readingProgressDao(): ReadingProgressDao
     internal abstract fun downloadDao(): DownloadDao
+    internal abstract fun readerAssetDao(): ReaderAssetDao
 
     companion object {
         private const val DATABASE_NAME = "openstory-baseline-2.db"
@@ -117,6 +121,7 @@ abstract class OpenStoryDatabase : RoomDatabase() {
             RoomMigrations.MIGRATION_8_9,
             RoomMigrations.MIGRATION_9_10,
             RoomMigrations.MIGRATION_10_11,
+            RoomMigrations.MIGRATION_11_12,
         )
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()
