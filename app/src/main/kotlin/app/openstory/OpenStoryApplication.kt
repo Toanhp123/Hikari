@@ -1,6 +1,7 @@
 package app.openstory
 
 import android.app.Application
+import app.openstory.cache.AutomaticCachePolicyCoordinator
 import app.openstory.notifications.NotificationChannelConfig
 import app.openstory.notifications.WorkManagerNotificationDrainScheduler
 import app.openstory.settings.background.BackgroundPolicyCoordinator
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class OpenStoryApplication : Application() {
+    @Inject lateinit var automaticCachePolicyCoordinator: AutomaticCachePolicyCoordinator
     @Inject lateinit var backgroundPolicyCoordinator: BackgroundPolicyCoordinator
     @Inject lateinit var notificationDrainScheduler: WorkManagerNotificationDrainScheduler
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -20,6 +22,7 @@ class OpenStoryApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         NotificationChannelConfig.create(this)
+        automaticCachePolicyCoordinator.start(applicationScope)
         backgroundPolicyCoordinator.start()
         applicationScope.launch {
             try {
