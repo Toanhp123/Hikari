@@ -16,6 +16,7 @@ import app.openstory.reader.routing.ReaderCacheFactsPort
 import app.openstory.reader.AndroidReaderNetworkFactsPort
 import app.openstory.reader.routing.ReaderNetworkFactsPort
 import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ReaderAssetStorePort
 import app.openstory.reader.routing.ContentSourceExecutionLane
 import app.openstory.reader.routing.ReaderHalfOpenProbeRegistry
 import app.openstory.reader.routing.ReaderSourceHealthRegistry
@@ -26,6 +27,7 @@ import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.cache.CacheRepository
 import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
 import app.openstory.downloads.DownloadRepository
+import app.openstory.downloads.assets.DownloadReaderAssetStore
 import app.openstory.downloads.reader.DownloadAwareReaderDocumentStore
 import app.openstory.downloads.reader.ReaderCacheMetadataSource
 import app.openstory.downloads.reconcile.StorageWriteAdmission
@@ -66,6 +68,9 @@ object ReaderModule {
 
     @Provides
     fun provideReaderCacheFactsPort(store: DownloadAwareReaderDocumentStore): ReaderCacheFactsPort = store
+
+    @Provides
+    fun provideReaderAssetStorePort(store: DownloadReaderAssetStore): ReaderAssetStorePort = store
 
     @Provides
     @Singleton

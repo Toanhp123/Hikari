@@ -205,6 +205,27 @@ class AutomaticCacheBudgetCoordinatorTest {
     }
 
     @Test
+    fun `stale corruption repair preserves current metadata and deletes only the stale generation`() = runTest {
+        val assets = FakeAssetMetadataRepository()
+        val blobs = FakeAssetBlobStore()
+        val key = hash(4)
+        val stale = asset(key = key, blobSeed = 4, bytes = 20)
+        val current = asset(key = key, blobSeed = 5, bytes = 20)
+        assets.upsert(current)
+        val coordinator = coordinator(
+            initialQuotaBytes = 100,
+            assets = assets,
+            assetBlobs = blobs,
+        )
+
+        coordinator.invalidateReaderAssetGeneration(stale)
+        runCurrent()
+
+        assertEquals(current, assets.find(setOf(key))[key])
+        assertEquals(listOf(blobId(4)), blobs.normalDeletes)
+    }
+
+    @Test
     fun `normal reconciliation evicts speculative image then warm document then consumed image then progress document`() = runTest {
         val evictionEvents = mutableListOf<String>()
         val documents = FakeCacheRepository(evictionEvents)

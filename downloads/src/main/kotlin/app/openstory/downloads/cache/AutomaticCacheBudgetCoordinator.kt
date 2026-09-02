@@ -120,6 +120,7 @@ class AutomaticCacheBudgetCoordinator(
     suspend fun <T> publishIfCurrent(
         authority: AutomaticCacheWriteAuthority,
         reservation: AutomaticCacheReservation,
+        replacedCommittedBytes: (T) -> Long = { 0L },
         publishMetadata: suspend () -> T,
     ): AutomaticCachePublicationResult<T> {
         var reservationConsumed = false
@@ -134,7 +135,11 @@ class AutomaticCacheBudgetCoordinator(
                     return@withLock AutomaticCachePublicationResult.Revoked
                 }
                 val value = publishMetadata()
-                committedBytes = committedBytes.saturatedAdd(reservedBytes)
+                val replacedBytes = replacedCommittedBytes(value)
+                require(replacedBytes >= 0L) { "Replaced automatic cache bytes must not be negative." }
+                committedBytes = (committedBytes - replacedBytes)
+                    .coerceAtLeast(0L)
+                    .saturatedAdd(reservedBytes)
                 shouldReconcile = committedBytes > highWatermarkBytesLocked()
                 AutomaticCachePublicationResult.Published(value)
             }
@@ -149,6 +154,34 @@ class AutomaticCacheBudgetCoordinator(
         publicationGate.withLock {
             pendingReservations.remove(reservation.id)
         }
+    }
+
+    internal suspend fun replaceActiveProtections(activeAssetProtections: ReaderAssetActiveProtections) {
+        publicationGate.withLock {
+            ensureInitializedLocked()
+            activeProtections = activeAssetProtections
+        }
+    }
+
+    internal fun requestReconciliation() {
+        scheduleReconciliation()
+    }
+
+    internal fun requestReaderAssetGenerationDeletion(blobId: ReaderAssetBlobId) {
+        reconciliationScope.launch { deleteImageBlobWhenUnleasedBestEffort(blobId) }
+    }
+
+    internal suspend fun invalidateReaderAssetGeneration(expected: ReaderAssetMetadata): Boolean {
+        val detached = publicationGate.withLock {
+            ensureInitializedLocked()
+            detachImageIfCurrentLocked(expected)?.also { metadata ->
+                committedBytes = (committedBytes - metadata.byteSize).coerceAtLeast(0L)
+                activeProtectedOverflowBytes = (committedBytes - quotaBytes).coerceAtLeast(0L)
+            }
+        }
+        // The expected generation is safe to delete even if a newer generation won publication.
+        reconciliationScope.launch { deleteImageWhenUnleasedBestEffort(detached ?: expected) }
+        return detached != null
     }
 
     suspend fun reconcile(
@@ -368,8 +401,12 @@ class AutomaticCacheBudgetCoordinator(
     }
 
     private suspend fun deleteImageWhenUnleasedBestEffort(metadata: ReaderAssetMetadata) {
+        deleteImageBlobWhenUnleasedBestEffort(ReaderAssetBlobId(metadata.blobId))
+    }
+
+    private suspend fun deleteImageBlobWhenUnleasedBestEffort(blobId: ReaderAssetBlobId) {
         try {
-            readerAssetBlobStore.deleteWhenUnleased(ReaderAssetBlobId(metadata.blobId))
+            readerAssetBlobStore.deleteWhenUnleased(blobId)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
