@@ -268,6 +268,24 @@ class AutomaticCacheBudgetCoordinatorTest {
     }
 
     @Test
+    fun `denied reservation at exactly full quota schedules room for a later commit`() = runTest {
+        val documents = FakeCacheRepository()
+        repeat(10) { index -> documents.upsert(document("full-$index", 10, index.toLong())) }
+        val coordinator = coordinator(
+            initialQuotaBytes = 100,
+            documents = documents,
+            reconciliationScope = this,
+        )
+        val authority = assertNotNull(coordinator.captureWriteAuthority())
+
+        assertNull(coordinator.reserve(1, authority))
+        advanceUntilIdle()
+
+        assertTrue(coordinator.snapshot().committedBytes <= 90)
+        assertNotNull(coordinator.reserve(1, authority))
+    }
+
+    @Test
     fun `physical relief examines at most 32 unprotected victims and leased image reclaims zero bytes`() = runTest {
         val assets = FakeAssetMetadataRepository()
         val blobs = FakeAssetBlobStore(immediateDeleteResult = { id -> id != blobId(1) })

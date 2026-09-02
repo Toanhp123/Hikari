@@ -105,7 +105,7 @@ class AutomaticCacheBudgetCoordinator(
             if (!isCurrentLocked(authority) || quotaBytes == 0L) return@withLock null
             val accounted = accountedBytesLocked()
             if (bytes > quotaBytes || accounted > quotaBytes - bytes) {
-                shouldReconcile = accounted > highWatermarkBytesLocked()
+                shouldReconcile = accounted >= highWatermarkBytesLocked()
                 return@withLock null
             }
             val id = nextReservationId
@@ -160,7 +160,7 @@ class AutomaticCacheBudgetCoordinator(
             recomputeCommittedBytesLocked()
             activeProtections = activeAssetProtections
             val targetBytes = lowWatermarkBytesLocked()
-            if (committedBytes <= highWatermarkBytesLocked()) {
+            if (committedBytes < highWatermarkBytesLocked()) {
                 activeProtectedOverflowBytes = 0L
                 return@withLock
             }
