@@ -1932,13 +1932,16 @@ git commit -m "reader: add sliding image working set"
 - Create: `app/src/main/kotlin/app/openstory/reader/assets/OkHttpReaderAssetDelivery.kt`
 - Create: `app/src/main/kotlin/app/openstory/reader/assets/ReaderAssetCoilFetcher.kt`
 - Create: `app/src/main/kotlin/app/openstory/reader/assets/ReaderAssetImageLoaderInstaller.kt`
+- Create: `reader/src/main/kotlin/app/openstory/reader/assets/ReaderAssetLoadException.kt`
 - Create: `app/src/test/kotlin/app/openstory/reader/assets/OkHttpReaderAssetDeliveryTest.kt`
 - Create: `app/src/test/kotlin/app/openstory/reader/assets/ReaderAssetCoilFetcherTest.kt`
 - Modify: `app/src/main/kotlin/app/openstory/di/ReaderModule.kt`
+- Modify: `app/src/main/kotlin/app/openstory/OpenStoryApplication.kt`
 - Modify: `app/build.gradle.kts`
 
 **Interfaces:**
 - Implements `ReaderAssetDeliveryPort` and Coil `Fetcher` for `ReaderPageAssetRequest`.
+- `ReaderAssetLoadException` is Reader-owned so `:feature:reader` can inspect typed asset failures from Coil without depending on `:app`.
 - `app` adds direct `implementation(libs.coil.compose)` for Coil core/fetcher APIs and `testImplementation(libs.okhttp.mockwebserver)` for transport tests; OkHttp client is already direct.
 - No generic Coil disk cache ownership is introduced.
 
@@ -1948,11 +1951,12 @@ Cover:
 - body is fully read/closed before delivery call returns, so arbiter scope can cover body lifetime;
 - `Content-Length >16 MiB` fails before body accumulation;
 - streamed body crossing 16 MiB fails even if header is absent/incorrect;
-- only HTTPS locators are accepted;
+- only HTTPS locators are accepted; redirects are not followed because locator identity belongs to the committed manifest;
+- OkHttp must not hide an HTTP 408 or process `503 Retry-After` into a hidden follow-up/parser side effect inside one delivery call; the Reader loader owns the bounded retry budget;
 - obvious HTML/JSON error payload is rejected as invalid image payload;
 - 408/429/5xx and retryable I/O -> retryable `TransportUnavailable`; generic terminal delivery 401/403/404 (and other terminal 4xx without an explicit authenticated-delivery contract) -> `DeliveryRejected(status)`; the V1 app image adapter injects no plugin auth headers and therefore must **not** infer `Unauthorized`, `DeliveryLocatorStale`, or `AssetNotFound` from a status code alone;
 - Coil fetcher uses `ReaderPageAssetRequest`, stable asset-key memory cache key, and no disk cache;
-- local outcome holds read lease until Coil source/result is closed;
+- local outcome holds the read lease while Coil consumes the source and releases it exactly once on close or EOF materialization, including Coil's `ImageSource.file()` temp-file path;
 - transient remote outcome can decode from bounded encoded bytes even when durable commit was denied.
 
 - [ ] **Step 2: Run RED**
@@ -1974,11 +1978,11 @@ implementation(libs.coil.compose)
 testImplementation(libs.okhttp.mockwebserver)
 ```
 
-Use a dedicated injected `OkHttpClient` or an app-owned shared client with no plugin authentication header injection. `fetch()` executes one request and consumes/closes the body synchronously inside the suspend call; it returns a bounded `ReaderAssetPayload`, never an escaping `ResponseBody`. Generic HTTP status mapping stays transport-level: retryable transport statuses become retryable transport failure, while terminal delivery 401/403/404 remain `DeliveryRejected(status)` for Task 14's bounded same-release semantic refresh. `Unauthorized` is reserved for a layer with explicit authenticated-delivery/source semantics; the V1 image CDN adapter does not invent it from HTTP status alone.
+Use a dedicated injected `OkHttpClient` or an app-owned shared client with no plugin authentication header injection. `fetch()` executes one logical delivery request and consumes/closes the body synchronously inside the suspend call; it returns a bounded `ReaderAssetPayload`, never an escaping `ResponseBody`. Disable origin/proxy authenticators, strip credential headers at the final network boundary, disable redirects and OkHttp connection/status retries that would hide another delivery attempt, and remove `Retry-After` from 503 responses before OkHttp can turn it into a follow-up/parser side effect. `ReaderAssetLoader` remains the sole owner of the 250 ms one-retry policy. Generic HTTP status mapping stays transport-level: retryable transport statuses become retryable transport failure, while terminal delivery 401/403/404 remain `DeliveryRejected(status)` for Task 14's bounded same-release semantic refresh. `Unauthorized` is reserved for a layer with explicit authenticated-delivery/source semantics; the V1 image CDN adapter does not invent it from HTTP status alone.
 
 - [ ] **Step 4: Implement custom Coil fetcher**
 
-Fetcher accepts only `ReaderPageAssetRequest` and asks `ReaderAssetCoordinator.requestPage()`. Map local lease to a Coil source whose close callback closes the RICC read lease; map transient bounded bytes to an in-memory source. Reader asset requests always set:
+Fetcher accepts only `ReaderPageAssetRequest` and asks `ReaderAssetCoordinator.requestPage()`. Map local lease to a Coil source whose close callback closes the RICC read lease; map transient bounded bytes to an in-memory source. Map `ReaderAssetLoadOutcome.Failure` to Reader-owned `ReaderAssetLoadException` so Task 13 can distinguish `Superseded`/`RouteInvalidated` without a forbidden `:feature:reader -> :app` dependency. Reader asset requests always set:
 
 ```text
 memoryCacheKey = "reader-asset:<ReaderAssetKeyHash>"
@@ -1987,7 +1991,7 @@ diskCachePolicy = DISABLED
 
 - [ ] **Step 5: Install only for Reader asset model**
 
-Register `ReaderAssetCoilFetcher.Factory` in the application image loader/component registry. Do not replace artwork/catalog fetching behavior globally beyond adding this model-specific fetcher.
+Register `ReaderAssetCoilFetcher.Factory` in the application singleton image loader/component registry and install that factory from `OpenStoryApplication.onCreate()`. Keep `ReaderAssetCoordinator` lazy behind a provider/lambda so creating the global image loader for unrelated artwork/catalog requests does not eagerly construct the RICC runtime graph. Do not replace artwork/catalog fetching behavior globally beyond adding this model-specific fetcher.
 
 - [ ] **Step 6: Run GREEN**
 
@@ -2002,7 +2006,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add app/src/main/kotlin/app/openstory/reader/assets app/src/test/kotlin/app/openstory/reader/assets app/src/main/kotlin/app/openstory/di/ReaderModule.kt app/build.gradle.kts
+git add reader/src/main/kotlin/app/openstory/reader/assets/ReaderAssetLoadException.kt app/src/main/kotlin/app/openstory/reader/assets app/src/test/kotlin/app/openstory/reader/assets app/src/main/kotlin/app/openstory/di/ReaderModule.kt app/src/main/kotlin/app/openstory/OpenStoryApplication.kt app/build.gradle.kts docs/superpowers/plans/2026-09-01-reader-image-continuity-cache-ricc-v1-implementation-plan.md
 git commit -m "app: integrate reader asset transport"
 ```
 

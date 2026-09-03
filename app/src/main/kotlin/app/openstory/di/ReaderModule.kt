@@ -15,8 +15,12 @@ import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.plugins.runtime.PluginRuntime
 import app.openstory.reader.AndroidReaderNetworkFactsPort
 import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.OkHttpReaderAssetDelivery
 import app.openstory.reader.assets.ReaderAssetCoordinator
+import app.openstory.reader.assets.ReaderAssetDeliveryPort
+import app.openstory.reader.assets.ReaderAssetLoader
 import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.assets.ReaderAssetSingleFlight
 import app.openstory.reader.assets.ReaderAssetStorePort
 import app.openstory.reader.content.PluginReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
@@ -46,10 +50,15 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class ReaderAssetCoordinatorScope
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ReaderAssetHttpClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -91,14 +100,53 @@ object ReaderModule {
 
     @Provides
     @Singleton
+    @ReaderAssetHttpClient
+    fun provideReaderAssetHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .retryOnConnectionFailure(false)
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideReaderAssetDeliveryPort(
+        @ReaderAssetHttpClient client: OkHttpClient,
+    ): ReaderAssetDeliveryPort = OkHttpReaderAssetDelivery(client)
+
+    @Provides
+    @Singleton
+    fun provideReaderAssetSingleFlight(
+        @ReaderAssetCoordinatorScope coordinatorScope: CoroutineScope,
+    ): ReaderAssetSingleFlight = ReaderAssetSingleFlight(coordinatorScope)
+
+    @Provides
+    @Singleton
+    fun provideReaderAssetLoader(
+        store: ReaderAssetStorePort,
+        delivery: ReaderAssetDeliveryPort,
+        singleFlight: ReaderAssetSingleFlight,
+        fetchArbiter: ContentFetchArbiter,
+        @ReaderAssetCoordinatorScope coordinatorScope: CoroutineScope,
+    ): ReaderAssetLoader = ReaderAssetLoader(
+        store = store,
+        delivery = delivery,
+        singleFlight = singleFlight,
+        fetchArbiter = fetchArbiter,
+        persistenceScope = coordinatorScope,
+    )
+
+    @Provides
+    @Singleton
     fun provideReaderAssetCoordinator(
         store: ReaderAssetStorePort,
         networkFacts: ReaderNetworkFactsPort,
+        loader: ReaderAssetLoader,
         @ReaderAssetCoordinatorScope coordinatorScope: CoroutineScope,
     ): ReaderAssetCoordinator = ReaderAssetCoordinator(
         store = store,
         networkFacts = networkFacts,
         coordinatorScope = coordinatorScope,
+        loader = loader,
     )
 
     @Provides
