@@ -9,9 +9,14 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
+import app.openstory.reader.assets.ReaderAssetSourceNamespace
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
+import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
@@ -27,6 +32,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class ReaderRouteCoordinatorContractTest {
@@ -142,13 +148,49 @@ class ReaderRouteCoordinatorContractTest {
         assertNotEquals(firstResult.identity.sessionId, secondResult.identity.sessionId)
     }
 
-    private fun coordinator(document: ReaderDocument, progress: ReadingProgress?): ReaderRouteCoordinator =
+    @Test
+    fun remoteImageCommitCarriesDerivedManifestBeforeReturning() = runTest {
+        val target = CanonicalChapterId("chapter")
+        val release = release("release", target)
+        val policy = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+        )
+        val imageDocument = ReaderDocument(
+            title = "images",
+            blocks = listOf(
+                ReaderBlock.ImagePage("image", "full/stable/page-id", "https://cdn.example/page.jpg"),
+            ),
+            fingerprint = "image-fingerprint",
+        )
+        val session = ReaderRouteSessionFactory(coordinator(imageDocument, null, policy))
+            .create(StoryId("story"))
+        session.updateChapterGraph(listOf(group(target, release)))
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        val committed = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(target)),
+        )
+
+        val manifest = assertNotNull(committed.assetManifest)
+        assertEquals(1L, committed.assetManifestRevision)
+        assertEquals(ReaderAssetSourceNamespace.fromPluginId(release.pluginId), manifest.sourceNamespace)
+        assertEquals("full/stable/page-id", manifest.descriptors.single().stableAssetId)
+    }
+
+    private fun coordinator(
+        document: ReaderDocument,
+        progress: ReadingProgress?,
+        imagePolicy: ReaderImageSourcePolicy = ReaderImageSourcePolicy.FAIL_CLOSED,
+    ): ReaderRouteCoordinator =
         ReaderRouteCoordinator(
             store = CoordinatorStore(),
             sources = object : ReaderDocumentSourceRegistry {
                 override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
                     object : ReaderDocumentSource {
                         override val pluginId = PluginId("plugin")
+                        override val imageSourcePolicy = imagePolicy
                         override suspend fun fetch(release: ChapterRelease) = ReaderSourceResult.Success(document)
                     },
                 )

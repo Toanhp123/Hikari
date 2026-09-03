@@ -6,11 +6,15 @@ import app.openstory.chapters.model.ParsedChapterLabel
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentDurableWriteIntent
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderDocumentReadResult
+import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
@@ -111,6 +115,8 @@ class ReaderRouteExecutorAdaptiveTest {
 
         assertEquals("selected", assertIs<ReaderLoadResult.Success>(result).release.id.value)
         assertEquals(true, result.fromStore)
+        assertEquals(null, result.imageSourcePolicy)
+        assertEquals(null, result.sourcePluginId)
         assertEquals(listOf<SourceObservation>(SourceObservation.Success.Local), observations)
         assertEquals(listOf("selected" to "expected"), store.reads)
         assertEquals(0, registry.enabledCalls)
@@ -372,6 +378,11 @@ class ReaderRouteExecutorAdaptiveTest {
     @Test
     fun persistableRemoteDocumentIsStoredButImagePageIsNot() = runTest {
         val store = AdaptiveStore()
+        val imagePolicy = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+        )
         val source = AdaptiveSource(
             PluginId("source"),
             mutableMapOf(
@@ -386,6 +397,7 @@ class ReaderRouteExecutorAdaptiveTest {
                     ),
                 ),
             ),
+            imageSourcePolicy = imagePolicy,
         )
         val text = candidate("text", "source")
         val image = candidate("image", "source")
@@ -395,12 +407,15 @@ class ReaderRouteExecutorAdaptiveTest {
             attempts = listOf(remote("a0", "text", "source", AttemptRole.PRIMARY)),
             candidatesByRelease = mapOf(text.id to text),
         )
-        executor.executeAdaptive(
+        val imageResult = executor.executeAdaptive(
             attempts = listOf(remote("a1", "image", "source", AttemptRole.PRIMARY)),
             candidatesByRelease = mapOf(image.id to image),
         )
 
         assertEquals(listOf("text" to "text-fp"), store.writes)
+        val loaded = assertIs<ReaderLoadResult.Success>(imageResult)
+        assertEquals(imagePolicy, loaded.imageSourcePolicy)
+        assertEquals(source.pluginId, loaded.sourcePluginId)
     }
 
     @Test
@@ -562,6 +577,7 @@ private class AdaptiveSource(
     private val results: MutableMap<String, ReaderSourceResult>,
     private val cancel: Boolean = false,
     private val events: MutableList<String>? = null,
+    override val imageSourcePolicy: ReaderImageSourcePolicy = ReaderImageSourcePolicy.FAIL_CLOSED,
 ) : ReaderDocumentSource {
     val fetches = mutableListOf<String>()
 

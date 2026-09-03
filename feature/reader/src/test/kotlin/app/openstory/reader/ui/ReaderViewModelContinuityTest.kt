@@ -17,6 +17,7 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.reader.assets.ContentFetchArbiter
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
@@ -28,9 +29,10 @@ import app.openstory.reader.preferences.ReaderPreferencesPort
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
+import app.openstory.reader.routing.ContentSourceExecutionLane
+import app.openstory.reader.routing.ReaderHalfOpenProbeRegistry
 import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderRouteSessionFactory
-import app.openstory.reader.routing.ReaderSourceExecutionLimiter
 import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import java.util.ArrayDeque
 import kotlinx.coroutines.CompletableDeferred
@@ -450,7 +452,9 @@ class ReaderViewModelContinuityTest {
             },
             progress = progress,
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         ),
     )
 }

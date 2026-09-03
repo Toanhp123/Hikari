@@ -14,7 +14,8 @@ class PrefetchCoordinator(
         context: ReaderRoutePlanningContext,
     ) {
         try {
-            coordinator.executePrefetch(session, context)
+            val artifact = coordinator.executePrefetch(session, context) ?: return
+            session.acceptPrefetchedArtifactIfCurrent(context, artifact)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {

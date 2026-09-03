@@ -9,9 +9,16 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
+import app.openstory.reader.assets.ReaderAssetChapterManifest
+import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
+import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
@@ -20,7 +27,9 @@ import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
 import java.util.ArrayDeque
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +67,89 @@ class PrefetchCoordinatorTest {
 
         assertEquals(listOf("release-a", "release-b"), source.fetches)
         assertTrue("release-c" !in source.fetches)
+    }
+
+    @Test
+    fun successfulNextChapterPrefetchPublishesCompleteArtifactWithoutSemanticCommit() = runTest {
+        val policy = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+        )
+        val prefetchedDocument = ReaderDocument(
+            title = "images",
+            blocks = listOf(
+                ReaderBlock.ImagePage("image", "stable/page", "https://cdn.example/page.jpg"),
+            ),
+            fingerprint = "image-fingerprint",
+        )
+        val source = ControlledPrefetchSource().apply {
+            imageSourcePolicy = policy
+            enqueueSuccess("release-a", textDocument("a"))
+            enqueueSuccess("release-b", prefetchedDocument)
+        }
+        val fixture = fixture(source = source, network = ReaderNetworkState.UNMETERED)
+        val session = fixture.factory.create(StoryId("story"), this)
+        session.updateRoutingPreferences(ReaderPreferences())
+        session.updateChapterGraph(groups(chapter("chapter-1", "release-a"), chapter("chapter-2", "release-b")))
+
+        assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(CanonicalChapterId("chapter-1"))),
+        )
+        runCurrent()
+
+        val artifact = fixture.assetPort.artifacts.single()
+        assertEquals(session.sessionId, artifact.sessionId)
+        assertEquals(2L, artifact.prefetchToken)
+        assertEquals(CanonicalChapterId("chapter-2"), artifact.targetChapterId)
+        assertEquals(ChapterReleaseId("release-b"), artifact.selectedRelease.id)
+        assertEquals(prefetchedDocument, artifact.document)
+        assertEquals(policy, artifact.imageSourcePolicy)
+        assertEquals(source.pluginId, artifact.sourcePluginId)
+        val state = assertIs<ReaderExecutionState.Committed>(session.executionState)
+        assertEquals(CanonicalChapterId("chapter-1"), state.committed.chapterId)
+    }
+
+    @Test
+    fun stalePrefetchArtifactIsRejectedAfterGraphAndTokenChange() = runTest {
+        val source = ControlledPrefetchSource().apply {
+            enqueueSuccess("release-a", textDocument("a"))
+        }
+        val stale = source.enqueuePending("release-b")
+        source.enqueueSuccess("release-c", textDocument("c"))
+        val fixture = fixture(source = source, network = ReaderNetworkState.UNMETERED)
+        val session = fixture.factory.create(StoryId("story"), this)
+        session.updateRoutingPreferences(ReaderPreferences())
+        val a = chapter("chapter-1", "release-a")
+        val b = chapter("chapter-2", "release-b")
+        val c = chapter("chapter-3", "release-c")
+        session.updateChapterGraph(groups(a, b, c))
+        session.execute(ReaderForegroundIntent(CanonicalChapterId("chapter-1")))
+        runCurrent()
+
+        session.updateChapterGraph(groups(a, c, b))
+        runCurrent()
+        stale.complete(ReaderSourceResult.Success(textDocument("stale")))
+        runCurrent()
+
+        assertEquals(
+            listOf(CanonicalChapterId("chapter-3")),
+            fixture.assetPort.artifacts.map { it.targetChapterId },
+        )
+    }
+
+    @Test
+    fun ownerJobCompletionClosesAssetSessionIdempotently() = runTest {
+        val source = ControlledPrefetchSource()
+        val fixture = fixture(source = source, network = ReaderNetworkState.UNMETERED)
+        val ownerJob = Job()
+        val session = fixture.factory.create(StoryId("story"), CoroutineScope(coroutineContext + ownerJob))
+
+        ownerJob.complete()
+        runCurrent()
+        session.close()
+
+        assertEquals(listOf(session.sessionId), fixture.assetPort.released)
     }
 
     @Test
@@ -325,6 +417,7 @@ class PrefetchCoordinatorTest {
         network: ReaderNetworkState,
         cacheFacts: ReaderCacheFactsPort? = null,
         networkFacts: ReaderNetworkFactsPort? = null,
+        assetPort: RecordingPrefetchAssetPort = RecordingPrefetchAssetPort(),
     ): Fixture {
         val progress = EmptyProgressRepository()
         val limiter = ReaderExecutionTestOwners()
@@ -348,17 +441,20 @@ class PrefetchCoordinatorTest {
         )
         val prefetch = PrefetchCoordinator(coordinator)
         return Fixture(
-            ReaderRouteSessionFactory(coordinator, prefetch),
+            ReaderRouteSessionFactory(coordinator, prefetch, assetPort),
+            assetPort,
         )
     }
 
     private data class Fixture(
         val factory: ReaderRouteSessionFactory,
+        val assetPort: RecordingPrefetchAssetPort,
     )
 }
 
 private class ControlledPrefetchSource : ReaderDocumentSource {
     override val pluginId = PluginId("plugin")
+    override var imageSourcePolicy = ReaderImageSourcePolicy.FAIL_CLOSED
     private val responses = mutableMapOf<String, ArrayDeque<CompletableDeferred<ReaderSourceResult>>>()
     val fetches = mutableListOf<String>()
 
@@ -378,6 +474,25 @@ private class ControlledPrefetchSource : ReaderDocumentSource {
 
     private fun enqueue(releaseId: String, response: CompletableDeferred<ReaderSourceResult>) {
         responses.getOrPut(releaseId, ::ArrayDeque).addLast(response)
+    }
+}
+
+private class RecordingPrefetchAssetPort : ReaderAssetSessionPort {
+    val artifacts = mutableListOf<ReaderPrefetchedDocumentArtifact>()
+    val released = mutableListOf<ReaderSessionId>()
+
+    override fun registerCommitted(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        manifest: ReaderAssetChapterManifest,
+    ): Long = proposedManifestRevision
+
+    override fun acceptPrefetchedArtifact(artifact: ReaderPrefetchedDocumentArtifact) {
+        artifacts += artifact
+    }
+
+    override fun releaseSession(sessionId: ReaderSessionId) {
+        released += sessionId
     }
 }
 

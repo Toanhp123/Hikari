@@ -163,6 +163,11 @@ class ReaderViewModel @AssistedInject constructor(
         }
     }
 
+    override fun onCleared() {
+        routeSession.close()
+        super.onCleared()
+    }
+
     private fun maybeStartInitialLoad() {
         if (initialLoadStarted || !preferenceReady || !chapterGraphReady) return
         initialLoadStarted = true

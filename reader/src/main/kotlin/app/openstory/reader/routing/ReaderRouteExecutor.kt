@@ -276,7 +276,13 @@ internal class ReaderRouteExecutor(
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
                     val success = ReaderAttemptEffectOutcome.Success(
-                        ReaderLoadResult.Success(candidate, validation.document, fromStore = false),
+                        ReaderLoadResult.Success(
+                            release = candidate,
+                            document = validation.document,
+                            fromStore = false,
+                            imageSourcePolicy = source.imageSourcePolicy,
+                            sourcePluginId = source.pluginId,
+                        ),
                     )
                     onValidEffect(success)
                     ensureOwned(ownership)

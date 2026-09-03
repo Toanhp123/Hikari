@@ -9,6 +9,15 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
+import app.openstory.reader.assets.ReaderAssetChapterManifest
+import app.openstory.reader.assets.ReaderAssetManifestFactory
+import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.content.ReaderImageSourcePolicy
+import app.openstory.reader.document.ReaderBlock
+import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.engine.ReaderPlanRevision
 import app.openstory.reader.preferences.ReaderPreferences
 import kotlinx.coroutines.CancellationException
@@ -520,6 +529,131 @@ class ReaderRouteSessionStateTest {
         assertEquals(listOf(false, false), accepted)
     }
 
+    @Test
+    fun acceptedImageCommitRegistersAfterSemanticAcceptanceAndReturnsEffectiveRevision() = runTest {
+        val events = mutableListOf<String>()
+        lateinit var session: ReaderRouteSession
+        val port = RecordingAssetSessionPort(
+            register = { _, proposedRevision, _ ->
+                assertIs<ReaderExecutionState.Committed>(session.executionState)
+                events += "asset-registration"
+                proposedRevision + 4L
+            },
+        )
+        session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(43),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                events += "semantic-result"
+                imageCommitted(context)
+            },
+            assetSessionPort = port,
+        )
+        session.updateChapterGraph(listOf(group("chapter-a", listOf(release("release-a", "chapter-a")))))
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        val result = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+        events += "reader-visible"
+
+        assertEquals(listOf("semantic-result", "asset-registration", "reader-visible"), events)
+        assertEquals(5L, result.assetManifestRevision)
+        assertEquals(result.assetManifest, port.registered.single())
+    }
+
+    @Test
+    fun effectiveManifestRevisionStaysMonotonicWhileChapterWindowChangesOnlyByChapter() = runTest {
+        val proposals = mutableListOf<Long>()
+        val port = RecordingAssetSessionPort(
+            register = { _, proposedRevision, _ ->
+                proposals += proposedRevision
+                if (proposals.size == 1) 7L else proposedRevision
+            },
+        )
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(44),
+            delegate = ReaderRouteExecutionDelegate { _, context -> imageCommitted(context) },
+            assetSessionPort = port,
+        )
+        session.updateChapterGraph(
+            listOf(
+                group("chapter-a", listOf(release("release-a", "chapter-a"))),
+                group("chapter-b", listOf(release("release-b", "chapter-b"))),
+            ),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        val first = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+        val firstState = session.assetSessionState
+        val sameChapter = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+        val sameChapterState = session.assetSessionState
+        val nextChapter = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-b"))),
+        )
+        val nextChapterState = session.assetSessionState
+
+        assertEquals(listOf(1L, 8L, 9L), proposals)
+        assertEquals(7L, first.assetManifestRevision)
+        assertEquals(8L, sameChapter.assetManifestRevision)
+        assertEquals(9L, nextChapter.assetManifestRevision)
+        assertEquals(1L, firstState.chapterWindowRevision)
+        assertEquals(1L, sameChapterState.chapterWindowRevision)
+        assertEquals(emptyList(), sameChapterState.recentCommittedChapterIds)
+        assertEquals(2L, nextChapterState.chapterWindowRevision)
+        assertEquals(listOf(chapter("chapter-a")), nextChapterState.recentCommittedChapterIds)
+    }
+
+    @Test
+    fun failedTargetDoesNotSlideCommittedAssetWindow() = runTest {
+        var executions = 0
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(45),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                executions++
+                if (executions == 1) imageCommitted(context) else exhausted(context)
+            },
+            assetSessionPort = RecordingAssetSessionPort(),
+        )
+        session.updateChapterGraph(
+            listOf(
+                group("chapter-a", listOf(release("release-a", "chapter-a"))),
+                group("chapter-b", listOf(release("release-b", "chapter-b"))),
+            ),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+        session.execute(ReaderForegroundIntent(chapter("chapter-a")))
+        val committedState = session.assetSessionState
+
+        assertIs<ReaderForegroundResult.Exhausted>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-b"))),
+        )
+
+        assertEquals(committedState, session.assetSessionState)
+    }
+
+    @Test
+    fun closeReleasesAssetSessionOnce() {
+        val port = RecordingAssetSessionPort()
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(46),
+            delegate = ReaderRouteExecutionDelegate { _, context -> exhausted(context) },
+            assetSessionPort = port,
+        )
+
+        session.close()
+        session.close()
+
+        assertEquals(listOf(ReaderSessionId(46)), port.released)
+    }
+
     private fun session(id: ReaderSessionId) = ReaderRouteSession(
         storyId = StoryId("story"),
         sessionId = id,
@@ -545,6 +679,40 @@ class ReaderRouteSessionStateTest {
             ),
             fromLocal = false,
             restoration = null,
+        )
+    }
+
+    private fun imageCommitted(context: ReaderRouteExecutionContext): ReaderForegroundResult.Committed {
+        val group = requireNotNull(context.chapterGraph.group(context.identity.targetChapterId))
+        val release = group.releases.first()
+        val document = ReaderDocument(
+            title = release.displayLabel,
+            blocks = listOf(
+                ReaderBlock.ImagePage("image", "stable/${release.id.value}", "https://cdn.example/page.jpg"),
+            ),
+            fingerprint = "fp-${release.id.value}",
+        )
+        val manifest = requireNotNull(
+            ReaderAssetManifestFactory().create(
+                sessionId = context.identity.sessionId,
+                storyId = context.storyId,
+                canonicalChapterId = context.identity.targetChapterId,
+                selectedRelease = release,
+                graphRevision = context.chapterGraphRevision,
+                document = document,
+                imageSourcePolicy = TRUSTED_PUBLIC_POLICY,
+                sourcePluginId = release.pluginId,
+            ),
+        )
+        return ReaderForegroundResult.Committed(
+            identity = context.foregroundIdentity,
+            chapterGroup = group,
+            release = release,
+            document = document,
+            fromLocal = false,
+            restoration = null,
+            assetManifest = manifest,
+            assetManifestRevision = null,
         )
     }
 
@@ -592,4 +760,34 @@ class ReaderRouteSessionStateTest {
     )
 
     private fun chapter(value: String) = CanonicalChapterId(value)
+
+    private companion object {
+        val TRUSTED_PUBLIC_POLICY = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+        )
+    }
+}
+
+private class RecordingAssetSessionPort(
+    private val register: (ReaderSessionId, Long, ReaderAssetChapterManifest) -> Long = { _, revision, _ -> revision },
+) : ReaderAssetSessionPort {
+    val registered = mutableListOf<ReaderAssetChapterManifest>()
+    val released = mutableListOf<ReaderSessionId>()
+
+    override fun registerCommitted(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        manifest: ReaderAssetChapterManifest,
+    ): Long {
+        registered += manifest
+        return register(sessionId, proposedManifestRevision, manifest)
+    }
+
+    override fun acceptPrefetchedArtifact(artifact: app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact) = Unit
+
+    override fun releaseSession(sessionId: ReaderSessionId) {
+        released += sessionId
+    }
 }
