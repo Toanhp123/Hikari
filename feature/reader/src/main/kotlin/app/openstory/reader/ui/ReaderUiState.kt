@@ -2,7 +2,47 @@ package app.openstory.reader.ui
 
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
+import app.openstory.reader.assets.ReaderCommittedAssetManifestSnapshot
+import app.openstory.reader.assets.ReaderAssetChapterManifest
+import app.openstory.reader.assets.ReaderPageAssetRequest
+import app.openstory.reader.routing.ReaderSessionId
 import app.openstory.reader.document.ReaderDocument
+
+data class ReaderAssetUiState(
+    val manifest: ReaderAssetChapterManifest,
+    val manifestRevision: Long,
+) {
+    init {
+        require(manifestRevision > 0L) { "Reader asset manifest revision must be positive." }
+    }
+
+    private val requestsByBlockId: Map<String, ReaderPageAssetRequest> = manifest.descriptors.associate { descriptor ->
+        descriptor.uiBlockId to ReaderPageAssetRequest(
+            sessionId = manifest.sessionId,
+            manifestRevision = manifestRevision,
+            descriptor = descriptor,
+        )
+    }.also { requests ->
+        require(requests.size == manifest.descriptors.size) {
+            "Reader asset manifest UI block IDs must be unique."
+        }
+    }
+
+    fun requestForBlockId(blockId: String): ReaderPageAssetRequest? = requestsByBlockId[blockId]
+}
+
+internal fun ReaderCommittedAssetManifestSnapshot.toReaderAssetUiStateIfCurrent(
+    activeSessionId: ReaderSessionId,
+    activeChapterId: CanonicalChapterId,
+    activeReleaseId: ChapterReleaseId,
+    currentManifestRevision: Long?,
+): ReaderAssetUiState? {
+    if (sessionId != activeSessionId || manifest.sessionId != activeSessionId) return null
+    if (manifest.canonicalChapterId != activeChapterId) return null
+    if (manifest.selectedReleaseId != activeReleaseId) return null
+    if (currentManifestRevision != null && manifestRevision <= currentManifestRevision) return null
+    return ReaderAssetUiState(manifest, manifestRevision)
+}
 
 data class ReaderUiState(
     val loading: Boolean = true,
@@ -11,6 +51,7 @@ data class ReaderUiState(
     val transitionTargetReleaseId: ChapterReleaseId? = null,
     val chapterLabel: String = "",
     val document: ReaderDocument? = null,
+    val assets: ReaderAssetUiState? = null,
     val releases: List<ReaderReleaseUiModel> = emptyList(),
     val selectedReleaseId: ChapterReleaseId? = null,
     val previousChapterId: CanonicalChapterId? = null,

@@ -4,7 +4,6 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
-import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.routing.ReaderSessionId
 import java.io.ByteArrayInputStream
 import kotlin.test.Test
@@ -13,6 +12,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ReaderAssetManifestTest {
+    @Test
+    fun assetGraphRevisionMustBeNonNegative() {
+        assertEquals(0L, ReaderAssetGraphRevision(0L).value)
+        assertFailsWith<IllegalArgumentException> { ReaderAssetGraphRevision(-1L) }
+    }
+
     @Test
     fun manifestRequiresContiguousOrdinalsAndMatchingIdentityFacts() {
         val descriptor = descriptor(0)
@@ -86,7 +91,7 @@ class ReaderAssetManifestTest {
         contentVariant = ReaderContentVariant.ORIGINAL,
         identityMode = ReaderAssetIdentityMode.TRUSTED_STABLE,
         persistenceMode = persistenceMode,
-        graphRevision = ReaderChapterGraphRevision(1L),
+        graphRevision = ReaderAssetGraphRevision(1L),
         imageSetNamespace = descriptors.first().key.imageSetNamespace,
         runtimeIsolationScope = runtimeIsolationScope,
         descriptors = descriptors,

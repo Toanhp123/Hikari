@@ -4,6 +4,7 @@ import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ReaderAssetGraphRevision
 import app.openstory.reader.assets.ContentFetchPriority
 import app.openstory.reader.assets.ReaderAssetManifestFactory
 import app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact
@@ -298,7 +299,7 @@ class ReaderRouteCoordinator(
                         is ReaderLoadResult.Success -> ReaderPrefetchedDocumentArtifact(
                             sessionId = session.sessionId,
                             prefetchToken = checkNotNull(context.prefetchToken),
-                            graphRevision = context.chapterGraphRevision,
+                            graphRevision = ReaderAssetGraphRevision(context.chapterGraphRevision.value),
                             targetChapterId = context.targetChapterId,
                             selectedRelease = loaded.release,
                             document = loaded.document,
@@ -426,7 +427,7 @@ class ReaderRouteCoordinator(
                 storyId = context.storyId,
                 canonicalChapterId = context.identity.targetChapterId,
                 selectedRelease = release,
-                graphRevision = context.chapterGraphRevision,
+                graphRevision = ReaderAssetGraphRevision(context.chapterGraphRevision.value),
                 document = loaded.document,
                 imageSourcePolicy = policy,
                 sourcePluginId = checkNotNull(loaded.sourcePluginId),

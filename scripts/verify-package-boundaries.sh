@@ -95,6 +95,7 @@ reader_root="$ROOT_DIR/reader/src/main"
 reader_engine_root="$ROOT_DIR/reader/engine/src/main"
 feature_catalog_root="$ROOT_DIR/feature/catalog/src/main"
 feature_reader_root="$ROOT_DIR/feature/reader/src/main"
+feature_reader_all_root="$ROOT_DIR/feature/reader/src"
 storage_root="$ROOT_DIR/storage/room/src/main"
 plugin_api_root="$ROOT_DIR/plugins/api/src/main"
 plugin_runtime_root="$ROOT_DIR/plugins/runtime/src/main"
@@ -160,8 +161,10 @@ fail_references "$reader_engine_root" "$FLOAT_PATTERN" \
 validate_project_imports "$feature_catalog_root" '^app\.openstory\.(common|designsystem|catalog|library|chapters|reader|downloads)(\.|$)' \
   'feature/catalog may import only core common, design system, Catalog, Library, Chapters, Reader, and Downloads project packages.'
 
-validate_project_imports "$feature_reader_root" '^app\.openstory\.(common|designsystem|chapters|reader|downloads)(\.|$)' \
-  'feature/reader may import only core common, design system, Chapters, Reader, and Downloads project packages.'
+validate_project_imports "$feature_reader_root" '^app\.openstory\.(common|designsystem|chapters|reader)(\.|$)' \
+  'feature/reader may import only core common, design system, Chapters, and Reader project packages.'
+fail_matches "$feature_reader_all_root" 'app\.openstory\.reader\.engine(\.|$)' \
+  'feature/reader must not import HES engine types from any source set.'
 
 validate_project_imports "$storage_root" '^app\.openstory\.(common|catalog|library|chapters|reader|downloads|plugins\.api|plugins\.runtime\.persistence|storage\.room)(\.|$)' \
   'storage/room may import only capability contracts, runtime persistence SPI, and its own packages.'

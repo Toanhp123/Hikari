@@ -22,7 +22,6 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":chapters"))
     implementation(project(":reader"))
-    implementation(project(":downloads"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -31,7 +30,6 @@ dependencies {
     implementation(libs.javax.inject)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(platform(libs.androidx.compose.bom))

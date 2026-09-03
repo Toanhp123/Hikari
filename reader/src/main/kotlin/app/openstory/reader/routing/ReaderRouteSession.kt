@@ -4,6 +4,7 @@ import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
+import app.openstory.reader.assets.ReaderAssetGraphRevision
 import app.openstory.reader.assets.ReaderAssetSessionPort
 import app.openstory.reader.assets.ReaderAssetSessionState
 import app.openstory.reader.engine.ReaderChapterGraphRevision
@@ -493,7 +494,7 @@ class ReaderRouteSession internal constructor(
             currentGroup == prefetchTargetGroup &&
             artifact.sessionId == sessionId &&
             artifact.prefetchToken == token &&
-            artifact.graphRevision == context.chapterGraphRevision &&
+            artifact.graphRevision == ReaderAssetGraphRevision(context.chapterGraphRevision.value) &&
             artifact.targetChapterId == context.targetChapterId &&
             currentGroup?.releases?.any { it == artifact.selectedRelease } == true
         if (!current) return@synchronized false

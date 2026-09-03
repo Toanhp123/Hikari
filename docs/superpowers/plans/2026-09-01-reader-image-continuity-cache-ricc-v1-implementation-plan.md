@@ -537,7 +537,7 @@ data class ReaderAssetChapterManifest(
     val contentVariant: ReaderContentVariant,
     val identityMode: ReaderAssetIdentityMode,
     val persistenceMode: ReaderAssetPersistenceMode,
-    val graphRevision: ReaderChapterGraphRevision,
+    val graphRevision: ReaderAssetGraphRevision,
     val imageSetNamespace: ReaderImageSetNamespace,
     val runtimeIsolationScope: ReaderRuntimeAssetScopeId?,
     val descriptors: List<ReaderPageAssetDescriptor>,
@@ -550,7 +550,7 @@ data class ReaderPageAssetRequest(
 )
 ```
 
-Enforce `descriptors.size <= ReaderDocumentSanitizer.MAX_BLOCKS` (currently 2,000), non-blank runtime locators/stable identities, and image ordinals exactly `0 until descriptors.size`. Require `runtimeIsolationScope != null` whenever `persistenceMode == TRANSIENT_ONLY` and `runtimeIsolationScope == null` whenever `persistenceMode == DURABLE_AUTOMATIC`. Also require durable mode to use only `TRUSTED_STABLE`/`LOCATOR_BOUND` plus a durable security scope. Raw locator/stable-identity strings remain in-memory manifest facts only; durable rows receive hashes only.
+Enforce `descriptors.size <= ReaderDocumentSanitizer.MAX_BLOCKS` (currently 2,000), non-blank runtime locators/stable identities, and image ordinals exactly `0 until descriptors.size`. Require `runtimeIsolationScope != null` whenever `persistenceMode == TRANSIENT_ONLY` and `runtimeIsolationScope == null` whenever `persistenceMode == DURABLE_AUTOMATIC`. Also require durable mode to use only `TRUSTED_STABLE`/`LOCATOR_BOUND` plus a durable security scope. Raw locator/stable-identity strings remain in-memory manifest facts only; durable rows receive hashes only. `ReaderAssetGraphRevision(value >= 0)` is the Reader-owned public revision DTO; `ReaderChapterGraphRevision` stays internal to HES/routing and is mapped at the `:reader` boundary before a manifest or prefetch artifact is exposed downstream.
 
 - [ ] **Step 5: Define the complete four-state store contract; keep unified-budget authority opaque**
 
@@ -2032,6 +2032,7 @@ git commit -m "app: integrate reader asset transport"
 **Interfaces:**
 - Consumes `ReaderPageAssetRequest`, `ReaderViewportSnapshot`, `ReaderAssetCoordinator` Reader-facing methods, including `observeCommittedManifest(sessionId)` so same-release delivery refresh can replace locator-bound keys without a semantic document reload.
 - Removes production `:feature:reader -> :downloads` dependency.
+- Preserves the HES boundary: no `:feature:reader` source set imports `app.openstory.reader.engine`; public RICC manifest/prefetch revision facts use `ReaderAssetGraphRevision`.
 
 - [ ] **Step 1: Write RED UI/runtime boundary tests**
 

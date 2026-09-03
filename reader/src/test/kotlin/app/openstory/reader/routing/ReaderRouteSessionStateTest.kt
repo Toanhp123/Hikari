@@ -13,6 +13,7 @@ import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
 import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
 import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.reader.assets.ReaderAssetChapterManifest
+import app.openstory.reader.assets.ReaderAssetGraphRevision
 import app.openstory.reader.assets.ReaderAssetManifestFactory
 import app.openstory.reader.assets.ReaderAssetSessionPort
 import app.openstory.reader.content.ReaderImageSourcePolicy
@@ -698,7 +699,7 @@ class ReaderRouteSessionStateTest {
                 storyId = context.storyId,
                 canonicalChapterId = context.identity.targetChapterId,
                 selectedRelease = release,
-                graphRevision = context.chapterGraphRevision,
+                graphRevision = ReaderAssetGraphRevision(context.chapterGraphRevision.value),
                 document = document,
                 imageSourcePolicy = TRUSTED_PUBLIC_POLICY,
                 sourcePluginId = release.pluginId,

@@ -5,7 +5,6 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.document.ReaderDocument
-import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.routing.ReaderSessionId
 
 data class ReaderAssetSessionState(
@@ -99,7 +98,7 @@ data class ReaderAssetSessionState(
 data class ReaderPrefetchedDocumentArtifact(
     val sessionId: ReaderSessionId,
     val prefetchToken: Long,
-    val graphRevision: ReaderChapterGraphRevision,
+    val graphRevision: ReaderAssetGraphRevision,
     val targetChapterId: CanonicalChapterId,
     val selectedRelease: ChapterRelease,
     val document: ReaderDocument,

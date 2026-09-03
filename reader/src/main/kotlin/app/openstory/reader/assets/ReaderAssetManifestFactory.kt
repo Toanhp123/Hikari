@@ -8,7 +8,6 @@ import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
-import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.routing.ReaderSessionId
 
 class ReaderAssetManifestFactory(
@@ -19,7 +18,7 @@ class ReaderAssetManifestFactory(
         storyId: StoryId,
         canonicalChapterId: CanonicalChapterId,
         selectedRelease: ChapterRelease,
-        graphRevision: ReaderChapterGraphRevision,
+        graphRevision: ReaderAssetGraphRevision,
         document: ReaderDocument,
         imageSourcePolicy: ReaderImageSourcePolicy,
         sourcePluginId: PluginId,

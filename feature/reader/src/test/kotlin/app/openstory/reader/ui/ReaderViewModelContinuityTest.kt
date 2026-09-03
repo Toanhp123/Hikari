@@ -18,6 +18,13 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ReaderAssetCoordinator
+import app.openstory.reader.assets.ReaderAssetManifestFactory
+import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.assets.ReaderDeliveryManifestReplacement
+import app.openstory.reader.assets.ReaderViewportDirection
+import app.openstory.reader.assets.ReaderViewportSnapshot
+import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
@@ -52,6 +59,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -80,6 +90,7 @@ class ReaderViewModelContinuityTest {
             SavedStateHandle(),
             chapters,
             routeFactory(source, progress),
+            testReaderAssetCoordinator(),
             progress,
             FakeClock(100),
             TestPreferencesPort(preferences),
@@ -271,6 +282,7 @@ class ReaderViewModelContinuityTest {
             savedState,
             chapters,
             routeFactory(source, progress),
+            testReaderAssetCoordinator(),
             progress,
             FakeClock(100),
             TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
@@ -381,6 +393,7 @@ class ReaderViewModelContinuityTest {
             SavedStateHandle(),
             chapters,
             routeFactory(sources, progress),
+            testReaderAssetCoordinator(),
             progress,
             FakeClock(100),
             TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
@@ -406,6 +419,190 @@ class ReaderViewModelContinuityTest {
     }
 
     @Test
+    fun newerCommittedAssetSnapshotUpdatesRequestsWithoutReloadingSemanticDocument() =
+        runTest(dispatcher.scheduler) {
+            val chapter = chapter("chapter-1", "release-a")
+            val chapters = TestChapterRepository(groups(chapter))
+            val source = ControlledReaderSource().apply {
+                enqueueSuccess(
+                    "release-a",
+                    imageDocument("release-a", "https://example.test/page-a.jpg"),
+                )
+            }
+            val progress = TestProgressRepository()
+            val assetCoordinator = testReaderAssetCoordinator()
+            val viewModel = ReaderViewModel(
+                ReaderAssistedArgs("story", "chapter-1", null),
+                SavedStateHandle(),
+                chapters,
+                routeFactory(source, progress, assetCoordinator),
+                assetCoordinator,
+                progress,
+                FakeClock(100),
+                TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
+            )
+            runCurrent()
+
+            val committedDocument = assertNotNull(viewModel.state.value.document)
+            val initialAssets = assertNotNull(viewModel.state.value.assets)
+            val initialRequest = assertNotNull(initialAssets.requestForBlockId("page"))
+            assertEquals(1L, initialAssets.manifestRevision)
+
+            val refreshedManifest = assertNotNull(
+                ReaderAssetManifestFactory().create(
+                    sessionId = initialAssets.manifest.sessionId,
+                    storyId = StoryId("story"),
+                    canonicalChapterId = CanonicalChapterId("chapter-1"),
+                    selectedRelease = chapter.second,
+                    graphRevision = initialAssets.manifest.graphRevision,
+                    document = imageDocument("release-a", "https://example.test/page-b.jpg"),
+                    imageSourcePolicy = source.imageSourcePolicy,
+                    sourcePluginId = source.pluginId,
+                ),
+            )
+
+            assertIs<ReaderDeliveryManifestReplacement.Applied>(
+                assetCoordinator.replaceDeliveryManifest(
+                    sessionId = initialAssets.manifest.sessionId,
+                    expectedManifestRevision = initialAssets.manifestRevision,
+                    refreshedManifest = refreshedManifest,
+                ),
+            )
+            runCurrent()
+
+            val refreshedAssets = assertNotNull(viewModel.state.value.assets)
+            assertEquals(2L, refreshedAssets.manifestRevision)
+            assertNotEquals(
+                initialRequest.descriptor.key,
+                assertNotNull(refreshedAssets.requestForBlockId("page")).descriptor.key,
+            )
+            assertSame(committedDocument, viewModel.state.value.document)
+            assertEquals(listOf("release-a"), source.fetches)
+        }
+
+    @Test
+    fun duplicateCurrentViewportRemainsAcceptedByPresentationBoundary() =
+        runTest(dispatcher.scheduler) {
+            val chapters = TestChapterRepository(groups(chapter("chapter-1", "release-a")))
+            val source = ControlledReaderSource().apply {
+                enqueueSuccess(
+                    "release-a",
+                    imageDocument("release-a", "https://example.test/page-a.jpg"),
+                )
+            }
+            val progress = TestProgressRepository()
+            val assetCoordinator = testReaderAssetCoordinator()
+            val viewModel = ReaderViewModel(
+                ReaderAssistedArgs("story", "chapter-1", null),
+                SavedStateHandle(),
+                chapters,
+                routeFactory(source, progress, assetCoordinator),
+                assetCoordinator,
+                progress,
+                FakeClock(100),
+                TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
+            )
+            runCurrent()
+            val assets = assertNotNull(viewModel.state.value.assets)
+            val request = assertNotNull(assets.requestForBlockId("page"))
+            val snapshot = ReaderViewportSnapshot(
+                sessionId = request.sessionId,
+                manifestRevision = request.manifestRevision,
+                leadingVisibleImageOrdinal = request.descriptor.imageOrdinal,
+                trailingVisibleImageOrdinal = request.descriptor.imageOrdinal,
+                direction = ReaderViewportDirection.IDLE,
+                chapterProgressBasisPoints = 0,
+            )
+
+            assertTrue(viewModel.updateAssetViewport(snapshot))
+            assertTrue(viewModel.updateAssetViewport(snapshot))
+        }
+
+    @Test
+    fun routeInvalidationFromRetainedContentDoesNotCancelPendingNavigation() =
+        runTest(dispatcher.scheduler) {
+            val chapters = TestChapterRepository(
+                groups(
+                    chapter("chapter-1", "release-a"),
+                    chapter("chapter-2", "release-b"),
+                ),
+            )
+            val source = ControlledReaderSource().apply {
+                enqueueSuccess(
+                    "release-a",
+                    imageDocument("release-a", "https://example.test/page-a.jpg"),
+                )
+            }
+            source.enqueuePending("release-b")
+            val progress = TestProgressRepository()
+            val assetCoordinator = testReaderAssetCoordinator()
+            val viewModel = ReaderViewModel(
+                ReaderAssistedArgs("story", "chapter-1", null),
+                SavedStateHandle(),
+                chapters,
+                routeFactory(source, progress, assetCoordinator),
+                assetCoordinator,
+                progress,
+                FakeClock(100),
+                TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
+            )
+            runCurrent()
+            val revision = assertNotNull(viewModel.state.value.assets).manifestRevision
+
+            viewModel.openChapter(CanonicalChapterId("chapter-2"))
+            runCurrent()
+            assertEquals("chapter-2", viewModel.state.value.transitionTargetChapterId?.value)
+
+            viewModel.reloadRouteForInvalidatedAsset(revision)
+            runCurrent()
+
+            assertEquals(listOf("release-a", "release-b"), source.fetches)
+            assertEquals("chapter-2", viewModel.state.value.transitionTargetChapterId?.value)
+            assertEquals("chapter-1", viewModel.state.value.committedChapterId?.value)
+        }
+
+    @Test
+    fun routeInvalidationReloadIsDedupedForTheCurrentManifestRevision() =
+        runTest(dispatcher.scheduler) {
+            val chapter = chapter("chapter-1", "release-a")
+            val chapters = TestChapterRepository(groups(chapter))
+            val source = ControlledReaderSource().apply {
+                enqueueSuccess(
+                    "release-a",
+                    imageDocument("release-a", "https://example.test/page-a.jpg"),
+                )
+            }
+            val pendingReload = source.enqueuePending("release-a")
+            val progress = TestProgressRepository()
+            val assetCoordinator = testReaderAssetCoordinator()
+            val viewModel = ReaderViewModel(
+                ReaderAssistedArgs("story", "chapter-1", null),
+                SavedStateHandle(),
+                chapters,
+                routeFactory(source, progress, assetCoordinator),
+                assetCoordinator,
+                progress,
+                FakeClock(100),
+                TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
+            )
+            runCurrent()
+            val revision = assertNotNull(viewModel.state.value.assets).manifestRevision
+
+            viewModel.reloadRouteForInvalidatedAsset(revision)
+            viewModel.reloadRouteForInvalidatedAsset(revision)
+            runCurrent()
+
+            assertEquals(listOf("release-a", "release-a"), source.fetches)
+            pendingReload.complete(
+                ReaderSourceResult.Success(
+                    imageDocument("release-a", "https://example.test/page-a.jpg"),
+                ),
+            )
+            runCurrent()
+            assertEquals(2, source.fetches.size)
+        }
+
+    @Test
     fun initialExhaustionWithoutCommittedContentBecomesUnavailable() = runTest(dispatcher.scheduler) {
         val chapters = TestChapterRepository(groups(chapter("chapter-1", "release-a")))
         val source = ControlledReaderSource().apply {
@@ -426,24 +623,30 @@ class ReaderViewModelContinuityTest {
         source: ControlledReaderSource,
         progress: TestProgressRepository,
         savedState: SavedStateHandle,
-    ) = ReaderViewModel(
-        ReaderAssistedArgs("story", "chapter-1", null),
-        savedState,
-        chapters,
-        routeFactory(source, progress),
-        progress,
-        FakeClock(100),
-        TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
-    )
+    ): ReaderViewModel {
+        val assetCoordinator = testReaderAssetCoordinator()
+        return ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter-1", null),
+            savedState,
+            chapters,
+            routeFactory(source, progress, assetCoordinator),
+            assetCoordinator,
+            progress,
+            FakeClock(100),
+            TestPreferencesPort(MutableStateFlow(ReaderPreferences())),
+        )
+    }
 
     private fun routeFactory(
         source: ControlledReaderSource,
         progress: ReadingProgressRepository,
-    ) = routeFactory(listOf(source), progress)
+        assetSessionPort: ReaderAssetSessionPort = ReaderAssetSessionPort.NO_OP,
+    ) = routeFactory(listOf(source), progress, assetSessionPort)
 
     private fun routeFactory(
         sources: List<ControlledReaderSource>,
         progress: ReadingProgressRepository,
+        assetSessionPort: ReaderAssetSessionPort = ReaderAssetSessionPort.NO_OP,
     ) = ReaderRouteSessionFactory(
         ReaderRouteCoordinator(
             store = ContinuityNoOpReaderDocumentStore,
@@ -456,6 +659,7 @@ class ReaderViewModelContinuityTest {
             fetchArbiter = ContentFetchArbiter(),
             halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         ),
+        assetSessionPort = assetSessionPort,
     )
 }
 
@@ -497,6 +701,7 @@ private class TestChapterRepository(
 
 private class ControlledReaderSource(
     override val pluginId: PluginId = PluginId("plugin"),
+    override val imageSourcePolicy: ReaderImageSourcePolicy = ReaderImageSourcePolicy.FAIL_CLOSED,
 ) : ReaderDocumentSource {
     private val responses = mutableMapOf<String, ArrayDeque<CompletableDeferred<ReaderSourceResult>>>()
     val fetches = mutableListOf<String>()
@@ -586,6 +791,12 @@ private fun document(releaseId: String, fingerprint: String = "fingerprint-${rel
         blocks = listOf(ReaderBlock.Paragraph("block", "Text")),
         fingerprint = fingerprint,
     )
+
+private fun imageDocument(releaseId: String, imageUrl: String) = ReaderDocument(
+    title = releaseId,
+    blocks = listOf(ReaderBlock.ImagePage("page", "asset-page", imageUrl)),
+    fingerprint = "fingerprint-${releaseId.removePrefix("release-")}",
+)
 
 private fun progress(
     chapterId: String,

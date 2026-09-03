@@ -78,6 +78,7 @@ class ReaderViewModelTest {
             savedState,
             chapters,
             documents(progress),
+            testReaderAssetCoordinator(),
             progress,
             FakeClock(100),
             FakeReaderPreferencesPort(preferenceValues),
@@ -106,6 +107,7 @@ class ReaderViewModelTest {
             savedState,
             chapters,
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -130,6 +132,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graph()),
             documents(),
+            testReaderAssetCoordinator(),
             progress,
             FakeClock(100),
         )
@@ -176,6 +179,7 @@ class ReaderViewModelTest {
                 ChapterGraphSnapshot(listOf(first.first), listOf(first.second, secondRelease), emptyList()),
             ),
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -199,6 +203,7 @@ class ReaderViewModelTest {
                 ChapterGraphSnapshot(listOf(first.first), listOf(first.second, secondRelease), emptyList()),
             ),
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -215,6 +220,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graphForSingleChapter()),
             failingDocuments("plugin.operation_unavailable", retryable = false),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -232,6 +238,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graphForSingleChapter()),
             documents(),
+            testReaderAssetCoordinator(),
             repository,
             FakeClock(100),
         )
@@ -252,6 +259,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             chapters,
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
             FakeReaderPreferencesPort(values),
@@ -277,6 +285,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graphForSingleChapter()),
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
             FakeReaderPreferencesPort(values, failWrites = true),
@@ -298,6 +307,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graphForSingleChapter()),
             documents(assetSessionPort = assetPort),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )

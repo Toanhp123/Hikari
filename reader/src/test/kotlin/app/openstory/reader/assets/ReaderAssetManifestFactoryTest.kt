@@ -13,7 +13,6 @@ import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
-import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.routing.ReaderSessionId
 import java.util.ArrayDeque
 import java.util.UUID
@@ -135,7 +134,7 @@ class ReaderAssetManifestFactoryTest {
                 storyId = STORY_ID,
                 canonicalChapterId = CHAPTER_ID,
                 selectedRelease = release(),
-                graphRevision = ReaderChapterGraphRevision(3),
+                graphRevision = ReaderAssetGraphRevision(3),
                 document = imageDocument(image("page", "stable/page", "https://cdn.example/page.jpg")),
                 imageSourcePolicy = trustedPublicPolicy(),
                 sourcePluginId = PluginId("different.plugin"),
@@ -150,7 +149,7 @@ class ReaderAssetManifestFactoryTest {
             storyId = STORY_ID,
             canonicalChapterId = CHAPTER_ID,
             selectedRelease = release(),
-            graphRevision = ReaderChapterGraphRevision(3),
+            graphRevision = ReaderAssetGraphRevision(3),
             document = ReaderDocument(
                 title = "text",
                 blocks = listOf(ReaderBlock.Paragraph("paragraph", "body")),
@@ -173,7 +172,7 @@ class ReaderAssetManifestFactoryTest {
             storyId = STORY_ID,
             canonicalChapterId = CHAPTER_ID,
             selectedRelease = release(),
-            graphRevision = ReaderChapterGraphRevision(3),
+            graphRevision = ReaderAssetGraphRevision(3),
             document = document,
             imageSourcePolicy = policy,
             sourcePluginId = SOURCE_ID,

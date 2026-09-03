@@ -13,7 +13,6 @@ import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
-import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.routing.ReaderSessionId
 import java.util.UUID
 
@@ -59,7 +58,7 @@ internal fun assetManifest(
             storyId = storyId,
             canonicalChapterId = chapterId,
             selectedRelease = release,
-            graphRevision = ReaderChapterGraphRevision(1),
+            graphRevision = ReaderAssetGraphRevision(1),
             document = document,
             imageSourcePolicy = ReaderImageSourcePolicy(
                 identityContract = ReaderImageIdentityContract.DELIVERY_STABLE_ONLY,
@@ -109,7 +108,7 @@ internal fun prefetchedArtifact(
     return ReaderPrefetchedDocumentArtifact(
         sessionId = currentManifest.sessionId,
         prefetchToken = token,
-        graphRevision = ReaderChapterGraphRevision(2),
+        graphRevision = ReaderAssetGraphRevision(2),
         targetChapterId = prefetched.canonicalChapterId,
         selectedRelease = ChapterRelease(
             id = prefetched.selectedReleaseId,

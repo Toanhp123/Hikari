@@ -4,8 +4,14 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
 import app.openstory.reader.document.ReaderDocumentSanitizer
-import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.routing.ReaderSessionId
+
+@JvmInline
+value class ReaderAssetGraphRevision(val value: Long) {
+    init {
+        require(value >= 0L) { "Reader asset graph revision must be non-negative" }
+    }
+}
 
 data class ReaderPageAssetDescriptor(
     val key: ReaderPageAssetKey,
@@ -36,7 +42,7 @@ data class ReaderAssetChapterManifest(
     val contentVariant: ReaderContentVariant,
     val identityMode: ReaderAssetIdentityMode,
     val persistenceMode: ReaderAssetPersistenceMode,
-    val graphRevision: ReaderChapterGraphRevision,
+    val graphRevision: ReaderAssetGraphRevision,
     val imageSetNamespace: ReaderImageSetNamespace,
     val runtimeIsolationScope: ReaderRuntimeAssetScopeId?,
     val descriptors: List<ReaderPageAssetDescriptor>,
