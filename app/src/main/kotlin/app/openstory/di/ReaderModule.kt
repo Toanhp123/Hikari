@@ -1,45 +1,55 @@
 package app.openstory.di
 
 import android.content.Context
+import app.openstory.common.MonotonicClock
+import app.openstory.common.SystemMonotonicClock
+import app.openstory.common.dispatchers.AppDispatchers
+import app.openstory.downloads.DownloadRepository
+import app.openstory.downloads.assets.DownloadReaderAssetStore
+import app.openstory.downloads.blob.ChapterBlobStore
+import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
+import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.reader.DownloadAwareReaderDocumentStore
+import app.openstory.downloads.reader.ReaderCacheMetadataSource
+import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.plugins.runtime.PluginRuntime
+import app.openstory.reader.AndroidReaderNetworkFactsPort
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ReaderAssetCoordinator
+import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.assets.ReaderAssetStorePort
 import app.openstory.reader.content.PluginReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.document.ReaderDocumentSanitizer
 import app.openstory.reader.progress.ReadingProgressRepository
-import app.openstory.reader.routing.PrefetchCoordinator
-import app.openstory.reader.routing.DefaultReaderExecutionScheduler
-import app.openstory.reader.routing.ReaderExecutionScheduler
-import app.openstory.reader.routing.ReaderRouteCoordinator
-import app.openstory.reader.routing.ReaderCacheFactsPort
-import app.openstory.reader.AndroidReaderNetworkFactsPort
-import app.openstory.reader.routing.ReaderNetworkFactsPort
-import app.openstory.reader.assets.ContentFetchArbiter
-import app.openstory.reader.assets.ReaderAssetStorePort
 import app.openstory.reader.routing.ContentSourceExecutionLane
+import app.openstory.reader.routing.DefaultReaderExecutionScheduler
+import app.openstory.reader.routing.PrefetchCoordinator
+import app.openstory.reader.routing.ReaderCacheFactsPort
+import app.openstory.reader.routing.ReaderExecutionScheduler
 import app.openstory.reader.routing.ReaderHalfOpenProbeRegistry
-import app.openstory.reader.routing.ReaderSourceHealthRegistry
+import app.openstory.reader.routing.ReaderNetworkFactsPort
+import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderRouteSessionFactory
+import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.reader.RoomReadingProgressRepository
-import app.openstory.downloads.blob.ChapterBlobStore
-import app.openstory.downloads.cache.CacheRepository
-import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
-import app.openstory.downloads.DownloadRepository
-import app.openstory.downloads.assets.DownloadReaderAssetStore
-import app.openstory.downloads.reader.DownloadAwareReaderDocumentStore
-import app.openstory.downloads.reader.ReaderCacheMetadataSource
-import app.openstory.downloads.reconcile.StorageWriteAdmission
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Qualifier
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
-import app.openstory.common.MonotonicClock
-import app.openstory.common.SystemMonotonicClock
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ReaderAssetCoordinatorScope
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -71,6 +81,30 @@ object ReaderModule {
 
     @Provides
     fun provideReaderAssetStorePort(store: DownloadReaderAssetStore): ReaderAssetStorePort = store
+
+    @Provides
+    @Singleton
+    @ReaderAssetCoordinatorScope
+    fun provideReaderAssetCoordinatorScope(
+        dispatchers: AppDispatchers,
+    ): CoroutineScope = CoroutineScope(SupervisorJob() + dispatchers.default)
+
+    @Provides
+    @Singleton
+    fun provideReaderAssetCoordinator(
+        store: ReaderAssetStorePort,
+        networkFacts: ReaderNetworkFactsPort,
+        @ReaderAssetCoordinatorScope coordinatorScope: CoroutineScope,
+    ): ReaderAssetCoordinator = ReaderAssetCoordinator(
+        store = store,
+        networkFacts = networkFacts,
+        coordinatorScope = coordinatorScope,
+    )
+
+    @Provides
+    fun provideReaderAssetSessionPort(
+        coordinator: ReaderAssetCoordinator,
+    ): ReaderAssetSessionPort = coordinator
 
     @Provides
     @Singleton
@@ -169,5 +203,10 @@ object ReaderModule {
     fun provideReaderRouteSessionFactory(
         coordinator: ReaderRouteCoordinator,
         prefetchCoordinator: PrefetchCoordinator,
-    ): ReaderRouteSessionFactory = ReaderRouteSessionFactory(coordinator, prefetchCoordinator)
+        assetSessionPort: ReaderAssetSessionPort,
+    ): ReaderRouteSessionFactory = ReaderRouteSessionFactory(
+        coordinator,
+        prefetchCoordinator,
+        assetSessionPort,
+    )
 }
