@@ -24,12 +24,14 @@ class ReaderRouteSessionFactory(
             storyId = storyId,
             sessionId = ReaderSessionId(nextSessionId.getAndIncrement()),
             delegate = ReaderRouteExecutionDelegate(coordinator::execute),
+            refreshDelegate = ReaderSelectedReleaseRefreshDelegate(coordinator::refreshSelectedRelease),
             prefetchDelegate = prefetchCoordinator?.let { coordinator ->
                 ReaderPrefetchExecutionDelegate(coordinator::prefetch)
             },
             prefetchScope = prefetchScope,
             assetSessionPort = assetSessionPort,
         )
+        assetSessionPort.registerSelectedReleaseRefreshPort(session.sessionId, session)
         prefetchScope?.coroutineContext?.get(Job)?.invokeOnCompletion { session.close() }
         return session
     }

@@ -11,6 +11,13 @@ interface ReaderAssetSessionPort {
 
     fun acceptPrefetchedArtifact(artifact: ReaderPrefetchedDocumentArtifact)
 
+    fun registerSelectedReleaseRefreshPort(
+        sessionId: ReaderSessionId,
+        port: ReaderSelectedReleaseRefreshPort,
+    )
+
+    fun unregisterSelectedReleaseRefreshPort(sessionId: ReaderSessionId)
+
     fun releaseSession(sessionId: ReaderSessionId)
 
     companion object {
@@ -22,6 +29,13 @@ interface ReaderAssetSessionPort {
             ): Long = proposedManifestRevision
 
             override fun acceptPrefetchedArtifact(artifact: ReaderPrefetchedDocumentArtifact) = Unit
+
+            override fun registerSelectedReleaseRefreshPort(
+                sessionId: ReaderSessionId,
+                port: ReaderSelectedReleaseRefreshPort,
+            ) = Unit
+
+            override fun unregisterSelectedReleaseRefreshPort(sessionId: ReaderSessionId) = Unit
 
             override fun releaseSession(sessionId: ReaderSessionId) = Unit
         }

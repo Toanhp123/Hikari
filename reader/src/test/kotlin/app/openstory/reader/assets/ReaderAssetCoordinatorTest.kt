@@ -1,6 +1,18 @@
 package app.openstory.reader.assets
 
+import app.openstory.chapters.model.ChapterKind
+import app.openstory.chapters.model.ChapterRelease
+import app.openstory.chapters.model.ParsedChapterLabel
 import app.openstory.common.id.CanonicalChapterId
+import app.openstory.common.id.ChapterReleaseId
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
+import app.openstory.reader.content.ReaderImageSourcePolicy
+import app.openstory.reader.document.ReaderBlock
+import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.routing.ReaderNetworkFactsPort
 import app.openstory.reader.routing.ReaderNetworkState
 import app.openstory.reader.routing.ReaderSessionId
@@ -18,6 +30,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -291,6 +304,296 @@ class ReaderAssetCoordinatorTest {
         assertTrue(coordinator.sessionSnapshot(ReaderSessionId(2)) != null)
     }
 
+    @Test
+    fun `rejected pages from one manifest join one refresh and stale requests end superseded`() = runTest {
+        val store = RecordingAssetStore()
+        val original = assetManifest(sessionId = 1, chapter = "chapter", pageCount = 2, locatorTag = "old")
+        val refreshedDocument = documentFor(original, locatorTag = "new")
+        val release = releaseFor(original)
+        val refreshGate = CompletableDeferred<Unit>()
+        var refreshCalls = 0
+        val coordinator = refreshingCoordinator(store) {
+            ReaderAssetDeliveryResult.Failure(ReaderAssetFailure.DeliveryRejected(403))
+        }
+        coordinator.registerSelectedReleaseRefreshPort(
+            original.sessionId,
+            object : ReaderSelectedReleaseRefreshPort {
+                override suspend fun refreshSelectedRelease(
+                    expectedManifestRevision: Long,
+                    expectedReleaseId: ChapterReleaseId,
+                ): ReaderSelectedReleaseRefreshResult {
+                    refreshCalls += 1
+                    refreshGate.await()
+                    return ReaderSelectedReleaseRefreshResult.Refreshed(
+                        selectedRelease = release,
+                        document = refreshedDocument,
+                        imageSourcePolicy = LOCATOR_BOUND_PUBLIC_POLICY,
+                    )
+                }
+            },
+        )
+        coordinator.registerCommitted(original.sessionId, 1L, original)
+        runCurrent()
+
+        val first = async { coordinator.requestPage(request(original, 1L, 0)) }
+        val second = async { coordinator.requestPage(request(original, 1L, 1)) }
+        runCurrent()
+
+        assertEquals(1, refreshCalls)
+        refreshGate.complete(Unit)
+        runCurrent()
+
+        assertEquals(
+            ReaderAssetFailure.Superseded,
+            assertIs<ReaderAssetLoadOutcome.Failure>(first.await()).failure,
+        )
+        assertEquals(
+            ReaderAssetFailure.Superseded,
+            assertIs<ReaderAssetLoadOutcome.Failure>(second.await()).failure,
+        )
+        val state = requireNotNull(coordinator.sessionSnapshot(original.sessionId))
+        assertEquals(2L, state.manifestRevision)
+        assertNotEquals(
+            original.descriptors.map { it.key },
+            requireNotNull(state.committedManifest).descriptors.map { it.key },
+        )
+        assertEquals(2, store.remoteFetches)
+    }
+
+    @Test
+    fun `unchanged locator refresh retries delivery once and repeated rejection stays page local`() = runTest {
+        val store = RecordingAssetStore()
+        val original = assetManifest(sessionId = 1, chapter = "chapter", pageCount = 1, locatorTag = "same")
+        val release = releaseFor(original)
+        var refreshCalls = 0
+        val coordinator = refreshingCoordinator(store) {
+            ReaderAssetDeliveryResult.Failure(ReaderAssetFailure.DeliveryRejected(404))
+        }
+        coordinator.registerSelectedReleaseRefreshPort(
+            original.sessionId,
+            object : ReaderSelectedReleaseRefreshPort {
+                override suspend fun refreshSelectedRelease(
+                    expectedManifestRevision: Long,
+                    expectedReleaseId: ChapterReleaseId,
+                ): ReaderSelectedReleaseRefreshResult {
+                    refreshCalls += 1
+                    return ReaderSelectedReleaseRefreshResult.Refreshed(
+                        selectedRelease = release,
+                        document = documentFor(original, locatorTag = "same"),
+                        imageSourcePolicy = LOCATOR_BOUND_PUBLIC_POLICY,
+                    )
+                }
+            },
+        )
+        coordinator.registerCommitted(original.sessionId, 1L, original)
+        runCurrent()
+
+        val outcome = assertIs<ReaderAssetLoadOutcome.Failure>(
+            coordinator.requestPage(request(original, 1L, 0)),
+        )
+
+        assertEquals(ReaderAssetFailure.DeliveryRejected(404), outcome.failure)
+        assertEquals(1, refreshCalls)
+        assertEquals(2, store.remoteFetches)
+        assertEquals(1L, coordinator.sessionSnapshot(original.sessionId)?.manifestRevision)
+    }
+
+    @Test
+    fun `delivery rejection remains page local when refresh authority is unavailable`() = runTest {
+        val store = RecordingAssetStore()
+        val original = assetManifest(sessionId = 1, chapter = "chapter", pageCount = 1, locatorTag = "same")
+        val coordinator = refreshingCoordinator(store) {
+            ReaderAssetDeliveryResult.Failure(ReaderAssetFailure.DeliveryRejected(403))
+        }
+        coordinator.registerCommitted(original.sessionId, 1L, original)
+        runCurrent()
+
+        val outcome = assertIs<ReaderAssetLoadOutcome.Failure>(
+            coordinator.requestPage(request(original, 1L, 0)),
+        )
+
+        assertEquals(ReaderAssetFailure.DeliveryRejected(403), outcome.failure)
+        assertEquals(1, store.remoteFetches)
+    }
+
+    @Test
+    fun `generic 401 403 and 404 remain delivery evidence through bounded unchanged refresh`() = runTest {
+        for (status in listOf(401, 403, 404)) {
+            val store = RecordingAssetStore()
+            val original = assetManifest(
+                sessionId = status.toLong(),
+                chapter = "chapter-$status",
+                pageCount = 1,
+                locatorTag = "same",
+            )
+            val release = releaseFor(original)
+            val coordinator = refreshingCoordinator(store) {
+                ReaderAssetDeliveryResult.Failure(ReaderAssetFailure.DeliveryRejected(status))
+            }
+            coordinator.registerSelectedReleaseRefreshPort(
+                original.sessionId,
+                object : ReaderSelectedReleaseRefreshPort {
+                    override suspend fun refreshSelectedRelease(
+                        expectedManifestRevision: Long,
+                        expectedReleaseId: ChapterReleaseId,
+                    ) = ReaderSelectedReleaseRefreshResult.Refreshed(
+                        selectedRelease = release,
+                        document = documentFor(original, locatorTag = "same"),
+                        imageSourcePolicy = LOCATOR_BOUND_PUBLIC_POLICY,
+                    )
+                },
+            )
+            coordinator.registerCommitted(original.sessionId, 1L, original)
+            runCurrent()
+
+            val outcome = assertIs<ReaderAssetLoadOutcome.Failure>(
+                coordinator.requestPage(request(original, 1L, 0)),
+            )
+
+            assertEquals(ReaderAssetFailure.DeliveryRejected(status), outcome.failure)
+            assertEquals(2, store.remoteFetches)
+        }
+    }
+
+    @Test
+    fun `unchanged refresh does not retry an old locator after delivery manifest was superseded`() = runTest {
+        val store = RecordingAssetStore()
+        val original = assetManifest(sessionId = 1, chapter = "chapter", pageCount = 1, locatorTag = "old")
+        val replacement = assetManifest(sessionId = 1, chapter = "chapter", pageCount = 1, locatorTag = "new")
+        val release = releaseFor(original)
+        val refreshGate = CompletableDeferred<Unit>()
+        val coordinator = refreshingCoordinator(store) {
+            ReaderAssetDeliveryResult.Failure(ReaderAssetFailure.DeliveryRejected(403))
+        }
+        coordinator.registerSelectedReleaseRefreshPort(
+            original.sessionId,
+            object : ReaderSelectedReleaseRefreshPort {
+                override suspend fun refreshSelectedRelease(
+                    expectedManifestRevision: Long,
+                    expectedReleaseId: ChapterReleaseId,
+                ): ReaderSelectedReleaseRefreshResult {
+                    refreshGate.await()
+                    return ReaderSelectedReleaseRefreshResult.Refreshed(
+                        selectedRelease = release,
+                        document = documentFor(original, locatorTag = "old"),
+                        imageSourcePolicy = LOCATOR_BOUND_PUBLIC_POLICY,
+                    )
+                }
+            },
+        )
+        coordinator.registerCommitted(original.sessionId, 1L, original)
+        runCurrent()
+
+        val request = async { coordinator.requestPage(request(original, 1L, 0)) }
+        runCurrent()
+        assertEquals(1, store.remoteFetches)
+        assertIs<ReaderDeliveryManifestReplacement.Applied>(
+            coordinator.replaceDeliveryManifest(original.sessionId, 1L, replacement),
+        )
+        refreshGate.complete(Unit)
+        runCurrent()
+
+        assertEquals(
+            ReaderAssetFailure.Superseded,
+            assertIs<ReaderAssetLoadOutcome.Failure>(request.await()).failure,
+        )
+        assertEquals(1, store.remoteFetches)
+    }
+
+    @Test
+    fun `selected release refresh starts after image delivery scope has closed`() = runTest {
+        val store = RecordingAssetStore()
+        val original = assetManifest(sessionId = 1, chapter = "chapter", pageCount = 1, locatorTag = "same")
+        val release = releaseFor(original)
+        var insideDelivery = false
+        var refreshObservedClosedDelivery = false
+        val coordinator = refreshingCoordinator(store) {
+            insideDelivery = true
+            try {
+                ReaderAssetDeliveryResult.Failure(ReaderAssetFailure.DeliveryRejected(403))
+            } finally {
+                insideDelivery = false
+            }
+        }
+        coordinator.registerSelectedReleaseRefreshPort(
+            original.sessionId,
+            object : ReaderSelectedReleaseRefreshPort {
+                override suspend fun refreshSelectedRelease(
+                    expectedManifestRevision: Long,
+                    expectedReleaseId: ChapterReleaseId,
+                ): ReaderSelectedReleaseRefreshResult {
+                    refreshObservedClosedDelivery = !insideDelivery
+                    return ReaderSelectedReleaseRefreshResult.Refreshed(
+                        selectedRelease = release,
+                        document = documentFor(original, locatorTag = "same"),
+                        imageSourcePolicy = LOCATOR_BOUND_PUBLIC_POLICY,
+                    )
+                }
+            },
+        )
+        coordinator.registerCommitted(original.sessionId, 1L, original)
+        runCurrent()
+
+        coordinator.requestPage(request(original, 1L, 0))
+
+        assertTrue(refreshObservedClosedDelivery)
+    }
+
+    private fun TestScope.refreshingCoordinator(
+        store: RecordingAssetStore,
+        delivery: suspend (ReaderAssetDeliveryRequest) -> ReaderAssetDeliveryResult,
+    ): ReaderAssetCoordinator = ReaderAssetCoordinator(
+        store = store,
+        networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
+        coordinatorScope = this,
+        loader = ReaderAssetLoader(
+            store = store,
+            delivery = ReaderAssetDeliveryPort { request ->
+                store.remoteFetches += 1
+                delivery(request)
+            },
+            singleFlight = ReaderAssetSingleFlight(this),
+            fetchArbiter = ContentFetchArbiter(),
+            persistenceScope = this,
+        ),
+    )
+
+    private fun releaseFor(manifest: ReaderAssetChapterManifest) = ChapterRelease(
+        id = manifest.selectedReleaseId,
+        storyId = manifest.storyId,
+        pluginId = PluginId(manifest.sourceNamespace.value),
+        sourceStoryId = "source-story",
+        sourceReleaseId = "source-${manifest.canonicalChapterId.value}",
+        displayLabel = manifest.canonicalChapterId.value,
+        parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
+        languageTag = "en",
+        publishedAtEpochMillis = 1L,
+        canonicalChapterId = manifest.canonicalChapterId,
+    )
+
+    private fun documentFor(
+        manifest: ReaderAssetChapterManifest,
+        locatorTag: String,
+    ) = ReaderDocument(
+        title = manifest.canonicalChapterId.value,
+        blocks = manifest.descriptors.map { descriptor ->
+            ReaderBlock.ImagePage(
+                id = descriptor.uiBlockId,
+                stableAssetId = descriptor.stableAssetId,
+                imageUrl = buildString {
+                    append("https://cdn.example/")
+                    append(locatorTag)
+                    append('/')
+                    append(manifest.canonicalChapterId.value)
+                    append('/')
+                    append(descriptor.imageOrdinal)
+                    append(".jpg")
+                },
+            )
+        },
+        fingerprint = "semantic-${manifest.selectedReleaseId.value}",
+    )
+
     private fun TestScope.coordinator(
         store: RecordingAssetStore,
         network: ReaderNetworkState,
@@ -317,6 +620,14 @@ class ReaderAssetCoordinatorTest {
             networkFacts = ReaderNetworkFactsPort { network },
             coordinatorScope = this,
             loader = loader,
+        )
+    }
+
+    private companion object {
+        val LOCATOR_BOUND_PUBLIC_POLICY = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.DELIVERY_STABLE_ONLY,
+            locatorContract = ReaderImageLocatorContract.LOCATOR_CHANGES_WITH_CONTENT,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
         )
     }
 }

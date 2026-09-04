@@ -4,10 +4,12 @@ import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.assets.ContentFetchArbiter
-import app.openstory.reader.assets.ReaderAssetGraphRevision
 import app.openstory.reader.assets.ContentFetchPriority
+import app.openstory.reader.assets.ReaderAssetFailure
+import app.openstory.reader.assets.ReaderAssetGraphRevision
 import app.openstory.reader.assets.ReaderAssetManifestFactory
 import app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshResult
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderLoadFailure
@@ -33,14 +35,14 @@ import kotlinx.coroutines.CancellationException
  */
 class ReaderRouteCoordinator(
     store: ReaderDocumentStore,
-    sources: ReaderDocumentSourceRegistry,
+    private val sources: ReaderDocumentSourceRegistry,
     progress: ReadingProgressRepository,
     private val sourceAvailability: ReaderSourceAvailability = ReaderSourceAvailability {
         sources.enabled().mapTo(linkedSetOf()) { it.pluginId }
     },
     healthRegistry: ReaderSourceHealthRegistry,
-    sourceLane: ContentSourceExecutionLane,
-    fetchArbiter: ContentFetchArbiter,
+    private val sourceLane: ContentSourceExecutionLane,
+    private val fetchArbiter: ContentFetchArbiter,
     halfOpenProbeRegistry: ReaderHalfOpenProbeRegistry,
     cacheFacts: ReaderCacheFactsPort = ReaderCacheFactsPort { releaseIds, _ ->
         releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
@@ -68,6 +70,7 @@ class ReaderRouteCoordinator(
         nowEpochMillis = nowEpochMillis,
     )
     private val engine = ReaderRouteEngine.v1()
+    private val selectedReleaseRefreshValidator = ReaderDocumentValidatorAdapter()
 
     private data class PreparedForegroundRoute(
         val assembled: AssembledRouteSnapshot,
@@ -83,6 +86,70 @@ class ReaderRouteCoordinator(
     ): ReaderForegroundResult = assembler.assemble(context)
         ?.let { assembled -> executeAssembledForeground(session, context, assembled) }
         ?: unavailableRoute(context, READER_CHAPTER_NOT_FOUND)
+
+    internal suspend fun refreshSelectedRelease(
+        release: ChapterRelease,
+    ): ReaderSelectedReleaseRefreshResult {
+        val source = try {
+            sources.enabled().firstOrNull { candidate -> candidate.pluginId == release.pluginId }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return ReaderSelectedReleaseRefreshResult.Failure(
+                ReaderAssetFailure.TransportUnavailable(retryable = true),
+            )
+        } ?: return ReaderSelectedReleaseRefreshResult.RouteInvalidated
+
+        val sourceResult = try {
+            sourceLane.withSource(release.pluginId, ContentSourceWorkPriority.FOREGROUND) {
+                fetchArbiter.withAdmission(ContentFetchPriority.CRITICAL) {
+                    source.fetch(release)
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return ReaderSelectedReleaseRefreshResult.Failure(
+                ReaderAssetFailure.TransportUnavailable(retryable = true),
+            )
+        }
+        return when (sourceResult) {
+            is app.openstory.reader.content.ReaderSourceResult.Success -> when (
+                val validation = selectedReleaseRefreshValidator.validateRemote(sourceResult.document)
+            ) {
+                is ReaderDocumentValidation.Valid -> ReaderSelectedReleaseRefreshResult.Refreshed(
+                    selectedRelease = release,
+                    document = validation.document,
+                    imageSourcePolicy = source.imageSourcePolicy,
+                )
+                is ReaderDocumentValidation.Invalid -> ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            }
+            is app.openstory.reader.content.ReaderSourceResult.Failure ->
+                mapSelectedReleaseRefreshFailure(release, sourceResult)
+        }
+    }
+
+    private fun mapSelectedReleaseRefreshFailure(
+        release: ChapterRelease,
+        failure: app.openstory.reader.content.ReaderSourceResult.Failure,
+    ): ReaderSelectedReleaseRefreshResult {
+        val classified = ReaderSourceFailureClassifier.classifyRemote(
+            releaseId = release.id,
+            sourceId = release.pluginId,
+            code = failure.code,
+            retryable = failure.retryable,
+        )
+        val assetFailure = when (classified.observation) {
+            is SourceObservation.AuthFailure -> ReaderAssetFailure.Unauthorized
+            is SourceObservation.TransportFailure -> ReaderAssetFailure.TransportUnavailable(failure.retryable)
+            is SourceObservation.SourceStateFailure,
+            is SourceObservation.ReleaseFailure,
+            is SourceObservation.ContentFailure,
+            is SourceObservation.PluginPolicyFailure -> return ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            else -> ReaderAssetFailure.TransportUnavailable(failure.retryable)
+        }
+        return ReaderSelectedReleaseRefreshResult.Failure(assetFailure)
+    }
 
     private suspend fun executeAssembledForeground(
         session: ReaderRouteSession,

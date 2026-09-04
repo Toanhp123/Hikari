@@ -16,6 +16,8 @@ import app.openstory.reader.assets.ReaderAssetChapterManifest
 import app.openstory.reader.assets.ReaderAssetGraphRevision
 import app.openstory.reader.assets.ReaderAssetManifestFactory
 import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshPort
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshResult
 import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
@@ -655,6 +657,125 @@ class ReaderRouteSessionStateTest {
         assertEquals(listOf(ReaderSessionId(46)), port.released)
     }
 
+    @Test
+    fun refreshCatchesUpDeliveryRevisionAndResolvesOnlyTheExactCommittedRelease() = runTest {
+        val exact = release("release-a", "chapter-a")
+        val alternate = release("release-b", "chapter-a")
+        var delegatedRelease: ChapterRelease? = null
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(47),
+            delegate = ReaderRouteExecutionDelegate { _, context -> imageCommitted(context) },
+            refreshDelegate = ReaderSelectedReleaseRefreshDelegate { release ->
+                delegatedRelease = release
+                ReaderSelectedReleaseRefreshResult.Refreshed(
+                    selectedRelease = release,
+                    document = ReaderDocument(
+                        title = release.displayLabel,
+                        blocks = listOf(
+                            ReaderBlock.ImagePage(
+                                "image",
+                                "stable/${release.id.value}",
+                                "https://cdn.example/refreshed.jpg",
+                            ),
+                        ),
+                        fingerprint = "fp-${release.id.value}",
+                    ),
+                    imageSourcePolicy = TRUSTED_PUBLIC_POLICY,
+                )
+            },
+            assetSessionPort = RecordingAssetSessionPort(),
+        )
+        session.updateChapterGraph(listOf(group("chapter-a", listOf(exact, alternate))))
+        session.updateRoutingPreferences(ReaderPreferences())
+        assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+
+        val refreshed = assertIs<ReaderSelectedReleaseRefreshResult.Refreshed>(
+            session.refreshSelectedRelease(
+                expectedManifestRevision = 2L,
+                expectedReleaseId = exact.id,
+            ),
+        )
+
+        assertEquals(exact, delegatedRelease)
+        assertEquals(exact, refreshed.selectedRelease)
+        assertEquals(2L, session.assetSessionState.manifestRevision)
+        assertEquals(
+            ReaderSelectedReleaseRefreshResult.Superseded,
+            session.refreshSelectedRelease(1L, exact.id),
+        )
+        assertEquals(
+            ReaderSelectedReleaseRefreshResult.Superseded,
+            session.refreshSelectedRelease(4L, exact.id),
+        )
+        assertEquals(2L, session.assetSessionState.manifestRevision)
+        assertEquals(
+            ReaderSelectedReleaseRefreshResult.Superseded,
+            session.refreshSelectedRelease(2L, alternate.id),
+        )
+    }
+
+    @Test
+    fun refreshRejectsAReplacedSameIdReleaseAndSemanticFingerprintDrift() = runTest {
+        val committedRelease = release("release-a", "chapter-a", languageTag = "en")
+        var refreshDocument = ReaderDocument(
+            title = committedRelease.displayLabel,
+            blocks = listOf(ReaderBlock.ImagePage("image", "stable/release-a", "https://cdn.example/new.jpg")),
+            fingerprint = "fp-release-a",
+        )
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(48),
+            delegate = ReaderRouteExecutionDelegate { _, context -> imageCommitted(context) },
+            refreshDelegate = ReaderSelectedReleaseRefreshDelegate { release ->
+                ReaderSelectedReleaseRefreshResult.Refreshed(
+                    selectedRelease = release,
+                    document = refreshDocument,
+                    imageSourcePolicy = TRUSTED_PUBLIC_POLICY,
+                )
+            },
+            assetSessionPort = RecordingAssetSessionPort(),
+        )
+        session.updateChapterGraph(listOf(group("chapter-a", listOf(committedRelease))))
+        session.updateRoutingPreferences(ReaderPreferences())
+        assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+
+        refreshDocument = refreshDocument.copy(fingerprint = "different-semantic-fingerprint")
+        assertEquals(
+            ReaderSelectedReleaseRefreshResult.RouteInvalidated,
+            session.refreshSelectedRelease(1L, committedRelease.id),
+        )
+
+        refreshDocument = refreshDocument.copy(fingerprint = "fp-release-a")
+        val replaced = committedRelease.copy(languageTag = "fr")
+        session.updateChapterGraph(listOf(group("chapter-a", listOf(replaced))))
+        assertEquals(
+            ReaderSelectedReleaseRefreshResult.RouteInvalidated,
+            session.refreshSelectedRelease(1L, committedRelease.id),
+        )
+    }
+
+    @Test
+    fun closeUnregistersRefreshAuthorityBeforeReleasingAssetSession() {
+        val port = RecordingAssetSessionPort()
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(49),
+            delegate = ReaderRouteExecutionDelegate { _, context -> exhausted(context) },
+            assetSessionPort = port,
+        )
+        port.registerSelectedReleaseRefreshPort(session.sessionId, session)
+
+        session.close()
+        session.close()
+
+        assertEquals(listOf("register-refresh", "unregister-refresh", "release"), port.lifecycleEvents)
+    }
+
     private fun session(id: ReaderSessionId) = ReaderRouteSession(
         storyId = StoryId("story"),
         sessionId = id,
@@ -776,6 +897,8 @@ private class RecordingAssetSessionPort(
 ) : ReaderAssetSessionPort {
     val registered = mutableListOf<ReaderAssetChapterManifest>()
     val released = mutableListOf<ReaderSessionId>()
+    val lifecycleEvents = mutableListOf<String>()
+    val refreshPorts = mutableMapOf<ReaderSessionId, ReaderSelectedReleaseRefreshPort>()
 
     override fun registerCommitted(
         sessionId: ReaderSessionId,
@@ -788,7 +911,21 @@ private class RecordingAssetSessionPort(
 
     override fun acceptPrefetchedArtifact(artifact: app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact) = Unit
 
+    override fun registerSelectedReleaseRefreshPort(
+        sessionId: ReaderSessionId,
+        port: ReaderSelectedReleaseRefreshPort,
+    ) {
+        refreshPorts[sessionId] = port
+        lifecycleEvents += "register-refresh"
+    }
+
+    override fun unregisterSelectedReleaseRefreshPort(sessionId: ReaderSessionId) {
+        refreshPorts.remove(sessionId)
+        lifecycleEvents += "unregister-refresh"
+    }
+
     override fun releaseSession(sessionId: ReaderSessionId) {
         released += sessionId
+        lifecycleEvents += "release"
     }
 }

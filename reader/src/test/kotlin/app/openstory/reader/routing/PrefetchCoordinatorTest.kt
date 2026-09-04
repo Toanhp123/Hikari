@@ -491,6 +491,13 @@ private class RecordingPrefetchAssetPort : ReaderAssetSessionPort {
         artifacts += artifact
     }
 
+    override fun registerSelectedReleaseRefreshPort(
+        sessionId: ReaderSessionId,
+        port: app.openstory.reader.assets.ReaderSelectedReleaseRefreshPort,
+    ) = Unit
+
+    override fun unregisterSelectedReleaseRefreshPort(sessionId: ReaderSessionId) = Unit
+
     override fun releaseSession(sessionId: ReaderSessionId) {
         released += sessionId
     }
