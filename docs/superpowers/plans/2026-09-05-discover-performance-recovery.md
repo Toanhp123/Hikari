@@ -185,32 +185,32 @@ git commit -m "perf(discover): settle visible stories concurrently"
 - Create: `feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverCompositionIdentityTest.kt`
 
 **Interfaces:**
-- Produces: `discoverLatestRowKey(rowIndex, lead)` depends only on row position; `popularPagerCorrection(...)` returns a page only when content type changes or the visible Story disappears.
+- Produces: Latest row identity depends only on row position; Popular page correction is skipped when the target page already equals the current page.
 
-- [ ] **Step 1: Write failing pure policy tests**
+- [ ] **Step 1: Write a failing Compose identity test**
 
 ```kotlin
 @Test
-fun latestRowIdentityDoesNotChangeWhenTheRowFills() {
-    assertEquals("discover-latest-lead", discoverLatestRowKey(0, lead = true))
-    assertEquals("discover-latest-row:1", discoverLatestRowKey(1, lead = false))
-}
+fun fillingLatestRowRetainsTheFirstCardNode() {
+    lateinit var latest: MutableState<List<DiscoverStoryItem>>
+    compose.setContent {
+        latest = remember { mutableStateOf(listOf(item(1))) }
+        HikariTheme {
+            DiscoverScreen(state = readyState(latest.value), /* callbacks */)
+        }
+    }
+    val before = compose.onNodeWithTag("discover-latest-item-story-1", useUnmergedTree = true)
+        .fetchSemanticsNode().id
 
-@Test
-fun appendedPopularPagesDoNotRequestPageCorrection() {
-    assertEquals(
-        null,
-        popularPagerCorrection(
-            contentTypeChanged = false,
-            visibleStoryId = StoryId("story:2"),
-            pageStoryIds = listOf(StoryId("story:1"), StoryId("story:2"), StoryId("story:3")),
-            currentPage = 1,
-        ),
-    )
+    compose.runOnIdle { latest.value = listOf(item(1), item(2), item(3)) }
+
+    val after = compose.onNodeWithTag("discover-latest-item-story-1", useUnmergedTree = true)
+        .fetchSemanticsNode().id
+    assertEquals(before, after)
 }
 ```
 
-Also cover content-type reset to page 0 and missing-visible-story fallback to the clamped current page.
+The production mutation this catches is restoring Story-content-derived outer row keys, which disposes the first card when later cards settle.
 
 - [ ] **Step 2: Run the new test and verify RED**
 
@@ -220,11 +220,11 @@ Run:
 .\gradlew.bat :feature:catalog:testDebugUnitTest --tests "app.openstory.catalog.ui.discover.DiscoverCompositionIdentityTest" --no-daemon
 ```
 
-Expected: compilation fails because the two internal policy functions do not exist.
+Expected: FAIL because filling the row changes its LazyColumn item key and recreates the first card semantics node.
 
 - [ ] **Step 3: Implement stable row and pager policies**
 
-Use constant/position keys for LazyColumn rows and wrap cards in Compose `key(item.storyId)` inside each `Row`. Replace unconditional Popular page correction with the pure policy helper; call `scrollToPage` only when it returns a non-null target.
+Use constant/position keys for LazyColumn rows and wrap cards in Compose `key(item.storyId)` inside each `Row`. In the Popular pager, call `scrollToPage` only when the calculated target differs from `pagerState.currentPage`; appending pages around the retained Story therefore performs no scroll mutation.
 
 - [ ] **Step 4: Run Discover UI tests**
 
@@ -321,34 +321,31 @@ git commit -m "fix(ui): make scroll to top bounded and exact"
 - Modify: `app/src/main/kotlin/app/openstory/ui/HikariAppShell.kt`
 - Modify: `app/src/test/kotlin/app/openstory/navigation/AppShellScreenshotTest.kt`
 - Modify: `benchmark/src/main/kotlin/app/openstory/benchmark/HikariMacrobenchmark.kt`
-- Create: `scripts/tests/discover-performance-recovery-policy-test.sh`
 
 **Interfaces:**
 - Produces: the shell retains `HikariBackdropHost`, always sets `captureBackdrop = false`, and passes a fallback/no-token scope to floating navigation.
 
-- [ ] **Step 1: Add a failing structural test**
+- [ ] **Step 1: Verify the existing no-backdrop fallback behavior**
 
-Create `scripts/tests/discover-performance-recovery-policy-test.sh` using the repository's existing `verification-common.sh` helpers. Require:
-
-```kotlin
-captureBackdrop = false
-```
-
-Reject `captureBackdrop = showFloatingNavigation` in `HikariAppShell.kt` and print `Discover performance recovery policy PASS` on success.
-
-- [ ] **Step 2: Run the policy test and verify RED**
-
-Run:
+Run the real design-system tests that render `HikariFloatingNavigation` without a backdrop scope:
 
 ```powershell
-bash ./scripts/tests/discover-performance-recovery-policy-test.sh
+.\gradlew.bat :core:designsystem:testDebugUnitTest --tests "app.openstory.designsystem.HikariProductPrimitivesTest" --no-daemon
 ```
 
-Expected: FAIL on the current conditional capture.
+Expected: PASS, proving the fallback surface already works before the shell changes. This one-line capture policy is a performance configuration; the behavioral regression authority is the screenshot and Macrobenchmark path, not a source-text assertion.
 
-- [ ] **Step 3: Disable capture and retire identical A/B journeys**
+- [ ] **Step 2: Disable capture and retire identical A/B journeys**
 
 Keep the host stable but set `captureBackdrop = false`. Remove or rename top-level enabled/disabled benchmark journeys that would now execute identical production behavior; keep one production navigation regression journey.
+
+- [ ] **Step 3: Run app screenshots before accepting new output**
+
+```powershell
+.\gradlew.bat :app:verifyRoborazziDebug --no-daemon
+```
+
+Expected: either PASS because the fallback pixels are already equivalent, or FAIL only on shell snapshots whose floating navigation now uses the fallback surface. Inspect every diff before recording new goldens.
 
 - [ ] **Step 4: Run app screenshots/navigation tests and benchmark assembly**
 
@@ -363,7 +360,7 @@ Expected: PASS; update screenshot goldens only if the fallback surface changes r
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add app/src/main/kotlin/app/openstory/ui/HikariAppShell.kt app/src/test/kotlin/app/openstory/navigation/AppShellScreenshotTest.kt benchmark/src/main/kotlin/app/openstory/benchmark/HikariMacrobenchmark.kt scripts/tests
+git add app/src/main/kotlin/app/openstory/ui/HikariAppShell.kt app/src/test/kotlin/app/openstory/navigation/AppShellScreenshotTest.kt benchmark/src/main/kotlin/app/openstory/benchmark/HikariMacrobenchmark.kt
 git commit -m "perf(ui): disable top-level backdrop capture"
 ```
 
@@ -375,18 +372,17 @@ git commit -m "perf(ui): disable top-level backdrop capture"
 - Modify: `benchmark/src/main/kotlin/app/openstory/benchmark/HikariMacrobenchmark.kt`
 - Modify: `benchmark/src/main/kotlin/app/openstory/benchmark/HikariBenchmarkDriver.kt`
 - Modify: `benchmark/src/main/kotlin/app/openstory/benchmark/BaselineProfileGenerator.kt`
-- Modify: `scripts/tests/discover-performance-recovery-policy-test.sh`
 
 **Interfaces:**
 - Produces: fixture `coverUrl` values resolve to deterministic app-local artwork; driver can verify a ready Discover tag; Macrobenchmark contains `discoverBackToTop`.
 
-- [ ] **Step 1: Add failing source/fixture assertions**
+- [ ] **Step 1: Add the new Macrobenchmark journey first**
 
-Extend `scripts/tests/discover-performance-recovery-policy-test.sh` to require `coverUrl = BENCHMARK_BROWSE_COVER_URL`, the `discoverBackToTop` method, and a wait for `discover-ready-content` in the Discover scroll setup.
+Add `discoverBackToTop` using the desired `discover-ready-content` wait and first-content verification before the ready tag exists.
 
-- [ ] **Step 2: Run the assertion and verify RED**
+- [ ] **Step 2: Assemble and verify RED**
 
-Expected: FAIL because fixture covers are null and no back-to-top journey exists.
+Run `:benchmark:assemble`. Expected: compilation fails because the new driver helper/tag contract has not been implemented.
 
 - [ ] **Step 3: Implement local artwork and ready tags**
 
