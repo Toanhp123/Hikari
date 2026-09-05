@@ -176,18 +176,6 @@ class HikariMacrobenchmark {
         swipeUpOnTag("discover-list", repetitions = SCROLL_SWIPE_COUNT)
     }
 
-    @Test
-    fun backdropEnabled() = measureNavigation(backdropDisabled = false) {
-        clickTag("navigation-discover")
-        clickTag("navigation-home")
-    }
-
-    @Test
-    fun backdropDisabled() = measureNavigation(backdropDisabled = true) {
-        clickTag("navigation-discover")
-        clickTag("navigation-home")
-    }
-
     private fun measureStoryTab(tabTag: String) = measureNavigation(
         setup = { openBenchmarkFixtureStory() },
     ) {
@@ -210,7 +198,6 @@ class HikariMacrobenchmark {
     }
 
     private fun measureNavigation(
-        backdropDisabled: Boolean = false,
         surfaceShadowsDisabled: Boolean = false,
         legacyNavigationTransitions: Boolean = false,
         setup: MacrobenchmarkScope.() -> Unit = {},
@@ -227,7 +214,6 @@ class HikariMacrobenchmark {
                 killProcess()
                 pressHome()
                 startHikari(
-                    backdropDisabled = backdropDisabled,
                     surfaceShadowsDisabled = surfaceShadowsDisabled,
                     legacyNavigationTransitions = legacyNavigationTransitions,
                 )
