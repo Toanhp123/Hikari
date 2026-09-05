@@ -1,6 +1,8 @@
 package app.openstory.catalog.ui.discover
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -19,6 +21,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w360dp-h800dp")
@@ -28,7 +31,9 @@ class DiscoverTopLevelChromeTest {
 
     @Test
     fun searchHeaderStaysPinnedAndBackToTopReturnsToFirstItem() {
+        lateinit var listState: LazyListState
         compose.setContent {
+            listState = rememberLazyListState()
             HikariTheme {
                 DiscoverScreen(
                     state = DiscoverUiState(
@@ -48,6 +53,7 @@ class DiscoverTopLevelChromeTest {
                     onSearch = {},
                     onStorySelected = {},
                     onContentTypeSelected = {},
+                    listState = listState,
                     contentPadding = PaddingValues(top = 24.dp, bottom = 92.dp),
                 )
             }
@@ -58,7 +64,41 @@ class DiscoverTopLevelChromeTest {
         compose.onNodeWithContentDescription("Search all stories").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
         compose.waitForIdle()
-        compose.onNodeWithContentDescription("Back to top").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(0, listState.firstVisibleItemIndex)
+            assertEquals(0, listState.firstVisibleItemScrollOffset)
+        }
+    }
+
+    @Test
+    fun backToTopIsVisibleForAFirstItemOffset() {
+        compose.setContent {
+            val listState = rememberLazyListState(initialFirstVisibleItemScrollOffset = 24)
+            HikariTheme {
+                DiscoverScreen(
+                    state = DiscoverUiState(
+                        content = ContentState.Ready(
+                            DiscoverContent(
+                                selectedContentType = ContentType.MANGA,
+                                mediaTypeOptions = defaultDiscoverMediaTypeOptions,
+                                popular = listOf(item(1)),
+                                latestUpdates = (1..9).map(::item),
+                                topRated = (10..14).map(::item),
+                            ),
+                        ),
+                    ),
+                    onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed()
     }
 }
 

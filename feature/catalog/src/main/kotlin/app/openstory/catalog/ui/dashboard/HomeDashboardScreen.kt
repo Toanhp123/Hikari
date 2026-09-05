@@ -6,12 +6,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -24,10 +28,12 @@ import app.openstory.common.id.StoryId
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.HikariTopLevelScaffold
+import app.openstory.designsystem.scroll.hikariScrollToTop
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.state.HikariLoadingState
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Composable
@@ -44,15 +50,18 @@ fun HomeDashboardScreen(
     utilityNextFocusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     val continueFocus = remember { FocusRequester() }
     val readingFocus = remember { FocusRequester() }
-    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val showScrollToTop = remember {
-        derivedStateOf { listState.firstVisibleItemIndex >= SCROLL_TO_TOP_ITEM_THRESHOLD }
+    var scrollToTopJob by remember { mutableStateOf<Job?>(null) }
+    val showScrollToTop = remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
     }
-    val headerScrolled = remember {
+    val headerScrolled = remember(listState) {
         derivedStateOf { listState.canScrollBackward }
     }
     val background = MaterialTheme.hikariAtmosphereBrush
@@ -78,7 +87,10 @@ fun HomeDashboardScreen(
                 },
                 headerScrolled = showsScrollableContent && headerScrolled.value,
                 showScrollToTop = showsScrollableContent && showScrollToTop.value,
-                onScrollToTop = { coroutineScope.launch { listState.animateScrollToItem(0) } },
+                onScrollToTop = {
+                    scrollToTopJob?.cancel()
+                    scrollToTopJob = coroutineScope.launch { listState.hikariScrollToTop() }
+                },
             ) { bodyPadding ->
                 when (val content = state.content) {
                     ContentState.Pending -> Column(Modifier.fillMaxSize().padding(bodyPadding)) {
@@ -127,7 +139,6 @@ fun HomeDashboardScreen(
         }
     }
 }
-
 @Composable
 private fun EmptyHome(
     issue: CatalogUiFailure?,
@@ -148,5 +159,3 @@ private fun EmptyHome(
         }
     }
 }
-
-private const val SCROLL_TO_TOP_ITEM_THRESHOLD = 3

@@ -1,5 +1,7 @@
 package app.openstory.catalog.ui.dashboard
 
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.test.assertIsFocused
@@ -23,6 +25,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w360dp-h800dp")
@@ -57,9 +60,15 @@ class HomeDashboardSemanticsTest {
                 ),
             ),
         )
+        lateinit var listState: LazyListState
         compose.setContent {
+            listState = rememberLazyListState()
             HikariTheme {
-                HomeDashboardScreen(state, {}, {}, {}, {}, {}, onUtilityRequested = {})
+                HomeDashboardScreen(
+                    state, {}, {}, {}, {}, {},
+                    onUtilityRequested = {},
+                    listState = listState,
+                )
             }
         }
 
@@ -67,7 +76,26 @@ class HomeDashboardSemanticsTest {
         compose.onNodeWithText("Home").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
         compose.waitForIdle()
-        compose.onNodeWithContentDescription("Back to top").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(0, listState.firstVisibleItemIndex)
+            assertEquals(0, listState.firstVisibleItemScrollOffset)
+        }
+    }
+
+    @Test
+    fun backToTopIsVisibleForAFirstItemOffset() {
+        compose.setContent {
+            val listState = rememberLazyListState(initialFirstVisibleItemScrollOffset = 24)
+            HikariTheme {
+                HomeDashboardScreen(
+                    fixture(), {}, {}, {}, {}, {},
+                    onUtilityRequested = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed()
     }
 
     @Test

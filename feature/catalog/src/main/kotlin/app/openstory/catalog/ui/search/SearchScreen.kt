@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -18,8 +19,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
@@ -39,9 +43,11 @@ import app.openstory.designsystem.layout.HikariFocusedHeader
 import app.openstory.designsystem.layout.HikariSearchBar
 import app.openstory.designsystem.layout.HikariStickyDestinationScaffold
 import app.openstory.designsystem.layout.withScreenContentInsets
+import app.openstory.designsystem.scroll.hikariScrollToTop
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Composable
@@ -57,15 +63,18 @@ fun SearchScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues.Zero,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     val focusManager = LocalFocusManager.current
-    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val headerScrolled = remember {
+    var scrollToTopJob by remember { mutableStateOf<Job?>(null) }
+    val headerScrolled = remember(listState) {
         derivedStateOf { listState.canScrollBackward }
     }
-    val showScrollToTop = remember {
-        derivedStateOf { listState.firstVisibleItemIndex >= SCROLL_TO_TOP_ITEM_THRESHOLD }
+    val showScrollToTop = remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
     }
     HikariDestinationScaffold(modifier) {
         HikariStickyDestinationScaffold(
@@ -80,7 +89,10 @@ fun SearchScreen(
             },
             headerScrolled = headerScrolled.value,
             showScrollToTop = showScrollToTop.value,
-            onScrollToTop = { coroutineScope.launch { listState.animateScrollToItem(0) } },
+            onScrollToTop = {
+                scrollToTopJob?.cancel()
+                scrollToTopJob = coroutineScope.launch { listState.hikariScrollToTop() }
+            },
         ) { bodyPadding ->
             LazyColumn(
                 state = listState,
@@ -226,4 +238,3 @@ private fun LazyListScope.readySearchResultItems(
 }
 
 private const val MAX_VISIBLE_RECENT = 4
-private const val SCROLL_TO_TOP_ITEM_THRESHOLD = 3

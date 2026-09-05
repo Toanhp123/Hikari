@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
@@ -24,9 +26,11 @@ import app.openstory.catalog.ui.state.ContentState
 import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.HikariTopLevelScaffold
+import app.openstory.designsystem.scroll.hikariScrollToTop
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.LibraryStatus
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Composable
@@ -50,30 +54,33 @@ fun LibraryScreen(
     utilityNextFocusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
+    listState: LazyListState = rememberLazyListState(),
+    gridState: LazyGridState = rememberLazyGridState(),
 ) {
     val defaultFirstFilterFocus = remember { FocusRequester() }
     val firstFilterFocus = firstFilterFocusRequester ?: defaultFirstFilterFocus
     val filterFocus = remember { FocusRequester() }
     val viewFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
-    val listState = rememberLazyListState()
-    val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
+    var scrollToTopJob by remember { mutableStateOf<Job?>(null) }
     var showFilters by remember { mutableStateOf(false) }
     val displayMode = state.displayMode
     val readyContent = (state.content as? ContentState.Ready)?.value
     val readyCollection = readyContent?.collection as? LibraryCollectionState.Ready
     val hasItems = readyCollection?.items?.isNotEmpty() == true
-    val showScrollToTop by remember(displayMode, hasItems) {
+    val showScrollToTop by remember(displayMode, hasItems, listState, gridState) {
         derivedStateOf {
-            val firstVisibleItemIndex = when (displayMode) {
-                LibraryDisplayMode.LIST -> listState.firstVisibleItemIndex
-                LibraryDisplayMode.GRID -> gridState.firstVisibleItemIndex
+            val notAtTop = when (displayMode) {
+                LibraryDisplayMode.LIST -> listState.firstVisibleItemIndex > 0 ||
+                    listState.firstVisibleItemScrollOffset > 0
+                LibraryDisplayMode.GRID -> gridState.firstVisibleItemIndex > 0 ||
+                    gridState.firstVisibleItemScrollOffset > 0
             }
-            hasItems && firstVisibleItemIndex >= SCROLL_TO_TOP_ITEM_THRESHOLD
+            hasItems && notAtTop
         }
     }
-    val headerScrolled by remember(displayMode) {
+    val headerScrolled by remember(displayMode, listState, gridState) {
         derivedStateOf {
             when (displayMode) {
                 LibraryDisplayMode.LIST -> listState.canScrollBackward
@@ -117,10 +124,11 @@ fun LibraryScreen(
                 headerScrolled = headerScrolled,
                 showScrollToTop = showScrollToTop,
                 onScrollToTop = {
-                    coroutineScope.launch {
-                        when (state.displayMode) {
-                            LibraryDisplayMode.LIST -> listState.animateScrollToItem(0)
-                            LibraryDisplayMode.GRID -> gridState.animateScrollToItem(0)
+                    scrollToTopJob?.cancel()
+                    scrollToTopJob = coroutineScope.launch {
+                        when (displayMode) {
+                            LibraryDisplayMode.LIST -> listState.hikariScrollToTop()
+                            LibraryDisplayMode.GRID -> gridState.hikariScrollToTop()
                         }
                     }
                 },
@@ -153,6 +161,3 @@ fun LibraryScreen(
         )
     }
 }
-
-
-private const val SCROLL_TO_TOP_ITEM_THRESHOLD = 3
