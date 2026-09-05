@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToIndex
 import app.openstory.designsystem.theme.HikariTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -30,6 +31,35 @@ import org.robolectric.annotation.Config
 class HikariScrollToTopTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun rememberedActionCancelsAnInFlightScrollBeforeStartingTheNextOne() {
+        lateinit var onScrollToTop: () -> Unit
+        var started = 0
+        var cancelled = 0
+        var completed = 0
+        compose.setContent {
+            onScrollToTop = rememberHikariScrollToTopAction {
+                val attempt = ++started
+                try {
+                    if (attempt == 1) awaitCancellation()
+                    completed += 1
+                } finally {
+                    if (attempt == 1) cancelled += 1
+                }
+            }
+        }
+
+        compose.runOnIdle { onScrollToTop() }
+        compose.runOnIdle { onScrollToTop() }
+        compose.waitForIdle()
+
+        compose.runOnIdle {
+            assertEquals(2, started)
+            assertEquals(1, cancelled)
+            assertEquals(1, completed)
+        }
+    }
 
     @Test
     fun lazyListReturnsToExactTopFromFarIndex() {

@@ -19,11 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
@@ -44,11 +40,10 @@ import app.openstory.designsystem.layout.HikariSearchBar
 import app.openstory.designsystem.layout.HikariStickyDestinationScaffold
 import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.scroll.hikariScrollToTop
+import app.openstory.designsystem.scroll.rememberHikariScrollToTopAction
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.theme.hikariSpacing
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
@@ -66,8 +61,7 @@ fun SearchScreen(
     listState: LazyListState = rememberLazyListState(),
 ) {
     val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
-    var scrollToTopJob by remember { mutableStateOf<Job?>(null) }
+    val onScrollToTop = rememberHikariScrollToTopAction { listState.hikariScrollToTop() }
     val headerScrolled = remember(listState) {
         derivedStateOf { listState.canScrollBackward }
     }
@@ -89,10 +83,7 @@ fun SearchScreen(
             },
             headerScrolled = headerScrolled.value,
             showScrollToTop = showScrollToTop.value,
-            onScrollToTop = {
-                scrollToTopJob?.cancel()
-                scrollToTopJob = coroutineScope.launch { listState.hikariScrollToTop() }
-            },
+            onScrollToTop = onScrollToTop,
         ) { bodyPadding ->
             LazyColumn(
                 state = listState,

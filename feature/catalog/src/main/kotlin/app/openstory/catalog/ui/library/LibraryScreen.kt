@@ -16,7 +16,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -27,11 +26,10 @@ import app.openstory.designsystem.layout.HikariDestinationScaffold
 import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.HikariTopLevelScaffold
 import app.openstory.designsystem.scroll.hikariScrollToTop
+import app.openstory.designsystem.scroll.rememberHikariScrollToTopAction
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.LibraryStatus
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 
 @Composable
 fun LibraryScreen(
@@ -62,10 +60,14 @@ fun LibraryScreen(
     val filterFocus = remember { FocusRequester() }
     val viewFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
-    val coroutineScope = rememberCoroutineScope()
-    var scrollToTopJob by remember { mutableStateOf<Job?>(null) }
     var showFilters by remember { mutableStateOf(false) }
     val displayMode = state.displayMode
+    val onScrollToTop = rememberHikariScrollToTopAction {
+        when (displayMode) {
+            LibraryDisplayMode.LIST -> listState.hikariScrollToTop()
+            LibraryDisplayMode.GRID -> gridState.hikariScrollToTop()
+        }
+    }
     val readyContent = (state.content as? ContentState.Ready)?.value
     val readyCollection = readyContent?.collection as? LibraryCollectionState.Ready
     val hasItems = readyCollection?.items?.isNotEmpty() == true
@@ -123,15 +125,7 @@ fun LibraryScreen(
                 header = chrome,
                 headerScrolled = headerScrolled,
                 showScrollToTop = showScrollToTop,
-                onScrollToTop = {
-                    scrollToTopJob?.cancel()
-                    scrollToTopJob = coroutineScope.launch {
-                        when (displayMode) {
-                            LibraryDisplayMode.LIST -> listState.hikariScrollToTop()
-                            LibraryDisplayMode.GRID -> gridState.hikariScrollToTop()
-                        }
-                    }
-                },
+                onScrollToTop = onScrollToTop,
             ) { bodyPadding ->
                 LibraryContent(
                     state = state,
