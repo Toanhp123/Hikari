@@ -62,12 +62,11 @@ internal fun ReaderImagePage(
     val latestRouteInvalidated by rememberUpdatedState(onRouteInvalidated)
 
     LaunchedEffect(state, request, visibleViewport, acceptedViewport) {
-        if (
+        val successfulCurrentRequest =
             state is AsyncImagePainter.State.Success &&
             visibleViewport.matches(request) &&
-            acceptedViewport.matches(request) &&
-            latestActuallyVisible(request)
-        ) {
+            acceptedViewport.matches(request)
+        if (successfulCurrentRequest && latestActuallyVisible(request)) {
             latestPresented(request)
         }
     }

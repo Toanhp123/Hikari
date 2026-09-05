@@ -1,5 +1,6 @@
 package app.openstory.reader.assets
 
+import app.openstory.common.id.CanonicalChapterId
 import app.openstory.reader.routing.ReaderSessionId
 
 interface ReaderAssetSessionPort {
@@ -7,6 +8,12 @@ interface ReaderAssetSessionPort {
         sessionId: ReaderSessionId,
         proposedManifestRevision: Long,
         manifest: ReaderAssetChapterManifest,
+    ): Long
+
+    fun registerCommittedWithoutManifest(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        chapterId: CanonicalChapterId,
     ): Long
 
     fun acceptPrefetchedArtifact(artifact: ReaderPrefetchedDocumentArtifact)
@@ -26,6 +33,12 @@ interface ReaderAssetSessionPort {
                 sessionId: ReaderSessionId,
                 proposedManifestRevision: Long,
                 manifest: ReaderAssetChapterManifest,
+            ): Long = proposedManifestRevision
+
+            override fun registerCommittedWithoutManifest(
+                sessionId: ReaderSessionId,
+                proposedManifestRevision: Long,
+                chapterId: CanonicalChapterId,
             ): Long = proposedManifestRevision
 
             override fun acceptPrefetchedArtifact(artifact: ReaderPrefetchedDocumentArtifact) = Unit

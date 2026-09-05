@@ -155,19 +155,24 @@ private fun readerChapterProgressBasisPoints(
     val layout = listState.layoutInfo
     val visible = layout.visibleItemsInfo
     val firstBlockItem = visible.firstOrNull { item -> (item.key as? String) in blockIndexById }
-        ?: return 0
-    val blockIndex = blockIndexById[firstBlockItem.key as String] ?: return 0
-    val lastBlockItem = visible.lastOrNull { item -> (item.key as? String) in blockIndexById }
-    val reachedEnd = lastBlockItem != null &&
-        lastBlockItem.key == lastBlockId &&
-        lastBlockItem.offset + lastBlockItem.size <= layout.viewportEndOffset
-    if (reachedEnd) return BASIS_POINTS
-
-    val withinBlock = (-firstBlockItem.offset).coerceAtLeast(0).toFloat() /
-        firstBlockItem.size.coerceAtLeast(1)
-    return (((blockIndex + withinBlock.coerceIn(0f, 1f)) / blockCount) * BASIS_POINTS)
-        .roundToInt()
-        .coerceIn(0, BASIS_POINTS)
+    val blockIndex = (firstBlockItem?.key as? String)?.let(blockIndexById::get)
+    return if (firstBlockItem == null || blockIndex == null) {
+        0
+    } else {
+        val lastBlockItem = visible.lastOrNull { item -> (item.key as? String) in blockIndexById }
+        val reachedEnd = lastBlockItem != null &&
+            lastBlockItem.key == lastBlockId &&
+            lastBlockItem.offset + lastBlockItem.size <= layout.viewportEndOffset
+        if (reachedEnd) {
+            BASIS_POINTS
+        } else {
+            val withinBlock = (-firstBlockItem.offset).coerceAtLeast(0).toFloat() /
+                firstBlockItem.size.coerceAtLeast(1)
+            (((blockIndex + withinBlock.coerceIn(0f, 1f)) / blockCount) * BASIS_POINTS)
+                .roundToInt()
+                .coerceIn(0, BASIS_POINTS)
+        }
+    }
 }
 
 internal fun ReaderViewportSnapshot?.hasSameVisibleAssetWindow(

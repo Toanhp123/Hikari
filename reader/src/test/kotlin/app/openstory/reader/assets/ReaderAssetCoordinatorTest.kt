@@ -226,6 +226,40 @@ class ReaderAssetCoordinatorTest {
     }
 
     @Test
+    fun `manifestless commit clears current asset runtime and publishes empty protections`() = runTest {
+        val store = RecordingAssetStore()
+        val coordinator = coordinator(store, ReaderNetworkState.UNMETERED)
+        val current = assetManifest(sessionId = 1, chapter = "chapter-1", pageCount = 10)
+        coordinator.registerCommitted(ReaderSessionId(1), 1, current)
+        coordinator.acceptPrefetchedArtifact(prefetchedArtifact(current, targetChapter = "chapter-2", token = 1))
+        coordinator.updateViewport(viewport(current, 7, 9, progress = 9_500))
+        runCurrent()
+        assertTrue(coordinator.sessionSnapshot(ReaderSessionId(1))?.activeProtections?.byKey.orEmpty().isNotEmpty())
+        store.reconciliations.clear()
+
+        val revision = coordinator.registerCommittedWithoutManifest(
+            sessionId = ReaderSessionId(1),
+            proposedManifestRevision = 2,
+            chapterId = CanonicalChapterId("chapter-text"),
+        )
+        val state = coordinator.sessionSnapshot(ReaderSessionId(1))
+
+        assertEquals(2L, revision)
+        assertEquals(CanonicalChapterId("chapter-text"), state?.committedChapterId)
+        assertNull(state?.committedManifest)
+        assertNull(state?.prefetchedManifest)
+        assertNull(state?.viewport)
+        assertTrue(state?.localPresence.orEmpty().isEmpty())
+        assertTrue(state?.consumedKeys.orEmpty().isEmpty())
+        assertEquals(ReaderAssetPlan.EMPTY, state?.plan)
+        assertTrue(state?.activeProtections?.byKey.orEmpty().isEmpty())
+        assertFalse(coordinator.updateViewport(viewport(current, 0, 0)))
+
+        runCurrent()
+        assertTrue(store.reconciliations.last().byKey.isEmpty())
+    }
+
+    @Test
     fun `transition acquisition keeps prefetched manifest commit facts`() = runTest {
         val store = RecordingAssetStore()
         val coordinator = coordinator(store, ReaderNetworkState.UNMETERED, withLoader = true)

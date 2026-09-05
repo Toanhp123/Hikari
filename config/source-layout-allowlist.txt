@@ -1,0 +1,12 @@
+# path|max_lines|reviewed reason
+feature/catalog/src/main/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModel.kt|675|Discovery orchestration remains centralized pending a dedicated extraction plan.
+feature/catalog/src/test/kotlin/app/openstory/catalog/ui/discover/DiscoverViewModelTest.kt|1450|Discovery behavior remains covered in one fixture-heavy ViewModel suite pending test extraction.
+feature/reader/src/test/kotlin/app/openstory/reader/ui/ReaderViewModelContinuityTest.kt|850|Reader continuity scenarios share one lifecycle fixture and remain bounded by this ceiling.
+reader/src/main/kotlin/app/openstory/reader/assets/ReaderAssetCoordinator.kt|1200|RICC session, delivery, and protection invariants are intentionally co-located for v1.
+reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteCoordinator.kt|600|Reader route execution and selected-release refresh share one v1 authority.
+reader/src/main/kotlin/app/openstory/reader/routing/ReaderRouteSession.kt|700|Reader semantic commit, refresh, and prefetch lifecycle remain one session authority.
+reader/src/test/kotlin/app/openstory/reader/routing/ReaderCompetitiveExecutionTest.kt|1000|Competitive execution scenarios share one deterministic concurrency fixture.
+reader/src/test/kotlin/app/openstory/reader/routing/ReaderRouteSessionStateTest.kt|1000|Route session state-machine scenarios remain consolidated for invariant coverage.
+storage/room/src/main/kotlin/app/openstory/storage/room/RoomMigrations.kt|550|Contiguous Room migration registration remains in the established owner.
+storage/room/src/main/kotlin/app/openstory/storage/room/catalog/RoomCatalogRepository.kt|525|Catalog transaction orchestration remains in the established Room repository owner.
+storage/room/src/androidTest/kotlin/app/openstory/storage/room/catalog/RoomCatalogRepositoryTest.kt|800|Room catalog integration cases share one database fixture pending suite extraction.

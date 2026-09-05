@@ -56,6 +56,17 @@ write_lines 501 "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 assert_failure "a 501-line production source" verify
 rm "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 
+mkdir -p "$FAKE_ROOT/config"
+printf '%s\n' \
+  'core/sample/src/main/kotlin/Allowlisted.kt|525|Reviewed temporary extraction ceiling.' \
+  > "$FAKE_ROOT/config/source-layout-allowlist.txt"
+write_lines 520 "$FAKE_ROOT/core/sample/src/main/kotlin/Allowlisted.kt"
+verify
+write_lines 526 "$FAKE_ROOT/core/sample/src/main/kotlin/Allowlisted.kt"
+assert_failure "a source exceeding its reviewed allowlist ceiling" verify
+rm "$FAKE_ROOT/core/sample/src/main/kotlin/Allowlisted.kt"
+rm "$FAKE_ROOT/config/source-layout-allowlist.txt"
+
 write_lines 500 "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 printf '// final line without newline' >> "$FAKE_ROOT/core/sample/src/main/kotlin/Oversized.kt"
 assert_failure "a 501-line production source without a final newline" verify

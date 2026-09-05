@@ -157,9 +157,10 @@ class DownloadReaderAssetStore(
 
     override suspend fun detachMissingGeneration(expected: ReaderAssetReconciliationEntry): Boolean {
         val current = metadataRepository.find(setOf(expected.logicalAssetKeyHash))[expected.logicalAssetKeyHash]
-            ?: return false
-        if (current.blobId != expected.blobId.value) return false
-        return budget.invalidateReaderAssetGeneration(current)
+        return current
+            ?.takeIf { it.blobId == expected.blobId.value }
+            ?.let { budget.invalidateReaderAssetGeneration(it) }
+            ?: false
     }
 
     private suspend fun inspectSupported(

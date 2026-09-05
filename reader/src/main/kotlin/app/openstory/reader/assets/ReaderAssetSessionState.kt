@@ -48,12 +48,12 @@ data class ReaderAssetSessionState(
             val nextKeys = manifest?.descriptors?.mapTo(linkedSetOf()) { it.key }.orEmpty()
             return copy(
                 manifestRevision = effectiveManifestRevision,
-                committedManifest = manifest ?: committedManifest,
+                committedManifest = manifest,
                 viewport = null,
                 activeProtections = ReaderAssetActiveProtections.EMPTY,
                 localPresence = manifest?.descriptors
                     ?.associate { it.key to ReaderAssetLocalPresence.UNKNOWN }
-                    ?: localPresence,
+                    .orEmpty(),
                 consumedKeys = consumedKeys.filterTo(linkedSetOf()) { it in nextKeys },
                 prefetchedManifest = null,
                 prefetchToken = 0L,

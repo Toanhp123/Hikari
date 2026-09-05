@@ -380,7 +380,9 @@ class AutomaticCacheBudgetCoordinator(
         }
     }
 
-    private suspend fun relieveCandidate(candidate: AutomaticCacheCandidate): AutomaticCachePhysicalRelief = when (candidate) {
+    private suspend fun relieveCandidate(
+        candidate: AutomaticCacheCandidate,
+    ): AutomaticCachePhysicalRelief = when (candidate) {
         is AutomaticCacheCandidate.Document -> publicationGate.withLock {
             detachDocumentIfCurrentLocked(candidate.entry)?.let { detached ->
                 val deleted = blobMaintenance.deleteDocumentBestEffort(detached.key)

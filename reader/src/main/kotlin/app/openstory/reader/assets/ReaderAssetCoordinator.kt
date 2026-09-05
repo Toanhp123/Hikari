@@ -1,5 +1,6 @@
 package app.openstory.reader.assets
 
+import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.reader.routing.ReaderNetworkFactsPort
 import app.openstory.reader.routing.ReaderNetworkState
@@ -76,6 +77,16 @@ class ReaderAssetCoordinator(
         data class Failure(val failure: ReaderAssetFailure) : DeliveryRefreshResolution
     }
 
+    private sealed interface DeliveryRefreshFlight {
+        data class Pending(
+            val deferred: Deferred<DeliveryRefreshResolution>,
+        ) : DeliveryRefreshFlight
+
+        data class Resolved(
+            val resolution: DeliveryRefreshResolution,
+        ) : DeliveryRefreshFlight
+    }
+
     private data class ReaderAssetAcquisitionId(
         val key: ReaderPageAssetKey,
         val priority: ContentFetchPriority,
@@ -144,6 +155,32 @@ class ReaderAssetCoordinator(
         }
         cancelledJobs.forEach(Job::cancel)
         scheduleInspection(sessionId, effectiveRevision, manifest)
+        return effectiveRevision
+    }
+
+    override fun registerCommittedWithoutManifest(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        chapterId: CanonicalChapterId,
+    ): Long {
+        require(proposedManifestRevision > 0L) { "Reader asset manifest revision proposal must be positive." }
+        val cancelledJobs: List<Job>
+        val effectiveRevision: Long
+        synchronized(lock) {
+            val runtime = sessions.getOrPut(sessionId) { SessionRuntime(ReaderAssetSessionState()) }
+            effectiveRevision = maxOf(runtime.state.manifestRevision + 1L, proposedManifestRevision)
+            cancelledJobs = runtime.cancelManifestWorkLocked()
+            runtime.securityInvalidatedManifestRevision = null
+            runtime.state = runtime.state.acceptCommitted(
+                effectiveManifestRevision = effectiveRevision,
+                chapterId = chapterId,
+                manifest = null,
+            )
+            recomputeProtectionsLocked(runtime)
+            committedSnapshots.value = committedSnapshots.value - sessionId
+            enqueueMaintenanceLocked()
+        }
+        cancelledJobs.forEach(Job::cancel)
         return effectiveRevision
     }
 
@@ -508,34 +545,51 @@ class ReaderAssetCoordinator(
         )
         val flight = synchronized(lock) {
             val runtime = sessions[request.sessionId]
-                ?: return DeliveryRefreshResolution.Superseded
-            val currentManifest = runtime.state.committedManifest
-                ?: return DeliveryRefreshResolution.Superseded
-            if (
-                runtime.state.manifestRevision != request.manifestRevision ||
-                currentManifest != committedManifest
-            ) {
-                return DeliveryRefreshResolution.Superseded
-            }
-            runtime.refreshJobs[key]?.let { return@synchronized it }
-            val refreshPort = runtime.refreshPort
-                ?: return DeliveryRefreshResolution.AuthorityUnavailable
-            val created = coordinatorScope.async(start = CoroutineStart.LAZY) {
-                diagnostics.recordSafely(ReaderAssetDiagnosticEvent.LocatorRefresh)
-                performSelectedReleaseRefresh(
-                    request = request,
-                    committedManifest = committedManifest,
-                    refreshPort = refreshPort,
+            val currentManifest = runtime?.state?.committedManifest
+            when {
+                runtime == null || currentManifest == null -> DeliveryRefreshFlight.Resolved(
+                    DeliveryRefreshResolution.Superseded,
                 )
-            }
-            runtime.refreshJobs[key] = created
-            created.invokeOnCompletion {
-                synchronized(lock) {
-                    sessions[request.sessionId]?.refreshJobs?.remove(key, created)
+                runtime.state.manifestRevision != request.manifestRevision ||
+                    currentManifest != committedManifest -> DeliveryRefreshFlight.Resolved(
+                    DeliveryRefreshResolution.Superseded,
+                )
+                runtime.refreshJobs[key] != null -> DeliveryRefreshFlight.Pending(
+                    checkNotNull(runtime.refreshJobs[key]),
+                )
+                runtime.refreshPort == null -> DeliveryRefreshFlight.Resolved(
+                    DeliveryRefreshResolution.AuthorityUnavailable,
+                )
+                else -> {
+                    val refreshPort = checkNotNull(runtime.refreshPort)
+                    val created = coordinatorScope.async(start = CoroutineStart.LAZY) {
+                        diagnostics.recordSafely(ReaderAssetDiagnosticEvent.LocatorRefresh)
+                        performSelectedReleaseRefresh(
+                            request = request,
+                            committedManifest = committedManifest,
+                            refreshPort = refreshPort,
+                        )
+                    }
+                    runtime.refreshJobs[key] = created
+                    created.invokeOnCompletion {
+                        synchronized(lock) {
+                            sessions[request.sessionId]?.refreshJobs?.remove(key, created)
+                        }
+                    }
+                    DeliveryRefreshFlight.Pending(created)
                 }
             }
-            created
         }
+        return when (flight) {
+            is DeliveryRefreshFlight.Resolved -> flight.resolution
+            is DeliveryRefreshFlight.Pending -> awaitRefreshFlight(request, flight.deferred)
+        }
+    }
+
+    private suspend fun awaitRefreshFlight(
+        request: ReaderPageAssetRequest,
+        flight: Deferred<DeliveryRefreshResolution>,
+    ): DeliveryRefreshResolution {
         flight.start()
         return try {
             flight.await()
@@ -562,11 +616,20 @@ class ReaderAssetCoordinator(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            return DeliveryRefreshResolution.Failure(
-                ReaderAssetFailure.TransportUnavailable(retryable = true),
-            )
+            null
         }
-        return when (refreshResult) {
+        return if (refreshResult == null) {
+            DeliveryRefreshResolution.Failure(ReaderAssetFailure.TransportUnavailable(retryable = true))
+        } else {
+            resolveSelectedReleaseRefresh(request, committedManifest, refreshResult)
+        }
+    }
+
+    private fun resolveSelectedReleaseRefresh(
+        request: ReaderPageAssetRequest,
+        committedManifest: ReaderAssetChapterManifest,
+        refreshResult: ReaderSelectedReleaseRefreshResult,
+    ): DeliveryRefreshResolution = when (refreshResult) {
             ReaderSelectedReleaseRefreshResult.Superseded -> DeliveryRefreshResolution.Superseded
             ReaderSelectedReleaseRefreshResult.RouteInvalidated -> DeliveryRefreshResolution.RouteInvalidated
             is ReaderSelectedReleaseRefreshResult.Failure ->
@@ -585,27 +648,30 @@ class ReaderAssetCoordinator(
                     )
                 } catch (_: IllegalArgumentException) {
                     null
-                } ?: return DeliveryRefreshResolution.RouteInvalidated
+                }
 
-                when (val comparison = ReaderAssetLocatorRefresh.compare(committedManifest, refreshedManifest)) {
-                    ReaderRefreshedManifestDecision.Unchanged -> DeliveryRefreshResolution.Unchanged
-                    ReaderRefreshedManifestDecision.RouteInvalidated -> DeliveryRefreshResolution.RouteInvalidated
-                    is ReaderRefreshedManifestDecision.Changed -> when (
-                        replaceDeliveryManifest(
-                            sessionId = request.sessionId,
-                            expectedManifestRevision = request.manifestRevision,
-                            refreshedManifest = comparison.manifest,
-                        )
-                    ) {
-                        is ReaderDeliveryManifestReplacement.Applied -> DeliveryRefreshResolution.Changed
-                        ReaderDeliveryManifestReplacement.Superseded -> DeliveryRefreshResolution.Superseded
-                        ReaderDeliveryManifestReplacement.SemanticRouteMismatch ->
-                            DeliveryRefreshResolution.RouteInvalidated
+                if (refreshedManifest == null) {
+                    DeliveryRefreshResolution.RouteInvalidated
+                } else {
+                    when (val comparison = ReaderAssetLocatorRefresh.compare(committedManifest, refreshedManifest)) {
+                        ReaderRefreshedManifestDecision.Unchanged -> DeliveryRefreshResolution.Unchanged
+                        ReaderRefreshedManifestDecision.RouteInvalidated -> DeliveryRefreshResolution.RouteInvalidated
+                        is ReaderRefreshedManifestDecision.Changed -> when (
+                            replaceDeliveryManifest(
+                                sessionId = request.sessionId,
+                                expectedManifestRevision = request.manifestRevision,
+                                refreshedManifest = comparison.manifest,
+                            )
+                        ) {
+                            is ReaderDeliveryManifestReplacement.Applied -> DeliveryRefreshResolution.Changed
+                            ReaderDeliveryManifestReplacement.Superseded -> DeliveryRefreshResolution.Superseded
+                            ReaderDeliveryManifestReplacement.SemanticRouteMismatch ->
+                                DeliveryRefreshResolution.RouteInvalidated
+                        }
                     }
                 }
             }
         }
-    }
 
     internal fun sessionSnapshot(sessionId: ReaderSessionId): ReaderAssetSessionState? =
         synchronized(lock) { sessions[sessionId]?.state }

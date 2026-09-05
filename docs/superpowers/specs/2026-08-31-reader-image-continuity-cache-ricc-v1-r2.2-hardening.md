@@ -1,10 +1,10 @@
 # Reader Image Continuity Cache / RICC-v1 — R2.2 Consolidated Hardening Baseline
 
-**Date:** 2026-08-31  
-**Revision:** R2.2 consolidated hardening  
-**Status:** **SPEC FROZEN / READY FOR IMPLEMENTATION PLAN**  
-**Normative base:** `2026-08-31-reader-image-continuity-cache-ricc-v1-design.md` R2  
-**Supersedes:** `2026-08-31-reader-image-continuity-cache-ricc-v1-r2.1-hardening-addendum.md`  
+**Date:** 2026-08-31
+**Revision:** R2.2 consolidated hardening
+**Status:** **SPEC FROZEN / READY FOR IMPLEMENTATION PLAN**
+**Normative base:** `2026-08-31-reader-image-continuity-cache-ricc-v1-design.md` R2
+**Supersedes:** `2026-08-31-reader-image-continuity-cache-ricc-v1-r2.1-hardening-addendum.md`
 **Scope:** correctness, identity, security, lifecycle, persistence, quota, concurrency, and current-master alignment hardening. No HES-v1 behavior change and no production implementation.
 
 ---

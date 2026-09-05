@@ -81,10 +81,11 @@ class StorageReconciliationService(
         val removedReaderMetadata = if (initialReaderSnapshot?.scanComplete == true) {
             val readerAssetStore = checkNotNull(readerAssets)
             var removedCount = 0
-            for (entry in initialReaderEntries) {
-                if (removedCount >= readerAssetScanLimit) break
-                if (entry.blobId in initialReaderSnapshot.presentBlobIds) continue
-                if (readerAssetStore.detachMissingGeneration(entry)) {
+            val missingEntries = initialReaderEntries
+                .filterNot { it.blobId in initialReaderSnapshot.presentBlobIds }
+                .iterator()
+            while (removedCount < readerAssetScanLimit && missingEntries.hasNext()) {
+                if (readerAssetStore.detachMissingGeneration(missingEntries.next())) {
                     removedCount += 1
                 }
             }

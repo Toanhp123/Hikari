@@ -10,11 +10,13 @@ import app.openstory.reader.assets.ReaderAssetGraphRevision
 import app.openstory.reader.assets.ReaderAssetManifestFactory
 import app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact
 import app.openstory.reader.assets.ReaderSelectedReleaseRefreshResult
+import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceAvailability
+import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.engine.AccessMode
 import app.openstory.reader.engine.ReaderRouteDecision
 import app.openstory.reader.engine.ReaderRouteEngine
@@ -80,6 +82,12 @@ class ReaderRouteCoordinator(
         val heldProbeLeases: MutableList<ReaderHalfOpenProbeLease>,
     )
 
+    private sealed interface SelectedReleaseSourceLookup {
+        data class Available(val source: ReaderDocumentSource) : SelectedReleaseSourceLookup
+        data object Missing : SelectedReleaseSourceLookup
+        data object Failed : SelectedReleaseSourceLookup
+    }
+
     internal suspend fun execute(
         session: ReaderRouteSession,
         context: ReaderRouteExecutionContext,
@@ -90,44 +98,67 @@ class ReaderRouteCoordinator(
     internal suspend fun refreshSelectedRelease(
         release: ChapterRelease,
     ): ReaderSelectedReleaseRefreshResult {
-        val source = try {
-            sources.enabled().firstOrNull { candidate -> candidate.pluginId == release.pluginId }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            return ReaderSelectedReleaseRefreshResult.Failure(
-                ReaderAssetFailure.TransportUnavailable(retryable = true),
-            )
-        } ?: return ReaderSelectedReleaseRefreshResult.RouteInvalidated
-
-        val sourceResult = try {
-            sourceLane.withSource(release.pluginId, ContentSourceWorkPriority.FOREGROUND) {
-                fetchArbiter.withAdmission(ContentFetchPriority.CRITICAL) {
-                    source.fetch(release)
+        return when (val lookup = findSelectedReleaseSource(release)) {
+            SelectedReleaseSourceLookup.Failed -> transportUnavailableRefreshFailure()
+            SelectedReleaseSourceLookup.Missing -> ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            is SelectedReleaseSourceLookup.Available -> {
+                val sourceResult = fetchSelectedRelease(lookup.source, release)
+                if (sourceResult == null) {
+                    transportUnavailableRefreshFailure()
+                } else {
+                    mapSelectedReleaseRefreshResult(release, lookup.source, sourceResult)
                 }
             }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            return ReaderSelectedReleaseRefreshResult.Failure(
-                ReaderAssetFailure.TransportUnavailable(retryable = true),
-            )
-        }
-        return when (sourceResult) {
-            is app.openstory.reader.content.ReaderSourceResult.Success -> when (
-                val validation = selectedReleaseRefreshValidator.validateRemote(sourceResult.document)
-            ) {
-                is ReaderDocumentValidation.Valid -> ReaderSelectedReleaseRefreshResult.Refreshed(
-                    selectedRelease = release,
-                    document = validation.document,
-                    imageSourcePolicy = source.imageSourcePolicy,
-                )
-                is ReaderDocumentValidation.Invalid -> ReaderSelectedReleaseRefreshResult.RouteInvalidated
-            }
-            is app.openstory.reader.content.ReaderSourceResult.Failure ->
-                mapSelectedReleaseRefreshFailure(release, sourceResult)
         }
     }
+
+    private suspend fun findSelectedReleaseSource(release: ChapterRelease): SelectedReleaseSourceLookup = try {
+        sources.enabled()
+            .firstOrNull { candidate -> candidate.pluginId == release.pluginId }
+            ?.let(SelectedReleaseSourceLookup::Available)
+            ?: SelectedReleaseSourceLookup.Missing
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        SelectedReleaseSourceLookup.Failed
+    }
+
+    private suspend fun fetchSelectedRelease(
+        source: ReaderDocumentSource,
+        release: ChapterRelease,
+    ): ReaderSourceResult? = try {
+        sourceLane.withSource(release.pluginId, ContentSourceWorkPriority.FOREGROUND) {
+            fetchArbiter.withAdmission(ContentFetchPriority.CRITICAL) {
+                source.fetch(release)
+            }
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun mapSelectedReleaseRefreshResult(
+        release: ChapterRelease,
+        source: ReaderDocumentSource,
+        result: ReaderSourceResult,
+    ): ReaderSelectedReleaseRefreshResult = when (result) {
+        is ReaderSourceResult.Success -> when (
+            val validation = selectedReleaseRefreshValidator.validateRemote(result.document)
+        ) {
+            is ReaderDocumentValidation.Valid -> ReaderSelectedReleaseRefreshResult.Refreshed(
+                selectedRelease = release,
+                document = validation.document,
+                imageSourcePolicy = source.imageSourcePolicy,
+            )
+            is ReaderDocumentValidation.Invalid -> ReaderSelectedReleaseRefreshResult.RouteInvalidated
+        }
+        is ReaderSourceResult.Failure -> mapSelectedReleaseRefreshFailure(release, result)
+    }
+
+    private fun transportUnavailableRefreshFailure() = ReaderSelectedReleaseRefreshResult.Failure(
+        ReaderAssetFailure.TransportUnavailable(retryable = true),
+    )
 
     private fun mapSelectedReleaseRefreshFailure(
         release: ChapterRelease,

@@ -326,7 +326,17 @@ class ReaderRouteSession internal constructor(
     private fun acceptAssetManifestLocked(
         result: ReaderForegroundResult.Committed,
     ): ReaderForegroundResult.Committed {
-        val manifest = result.assetManifest ?: return result
+        val proposedRevision = mutableAssetSessionState.manifestRevision + 1L
+        val manifest = result.assetManifest
+        if (manifest == null) {
+            val effectiveRevision = assetSessionPort.registerCommittedWithoutManifest(
+                sessionId = sessionId,
+                proposedManifestRevision = proposedRevision,
+                chapterId = result.identity.targetChapterId,
+            )
+            acceptAssetSessionRevisionLocked(effectiveRevision, result.identity.targetChapterId)
+            return result
+        }
         check(manifest.sessionId == sessionId) { "Reader asset manifest must belong to the active session." }
         check(manifest.canonicalChapterId == result.identity.targetChapterId) {
             "Reader asset manifest must belong to the committed chapter."
@@ -334,16 +344,23 @@ class ReaderRouteSession internal constructor(
         check(manifest.selectedReleaseId == result.release.id) {
             "Reader asset manifest must belong to the committed release."
         }
-        val proposedRevision = mutableAssetSessionState.manifestRevision + 1L
         val effectiveRevision = assetSessionPort.registerCommitted(sessionId, proposedRevision, manifest)
+        acceptAssetSessionRevisionLocked(effectiveRevision, manifest.canonicalChapterId)
+        return result.copy(assetManifestRevision = effectiveRevision)
+    }
+
+    private fun acceptAssetSessionRevisionLocked(
+        effectiveRevision: Long,
+        chapterId: CanonicalChapterId,
+    ) {
+        val proposedRevision = mutableAssetSessionState.manifestRevision + 1L
         check(effectiveRevision >= proposedRevision) {
             "Reader asset session port must not move manifest revision backwards."
         }
         mutableAssetSessionState = mutableAssetSessionState.acceptCommitted(
             effectiveManifestRevision = effectiveRevision,
-            chapterId = manifest.canonicalChapterId,
+            chapterId = chapterId,
         )
-        return result.copy(assetManifestRevision = effectiveRevision)
     }
 
     override suspend fun refreshSelectedRelease(
@@ -351,23 +368,43 @@ class ReaderRouteSession internal constructor(
         expectedReleaseId: ChapterReleaseId,
     ): ReaderSelectedReleaseRefreshResult {
         require(expectedManifestRevision > 0L) { "Expected Reader asset manifest revision must be positive." }
-        val authorization = synchronized(stateLock) {
-            if (closed) return ReaderSelectedReleaseRefreshResult.Superseded
-            val committed = committedIdentity ?: return ReaderSelectedReleaseRefreshResult.Superseded
-            if (committed.releaseId != expectedReleaseId) {
-                return ReaderSelectedReleaseRefreshResult.Superseded
-            }
-            val knownRevision = mutableAssetSessionState.manifestRevision
-            val skipsDeliveryRevision = expectedManifestRevision > knownRevision &&
-                expectedManifestRevision - knownRevision != 1L
-            if (knownRevision == 0L || expectedManifestRevision < knownRevision || skipsDeliveryRevision) {
-                return ReaderSelectedReleaseRefreshResult.Superseded
-            }
-            val exactRelease = latestChapterGraph?.release(expectedReleaseId)
-                ?: return ReaderSelectedReleaseRefreshResult.RouteInvalidated
-            if (exactRelease != committedRelease) {
-                return ReaderSelectedReleaseRefreshResult.RouteInvalidated
-            }
+        val authorizationResult = synchronized(stateLock) {
+            authorizeSelectedReleaseRefreshLocked(expectedManifestRevision, expectedReleaseId)
+        }
+        if (authorizationResult is SelectedReleaseRefreshAuthorizationResult.Rejected) {
+            return authorizationResult.result
+        }
+        val authorization = (authorizationResult as SelectedReleaseRefreshAuthorizationResult.Authorized).value
+        val result = refreshDelegate?.refresh(authorization.release)
+            ?: ReaderSelectedReleaseRefreshResult.Failure(
+                ReaderAssetFailure.TransportUnavailable(retryable = true),
+            )
+        return synchronized(stateLock) {
+            validateSelectedReleaseRefreshLocked(expectedReleaseId, authorization, result)
+        }
+    }
+
+    private fun authorizeSelectedReleaseRefreshLocked(
+        expectedManifestRevision: Long,
+        expectedReleaseId: ChapterReleaseId,
+    ): SelectedReleaseRefreshAuthorizationResult {
+        val committed = committedIdentity
+        val knownRevision = mutableAssetSessionState.manifestRevision
+        val skipsDeliveryRevision = expectedManifestRevision > knownRevision &&
+            expectedManifestRevision - knownRevision != 1L
+        val exactRelease = latestChapterGraph?.release(expectedReleaseId)
+        val rejection = when {
+            closed || committed == null || committed.releaseId != expectedReleaseId ->
+                ReaderSelectedReleaseRefreshResult.Superseded
+            knownRevision == 0L || expectedManifestRevision < knownRevision || skipsDeliveryRevision ->
+                ReaderSelectedReleaseRefreshResult.Superseded
+            exactRelease == null || exactRelease != committedRelease ->
+                ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            else -> null
+        }
+        return if (rejection != null) {
+            SelectedReleaseRefreshAuthorizationResult.Rejected(rejection)
+        } else {
             // Delivery-only replacement advances the asset coordinator independently. Catch the
             // session watermark up only after that coordinator has authorized this exact request.
             if (expectedManifestRevision > knownRevision) {
@@ -375,44 +412,36 @@ class ReaderRouteSession internal constructor(
                     manifestRevision = expectedManifestRevision,
                 )
             }
-            SelectedReleaseRefreshAuthorization(
-                release = exactRelease,
-                manifestRevision = expectedManifestRevision,
-                documentFingerprint = committed.documentFingerprint,
+            SelectedReleaseRefreshAuthorizationResult.Authorized(
+                SelectedReleaseRefreshAuthorization(
+                    release = checkNotNull(exactRelease),
+                    manifestRevision = expectedManifestRevision,
+                    documentFingerprint = checkNotNull(committed).documentFingerprint,
+                ),
             )
         }
-        val selectedReleaseRefresh = refreshDelegate
-            ?: return ReaderSelectedReleaseRefreshResult.Failure(
-                ReaderAssetFailure.TransportUnavailable(retryable = true),
-            )
-        val result = selectedReleaseRefresh.refresh(authorization.release)
-        return synchronized(stateLock) {
-            if (closed) return@synchronized ReaderSelectedReleaseRefreshResult.Superseded
-            val committed = committedIdentity
-                ?: return@synchronized ReaderSelectedReleaseRefreshResult.Superseded
-            if (
-                committed.releaseId != expectedReleaseId ||
-                committedRelease != authorization.release ||
-                mutableAssetSessionState.manifestRevision != authorization.manifestRevision
-            ) {
-                return@synchronized ReaderSelectedReleaseRefreshResult.Superseded
-            }
-            val graphRelease = latestChapterGraph?.release(expectedReleaseId)
-                ?: return@synchronized ReaderSelectedReleaseRefreshResult.RouteInvalidated
-            if (graphRelease != authorization.release) {
-                return@synchronized ReaderSelectedReleaseRefreshResult.RouteInvalidated
-            }
-            when (result) {
-                is ReaderSelectedReleaseRefreshResult.Refreshed -> if (
-                    result.selectedRelease != authorization.release ||
-                    result.document.fingerprint != authorization.documentFingerprint
-                ) {
-                    ReaderSelectedReleaseRefreshResult.RouteInvalidated
-                } else {
-                    result
-                }
-                else -> result
-            }
+    }
+
+    private fun validateSelectedReleaseRefreshLocked(
+        expectedReleaseId: ChapterReleaseId,
+        authorization: SelectedReleaseRefreshAuthorization,
+        result: ReaderSelectedReleaseRefreshResult,
+    ): ReaderSelectedReleaseRefreshResult {
+        val committed = committedIdentity
+        val graphRelease = latestChapterGraph?.release(expectedReleaseId)
+        val superseded = closed ||
+            committed == null ||
+            committed.releaseId != expectedReleaseId ||
+            committedRelease != authorization.release ||
+            mutableAssetSessionState.manifestRevision != authorization.manifestRevision
+        val refreshedMismatch = result is ReaderSelectedReleaseRefreshResult.Refreshed &&
+            (result.selectedRelease != authorization.release ||
+                result.document.fingerprint != authorization.documentFingerprint)
+        return when {
+            superseded -> ReaderSelectedReleaseRefreshResult.Superseded
+            graphRelease == null || graphRelease != authorization.release || refreshedMismatch ->
+                ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            else -> result
         }
     }
 
@@ -593,6 +622,16 @@ class ReaderRouteSession internal constructor(
         val manifestRevision: Long,
         val documentFingerprint: String,
     )
+
+    private sealed interface SelectedReleaseRefreshAuthorizationResult {
+        data class Authorized(
+            val value: SelectedReleaseRefreshAuthorization,
+        ) : SelectedReleaseRefreshAuthorizationResult
+
+        data class Rejected(
+            val result: ReaderSelectedReleaseRefreshResult,
+        ) : SelectedReleaseRefreshAuthorizationResult
+    }
 
     private sealed interface PrefetchAction {
         data object None : PrefetchAction

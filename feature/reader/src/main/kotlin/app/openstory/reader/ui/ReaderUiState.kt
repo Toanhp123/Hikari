@@ -37,11 +37,10 @@ internal fun ReaderCommittedAssetManifestSnapshot.toReaderAssetUiStateIfCurrent(
     activeReleaseId: ChapterReleaseId,
     currentManifestRevision: Long?,
 ): ReaderAssetUiState? {
-    if (sessionId != activeSessionId || manifest.sessionId != activeSessionId) return null
-    if (manifest.canonicalChapterId != activeChapterId) return null
-    if (manifest.selectedReleaseId != activeReleaseId) return null
-    if (currentManifestRevision != null && manifestRevision <= currentManifestRevision) return null
-    return ReaderAssetUiState(manifest, manifestRevision)
+    val sameSession = sessionId == activeSessionId && manifest.sessionId == activeSessionId
+    val sameRoute = manifest.canonicalChapterId == activeChapterId && manifest.selectedReleaseId == activeReleaseId
+    val isNewer = currentManifestRevision == null || manifestRevision > currentManifestRevision
+    return if (sameSession && sameRoute && isNewer) ReaderAssetUiState(manifest, manifestRevision) else null
 }
 
 data class ReaderUiState(

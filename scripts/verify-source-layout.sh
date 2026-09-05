@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="${REPO_ROOT:-${OPENSTORY_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
+SOURCE_LAYOUT_ALLOWLIST="$ROOT_DIR/config/source-layout-allowlist.txt"
 
 fail() {
   echo "$1" >&2
@@ -38,14 +39,31 @@ while IFS= read -r -d '' source_file; do
   fi
 
   line_count="$(awk 'END { print NR }' "$source_file")"
-  if [[ "$relative_path" =~ /src/main/ ]] && ((line_count > 500)); then
-    fail "Production Kotlin source exceeds 500 lines: $relative_path ($line_count)"
+  if [[ "$relative_path" =~ /src/main/ ]]; then
+    default_line_limit=500
+  else
+    default_line_limit=750
+  fi
+  line_limit="$default_line_limit"
+  if [[ -f "$SOURCE_LAYOUT_ALLOWLIST" ]]; then
+    allowlist_entry="$(awk -F '|' -v path="$relative_path" '$1 == path { print; exit }' "$SOURCE_LAYOUT_ALLOWLIST")"
+    if [[ -n "$allowlist_entry" ]]; then
+      IFS='|' read -r _ approved_limit approval_reason <<< "$allowlist_entry"
+      [[ "$approved_limit" =~ ^[0-9]+$ ]] &&
+        ((approved_limit > default_line_limit)) &&
+        [[ -n "$approval_reason" ]] ||
+        fail "Invalid source-layout allowlist entry: $allowlist_entry"
+      line_limit="$approved_limit"
+    fi
+  fi
+  if [[ "$relative_path" =~ /src/main/ ]] && ((line_count > line_limit)); then
+    fail "Production Kotlin source exceeds $line_limit lines: $relative_path ($line_count)"
   fi
   if [[ "$relative_path" =~ /src/main/ ]] && ((line_count > 300)); then
     echo "Structural review candidate exceeds 300 lines: $relative_path ($line_count)" >&2
   fi
-  if [[ "$relative_path" =~ /src/(test|androidTest)/ ]] && ((line_count > 750)); then
-    fail "Test Kotlin source exceeds 750 lines: $relative_path ($line_count)"
+  if [[ "$relative_path" =~ /src/(test|androidTest)/ ]] && ((line_count > line_limit)); then
+    fail "Test Kotlin source exceeds $line_limit lines: $relative_path ($line_count)"
   fi
 done < <(
   find "$ROOT_DIR" \

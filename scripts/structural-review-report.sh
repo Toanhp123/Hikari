@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SOURCE_LAYOUT_ALLOWLIST="$ROOT_DIR/config/source-layout-allowlist.txt"
 HARD_FAILURE=0
 
 relative_path() {
@@ -30,9 +31,25 @@ while IFS= read -r -d '' source_file; do
   import_count="$(grep -Ec '^[[:space:]]*import[[:space:]]+' "$source_file" || true)"
   public_method_count="$(grep -Ec '^[[:space:]]*(public[[:space:]]+)?((override|inline|operator|infix|tailrec|external|suspend)[[:space:]]+)*fun[[:space:]]+' "$source_file" || true)"
 
-  if ((line_count > 500)); then
-    echo "[hard] production source exceeds 500 lines: $relative ($line_count)" >&2
+  line_limit=500
+  if [[ -f "$SOURCE_LAYOUT_ALLOWLIST" ]]; then
+    allowlist_entry="$(awk -F '|' -v path="$relative" '$1 == path { print; exit }' "$SOURCE_LAYOUT_ALLOWLIST")"
+    if [[ -n "$allowlist_entry" ]]; then
+      IFS='|' read -r _ approved_limit approval_reason <<< "$allowlist_entry"
+      if [[ "$approved_limit" =~ ^[0-9]+$ ]] && ((approved_limit > 500)) && [[ -n "$approval_reason" ]]; then
+        line_limit="$approved_limit"
+      else
+        echo "[hard] invalid source-layout allowlist entry: $allowlist_entry" >&2
+        HARD_FAILURE=1
+      fi
+    fi
+  fi
+
+  if ((line_count > line_limit)); then
+    echo "[hard] production source exceeds $line_limit lines: $relative ($line_count)" >&2
     HARD_FAILURE=1
+  elif ((line_count > 500)); then
+    echo "[review][allowlisted-lines] $relative ($line_count/$line_limit)"
   elif ((line_count > 300)); then
     echo "[review][lines] $relative ($line_count)"
   fi

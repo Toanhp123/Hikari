@@ -487,6 +487,12 @@ private class RecordingPrefetchAssetPort : ReaderAssetSessionPort {
         manifest: ReaderAssetChapterManifest,
     ): Long = proposedManifestRevision
 
+    override fun registerCommittedWithoutManifest(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        chapterId: CanonicalChapterId,
+    ): Long = proposedManifestRevision
+
     override fun acceptPrefetchedArtifact(artifact: ReaderPrefetchedDocumentArtifact) {
         artifacts += artifact
     }

@@ -77,18 +77,18 @@ internal class AutomaticCachePressureMaintenance(
         var reclaimedBytes = 0L
         var restored = false
         var madeProgress = false
-        for (candidate in candidates.take(MAX_EMERGENCY_RECONCILIATION_VICTIMS)) {
+        val candidateIterator = candidates
+            .take(MAX_EMERGENCY_RECONCILIATION_VICTIMS)
+            .iterator()
+        while (!restored && candidateIterator.hasNext()) {
             if (reserveRestored()) {
                 restored = true
-                break
-            }
-            processed += 1
-            val relief = relieveEmergencyCandidate(candidate)
-            madeProgress = madeProgress || relief.madeProgress
-            reclaimedBytes = reclaimedBytes.saturatedAdd(relief.physicallyReclaimedBytes)
-            if (reserveRestored()) {
-                restored = true
-                break
+            } else {
+                processed += 1
+                val relief = relieveEmergencyCandidate(candidateIterator.next())
+                madeProgress = madeProgress || relief.madeProgress
+                reclaimedBytes = reclaimedBytes.saturatedAdd(relief.physicallyReclaimedBytes)
+                restored = reserveRestored()
             }
         }
         if (!restored) restored = reserveRestored()

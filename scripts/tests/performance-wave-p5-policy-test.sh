@@ -70,8 +70,8 @@ grep -q 'prewarmSections' "$story_deps" || fail "Story dependencies do not honor
 grep -q 'ContentState.Pending' "$chapter_vm" || fail "chapter ViewModel no longer models unresolved content explicitly"
 grep -q 'ContentState.Ready' "$chapter_vm" || fail "chapter repository emission does not produce authoritative Ready content"
 grep -q 'when (val content = state.content)' "$chapter_ui" || fail "chapter UI does not distinguish Pending/Failed/Ready from real empty state"
-grep -q 'loading = false' "$mapping_vm" || fail "mapping repository emission does not clear loading"
-grep -q 'state.loading' "$mapping_ui" || fail "mapping UI does not distinguish loading from real empty state"
+grep -q 'ContentState.Ready' "$mapping_vm" || fail "mapping repository emission does not publish Ready content"
+grep -q 'when (val content = state.content)' "$mapping_ui" || fail "mapping UI does not distinguish pending from real empty state"
 
 # Discover preparation and semantic projection must remain one main-safe CSC pipeline.
 [[ -f "$discover_pipeline" ]] || fail "DiscoverProjectionPipeline owner is missing"

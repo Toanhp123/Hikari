@@ -83,6 +83,23 @@ if grep -q '\[review\]\[constructor-parameters\].*EightParameters.kt' <<< "$repo
   exit 1
 fi
 
+mkdir -p "$FIXTURE/config"
+printf '%s\n' \
+  'catalog/src/main/kotlin/app/openstory/catalog/Allowlisted.kt|525|Reviewed temporary extraction ceiling.' \
+  > "$FIXTURE/config/source-layout-allowlist.txt"
+for line in $(seq 1 520); do printf '// line %s\n' "$line"; done \
+  > "$FIXTURE/catalog/src/main/kotlin/app/openstory/catalog/Allowlisted.kt"
+allowlisted_report="$(REPO_ROOT="$FIXTURE" bash "$ROOT_DIR/scripts/structural-review-report.sh")"
+grep -q '\[review\]\[allowlisted-lines\].*Allowlisted.kt (520/525)' <<< "$allowlisted_report"
+for line in $(seq 1 526); do printf '// line %s\n' "$line"; done \
+  > "$FIXTURE/catalog/src/main/kotlin/app/openstory/catalog/Allowlisted.kt"
+if REPO_ROOT="$FIXTURE" bash "$ROOT_DIR/scripts/structural-review-report.sh" >/dev/null 2>&1; then
+  echo 'source exceeding its reviewed allowlist ceiling must fail' >&2
+  exit 1
+fi
+rm "$FIXTURE/catalog/src/main/kotlin/app/openstory/catalog/Allowlisted.kt"
+rm "$FIXTURE/config/source-layout-allowlist.txt"
+
 printf 'package app.openstory.catalog\nimport android.content.Context\n' \
   > "$FIXTURE/catalog/src/main/kotlin/app/openstory/catalog/Bad.kt"
 if REPO_ROOT="$FIXTURE" bash "$ROOT_DIR/scripts/structural-review-report.sh" >/dev/null 2>&1; then

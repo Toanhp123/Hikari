@@ -613,6 +613,41 @@ class ReaderRouteSessionStateTest {
     }
 
     @Test
+    fun textCommitAfterImageCommitAdvancesAndClearsTheAssetSession() = runTest {
+        var executions = 0
+        val port = RecordingAssetSessionPort()
+        val session = ReaderRouteSession(
+            storyId = StoryId("story"),
+            sessionId = ReaderSessionId(45),
+            delegate = ReaderRouteExecutionDelegate { _, context ->
+                executions++
+                if (executions == 1) imageCommitted(context) else committed(context)
+            },
+            assetSessionPort = port,
+        )
+        session.updateChapterGraph(
+            listOf(
+                group("chapter-a", listOf(release("release-a", "chapter-a"))),
+                group("chapter-b", listOf(release("release-b", "chapter-b"))),
+            ),
+        )
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-a"))),
+        )
+        val textResult = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(chapter("chapter-b"))),
+        )
+
+        assertNull(textResult.assetManifestRevision)
+        assertEquals(2L, session.assetSessionState.manifestRevision)
+        assertEquals(chapter("chapter-b"), session.assetSessionState.committedChapterId)
+        assertEquals(listOf(chapter("chapter-a")), session.assetSessionState.recentCommittedChapterIds)
+        assertEquals(listOf(chapter("chapter-b")), port.manifestlessCommits)
+    }
+
+    @Test
     fun failedTargetDoesNotSlideCommittedAssetWindow() = runTest {
         var executions = 0
         val session = ReaderRouteSession(
@@ -896,6 +931,7 @@ private class RecordingAssetSessionPort(
     private val register: (ReaderSessionId, Long, ReaderAssetChapterManifest) -> Long = { _, revision, _ -> revision },
 ) : ReaderAssetSessionPort {
     val registered = mutableListOf<ReaderAssetChapterManifest>()
+    val manifestlessCommits = mutableListOf<CanonicalChapterId>()
     val released = mutableListOf<ReaderSessionId>()
     val lifecycleEvents = mutableListOf<String>()
     val refreshPorts = mutableMapOf<ReaderSessionId, ReaderSelectedReleaseRefreshPort>()
@@ -907,6 +943,15 @@ private class RecordingAssetSessionPort(
     ): Long {
         registered += manifest
         return register(sessionId, proposedManifestRevision, manifest)
+    }
+
+    override fun registerCommittedWithoutManifest(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        chapterId: CanonicalChapterId,
+    ): Long {
+        manifestlessCommits += chapterId
+        return proposedManifestRevision
     }
 
     override fun acceptPrefetchedArtifact(artifact: app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact) = Unit

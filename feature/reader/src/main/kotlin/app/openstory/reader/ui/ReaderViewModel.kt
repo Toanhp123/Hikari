@@ -175,10 +175,9 @@ class ReaderViewModel @AssistedInject constructor(
     }
 
     fun updateAssetViewport(snapshot: ReaderViewportSnapshot): Boolean {
-        val assets = mutableState.value.assets ?: return false
-        if (!assets.matches(snapshot)) return false
-        assetCoordinator.updateViewport(snapshot)
-        return true
+        val accepted = mutableState.value.assets?.matches(snapshot) == true
+        if (accepted) assetCoordinator.updateViewport(snapshot)
+        return accepted
     }
 
     fun assetPresented(request: ReaderPageAssetRequest) {
@@ -188,18 +187,21 @@ class ReaderViewModel @AssistedInject constructor(
     }
 
     fun reloadRouteForInvalidatedAsset(manifestRevision: Long) {
-        val current = committed ?: return
-        val assets = mutableState.value.assets ?: return
-        if (assets.manifestRevision != manifestRevision) return
-        if (transitionTarget != null) return
-        if (handledRouteInvalidationRevision == manifestRevision) return
-        handledRouteInvalidationRevision = manifestRevision
-        startLoad(
-            chapterId = current.chapterId,
-            explicitReleaseId = current.releaseId,
-            flushProgress = true,
-        )
+        val current = committed
+        if (current != null && shouldReloadInvalidatedAsset(manifestRevision)) {
+            handledRouteInvalidationRevision = manifestRevision
+            startLoad(
+                chapterId = current.chapterId,
+                explicitReleaseId = current.releaseId,
+                flushProgress = true,
+            )
+        }
     }
+
+    private fun shouldReloadInvalidatedAsset(manifestRevision: Long): Boolean =
+        mutableState.value.assets?.manifestRevision == manifestRevision &&
+            transitionTarget == null &&
+            handledRouteInvalidationRevision != manifestRevision
 
     override fun onCleared() {
         routeSession.close()
