@@ -175,7 +175,7 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun hesV1FinalArchitectureAndPersistenceBoundaryAreFrozen() {
+    fun hesV1AndRiccV1ArchitectureAndPersistenceBoundaryAreFrozen() {
         val root = File("..").canonicalFile
         val policy = ModuleBoundaryPolicyLoader.load(
             File(root, "config/architecture/module-boundaries.json"),
@@ -196,13 +196,39 @@ class ModuleGraphTest {
         assertTrue(":reader:engine" in reader.productionDependencies)
         assertFalse(":settings" in reader.productionDependencies)
 
+        val featureReader = policy.modules.getValue(":feature:reader")
+        assertFalse(":downloads" in featureReader.productionDependencies)
+        assertFalse(
+            "project(\":downloads\")" in File(root, "feature/reader/build.gradle.kts").readText(),
+        )
+
         val database = File(
             root,
             "storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt",
         ).readText()
-        assertTrue("version = 11," in database)
+        assertTrue("version = 12," in database)
         assertTrue("RoomMigrations.MIGRATION_10_11" in database)
-        assertFalse("MIGRATION_11_12" in database)
+        assertTrue("RoomMigrations.MIGRATION_11_12" in database)
+
+        val schemaVersions = File(
+            root,
+            "storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase",
+        ).listFiles()
+            .orEmpty()
+            .mapNotNull { file -> file.nameWithoutExtension.toIntOrNull() }
+            .sorted()
+        assertEquals((1..12).toList(), schemaVersions)
+
+        val riccEngineLeaks = File(root, "reader/engine/src").walkTopDown()
+            .filter(File::isFile)
+            .filter { file ->
+                file.name.contains("ReaderAsset", ignoreCase = true) ||
+                    file.name.contains("ricc", ignoreCase = true) ||
+                    (file.extension == "kt" && "ReaderAsset" in file.readText())
+            }
+            .map { it.relativeTo(root).path }
+            .toList()
+        assertTrue(riccEngineLeaks.isEmpty(), "RICC leaked into :reader:engine: $riccEngineLeaks")
 
         val leakedEngineImports = root.walkTopDown()
             .filter { it.isFile && it.extension == "kt" }

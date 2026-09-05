@@ -1,6 +1,6 @@
 # Repository Current State
 
-Date: 2026-08-25
+Date: 2026-09-05
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
@@ -44,12 +44,21 @@ Purpose: single source of truth for the implemented repository boundary.
   That accepted durability boundary is Room schema 10. `MIGRATION_9_10` adds canonical-work leases and the transactional
   catalog-change outbox. All 32 policy scripts, focused host tests, `verify-fast.sh`, `verify.sh`,
   134/134 Room tests on API 26 and API 37, and app instrumentation/launcher smoke on both APIs pass.
-- Adaptive Reader Continuity / HES-v1: **M0–M7.5 VERIFIED/CLOSED; HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE**. M7.4 retired the unused `AccessReason`; M7.5 then linearized valid-completion publication against ownership sealing/cancellation, hardened final session result/payload coherence, and removed the remaining obvious test/implementation-only engine exports. The fresh 2026-08-27 final-tree host matrix is GREEN across engine/Reader/downstream tests, architecture/package/current-architecture gates, retained host verification, Room schema stability, and instrumentation compilation. Routing formulas, `ReaderDecisionTrace` data fields, HES/policy versions, the 17-production-module plus `:benchmark` graph, and Room schema 11 remain unchanged. The diagnostic-code namespace naming issue is explicitly deferred to HES-v2. Canonical final-hardening design/plan are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
+- Adaptive Reader Continuity / HES-v1: **M0–M7.5 VERIFIED/CLOSED; HES-v1 FINAL RE-FROZEN / REFERENCE-GRADE**. M7.4 retired the unused `AccessReason`; M7.5 then linearized valid-completion publication against ownership sealing/cancellation, hardened final session result/payload coherence, and removed the remaining obvious test/implementation-only engine exports. The fresh 2026-08-27 final-tree host matrix is GREEN across engine/Reader/downstream tests, architecture/package/current-architecture gates, retained host verification, Room schema stability, and instrumentation compilation. At that HES closure, routing formulas, `ReaderDecisionTrace` data fields, HES/policy versions, the 17-production-module plus `:benchmark` graph, and Room schema 11 remained unchanged. The diagnostic-code namespace naming issue is explicitly deferred to HES-v2. Canonical final-hardening design/plan are `../superpowers/specs/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md` and `../superpowers/plans/2026-08-27-adaptive-reader-continuity-hes-v1-m7-5-final-freeze-hardening.md`.
+- Reader Image Continuity Cache / RICC-v1: **IMPLEMENTED AND VERIFIED**. Trusted-stable, persistence-authorized
+  Reader image assets now use semantic keys, bounded single-flight delivery, managed automatic-cache quota,
+  atomic file blobs, Room metadata, lease-aware reconciliation, security-generation invalidation, and aggregate
+  diagnostics. Same-chapter/offline revisit, warm-history return, process recreation, fail-closed isolation,
+  architecture policy, Room migration/repository, Reader UI, and bundled MangaDex contract gates are green on
+  the 2026-09-05 final tree. RICC advances current persistence to schema 12 through `MIGRATION_11_12`; it does
+  not change HES-v1 routing formulas, engine APIs, or the 17-production-module graph. Evidence is in
+  `../internal/checkpoints/reader-image-continuity-cache-ricc-v1.md`.
 - Reader integration architecture cleanup: **R1–R5 IMPLEMENTED / verification pending; HES-v1 engine remains frozen.** The effect-layer cleanup isolates LOCAL routing from remote availability/registry failures, makes remote source materialization per-execution/lazy, removes runtime control-flow reads from `ReaderDecisionTrace`, trims duplicated navigation fields from `ReaderForegroundResult`, narrows routing preferences to `languageOrder`, replaces the raw JVM ownership monitor, and removes checked-in baseline-profile descriptors for the retired legacy Reader selector/repository stack. Canonical cleanup design/plan are `../superpowers/specs/2026-08-27-reader-integration-architecture-cleanup-design.md` and `../superpowers/plans/2026-08-27-reader-integration-architecture-cleanup.md`.
-- Wave 10: **VERIFIED/CLOSED; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE PASS**. Current source is Room schema 11,
-  `MIGRATION_10_11` owns Wave 10 notification persistence, and the standalone Detekt, unchanged combined host gate,
+- Wave 10: **VERIFIED/CLOSED; REQUIRED API 26/API 37 DEVICE MATRIX PASS; FINAL HOST ACCEPTANCE PASS**. Its accepted
+  persistence boundary is Room schema 11, `MIGRATION_10_11` owns Wave 10 notification persistence, and the standalone Detekt, unchanged combined host gate,
   plus package/current-architecture contracts are GREEN in `../internal/checkpoints/wave-10-production-remediation.md`.
-  Wave 10 does not redefine `MIGRATION_8_9` or `MIGRATION_9_10`; Wave 11 is unblocked.
+  RICC-v1 later advances current source to schema 12 without redefining Wave 10 ownership. Wave 10 does not
+  redefine `MIGRATION_8_9` or `MIGRATION_9_10`; Wave 11 is unblocked.
 - Wave 06-11 implementation plans are rebaselined to the approved post-Baseline-2
   capability/module evolution in
   `../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`.
@@ -70,7 +79,7 @@ Purpose: single source of truth for the implemented repository boundary.
 | Surface | Current baseline |
 |---|---|
 | Application | `versionCode = 1`, `versionName = 1.0` |
-| Room database | schema 11 current source; schemas 1-10 remain contiguous historical exports |
+| Room database | schema 12 current source; schemas 1-12 remain contiguous exports; schema 1 remains byte-frozen |
 | Plugin protocol | major 1, JavaScript-only Baseline 2 protocol; optional bounded catalog external-identifier facts added in canonical-engine Phase 0 |
 | Repository index | schema 1 |
 | Plugin package | JavaScript-only `.osp` layout with detached SHA-256 and optional detached Ed25519 signature |
@@ -91,13 +100,13 @@ These versions are independent. A change in one does not imply a change in anoth
 | `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
 | `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
 | `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
-| `:reader` | Sanitized document loading, HES-v1 session/effect coordination, process-scoped source health/execution limits, prefetch/competition, and exact progress policy/contracts |
+| `:reader` | Sanitized document loading, HES-v1 session/effect coordination, Reader image identity/manifests/single-flight/working-set policy, process-scoped source health/execution limits, prefetch/competition, and exact progress policy/contracts |
 | `:reader:engine` | HES-v1 pure JVM routing values/policy/facts and deterministic adaptive reasoner; no effects/runtime ownership |
-| `:feature:reader` | Restorable Reader state and accessible structured text / vertical image-page Compose presentation |
-| `:downloads` | Explicit download state, automatic-cache quota/eviction, Reader resolution, and reconciliation policy |
+| `:feature:reader` | Restorable Reader state and accessible structured text / vertical semantic image-page Compose presentation; no storage ownership |
+| `:downloads` | Explicit download state, unified automatic document/image-cache quota and retention, Reader asset store orchestration, Reader resolution, and reconciliation policy |
 | `:settings` | Wave 10 typed settings/auth/background/notification policy contracts and persistence-facing ports |
 | `:feature:settings` | Independent Wave 10 Settings presentation and status controls |
-| `:storage:files` | Atomic opaque chapter-blob persistence, inventory, and low-space admission |
+| `:storage:files` | Atomic opaque chapter and Reader image blob persistence, read leases, bounded inventory, and low-space admission |
 
 The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
 rules additionally keep feature code away from storage/runtime, catalog away from Compose
@@ -112,10 +121,11 @@ runtime persistence SPI.
 - The bundled registry is an extensible distribution list, not a single-provider architecture
   invariant. Current architecture verification requires every production `.osp` asset to have a
   matching descriptor and rejects undeclared assets.
-- MangaDex `1.3.0` exposes online image-page chapter bodies through `content.chapter`. Its manifest
-  explicitly opts into host-rendered remote images and disables offline download; Reader image requests
-  use bounded in-memory caching and do not bypass Hikari's managed storage quota through a separate
-  image disk cache.
+- MangaDex `1.3.1` exposes online image-page chapter bodies through `content.chapter`. Its reviewed adapter
+  contract declares `STABLE_ID_CHANGES_WITH_CONTENT + MUTABLE_OR_UNKNOWN + PUBLIC`: retained Reader images may
+  use RICC disk continuity under Hikari's unified automatic-cache quota, while explicit offline download remains
+  disabled. Arbitrary providers and sources without the stronger identity/persistence contract remain fail-closed
+  and non-persistent.
 - MangaDex@Home image success/failure reporting to `api.mangadex.network/report` is not yet
   implemented. Reader retry refreshes chapter delivery metadata and obtains a fresh base URL, but
   provider load reporting remains a release-hardening follow-up before the MangaDex image path is
@@ -134,14 +144,17 @@ runtime persistence SPI.
   lifecycle-aware state collection, cancellation, cached-content retention, and isolated
   operation failures. Discover uses one outer `LazyColumn`; Popular is a manual pager (max 5),
   Latest Updates is a bounded 3-column grid (max 9), and Top Rated is a ranked list (max 5).
-- Room schema 11 is the current source persistence foundation. It retains the Baseline-2 catalog/runtime state, metadata-only
+- Room schema 12 is the current source persistence foundation. It retains the Baseline-2 catalog/runtime state, metadata-only
   Library membership, protected content mappings, chapter graphs, aggregation overrides,
   synchronization state, canonical plus exact-release reading progress, Wave 09 cache/download
   metadata, Discover semantic feed/status/latest-update fields, separate Summary/Full catalog metadata
   provenance, canonical-engine queue leases, the transactional catalog-change outbox, and Wave 10
-  notification persistence/claim-recovery state. `MIGRATION_9_10` remains canonical durability ownership;
-  `MIGRATION_10_11` remains Wave 10 notification-persistence ownership. Schemas 1-10 remain contiguous
-  historical exports, schema 9 remains the accepted CCE closeout export, and schema 1 remains byte-frozen.
+  notification persistence/claim-recovery state. `MIGRATION_11_12` adds source/security-scoped Reader asset
+  metadata, blob identity/checksum, byte size, and persisted access/consumption recency for RICC-v1.
+  `MIGRATION_9_10` remains canonical durability ownership and `MIGRATION_10_11` remains Wave 10
+  notification-persistence ownership. Schemas 1-12 remain contiguous historical exports,
+  schema 9 remains the accepted CCE closeout export, schema 11 remains the HES-v1/Wave 10 historical boundary,
+  and schema 1 remains byte-frozen.
   Room entities/DAOs stay private to `:storage:room`.
 - Metadata-only Library membership remains local and idempotent. After membership commits,
   `LibraryService` may delegate mapping discovery to the Task-04 scheduler; scheduler failure
@@ -289,6 +302,13 @@ updated only where stale policy/schema assumptions still encoded the pre-redesig
 Detekt blockers introduced by the new segmented/skeleton code were fixed without suppressions.
 Acceptance details are in `../internal/checkpoints/discover-semantic-feed-redesign.md`.
 
+RICC-v1 then passed its focused lifecycle/security suite, end-to-end continuity and process-recreation
+integration tests, broad Reader/Downloads/Feature/App regressions, Gradle plus shell architecture gates,
+schema-11-to-12 migration and repository instrumentation (3/3), Reader connected UI instrumentation (11/11),
+and the bundled MangaDex contract instrumentation (1/1) on Redmi Note 9S/API 35. The accepted graph remains
+17 production modules plus `:benchmark`; schemas 1-12 are contiguous and HES-v1 engine purity remains enforced.
+Evidence is recorded in `../internal/checkpoints/reader-image-continuity-cache-ricc-v1.md`.
+
 Evidence:
 
 - `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`
@@ -304,12 +324,14 @@ Evidence:
 - `../internal/checkpoints/product-ui-task-01-toolchain.md`
 - `../internal/checkpoints/product-ui-task-02-target-pack.md`
 - `../internal/checkpoints/product-ui-task-03-artwork.md`
+- `../internal/checkpoints/reader-image-continuity-cache-ricc-v1.md`
 
 ## Wave 10 execution baseline
 
-Wave 10 implementation entered HES on its 16-production-module / Room-schema-11 boundary. The current
-M7.5 final-hardening tree still has 17 production modules because `:reader:engine` was added in M0; Room
-remains schema 11. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`,
+Wave 10 implementation entered HES on its 16-production-module / Room-schema-11 boundary. The M7.5
+final-hardening boundary has 17 production modules because `:reader:engine` was added in M0 and remains
+historically frozen on schema 11. Current RICC-v1 source keeps that module graph and advances only Room to
+schema 12. M0 evidence is recorded in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m0.md`,
 M7/M7.1 historical closure evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1.md`, M7.2
 historical re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-2.md`, and the
 final M7.3 conformance re-freeze evidence in `../internal/checkpoints/adaptive-reader-continuity-hes-v1-m7-3.md`.

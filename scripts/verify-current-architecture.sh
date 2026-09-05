@@ -11,7 +11,7 @@ BUNDLED_DESCRIPTOR_SOURCE="$ROOT_DIR/app/src/main/kotlin/app/openstory/di/Bundle
 BASELINE_SCHEMA_ONE_SHA256="adbd52a78feebd2eee197ccb58f0c209852ca059abd9fe1327bbfa962ba2011a"
 HES_V1_PRODUCTION_MODULES=17
 HES_V1_ANDROID_TEST_MODULES=1
-HES_V1_ROOM_SCHEMA=11
+RICC_V1_ROOM_SCHEMA=12
 
 fail() {
   echo "$1" >&2
@@ -171,11 +171,23 @@ grep -Fxq ':reader:engine' <<< "$reader_dependencies" || fail ":reader must cons
 if grep -Fxq ':settings' <<< "$reader_dependencies"; then
   fail ":reader must not depend on :settings."
 fi
+feature_reader_dependencies="$(policy_dependencies ':feature:reader' productionDependencies)"
+if grep -Fxq ':downloads' <<< "$feature_reader_dependencies"; then
+  fail ":feature:reader must not depend on :downloads."
+fi
 reader_build="$ROOT_DIR/reader/build.gradle.kts"
 grep -Fq 'implementation(project(":reader:engine"))' "$reader_build" ||
   fail ":reader must consume :reader:engine with implementation()."
 if grep -Fq 'api(project(":reader:engine"))' "$reader_build"; then
   fail ":reader must not expose :reader:engine with api()."
+fi
+feature_reader_build="$ROOT_DIR/feature/reader/build.gradle.kts"
+if grep -Fq 'project(":downloads")' "$feature_reader_build"; then
+  fail ":feature:reader must not declare a :downloads dependency."
+fi
+if grep -RInE --include='*.kt' '(ReaderAsset|RICC|ImageContinuity)' \
+  "$ROOT_DIR/reader/engine/src" >/dev/null; then
+  fail "RICC code must not exist under :reader:engine."
 fi
 
 for removed in \
@@ -212,13 +224,12 @@ database_version="$(
 [[ -n "$database_version" ]] || fail "Could not read the Room database version."
 [[ "$latest_schema" == "$database_version" ]] ||
   fail "Latest Room schema ($latest_schema) must match OpenStoryDatabase version ($database_version)."
-[[ "$latest_schema" -eq "$HES_V1_ROOM_SCHEMA" ]] ||
-  fail "HES-v1 must preserve Room schema $HES_V1_ROOM_SCHEMA; found $latest_schema."
+[[ "$latest_schema" -eq "$RICC_V1_ROOM_SCHEMA" ]] ||
+  fail "RICC-v1 requires Room schema $RICC_V1_ROOM_SCHEMA; found $latest_schema."
 grep -Fq 'RoomMigrations.MIGRATION_10_11' "$DATABASE_SOURCE" ||
   fail "OpenStoryDatabase must keep MIGRATION_10_11 registered."
-if grep -Fq 'MIGRATION_11_12' "$DATABASE_SOURCE"; then
-  fail "HES-v1 must not consume Room schema 12."
-fi
+grep -Fq 'RoomMigrations.MIGRATION_11_12' "$DATABASE_SOURCE" ||
+  fail "OpenStoryDatabase must register MIGRATION_11_12."
 
 BUNDLED_ASSET_DIR="$ROOT_DIR/app/src/main/assets/plugins"
 [[ -f "$BUNDLED_DESCRIPTOR_SOURCE" ]] || fail "Missing production bundled plugin registry."

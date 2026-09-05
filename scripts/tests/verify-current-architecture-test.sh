@@ -121,11 +121,11 @@ printf '\napi(project(":reader:engine"))\n' >> "$FIXTURE/reader/build.gradle.kts
 expect_failure 'Reader exposing HES engine through api()'
 make_fixture
 
-sed -i 's/version = 11,/version = 12,/' \
+sed -i 's/version = 12,/version = 13,/' \
   "$FIXTURE/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
-cp "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/11.json" \
-  "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/12.json"
-expect_failure 'HES consuming Room schema 12'
+cp "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/12.json" \
+  "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/13.json"
+expect_failure 'RICC consuming Room schema 13'
 make_fixture
 
 printf '\n' >> "$FIXTURE/storage/room/schemas/app.openstory.storage.room.OpenStoryDatabase/1.json"
