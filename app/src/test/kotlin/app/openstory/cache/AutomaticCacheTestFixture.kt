@@ -135,6 +135,7 @@ private object NoopReaderAssetBlobStore : ReaderAssetBlobStore {
         error("not used")
     override suspend fun open(id: ReaderAssetBlobId): ReaderAssetBlobReadLease? = null
     override suspend fun exists(id: ReaderAssetBlobId) = false
+    override suspend fun hasActiveReadLease(id: ReaderAssetBlobId): Boolean = false
     override suspend fun tryDeleteNowIfUnleased(id: ReaderAssetBlobId) = true
     override suspend fun deleteWhenUnleased(id: ReaderAssetBlobId) = Unit
 }

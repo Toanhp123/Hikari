@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 
 class ReaderAssetSingleFlight(
     private val processScope: CoroutineScope,
+    private val diagnostics: ReaderAssetDiagnosticsSink = ReaderAssetDiagnosticsSink.NO_OP,
 ) {
     private class Entry(
         val key: ReaderPageAssetKey,
@@ -38,7 +39,15 @@ class ReaderAssetSingleFlight(
         afterSuccess: (ReaderAssetPayload) -> Job?,
     ): ReaderAssetRemoteOutcome {
         val registration = register(key, priority, consumer)
+        if (!registration.leader) diagnostics.recordSafely(ReaderAssetDiagnosticEvent.SingleFlightJoin)
+        val previousPriority = registration.entry.demand.priority
         registration.entry.demand.promoteTo(priority)
+        val promotedPriority = registration.entry.demand.priority
+        if (promotedPriority != previousPriority) {
+            diagnostics.recordSafely(
+                ReaderAssetDiagnosticEvent.PriorityPromotion(previousPriority, promotedPriority),
+            )
+        }
         if (registration.leader) startProducer(registration.entry, producer, afterSuccess)
         return try {
             registration.entry.result.await()

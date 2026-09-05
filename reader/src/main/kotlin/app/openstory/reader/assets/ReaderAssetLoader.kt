@@ -11,7 +11,12 @@ class ReaderAssetLoader(
     private val singleFlight: ReaderAssetSingleFlight,
     private val fetchArbiter: ContentFetchArbiter,
     private val persistenceScope: CoroutineScope,
+    private val diagnostics: ReaderAssetDiagnosticsSink = ReaderAssetDiagnosticsSink.NO_OP,
 ) {
+    fun invalidateSecurityScopedSource(sourceNamespace: ReaderAssetSourceNamespace) {
+        singleFlight.invalidateSecurityScopedSource(sourceNamespace)
+    }
+
     suspend fun load(
         facts: ReaderAssetCommitFacts,
         descriptor: ReaderPageAssetDescriptor,
@@ -63,10 +68,13 @@ class ReaderAssetLoader(
         val opened = readerAssetStorageCall { store.openLocal(key) }
             .getOrElse { ReaderAssetOpenResult.Unavailable }
         return when (opened) {
-            is ReaderAssetOpenResult.Available ->
+            is ReaderAssetOpenResult.Available -> {
+                diagnostics.recordSafely(ReaderAssetDiagnosticEvent.DiskHit)
                 LocalResolution.Complete(ReaderAssetLoadOutcome.Local(opened.lease))
+            }
             ReaderAssetOpenResult.Missing -> LocalResolution.Remote(allowPersistence = true)
             ReaderAssetOpenResult.Corrupt -> {
+                diagnostics.recordSafely(ReaderAssetDiagnosticEvent.Corruption)
                 readerAssetStorageCall { store.invalidate(key, ReaderAssetInvalidationReason.CORRUPT) }
                 LocalResolution.Remote(allowPersistence = true)
             }
@@ -122,11 +130,13 @@ class ReaderAssetLoader(
         }
     }
 
-    private suspend fun fetchOnce(request: ReaderAssetDeliveryRequest): ReaderAssetRemoteOutcome =
-        when (val result = delivery.fetch(request)) {
+    private suspend fun fetchOnce(request: ReaderAssetDeliveryRequest): ReaderAssetRemoteOutcome {
+        diagnostics.recordSafely(ReaderAssetDiagnosticEvent.NetworkFetch)
+        return when (val result = delivery.fetch(request)) {
             is ReaderAssetDeliveryResult.Success -> ReaderAssetRemoteOutcome.Success(result.payload)
             is ReaderAssetDeliveryResult.Failure -> ReaderAssetRemoteOutcome.Failure(result.failure)
         }
+    }
 
     private fun launchCommit(
         facts: ReaderAssetCommitFacts,

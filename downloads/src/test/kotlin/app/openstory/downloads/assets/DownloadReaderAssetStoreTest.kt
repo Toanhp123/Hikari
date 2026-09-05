@@ -19,6 +19,8 @@ import app.openstory.reader.assets.ReaderAssetCachePressure
 import app.openstory.reader.assets.ReaderAssetClearScope
 import app.openstory.reader.assets.ReaderAssetCommitFacts
 import app.openstory.reader.assets.ReaderAssetCommitResult
+import app.openstory.reader.assets.ReaderAssetDiagnosticEvent
+import app.openstory.reader.assets.ReaderAssetDiagnosticsSink
 import app.openstory.reader.assets.ReaderAssetActiveProtections
 import app.openstory.reader.assets.ReaderAssetFailure
 import app.openstory.reader.assets.ReaderAssetIdentityHash
@@ -40,7 +42,9 @@ import app.openstory.reader.assets.ReaderRuntimeAssetScopeId
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -190,6 +194,50 @@ class DownloadReaderAssetStoreTest {
     }
 
     @Test
+    fun `generation remains reconciliation protected while blob write is in flight`() = runTest {
+        val fixture = fixture()
+        val facts = facts(id = 88)
+        val payload = payload(88)
+        val authority = assertNotNull(fixture.store.captureDurableWriteAuthority(facts))
+        val writeStarted = CompletableDeferred<ReaderAssetBlobId>()
+        val releaseWrite = CompletableDeferred<Unit>()
+        fixture.blobs.afterStoredWrite = { id ->
+            writeStarted.complete(id)
+            releaseWrite.await()
+        }
+
+        val commit = async { fixture.store.commit(facts, authority, payload) }
+        val activeBlob = writeStarted.await()
+
+        assertEquals(setOf(activeBlob), fixture.store.activeGenerationBlobIds())
+
+        releaseWrite.complete(Unit)
+        assertEquals(ReaderAssetCommitResult.Persisted, commit.await())
+        assertTrue(fixture.store.activeGenerationBlobIds().isEmpty())
+    }
+
+    @Test
+    fun `metadata publication failure records one commit failure diagnostic`() = runTest {
+        val diagnostics = RecordingDownloadReaderAssetDiagnostics()
+        val fixture = fixture(diagnostics = diagnostics)
+        val facts = facts(130)
+        val authority = assertNotNull(fixture.store.captureDurableWriteAuthority(facts))
+        fixture.metadata.failUpsert = true
+
+        val result = fixture.store.commit(facts, authority, payload(130))
+        runCurrent()
+
+        assertEquals(
+            ReaderAssetCommitResult.Degraded(ReaderAssetFailure.CacheStorageUnavailable),
+            result,
+        )
+        assertEquals(
+            listOf(ReaderAssetDiagnosticEvent.CommitFailure(ReaderAssetFailure.CacheStorageUnavailable)),
+            diagnostics.events.filterIsInstance<ReaderAssetDiagnosticEvent.CommitFailure>(),
+        )
+    }
+
+    @Test
     fun `no space retries exactly once after bounded relief`() = runTest {
         val fixture = fixture()
         val victim = facts(14)
@@ -222,6 +270,31 @@ class DownloadReaderAssetStoreTest {
         assertEquals(2, fixture.blobs.writeCalls.size)
         assertEquals(0L, fixture.budget.snapshot().pendingReservationBytes)
         assertContentEquals(bytes(16), remotePayload.bytes())
+    }
+
+    @Test
+    fun `typed enospc records emergency commit failure and only physical reclaimed bytes`() = runTest {
+        val diagnostics = RecordingDownloadReaderAssetDiagnostics()
+        val fixture = fixture(diagnostics = diagnostics)
+        val victim = facts(160)
+        fixture.seed(victim, bytes(160, size = 4), accessedAt = 0L)
+        fixture.blobs.writeOutcomes.addAll(listOf(WriteOutcome.NO_SPACE, WriteOutcome.NO_SPACE))
+
+        val result = fixture.persist(facts(161), payload(161))
+
+        assertEquals(
+            ReaderAssetCommitResult.Degraded(ReaderAssetFailure.CacheStorageUnavailable),
+            result,
+        )
+        assertTrue(ReaderAssetDiagnosticEvent.CachePressure(ReaderAssetCachePressure.EMERGENCY) in diagnostics.events)
+        assertTrue(
+            ReaderAssetDiagnosticEvent.CommitFailure(ReaderAssetFailure.CacheStorageUnavailable) in diagnostics.events,
+        )
+        assertEquals(
+            4L,
+            diagnostics.events.filterIsInstance<ReaderAssetDiagnosticEvent.EvictionBytes>()
+                .sumOf { it.physicallyReclaimedBytes },
+        )
     }
 
     @Test
@@ -358,7 +431,8 @@ class DownloadReaderAssetStoreTest {
         wallMillis: Long = 100L,
         monotonicNanos: Long = 0L,
         writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
-    ) = StoreFixture(quotaBytes, wallMillis, monotonicNanos, writeAdmission, backgroundScope)
+        diagnostics: ReaderAssetDiagnosticsSink = ReaderAssetDiagnosticsSink.NO_OP,
+    ) = StoreFixture(quotaBytes, wallMillis, monotonicNanos, writeAdmission, backgroundScope, diagnostics)
 
     private fun facts(
         id: Int,
@@ -409,6 +483,7 @@ private class StoreFixture(
     monotonicNanos: Long,
     private val writeAdmission: StorageWriteAdmission,
     reconciliationScope: kotlinx.coroutines.CoroutineScope,
+    private val diagnostics: ReaderAssetDiagnosticsSink,
 ) {
     val metadata = FakeReaderAssetMetadataRepository()
     val blobs = FakeReaderAssetBlobStore()
@@ -421,6 +496,7 @@ private class StoreFixture(
         readerAssetBlobStore = blobs,
         initialQuotaBytes = quotaBytes,
         reconciliationScope = reconciliationScope,
+        diagnostics = diagnostics,
     )
     private var nextUuid = 1L
     val store = newStore()
@@ -453,6 +529,7 @@ private class StoreFixture(
         monotonicClock = monotonicClock,
         writeAdmission = writeAdmission,
         runtimePolicy = AutomaticCacheRuntimePolicy(),
+        diagnostics = diagnostics,
     )
 
     private fun metadata(
@@ -536,6 +613,7 @@ private class FakeReaderAssetBlobStore : ReaderAssetBlobStore {
     val immediateDeletes = mutableListOf<ReaderAssetBlobId>()
     val normalDeletes = mutableListOf<ReaderAssetBlobId>()
     val failExists = mutableSetOf<String>()
+    var afterStoredWrite: suspend (ReaderAssetBlobId) -> Unit = { }
 
     fun put(id: ReaderAssetBlobId, bytes: ByteArray) {
         values[id] = bytes.copyOf()
@@ -548,6 +626,7 @@ private class FakeReaderAssetBlobStore : ReaderAssetBlobStore {
         return when (writeOutcomes.removeFirstOrNull() ?: WriteOutcome.STORED) {
             WriteOutcome.STORED -> {
                 put(id, bytes)
+                afterStoredWrite(id)
                 ReaderAssetBlobWriteResult.Stored(
                     StoredReaderAssetBlob(id, bytes.size.toLong(), BlobChecksum.sha256(bytes)),
                 )
@@ -583,6 +662,8 @@ private class FakeReaderAssetBlobStore : ReaderAssetBlobStore {
         return id in values
     }
 
+    override suspend fun hasActiveReadLease(id: ReaderAssetBlobId): Boolean = activeLeases(id) > 0
+
     override suspend fun tryDeleteNowIfUnleased(id: ReaderAssetBlobId): Boolean {
         immediateDeletes += id
         if (activeLeases(id) > 0) return false
@@ -611,4 +692,12 @@ private object EmptyChapterBlobStore : ChapterBlobStore {
     override suspend fun read(key: ChapterBlobKey): ChapterBlob? = null
     override suspend fun write(key: ChapterBlobKey, blob: ChapterBlob) = Unit
     override suspend fun delete(key: ChapterBlobKey) = Unit
+}
+
+private class RecordingDownloadReaderAssetDiagnostics : ReaderAssetDiagnosticsSink {
+    val events = mutableListOf<ReaderAssetDiagnosticEvent>()
+
+    override fun record(event: ReaderAssetDiagnosticEvent) {
+        events += event
+    }
 }

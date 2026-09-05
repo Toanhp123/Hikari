@@ -12,6 +12,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -42,6 +43,7 @@ class ReaderAssetCoordinator(
     private val manifestFactory: ReaderAssetManifestFactory = ReaderAssetManifestFactory(),
     private val workingSetPolicy: ReaderAssetWorkingSetPolicy = ReaderAssetWorkingSetPolicy(),
     private val planner: ReaderAssetPrefetchPlanner = ReaderAssetPrefetchPlanner(workingSetPolicy),
+    private val diagnostics: ReaderAssetDiagnosticsSink = ReaderAssetDiagnosticsSink.NO_OP,
 ) : ReaderAssetSessionPort {
     private data class SessionRuntime(
         var state: ReaderAssetSessionState,
@@ -52,6 +54,7 @@ class ReaderAssetCoordinator(
         var refreshPort: ReaderSelectedReleaseRefreshPort? = null,
         val refreshJobs:
             MutableMap<ReaderAssetRefreshFlightKey, Deferred<DeliveryRefreshResolution>> = mutableMapOf(),
+        var securityInvalidatedManifestRevision: Long? = null,
     )
 
     private data class ActivePageRequest(
@@ -129,6 +132,7 @@ class ReaderAssetCoordinator(
             val runtime = sessions.getOrPut(sessionId) { SessionRuntime(ReaderAssetSessionState()) }
             effectiveRevision = maxOf(runtime.state.manifestRevision + 1L, proposedManifestRevision)
             cancelledJobs = runtime.cancelManifestWorkLocked()
+            runtime.securityInvalidatedManifestRevision = null
             runtime.state = runtime.state.acceptCommitted(
                 effectiveManifestRevision = effectiveRevision,
                 chapterId = manifest.canonicalChapterId,
@@ -239,6 +243,60 @@ class ReaderAssetCoordinator(
         cancelledJobs.forEach(Job::cancel)
     }
 
+    fun invalidateSecurityScopedSource(sourceNamespace: ReaderAssetSourceNamespace) {
+        val cancelledJobs = mutableListOf<Job>()
+        var changed = false
+        synchronized(lock) {
+            sessions.forEach { (sessionId, runtime) ->
+                val state = runtime.state
+                val committedInvalidated = state.committedManifest.isSecurityScopedFor(sourceNamespace)
+                val prefetchedInvalidated = state.prefetchedManifest.isSecurityScopedFor(sourceNamespace)
+                val retainedRecent = state.recentCommittedManifests.filterNot {
+                    it.isSecurityScopedFor(sourceNamespace)
+                }
+                val recentChanged = retainedRecent.size != state.recentCommittedManifests.size
+                if (!committedInvalidated && !prefetchedInvalidated && !recentChanged) return@forEach
+
+                changed = true
+                cancelledJobs += runtime.cancelSecurityScopedWorkLocked(
+                    sourceNamespace = sourceNamespace,
+                    currentManifestInvalidated = committedInvalidated,
+                )
+                if (committedInvalidated) {
+                    runtime.securityInvalidatedManifestRevision = state.manifestRevision
+                    committedSnapshots.value = committedSnapshots.value - sessionId
+                }
+
+                val retainedCommitted = state.committedManifest.takeUnless { committedInvalidated }
+                val retainedPrefetched = state.prefetchedManifest.takeUnless { prefetchedInvalidated }
+                val retainedKeys = buildSet {
+                    retainedCommitted?.descriptors?.mapTo(this) { it.key }
+                    retainedPrefetched?.descriptors?.mapTo(this) { it.key }
+                    retainedRecent.forEach { manifest -> manifest.descriptors.mapTo(this) { it.key } }
+                }
+                runtime.state = state.copy(
+                    committedManifest = retainedCommitted,
+                    recentCommittedManifests = retainedRecent,
+                    viewport = state.viewport.takeUnless { committedInvalidated },
+                    activeProtections = ReaderAssetActiveProtections.EMPTY,
+                    localPresence = state.localPresence.filterKeys { it in retainedKeys },
+                    consumedKeys = if (committedInvalidated) {
+                        emptySet()
+                    } else {
+                        state.consumedKeys.filterTo(linkedSetOf()) { it in retainedKeys }
+                    },
+                    prefetchedManifest = retainedPrefetched,
+                    prefetchToken = if (prefetchedInvalidated) 0L else state.prefetchToken,
+                    plan = if (committedInvalidated || prefetchedInvalidated) ReaderAssetPlan.EMPTY else state.plan,
+                )
+                recomputeProtectionsLocked(runtime)
+            }
+            if (changed) enqueueMaintenanceLocked()
+        }
+        loader?.invalidateSecurityScopedSource(sourceNamespace)
+        cancelledJobs.distinct().forEach(Job::cancel)
+    }
+
     fun observeCommittedManifest(
         sessionId: ReaderSessionId,
     ): Flow<ReaderCommittedAssetManifestSnapshot> = committedSnapshots
@@ -335,6 +393,9 @@ class ReaderAssetCoordinator(
         val requestJob = currentCoroutineContext()[Job]
         val initial = synchronized(lock) {
             val runtime = sessions[request.sessionId] ?: return supersededOutcome()
+            if (runtime.securityInvalidatedManifestRevision == request.manifestRevision) {
+                return routeInvalidatedOutcome()
+            }
             val manifest = runtime.state.committedManifest ?: return supersededOutcome()
             val descriptor = manifest.descriptorMatching(request) ?: return supersededOutcome()
             if (runtime.state.manifestRevision != request.manifestRevision) {
@@ -394,27 +455,47 @@ class ReaderAssetCoordinator(
         initial: RequestState,
         outcome: ReaderAssetLoadOutcome,
     ): ReaderAssetLoadOutcome {
-        val current = isRequestCurrent(request)
-        if (!current) {
+        val validity = requestValidity(request)
+        if (validity != RequestValidity.CURRENT) {
             (outcome as? ReaderAssetLoadOutcome.Local)?.lease?.close()
-            return supersededOutcome()
+            return if (validity == RequestValidity.SECURITY_INVALIDATED) {
+                routeInvalidatedOutcome()
+            } else {
+                supersededOutcome()
+            }
         }
-        if (outcome is ReaderAssetLoadOutcome.Local) {
+        val refreshedPresence = when (outcome) {
+            is ReaderAssetLoadOutcome.Local -> ReaderAssetLocalPresence.LOCAL_AVAILABLE
+            is ReaderAssetLoadOutcome.Remote -> ReaderAssetLocalPresence.UNKNOWN
+            is ReaderAssetLoadOutcome.Failure -> null
+        }
+        refreshedPresence?.let { presence ->
             updatePresenceIfCurrent(
                 request.sessionId,
                 request.manifestRevision,
                 initial.descriptor.key,
-                ReaderAssetLocalPresence.LOCAL_AVAILABLE,
+                presence,
             )
         }
         return outcome
     }
 
-    private fun isRequestCurrent(request: ReaderPageAssetRequest): Boolean = synchronized(lock) {
-        sessions[request.sessionId]?.state?.let { state ->
-            state.manifestRevision == request.manifestRevision &&
-                state.committedManifest?.descriptorMatching(request) != null
-        } == true
+    private fun isRequestCurrent(request: ReaderPageAssetRequest): Boolean =
+        requestValidity(request) == RequestValidity.CURRENT
+
+    private fun requestValidity(request: ReaderPageAssetRequest): RequestValidity = synchronized(lock) {
+        val runtime = sessions[request.sessionId] ?: return@synchronized RequestValidity.SUPERSEDED
+        if (runtime.securityInvalidatedManifestRevision == request.manifestRevision) {
+            return@synchronized RequestValidity.SECURITY_INVALIDATED
+        }
+        val state = runtime.state
+        if (state.manifestRevision == request.manifestRevision &&
+            state.committedManifest?.descriptorMatching(request) != null
+        ) {
+            RequestValidity.CURRENT
+        } else {
+            RequestValidity.SUPERSEDED
+        }
     }
 
     private suspend fun refreshRejectedDelivery(
@@ -440,6 +521,7 @@ class ReaderAssetCoordinator(
             val refreshPort = runtime.refreshPort
                 ?: return DeliveryRefreshResolution.AuthorityUnavailable
             val created = coordinatorScope.async(start = CoroutineStart.LAZY) {
+                diagnostics.recordSafely(ReaderAssetDiagnosticEvent.LocatorRefresh)
                 performSelectedReleaseRefresh(
                     request = request,
                     committedManifest = committedManifest,
@@ -455,7 +537,16 @@ class ReaderAssetCoordinator(
             created
         }
         flight.start()
-        return flight.await()
+        return try {
+            flight.await()
+        } catch (cancelled: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            if (requestValidity(request) == RequestValidity.SECURITY_INVALIDATED) {
+                DeliveryRefreshResolution.RouteInvalidated
+            } else {
+                throw cancelled
+            }
+        }
     }
 
     private suspend fun performSelectedReleaseRefresh(
@@ -610,6 +701,10 @@ class ReaderAssetCoordinator(
                 )
             } ?: return@launch
             work.cancelledJobs.forEach(Job::cancel)
+            val speculativeCount = work.acquisitions.count { it.id.priority == ContentFetchPriority.SPECULATIVE }
+            if (speculativeCount > 0) {
+                diagnostics.recordSafely(ReaderAssetDiagnosticEvent.Prefetch(speculativeCount))
+            }
             work.acquisitions.forEach { acquisition -> scheduleAcquisition(sessionId, acquisition) }
         }
         val oldJob = synchronized(lock) {
@@ -853,6 +948,8 @@ class ReaderAssetCoordinator(
         }
     }
 
+    private enum class RequestValidity { CURRENT, SUPERSEDED, SECURITY_INVALIDATED }
+
     private data class RequestState(
         val manifest: ReaderAssetChapterManifest,
         val descriptor: ReaderPageAssetDescriptor,
@@ -894,6 +991,26 @@ class ReaderAssetCoordinator(
         acquisitionJobs.clear()
     }
 
+    private fun SessionRuntime.cancelSecurityScopedWorkLocked(
+        sourceNamespace: ReaderAssetSourceNamespace,
+        currentManifestInvalidated: Boolean,
+    ): List<Job> = buildList {
+        if (currentManifestInvalidated) {
+            addAll(inspectionJobs)
+            inspectionJobs.clear()
+            addAll(refreshJobs.values)
+            refreshJobs.clear()
+        }
+        planningJob?.let(::add)
+        planningJob = null
+        acquisitionJobs.entries.removeAll { (id, job) ->
+            val matching = id.key.sourceNamespace == sourceNamespace &&
+                id.key.securityScope != ReaderCacheSecurityScope.Public
+            if (matching) add(job)
+            matching
+        }
+    }
+
     private fun SessionRuntime.cancelViewportWorkLocked(
         nextViewport: ReaderViewportSnapshot,
     ): List<Job> = buildList {
@@ -932,6 +1049,12 @@ class ReaderAssetCoordinator(
         refreshed.sourceNamespace == sourceNamespace &&
         refreshed.contentVariant == contentVariant
 
+    private fun ReaderAssetChapterManifest?.isSecurityScopedFor(
+        sourceNamespace: ReaderAssetSourceNamespace,
+    ): Boolean = this?.let { manifest ->
+        manifest.sourceNamespace == sourceNamespace && manifest.securityScope != ReaderCacheSecurityScope.Public
+    } == true
+
     private fun ReaderAssetSessionState.tracks(manifest: ReaderAssetChapterManifest): Boolean =
         committedManifest == manifest || prefetchedManifest == manifest
 
@@ -965,3 +1088,6 @@ class ReaderAssetCoordinator(
 
 private fun supersededOutcome(): ReaderAssetLoadOutcome =
     ReaderAssetLoadOutcome.Failure(ReaderAssetFailure.Superseded)
+
+private fun routeInvalidatedOutcome(): ReaderAssetLoadOutcome =
+    ReaderAssetLoadOutcome.Failure(ReaderAssetFailure.RouteInvalidated)

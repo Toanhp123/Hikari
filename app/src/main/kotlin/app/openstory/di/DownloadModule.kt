@@ -23,6 +23,7 @@ import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ReaderAssetDiagnosticsSink
 import app.openstory.reader.routing.ContentSourceExecutionLane
 import app.openstory.common.Clock
 import app.openstory.common.MonotonicClock
@@ -98,12 +99,14 @@ object DownloadModule {
         readerAssetMetadataRepository: ReaderAssetMetadataRepository,
         readerAssetBlobStore: ReaderAssetBlobStore,
         runtimePolicy: AutomaticCacheRuntimePolicy,
+        diagnostics: ReaderAssetDiagnosticsSink,
     ): AutomaticCacheBudgetCoordinator = AutomaticCacheBudgetCoordinator(
         cacheRepository = cacheRepository,
         documentBlobStore = chapterBlobStore,
         readerAssetMetadataRepository = readerAssetMetadataRepository,
         readerAssetBlobStore = readerAssetBlobStore,
         policy = runtimePolicy,
+        diagnostics = diagnostics,
     )
 
     @Provides
@@ -117,6 +120,7 @@ object DownloadModule {
         monotonicClock: MonotonicClock,
         writeAdmission: StorageWriteAdmission,
         runtimePolicy: AutomaticCacheRuntimePolicy,
+        diagnostics: ReaderAssetDiagnosticsSink,
     ): DownloadReaderAssetStore = DownloadReaderAssetStore(
         metadataRepository = metadataRepository,
         blobStore = blobStore,
@@ -126,6 +130,7 @@ object DownloadModule {
         monotonicClock = monotonicClock,
         writeAdmission = writeAdmission,
         runtimePolicy = runtimePolicy,
+        diagnostics = diagnostics,
     )
 
     @Provides
@@ -156,9 +161,13 @@ object DownloadModule {
     fun provideStorageReconciliationService(
         repository: StorageReconciliationRepository,
         inventory: StorageReconciliationInventory,
+        readerAssets: DownloadReaderAssetStore,
+        fileInventory: FileBlobInventory,
     ) = StorageReconciliationService(
         repository = repository,
         inventory = inventory,
+        readerAssets = readerAssets,
+        readerAssetInventory = fileInventory,
         activeWriteWindowMillis = ACTIVE_WRITE_WINDOW_MILLIS,
         now = System::currentTimeMillis,
     )

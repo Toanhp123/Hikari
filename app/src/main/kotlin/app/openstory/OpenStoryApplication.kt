@@ -5,6 +5,7 @@ import app.openstory.cache.AutomaticCachePolicyCoordinator
 import app.openstory.notifications.NotificationChannelConfig
 import app.openstory.notifications.WorkManagerNotificationDrainScheduler
 import app.openstory.reader.assets.ReaderAssetImageLoaderInstaller
+import app.openstory.reader.assets.ReaderAssetSecurityInvalidationObserver
 import app.openstory.settings.background.BackgroundPolicyCoordinator
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -19,11 +20,13 @@ class OpenStoryApplication : Application() {
     @Inject lateinit var backgroundPolicyCoordinator: BackgroundPolicyCoordinator
     @Inject lateinit var notificationDrainScheduler: WorkManagerNotificationDrainScheduler
     @Inject lateinit var readerAssetImageLoaderInstaller: ReaderAssetImageLoaderInstaller
+    @Inject lateinit var readerAssetSecurityInvalidationObserver: ReaderAssetSecurityInvalidationObserver
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
         readerAssetImageLoaderInstaller.install()
+        readerAssetSecurityInvalidationObserver.start(applicationScope)
         NotificationChannelConfig.create(this)
         automaticCachePolicyCoordinator.start(applicationScope)
         backgroundPolicyCoordinator.start()

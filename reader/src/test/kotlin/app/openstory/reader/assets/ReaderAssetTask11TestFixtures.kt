@@ -21,6 +21,7 @@ internal fun assetManifest(
     chapter: String,
     pageCount: Int,
     locatorTag: String = "v1",
+    persistenceContract: ReaderImagePersistenceContract = ReaderImagePersistenceContract.PUBLIC,
 ): ReaderAssetChapterManifest {
     val storyId = StoryId("story")
     val chapterId = CanonicalChapterId(chapter)
@@ -63,7 +64,7 @@ internal fun assetManifest(
             imageSourcePolicy = ReaderImageSourcePolicy(
                 identityContract = ReaderImageIdentityContract.DELIVERY_STABLE_ONLY,
                 locatorContract = ReaderImageLocatorContract.LOCATOR_CHANGES_WITH_CONTENT,
-                persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+                persistenceContract = persistenceContract,
             ),
             sourcePluginId = pluginId,
         ),

@@ -84,7 +84,10 @@ internal fun normalizedAutomaticCacheCandidates(
 )
 
 internal fun AutomaticCacheRetention.isNormalQuotaVictim(): Boolean =
-    ordinal <= AutomaticCacheRetention.PROGRESS_PROTECTED_DOCUMENT.ordinal
+    ordinal <= AutomaticCacheRetention.CONSUMED_IMAGE_HISTORY.ordinal
+
+internal fun AutomaticCacheRetention.isEmergencyPressureVictim(): Boolean =
+    ordinal <= AutomaticCacheRetention.ACTIVE_INTERACTIVE_IMAGE.ordinal
 
 internal fun AutomaticCacheRetention.isPhysicalPressureVictim(): Boolean =
     ordinal <= AutomaticCacheRetention.CONSUMED_IMAGE_HISTORY.ordinal

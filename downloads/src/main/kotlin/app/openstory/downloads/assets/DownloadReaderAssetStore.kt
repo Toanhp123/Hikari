@@ -2,12 +2,13 @@ package app.openstory.downloads.assets
 
 import app.openstory.common.Clock
 import app.openstory.common.MonotonicClock
-import app.openstory.downloads.blob.BlobChecksum
 import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
 import app.openstory.downloads.cache.AutomaticCachePublicationResult
 import app.openstory.downloads.cache.AutomaticCacheReservation
 import app.openstory.downloads.cache.AutomaticCacheRuntimePolicy
 import app.openstory.downloads.cache.AutomaticCacheWriteAuthority
+import app.openstory.downloads.reconcile.ReaderAssetReconciliationEntry
+import app.openstory.downloads.reconcile.ReaderAssetReconciliationStore
 import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.reader.assets.ReaderAssetActiveProtections
 import app.openstory.reader.assets.ReaderAssetCachePressure
@@ -15,22 +16,19 @@ import app.openstory.reader.assets.ReaderAssetClearScope
 import app.openstory.reader.assets.ReaderAssetCommitFacts
 import app.openstory.reader.assets.ReaderAssetCommitResult
 import app.openstory.reader.assets.ReaderAssetDurableWriteAuthority
+import app.openstory.reader.assets.ReaderAssetDiagnosticEvent
+import app.openstory.reader.assets.ReaderAssetDiagnosticsSink
+import app.openstory.reader.assets.recordSafely
 import app.openstory.reader.assets.ReaderAssetFailure
 import app.openstory.reader.assets.ReaderAssetInvalidationReason
 import app.openstory.reader.assets.ReaderAssetKeyHash
 import app.openstory.reader.assets.ReaderAssetLocalPresence
 import app.openstory.reader.assets.ReaderAssetOpenResult
 import app.openstory.reader.assets.ReaderAssetPayload
-import app.openstory.reader.assets.ReaderAssetReadLease
-import app.openstory.reader.assets.ReaderAssetRuntimePolicy
 import app.openstory.reader.assets.ReaderAssetStorePort
 import app.openstory.reader.assets.ReaderPageAssetKey
 import app.openstory.reader.assets.isSupportedSchema
 import app.openstory.reader.routing.ReaderSessionId
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -44,9 +42,12 @@ class DownloadReaderAssetStore(
     private val monotonicClock: MonotonicClock,
     private val writeAdmission: StorageWriteAdmission = StorageWriteAdmission.ALLOW_ALL,
     private val runtimePolicy: AutomaticCacheRuntimePolicy = AutomaticCacheRuntimePolicy(),
-) : ReaderAssetStorePort {
+    private val diagnostics: ReaderAssetDiagnosticsSink = ReaderAssetDiagnosticsSink.NO_OP,
+) : ReaderAssetStorePort, ReaderAssetReconciliationStore {
     private val touchGate = Mutex()
     private val lastAccessTouches = mutableMapOf<ReaderAssetKeyHash, Long>()
+    private val activeGenerationLock = Any()
+    private val activeGenerations = linkedSetOf<ReaderAssetBlobId>()
 
     override suspend fun inspect(
         keys: Set<ReaderPageAssetKey>,
@@ -102,25 +103,36 @@ class DownloadReaderAssetStore(
         }
     }
 
-    override suspend fun cachePressure(): ReaderAssetCachePressure = when {
-        !writeAdmission.canStore(MINIMUM_ADMISSION_PROBE_BYTES) -> ReaderAssetCachePressure.EMERGENCY
-        else -> when (val snapshot = storageCall { budget.snapshot() }) {
-            is StorageCall.Failed -> ReaderAssetCachePressure.EMERGENCY
-            is StorageCall.Value -> {
-                val highWatermark = snapshot.value.quotaBytes
-                    .basisPoints(runtimePolicy.highWatermarkBasisPoints)
-                if (snapshot.value.quotaBytes == 0L || snapshot.value.totalAccountedBytes >= highWatermark) {
-                    ReaderAssetCachePressure.PRESSURED
-                } else {
-                    ReaderAssetCachePressure.NORMAL
+    override suspend fun cachePressure(): ReaderAssetCachePressure {
+        val pressure = when {
+            !writeAdmission.canStore(MINIMUM_ADMISSION_PROBE_BYTES) -> ReaderAssetCachePressure.EMERGENCY
+            else -> when (val snapshot = storageCall { budget.snapshot() }) {
+                is StorageCall.Failed -> ReaderAssetCachePressure.EMERGENCY
+                is StorageCall.Value -> {
+                    val highWatermark = snapshot.value.quotaBytes
+                        .basisPoints(runtimePolicy.highWatermarkBasisPoints)
+                    if (snapshot.value.quotaBytes == 0L || snapshot.value.totalAccountedBytes >= highWatermark) {
+                        ReaderAssetCachePressure.PRESSURED
+                    } else {
+                        ReaderAssetCachePressure.NORMAL
+                    }
                 }
             }
         }
+        if (pressure != ReaderAssetCachePressure.NORMAL) {
+            diagnostics.recordSafely(ReaderAssetDiagnosticEvent.CachePressure(pressure))
+        }
+        return pressure
     }
 
     override suspend fun reconcile(activeProtections: ReaderAssetActiveProtections) {
         budget.replaceActiveProtections(activeProtections)
         budget.requestReconciliation()
+        if (!writeAdmission.canStore(MINIMUM_ADMISSION_PROBE_BYTES)) {
+            budget.requestEmergencyReconciliation {
+                writeAdmission.canStore(MINIMUM_ADMISSION_PROBE_BYTES)
+            }
+        }
     }
 
     override suspend fun releaseSession(sessionId: ReaderSessionId) {
@@ -129,6 +141,25 @@ class DownloadReaderAssetStore(
 
     override suspend fun clearAutomatic(scope: ReaderAssetClearScope) {
         budget.clearAutomatic(ReaderAssetEvictionMapper.invalidationScope(scope))
+    }
+
+    override suspend fun reconciliationEntries(): List<ReaderAssetReconciliationEntry> =
+        metadataRepository.all().map { metadata ->
+            ReaderAssetReconciliationEntry(
+                logicalAssetKeyHash = metadata.logicalAssetKeyHash,
+                blobId = ReaderAssetBlobId(metadata.blobId),
+            )
+        }
+
+    override suspend fun activeGenerationBlobIds(): Set<ReaderAssetBlobId> = synchronized(activeGenerationLock) {
+        activeGenerations.toSet()
+    }
+
+    override suspend fun detachMissingGeneration(expected: ReaderAssetReconciliationEntry): Boolean {
+        val current = metadataRepository.find(setOf(expected.logicalAssetKeyHash))[expected.logicalAssetKeyHash]
+            ?: return false
+        if (current.blobId != expected.blobId.value) return false
+        return budget.invalidateReaderAssetGeneration(current)
     }
 
     private suspend fun inspectSupported(
@@ -231,15 +262,23 @@ class DownloadReaderAssetStore(
         facts: ReaderAssetCommitFacts,
         payload: ReaderAssetPayload,
         prepared: PreparedReaderAssetCommit,
-    ): ReaderAssetCommitResult = try {
-        when (val write = writeWithOneRetry(prepared.blobId, prepared.bytes)) {
-            is ReaderAssetBlobWriteResult.Stored -> commitStored(facts, payload, prepared, write.blob)
-            ReaderAssetBlobWriteResult.NoSpace,
-            is ReaderAssetBlobWriteResult.Unavailable,
-            -> cleanupGeneration(prepared.blobId, ReaderAssetCommitResult.Degraded(cacheStorageFailure))
+    ): ReaderAssetCommitResult {
+        synchronized(activeGenerationLock) { activeGenerations += prepared.blobId }
+        return try {
+            val result = when (val write = writeWithOneRetry(prepared.blobId, prepared.bytes)) {
+                is ReaderAssetBlobWriteResult.Stored -> commitStored(facts, payload, prepared, write.blob)
+                ReaderAssetBlobWriteResult.NoSpace,
+                is ReaderAssetBlobWriteResult.Unavailable,
+                -> cleanupGeneration(prepared.blobId, ReaderAssetCommitResult.Degraded(cacheStorageFailure))
+            }
+            if (result is ReaderAssetCommitResult.Degraded) {
+                diagnostics.recordSafely(ReaderAssetDiagnosticEvent.CommitFailure(result.failure))
+            }
+            result
+        } finally {
+            synchronized(activeGenerationLock) { activeGenerations -= prepared.blobId }
+            budget.release(prepared.reservation)
         }
-    } finally {
-        budget.release(prepared.reservation)
     }
 
     private suspend fun writeWithOneRetry(
@@ -248,11 +287,12 @@ class DownloadReaderAssetStore(
     ): ReaderAssetBlobWriteResult = when (val firstWrite = writeBlob(blobId, bytes)) {
         is ReaderAssetBlobWriteResult.Stored -> firstWrite
         is ReaderAssetBlobWriteResult.Unavailable -> firstWrite
-        ReaderAssetBlobWriteResult.NoSpace -> when (
-            storageCall { budget.relievePhysicalPressure(bytes.size.toLong()) }
-        ) {
-            is StorageCall.Failed -> ReaderAssetBlobWriteResult.Unavailable(cacheStorageFailureCause)
-            is StorageCall.Value -> writeBlob(blobId, bytes)
+        ReaderAssetBlobWriteResult.NoSpace -> {
+            diagnostics.recordSafely(ReaderAssetDiagnosticEvent.CachePressure(ReaderAssetCachePressure.EMERGENCY))
+            when (storageCall { budget.relievePhysicalPressure(bytes.size.toLong()) }) {
+                is StorageCall.Failed -> ReaderAssetBlobWriteResult.Unavailable(cacheStorageFailureCause)
+                is StorageCall.Value -> writeBlob(blobId, bytes)
+            }
         }
     }
 
@@ -369,52 +409,6 @@ private suspend inline fun <T> storageCall(block: suspend () -> T): StorageCall<
     StorageCall.Failed(failure)
 }
 
-private sealed interface ReaderAssetVerification {
-    data class Verified(val bytes: ByteArray) : ReaderAssetVerification
-    data object Corrupt : ReaderAssetVerification
-    data object Unavailable : ReaderAssetVerification
-}
-
-private fun verifyReaderAssetLease(
-    physicalLease: ReaderAssetBlobReadLease,
-    metadata: ReaderAssetMetadata,
-): ReaderAssetVerification = try {
-    if (physicalLease.sizeBytes != metadata.byteSize ||
-        metadata.byteSize !in 1L..ReaderAssetRuntimePolicy.MAX_READER_ASSET_BYTES.toLong()
-    ) {
-        ReaderAssetVerification.Corrupt
-    } else {
-        val bytes = physicalLease.openStream().use(::readBounded)
-        if (bytes.size.toLong() == metadata.byteSize && BlobChecksum.sha256(bytes) == metadata.localBlobChecksum) {
-            ReaderAssetVerification.Verified(bytes)
-        } else {
-            ReaderAssetVerification.Corrupt
-        }
-    }
-} catch (cancelled: CancellationException) {
-    throw cancelled
-} catch (_: ReaderAssetCorruptionException) {
-    ReaderAssetVerification.Corrupt
-} catch (_: Exception) {
-    ReaderAssetVerification.Unavailable
-}
-
-private fun readBounded(stream: InputStream): ByteArray {
-    val output = ByteArrayOutputStream()
-    val buffer = ByteArray(READ_BUFFER_BYTES)
-    var total = 0
-    while (total <= ReaderAssetRuntimePolicy.MAX_READER_ASSET_BYTES) {
-        val read = stream.read(buffer)
-        if (read < 0) return output.toByteArray()
-        if (read > 0) {
-            total += read
-            if (total > ReaderAssetRuntimePolicy.MAX_READER_ASSET_BYTES) throw ReaderAssetCorruptionException()
-            output.write(buffer, 0, read)
-        }
-    }
-    throw ReaderAssetCorruptionException()
-}
-
 private fun readerAssetMetadata(
     facts: ReaderAssetCommitFacts,
     payload: ReaderAssetPayload,
@@ -443,42 +437,15 @@ private fun readerAssetMetadata(
     lastConsumedAtEpochMillis = null,
 )
 
-private fun StoredReaderAssetBlob.matches(blobId: ReaderAssetBlobId, bytes: ByteArray): Boolean =
-    id == blobId && sizeBytes == bytes.size.toLong() && checksum == BlobChecksum.sha256(bytes)
-
-private class VerifiedReaderAssetReadLease(
-    private val bytes: ByteArray,
-    private val physicalLease: ReaderAssetBlobReadLease,
-) : ReaderAssetReadLease {
-    private val closed = AtomicBoolean(false)
-
-    override val sizeBytes: Long = bytes.size.toLong()
-
-    override fun openStream(): InputStream {
-        check(!closed.get()) { "Reader asset lease is closed." }
-        return ByteArrayInputStream(bytes)
-    }
-
-    override fun close() {
-        if (closed.compareAndSet(false, true)) physicalLease.close()
-    }
-}
-
-private fun ReaderAssetBlobReadLease.closeBestEffort() {
-    runCatching(::close)
-}
-
 private fun Long.basisPoints(basisPoints: Int): Long =
     (this / BASIS_POINTS) * basisPoints + (this % BASIS_POINTS) * basisPoints / BASIS_POINTS
 
 private fun Long.toNanosSaturated(): Long =
     if (this > Long.MAX_VALUE / NANOS_PER_MILLISECOND) Long.MAX_VALUE else this * NANOS_PER_MILLISECOND
 
-private class ReaderAssetCorruptionException : Exception()
 
 private val cacheStorageFailure = ReaderAssetFailure.CacheStorageUnavailable
 private val cacheStorageFailureCause = IllegalStateException("Automatic cache storage is unavailable.")
-private const val READ_BUFFER_BYTES = 8 * 1024
 private const val MINIMUM_ADMISSION_PROBE_BYTES = 1L
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val BASIS_POINTS = 10_000L

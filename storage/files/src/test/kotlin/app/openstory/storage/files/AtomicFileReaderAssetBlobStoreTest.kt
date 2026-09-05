@@ -44,6 +44,22 @@ class AtomicFileReaderAssetBlobStoreTest {
     }
 
     @Test
+    fun `active read lease state is observable without deleting the blob`() = runTest {
+        val store = store(PlatformReaderAssetBlobFileOperations)
+        val id = id()
+        assertIs<ReaderAssetBlobWriteResult.Stored>(store.writeAtomic(id, byteArrayOf(1, 2, 3)))
+
+        assertFalse(store.hasActiveReadLease(id))
+        val lease = requireNotNull(store.open(id))
+        assertTrue(store.hasActiveReadLease(id))
+        assertTrue(store.exists(id))
+
+        lease.close()
+        assertFalse(store.hasActiveReadLease(id))
+        assertTrue(store.exists(id))
+    }
+
+    @Test
     fun `active read lease delays normal deletion and blocks immediate physical relief`() = runTest {
         val store = store(PlatformReaderAssetBlobFileOperations)
         val id = id()

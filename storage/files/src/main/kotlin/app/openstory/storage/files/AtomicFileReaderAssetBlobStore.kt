@@ -93,6 +93,11 @@ class AtomicFileReaderAssetBlobStore internal constructor(
         return locks.withLock(target) { withContext(ioDispatcher) { files.exists(target) } }
     }
 
+    override suspend fun hasActiveReadLease(id: ReaderAssetBlobId): Boolean {
+        val target = ReaderAssetBlobFileLayout.blobFile(rootDirectory, id)
+        return locks.withLock(target) { entry -> locks.hasActiveLeases(entry) }
+    }
+
     override suspend fun tryDeleteNowIfUnleased(id: ReaderAssetBlobId): Boolean {
         val target = ReaderAssetBlobFileLayout.blobFile(rootDirectory, id)
         return locks.withLock(target) { entry ->

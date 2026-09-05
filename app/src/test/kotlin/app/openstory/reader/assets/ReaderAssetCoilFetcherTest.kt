@@ -1,13 +1,17 @@
 package app.openstory.reader.assets
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import app.openstory.common.id.PluginId
 import app.openstory.reader.routing.ReaderSessionId
 import coil3.ImageLoader
+import coil3.asImage
 import coil3.decode.DataSource
 import coil3.fetch.SourceFetchResult
 import coil3.request.CachePolicy
+import coil3.request.ImageRequest
 import coil3.request.Options
+import coil3.request.SuccessResult
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.Base64
@@ -133,10 +137,36 @@ class ReaderAssetCoilFetcherTest {
     }
 
     @Test
+    fun readerAssetMemoryCacheSuccessRecordsOnlyReaderMemoryHits() {
+        val context = RuntimeEnvironment.getApplication()
+        val diagnostics = RecordingDiagnosticsSink()
+        val listener = ReaderAssetImageLoaderDiagnosticsListener(diagnostics)
+        val readerRequest = ImageRequest.Builder(context).data(TEST_REQUEST).build()
+        val genericRequest = ImageRequest.Builder(context).data("https://example.test/cover.png").build()
+        val image = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).asImage()
+
+        listener.onSuccess(
+            readerRequest,
+            SuccessResult(image, readerRequest, dataSource = DataSource.MEMORY_CACHE),
+        )
+        listener.onSuccess(
+            genericRequest,
+            SuccessResult(image, genericRequest, dataSource = DataSource.MEMORY_CACHE),
+        )
+        listener.onSuccess(
+            readerRequest,
+            SuccessResult(image, readerRequest, dataSource = DataSource.NETWORK),
+        )
+
+        assertEquals(listOf<ReaderAssetDiagnosticEvent>(ReaderAssetDiagnosticEvent.MemoryHit), diagnostics.events)
+    }
+
+    @Test
     fun imageLoaderInstallerDoesNotResolveReaderCoordinatorDuringGlobalLoaderCreation() {
         val context = RuntimeEnvironment.getApplication()
         val installer = ReaderAssetImageLoaderInstaller(
             coordinatorProvider = Provider { error("Reader coordinator must stay lazy") },
+            diagnostics = ReaderAssetDiagnosticsSink.NO_OP,
         )
 
         val imageLoader = installer.createImageLoader(context)
@@ -161,6 +191,7 @@ class ReaderAssetCoilFetcherTest {
         val context = RuntimeEnvironment.getApplication()
         val installer = ReaderAssetImageLoaderInstaller(
             coordinatorProvider = Provider { error("Reader coordinator must stay lazy") },
+            diagnostics = ReaderAssetDiagnosticsSink.NO_OP,
         )
         val imageLoader = installer.createImageLoader(context)
         try {
@@ -198,6 +229,14 @@ class ReaderAssetCoilFetcherTest {
         context = RuntimeEnvironment.getApplication(),
         diskCachePolicy = diskCachePolicy,
     )
+
+    private class RecordingDiagnosticsSink : ReaderAssetDiagnosticsSink {
+        val events = mutableListOf<ReaderAssetDiagnosticEvent>()
+
+        override fun record(event: ReaderAssetDiagnosticEvent) {
+            events += event
+        }
+    }
 
     private class TrackingLease(
         private val bytes: ByteArray,

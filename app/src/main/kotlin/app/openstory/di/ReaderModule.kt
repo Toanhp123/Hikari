@@ -16,7 +16,9 @@ import app.openstory.plugins.runtime.PluginRuntime
 import app.openstory.reader.AndroidReaderNetworkFactsPort
 import app.openstory.reader.assets.ContentFetchArbiter
 import app.openstory.reader.assets.OkHttpReaderAssetDelivery
+import app.openstory.reader.assets.ReaderAssetAggregateDiagnostics
 import app.openstory.reader.assets.ReaderAssetCoordinator
+import app.openstory.reader.assets.ReaderAssetDiagnosticsSink
 import app.openstory.reader.assets.ReaderAssetDeliveryPort
 import app.openstory.reader.assets.ReaderAssetLoader
 import app.openstory.reader.assets.ReaderAssetSessionPort
@@ -115,9 +117,14 @@ object ReaderModule {
 
     @Provides
     @Singleton
+    fun provideReaderAssetDiagnosticsSink(): ReaderAssetDiagnosticsSink = ReaderAssetAggregateDiagnostics()
+
+    @Provides
+    @Singleton
     fun provideReaderAssetSingleFlight(
         @ReaderAssetCoordinatorScope coordinatorScope: CoroutineScope,
-    ): ReaderAssetSingleFlight = ReaderAssetSingleFlight(coordinatorScope)
+        diagnostics: ReaderAssetDiagnosticsSink,
+    ): ReaderAssetSingleFlight = ReaderAssetSingleFlight(coordinatorScope, diagnostics)
 
     @Provides
     @Singleton
@@ -127,12 +134,14 @@ object ReaderModule {
         singleFlight: ReaderAssetSingleFlight,
         fetchArbiter: ContentFetchArbiter,
         @ReaderAssetCoordinatorScope coordinatorScope: CoroutineScope,
+        diagnostics: ReaderAssetDiagnosticsSink,
     ): ReaderAssetLoader = ReaderAssetLoader(
         store = store,
         delivery = delivery,
         singleFlight = singleFlight,
         fetchArbiter = fetchArbiter,
         persistenceScope = coordinatorScope,
+        diagnostics = diagnostics,
     )
 
     @Provides
@@ -142,11 +151,13 @@ object ReaderModule {
         networkFacts: ReaderNetworkFactsPort,
         loader: ReaderAssetLoader,
         @ReaderAssetCoordinatorScope coordinatorScope: CoroutineScope,
+        diagnostics: ReaderAssetDiagnosticsSink,
     ): ReaderAssetCoordinator = ReaderAssetCoordinator(
         store = store,
         networkFacts = networkFacts,
         coordinatorScope = coordinatorScope,
         loader = loader,
+        diagnostics = diagnostics,
     )
 
     @Provides

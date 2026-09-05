@@ -12,26 +12,16 @@ import app.openstory.downloads.blob.ChapterBlobKey
 import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.reader.assets.ReaderAssetActiveProtections
+import app.openstory.reader.assets.ReaderAssetDiagnosticsSink
 import app.openstory.reader.assets.ReaderAssetKeyHash
 import app.openstory.reader.assets.ReaderAssetSourceNamespace
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-
-data class AutomaticCacheBudgetSnapshot(
-    val quotaBytes: Long,
-    val committedBytes: Long,
-    val pendingReservationBytes: Long,
-    val activeProtectedOverflowBytes: Long,
-) {
-    val totalAccountedBytes: Long
-        get() = committedBytes.saturatedAdd(pendingReservationBytes)
-}
 
 class AutomaticCacheBudgetCoordinator(
     private val cacheRepository: CacheRepository,
@@ -41,8 +31,10 @@ class AutomaticCacheBudgetCoordinator(
     private val policy: AutomaticCacheRuntimePolicy = AutomaticCacheRuntimePolicy(),
     initialQuotaBytes: Long = DEFAULT_AUTOMATIC_CACHE_QUOTA_BYTES,
     private val reconciliationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val diagnostics: ReaderAssetDiagnosticsSink = ReaderAssetDiagnosticsSink.NO_OP,
 ) {
     private val publicationGate = Mutex()
+    private val blobMaintenance = AutomaticCacheBlobMaintenance(documentBlobStore, readerAssetBlobStore)
     private val reconciliationScheduled = AtomicBoolean(false)
     private var quotaBytes = initialQuotaBytes.also {
         require(it >= 0L) { "Automatic cache quota must not be negative." }
@@ -59,6 +51,26 @@ class AutomaticCacheBudgetCoordinator(
     private var progressProtectedReleaseIds = emptySet<ChapterReleaseId>()
     private var activeProtections = ReaderAssetActiveProtections.EMPTY
     private var activeProtectedOverflowBytes = 0L
+    private val pressureMaintenance = AutomaticCachePressureMaintenance(
+        scope = reconciliationScope,
+        diagnostics = diagnostics,
+        maxPhysicalPressureVictims = policy.maxEnospcEvictionVictims,
+        physicalCandidates = {
+            publicationGate.withLock {
+                ensureInitializedLocked()
+                candidatesLocked().filter { it.retention.isPhysicalPressureVictim() }
+            }
+        },
+        emergencyCandidates = ::emergencyCandidatesWithoutActiveLeases,
+        relievePhysicalCandidate = ::relieveCandidate,
+        relieveEmergencyCandidate = { candidate ->
+            when (candidate) {
+                is AutomaticCacheCandidate.Image -> relieveEmergencyImageCandidate(candidate.metadata)
+                is AutomaticCacheCandidate.Document -> relieveCandidate(candidate)
+            }
+        },
+        hasEmergencyVictims = { emergencyCandidatesWithoutActiveLeases().isNotEmpty() },
+    )
 
     suspend fun updateQuota(quotaBytes: Long) {
         require(quotaBytes >= 0L) { "Automatic cache quota must not be negative." }
@@ -168,7 +180,7 @@ class AutomaticCacheBudgetCoordinator(
     }
 
     internal fun requestReaderAssetGenerationDeletion(blobId: ReaderAssetBlobId) {
-        reconciliationScope.launch { deleteImageBlobWhenUnleasedBestEffort(blobId) }
+        reconciliationScope.launch { blobMaintenance.deleteImageBlobWhenUnleasedBestEffort(blobId) }
     }
 
     internal suspend fun invalidateReaderAssetGeneration(expected: ReaderAssetMetadata): Boolean {
@@ -180,7 +192,7 @@ class AutomaticCacheBudgetCoordinator(
             }
         }
         // The expected generation is safe to delete even if a newer generation won publication.
-        reconciliationScope.launch { deleteImageWhenUnleasedBestEffort(detached ?: expected) }
+        reconciliationScope.launch { blobMaintenance.deleteImageWhenUnleasedBestEffort(detached ?: expected) }
         return detached != null
     }
 
@@ -204,22 +216,18 @@ class AutomaticCacheBudgetCoordinator(
             }
             activeProtectedOverflowBytes = (committedBytes - quotaBytes).coerceAtLeast(0L)
         }
-        detachedImages.forEach { metadata -> deleteImageWhenUnleasedBestEffort(metadata) }
+        detachedImages.forEach { metadata -> blobMaintenance.deleteImageWhenUnleasedBestEffort(metadata) }
     }
 
-    suspend fun relievePhysicalPressure(requiredBytes: Long): Long {
-        require(requiredBytes >= 0L) { "Required relief bytes must not be negative." }
-        if (requiredBytes == 0L) return 0L
-        val candidates = publicationGate.withLock {
-            ensureInitializedLocked()
-            candidatesLocked().filter { it.retention.isPhysicalPressureVictim() }
-        }
-        var reclaimedBytes = 0L
-        for (candidate in candidates.take(policy.maxEnospcEvictionVictims)) {
-            if (reclaimedBytes >= requiredBytes) break
-            reclaimedBytes = reclaimedBytes.saturatedAdd(relieveCandidate(candidate))
-        }
-        return reclaimedBytes
+    suspend fun relievePhysicalPressure(requiredBytes: Long): Long =
+        pressureMaintenance.relievePhysicalPressure(requiredBytes)
+
+    internal suspend fun relieveEmergencyPressure(
+        reserveRestored: () -> Boolean,
+    ): AutomaticCacheEmergencyReliefReport = pressureMaintenance.relieveEmergencyPressure(reserveRestored)
+
+    internal fun requestEmergencyReconciliation(reserveRestored: () -> Boolean) {
+        pressureMaintenance.requestEmergencyReconciliation(reserveRestored)
     }
 
     suspend fun clearAutomatic(scope: AutomaticCacheInvalidationScope) {
@@ -231,7 +239,7 @@ class AutomaticCacheBudgetCoordinator(
             } else {
                 emptyList()
             }
-            documents.forEach { entry -> deleteDocumentUnderGateBestEffort(entry.key) }
+            documents.forEach { entry -> blobMaintenance.deleteDocumentBestEffort(entry.key) }
             val images = when (scope) {
                 AutomaticCacheInvalidationScope.AllAutomatic -> readerAssetMetadataRepository.detachAll()
                 is AutomaticCacheInvalidationScope.ReaderAssetSource ->
@@ -247,7 +255,7 @@ class AutomaticCacheBudgetCoordinator(
             activeProtectedOverflowBytes = (committedBytes - quotaBytes).coerceAtLeast(0L)
             images
         }
-        detachedImages.forEach { metadata -> deleteImageWhenUnleasedBestEffort(metadata) }
+        detachedImages.forEach { metadata -> blobMaintenance.deleteImageWhenUnleasedBestEffort(metadata) }
     }
 
     suspend fun snapshot(): AutomaticCacheBudgetSnapshot = publicationGate.withLock {
@@ -270,6 +278,16 @@ class AutomaticCacheBudgetCoordinator(
     private suspend fun recomputeCommittedBytesLocked() {
         committedBytes = cacheRepository.automaticUsageBytes()
             .saturatedAdd(readerAssetMetadataRepository.usageBytes())
+    }
+
+    private suspend fun emergencyCandidatesWithoutActiveLeases(): List<AutomaticCacheCandidate> {
+        val candidates = publicationGate.withLock {
+            ensureInitializedLocked()
+            candidatesLocked().filter { it.retention.isEmergencyPressureVictim() }
+        }
+        return candidates.filterNot { candidate ->
+            candidate is AutomaticCacheCandidate.Image && blobMaintenance.hasActiveReadLease(candidate.metadata)
+        }
     }
 
     private suspend fun candidatesLocked(): List<AutomaticCacheCandidate> =
@@ -352,7 +370,7 @@ class AutomaticCacheBudgetCoordinator(
     ) {
         when (candidate) {
             is AutomaticCacheCandidate.Document -> detachDocumentIfCurrentLocked(candidate.entry)?.let { detached ->
-                deleteDocumentUnderGateBestEffort(detached.key)
+                blobMaintenance.deleteDocumentBestEffort(detached.key)
                 committedBytes = (committedBytes - detached.sizeBytes).coerceAtLeast(0L)
             }
             is AutomaticCacheCandidate.Image -> detachImageIfCurrentLocked(candidate.metadata)?.let { detached ->
@@ -362,55 +380,51 @@ class AutomaticCacheBudgetCoordinator(
         }
     }
 
-    private suspend fun relieveCandidate(candidate: AutomaticCacheCandidate): Long = when (candidate) {
+    private suspend fun relieveCandidate(candidate: AutomaticCacheCandidate): AutomaticCachePhysicalRelief = when (candidate) {
         is AutomaticCacheCandidate.Document -> publicationGate.withLock {
             detachDocumentIfCurrentLocked(candidate.entry)?.let { detached ->
-                val deleted = deleteDocumentUnderGateBestEffort(detached.key)
+                val deleted = blobMaintenance.deleteDocumentBestEffort(detached.key)
                 committedBytes = (committedBytes - detached.sizeBytes).coerceAtLeast(0L)
-                detached.sizeBytes.takeIf { deleted } ?: 0L
-            } ?: 0L
+                AutomaticCachePhysicalRelief(
+                    madeProgress = true,
+                    physicallyReclaimedBytes = detached.sizeBytes.takeIf { deleted } ?: 0L,
+                )
+            } ?: AutomaticCachePhysicalRelief.NONE
         }
         is AutomaticCacheCandidate.Image -> relieveImageCandidate(candidate.metadata)
     }
 
-    private suspend fun relieveImageCandidate(expected: ReaderAssetMetadata): Long {
+    private suspend fun relieveImageCandidate(expected: ReaderAssetMetadata): AutomaticCachePhysicalRelief {
         val detached = publicationGate.withLock {
             detachImageIfCurrentLocked(expected)?.also { metadata ->
                 committedBytes = (committedBytes - metadata.byteSize).coerceAtLeast(0L)
             }
-        } ?: return 0L
-        val deletedNow = try {
-            readerAssetBlobStore.tryDeleteNowIfUnleased(ReaderAssetBlobId(detached.blobId))
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            false
-        }
+        } ?: return AutomaticCachePhysicalRelief.NONE
+        val deletedNow = blobMaintenance.tryDeleteImageNowIfUnleased(detached)
         if (!deletedNow) {
-            reconciliationScope.launch { deleteImageWhenUnleasedBestEffort(detached) }
+            reconciliationScope.launch { blobMaintenance.deleteImageWhenUnleasedBestEffort(detached) }
         }
-        return detached.byteSize.takeIf { deletedNow } ?: 0L
+        return AutomaticCachePhysicalRelief(
+            madeProgress = true,
+            physicallyReclaimedBytes = detached.byteSize.takeIf { deletedNow } ?: 0L,
+        )
     }
 
-    private suspend fun deleteDocumentUnderGateBestEffort(key: ChapterBlobKey): Boolean = try {
-        documentBlobStore.deleteIfPresent(key)
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (_: Exception) {
-        false
-    }
-
-    private suspend fun deleteImageWhenUnleasedBestEffort(metadata: ReaderAssetMetadata) {
-        deleteImageBlobWhenUnleasedBestEffort(ReaderAssetBlobId(metadata.blobId))
-    }
-
-    private suspend fun deleteImageBlobWhenUnleasedBestEffort(blobId: ReaderAssetBlobId) {
-        try {
-            readerAssetBlobStore.deleteWhenUnleased(blobId)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            // Detached generation cleanup is best effort; bounded reconciliation can retry orphans.
+    private suspend fun relieveEmergencyImageCandidate(expected: ReaderAssetMetadata): AutomaticCachePhysicalRelief {
+        if (!blobMaintenance.tryDeleteImageNowIfUnleased(expected)) return AutomaticCachePhysicalRelief.NONE
+        val detached = publicationGate.withLock {
+            detachImageIfCurrentLocked(expected)?.also { metadata ->
+                committedBytes = (committedBytes - metadata.byteSize).coerceAtLeast(0L)
+            }
+        }
+        return AutomaticCachePhysicalRelief(
+            madeProgress = true,
+            physicallyReclaimedBytes = expected.byteSize,
+        ).also {
+            if (detached == null) {
+                // A newer generation won publication after the candidate snapshot. The deleted
+                // generation is now an orphan, so only physical accounting changes.
+            }
         }
     }
 
@@ -471,21 +485,10 @@ private object EmptyReaderAssetBlobStore : ReaderAssetBlobStore {
         error("Reader asset writes require the shared production coordinator dependencies.")
     override suspend fun open(id: ReaderAssetBlobId): ReaderAssetBlobReadLease? = null
     override suspend fun exists(id: ReaderAssetBlobId) = false
+    override suspend fun hasActiveReadLease(id: ReaderAssetBlobId) = false
     override suspend fun tryDeleteNowIfUnleased(id: ReaderAssetBlobId) = false
     override suspend fun deleteWhenUnleased(id: ReaderAssetBlobId) = Unit
 }
 
-private fun Long.basisPoints(basisPoints: Int): Long =
-    (this / BASIS_POINTS) * basisPoints + (this % BASIS_POINTS) * basisPoints / BASIS_POINTS
-
-private fun Long.saturatedAdd(other: Long): Long =
-    if (this > Long.MAX_VALUE - other) Long.MAX_VALUE else this + other
-
-private fun Long.incrementEpoch(): Long {
-    check(this < Long.MAX_VALUE) { "Automatic cache epoch exhausted." }
-    return this + 1L
-}
-
-private const val BASIS_POINTS = 10_000L
 private const val MAX_NORMAL_RECONCILIATION_VICTIMS = 32
 private const val DEFAULT_AUTOMATIC_CACHE_QUOTA_BYTES = 256L * 1024 * 1024

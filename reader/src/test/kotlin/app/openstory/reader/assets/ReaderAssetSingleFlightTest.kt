@@ -73,6 +73,41 @@ class ReaderAssetSingleFlightTest {
     }
 
     @Test
+    fun `join and priority promotion emit aggregate diagnostics without restarting producer`() = runTest {
+        val diagnostics = RecordingReaderAssetDiagnostics()
+        val flight = ReaderAssetSingleFlight(backgroundScope, diagnostics)
+        val key = readerAssetKey(22)
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val speculative = async {
+            flight.acquireRemote(key, ContentFetchPriority.SPECULATIVE, token(220), {
+                started.complete(Unit)
+                release.await()
+                ReaderAssetRemoteOutcome.Success(readerAssetPayload(22))
+            }) { null }
+        }
+        started.await()
+
+        val critical = async {
+            flight.acquireRemote(key, ContentFetchPriority.CRITICAL, token(221), {
+                error("joined work must not restart producer")
+            }) { null }
+        }
+        runCurrent()
+
+        assertTrue(ReaderAssetDiagnosticEvent.SingleFlightJoin in diagnostics.events)
+        assertTrue(
+            ReaderAssetDiagnosticEvent.PriorityPromotion(
+                ContentFetchPriority.SPECULATIVE,
+                ContentFetchPriority.CRITICAL,
+            ) in diagnostics.events,
+        )
+        release.complete(Unit)
+        speculative.await()
+        critical.await()
+    }
+
+    @Test
     fun `different logical and security keys never join`() = runTest {
         val flight = ReaderAssetSingleFlight(backgroundScope)
         val source = ReaderAssetSourceNamespace.fromPluginId(PluginId("source"))

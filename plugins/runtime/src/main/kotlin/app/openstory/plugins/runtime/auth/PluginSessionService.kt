@@ -7,6 +7,7 @@ import java.net.URI
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 data class InstalledAuthenticationPolicy(
     val pluginId: PluginId,
@@ -37,6 +38,7 @@ class DefaultPluginSessionService(
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
 ) : PluginSessionService {
     private val summaries = MutableStateFlow<List<PluginSessionSummary>>(emptyList())
+    private val credentialGenerations = mutableMapOf<PluginId, Long>()
 
     override fun observeInstalledSessions(): Flow<List<PluginSessionSummary>> = summaries
 
@@ -57,12 +59,14 @@ class DefaultPluginSessionService(
                 }
         })
         store.replaceAll(pluginId, records)
-        return refreshSummary(pluginId, policy)
+        val generation = advanceCredentialGeneration(pluginId)
+        return summaryForRecords(pluginId, policy, records, generation).also(::publish)
     }
 
     override suspend fun logout(pluginId: PluginId) {
         store.clear(pluginId)
-        publish(PluginSessionSummary(pluginId, PluginSessionStatus.LOGGED_OUT, null))
+        val generation = advanceCredentialGeneration(pluginId)
+        publish(PluginSessionSummary(pluginId, PluginSessionStatus.LOGGED_OUT, null, generation))
     }
 
     override suspend fun sessionFor(request: ManagedCredentialRequest): List<PluginSessionRecord> {
@@ -93,7 +97,16 @@ class DefaultPluginSessionService(
             throw cancelled
         } catch (_: Exception) {
             store.clear(request.pluginId)
-            emptyList()
+            val generation = advanceCredentialGeneration(request.pluginId)
+            publish(
+                PluginSessionSummary(
+                    pluginId = request.pluginId,
+                    status = PluginSessionStatus.LOGGED_OUT,
+                    expiresAtEpochMillis = null,
+                    credentialGeneration = generation,
+                ),
+            )
+            return emptyList()
         }
         refreshSummary(request.pluginId, policy)
         return valid
@@ -107,8 +120,11 @@ class DefaultPluginSessionService(
             val records = store.readAll(policy.pluginId)
             if (records.any { it.authenticationPolicyFingerprint != policy.capability.policyFingerprint() }) {
                 store.clear(policy.pluginId)
+                val generation = advanceCredentialGeneration(policy.pluginId)
+                publish(PluginSessionSummary(policy.pluginId, PluginSessionStatus.LOGGED_OUT, null, generation))
+            } else {
+                refreshSummary(policy.pluginId, policy)
             }
-            refreshSummary(policy.pluginId, policy)
         }
     }
 
@@ -120,17 +136,43 @@ class DefaultPluginSessionService(
         policy: InstalledAuthenticationPolicy,
     ): PluginSessionSummary {
         val records = store.readAll(pluginId)
+        return summaryForRecords(
+            pluginId = pluginId,
+            policy = policy,
+            records = records,
+            generation = credentialGeneration(pluginId),
+        ).also(::publish)
+    }
+
+    private fun summaryForRecords(
+        pluginId: PluginId,
+        policy: InstalledAuthenticationPolicy,
+        records: List<PluginSessionRecord>,
+        generation: Long,
+    ): PluginSessionSummary {
         val expiresAt = records.minOfOrNull(PluginSessionRecord::expiresAtEpochMillis)
         val status = when {
             records.isEmpty() -> PluginSessionStatus.LOGGED_OUT
             !policy.enabled || expiresAt == null || expiresAt <= nowEpochMillis() -> PluginSessionStatus.EXPIRED
             else -> PluginSessionStatus.AUTHENTICATED
         }
-        return PluginSessionSummary(pluginId, status, expiresAt).also(::publish)
+        return PluginSessionSummary(pluginId, status, expiresAt, generation)
+    }
+
+    private fun credentialGeneration(pluginId: PluginId): Long = synchronized(credentialGenerations) {
+        credentialGenerations[pluginId] ?: 0L
+    }
+
+    private fun advanceCredentialGeneration(pluginId: PluginId): Long = synchronized(credentialGenerations) {
+        val current = credentialGenerations[pluginId] ?: 0L
+        check(current < Long.MAX_VALUE) { "Plugin credential generation exhausted." }
+        (current + 1L).also { credentialGenerations[pluginId] = it }
     }
 
     private fun publish(summary: PluginSessionSummary) {
-        summaries.value = (summaries.value.filterNot { it.pluginId == summary.pluginId } + summary)
-            .sortedBy { it.pluginId.value }
+        summaries.update { current ->
+            (current.filterNot { it.pluginId == summary.pluginId } + summary)
+                .sortedBy { it.pluginId.value }
+        }
     }
 }

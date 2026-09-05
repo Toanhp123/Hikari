@@ -36,6 +36,7 @@ interface ReaderAssetBlobStore {
     suspend fun writeAtomic(id: ReaderAssetBlobId, bytes: ByteArray): ReaderAssetBlobWriteResult
     suspend fun open(id: ReaderAssetBlobId): ReaderAssetBlobReadLease?
     suspend fun exists(id: ReaderAssetBlobId): Boolean
+    suspend fun hasActiveReadLease(id: ReaderAssetBlobId): Boolean
     suspend fun tryDeleteNowIfUnleased(id: ReaderAssetBlobId): Boolean
     suspend fun deleteWhenUnleased(id: ReaderAssetBlobId)
 }

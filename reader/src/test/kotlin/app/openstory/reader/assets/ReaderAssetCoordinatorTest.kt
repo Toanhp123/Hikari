@@ -632,7 +632,7 @@ class ReaderAssetCoordinatorTest {
     }
 }
 
-private class RecordingAssetStore : ReaderAssetStorePort {
+internal class RecordingAssetStore : ReaderAssetStorePort {
     val presence = mutableMapOf<ReaderPageAssetKey, ReaderAssetLocalPresence>()
     val localBytes = mutableMapOf<ReaderPageAssetKey, ByteArray>()
     val inspectionBatches = mutableListOf<Set<ReaderPageAssetKey>>()

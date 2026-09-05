@@ -96,7 +96,10 @@ class FileBlobInventoryTest {
         val known = ReaderAssetBlobId("1".repeat(64))
         val orphan = ReaderAssetBlobId("2".repeat(64))
         readerRoot.resolve("${known.value}.blob").writeText("known")
-        readerRoot.resolve("${orphan.value}.blob").writeText("orphan")
+        readerRoot.resolve("${orphan.value}.blob").apply {
+            writeText("orphan")
+            setLastModified(100)
+        }
         val stale = readerRoot.resolve(".stage-stale.tmp").apply {
             writeText("partial")
             setLastModified(100)
@@ -125,6 +128,32 @@ class FileBlobInventoryTest {
         inventory.delete(snapshot.orphanArtifacts + snapshot.interruptedWriteArtifacts)
         assertFalse(readerRoot.resolve("${orphan.value}.blob").exists())
         assertFalse(stale.exists())
+    }
+
+    @Test
+    fun `fresh metadata missing reader blob is protected from reconciliation as an active publication`() = runTest {
+        val readerRoot = root.resolve("reader-assets").apply { mkdirs() }
+        val fresh = ReaderAssetBlobId("3".repeat(64))
+        readerRoot.resolve("${fresh.value}.blob").apply {
+            writeText("publishing")
+            setLastModified(900)
+        }
+        val inventory = FileBlobInventory(
+            rootDirectory = root,
+            readerAssetRootDirectory = readerRoot,
+            reserveBytes = 0,
+            availableBytes = { 100 },
+        )
+
+        val snapshot = inventory.scanReaderAssets(
+            expectedBlobIds = emptySet(),
+            staleBeforeEpochMillis = 500,
+            limit = 8,
+        )
+
+        assertTrue(snapshot.orphanArtifacts.isEmpty())
+        assertTrue(snapshot.scanComplete)
+        assertTrue(readerRoot.resolve("${fresh.value}.blob").exists())
     }
 
     private fun key(id: String) = ChapterBlobKey(

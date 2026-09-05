@@ -252,6 +252,40 @@ class ReaderAssetLoaderTest {
         }
     }
 
+
+    @Test
+    fun `local hit records disk diagnostic without network fetch`() = runTest {
+        val diagnostics = RecordingReaderAssetDiagnostics()
+        val fixture = fixture(diagnostics = diagnostics)
+        fixture.store.openResults += ReaderAssetOpenResult.Available(TestReadLease(byteArrayOf(1)))
+
+        assertIs<ReaderAssetLoadOutcome.Local>(
+            fixture.load(31, ReaderAssetLocalPresence.LOCAL_AVAILABLE),
+        )
+
+        assertEquals(listOf<ReaderAssetDiagnosticEvent>(ReaderAssetDiagnosticEvent.DiskHit), diagnostics.events)
+    }
+
+    @Test
+    fun `corrupt local fallback records corruption and one network fetch`() = runTest {
+        val diagnostics = RecordingReaderAssetDiagnostics()
+        val fixture = fixture(diagnostics = diagnostics)
+        fixture.store.openResults += ReaderAssetOpenResult.Corrupt
+        fixture.delivery.outcomes += ReaderAssetDeliveryResult.Success(readerAssetPayload(32))
+
+        assertIs<ReaderAssetLoadOutcome.Remote>(
+            fixture.load(32, ReaderAssetLocalPresence.LOCAL_AVAILABLE),
+        )
+
+        assertEquals(
+            listOf(
+                ReaderAssetDiagnosticEvent.Corruption,
+                ReaderAssetDiagnosticEvent.NetworkFetch,
+            ),
+            diagnostics.events,
+        )
+    }
+
     @Test
     fun `payload bound accepts exactly sixteen mebibytes and rejects one byte more`() {
         val exact = ByteArray(ReaderAssetRuntimePolicy.MAX_READER_ASSET_BYTES)
@@ -272,6 +306,7 @@ class ReaderAssetLoaderTest {
         events: MutableList<String> = mutableListOf(),
         networkRelease: CompletableDeferred<Unit>? = null,
         commitRelease: CompletableDeferred<Unit>? = null,
+        diagnostics: ReaderAssetDiagnosticsSink = ReaderAssetDiagnosticsSink.NO_OP,
     ): LoaderFixture {
         val store = FakeReaderAssetStore(events, commitRelease)
         val delivery = FakeReaderAssetDelivery(events, networkRelease)
@@ -281,6 +316,7 @@ class ReaderAssetLoaderTest {
             singleFlight = ReaderAssetSingleFlight(backgroundScope),
             fetchArbiter = ContentFetchArbiter(),
             persistenceScope = backgroundScope,
+            diagnostics = diagnostics,
         )
         return LoaderFixture(loader, store, delivery)
     }

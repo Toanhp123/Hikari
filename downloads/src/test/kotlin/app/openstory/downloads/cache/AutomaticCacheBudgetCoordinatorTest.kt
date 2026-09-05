@@ -226,7 +226,7 @@ class AutomaticCacheBudgetCoordinatorTest {
     }
 
     @Test
-    fun `normal reconciliation evicts speculative image then warm document then consumed image then progress document`() = runTest {
+    fun `normal reconciliation evicts only unprotected classes and stops before progress protection`() = runTest {
         val evictionEvents = mutableListOf<String>()
         val documents = FakeCacheRepository(evictionEvents)
         val assets = FakeAssetMetadataRepository(evictionEvents)
@@ -262,11 +262,11 @@ class AutomaticCacheBudgetCoordinatorTest {
                 "asset:${cold.logicalAssetKeyHash.value}",
                 "document:${warmDocument.key.releaseId.value}",
                 "asset:${consumed.logicalAssetKeyHash.value}",
-                "document:${progressDocument.key.releaseId.value}",
             ),
             evictionEvents,
         )
         assertEquals(listOf(recent), assets.all())
+        assertTrue(progressDocument in documents.entries())
         assertTrue(coordinator.snapshot().activeProtectedOverflowBytes > 0)
     }
 
@@ -304,6 +304,140 @@ class AutomaticCacheBudgetCoordinatorTest {
 
         assertTrue(coordinator.snapshot().committedBytes <= 90)
         assertNotNull(coordinator.reserve(1, authority))
+    }
+
+    @Test
+    fun `emergency maintenance degrades protected classes only after ordinary victims in frozen order`() = runTest {
+        val evictionEvents = mutableListOf<String>()
+        val documents = FakeCacheRepository(evictionEvents)
+        val assets = FakeAssetMetadataRepository(evictionEvents)
+        val blobs = FakeAssetBlobStore()
+        val progress = document("progress-emergency", 10, 1)
+        documents.upsert(progress)
+        val ordinary = asset(hash(11), 11, 10, accessedAt = 0)
+        val recent2 = asset(hash(12), 12, 10, consumedAt = 2)
+        val recent1 = asset(hash(13), 13, 10, consumedAt = 3)
+        val consumed = asset(hash(14), 14, 10, consumedAt = 4)
+        val interactive = asset(hash(15), 15, 10, consumedAt = 5)
+        listOf(ordinary, recent2, recent1, consumed, interactive).forEach { assets.upsert(it) }
+        val coordinator = coordinator(
+            initialQuotaBytes = 1_000,
+            documents = documents,
+            assets = assets,
+            assetBlobs = blobs,
+        )
+        coordinator.updateProgressProtectedReleaseIds(setOf(progress.key.releaseId))
+        coordinator.replaceActiveProtections(
+            ReaderAssetActiveProtections(
+                mapOf(
+                    recent2.logicalAssetKeyHash to ReaderAssetProtectionClass.RECENT_HISTORY_2,
+                    recent1.logicalAssetKeyHash to ReaderAssetProtectionClass.RECENT_HISTORY_1,
+                    consumed.logicalAssetKeyHash to ReaderAssetProtectionClass.ACTIVE_CONSUMED,
+                    interactive.logicalAssetKeyHash to ReaderAssetProtectionClass.ACTIVE_INTERACTIVE,
+                ),
+            ),
+        )
+
+        val report = coordinator.relieveEmergencyPressure { false }
+
+        assertEquals(6, report.victimsProcessed)
+        assertEquals(60L, report.physicallyReclaimedBytes)
+        assertFalse(report.reserveRestored)
+        assertEquals(
+            listOf(
+                "asset:${ordinary.logicalAssetKeyHash.value}",
+                "document:${progress.key.releaseId.value}",
+                "asset:${recent2.logicalAssetKeyHash.value}",
+                "asset:${recent1.logicalAssetKeyHash.value}",
+                "asset:${consumed.logicalAssetKeyHash.value}",
+                "asset:${interactive.logicalAssetKeyHash.value}",
+            ),
+            evictionEvents,
+        )
+    }
+
+    @Test
+    fun `emergency maintenance never detaches an image with an active read lease`() = runTest {
+        val assets = FakeAssetMetadataRepository()
+        val leased = asset(hash(90), 90, 10, consumedAt = 1)
+        assets.upsert(leased)
+        val blobs = FakeAssetBlobStore(
+            immediateDeleteResult = { false },
+            activeLease = { true },
+        )
+        val coordinator = coordinator(
+            initialQuotaBytes = 1_000,
+            assets = assets,
+            assetBlobs = blobs,
+        )
+        coordinator.replaceActiveProtections(
+            ReaderAssetActiveProtections(
+                mapOf(leased.logicalAssetKeyHash to ReaderAssetProtectionClass.ACTIVE_INTERACTIVE),
+            ),
+        )
+
+        val report = coordinator.relieveEmergencyPressure { false }
+
+        assertEquals(listOf(leased), assets.all())
+        assertEquals(0L, report.physicallyReclaimedBytes)
+        assertFalse(report.madeProgress)
+        assertFalse(report.hasMoreVictims)
+        assertTrue(blobs.immediateDeletes.isEmpty())
+    }
+
+    @Test
+    fun `emergency maintenance skips leased prefix and reaches later unleased victims without spinning`() = runTest {
+        val assets = FakeAssetMetadataRepository()
+        val leasedBlobIds = mutableSetOf<ReaderAssetBlobId>()
+        val blobs = FakeAssetBlobStore(activeLease = leasedBlobIds::contains)
+        val protections = mutableMapOf<ReaderAssetKeyHash, ReaderAssetProtectionClass>()
+        repeat(40) { index ->
+            val metadata = asset(hash(index + 200), index + 200, 10, consumedAt = index.toLong())
+            assets.upsert(metadata)
+            protections[metadata.logicalAssetKeyHash] = ReaderAssetProtectionClass.ACTIVE_INTERACTIVE
+            if (index < 32) leasedBlobIds += ReaderAssetBlobId(metadata.blobId)
+        }
+        val coordinator = coordinator(
+            initialQuotaBytes = 1_000,
+            assets = assets,
+            assetBlobs = blobs,
+            reconciliationScope = this,
+        )
+        coordinator.replaceActiveProtections(ReaderAssetActiveProtections(protections))
+
+        coordinator.requestEmergencyReconciliation { false }
+        advanceUntilIdle()
+
+        assertEquals(8, blobs.immediateDeletes.size)
+        assertEquals(32, assets.all().size)
+        assertTrue(assets.all().all { ReaderAssetBlobId(it.blobId) in leasedBlobIds })
+    }
+
+    @Test
+    fun `emergency maintenance schedules another bounded pass after 32 victims`() = runTest {
+        val assets = FakeAssetMetadataRepository()
+        val blobs = FakeAssetBlobStore()
+        val protections = mutableMapOf<ReaderAssetKeyHash, ReaderAssetProtectionClass>()
+        repeat(40) { index ->
+            val metadata = asset(hash(index + 100), index + 100, 10, consumedAt = index.toLong())
+            assets.upsert(metadata)
+            protections[metadata.logicalAssetKeyHash] = ReaderAssetProtectionClass.ACTIVE_INTERACTIVE
+        }
+        val coordinator = AutomaticCacheBudgetCoordinator(
+            cacheRepository = FakeCacheRepository(),
+            documentBlobStore = FakeChapterBlobStore(),
+            readerAssetMetadataRepository = assets,
+            readerAssetBlobStore = blobs,
+            initialQuotaBytes = 1_000,
+            reconciliationScope = this,
+        )
+        coordinator.replaceActiveProtections(ReaderAssetActiveProtections(protections))
+
+        coordinator.requestEmergencyReconciliation { false }
+        advanceUntilIdle()
+
+        assertEquals(40, blobs.immediateDeletes.size)
+        assertTrue(assets.all().isEmpty())
     }
 
     @Test
@@ -499,6 +633,7 @@ private class FakeAssetMetadataRepository(
 
 private class FakeAssetBlobStore(
     private val immediateDeleteResult: (ReaderAssetBlobId) -> Boolean = { true },
+    private val activeLease: (ReaderAssetBlobId) -> Boolean = { false },
 ) : ReaderAssetBlobStore {
     val immediateDeletes = mutableListOf<ReaderAssetBlobId>()
     val normalDeletes = mutableListOf<ReaderAssetBlobId>()
@@ -508,6 +643,7 @@ private class FakeAssetBlobStore(
         error("not used")
     override suspend fun open(id: ReaderAssetBlobId): ReaderAssetBlobReadLease? = null
     override suspend fun exists(id: ReaderAssetBlobId): Boolean = false
+    override suspend fun hasActiveReadLease(id: ReaderAssetBlobId): Boolean = activeLease(id)
     override suspend fun tryDeleteNowIfUnleased(id: ReaderAssetBlobId): Boolean {
         immediateDeletes += id
         return immediateDeleteResult(id)
