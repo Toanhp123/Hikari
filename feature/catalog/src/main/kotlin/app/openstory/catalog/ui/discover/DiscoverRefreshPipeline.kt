@@ -3,7 +3,6 @@ package app.openstory.catalog.ui.discover
 import app.openstory.catalog.home.CatalogRefreshPrioritySelector
 import app.openstory.catalog.home.CatalogRefreshResult
 import app.openstory.catalog.home.CatalogRefreshService
-import app.openstory.catalog.model.ContentType
 import app.openstory.common.dispatchers.AppDispatchers
 import javax.inject.Inject
 import kotlinx.coroutines.withContext
@@ -16,9 +15,7 @@ class DiscoverRefreshPipeline @Inject constructor(
 
     internal suspend fun refresh(): DiscoverRefreshExecution = withContext(dispatcher) {
         val results = refreshService.refresh(
-            prioritySelector = CatalogRefreshPrioritySelector { committedHomes ->
-                discoverCanonicalBootstrapStoryIds(committedHomes, ContentType.MANGA).toSet()
-            },
+            prioritySelector = CatalogRefreshPrioritySelector { emptySet() },
         )
         DiscoverRefreshExecution(
             report = results.toReport(),

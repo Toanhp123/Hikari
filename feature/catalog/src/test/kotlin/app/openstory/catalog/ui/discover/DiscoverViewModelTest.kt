@@ -695,7 +695,7 @@ class DiscoverViewModelTest {
     }
 
     @Test
-    fun freshDiscoverRefreshSelectsOnlyNineteenVisibleStoriesForImmediateConvergence() =
+    fun freshDiscoverRefreshDefersCanonicalConvergence() =
         runTest(dispatcher.scheduler) {
             val repository = FakeRepository(emptyList())
             val source = FakeSource().apply {
@@ -706,7 +706,7 @@ class DiscoverViewModelTest {
             viewModel(repository, source, engine = engine)
             runCurrent()
 
-            assertEquals(19, engine.immediateStoryIdBatches.single().size)
+            assertEquals(emptySet(), engine.immediateStoryIdBatches.single())
         }
 
     @Test

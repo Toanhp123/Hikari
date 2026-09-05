@@ -150,6 +150,7 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                 genres = setOf("Fantasy", "Adventure"),
                 contentType = ContentType.MANGA,
                 languageTags = setOf("en"),
+                coverUrl = BENCHMARK_BROWSE_COVER_URL,
                 score = Score(10.0 - index * 0.1, 10.0),
                 popularityRank = (index + 1).toLong(),
                 publicationStatus = if (index % 5 == 0) {
@@ -275,6 +276,8 @@ class BenchmarkFixtureActivity : ComponentActivity() {
         const val BENCHMARK_STORY_TITLE = "Hikari Benchmark Fixture"
         const val BENCHMARK_CHAPTER_COUNT = 12
         const val BENCHMARK_BROWSE_STORY_COUNT = 30
+        const val BENCHMARK_BROWSE_COVER_URL =
+            "android.resource://app.openstory/drawable/benchmark_browse_cover"
         const val BENCHMARK_RESUME_CHAPTER_INDEX = 1
         const val BENCHMARK_PARAGRAPH_COUNT = 24
         const val BENCHMARK_EPOCH_MILLIS = 1_700_000_000_000L

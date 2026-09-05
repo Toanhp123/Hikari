@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.testTag
 import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.ui.feedback.catalogFailureMessage
 import app.openstory.catalog.ui.state.ContentState
@@ -92,6 +93,7 @@ private fun LazyListScope.discoverPopularItem(
         contentType = "discover-popular",
     ) {
         HikariSectionLead(
+            modifier = Modifier.testTag("discover-ready-content"),
             header = { HikariSectionHeader(title = "POPULAR") },
             firstContent = {
                 DiscoverPopularPager(

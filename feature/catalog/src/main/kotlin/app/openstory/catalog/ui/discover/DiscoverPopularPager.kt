@@ -45,7 +45,9 @@ fun DiscoverPopularPager(
         if (selectedContentType != previousContentType) {
             previousContentType = selectedContentType
             visibleStoryId = pages.first().storyId
-            pagerState.scrollToPage(0)
+            if (pagerState.currentPage != 0) {
+                pagerState.scrollToPage(0)
+            }
         } else {
             val retainedIndex = pages.indexOfFirst { it.storyId == visibleStoryId }
             val target = if (retainedIndex >= 0) {
@@ -53,7 +55,9 @@ fun DiscoverPopularPager(
             } else {
                 pagerState.currentPage.coerceIn(0, pages.lastIndex)
             }
-            pagerState.scrollToPage(target)
+            if (target != pagerState.currentPage) {
+                pagerState.scrollToPage(target)
+            }
             visibleStoryId = pages[target].storyId
         }
     }

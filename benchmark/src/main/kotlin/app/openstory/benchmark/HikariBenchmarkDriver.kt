@@ -66,6 +66,11 @@ internal fun waitForTag(tag: String) {
     }
 }
 
+internal fun waitForDiscoverReady() {
+    waitForTag("discover-ready-content")
+    waitForTag("discover-popular-pager")
+}
+
 internal fun pressBackAndWait() {
     benchmarkDevice().pressBack()
     benchmarkDevice().waitForIdle()

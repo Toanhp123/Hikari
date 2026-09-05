@@ -166,6 +166,25 @@ class DiscoverSemanticsTest {
     }
 
     @Test
+    fun readyPopularContentExposesBenchmarkSynchronizationTag() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(popular = listOf(story(1))),
+                    onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("discover-ready-content").assertIsDisplayed()
+    }
+
+    @Test
     fun popularPagerIndicatorKeepsSixteenDpEndInset() {
         var density = 1f
         compose.setContent {
@@ -255,6 +274,35 @@ class DiscoverSemanticsTest {
 
         compose.onNodeWithText("Ch. 56").assertIsDisplayed()
         compose.onNodeWithText("Ch. Ch. 56").assertDoesNotExist()
+    }
+
+    @Test
+    fun fillingLatestRowRetainsTheFirstCardNode() {
+        var state by mutableStateOf(semanticState(latest = listOf(story(1))))
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = state,
+                    onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        val before = compose.onNodeWithTag("discover-latest-item-story-1", useUnmergedTree = true)
+            .fetchSemanticsNode().id
+
+        compose.runOnIdle {
+            state = semanticState(latest = listOf(story(1), story(2), story(3)))
+        }
+
+        val after = compose.onNodeWithTag("discover-latest-item-story-1", useUnmergedTree = true)
+            .fetchSemanticsNode().id
+        assertEquals(before, after)
     }
 
     @Test

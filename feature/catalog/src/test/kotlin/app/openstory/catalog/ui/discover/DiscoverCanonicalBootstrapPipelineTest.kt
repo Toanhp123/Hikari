@@ -11,13 +11,17 @@ import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.common.dispatchers.FixedAppDispatchers
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -308,7 +312,7 @@ class DiscoverCanonicalBootstrapPipelineTest {
     }
 
     @Test
-    fun settlementEmitsProgressivelyInInputOrder() = runTest {
+    fun settlementEmitsOrderedBatches() = runTest {
         val first = StoryId("story:first")
         val second = StoryId("story:second")
         val canonical = DiscoverCanonicalRepository(listOf(readyDiscoverState(first), readyDiscoverState(second)))
@@ -325,11 +329,47 @@ class DiscoverCanonicalBootstrapPipelineTest {
         assertEquals(
             listOf(
                 emptyList(),
-                listOf(first),
                 listOf(first, second),
             ),
             emissions.map { it.keys.toList() },
         )
+    }
+
+    @Test
+    fun settlementRunsAtMostFourMissingStoriesConcurrently() = runTest {
+        val storyIds = (1..6).map { StoryId("story:$it") }
+        val canonical = DiscoverCanonicalRepository(storyIds.map(::preparingDiscoverState))
+        val gate = CompletableDeferred<Unit>()
+        val active = AtomicInteger()
+        val maximumActive = AtomicInteger()
+        val pipeline = pipeline(
+            CanonicalBootstrapUseCase(
+                canonical,
+                CanonicalGenerationRebuilder { id, _ ->
+                    val currentActive = active.incrementAndGet()
+                    maximumActive.updateAndGet { maximum -> maxOf(maximum, currentActive) }
+                    try {
+                        gate.await()
+                    } finally {
+                        active.decrementAndGet()
+                    }
+                    CanonicalFusionResult.Preparing(id)
+                },
+            ),
+            TestProjectionRepository(emptyList()),
+        )
+
+        val emissions = async { pipeline.settle(storyIds, ContentType.MANGA).toList() }
+        runCurrent()
+
+        assertEquals(4, active.get())
+        assertEquals(4, maximumActive.get())
+
+        gate.complete(Unit)
+        val final = emissions.await().last()
+
+        assertEquals(storyIds, final.keys.toList())
+        assertEquals(4, maximumActive.get())
     }
 
     private fun kotlinx.coroutines.test.TestScope.pipeline(

@@ -9,10 +9,15 @@ continuous per-Story reconciliation/fusion rather than one long provider stall.
 
 ## Change
 
+> Superseded for Discover by the 2026-09-05 performance recovery design. Discover refresh now
+> commits provider data and defers all canonical convergence to the durable queue; visible-story
+> settlement proceeds independently after refresh. Other foreground paths retain this checkpoint's
+> policy.
+
 - Home fetch and Room commits remain complete and deterministic.
-- The Discover feature selects only its visible semantic set: 5 popular, 9 latest updates, and
-  5 top-rated Stories.
-- Evidence for that visible set still converges synchronously before refresh returns.
+- The original Discover policy selected only its visible semantic set: 5 popular, 9 latest updates,
+  and 5 top-rated Stories.
+- Under the superseding policy, no Discover Story converges synchronously before refresh returns.
 - Remaining evidence is coalesced by Story into durable reconciliation/fusion work and scheduled
   once for the existing WorkManager drain.
 - Room persists the deferred work batch in one transaction; no entity, table, index, or migration
@@ -26,7 +31,7 @@ continuous per-Story reconciliation/fusion rather than one long provider stall.
   create one durable batch, and schedule one drain.
 - Room instrumentation test: 1,000 work requests persist and are claimable through the batch
   repository contract.
-- Discover ViewModel test: three ten-item semantic feeds select exactly 19 immediate Stories.
+- Discover ViewModel test: a fresh Discover refresh selects zero immediate Stories.
 
 ## Verification
 

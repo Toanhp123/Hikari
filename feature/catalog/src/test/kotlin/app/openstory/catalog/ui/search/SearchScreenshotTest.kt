@@ -1,5 +1,7 @@
 package app.openstory.catalog.ui.search
 
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,6 +36,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
@@ -160,7 +163,9 @@ class SearchScreenshotTest {
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
     fun deepSearchScrollShowsBackToTopAndReturnsToStart() {
+        lateinit var listState: LazyListState
         compose.setContent {
+            listState = rememberLazyListState()
             HikariTheme(darkTheme = true) {
                 SearchScreen(
                     state = scrollFixture(),
@@ -169,6 +174,7 @@ class SearchScreenshotTest {
                     onFilterValuesChange = { _, _, _ -> },
                     onClearFilters = {},
                     onStorySelected = {},
+                    listState = listState,
                 )
             }
         }
@@ -177,7 +183,30 @@ class SearchScreenshotTest {
         content.performScrollToIndex(20)
         compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
         compose.waitForIdle()
-        compose.onNodeWithText("Find your next story").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(0, listState.firstVisibleItemIndex)
+            assertEquals(0, listState.firstVisibleItemScrollOffset)
+        }
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")
+    fun searchBackToTopIsVisibleForAFirstItemOffset() {
+        compose.setContent {
+            val listState = rememberLazyListState(initialFirstVisibleItemScrollOffset = 24)
+            HikariTheme(darkTheme = true) {
+                SearchScreen(
+                    state = scrollFixture(),
+                    onQueryChange = {},
+                    onRecentSelected = {},
+                    onFilterValuesChange = { _, _, _ -> },
+                    onClearFilters = {},
+                    onStorySelected = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed()
     }
 
     @Test @Config(sdk = [35], qualifiers = "w360dp-h800dp")

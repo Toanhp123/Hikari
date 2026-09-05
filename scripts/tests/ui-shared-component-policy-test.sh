@@ -630,9 +630,9 @@ assert_contains 'item(key = "search-intro")' \
 assert_contains 'showScrollToTop = showScrollToTop.value' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
   'Search must expose the shared back-to-top affordance after deep scrolling'
-assert_contains 'onScrollToTop = { coroutineScope.launch { listState.animateScrollToItem(0) } }' \
+assert_contains 'listState.hikariScrollToTop()' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
-  'Search back-to-top must animate the existing search list state to its first item'
+  'Search back-to-top must use the bounded shared operation on its existing list state'
 assert_absent 'contentPadding = contentPadding[.]plus' \
   'feature/catalog/src/main/kotlin/app/openstory/catalog/ui/search/SearchScreen.kt' \
   'Search must not encode the shell top safe inset as scrollable LazyColumn content padding'

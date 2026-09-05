@@ -1,6 +1,10 @@
 package app.openstory.catalog.ui.library
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -19,6 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w360dp-h800dp")
@@ -28,7 +33,9 @@ class LibraryTopLevelChromeTest {
 
     @Test
     fun titleAndToolbarStayPinnedAndBackToTopReturnsToFirstStory() {
+        lateinit var listState: LazyListState
         compose.setContent {
+            listState = rememberLazyListState()
             HikariTheme {
                 LibraryScreen(
                     state = libraryState(),
@@ -40,6 +47,7 @@ class LibraryTopLevelChromeTest {
                     onClearFilters = {},
                     onDiscover = {},
                     onStorySelected = {},
+                    listState = listState,
                     contentPadding = PaddingValues(top = 24.dp, bottom = 92.dp),
                 )
             }
@@ -50,11 +58,67 @@ class LibraryTopLevelChromeTest {
         compose.onNodeWithContentDescription("Search your Library").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
         compose.waitForIdle()
-        compose.onNodeWithContentDescription("Back to top").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(0, listState.firstVisibleItemIndex)
+            assertEquals(0, listState.firstVisibleItemScrollOffset)
+        }
+    }
+
+    @Test
+    fun gridBackToTopReturnsToExactStart() {
+        lateinit var gridState: LazyGridState
+        compose.setContent {
+            gridState = rememberLazyGridState()
+            HikariTheme {
+                LibraryScreen(
+                    state = libraryState(LibraryDisplayMode.GRID),
+                    onQueryChange = {},
+                    onStatusSelected = {},
+                    onSourceFilterSelected = {},
+                    onSortSelected = {},
+                    onDisplayModeSelected = {},
+                    onClearFilters = {},
+                    onDiscover = {},
+                    onStorySelected = {},
+                    gridState = gridState,
+                )
+            }
+        }
+
+        compose.onNodeWithTag("library-collection").performScrollToIndex(10)
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed().performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(0, gridState.firstVisibleItemIndex)
+            assertEquals(0, gridState.firstVisibleItemScrollOffset)
+        }
+    }
+
+    @Test
+    fun backToTopIsVisibleForAFirstItemOffset() {
+        compose.setContent {
+            val listState = rememberLazyListState(initialFirstVisibleItemScrollOffset = 24)
+            HikariTheme {
+                LibraryScreen(
+                    state = libraryState(),
+                    onQueryChange = {},
+                    onStatusSelected = {},
+                    onSourceFilterSelected = {},
+                    onSortSelected = {},
+                    onDisplayModeSelected = {},
+                    onClearFilters = {},
+                    onDiscover = {},
+                    onStorySelected = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Back to top").assertIsDisplayed()
     }
 }
 
-private fun libraryState(): LibraryUiState {
+private fun libraryState(displayMode: LibraryDisplayMode = LibraryDisplayMode.LIST): LibraryUiState {
     val items = (0..11).map { index ->
         LibraryItemUiModel(
             storyId = StoryId("story-$index"),
@@ -76,6 +140,6 @@ private fun libraryState(): LibraryUiState {
                 collection = LibraryCollectionState.Ready(items),
             ),
         ),
-        displayMode = LibraryDisplayMode.LIST,
+        displayMode = displayMode,
     )
 }

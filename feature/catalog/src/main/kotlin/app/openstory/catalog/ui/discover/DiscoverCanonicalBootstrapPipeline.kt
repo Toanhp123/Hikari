@@ -9,6 +9,9 @@ import app.openstory.common.dispatchers.AppDispatchers
 import app.openstory.common.id.StoryId
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -56,9 +59,15 @@ class DiscoverCanonicalBootstrapPipeline @Inject constructor(
         }
         emit(settlements.toMap())
 
-        expectedIds.forEach { storyId ->
-            if (storyId in settlements) return@forEach
-            settlements[storyId] = settleOne(storyId, selectedContentType)
+        expectedIds.filterNot(settlements::containsKey).chunked(MAX_CONCURRENT_SETTLEMENTS).forEach { batch ->
+            val resolved = coroutineScope {
+                batch.map { storyId ->
+                    async { storyId to settleOne(storyId, selectedContentType) }
+                }.awaitAll()
+            }
+            resolved.forEach { (storyId, settlement) ->
+                settlements[storyId] = settlement
+            }
             emit(settlements.toMap())
         }
     }
@@ -121,6 +130,7 @@ class DiscoverCanonicalBootstrapPipeline @Inject constructor(
     }
 
     private companion object {
+        const val MAX_CONCURRENT_SETTLEMENTS = 4
         const val CANONICAL_STILL_PREPARING = "catalog.discover.canonical_still_preparing"
         const val CANONICAL_BOOTSTRAP_FAILED = "catalog.discover.canonical_bootstrap_failed"
         const val PROJECTION_LOOKUP_FAILED = "catalog.discover.projection_lookup_failed"

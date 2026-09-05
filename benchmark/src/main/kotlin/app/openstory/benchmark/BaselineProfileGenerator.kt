@@ -36,6 +36,7 @@ class BaselineProfileGenerator {
             clickTag("navigation-library")
             clickTag("navigation-home")
             clickTag("navigation-discover")
+            waitForDiscoverReady()
             clickTag("discover-search")
             waitForTag("search-content")
             pressBackAndWait()
