@@ -166,6 +166,25 @@ class DiscoverSemanticsTest {
     }
 
     @Test
+    fun readyPopularContentExposesBenchmarkSynchronizationTag() {
+        compose.setContent {
+            HikariTheme {
+                DiscoverScreen(
+                    state = semanticState(popular = listOf(story(1))),
+                    onRefresh = {},
+                    onRetryContent = {},
+                    onRetryObservation = {},
+                    onSearch = {},
+                    onStorySelected = {},
+                    onContentTypeSelected = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("discover-ready-content").assertIsDisplayed()
+    }
+
+    @Test
     fun popularPagerIndicatorKeepsSixteenDpEndInset() {
         var density = 1f
         compose.setContent {

@@ -170,10 +170,23 @@ class HikariMacrobenchmark {
     fun discoverScroll() = measureNavigation(
         setup = {
             clickTag("navigation-discover")
-            waitForTag("discover-list")
+            waitForDiscoverReady()
         },
     ) {
         swipeUpOnTag("discover-list", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
+    @Test
+    fun discoverBackToTop() = measureNavigation(
+        setup = {
+            clickTag("navigation-discover")
+            waitForDiscoverReady()
+        },
+    ) {
+        swipeUpOnTag("discover-list", repetitions = SCROLL_SWIPE_COUNT)
+        waitForTag("hikari-scroll-to-top")
+        clickTag("hikari-scroll-to-top")
+        waitForTag("discover-popular-pager")
     }
 
     private fun measureStoryTab(tabTag: String) = measureNavigation(
