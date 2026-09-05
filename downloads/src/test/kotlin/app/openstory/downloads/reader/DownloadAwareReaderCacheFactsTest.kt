@@ -10,6 +10,7 @@ import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.downloads.blob.ChapterBlobStore
 import app.openstory.downloads.cache.CacheEntry
 import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
 import app.openstory.reader.routing.ReaderLocalCacheFact
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,6 +122,10 @@ class DownloadAwareReaderCacheFactsTest {
             cacheRepository = NoopCacheRepository,
             downloads = NoopDownloads,
             now = { 0L },
+            automaticCacheBudgetCoordinator = AutomaticCacheBudgetCoordinator.documentsOnly(
+                NoopCacheRepository,
+                NoopBlobStore,
+            ),
             metadataSource = ReaderCacheMetadataSource {
                 listOf(
                     row(
@@ -157,6 +162,10 @@ class DownloadAwareReaderCacheFactsTest {
         cacheRepository = NoopCacheRepository,
         downloads = NoopDownloads,
         now = { 0L },
+        automaticCacheBudgetCoordinator = AutomaticCacheBudgetCoordinator.documentsOnly(
+            NoopCacheRepository,
+            NoopBlobStore,
+        ),
         metadataSource = source,
     )
 

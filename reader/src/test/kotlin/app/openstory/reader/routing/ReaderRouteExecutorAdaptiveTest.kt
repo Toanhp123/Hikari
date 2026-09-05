@@ -6,10 +6,15 @@ import app.openstory.chapters.model.ParsedChapterLabel
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentDurableWriteIntent
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderDocumentReadResult
+import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
@@ -110,6 +115,8 @@ class ReaderRouteExecutorAdaptiveTest {
 
         assertEquals("selected", assertIs<ReaderLoadResult.Success>(result).release.id.value)
         assertEquals(true, result.fromStore)
+        assertEquals(null, result.imageSourcePolicy)
+        assertEquals(null, result.sourcePluginId)
         assertEquals(listOf<SourceObservation>(SourceObservation.Success.Local), observations)
         assertEquals(listOf("selected" to "expected"), store.reads)
         assertEquals(0, registry.enabledCalls)
@@ -371,6 +378,11 @@ class ReaderRouteExecutorAdaptiveTest {
     @Test
     fun persistableRemoteDocumentIsStoredButImagePageIsNot() = runTest {
         val store = AdaptiveStore()
+        val imagePolicy = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+        )
         val source = AdaptiveSource(
             PluginId("source"),
             mutableMapOf(
@@ -378,11 +390,14 @@ class ReaderRouteExecutorAdaptiveTest {
                 "image" to ReaderSourceResult.Success(
                     ReaderDocument(
                         title = null,
-                        blocks = listOf(ReaderBlock.ImagePage("image", "https://node.example/image.png")),
+                        blocks = listOf(
+                            ReaderBlock.ImagePage("image", "hash/image.png", "https://node.example/image.png"),
+                        ),
                         fingerprint = "image-fp",
                     ),
                 ),
             ),
+            imageSourcePolicy = imagePolicy,
         )
         val text = candidate("text", "source")
         val image = candidate("image", "source")
@@ -392,12 +407,36 @@ class ReaderRouteExecutorAdaptiveTest {
             attempts = listOf(remote("a0", "text", "source", AttemptRole.PRIMARY)),
             candidatesByRelease = mapOf(text.id to text),
         )
-        executor.executeAdaptive(
+        val imageResult = executor.executeAdaptive(
             attempts = listOf(remote("a1", "image", "source", AttemptRole.PRIMARY)),
             candidatesByRelease = mapOf(image.id to image),
         )
 
         assertEquals(listOf("text" to "text-fp"), store.writes)
+        val loaded = assertIs<ReaderLoadResult.Success>(imageResult)
+        assertEquals(imagePolicy, loaded.imageSourcePolicy)
+        assertEquals(source.pluginId, loaded.sourcePluginId)
+    }
+
+    @Test
+    fun automaticWriteIntentIsCapturedImmediatelyBeforeEachRemoteFetchAndReusedForItsWrite() = runTest {
+        val events = mutableListOf<String>()
+        val intent = TestWriteIntent("attempt-intent")
+        val store = AdaptiveStore(events = events, capturedIntent = intent)
+        val source = AdaptiveSource(
+            PluginId("source"),
+            mutableMapOf("release" to ReaderSourceResult.Success(document("remote"))),
+            events = events,
+        )
+        val candidate = candidate("release", "source")
+
+        executor(store, AdaptiveRegistry(listOf(source))).executeAdaptive(
+            attempts = listOf(remote("a0", "release", "source", AttemptRole.PRIMARY)),
+            candidatesByRelease = mapOf(candidate.id to candidate),
+        )
+
+        assertEquals(listOf("capture", "fetch:release", "write:attempt-intent"), events)
+        assertEquals(intent, store.writeIntents.single())
     }
 
     @Test
@@ -430,12 +469,13 @@ class ReaderRouteExecutorAdaptiveTest {
     private fun executor(
         store: ReaderDocumentStore = AdaptiveStore(),
         registry: ReaderDocumentSourceRegistry = AdaptiveRegistry(emptyList()),
-        limiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
+        limiter: ReaderExecutionTestOwners = ReaderExecutionTestOwners(),
         monotonicNanos: () -> Long = System::nanoTime,
     ) = ReaderRouteExecutor(
         store = store,
         sources = registry,
-        executionLimiter = limiter,
+        sourceLane = limiter.sourceLane,
+        fetchArbiter = limiter.fetchArbiter,
         monotonicNanos = monotonicNanos,
     )
 
@@ -474,10 +514,13 @@ private class AdaptiveStore(
     private val exact: Map<String, ReaderDocument> = emptyMap(),
     private val readFailure: Throwable? = null,
     private val readResultOverride: ReaderDocumentReadResult? = null,
+    private val events: MutableList<String>? = null,
+    private val capturedIntent: ReaderDocumentDurableWriteIntent? = null,
 ) : ReaderDocumentStore {
     val reads = mutableListOf<Pair<String, String>>()
     val writes = mutableListOf<Pair<String, String>>()
     val quarantines = mutableListOf<Pair<String, String>>()
+    val writeIntents = mutableListOf<ReaderDocumentDurableWriteIntent?>()
 
     override suspend fun read(releaseId: ChapterReleaseId, fingerprint: String): ReaderDocument? {
         reads += releaseId.value to fingerprint
@@ -499,6 +542,22 @@ private class AdaptiveStore(
         writes += releaseId.value to fingerprint
     }
 
+    override suspend fun captureAutomaticWriteIntent(): ReaderDocumentDurableWriteIntent? {
+        events?.add("capture")
+        return capturedIntent
+    }
+
+    override suspend fun writeWithIntent(
+        releaseId: ChapterReleaseId,
+        fingerprint: String,
+        document: ReaderDocument,
+        intent: ReaderDocumentDurableWriteIntent?,
+    ) {
+        writeIntents += intent
+        events?.add("write:${(intent as? TestWriteIntent)?.value}")
+        write(releaseId, fingerprint, document)
+    }
+
     override suspend fun quarantine(releaseId: ChapterReleaseId, fingerprint: String) {
         quarantines += releaseId.value to fingerprint
     }
@@ -517,12 +576,17 @@ private class AdaptiveSource(
     override val pluginId: PluginId,
     private val results: MutableMap<String, ReaderSourceResult>,
     private val cancel: Boolean = false,
+    private val events: MutableList<String>? = null,
+    override val imageSourcePolicy: ReaderImageSourcePolicy = ReaderImageSourcePolicy.FAIL_CLOSED,
 ) : ReaderDocumentSource {
     val fetches = mutableListOf<String>()
 
     override suspend fun fetch(release: ChapterRelease): ReaderSourceResult {
         fetches += release.id.value
+        events?.add("fetch:${release.id.value}")
         if (cancel) throw CancellationException("cancelled test source")
         return results[release.id.value] ?: ReaderSourceResult.Failure("reader.source_failed", true)
     }
 }
+
+private data class TestWriteIntent(val value: String) : ReaderDocumentDurableWriteIntent

@@ -148,7 +148,9 @@ class ReaderRouteReplanTest {
             progress = NoopReplanProgress,
             sourceAvailability = ReaderSourceAvailability { setOf(PluginId("a"), PluginId("b")) },
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             cacheFacts = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
             networkFacts = ReaderNetworkFactsPort {
                 networkReads += 1
@@ -285,7 +287,7 @@ class ReaderRouteReplanTest {
         network: ReaderNetworkFactsPort = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
         cache: ReaderCacheFactsPort = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
         now: () -> Long = { 100L },
-        limiter: ReaderSourceExecutionLimiter = ReaderSourceExecutionLimiter(),
+        limiter: ReaderExecutionTestOwners = ReaderExecutionTestOwners(),
     ) = ReaderRouteCoordinator(
         store = store,
         sources = object : ReaderDocumentSourceRegistry {
@@ -294,7 +296,9 @@ class ReaderRouteReplanTest {
         progress = NoopReplanProgress,
         sourceAvailability = availability,
         healthRegistry = health,
-        executionLimiter = limiter,
+        sourceLane = limiter.sourceLane,
+        fetchArbiter = limiter.fetchArbiter,
+        halfOpenProbeRegistry = limiter.halfOpenProbeRegistry,
         cacheFacts = cache,
         networkFacts = network,
         nowEpochMillis = now,

@@ -11,6 +11,10 @@ import app.openstory.common.Clock
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
+import app.openstory.reader.assets.ReaderAssetCoordinator
+import app.openstory.reader.assets.ReaderCommittedAssetManifestSnapshot
+import app.openstory.reader.assets.ReaderPageAssetRequest
+import app.openstory.reader.assets.ReaderViewportSnapshot
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.preferences.ReaderPreferencesPort
@@ -42,6 +46,7 @@ class ReaderViewModel @AssistedInject constructor(
     private val savedState: SavedStateHandle,
     private val chapters: ChapterRepository,
     routeSessions: ReaderRouteSessionFactory,
+    private val assetCoordinator: ReaderAssetCoordinator,
     private val progress: ReadingProgressRepository,
     clock: Clock,
     private val preferences: ReaderPreferencesPort = DefaultReaderPreferencesPort,
@@ -73,6 +78,7 @@ class ReaderViewModel @AssistedInject constructor(
     private var chapterGraphReady = false
     private var latestChapterOrder: List<CanonicalChapterId> = emptyList()
     private var initialLoadStarted = false
+    private var handledRouteInvalidationRevision: Long? = null
     private val mutableState = MutableStateFlow(ReaderUiState())
     val state: StateFlow<ReaderUiState> = mutableState.asStateFlow()
 
@@ -99,6 +105,11 @@ class ReaderViewModel @AssistedInject constructor(
                 refreshCommittedNavigation()
                 chapterGraphReady = true
                 maybeStartInitialLoad()
+            }
+        }
+        viewModelScope.launch {
+            assetCoordinator.observeCommittedManifest(routeSession.sessionId).collect { snapshot ->
+                acceptCommittedAssetSnapshot(snapshot)
             }
         }
     }
@@ -163,6 +174,40 @@ class ReaderViewModel @AssistedInject constructor(
         }
     }
 
+    fun updateAssetViewport(snapshot: ReaderViewportSnapshot): Boolean {
+        val accepted = mutableState.value.assets?.matches(snapshot) == true
+        if (accepted) assetCoordinator.updateViewport(snapshot)
+        return accepted
+    }
+
+    fun assetPresented(request: ReaderPageAssetRequest) {
+        val assets = mutableState.value.assets ?: return
+        if (!assets.matches(request)) return
+        assetCoordinator.assetPresented(request)
+    }
+
+    fun reloadRouteForInvalidatedAsset(manifestRevision: Long) {
+        val current = committed
+        if (current != null && shouldReloadInvalidatedAsset(manifestRevision)) {
+            handledRouteInvalidationRevision = manifestRevision
+            startLoad(
+                chapterId = current.chapterId,
+                explicitReleaseId = current.releaseId,
+                flushProgress = true,
+            )
+        }
+    }
+
+    private fun shouldReloadInvalidatedAsset(manifestRevision: Long): Boolean =
+        mutableState.value.assets?.manifestRevision == manifestRevision &&
+            transitionTarget == null &&
+            handledRouteInvalidationRevision != manifestRevision
+
+    override fun onCleared() {
+        routeSession.close()
+        super.onCleared()
+    }
+
     private fun maybeStartInitialLoad() {
         if (initialLoadStarted || !preferenceReady || !chapterGraphReady) return
         initialLoadStarted = true
@@ -218,9 +263,11 @@ class ReaderViewModel @AssistedInject constructor(
             releaseId = result.release.id,
             document = result.document,
         )
+        val nextAssets = result.toAssetUiState(nextCommitted)
         committed = nextCommitted
         transitionTarget = null
         failedTarget = null
+        handledRouteInvalidationRevision = null
 
         // Saved identity is committed identity only. Publish UI only after both keys are updated.
         savedState[CHAPTER_ID_KEY] = nextCommitted.chapterId.value
@@ -232,6 +279,7 @@ class ReaderViewModel @AssistedInject constructor(
             committedChapterId = nextCommitted.chapterId,
             chapterLabel = result.chapterGroup.chapter.displayLabel,
             document = nextCommitted.document,
+            assets = nextAssets,
             releases = result.chapterGroup.releases.map(ChapterRelease::toUiModel),
             selectedReleaseId = nextCommitted.releaseId,
             previousChapterId = previousChapterId,
@@ -246,6 +294,48 @@ class ReaderViewModel @AssistedInject constructor(
             failureRetryable = true,
         )
     }
+
+    private fun acceptCommittedAssetSnapshot(snapshot: ReaderCommittedAssetManifestSnapshot) {
+        val current = committed ?: return
+        val nextAssets = snapshot.toReaderAssetUiStateIfCurrent(
+            activeSessionId = routeSession.sessionId,
+            activeChapterId = current.chapterId,
+            activeReleaseId = current.releaseId,
+            currentManifestRevision = mutableState.value.assets?.manifestRevision,
+        ) ?: return
+        handledRouteInvalidationRevision = null
+        mutableState.value = mutableState.value.copy(assets = nextAssets)
+    }
+
+    private fun ReaderForegroundResult.Committed.toAssetUiState(
+        current: CommittedReaderContent,
+    ): ReaderAssetUiState? {
+        val manifest = assetManifest
+        val revision = assetManifestRevision
+        check((manifest == null) == (revision == null)) {
+            "Reader committed asset manifest and revision must be published together."
+        }
+        if (manifest == null || revision == null) return null
+        check(manifest.sessionId == routeSession.sessionId) {
+            "Reader asset manifest must belong to the active route session."
+        }
+        check(manifest.canonicalChapterId == current.chapterId) {
+            "Reader asset manifest must belong to the committed chapter."
+        }
+        check(manifest.selectedReleaseId == current.releaseId) {
+            "Reader asset manifest must belong to the committed release."
+        }
+        return ReaderAssetUiState(manifest, revision)
+    }
+
+    private fun ReaderAssetUiState.matches(snapshot: ReaderViewportSnapshot): Boolean =
+        manifest.sessionId == snapshot.sessionId &&
+            manifestRevision == snapshot.manifestRevision
+
+    private fun ReaderAssetUiState.matches(request: ReaderPageAssetRequest): Boolean =
+        manifest.sessionId == request.sessionId &&
+            manifestRevision == request.manifestRevision &&
+            manifest.descriptors.getOrNull(request.descriptor.imageOrdinal) == request.descriptor
 
     private fun fail(
         target: ReaderTransitionTarget,

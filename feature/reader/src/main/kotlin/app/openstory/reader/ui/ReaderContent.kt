@@ -1,9 +1,9 @@
 package app.openstory.reader.ui
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.HorizontalDivider
@@ -11,21 +11,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import app.openstory.reader.document.ReaderBlock
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.reader.assets.ReaderPageAssetRequest
+import app.openstory.reader.assets.ReaderViewportSnapshot
+import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.progress.ReadingPosition
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlin.math.roundToInt
 
 @Composable
 fun ReaderContent(
@@ -38,7 +44,10 @@ fun ReaderContent(
     onPositionChanged: (ReadingPosition, Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onToggleChrome: () -> Unit = {},
-    onReloadDocument: () -> Unit = {},
+    assets: ReaderAssetUiState? = null,
+    onViewportChanged: (ReaderViewportSnapshot) -> Boolean = { false },
+    onAssetPresented: (ReaderPageAssetRequest) -> Unit = {},
+    onRouteInvalidated: (Long) -> Unit = {},
 ) {
     val titleOffset = if (document.title == null) 0 else 1
     val measuredImageHeights = remember(document.fingerprint) { mutableStateMapOf<String, Int>() }
@@ -54,7 +63,23 @@ fun ReaderContent(
         restoredImageHeight,
     )
     val textStyles = rememberReaderTextStyles(fontScale)
+    var visibleAssetViewport by remember(assets?.manifest?.sessionId, assets?.manifestRevision) {
+        mutableStateOf<ReaderViewportSnapshot?>(null)
+    }
+    var acceptedAssetViewport by remember(assets?.manifest?.sessionId, assets?.manifestRevision) {
+        mutableStateOf<ReaderViewportSnapshot?>(null)
+    }
     TrackReaderProgress(document, titleOffset, listState, onPositionChanged)
+    if (assets != null) {
+        TrackReaderAssetViewport(
+            document = document,
+            assets = assets,
+            listState = listState,
+            onViewportChanged = onViewportChanged,
+            onViewportObserved = { snapshot -> visibleAssetViewport = snapshot },
+            onViewportAccepted = { snapshot -> acceptedAssetViewport = snapshot },
+        )
+    }
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -82,8 +107,16 @@ fun ReaderContent(
             ReaderBlock(
                 block = document.blocks[index],
                 textStyles = textStyles,
-                documentFingerprint = document.fingerprint,
-                onReloadDocument = onReloadDocument,
+                assets = assets,
+                visibleViewport = visibleAssetViewport,
+                acceptedViewport = acceptedAssetViewport,
+                isAssetActuallyVisible = { request ->
+                    listState.layoutInfo.visibleItemsInfo.any { item ->
+                        item.key == request.descriptor.uiBlockId
+                    }
+                },
+                onAssetPresented = onAssetPresented,
+                onRouteInvalidated = onRouteInvalidated,
                 onImageMeasured = { blockId, height -> measuredImageHeights[blockId] = height },
             )
         }
@@ -150,8 +183,12 @@ private fun rememberRestoredReaderState(
 private fun ReaderBlock(
     block: ReaderBlock,
     textStyles: ReaderTextStyles,
-    documentFingerprint: String,
-    onReloadDocument: () -> Unit,
+    assets: ReaderAssetUiState?,
+    visibleViewport: ReaderViewportSnapshot?,
+    acceptedViewport: ReaderViewportSnapshot?,
+    isAssetActuallyVisible: (ReaderPageAssetRequest) -> Boolean,
+    onAssetPresented: (ReaderPageAssetRequest) -> Unit,
+    onRouteInvalidated: (Long) -> Unit,
     onImageMeasured: (String, Int) -> Unit,
 ) {
     when (block) {
@@ -186,12 +223,22 @@ private fun ReaderBlock(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = textStyles.note,
         )
-        is ReaderBlock.ImagePage -> ReaderImagePage(
-            block = block,
-            documentFingerprint = documentFingerprint,
-            onReloadDocument = onReloadDocument,
-            onImageMeasured = { height -> onImageMeasured(block.id, height) },
-        )
+        is ReaderBlock.ImagePage -> {
+            val request = assets?.requestForBlockId(block.id)
+            if (request == null) {
+                HikariInlineFeedback(message = "Page image unavailable")
+            } else {
+                ReaderImagePage(
+                    request = request,
+                    visibleViewport = visibleViewport,
+                    acceptedViewport = acceptedViewport,
+                    isActuallyVisible = isAssetActuallyVisible,
+                    onAssetPresented = onAssetPresented,
+                    onRouteInvalidated = onRouteInvalidated,
+                    onImageMeasured = { height -> onImageMeasured(block.id, height) },
+                )
+            }
+        }
     }
 }
 

@@ -57,7 +57,7 @@ fun ReaderScreen(
                     progressState.update(position.fraction)
                     actions.onPositionChanged(position, reachedEnd)
                 },
-                onRetry = actions.onRetry,
+                actions = actions,
             )
         },
     ) {
@@ -114,12 +114,13 @@ private fun ReaderBackground(
     state: ReaderUiState,
     onToggleChrome: () -> Unit,
     onPositionChanged: (ReadingPosition, Boolean) -> Unit,
-    onRetry: () -> Unit,
+    actions: ReaderActions,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         when {
             state.document != null -> ReaderContent(
                 document = state.document,
+                assets = state.assets,
                 fontScale = state.fontScale,
                 restoredBlockId = state.restoredBlockId,
                 restoredCharacterOffset = state.restoredCharacterOffset,
@@ -129,9 +130,11 @@ private fun ReaderBackground(
                     bottom = MaterialTheme.hikariDimensions.readerBottomInset,
                 ),
                 onPositionChanged = onPositionChanged,
+                onViewportChanged = actions.onViewportChanged,
+                onAssetPresented = actions.onAssetPresented,
+                onRouteInvalidated = actions.onRouteInvalidated,
                 modifier = Modifier.testTag("reader-content"),
                 onToggleChrome = onToggleChrome,
-                onReloadDocument = onRetry,
             )
             state.loading -> Centered { HikariLoadingState(label = "Loading reader") }
             else -> Centered {
@@ -139,7 +142,7 @@ private fun ReaderBackground(
                     title = "Reader unavailable",
                     message = readerFailureMessage(state.failure, state.failureRetryable),
                     actionLabel = if (state.failureRetryable) "Retry" else null,
-                    onAction = if (state.failureRetryable) onRetry else null,
+                    onAction = if (state.failureRetryable) actions.onRetry else null,
                 )
             }
         }

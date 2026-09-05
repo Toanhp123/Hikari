@@ -44,7 +44,9 @@ class ReaderRouteCoordinatorAdaptiveTest {
             progress = AdaptiveCoordinatorProgress(null),
             sourceAvailability = ReaderSourceAvailability { setOf(sourceId) },
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             cacheFacts = ReaderCacheFactsPort { ids, _ ->
                 ids.associateWith { ReaderLocalCacheFact.Exact("local-fp") }
             },
@@ -72,7 +74,9 @@ class ReaderRouteCoordinatorAdaptiveTest {
             progress = AdaptiveCoordinatorProgress(null),
             sourceAvailability = ReaderSourceAvailability { setOf(sourceId) },
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             cacheFacts = ReaderCacheFactsPort { ids, _ -> ids.associateWith { ReaderLocalCacheFact.Miss } },
             networkFacts = ReaderNetworkFactsPort { ReaderNetworkState.UNMETERED },
         )
@@ -163,7 +167,9 @@ class ReaderRouteCoordinatorAdaptiveTest {
         progress = AdaptiveCoordinatorProgress(progress),
         sourceAvailability = ReaderSourceAvailability { setOf(sourceId) },
         healthRegistry = ReaderSourceHealthRegistry(),
-        executionLimiter = ReaderSourceExecutionLimiter(),
+        sourceLane = ContentSourceExecutionLane(),
+        fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+        halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         cacheFacts = cacheFacts,
         networkFacts = networkFacts,
     )

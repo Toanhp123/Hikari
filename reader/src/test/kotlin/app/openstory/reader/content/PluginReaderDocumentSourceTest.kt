@@ -8,6 +8,9 @@ import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import app.openstory.plugins.api.manifest.PluginService
 import app.openstory.plugins.api.manifest.ReaderCapability
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.InstalledPlugin
 import app.openstory.plugins.runtime.PluginCallResult
@@ -98,6 +101,43 @@ class PluginReaderDocumentSourceTest {
             assertIs<ReaderSourceResult.Failure>(denied.fetch(release())).code,
         )
         assertIs<ReaderSourceResult.Success>(allowed.fetch(release()))
+    }
+
+    @Test
+    fun sourcePropagatesExplicitImagePolicyAndDefaultsFailClosed() {
+        val denied = PluginReaderDocumentSource(
+            InstalledPlugin(PluginId("denied.plugin"), "1", setOf(PluginService.CONTENT)),
+            FakeRuntime(),
+            Json,
+            ReaderDocumentSanitizer(),
+        )
+        val trusted = PluginReaderDocumentSource(
+            InstalledPlugin(
+                PluginId("trusted.plugin"),
+                "1",
+                setOf(PluginService.CONTENT),
+                readerCapability = ReaderCapability(
+                    offlineDownload = false,
+                    remoteImages = true,
+                    imageIdentity = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+                    imageLocator = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+                    imagePersistence = ReaderImagePersistenceContract.PUBLIC,
+                ),
+            ),
+            FakeRuntime(),
+            Json,
+            ReaderDocumentSanitizer(),
+        )
+
+        assertEquals(ReaderImageSourcePolicy.FAIL_CLOSED, denied.imageSourcePolicy)
+        assertEquals(
+            ReaderImageSourcePolicy(
+                ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+                ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+                ReaderImagePersistenceContract.PUBLIC,
+            ),
+            trusted.imageSourcePolicy,
+        )
     }
 
     @Test

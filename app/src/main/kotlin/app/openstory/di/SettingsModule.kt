@@ -23,7 +23,7 @@ import app.openstory.plugins.runtime.auth.InstalledAuthenticationPolicySource
 import app.openstory.plugins.runtime.auth.PluginSessionService
 import app.openstory.chapters.notification.NotificationEventRepository
 import app.openstory.downloads.DownloadRepository
-import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
 import app.openstory.notifications.NotificationPermissionGate
 import app.openstory.settings.session.PluginSessionControlPort
 import app.openstory.settings.notification.NotificationControlPort
@@ -70,10 +70,10 @@ object SettingsModule {
     @Provides
     @Singleton
     fun provideStorageSummaryPort(
-        cache: CacheRepository,
+        automaticCacheBudgetCoordinator: AutomaticCacheBudgetCoordinator,
         downloads: DownloadRepository,
         settings: AppSettingsRepository,
-    ): StorageSummaryPort = AppStorageSummaryAdapter(cache, downloads, settings)
+    ): StorageSummaryPort = AppStorageSummaryAdapter(automaticCacheBudgetCoordinator, downloads, settings)
 
     @Provides
     @Singleton

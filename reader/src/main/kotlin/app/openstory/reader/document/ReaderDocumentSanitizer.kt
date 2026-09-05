@@ -72,7 +72,7 @@ class ReaderDocumentSanitizer {
         val stableId = block.stableId.safeText(MAX_IMAGE_STABLE_ID_LENGTH)
         val imageUrl = block.imageUrl.takeIf(::isSafeHttpsUrl)
         return if (stableId != null && imageUrl != null) {
-            ReaderBlock.ImagePage(imageBlockId(index, stableId), imageUrl)
+            ReaderBlock.ImagePage(imageBlockId(index, stableId), stableId, imageUrl)
         } else {
             null
         }
@@ -124,19 +124,19 @@ class ReaderDocumentSanitizer {
 
     private fun invalid(code: String) = DocumentValidationResult.Invalid(code)
 
-    private companion object {
+    companion object {
         const val MAX_BLOCKS = 2_000
-        const val MAX_DOCUMENT_CHARACTERS = 2_000_000
-        const val MAX_TITLE_LENGTH = 512
-        const val MAX_HEADING_LENGTH = 512
-        const val MAX_PARAGRAPH_LENGTH = 50_000
-        const val MAX_NOTE_LENGTH = 20_000
-        const val MAX_IMAGE_STABLE_ID_LENGTH = 1_024
-        const val MIN_HEADING_LEVEL = 1
-        const val MAX_HEADING_LEVEL = 6
-        const val BLOCK_HASH_LENGTH = 12
-        const val COLON: Byte = ':'.code.toByte()
-        const val NEWLINE: Byte = '\n'.code.toByte()
+        private const val MAX_DOCUMENT_CHARACTERS = 2_000_000
+        private const val MAX_TITLE_LENGTH = 512
+        private const val MAX_HEADING_LENGTH = 512
+        private const val MAX_PARAGRAPH_LENGTH = 50_000
+        private const val MAX_NOTE_LENGTH = 20_000
+        private const val MAX_IMAGE_STABLE_ID_LENGTH = 1_024
+        private const val MIN_HEADING_LEVEL = 1
+        private const val MAX_HEADING_LEVEL = 6
+        private const val BLOCK_HASH_LENGTH = 12
+        private const val COLON: Byte = ':'.code.toByte()
+        private const val NEWLINE: Byte = '\n'.code.toByte()
     }
 }
 

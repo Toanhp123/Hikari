@@ -75,13 +75,44 @@ data class PluginCapabilities(
 )
 
 @Serializable
+enum class ReaderImageIdentityContract {
+    DELIVERY_STABLE_ONLY,
+    STABLE_ID_CHANGES_WITH_CONTENT,
+}
+
+@Serializable
+enum class ReaderImageLocatorContract {
+    MUTABLE_OR_UNKNOWN,
+    LOCATOR_CHANGES_WITH_CONTENT,
+}
+
+@Serializable
+enum class ReaderImagePersistenceContract {
+    NON_PERSISTENT,
+    PUBLIC,
+    ACCOUNT_SCOPED,
+}
+
+@Serializable
 data class ReaderCapability(
     val offlineDownload: Boolean = true,
     val remoteImages: Boolean = false,
+    val imageIdentity: ReaderImageIdentityContract = ReaderImageIdentityContract.DELIVERY_STABLE_ONLY,
+    val imageLocator: ReaderImageLocatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+    val imagePersistence: ReaderImagePersistenceContract = ReaderImagePersistenceContract.NON_PERSISTENT,
 ) {
     init {
         require(!remoteImages || !offlineDownload) {
             "Remote image reader capability cannot declare offline download"
+        }
+        require(remoteImages || imageIdentity == ReaderImageIdentityContract.DELIVERY_STABLE_ONLY) {
+            "Image identity contract requires remote image capability"
+        }
+        require(remoteImages || imageLocator == ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN) {
+            "Image locator contract requires remote image capability"
+        }
+        require(remoteImages || imagePersistence == ReaderImagePersistenceContract.NON_PERSISTENT) {
+            "Image persistence contract requires remote image capability"
         }
     }
 }

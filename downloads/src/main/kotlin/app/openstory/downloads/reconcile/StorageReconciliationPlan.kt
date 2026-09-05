@@ -1,7 +1,9 @@
 package app.openstory.downloads.reconcile
 
 import app.openstory.downloads.DownloadState
+import app.openstory.downloads.assets.ReaderAssetBlobId
 import app.openstory.downloads.blob.ChapterBlobKey
+import app.openstory.reader.assets.ReaderAssetKeyHash
 import app.openstory.downloads.blob.ChapterBlobNamespace
 
 @JvmInline
@@ -11,6 +13,19 @@ value class StorageArtifactId(val value: String) {
         require('/' !in value && '\\' !in value) { "Storage artifact ID must be opaque." }
     }
 }
+
+
+data class ReaderAssetReconciliationEntry(
+    val logicalAssetKeyHash: ReaderAssetKeyHash,
+    val blobId: ReaderAssetBlobId,
+)
+
+data class ReaderAssetStorageInventorySnapshot(
+    val presentBlobIds: Set<ReaderAssetBlobId> = emptySet(),
+    val orphanArtifacts: List<StorageArtifactId> = emptyList(),
+    val interruptedWriteArtifacts: List<StorageArtifactId> = emptyList(),
+    val scanComplete: Boolean = true,
+)
 
 data class StorageInventorySnapshot(
     val presentKeys: Set<ChapterBlobKey> = emptySet(),
@@ -47,6 +62,8 @@ data class StorageReconciliationReport(
     val removedMetadataCount: Int,
     val failedDownloadCount: Int,
     val deletedArtifactCount: Int,
+    val removedReaderAssetMetadataCount: Int = 0,
+    val deletedReaderAssetArtifactCount: Int = 0,
 )
 
 internal fun buildReconciliationPlan(

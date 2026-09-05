@@ -1,6 +1,7 @@
 package app.openstory.reader.ui
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
 import app.openstory.chapters.model.CanonicalChapter
 import app.openstory.chapters.model.ChapterAggregationOverride
 import app.openstory.chapters.model.ChapterKind
@@ -17,6 +18,10 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ReaderAssetChapterManifest
+import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
@@ -28,9 +33,11 @@ import app.openstory.reader.progress.ReadingProgressRepository
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.preferences.ReaderPreferencesPort
+import app.openstory.reader.routing.ContentSourceExecutionLane
+import app.openstory.reader.routing.ReaderHalfOpenProbeRegistry
 import app.openstory.reader.routing.ReaderRouteCoordinator
 import app.openstory.reader.routing.ReaderRouteSessionFactory
-import app.openstory.reader.routing.ReaderSourceExecutionLimiter
+import app.openstory.reader.routing.ReaderSessionId
 import app.openstory.reader.routing.ReaderSourceHealthRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -71,6 +78,7 @@ class ReaderViewModelTest {
             savedState,
             chapters,
             documents(progress),
+            testReaderAssetCoordinator(),
             progress,
             FakeClock(100),
             FakeReaderPreferencesPort(preferenceValues),
@@ -99,6 +107,7 @@ class ReaderViewModelTest {
             savedState,
             chapters,
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -123,6 +132,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graph()),
             documents(),
+            testReaderAssetCoordinator(),
             progress,
             FakeClock(100),
         )
@@ -169,6 +179,7 @@ class ReaderViewModelTest {
                 ChapterGraphSnapshot(listOf(first.first), listOf(first.second, secondRelease), emptyList()),
             ),
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -192,6 +203,7 @@ class ReaderViewModelTest {
                 ChapterGraphSnapshot(listOf(first.first), listOf(first.second, secondRelease), emptyList()),
             ),
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -208,6 +220,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graphForSingleChapter()),
             failingDocuments("plugin.operation_unavailable", retryable = false),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
         )
@@ -225,6 +238,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graphForSingleChapter()),
             documents(),
+            testReaderAssetCoordinator(),
             repository,
             FakeClock(100),
         )
@@ -245,6 +259,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             chapters,
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
             FakeReaderPreferencesPort(values),
@@ -270,6 +285,7 @@ class ReaderViewModelTest {
             SavedStateHandle(),
             FakeReaderChapterRepository(graphForSingleChapter()),
             documents(),
+            testReaderAssetCoordinator(),
             FakeReaderProgressRepository(null),
             FakeClock(100),
             FakeReaderPreferencesPort(values, failWrites = true),
@@ -283,7 +299,27 @@ class ReaderViewModelTest {
         assertEquals("reader.preferences_write_failed", viewModel.state.value.preferenceFailure)
     }
 
+    @Test
+    fun onClearedClosesRouteSessionExplicitly() = runTest(dispatcher.scheduler) {
+        val assetPort = RecordingReaderAssetSessionPort()
+        val viewModel = ReaderViewModel(
+            ReaderAssistedArgs("story", "chapter", null),
+            SavedStateHandle(),
+            FakeReaderChapterRepository(graphForSingleChapter()),
+            documents(assetSessionPort = assetPort),
+            testReaderAssetCoordinator(),
+            FakeReaderProgressRepository(null),
+            FakeClock(100),
+        )
+        runCurrent()
 
+        ViewModel::class.java.getDeclaredMethod("onCleared").apply {
+            isAccessible = true
+            invoke(viewModel)
+        }
+
+        assertEquals(1, assetPort.releasedSessions.size)
+    }
     private fun failingDocuments(
         code: String,
         retryable: Boolean,
@@ -302,12 +338,15 @@ class ReaderViewModelTest {
             },
             progress = progress,
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         ),
     )
 
     private fun documents(
         progress: ReadingProgressRepository = FakeReaderProgressRepository(null),
+        assetSessionPort: ReaderAssetSessionPort = ReaderAssetSessionPort.NO_OP,
     ) = ReaderRouteSessionFactory(
         ReaderRouteCoordinator(
             store = NoOpReaderDocumentStore,
@@ -327,10 +366,42 @@ class ReaderViewModelTest {
             },
             progress = progress,
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         ),
+        assetSessionPort = assetSessionPort,
     )
 
+}
+
+private class RecordingReaderAssetSessionPort : ReaderAssetSessionPort {
+    val releasedSessions = mutableListOf<ReaderSessionId>()
+
+    override fun registerCommitted(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        manifest: ReaderAssetChapterManifest,
+    ): Long = proposedManifestRevision
+
+    override fun registerCommittedWithoutManifest(
+        sessionId: ReaderSessionId,
+        proposedManifestRevision: Long,
+        chapterId: CanonicalChapterId,
+    ): Long = proposedManifestRevision
+
+    override fun acceptPrefetchedArtifact(artifact: ReaderPrefetchedDocumentArtifact) = Unit
+
+    override fun registerSelectedReleaseRefreshPort(
+        sessionId: ReaderSessionId,
+        port: app.openstory.reader.assets.ReaderSelectedReleaseRefreshPort,
+    ) = Unit
+
+    override fun unregisterSelectedReleaseRefreshPort(sessionId: ReaderSessionId) = Unit
+
+    override fun releaseSession(sessionId: ReaderSessionId) {
+        releasedSessions += sessionId
+    }
 }
 
 private class FakeReaderChapterRepository(

@@ -34,6 +34,8 @@ class RoomDownloadRepository internal constructor(
 
     override suspend fun entries(): List<CacheEntry> = dao.storedEntries().map { it.toCacheEntry() }
 
+    override suspend fun automaticUsageBytes(): Long = dao.automaticCacheUsageBytes()
+
     override suspend fun quotaSnapshot(quotaBytes: Long): CacheQuotaSnapshot =
         database.withTransaction {
             require(quotaBytes >= 0) { "Cache quota must not be negative." }
@@ -69,6 +71,22 @@ class RoomDownloadRepository internal constructor(
                 key.takeIf { deleted > 0 }
             }
         }
+
+    override suspend fun detachAutomatic(key: ChapterBlobKey): CacheEntry? =
+        database.withTransaction {
+            if (key.namespace != ChapterBlobNamespace.AUTOMATIC_CACHE) return@withTransaction null
+            val entity = dao.find(key.namespace.name, key.releaseId.value, key.contentFingerprint)
+                ?.takeIf { it.namespace == ChapterBlobNamespace.AUTOMATIC_CACHE.name }
+                ?: return@withTransaction null
+            dao.delete(entity)
+            entity.toCacheEntry()
+        }
+
+    override suspend fun detachAllAutomatic(): List<CacheEntry> = database.withTransaction {
+        dao.automaticCacheEntriesByLru()
+            .also { dao.deleteAllAutomaticCache() }
+            .map(ChapterStorageEntryEntity::toCacheEntry)
+    }
 
     override suspend fun entriesFor(releaseIds: Set<ChapterReleaseId>): List<ReaderCacheMetadata> {
         if (releaseIds.isEmpty()) return emptyList()

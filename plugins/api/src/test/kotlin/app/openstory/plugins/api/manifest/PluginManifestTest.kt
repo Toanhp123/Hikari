@@ -58,6 +58,28 @@ class PluginManifestTest {
     }
 
     @Test
+    fun remoteImageCacheTrustIsExplicitAndDefaultsFailClosed() {
+        val capability = ReaderCapability(remoteImages = true, offlineDownload = false)
+
+        assertEquals(ReaderImageIdentityContract.DELIVERY_STABLE_ONLY, capability.imageIdentity)
+        assertEquals(ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN, capability.imageLocator)
+        assertEquals(ReaderImagePersistenceContract.NON_PERSISTENT, capability.imagePersistence)
+    }
+
+    @Test
+    fun textReaderCapabilityRejectsImageCacheTrustContracts() {
+        assertFailsWith<IllegalArgumentException> {
+            ReaderCapability(imageIdentity = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ReaderCapability(imageLocator = ReaderImageLocatorContract.LOCATOR_CHANGES_WITH_CONTENT)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ReaderCapability(imagePersistence = ReaderImagePersistenceContract.PUBLIC)
+        }
+    }
+
+    @Test
     fun readerCapabilityRequiresChapterOperationAndCanDisableOfflineDownload() {
         assertFailsWith<IllegalArgumentException> {
             contentManifest(

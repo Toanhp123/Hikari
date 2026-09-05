@@ -9,9 +9,18 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ContentFetchPriority
+import app.openstory.reader.assets.ReaderAssetFailure
+import app.openstory.reader.assets.ReaderAssetSourceNamespace
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshResult
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
+import app.openstory.reader.content.ReaderImageSourcePolicy
 import app.openstory.reader.content.ReaderSourceAvailability
 import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
@@ -20,15 +29,23 @@ import app.openstory.reader.preferences.ReaderPreferences
 import app.openstory.reader.progress.ReadingPosition
 import app.openstory.reader.progress.ReadingProgress
 import app.openstory.reader.progress.ReadingProgressRepository
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReaderRouteCoordinatorContractTest {
     @Test
     fun committedResultCarriesRealTargetAndSafeExactRestoration() = runTest {
@@ -100,7 +117,9 @@ class ReaderRouteCoordinatorContractTest {
             progress = CoordinatorProgressRepository(null),
             sourceAvailability = ReaderSourceAvailability { setOf(release.pluginId) },
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
             cacheFacts = ReaderCacheFactsPort { ids, _ ->
                 ids.associateWith { ReaderLocalCacheFact.Miss }
             },
@@ -140,20 +159,256 @@ class ReaderRouteCoordinatorContractTest {
         assertNotEquals(firstResult.identity.sessionId, secondResult.identity.sessionId)
     }
 
-    private fun coordinator(document: ReaderDocument, progress: ReadingProgress?): ReaderRouteCoordinator =
+    @Test
+    fun remoteImageCommitCarriesDerivedManifestBeforeReturning() = runTest {
+        val target = CanonicalChapterId("chapter")
+        val release = release("release", target)
+        val policy = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+        )
+        val imageDocument = ReaderDocument(
+            title = "images",
+            blocks = listOf(
+                ReaderBlock.ImagePage("image", "full/stable/page-id", "https://cdn.example/page.jpg"),
+            ),
+            fingerprint = "image-fingerprint",
+        )
+        val session = ReaderRouteSessionFactory(coordinator(imageDocument, null, policy))
+            .create(StoryId("story"))
+        session.updateChapterGraph(listOf(group(target, release)))
+        session.updateRoutingPreferences(ReaderPreferences())
+
+        val committed = assertIs<ReaderForegroundResult.Committed>(
+            session.execute(ReaderForegroundIntent(target)),
+        )
+
+        val manifest = assertNotNull(committed.assetManifest)
+        assertEquals(1L, committed.assetManifestRevision)
+        assertEquals(ReaderAssetSourceNamespace.fromPluginId(release.pluginId), manifest.sourceNamespace)
+        assertEquals("full/stable/page-id", manifest.descriptors.single().stableAssetId)
+    }
+
+    @Test
+    fun exactReleaseRefreshUsesOnlyTheCommittedSourceAndCarriesThatExactRelease() = runTest {
+        val target = CanonicalChapterId("chapter")
+        val exact = release("release", target)
+        val alternate = exact.copy(
+            id = ChapterReleaseId("alternate"),
+            pluginId = PluginId("alternate-plugin"),
+            sourceReleaseId = "source-alternate",
+        )
+        val fetched = mutableListOf<ChapterRelease>()
+        val policy = ReaderImageSourcePolicy(
+            identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+            persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+        )
+        val refreshedDocument = document("semantic-fingerprint")
+        val coordinator = ReaderRouteCoordinator(
+            store = CoordinatorStore(),
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                    object : ReaderDocumentSource {
+                        override val pluginId = alternate.pluginId
+                        override suspend fun fetch(release: ChapterRelease): ReaderSourceResult {
+                            fetched += release
+                            error("alternate source must never be selected")
+                        }
+                    },
+                    object : ReaderDocumentSource {
+                        override val pluginId = exact.pluginId
+                        override val imageSourcePolicy = policy
+                        override suspend fun fetch(release: ChapterRelease): ReaderSourceResult {
+                            fetched += release
+                            return ReaderSourceResult.Success(refreshedDocument)
+                        }
+                    },
+                )
+            },
+            progress = CoordinatorProgressRepository(null),
+            healthRegistry = ReaderSourceHealthRegistry(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
+        )
+
+        val result = assertIs<ReaderSelectedReleaseRefreshResult.Refreshed>(
+            coordinator.refreshSelectedRelease(exact),
+        )
+
+        assertEquals(listOf(exact), fetched)
+        assertEquals(exact, result.selectedRelease)
+        assertEquals(refreshedDocument, result.document)
+        assertEquals(policy, result.imageSourcePolicy)
+    }
+
+    @Test
+    fun exactReleaseRefreshRunsAsForegroundCriticalWork() = runTest {
+        val target = CanonicalChapterId("chapter")
+        val exact = release("release", target)
+        val sourceLane = ContentSourceExecutionLane()
+        val fetchArbiter = ContentFetchArbiter(
+            maxTotal = 2,
+            reservedCriticalInteractive = 1,
+            maxSpeculative = 1,
+        )
+        val heldPrefetch = CompletableDeferred<Unit>()
+        val prefetchStarted = CompletableDeferred<Unit>()
+        val prefetch = async {
+            sourceLane.withSource(exact.pluginId, ContentSourceWorkPriority.PREFETCH) {
+                prefetchStarted.complete(Unit)
+                heldPrefetch.await()
+            }
+        }
+        prefetchStarted.await()
+
+        val heldBackground = CompletableDeferred<Unit>()
+        val backgroundStarted = CompletableDeferred<Unit>()
+        val background = async {
+            fetchArbiter.withAdmission(ContentFetchPriority.BACKGROUND) {
+                backgroundStarted.complete(Unit)
+                heldBackground.await()
+            }
+        }
+        backgroundStarted.await()
+        val queuedBackground = async {
+            fetchArbiter.withAdmission(ContentFetchPriority.BACKGROUND) {
+                error("second background admission must remain reserved out")
+            }
+        }
+        runCurrent()
+        assertFalse(queuedBackground.isCompleted)
+
+        var nestedAdmissionRejected = false
+        val coordinator = ReaderRouteCoordinator(
+            store = CoordinatorStore(),
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                    object : ReaderDocumentSource {
+                        override val pluginId = exact.pluginId
+                        override suspend fun fetch(release: ChapterRelease): ReaderSourceResult {
+                            nestedAdmissionRejected = try {
+                                fetchArbiter.withAdmission(ContentFetchPriority.CRITICAL) { Unit }
+                                false
+                            } catch (_: IllegalStateException) {
+                                true
+                            }
+                            return ReaderSourceResult.Success(document("semantic-fingerprint"))
+                        }
+                    },
+                )
+            },
+            progress = CoordinatorProgressRepository(null),
+            healthRegistry = ReaderSourceHealthRegistry(),
+            sourceLane = sourceLane,
+            fetchArbiter = fetchArbiter,
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
+        )
+
+        val refresh = async { coordinator.refreshSelectedRelease(exact) }
+        runCurrent()
+
+        assertTrue(refresh.isCompleted)
+        assertIs<ReaderSelectedReleaseRefreshResult.Refreshed>(refresh.await())
+        assertTrue(prefetch.isCancelled)
+        assertTrue(nestedAdmissionRejected)
+        assertFalse(queuedBackground.isCompleted)
+        queuedBackground.cancel()
+        heldBackground.complete(Unit)
+        background.await()
+        heldPrefetch.complete(Unit)
+    }
+
+    @Test
+    fun exactReleaseRefreshRejectsMaterializedInvalidDocumentWithoutPublishingRefresh() = runTest {
+        val target = CanonicalChapterId("chapter")
+        val exact = release("release", target)
+        val coordinator = ReaderRouteCoordinator(
+            store = CoordinatorStore(),
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                    object : ReaderDocumentSource {
+                        override val pluginId = exact.pluginId
+                        override suspend fun fetch(release: ChapterRelease) = ReaderSourceResult.Success(
+                            ReaderDocument(
+                                title = "chapter",
+                                blocks = emptyList(),
+                                fingerprint = "semantic-fingerprint",
+                            ),
+                        )
+                    },
+                )
+            },
+            progress = CoordinatorProgressRepository(null),
+            healthRegistry = ReaderSourceHealthRegistry(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
+        )
+
+        assertEquals(
+            ReaderSelectedReleaseRefreshResult.RouteInvalidated,
+            coordinator.refreshSelectedRelease(exact),
+        )
+    }
+
+    @Test
+    fun exactReleaseRefreshFailureDoesNotMutateHesHealth() = runTest {
+        val target = CanonicalChapterId("chapter")
+        val exact = release("release", target)
+        val health = ReaderSourceHealthRegistry()
+        val coordinator = ReaderRouteCoordinator(
+            store = CoordinatorStore(),
+            sources = object : ReaderDocumentSourceRegistry {
+                override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
+                    object : ReaderDocumentSource {
+                        override val pluginId = exact.pluginId
+                        override suspend fun fetch(release: ChapterRelease) =
+                            ReaderSourceResult.Failure("plugin.http_request_failed", retryable = true)
+                    },
+                )
+            },
+            progress = CoordinatorProgressRepository(null),
+            healthRegistry = health,
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
+        )
+        val key = app.openstory.reader.engine.SourceOperationKey(exact.pluginId)
+        val before = health.snapshot(key, nowEpochMillis = 1L)
+
+        val result = assertIs<ReaderSelectedReleaseRefreshResult.Failure>(
+            coordinator.refreshSelectedRelease(exact),
+        )
+        val after = health.snapshot(key, nowEpochMillis = 1L)
+
+        assertEquals(ReaderAssetFailure.TransportUnavailable(retryable = true), result.failure)
+        assertEquals(before, after)
+    }
+
+    private fun coordinator(
+        document: ReaderDocument,
+        progress: ReadingProgress?,
+        imagePolicy: ReaderImageSourcePolicy = ReaderImageSourcePolicy.FAIL_CLOSED,
+    ): ReaderRouteCoordinator =
         ReaderRouteCoordinator(
             store = CoordinatorStore(),
             sources = object : ReaderDocumentSourceRegistry {
                 override suspend fun enabled(): List<ReaderDocumentSource> = listOf(
                     object : ReaderDocumentSource {
                         override val pluginId = PluginId("plugin")
+                        override val imageSourcePolicy = imagePolicy
                         override suspend fun fetch(release: ChapterRelease) = ReaderSourceResult.Success(document)
                     },
                 )
             },
             progress = CoordinatorProgressRepository(progress),
             healthRegistry = ReaderSourceHealthRegistry(),
-            executionLimiter = ReaderSourceExecutionLimiter(),
+            sourceLane = ContentSourceExecutionLane(),
+            fetchArbiter = app.openstory.reader.assets.ContentFetchArbiter(),
+            halfOpenProbeRegistry = ReaderHalfOpenProbeRegistry(),
         )
 
     private fun group(id: String) = group(CanonicalChapterId(id))

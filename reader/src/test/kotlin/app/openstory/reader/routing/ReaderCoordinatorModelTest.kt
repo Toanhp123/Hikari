@@ -324,10 +324,10 @@ class ReaderCoordinatorModelTest {
     @Test
     fun twoSessionsShareHealthButKeepGenerationPlanAndCommitStateIsolated() = runTest {
         val health = ReaderSourceHealthRegistry()
-        val limiter = ReaderSourceExecutionLimiter()
+        val limiter = ReaderExecutionTestOwners()
         val key = SourceOperationKey(RELEASE.pluginId)
         fun sharedSession(id: ReaderSessionId) = session(id) { _, context ->
-            limiter.withRemotePermit(RELEASE.pluginId, ReaderRemoteWorkPriority.FOREGROUND) {
+            limiter.withRemotePermit(RELEASE.pluginId, ReaderTestRemotePriority.FOREGROUND) {
                 health.record(
                     key,
                     SourceObservation.Success.Remote(RemoteAttemptKind.NORMAL_REMOTE_ATTEMPT, context.identity.generationId.value),

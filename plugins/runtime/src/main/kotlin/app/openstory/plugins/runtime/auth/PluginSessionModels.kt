@@ -39,4 +39,5 @@ data class PluginSessionSummary(
     val pluginId: PluginId,
     val status: PluginSessionStatus,
     val expiresAtEpochMillis: Long?,
+    val credentialGeneration: Long,
 )

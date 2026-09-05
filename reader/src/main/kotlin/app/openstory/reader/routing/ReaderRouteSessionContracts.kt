@@ -5,6 +5,8 @@ import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
+import app.openstory.reader.assets.ReaderAssetChapterManifest
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshResult
 import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.engine.ReaderChapterGraphRevision
@@ -45,6 +47,8 @@ sealed interface ReaderForegroundResult {
         val document: ReaderDocument,
         val fromLocal: Boolean,
         val restoration: ReaderExactRestoration?,
+        val assetManifest: ReaderAssetChapterManifest? = null,
+        val assetManifestRevision: Long? = null,
     ) : ReaderForegroundResult
 
     data class Exhausted(
@@ -82,6 +86,10 @@ internal fun interface ReaderRouteExecutionDelegate {
         session: ReaderRouteSession,
         context: ReaderRouteExecutionContext,
     ): ReaderForegroundResult
+}
+
+internal fun interface ReaderSelectedReleaseRefreshDelegate {
+    suspend fun refresh(release: ChapterRelease): ReaderSelectedReleaseRefreshResult
 }
 
 internal fun ReaderExecutionIdentity.toForegroundIdentity() = ReaderForegroundIdentity(

@@ -77,7 +77,7 @@ class ReaderRuntimeStressTest {
             )
         }
 
-        val limiter = ReaderSourceExecutionLimiter()
+        val limiter = ReaderExecutionTestOwners()
         val first = stressSession(ReaderSessionId(901), limiter, PluginId("shared-source"))
         val second = stressSession(ReaderSessionId(902), limiter, PluginId("shared-source"))
         ready(first)
@@ -99,14 +99,14 @@ class ReaderRuntimeStressTest {
 
     @Test
     fun processSourceLaneStaysSerializedAcrossConcurrentForegroundPressure() = runTest {
-        val limiter = ReaderSourceExecutionLimiter()
+        val limiter = ReaderExecutionTestOwners()
         val active = AtomicInteger(0)
         val maximum = AtomicInteger(0)
         val sourceId = PluginId("serialized-source")
 
         List(100) {
             async {
-                limiter.withRemotePermit(sourceId, ReaderRemoteWorkPriority.FOREGROUND) {
+                limiter.withRemotePermit(sourceId, ReaderTestRemotePriority.FOREGROUND) {
                     val nowActive = active.incrementAndGet()
                     maximum.updateAndGet { previous -> maxOf(previous, nowActive) }
                     try {
@@ -164,13 +164,13 @@ class ReaderRuntimeStressTest {
 
     private fun stressSession(
         id: ReaderSessionId,
-        limiter: ReaderSourceExecutionLimiter,
+        limiter: ReaderExecutionTestOwners,
         sourceId: PluginId,
     ): ReaderRouteSession = ReaderRouteSession(
         storyId = STORY_ID,
         sessionId = id,
         delegate = ReaderRouteExecutionDelegate { _, context ->
-            limiter.withRemotePermit(sourceId, ReaderRemoteWorkPriority.FOREGROUND) { yield() }
+            limiter.withRemotePermit(sourceId, ReaderTestRemotePriority.FOREGROUND) { yield() }
             exhausted(context)
         },
     )

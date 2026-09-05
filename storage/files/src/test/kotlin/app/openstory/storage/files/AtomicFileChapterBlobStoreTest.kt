@@ -165,6 +165,18 @@ class AtomicFileChapterBlobStoreTest {
         assertNull(store.read(key()))
     }
 
+    @Test
+    fun `delete if present reports only physically removed document bytes`() = runTest {
+        val store = AtomicFileChapterBlobStore(root, RecordingBlobFileOperations())
+        val key = key()
+
+        assertFalse(store.deleteIfPresent(key))
+        store.write(key, ChapterBlob.fromBytes("chapter".encodeToByteArray()))
+
+        assertTrue(store.deleteIfPresent(key))
+        assertFalse(store.deleteIfPresent(key))
+    }
+
     private fun key(releaseId: String = "release-1") = ChapterBlobKey(
         namespace = ChapterBlobNamespace.AUTOMATIC_CACHE,
         releaseId = ChapterReleaseId(releaseId),

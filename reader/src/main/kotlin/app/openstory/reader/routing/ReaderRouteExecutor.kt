@@ -5,11 +5,14 @@ import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentDurableWriteIntent
 import app.openstory.reader.content.ReaderDocumentReadResult
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceResult
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ContentFetchPriority
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.document.isLocalPersistable
 import app.openstory.reader.engine.AccessMode
@@ -22,7 +25,8 @@ import kotlinx.coroutines.CancellationException
 internal class ReaderRouteExecutor(
     private val store: ReaderDocumentStore,
     private val sources: ReaderDocumentSourceRegistry,
-    private val executionLimiter: ReaderSourceExecutionLimiter,
+    private val sourceLane: ContentSourceExecutionLane,
+    private val fetchArbiter: ContentFetchArbiter,
     private val validator: ReaderDocumentValidatorAdapter = ReaderDocumentValidatorAdapter(),
     private val monotonicNanos: () -> Long = System::nanoTime,
 ) {
@@ -39,7 +43,7 @@ internal class ReaderRouteExecutor(
         publishValidCompletion: (ReaderLoadResult.Success) -> ReaderValidCompletion,
         onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit,
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit,
-        remotePriority: ReaderRemoteWorkPriority = ReaderRemoteWorkPriority.FOREGROUND,
+        remotePriority: ContentFetchPriority = ContentFetchPriority.CRITICAL,
     ): ReaderAttemptOutcome {
         require(identity.attemptId == attempt.attemptId) {
             "Reader attempt identity must match its route attempt."
@@ -83,7 +87,7 @@ internal class ReaderRouteExecutor(
         ownership: ReaderAttemptOwnership,
         onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit,
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit,
-        remotePriority: ReaderRemoteWorkPriority,
+        remotePriority: ContentFetchPriority,
         onValidEffect: (ReaderAttemptEffectOutcome.Success) -> Unit = {},
     ): ReaderAttemptEffectOutcome {
         require(candidate.id == attempt.releaseId) {
@@ -120,7 +124,7 @@ internal class ReaderRouteExecutor(
         onSourceObservation: suspend (sourceId: PluginId, observation: SourceObservation) -> Unit = { _, _ -> },
         onLocalInvalidated: suspend (releaseId: ChapterReleaseId, fingerprint: String) -> Unit = { _, _ -> },
         onAttempt: suspend (index: Int, attempt: app.openstory.reader.engine.RouteAttempt) -> Unit = { _, _ -> },
-        remotePriority: ReaderRemoteWorkPriority = ReaderRemoteWorkPriority.FOREGROUND,
+        remotePriority: ContentFetchPriority = ContentFetchPriority.CRITICAL,
     ): ReaderLoadResult {
         ReaderRouteRuntimeGuard.validateSequential(attempts)
 
@@ -233,7 +237,7 @@ internal class ReaderRouteExecutor(
         attemptKind: RemoteAttemptKind,
         ownership: ReaderAttemptOwnership,
         onSourceObservation: suspend (PluginId, SourceObservation) -> Unit,
-        remotePriority: ReaderRemoteWorkPriority,
+        remotePriority: ContentFetchPriority,
         onValidEffect: (ReaderAttemptEffectOutcome.Success) -> Unit,
     ): ReaderAttemptEffectOutcome {
         val release = candidate
@@ -254,6 +258,13 @@ internal class ReaderRouteExecutor(
             return ReaderAttemptEffectOutcome.Failure(failure)
         }
 
+        val writeIntent = try {
+            store.captureAutomaticWriteIntent()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
         val startedNanos = monotonicNanos()
         val fetched = fetch(source, candidate, remotePriority)
         val fetchCompletedNanos = monotonicNanos()
@@ -265,7 +276,13 @@ internal class ReaderRouteExecutor(
                 is ReaderDocumentValidation.Valid -> {
                     ensureOwned(ownership)
                     val success = ReaderAttemptEffectOutcome.Success(
-                        ReaderLoadResult.Success(candidate, validation.document, fromStore = false),
+                        ReaderLoadResult.Success(
+                            release = candidate,
+                            document = validation.document,
+                            fromStore = false,
+                            imageSourcePolicy = source.imageSourcePolicy,
+                            sourcePluginId = source.pluginId,
+                        ),
                     )
                     onValidEffect(success)
                     ensureOwned(ownership)
@@ -274,7 +291,7 @@ internal class ReaderRouteExecutor(
                         SourceObservation.Success.Remote(attemptKind, latencyMillis),
                     )
                     ensureOwned(ownership)
-                    persistBestEffort(release.id, validation.document)
+                    persistBestEffort(release.id, validation.document, writeIntent)
                     success
                 }
                 is ReaderDocumentValidation.Invalid -> {
@@ -375,10 +392,12 @@ internal class ReaderRouteExecutor(
     private suspend fun fetch(
         source: ReaderDocumentSource,
         candidate: ChapterRelease,
-        remotePriority: ReaderRemoteWorkPriority,
+        remotePriority: ContentFetchPriority,
     ): ReaderSourceResult = try {
-        executionLimiter.withRemotePermit(source.pluginId, remotePriority) {
-            source.fetch(candidate)
+        sourceLane.withSource(source.pluginId, remotePriority.toSourcePriority()) {
+            fetchArbiter.withAdmission(remotePriority) {
+                source.fetch(candidate)
+            }
         }
     } catch (cancelled: CancellationException) {
         throw cancelled
@@ -391,10 +410,11 @@ internal class ReaderRouteExecutor(
     private suspend fun persistBestEffort(
         releaseId: ChapterReleaseId,
         document: ReaderDocument,
+        intent: ReaderDocumentDurableWriteIntent?,
     ) {
         if (!document.isLocalPersistable) return
         try {
-            store.write(releaseId, document.fingerprint, document)
+            store.writeWithIntent(releaseId, document.fingerprint, document, intent)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -418,6 +438,17 @@ internal class ReaderRouteExecutor(
     private fun elapsedMillis(startNanos: Long, endNanos: Long): Long {
         val delta = if (endNanos >= startNanos) endNanos - startNanos else 0L
         return delta / NANOS_PER_MILLI
+    }
+
+    private fun ContentFetchPriority.toSourcePriority(): ContentSourceWorkPriority = when (this) {
+        ContentFetchPriority.CRITICAL,
+        ContentFetchPriority.INTERACTIVE,
+        -> ContentSourceWorkPriority.FOREGROUND
+        ContentFetchPriority.USER_WORK -> ContentSourceWorkPriority.USER_WORK
+        ContentFetchPriority.PREFETCH,
+        ContentFetchPriority.SPECULATIVE,
+        ContentFetchPriority.BACKGROUND,
+        -> ContentSourceWorkPriority.PREFETCH
     }
 
     private sealed interface LocalReadResult {

@@ -7,6 +7,12 @@ import app.openstory.downloads.DownloadRepository
 import app.openstory.downloads.DownloadScheduler
 import app.openstory.downloads.DownloadService
 import app.openstory.downloads.cache.CacheRepository
+import app.openstory.downloads.cache.AutomaticCacheBudgetCoordinator
+import app.openstory.downloads.cache.AutomaticCacheRuntimePolicy
+import app.openstory.downloads.assets.DownloadReaderAssetStore
+import app.openstory.downloads.assets.ReaderAssetBlobIdFactory
+import app.openstory.downloads.assets.ReaderAssetBlobStore
+import app.openstory.downloads.assets.ReaderAssetMetadataRepository
 import app.openstory.downloads.reader.ReaderDownloadContentSource
 import app.openstory.downloads.reader.ReaderCacheMetadataSource
 import app.openstory.downloads.reconcile.StorageReconciliationInventory
@@ -16,10 +22,17 @@ import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.chapters.repository.ChapterReleaseLookup
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderSourceAvailability
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ReaderAssetDiagnosticsSink
+import app.openstory.reader.routing.ContentSourceExecutionLane
+import app.openstory.common.Clock
+import app.openstory.common.MonotonicClock
 import app.openstory.storage.files.AtomicFileChapterBlobStore
+import app.openstory.storage.files.AtomicFileReaderAssetBlobStore
 import app.openstory.storage.files.FileBlobInventory
 import app.openstory.storage.room.OpenStoryDatabase
 import app.openstory.storage.room.downloads.RoomDownloadRepository
+import app.openstory.storage.room.readerassets.RoomReaderAssetMetadataRepository
 import app.openstory.work.WorkManagerDownloadScheduler
 import dagger.Module
 import dagger.Provides
@@ -38,6 +51,11 @@ object DownloadModule {
 
     @Provides
     @Singleton
+    fun provideReaderAssetBlobStore(@ApplicationContext context: Context): ReaderAssetBlobStore =
+        AtomicFileReaderAssetBlobStore(context)
+
+    @Provides
+    @Singleton
     fun provideFileBlobInventory(@ApplicationContext context: Context) = FileBlobInventory(context)
 
     @Provides
@@ -51,6 +69,19 @@ object DownloadModule {
     @Provides @Singleton
     fun provideRoomDownloadRepository(database: OpenStoryDatabase) = RoomDownloadRepository(database)
 
+    @Provides
+    @Singleton
+    fun provideReaderAssetMetadataRepository(database: OpenStoryDatabase): ReaderAssetMetadataRepository =
+        RoomReaderAssetMetadataRepository(database)
+
+    @Provides
+    @Singleton
+    fun provideAutomaticCacheRuntimePolicy(): AutomaticCacheRuntimePolicy = AutomaticCacheRuntimePolicy()
+
+    @Provides
+    @Singleton
+    fun provideReaderAssetBlobIdFactory(): ReaderAssetBlobIdFactory = ReaderAssetBlobIdFactory()
+
     @Provides fun provideCacheRepository(repository: RoomDownloadRepository): CacheRepository = repository
     @Provides fun provideDownloadRepository(repository: RoomDownloadRepository): DownloadRepository = repository
     @Provides
@@ -61,11 +92,61 @@ object DownloadModule {
     ): StorageReconciliationRepository = repository
 
     @Provides
+    @Singleton
+    fun provideAutomaticCacheBudgetCoordinator(
+        cacheRepository: CacheRepository,
+        chapterBlobStore: ChapterBlobStore,
+        readerAssetMetadataRepository: ReaderAssetMetadataRepository,
+        readerAssetBlobStore: ReaderAssetBlobStore,
+        runtimePolicy: AutomaticCacheRuntimePolicy,
+        diagnostics: ReaderAssetDiagnosticsSink,
+    ): AutomaticCacheBudgetCoordinator = AutomaticCacheBudgetCoordinator(
+        cacheRepository = cacheRepository,
+        documentBlobStore = chapterBlobStore,
+        readerAssetMetadataRepository = readerAssetMetadataRepository,
+        readerAssetBlobStore = readerAssetBlobStore,
+        policy = runtimePolicy,
+        diagnostics = diagnostics,
+    )
+
+    @Provides
+    @Singleton
+    fun provideDownloadReaderAssetStore(
+        metadataRepository: ReaderAssetMetadataRepository,
+        blobStore: ReaderAssetBlobStore,
+        blobIdFactory: ReaderAssetBlobIdFactory,
+        budget: AutomaticCacheBudgetCoordinator,
+        clock: Clock,
+        monotonicClock: MonotonicClock,
+        writeAdmission: StorageWriteAdmission,
+        runtimePolicy: AutomaticCacheRuntimePolicy,
+        diagnostics: ReaderAssetDiagnosticsSink,
+    ): DownloadReaderAssetStore = DownloadReaderAssetStore(
+        metadataRepository = metadataRepository,
+        blobStore = blobStore,
+        blobIdFactory = blobIdFactory,
+        budget = budget,
+        clock = clock,
+        monotonicClock = monotonicClock,
+        writeAdmission = writeAdmission,
+        runtimePolicy = runtimePolicy,
+        diagnostics = diagnostics,
+    )
+
+    @Provides
     fun provideDownloadContentSource(
         chapters: ChapterReleaseLookup,
         sources: ReaderDocumentSourceRegistry,
         availability: ReaderSourceAvailability,
-    ): DownloadContentSource = ReaderDownloadContentSource(chapters, sources, availability)
+        sourceLane: ContentSourceExecutionLane,
+        fetchArbiter: ContentFetchArbiter,
+    ): DownloadContentSource = ReaderDownloadContentSource(
+        chapters,
+        sources,
+        availability,
+        sourceLane,
+        fetchArbiter,
+    )
 
     @Provides @Singleton
     fun provideDownloadService(
@@ -80,9 +161,13 @@ object DownloadModule {
     fun provideStorageReconciliationService(
         repository: StorageReconciliationRepository,
         inventory: StorageReconciliationInventory,
+        readerAssets: DownloadReaderAssetStore,
+        fileInventory: FileBlobInventory,
     ) = StorageReconciliationService(
         repository = repository,
         inventory = inventory,
+        readerAssets = readerAssets,
+        readerAssetInventory = fileInventory,
         activeWriteWindowMillis = ACTIVE_WRITE_WINDOW_MILLIS,
         now = System::currentTimeMillis,
     )

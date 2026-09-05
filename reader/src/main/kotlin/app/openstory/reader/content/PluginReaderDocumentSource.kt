@@ -24,6 +24,13 @@ class PluginReaderDocumentSource(
     private val sanitizer: ReaderDocumentSanitizer,
 ) : ReaderDocumentSource {
     override val pluginId: PluginId = installed.pluginId
+    override val imageSourcePolicy = installed.readerCapability?.let { capability ->
+        ReaderImageSourcePolicy(
+            identityContract = capability.imageIdentity,
+            locatorContract = capability.imageLocator,
+            persistenceContract = capability.imagePersistence,
+        )
+    } ?: ReaderImageSourcePolicy.FAIL_CLOSED
     private val invocationMutex = Mutex()
     private val allowRemoteImages = installed.readerCapability?.remoteImages == true
 

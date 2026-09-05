@@ -1,9 +1,16 @@
 package app.openstory.reader.routing
 
+import app.openstory.chapters.model.ChapterRelease
 import app.openstory.chapters.repository.CanonicalChapterGroup
 import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.StoryId
+import app.openstory.reader.assets.ReaderAssetGraphRevision
+import app.openstory.reader.assets.ReaderAssetSessionPort
+import app.openstory.reader.assets.ReaderAssetSessionState
+import app.openstory.reader.assets.ReaderAssetFailure
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshPort
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshResult
 import app.openstory.reader.engine.ReaderChapterGraphRevision
 import app.openstory.reader.engine.ReaderPlanRevision
 import app.openstory.reader.engine.RouteAttempt
@@ -20,9 +27,11 @@ class ReaderRouteSession internal constructor(
     val storyId: StoryId,
     val sessionId: ReaderSessionId,
     private val delegate: ReaderRouteExecutionDelegate,
+    private val refreshDelegate: ReaderSelectedReleaseRefreshDelegate? = null,
     private val prefetchDelegate: ReaderPrefetchExecutionDelegate? = null,
     private val prefetchScope: CoroutineScope? = null,
-) {
+    private val assetSessionPort: ReaderAssetSessionPort = ReaderAssetSessionPort.NO_OP,
+) : ReaderSelectedReleaseRefreshPort {
     private val stateLock = Any()
     private var nextGenerationValue = 1L
     private var activeExecution: ReaderSessionActiveExecution? = null
@@ -33,15 +42,21 @@ class ReaderRouteSession internal constructor(
     private val firstRoutingPreferences = CompletableDeferred<Unit>()
     private var chapterGraphRevision = ReaderChapterGraphRevision(0)
     private var committedIdentity: ReaderCommittedIdentity? = null
+    private var committedRelease: ChapterRelease? = null
     private val knownInvalidLocalFingerprints = mutableMapOf<ChapterReleaseId, MutableSet<String>>()
     private var mutableExecutionState: ReaderExecutionState = ReaderExecutionState.Idle
     private var prefetchJob: Job? = null
     private var prefetchTargetChapterId: CanonicalChapterId? = null
     private var prefetchTargetGroup: CanonicalChapterGroup? = null
     private var prefetchToken = 0L
+    private var mutableAssetSessionState = ReaderAssetSessionState()
+    private var closed = false
 
     internal val executionState: ReaderExecutionState
         get() = synchronized(stateLock) { mutableExecutionState }
+
+    internal val assetSessionState: ReaderAssetSessionState
+        get() = synchronized(stateLock) { mutableAssetSessionState }
 
     suspend fun updateChapterGraph(groups: List<CanonicalChapterGroup>) {
         val candidate = ReaderSessionChapterGraph.create(storyId, groups)
@@ -267,7 +282,7 @@ class ReaderRouteSession internal constructor(
         check(result.identity == context.foregroundIdentity) {
             "Reader completion result identity must match the active execution context."
         }
-        when (result) {
+        val acceptedResult = when (result) {
             is ReaderForegroundResult.Committed -> {
                 val targetGroup = checkNotNull(
                     context.chapterGraph.group(context.identity.targetChapterId),
@@ -286,10 +301,12 @@ class ReaderRouteSession internal constructor(
                     sourceId = result.release.pluginId,
                     documentFingerprint = result.document.fingerprint,
                 )
+                committedRelease = result.release
                 mutableExecutionState = ReaderExecutionState.Committed(
                     identity = context.identity,
                     committed = committedIdentity!!,
                 )
+                acceptAssetManifestLocked(result)
             }
             is ReaderForegroundResult.Exhausted -> {
                 mutableExecutionState = ReaderExecutionState.Exhausted(
@@ -297,12 +314,149 @@ class ReaderRouteSession internal constructor(
                     code = result.code,
                     retryable = result.retryable,
                 )
+                result
             }
-            is ReaderForegroundResult.Superseded -> Unit
+            is ReaderForegroundResult.Superseded -> result
         }
         activeExecution = null
         activePlan = null
-        return result
+        return acceptedResult
+    }
+
+    private fun acceptAssetManifestLocked(
+        result: ReaderForegroundResult.Committed,
+    ): ReaderForegroundResult.Committed {
+        val proposedRevision = mutableAssetSessionState.manifestRevision + 1L
+        val manifest = result.assetManifest
+        if (manifest == null) {
+            val effectiveRevision = assetSessionPort.registerCommittedWithoutManifest(
+                sessionId = sessionId,
+                proposedManifestRevision = proposedRevision,
+                chapterId = result.identity.targetChapterId,
+            )
+            acceptAssetSessionRevisionLocked(effectiveRevision, result.identity.targetChapterId)
+            return result
+        }
+        check(manifest.sessionId == sessionId) { "Reader asset manifest must belong to the active session." }
+        check(manifest.canonicalChapterId == result.identity.targetChapterId) {
+            "Reader asset manifest must belong to the committed chapter."
+        }
+        check(manifest.selectedReleaseId == result.release.id) {
+            "Reader asset manifest must belong to the committed release."
+        }
+        val effectiveRevision = assetSessionPort.registerCommitted(sessionId, proposedRevision, manifest)
+        acceptAssetSessionRevisionLocked(effectiveRevision, manifest.canonicalChapterId)
+        return result.copy(assetManifestRevision = effectiveRevision)
+    }
+
+    private fun acceptAssetSessionRevisionLocked(
+        effectiveRevision: Long,
+        chapterId: CanonicalChapterId,
+    ) {
+        val proposedRevision = mutableAssetSessionState.manifestRevision + 1L
+        check(effectiveRevision >= proposedRevision) {
+            "Reader asset session port must not move manifest revision backwards."
+        }
+        mutableAssetSessionState = mutableAssetSessionState.acceptCommitted(
+            effectiveManifestRevision = effectiveRevision,
+            chapterId = chapterId,
+        )
+    }
+
+    override suspend fun refreshSelectedRelease(
+        expectedManifestRevision: Long,
+        expectedReleaseId: ChapterReleaseId,
+    ): ReaderSelectedReleaseRefreshResult {
+        require(expectedManifestRevision > 0L) { "Expected Reader asset manifest revision must be positive." }
+        val authorizationResult = synchronized(stateLock) {
+            authorizeSelectedReleaseRefreshLocked(expectedManifestRevision, expectedReleaseId)
+        }
+        if (authorizationResult is SelectedReleaseRefreshAuthorizationResult.Rejected) {
+            return authorizationResult.result
+        }
+        val authorization = (authorizationResult as SelectedReleaseRefreshAuthorizationResult.Authorized).value
+        val result = refreshDelegate?.refresh(authorization.release)
+            ?: ReaderSelectedReleaseRefreshResult.Failure(
+                ReaderAssetFailure.TransportUnavailable(retryable = true),
+            )
+        return synchronized(stateLock) {
+            validateSelectedReleaseRefreshLocked(expectedReleaseId, authorization, result)
+        }
+    }
+
+    private fun authorizeSelectedReleaseRefreshLocked(
+        expectedManifestRevision: Long,
+        expectedReleaseId: ChapterReleaseId,
+    ): SelectedReleaseRefreshAuthorizationResult {
+        val committed = committedIdentity
+        val knownRevision = mutableAssetSessionState.manifestRevision
+        val skipsDeliveryRevision = expectedManifestRevision > knownRevision &&
+            expectedManifestRevision - knownRevision != 1L
+        val exactRelease = latestChapterGraph?.release(expectedReleaseId)
+        val rejection = when {
+            closed || committed == null || committed.releaseId != expectedReleaseId ->
+                ReaderSelectedReleaseRefreshResult.Superseded
+            knownRevision == 0L || expectedManifestRevision < knownRevision || skipsDeliveryRevision ->
+                ReaderSelectedReleaseRefreshResult.Superseded
+            exactRelease == null || exactRelease != committedRelease ->
+                ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            else -> null
+        }
+        return if (rejection != null) {
+            SelectedReleaseRefreshAuthorizationResult.Rejected(rejection)
+        } else {
+            // Delivery-only replacement advances the asset coordinator independently. Catch the
+            // session watermark up only after that coordinator has authorized this exact request.
+            if (expectedManifestRevision > knownRevision) {
+                mutableAssetSessionState = mutableAssetSessionState.copy(
+                    manifestRevision = expectedManifestRevision,
+                )
+            }
+            SelectedReleaseRefreshAuthorizationResult.Authorized(
+                SelectedReleaseRefreshAuthorization(
+                    release = checkNotNull(exactRelease),
+                    manifestRevision = expectedManifestRevision,
+                    documentFingerprint = checkNotNull(committed).documentFingerprint,
+                ),
+            )
+        }
+    }
+
+    private fun validateSelectedReleaseRefreshLocked(
+        expectedReleaseId: ChapterReleaseId,
+        authorization: SelectedReleaseRefreshAuthorization,
+        result: ReaderSelectedReleaseRefreshResult,
+    ): ReaderSelectedReleaseRefreshResult {
+        val committed = committedIdentity
+        val graphRelease = latestChapterGraph?.release(expectedReleaseId)
+        val superseded = closed ||
+            committed == null ||
+            committed.releaseId != expectedReleaseId ||
+            committedRelease != authorization.release ||
+            mutableAssetSessionState.manifestRevision != authorization.manifestRevision
+        val refreshedMismatch = result is ReaderSelectedReleaseRefreshResult.Refreshed &&
+            (result.selectedRelease != authorization.release ||
+                result.document.fingerprint != authorization.documentFingerprint)
+        return when {
+            superseded -> ReaderSelectedReleaseRefreshResult.Superseded
+            graphRelease == null || graphRelease != authorization.release || refreshedMismatch ->
+                ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            else -> result
+        }
+    }
+
+    fun close() {
+        val job = synchronized(stateLock) {
+            if (closed) return
+            closed = true
+            prefetchToken += 1L
+            prefetchTargetChapterId = null
+            prefetchTargetGroup = null
+            prefetchJob.also { prefetchJob = null }
+        }
+        job?.cancel()
+        assetSessionPort.unregisterSelectedReleaseRefreshPort(sessionId)
+        assetSessionPort.releaseSession(sessionId)
     }
 
     private fun markCancelled(generationId: ReaderGenerationId) {
@@ -388,6 +542,7 @@ class ReaderRouteSession internal constructor(
                     explicitReleaseId = null,
                     knownInvalidLocalFingerprints = knownInvalidLocalFingerprints
                         .mapValues { (_, fingerprints) -> fingerprints.toSet() },
+                    prefetchToken = token,
                 ),
             )
         }
@@ -432,12 +587,50 @@ class ReaderRouteSession internal constructor(
         job?.cancel()
     }
 
+    internal fun acceptPrefetchedArtifactIfCurrent(
+        context: ReaderRoutePlanningContext,
+        artifact: app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact,
+    ): Boolean = synchronized(stateLock) {
+        val token = context.prefetchToken ?: return@synchronized false
+        val currentGroup = latestChapterGraph?.group(context.targetChapterId)
+        val current = !closed &&
+            activeExecution == null &&
+            prefetchToken == token &&
+            prefetchTargetChapterId == context.targetChapterId &&
+            chapterGraphRevision == context.chapterGraphRevision &&
+            currentGroup == prefetchTargetGroup &&
+            artifact.sessionId == sessionId &&
+            artifact.prefetchToken == token &&
+            artifact.graphRevision == ReaderAssetGraphRevision(context.chapterGraphRevision.value) &&
+            artifact.targetChapterId == context.targetChapterId &&
+            currentGroup?.releases?.any { it == artifact.selectedRelease } == true
+        if (!current) return@synchronized false
+        assetSessionPort.acceptPrefetchedArtifact(artifact)
+        true
+    }
+
     private fun markKnownInvalidLocalLocked(
         releaseId: ChapterReleaseId,
         fingerprint: String,
     ) {
         require(fingerprint.isNotBlank()) { "Known-invalid local fingerprint must not be blank." }
         knownInvalidLocalFingerprints.getOrPut(releaseId, ::mutableSetOf).add(fingerprint)
+    }
+
+    private data class SelectedReleaseRefreshAuthorization(
+        val release: ChapterRelease,
+        val manifestRevision: Long,
+        val documentFingerprint: String,
+    )
+
+    private sealed interface SelectedReleaseRefreshAuthorizationResult {
+        data class Authorized(
+            val value: SelectedReleaseRefreshAuthorization,
+        ) : SelectedReleaseRefreshAuthorizationResult
+
+        data class Rejected(
+            val result: ReaderSelectedReleaseRefreshResult,
+        ) : SelectedReleaseRefreshAuthorizationResult
     }
 
     private sealed interface PrefetchAction {

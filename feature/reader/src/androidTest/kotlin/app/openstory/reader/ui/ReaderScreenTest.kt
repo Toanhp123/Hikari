@@ -2,31 +2,40 @@ package app.openstory.reader.ui
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
-import app.openstory.common.id.CanonicalChapterId
-import app.openstory.common.id.ChapterReleaseId
-import app.openstory.designsystem.theme.HikariTheme
-import app.openstory.reader.document.ReaderBlock
-import app.openstory.reader.document.ReaderDocument
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.openstory.chapters.model.ChapterKind
+import app.openstory.chapters.model.ChapterRelease
+import app.openstory.chapters.model.ParsedChapterLabel
+import app.openstory.common.id.CanonicalChapterId
+import app.openstory.common.id.ChapterReleaseId
+import app.openstory.common.id.PluginId
+import app.openstory.common.id.StoryId
+import app.openstory.designsystem.theme.HikariTheme
+import app.openstory.reader.assets.ReaderAssetGraphRevision
+import app.openstory.reader.assets.ReaderAssetManifestFactory
+import app.openstory.reader.content.ReaderImageSourcePolicy
+import app.openstory.reader.document.ReaderBlock
+import app.openstory.reader.document.ReaderDocument
+import app.openstory.reader.routing.ReaderSessionId
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Rule
@@ -185,13 +194,19 @@ class ReaderScreenTest {
             blocks = listOf(
                 ReaderBlock.ImagePage(
                     id = "image-page-1",
+                    stableAssetId = "hash/page-1.jpg",
                     imageUrl = "https://example.com/page-1.jpg",
                 ),
             ),
             fingerprint = "image-document",
         )
 
-        setReaderContent(state = readerState().copy(document = document))
+        setReaderContent(
+            state = readerState().copy(
+                document = document,
+                assets = imageAssetState(document),
+            ),
+        )
 
         compose.onNodeWithTag("reader-image-image-page-1").assertIsDisplayed()
     }
@@ -262,6 +277,34 @@ class ReaderScreenTest {
         ),
         selectedReleaseId = ChapterReleaseId("release-a"),
     )
+
+    private fun imageAssetState(document: ReaderDocument): ReaderAssetUiState {
+        val release = ChapterRelease(
+            id = ChapterReleaseId("release-a"),
+            storyId = StoryId("story"),
+            pluginId = PluginId("plugin"),
+            sourceStoryId = "source-story",
+            sourceReleaseId = "source-release-a",
+            displayLabel = "Chapter 1",
+            parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
+            languageTag = "en",
+            publishedAtEpochMillis = 1L,
+            canonicalChapterId = CanonicalChapterId("chapter"),
+        )
+        val manifest = requireNotNull(
+            ReaderAssetManifestFactory().create(
+                sessionId = ReaderSessionId(1),
+                storyId = StoryId("story"),
+                canonicalChapterId = CanonicalChapterId("chapter"),
+                selectedRelease = release,
+                graphRevision = ReaderAssetGraphRevision(1),
+                document = document,
+                imageSourcePolicy = ReaderImageSourcePolicy.FAIL_CLOSED,
+                sourcePluginId = PluginId("plugin"),
+            ),
+        )
+        return ReaderAssetUiState(manifest = manifest, manifestRevision = 1L)
+    }
 
     private fun longDocument(prefix: String) = ReaderDocument(
         "$prefix title",

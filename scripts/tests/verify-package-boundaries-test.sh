@@ -68,6 +68,7 @@ run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = 100.0' 1
 run_case 'reader/engine/src/main/kotlin/F.kt' 'val leaked = 25f' 1
 run_case 'reader/engine/src/main/kotlin/F.kt' 'val retained = 100L' 0
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 1
+run_case 'feature/reader/src/test/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderChapterGraphRevision' 1
 run_case 'app/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 1
 run_case 'reader/src/main/kotlin/F.kt' 'import app.openstory.reader.engine.ReaderRoutingSnapshot' 0
 run_case 'feature/reader/src/main/kotlin/F.kt' 'import app.openstory.reader.document.ReaderDocument' 0

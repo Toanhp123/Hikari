@@ -24,6 +24,7 @@ internal data class ReaderRoutePlanningContext(
     val committedIdentity: ReaderCommittedIdentity?,
     val explicitReleaseId: ChapterReleaseId?,
     val knownInvalidLocalFingerprints: Map<ChapterReleaseId, Set<String>> = emptyMap(),
+    val prefetchToken: Long? = null,
 )
 
 internal fun ReaderRouteExecutionContext.toPlanningContext() = ReaderRoutePlanningContext(

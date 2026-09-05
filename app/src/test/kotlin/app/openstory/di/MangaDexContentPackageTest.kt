@@ -2,6 +2,9 @@ package app.openstory.di
 
 import app.openstory.plugins.api.manifest.PluginManifest
 import app.openstory.plugins.api.manifest.PluginService
+import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
+import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
+import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
 import app.openstory.plugins.api.packageformat.PluginArtifact
 import app.openstory.plugins.api.protocol.PluginOperation
 import app.openstory.plugins.runtime.PluginCallResult
@@ -82,6 +85,12 @@ class MangaDexContentPackageTest {
         assertTrue(manifest.supports(PluginOperation.CONTENT_CHAPTER))
         assertEquals(false, manifest.capabilities.reader?.offlineDownload)
         assertEquals(true, manifest.capabilities.reader?.remoteImages)
+        assertEquals(
+            ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+            manifest.capabilities.reader?.imageIdentity,
+        )
+        assertEquals(ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN, manifest.capabilities.reader?.imageLocator)
+        assertEquals(ReaderImagePersistenceContract.PUBLIC, manifest.capabilities.reader?.imagePersistence)
         assertEquals(setOf("api.mangadex.org", "mangadex.org"), manifest.capabilities.network?.hosts)
         assertTrue(mainSource.contains("content: Object.freeze"))
         assertTrue(mainSource.contains("search: async"))
@@ -132,7 +141,7 @@ private fun ByteArray.mangaDexSha256(): String = MessageDigest.getInstance("SHA-
     .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
 private const val MANGADEX_PACKAGE_PLUGIN_ID = "org.openstory.content.mangadex"
-private const val MANGADEX_PACKAGE_VERSION = "1.3.0"
+private const val MANGADEX_PACKAGE_VERSION = "1.3.1"
 private const val MANGADEX_ASSET_PATH = "plugins/mangadex-content.osp"
 private const val MANGADEX_ASSET_RELATIVE_PATH = "app/src/main/assets/plugins/mangadex-content.osp"
 private const val MANGADEX_MANIFEST_RELATIVE_PATH = "bundled-plugins/mangadex-content/manifest.json"

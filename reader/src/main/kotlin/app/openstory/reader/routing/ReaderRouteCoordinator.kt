@@ -3,11 +3,20 @@ package app.openstory.reader.routing
 import app.openstory.chapters.model.ChapterRelease
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
+import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ContentFetchPriority
+import app.openstory.reader.assets.ReaderAssetFailure
+import app.openstory.reader.assets.ReaderAssetGraphRevision
+import app.openstory.reader.assets.ReaderAssetManifestFactory
+import app.openstory.reader.assets.ReaderPrefetchedDocumentArtifact
+import app.openstory.reader.assets.ReaderSelectedReleaseRefreshResult
+import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderLoadFailure
 import app.openstory.reader.content.ReaderLoadResult
 import app.openstory.reader.content.ReaderSourceAvailability
+import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.engine.AccessMode
 import app.openstory.reader.engine.ReaderRouteDecision
 import app.openstory.reader.engine.ReaderRouteEngine
@@ -28,37 +37,42 @@ import kotlinx.coroutines.CancellationException
  */
 class ReaderRouteCoordinator(
     store: ReaderDocumentStore,
-    sources: ReaderDocumentSourceRegistry,
+    private val sources: ReaderDocumentSourceRegistry,
     progress: ReadingProgressRepository,
     private val sourceAvailability: ReaderSourceAvailability = ReaderSourceAvailability {
         sources.enabled().mapTo(linkedSetOf()) { it.pluginId }
     },
     healthRegistry: ReaderSourceHealthRegistry,
-    executionLimiter: ReaderSourceExecutionLimiter,
+    private val sourceLane: ContentSourceExecutionLane,
+    private val fetchArbiter: ContentFetchArbiter,
+    halfOpenProbeRegistry: ReaderHalfOpenProbeRegistry,
     cacheFacts: ReaderCacheFactsPort = ReaderCacheFactsPort { releaseIds, _ ->
         releaseIds.associateWith { ReaderLocalCacheFact.Unknown }
     },
     private val networkFacts: ReaderNetworkFactsPort = ReaderNetworkFactsPort { ReaderNetworkState.UNKNOWN },
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
     private val executionScheduler: ReaderExecutionScheduler = DefaultReaderExecutionScheduler(),
+    private val assetManifestFactory: ReaderAssetManifestFactory = ReaderAssetManifestFactory(),
 ) {
     private val healthRegistry = healthRegistry
     private val executor = ReaderRouteExecutor(
         store = store,
         sources = sources,
-        executionLimiter = executionLimiter,
+        sourceLane = sourceLane,
+        fetchArbiter = fetchArbiter,
         monotonicNanos = executionScheduler::monotonicNanos,
     )
     private val assembler = RouteSnapshotAssembler(
         progress = progress,
         sourceAvailability = sourceAvailability,
         healthRegistry = healthRegistry,
-        executionLimiter = executionLimiter,
+        halfOpenProbeRegistry = halfOpenProbeRegistry,
         cacheFacts = cacheFacts,
         networkFacts = networkFacts,
         nowEpochMillis = nowEpochMillis,
     )
     private val engine = ReaderRouteEngine.v1()
+    private val selectedReleaseRefreshValidator = ReaderDocumentValidatorAdapter()
 
     private data class PreparedForegroundRoute(
         val assembled: AssembledRouteSnapshot,
@@ -68,12 +82,105 @@ class ReaderRouteCoordinator(
         val heldProbeLeases: MutableList<ReaderHalfOpenProbeLease>,
     )
 
+    private sealed interface SelectedReleaseSourceLookup {
+        data class Available(val source: ReaderDocumentSource) : SelectedReleaseSourceLookup
+        data object Missing : SelectedReleaseSourceLookup
+        data object Failed : SelectedReleaseSourceLookup
+    }
+
     internal suspend fun execute(
         session: ReaderRouteSession,
         context: ReaderRouteExecutionContext,
     ): ReaderForegroundResult = assembler.assemble(context)
         ?.let { assembled -> executeAssembledForeground(session, context, assembled) }
         ?: unavailableRoute(context, READER_CHAPTER_NOT_FOUND)
+
+    internal suspend fun refreshSelectedRelease(
+        release: ChapterRelease,
+    ): ReaderSelectedReleaseRefreshResult {
+        return when (val lookup = findSelectedReleaseSource(release)) {
+            SelectedReleaseSourceLookup.Failed -> transportUnavailableRefreshFailure()
+            SelectedReleaseSourceLookup.Missing -> ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            is SelectedReleaseSourceLookup.Available -> {
+                val sourceResult = fetchSelectedRelease(lookup.source, release)
+                if (sourceResult == null) {
+                    transportUnavailableRefreshFailure()
+                } else {
+                    mapSelectedReleaseRefreshResult(release, lookup.source, sourceResult)
+                }
+            }
+        }
+    }
+
+    private suspend fun findSelectedReleaseSource(release: ChapterRelease): SelectedReleaseSourceLookup = try {
+        sources.enabled()
+            .firstOrNull { candidate -> candidate.pluginId == release.pluginId }
+            ?.let(SelectedReleaseSourceLookup::Available)
+            ?: SelectedReleaseSourceLookup.Missing
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        SelectedReleaseSourceLookup.Failed
+    }
+
+    private suspend fun fetchSelectedRelease(
+        source: ReaderDocumentSource,
+        release: ChapterRelease,
+    ): ReaderSourceResult? = try {
+        sourceLane.withSource(release.pluginId, ContentSourceWorkPriority.FOREGROUND) {
+            fetchArbiter.withAdmission(ContentFetchPriority.CRITICAL) {
+                source.fetch(release)
+            }
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun mapSelectedReleaseRefreshResult(
+        release: ChapterRelease,
+        source: ReaderDocumentSource,
+        result: ReaderSourceResult,
+    ): ReaderSelectedReleaseRefreshResult = when (result) {
+        is ReaderSourceResult.Success -> when (
+            val validation = selectedReleaseRefreshValidator.validateRemote(result.document)
+        ) {
+            is ReaderDocumentValidation.Valid -> ReaderSelectedReleaseRefreshResult.Refreshed(
+                selectedRelease = release,
+                document = validation.document,
+                imageSourcePolicy = source.imageSourcePolicy,
+            )
+            is ReaderDocumentValidation.Invalid -> ReaderSelectedReleaseRefreshResult.RouteInvalidated
+        }
+        is ReaderSourceResult.Failure -> mapSelectedReleaseRefreshFailure(release, result)
+    }
+
+    private fun transportUnavailableRefreshFailure() = ReaderSelectedReleaseRefreshResult.Failure(
+        ReaderAssetFailure.TransportUnavailable(retryable = true),
+    )
+
+    private fun mapSelectedReleaseRefreshFailure(
+        release: ChapterRelease,
+        failure: app.openstory.reader.content.ReaderSourceResult.Failure,
+    ): ReaderSelectedReleaseRefreshResult {
+        val classified = ReaderSourceFailureClassifier.classifyRemote(
+            releaseId = release.id,
+            sourceId = release.pluginId,
+            code = failure.code,
+            retryable = failure.retryable,
+        )
+        val assetFailure = when (classified.observation) {
+            is SourceObservation.AuthFailure -> ReaderAssetFailure.Unauthorized
+            is SourceObservation.TransportFailure -> ReaderAssetFailure.TransportUnavailable(failure.retryable)
+            is SourceObservation.SourceStateFailure,
+            is SourceObservation.ReleaseFailure,
+            is SourceObservation.ContentFailure,
+            is SourceObservation.PluginPolicyFailure -> return ReaderSelectedReleaseRefreshResult.RouteInvalidated
+            else -> ReaderAssetFailure.TransportUnavailable(failure.retryable)
+        }
+        return ReaderSelectedReleaseRefreshResult.Failure(assetFailure)
+    }
 
     private suspend fun executeAssembledForeground(
         session: ReaderRouteSession,
@@ -235,58 +342,74 @@ class ReaderRouteCoordinator(
         retryable = false,
         attempts = emptyList(),
     )
-
-
     internal suspend fun executePrefetch(
         session: ReaderRouteSession,
         context: ReaderRoutePlanningContext,
-    ) {
-        val assembled = assembler.assemble(context, RoutingIntent.PREFETCH) ?: return
+    ): ReaderPrefetchedDocumentArtifact? {
+        val assembled = assembler.assemble(context, RoutingIntent.PREFETCH) ?: return null
         val heldProbeLeases = assembled.probeLeases.toMutableList()
-        try {
+        return try {
             val decision = engine.plan(assembled.snapshot, assembled.policy)
             val plannedAttempts = buildList {
                 decision.competitiveSet.primary?.let(::add)
                 addAll(decision.recoveryChain)
             }
-            if (plannedAttempts.isEmpty()) return
-
-            val candidateByRelease = assembled.candidates.associateBy { it.id }
-            plannedAttempts.forEach { attempt ->
-                checkNotNull(candidateByRelease[attempt.releaseId]) {
-                    "Engine planned prefetch release ${attempt.releaseId.value} outside the assembled candidate set."
+            if (plannedAttempts.isEmpty()) {
+                null
+            } else {
+                val candidateByRelease = assembled.candidates.associateBy { it.id }
+                plannedAttempts.forEach { attempt ->
+                    checkNotNull(candidateByRelease[attempt.releaseId]) {
+                        "Engine planned prefetch release ${attempt.releaseId.value} " +
+                            "outside the assembled candidate set."
+                    }
                 }
-            }
-            releaseUnusedProbeLeases(heldProbeLeases, plannedAttempts)
-            val probeSourceIds = heldProbeLeases.mapTo(linkedSetOf()) { it.key.sourceId }
-            val probeAttemptKinds = firstPlannedProbeBySource(plannedAttempts, probeSourceIds)
+                releaseUnusedProbeLeases(heldProbeLeases, plannedAttempts)
+                val probeSourceIds = heldProbeLeases.mapTo(linkedSetOf()) { it.key.sourceId }
+                val probeAttemptKinds = firstPlannedProbeBySource(plannedAttempts, probeSourceIds)
 
-            try {
-                executor.executeAdaptive(
-                    attempts = plannedAttempts,
-                    candidatesByRelease = candidateByRelease,
-                    remoteAttemptKinds = probeAttemptKinds,
-                    onSourceObservation = { sourceId, observation ->
-                        recordHealth(sourceId, observation)
-                    },
-                    onLocalInvalidated = { releaseId, fingerprint ->
-                        session.markKnownInvalidLocal(releaseId, fingerprint)
-                    },
-                    onAttempt = { _, attempt ->
-                        if (
-                            attempt.accessMode == AccessMode.REMOTE &&
-                            (
-                                !prefetchRemoteStillPermitted() ||
-                                    remoteAttemptHardInvalidated(attempt, probeSourceIds)
-                            )
-                        ) {
-                            throw ReaderRoutePlanInvalidatedException()
-                        }
-                    },
-                    remotePriority = ReaderRemoteWorkPriority.PREFETCH,
-                )
-            } catch (_: ReaderRoutePlanInvalidatedException) {
-                // Prefetch never owns a visible commit. A stale plan is simply abandoned.
+                try {
+                    when (
+                        val loaded = executor.executeAdaptive(
+                            attempts = plannedAttempts,
+                            candidatesByRelease = candidateByRelease,
+                            remoteAttemptKinds = probeAttemptKinds,
+                            onSourceObservation = { sourceId, observation ->
+                                recordHealth(sourceId, observation)
+                            },
+                            onLocalInvalidated = { releaseId, fingerprint ->
+                                session.markKnownInvalidLocal(releaseId, fingerprint)
+                            },
+                            onAttempt = { _, attempt ->
+                                if (
+                                    attempt.accessMode == AccessMode.REMOTE &&
+                                    (
+                                        !prefetchRemoteStillPermitted() ||
+                                            remoteAttemptHardInvalidated(attempt, probeSourceIds)
+                                    )
+                                ) {
+                                    throw ReaderRoutePlanInvalidatedException()
+                                }
+                            },
+                            remotePriority = ContentFetchPriority.PREFETCH,
+                        )
+                    ) {
+                        is ReaderLoadResult.Success -> ReaderPrefetchedDocumentArtifact(
+                            sessionId = session.sessionId,
+                            prefetchToken = checkNotNull(context.prefetchToken),
+                            graphRevision = ReaderAssetGraphRevision(context.chapterGraphRevision.value),
+                            targetChapterId = context.targetChapterId,
+                            selectedRelease = loaded.release,
+                            document = loaded.document,
+                            imageSourcePolicy = loaded.imageSourcePolicy,
+                            sourcePluginId = loaded.sourcePluginId,
+                        )
+                        is ReaderLoadResult.Failure -> null
+                    }
+                } catch (_: ReaderRoutePlanInvalidatedException) {
+                    // Prefetch never owns a visible commit. A stale plan is simply abandoned.
+                    null
+                }
             }
         } finally {
             heldProbeLeases.forEach(ReaderHalfOpenProbeLease::release)
@@ -396,6 +519,18 @@ class ReaderRouteCoordinator(
         loaded: ReaderLoadResult.Success,
     ): ReaderForegroundResult.Committed {
         val release = loaded.release
+        val assetManifest = loaded.imageSourcePolicy?.let { policy ->
+            assetManifestFactory.create(
+                sessionId = context.identity.sessionId,
+                storyId = context.storyId,
+                canonicalChapterId = context.identity.targetChapterId,
+                selectedRelease = release,
+                graphRevision = ReaderAssetGraphRevision(context.chapterGraphRevision.value),
+                document = loaded.document,
+                imageSourcePolicy = policy,
+                sourcePluginId = checkNotNull(loaded.sourcePluginId),
+            )
+        }
         val restoration = exactRestoration(
             progress = assembled.restoredProgress,
             releaseId = release.id,
@@ -408,6 +543,8 @@ class ReaderRouteCoordinator(
             document = loaded.document,
             fromLocal = loaded.fromStore,
             restoration = restoration,
+            assetManifest = assetManifest,
+            assetManifestRevision = null,
         )
     }
 
