@@ -15,7 +15,7 @@ import app.openstory.catalog.fusion.CanonicalFusionReason
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.SourceKey
-import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.engine.matching.CatalogMatchCandidate
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.metadata.CatalogMetadataStamp
@@ -224,10 +224,10 @@ class CatalogSearchServiceTest {
         return CatalogSearchService(
             sources = Registry(sourceList),
             repository = repository,
-            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
-                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            reconciliationEngine = app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.engine.reconciliation.ReconciliationPolicy(),
             ),
-            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            storyIdFactory = app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory(),
             orchestrator = engine,
             clock = clock,
             bootstrap = CanonicalBootstrapUseCase(canonical, rebuilder),

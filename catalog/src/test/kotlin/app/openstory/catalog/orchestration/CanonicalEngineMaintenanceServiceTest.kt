@@ -5,7 +5,7 @@ import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.reconciliation.CatalogReconciliationMaintenance
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.catalog.reconciliation.ReconciliationMaintenanceCase
 import app.openstory.catalog.reconciliation.ReconciliationRunResult
 import app.openstory.common.FakeClock
@@ -187,7 +187,7 @@ class CanonicalEngineMaintenanceServiceTest {
                 ),
                 work(
                     CanonicalEngineWorkType.FUSION_REBUILD,
-                    requiredPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION + 1,
+                    requiredPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION + 1,
                 ),
             ),
         )
@@ -222,8 +222,8 @@ class CanonicalEngineMaintenanceServiceTest {
         val fixture = fixture()
         fixture.reader.stalePolicyStories = listOf(story)
         fixture.reader.policyByStory[story] = CanonicalMaintenancePolicyState(
-            fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION + 1,
-            primarySelectionPolicyVersion = app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION,
+            fusionPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION + 1,
+            primarySelectionPolicyVersion = app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION,
             reconciliationPolicyVersions = setOf(RECONCILIATION_POLICY_VERSION),
         )
 
@@ -274,7 +274,7 @@ class CanonicalEngineMaintenanceServiceTest {
         val fixture = fixture()
         fixture.work.parked += work(
             CanonicalEngineWorkType.FUSION_REBUILD,
-            requiredPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
+            requiredPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
             nextAttemptAtEpochMillis = Long.MAX_VALUE,
             lastFailureCode = CanonicalMaintenanceFailureCodes.UNSUPPORTED_REQUIRED_POLICY_VERSION,
         )
@@ -292,8 +292,8 @@ class CanonicalEngineMaintenanceServiceTest {
             ready = listOf(work(CanonicalEngineWorkType.POLICY_REEVALUATION)),
         )
         fixture.reader.policyByStory[story] = CanonicalMaintenancePolicyState(
-            fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
-            primarySelectionPolicyVersion = app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION - 1,
+            fusionPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
+            primarySelectionPolicyVersion = app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION - 1,
             reconciliationPolicyVersions = setOf(RECONCILIATION_POLICY_VERSION),
         )
 
@@ -310,8 +310,8 @@ class CanonicalEngineMaintenanceServiceTest {
             ready = listOf(work(CanonicalEngineWorkType.POLICY_REEVALUATION)),
         )
         identityFixture.reader.policyByStory[story] = CanonicalMaintenancePolicyState(
-            fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
-            primarySelectionPolicyVersion = app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION,
+            fusionPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
+            primarySelectionPolicyVersion = app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION,
             reconciliationPolicyVersions = setOf(RECONCILIATION_POLICY_VERSION - 1),
         )
 
@@ -323,8 +323,8 @@ class CanonicalEngineMaintenanceServiceTest {
             ready = listOf(work(CanonicalEngineWorkType.POLICY_REEVALUATION)),
         )
         fusionFixture.reader.policyByStory[story] = CanonicalMaintenancePolicyState(
-            fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION - 1,
-            primarySelectionPolicyVersion = app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION,
+            fusionPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION - 1,
+            primarySelectionPolicyVersion = app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION,
             reconciliationPolicyVersions = setOf(RECONCILIATION_POLICY_VERSION),
         )
 
@@ -342,7 +342,7 @@ class CanonicalEngineMaintenanceServiceTest {
         val ignoredByLimit = StoryId("story:outside-limit")
         fixture.reader.stalePolicyStories = listOf(fusionOnly, reconciliationOnly, both, ignoredByLimit)
         fixture.reader.policyByStory[fusionOnly] = currentPolicyState().copy(
-            fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION - 1,
+            fusionPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION - 1,
         )
         fixture.reader.policyByStory[reconciliationOnly] = currentPolicyState().copy(
             reconciliationPolicyVersions = setOf(RECONCILIATION_POLICY_VERSION - 1),
@@ -362,7 +362,7 @@ class CanonicalEngineMaintenanceServiceTest {
                     fusionOnly,
                     CanonicalEngineWorkType.FUSION_REBUILD,
                     CanonicalEngineWorkReasons.POLICY_VERSION_CHANGED,
-                    app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
+                    app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
                 ),
                 WorkMarkRecord(
                     reconciliationOnly,
@@ -380,7 +380,7 @@ class CanonicalEngineMaintenanceServiceTest {
                     both,
                     CanonicalEngineWorkType.FUSION_REBUILD,
                     CanonicalEngineWorkReasons.POLICY_VERSION_CHANGED,
-                    app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
+                    app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
                 ),
             ),
             fixture.work.marks,
@@ -407,8 +407,8 @@ class CanonicalEngineMaintenanceServiceTest {
         val fixture = fixture()
         fixture.reader.stalePolicyStories = listOf(story)
         fixture.reader.policyByStory[story] = CanonicalMaintenancePolicyState(
-            fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION - 1,
-            primarySelectionPolicyVersion = app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION,
+            fusionPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION - 1,
+            primarySelectionPolicyVersion = app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION,
             reconciliationPolicyVersions = setOf(RECONCILIATION_POLICY_VERSION),
         )
 
@@ -497,8 +497,8 @@ class CanonicalEngineMaintenanceServiceTest {
     }
 
     private fun currentPolicyState() = CanonicalMaintenancePolicyState(
-        fusionPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
-        primarySelectionPolicyVersion = app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION,
+        fusionPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
+        primarySelectionPolicyVersion = app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION,
         reconciliationPolicyVersions = setOf(RECONCILIATION_POLICY_VERSION),
     )
 

@@ -5,8 +5,8 @@ import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeResult
 import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
-import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
-import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationSemanticDecision
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase

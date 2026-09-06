@@ -1,7 +1,7 @@
 package app.openstory.storage.room.catalog
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
+import app.openstory.catalog.engine.evidence.CatalogEvidenceFingerprints
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.catalog.identity.SourceKey

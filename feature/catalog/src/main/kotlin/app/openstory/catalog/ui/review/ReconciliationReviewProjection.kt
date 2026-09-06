@@ -3,7 +3,7 @@ package app.openstory.catalog.ui.review
 import app.openstory.catalog.identity.UserStateFootprint
 import app.openstory.catalog.projection.CatalogStoryProjection
 import app.openstory.catalog.reconciliation.ReconciliationCase
-import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
 import app.openstory.common.id.StoryId
 
 internal fun projectReviewQueue(

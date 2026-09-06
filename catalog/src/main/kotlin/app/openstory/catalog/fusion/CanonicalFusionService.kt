@@ -9,6 +9,11 @@ import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
+import app.openstory.catalog.engine.fusion.CanonicalGenerationCandidate
+import app.openstory.catalog.engine.fusion.CanonicalGenerationValidator
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.FusionInput
+import app.openstory.catalog.engine.fusion.FusionSource
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId

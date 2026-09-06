@@ -2,7 +2,7 @@ package app.openstory.storage.room.merge
 
 import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
-import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
+import app.openstory.catalog.engine.evidence.CatalogEvidenceFingerprints
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityInvariantException
 import app.openstory.catalog.model.ContentType

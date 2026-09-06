@@ -87,7 +87,7 @@ class CanonicalEngineOrchestratorTest {
                     story,
                     CanonicalEngineWorkType.FUSION_REBUILD,
                     CanonicalEngineWorkReasons.SOURCE_SUMMARY_CHANGED,
-                    requiredPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
+                    requiredPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
                 ),
             ),
             fixture.work.marks,
@@ -231,7 +231,7 @@ class CanonicalEngineOrchestratorTest {
                 survivor,
                 CanonicalEngineWorkType.RECONCILIATION_REEVALUATION,
                 CanonicalEngineWorkReasons.SOURCE_FULL_CHANGED,
-                app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION,
+                app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION,
             ),
             fixture.work.marks[0],
         )

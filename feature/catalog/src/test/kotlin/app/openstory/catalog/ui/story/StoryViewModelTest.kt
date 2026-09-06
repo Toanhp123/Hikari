@@ -6,7 +6,7 @@ import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.details.CatalogFullMetadataFallbackService
 import app.openstory.catalog.fusion.CanonicalFusionReason
-import app.openstory.catalog.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.SourceKey
@@ -19,7 +19,7 @@ import app.openstory.catalog.metadata.CatalogMetadataResult
 import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
-import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
 import app.openstory.catalog.reconciliation.ReconciliationReviewService
 import app.openstory.catalog.identity.ProtectedContentMappingConflict
 import app.openstory.catalog.identity.StoryMergeExecutor
@@ -685,10 +685,10 @@ class StoryViewModelTest {
             loader = CatalogDetailsLoader(
                 sources = registry,
                 repository = legacy,
-                reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
-                    app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+                reconciliationEngine = app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine(
+                    app.openstory.catalog.engine.reconciliation.ReconciliationPolicy(),
                 ),
-                storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+                storyIdFactory = app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory(),
                 orchestrator = engine,
                 clock = clock,
             ),

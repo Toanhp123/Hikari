@@ -4,7 +4,7 @@ import app.openstory.catalog.projection.CatalogStoryProjectionRepository
 import app.openstory.catalog.reconciliation.ReconciliationCase
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
 import app.openstory.catalog.reconciliation.ReconciliationCaseStatus
-import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
 import app.openstory.catalog.reconciliation.ReconciliationReviewAction
 import app.openstory.catalog.reconciliation.ReconciliationReviewCommand
 import app.openstory.catalog.reconciliation.ReconciliationReviewResult

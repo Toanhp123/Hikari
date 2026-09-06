@@ -12,6 +12,10 @@ import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalDiagnosticsSink
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
+import app.openstory.catalog.engine.fusion.CanonicalGenerationValidator
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataPolicy

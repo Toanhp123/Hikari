@@ -175,6 +175,157 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun catalogModelIsConstitutionallyPureJvm() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        val rule = policy.modules.getValue(":catalog:model")
+
+        assertEquals("jvm", rule.platform.policyValue)
+        assertEquals("exact", rule.dependencyMode.policyValue)
+        assertEquals(setOf(":core:common"), rule.productionDependencies)
+        assertTrue(rule.testDependencies.isEmpty())
+
+        val build = File("../catalog/model/build.gradle.kts").readText()
+        assertTrue("id(\"openstory.kotlin.jvm\")" in build)
+        assertFalse("openstory.android" in build)
+        assertFalse("kotlinx.coroutines" in build)
+        assertFalse("javax.inject" in build)
+    }
+
+    @Test
+    fun catalogEngineIsConstitutionallyPureJvm() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        val rule = policy.modules.getValue(":catalog:engine")
+
+        assertEquals("jvm", rule.platform.policyValue)
+        assertEquals("exact", rule.dependencyMode.policyValue)
+        assertEquals(setOf(":core:common", ":catalog:model"), rule.productionDependencies)
+        assertTrue(rule.testDependencies.isEmpty())
+
+        val build = File("../catalog/engine/build.gradle.kts").readText()
+        assertTrue("id(\"openstory.kotlin.jvm\")" in build)
+        assertFalse("openstory.android" in build)
+        assertFalse("kotlinx.coroutines" in build)
+        assertFalse("kotlinx.serialization" in build)
+        assertFalse("javax.inject" in build)
+    }
+
+    @Test
+    fun catalogAlgorithmsLiveOnlyInThePureEngineModule() {
+        val root = File("..").canonicalFile
+        val matchingFiles = File(root, "catalog/src/main/kotlin/app/openstory/catalog/matching")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map(File::getName)
+            .toSet()
+        assertTrue(matchingFiles.isEmpty(), "Matching implementation remains in :catalog: $matchingFiles")
+
+        val reconciliationFiles = File(root, "catalog/src/main/kotlin/app/openstory/catalog/reconciliation")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map(File::getName)
+            .toSet()
+        assertEquals(
+            setOf(
+                "CatalogReconciliationService.kt",
+                "CatalogReconciliationMaintenance.kt",
+                "ReconciliationReviewService.kt",
+                "ReconciliationCaseRepository.kt",
+                "ReconciliationDiagnostics.kt",
+                "StoryMergeLineage.kt",
+            ),
+            reconciliationFiles,
+        )
+
+        val fusionFiles = File(root, "catalog/src/main/kotlin/app/openstory/catalog/fusion")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map(File::getName)
+            .toSet()
+        assertEquals(
+            setOf(
+                "CatalogSourceAvailabilityResolver.kt",
+                "CanonicalFusionService.kt",
+                "CanonicalFusionContract.kt",
+            ),
+            fusionFiles,
+        )
+    }
+
+    @Test
+    fun generatedArtProfilesTrackCatalogEnginePackages() {
+        val root = File("..").canonicalFile
+        val profiles = listOf(
+            File(root, "app/src/release/generated/baselineProfiles/baseline-prof.txt"),
+            File(root, "app/src/release/generated/baselineProfiles/startup-prof.txt"),
+        )
+        val staleMovedDescriptors = listOf(
+            "Lapp/openstory/catalog/matching/",
+            "Lapp/openstory/catalog/evidence/CatalogEvidenceFingerprints",
+            "Lapp/openstory/catalog/evidence/CatalogEvidenceNormalizer",
+            "Lapp/openstory/catalog/evidence/CatalogSourceRecordKt",
+            "Lapp/openstory/catalog/identity/CatalogStoryIdFactory",
+            "Lapp/openstory/catalog/reconciliation/CatalogCandidateIndex",
+            "Lapp/openstory/catalog/reconciliation/CatalogIngestReconciliationIndex",
+            "Lapp/openstory/catalog/reconciliation/CatalogReconciliationEngine",
+            "Lapp/openstory/catalog/reconciliation/InMemoryCatalogCandidateIndex",
+            "Lapp/openstory/catalog/reconciliation/IncomingSourceAction",
+            "Lapp/openstory/catalog/reconciliation/IncomingSourceResolution",
+            "Lapp/openstory/catalog/reconciliation/RankedReconciliationCandidate",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationAssessment",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationCandidateSelection",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationCaseKey",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationEvidence",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationEvidenceFactory",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationMergeEligibility",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationPolicy",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationReasonCode",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationSemanticDecision",
+            "Lapp/openstory/catalog/fusion/CanonicalGenerationCandidate",
+            "Lapp/openstory/catalog/fusion/CanonicalGenerationValidator",
+            "Lapp/openstory/catalog/fusion/CatalogFusionEngine",
+            "Lapp/openstory/catalog/fusion/CatalogSourceFreshness",
+            "Lapp/openstory/catalog/fusion/CatalogSourceUsability",
+            "Lapp/openstory/catalog/fusion/FieldSelection",
+            "Lapp/openstory/catalog/fusion/FusionInput",
+            "Lapp/openstory/catalog/fusion/FusionPolicyKt",
+            "Lapp/openstory/catalog/fusion/FusionSource",
+            "Lapp/openstory/catalog/fusion/PrimaryQuality",
+            "Lapp/openstory/catalog/fusion/PrimarySelectionDecision",
+            "Lapp/openstory/catalog/fusion/PrimarySelectionPolicyKt",
+            "Lapp/openstory/catalog/fusion/PrimarySelectionReason",
+            "Lapp/openstory/catalog/fusion/TextContribution",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->similarityNormalized\$catalog(",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->tokensOfNormalized\$catalog(",
+        )
+        val requiredEngineDescriptors = listOf(
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->similarityNormalized\$Hikari_catalog_engine(",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->tokensOfNormalized\$Hikari_catalog_engine(",
+            "Lapp/openstory/catalog/engine/evidence/CatalogEvidenceFingerprints;",
+            "Lapp/openstory/catalog/engine/evidence/CatalogSourceRecordFactoryKt;",
+            "Lapp/openstory/catalog/engine/reconciliation/CatalogReconciliationEngine;",
+            "Lapp/openstory/catalog/engine/fusion/CatalogFusionEngine;",
+        )
+
+        profiles.forEach { profile ->
+            val content = profile.readText()
+            val stale = staleMovedDescriptors.filter(content::contains)
+            val missing = requiredEngineDescriptors.filterNot(content::contains)
+
+            assertTrue(stale.isEmpty(), "${profile.name} retains moved Catalog descriptors: $stale")
+            assertTrue(missing.isEmpty(), "${profile.name} misses Catalog engine descriptors: $missing")
+        }
+        assertTrue(
+            "Lapp/openstory/catalog/engine/reconciliation/CatalogStoryIdFactory;" in profiles.first().readText(),
+            "baseline-prof.txt misses the moved CatalogStoryIdFactory descriptor",
+        )
+    }
+
+    @Test
     fun hesV1AndRiccV1ArchitectureAndPersistenceBoundaryAreFrozen() {
         val root = File("..").canonicalFile
         val policy = ModuleBoundaryPolicyLoader.load(
@@ -184,7 +335,7 @@ class ModuleGraphTest {
             it.platform.policyValue != "android-test"
         }
 
-        assertEquals(17, productionModules.size)
+        assertEquals(19, productionModules.size)
         assertEquals("android-test", policy.modules.getValue(":benchmark").platform.policyValue)
 
         val engine = policy.modules.getValue(":reader:engine")
@@ -252,7 +403,7 @@ class ModuleGraphTest {
         )
 
         assertEquals(
-            setOf(":core:common", ":catalog", ":plugins:api", ":plugins:runtime"),
+            setOf(":core:common", ":catalog", ":catalog:model", ":plugins:api", ":plugins:runtime"),
             policy.modules.getValue(":library").productionDependencies,
         )
         val libraryBuild = File("../library/build.gradle.kts").readText()

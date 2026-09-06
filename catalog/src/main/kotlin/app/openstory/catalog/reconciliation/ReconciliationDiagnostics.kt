@@ -3,6 +3,10 @@ package app.openstory.catalog.reconciliation
 import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
+import app.openstory.catalog.engine.reconciliation.ReconciliationAssessment
+import app.openstory.catalog.engine.reconciliation.ReconciliationCandidateSelection
+import app.openstory.catalog.engine.reconciliation.ReconciliationEvidence
+import app.openstory.catalog.engine.reconciliation.ReconciliationSemanticDecision
 import app.openstory.common.id.StoryId
 
 internal fun CanonicalDiagnostics.recordReconciliationSelection(

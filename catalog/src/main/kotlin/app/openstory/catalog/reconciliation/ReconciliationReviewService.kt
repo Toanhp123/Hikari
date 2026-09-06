@@ -1,5 +1,6 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
 import app.openstory.catalog.identity.NoOpStoryMergeReversalExecutor
 import app.openstory.catalog.identity.NoOpStoryMergeReversalPlanner
 import app.openstory.catalog.identity.ProtectedContentMappingConflict
