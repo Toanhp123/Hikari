@@ -214,6 +214,48 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun catalogAlgorithmsLiveOnlyInThePureEngineModule() {
+        val root = File("..").canonicalFile
+        val matchingFiles = File(root, "catalog/src/main/kotlin/app/openstory/catalog/matching")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map(File::getName)
+            .toSet()
+        assertTrue(matchingFiles.isEmpty(), "Matching implementation remains in :catalog: $matchingFiles")
+
+        val reconciliationFiles = File(root, "catalog/src/main/kotlin/app/openstory/catalog/reconciliation")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map(File::getName)
+            .toSet()
+        assertEquals(
+            setOf(
+                "CatalogReconciliationService.kt",
+                "CatalogReconciliationMaintenance.kt",
+                "ReconciliationReviewService.kt",
+                "ReconciliationCaseRepository.kt",
+                "ReconciliationDiagnostics.kt",
+                "StoryMergeLineage.kt",
+            ),
+            reconciliationFiles,
+        )
+
+        val fusionFiles = File(root, "catalog/src/main/kotlin/app/openstory/catalog/fusion")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map(File::getName)
+            .toSet()
+        assertEquals(
+            setOf(
+                "CatalogSourceAvailabilityResolver.kt",
+                "CanonicalFusionService.kt",
+                "CanonicalFusionContract.kt",
+            ),
+            fusionFiles,
+        )
+    }
+
+    @Test
     fun hesV1AndRiccV1ArchitectureAndPersistenceBoundaryAreFrozen() {
         val root = File("..").canonicalFile
         val policy = ModuleBoundaryPolicyLoader.load(
