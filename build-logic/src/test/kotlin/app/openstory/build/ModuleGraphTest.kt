@@ -175,6 +175,25 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun catalogModelIsConstitutionallyPureJvm() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/module-boundaries.json"),
+        )
+        val rule = policy.modules.getValue(":catalog:model")
+
+        assertEquals("jvm", rule.platform.policyValue)
+        assertEquals("exact", rule.dependencyMode.policyValue)
+        assertEquals(setOf(":core:common"), rule.productionDependencies)
+        assertTrue(rule.testDependencies.isEmpty())
+
+        val build = File("../catalog/model/build.gradle.kts").readText()
+        assertTrue("id(\"openstory.kotlin.jvm\")" in build)
+        assertFalse("openstory.android" in build)
+        assertFalse("kotlinx.coroutines" in build)
+        assertFalse("javax.inject" in build)
+    }
+
+    @Test
     fun hesV1AndRiccV1ArchitectureAndPersistenceBoundaryAreFrozen() {
         val root = File("..").canonicalFile
         val policy = ModuleBoundaryPolicyLoader.load(
@@ -184,7 +203,7 @@ class ModuleGraphTest {
             it.platform.policyValue != "android-test"
         }
 
-        assertEquals(17, productionModules.size)
+        assertEquals(18, productionModules.size)
         assertEquals("android-test", policy.modules.getValue(":benchmark").platform.policyValue)
 
         val engine = policy.modules.getValue(":reader:engine")
@@ -252,7 +271,7 @@ class ModuleGraphTest {
         )
 
         assertEquals(
-            setOf(":core:common", ":catalog", ":plugins:api", ":plugins:runtime"),
+            setOf(":core:common", ":catalog", ":catalog:model", ":plugins:api", ":plugins:runtime"),
             policy.modules.getValue(":library").productionDependencies,
         )
         val libraryBuild = File("../library/build.gradle.kts").readText()

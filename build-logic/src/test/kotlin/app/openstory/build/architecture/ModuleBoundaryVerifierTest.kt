@@ -169,6 +169,7 @@ class ModuleBoundaryVerifierTest {
                 ":core:common",
                 ":core:designsystem",
                 ":catalog",
+                ":catalog:model",
                 ":library",
                 ":chapters",
                 ":reader",
@@ -201,8 +202,9 @@ class ModuleBoundaryVerifierTest {
         assertTrue(":plugins:api" in policy.modules)
         assertTrue(":plugins:runtime" in policy.modules)
         assertTrue(":catalog" in policy.modules)
+        assertTrue(":catalog:model" in policy.modules)
         assertEquals(
-            setOf(":core:common", ":plugins:api", ":plugins:runtime"),
+            setOf(":core:common", ":catalog:model", ":plugins:api", ":plugins:runtime"),
             policy.modules.getValue(":catalog").productionDependencies.toSet(),
         )
     }
