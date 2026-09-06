@@ -87,7 +87,7 @@ class CanonicalEngineOrchestratorTest {
                     story,
                     CanonicalEngineWorkType.FUSION_REBUILD,
                     CanonicalEngineWorkReasons.SOURCE_SUMMARY_CHANGED,
-                    requiredPolicyVersion = app.openstory.catalog.fusion.FUSION_POLICY_VERSION,
+                    requiredPolicyVersion = app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION,
                 ),
             ),
             fixture.work.marks,

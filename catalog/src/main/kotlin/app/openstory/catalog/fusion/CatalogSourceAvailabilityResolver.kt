@@ -1,5 +1,8 @@
 package app.openstory.catalog.fusion
 
+import app.openstory.catalog.engine.fusion.CatalogSourceFreshness
+import app.openstory.catalog.engine.fusion.CatalogSourceUsability
+import app.openstory.catalog.engine.fusion.FusionSource
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.metadata.CatalogMetadataPolicy

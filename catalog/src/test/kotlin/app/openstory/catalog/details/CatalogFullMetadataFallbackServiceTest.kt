@@ -8,7 +8,7 @@ import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalSourceSummary
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.evidence.CatalogSourceRecord
-import app.openstory.catalog.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
 import app.openstory.catalog.identity.CanonicalIdentityState
 import app.openstory.catalog.identity.SourceKey

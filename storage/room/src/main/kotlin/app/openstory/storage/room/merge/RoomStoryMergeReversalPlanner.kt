@@ -1,7 +1,7 @@
 package app.openstory.storage.room.merge
 
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMergePolicy
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.identity.StoryMergeReverseRequest
 import app.openstory.catalog.identity.StoryMergeReversalAssessment
 import app.openstory.catalog.identity.StoryMergeReversibility

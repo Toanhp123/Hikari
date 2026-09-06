@@ -1,4 +1,4 @@
-package app.openstory.catalog.fusion
+package app.openstory.catalog.engine.fusion
 
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey

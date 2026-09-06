@@ -1,6 +1,11 @@
-package app.openstory.catalog.fusion
+package app.openstory.catalog.engine.fusion
 
+import app.openstory.catalog.canonical.CanonicalFieldContributor
 import app.openstory.catalog.canonical.CanonicalFieldKey
+import app.openstory.catalog.canonical.CanonicalFieldProvenance
+import app.openstory.catalog.canonical.CanonicalFieldStrategy
+import app.openstory.catalog.canonical.CanonicalHealth
+import app.openstory.catalog.canonical.CanonicalMetadata
 import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.evidence.CatalogSourceRecord
@@ -32,13 +37,85 @@ class CatalogFusionEngineFieldsTest {
         )
         val candidate = fuse(listOf(primary, fallback), primary.sourceKey)
 
-        assertEquals(primary.record.entry.title, candidate.metadata.title)
-        assertEquals("Fallback description", candidate.metadata.description)
-        assertEquals("https://example.test/b", candidate.metadata.sourceUrl)
-        assertEquals(7L, candidate.metadata.popularityRank)
         assertEquals(
-            listOf(fallback.sourceKey),
-            candidate.provenance.getValue(CanonicalFieldKey.DESCRIPTION).contributors.map { it.sourceKey },
+            CanonicalGenerationCandidate(
+                storyId = storyId,
+                fusionPolicyVersion = 1,
+                primarySelectionPolicyVersion = 1,
+                fusionFingerprint = "0266272fa83d60aa2710963d6dca8f7bcc6a2975c0a647d399efe12b6aa2aa62",
+                effectivePrimary = primary.sourceKey,
+                metadata = CanonicalMetadata(
+                    title = "Canonical",
+                    description = "Fallback description",
+                    coverUrl = "https://example.test/default.jpg",
+                    sourceUrl = "https://example.test/b",
+                    popularityRank = 7L,
+                    aliases = emptyList(),
+                    authors = emptyList(),
+                    genres = emptyList(),
+                    languageTags = emptyList(),
+                    publicationStatus = PublicationStatus.ONGOING,
+                    latestUpdate = null,
+                    score = null,
+                ),
+                health = CanonicalHealth.FRESH,
+                provenance = mapOf(
+                    CanonicalFieldKey.TITLE to provenance(
+                        CanonicalFieldKey.TITLE,
+                        CanonicalFieldStrategy.PRIMARY_WITH_FALLBACK,
+                        primary.sourceKey,
+                        "fusion:provider.a",
+                        "effective-primary",
+                    ),
+                    CanonicalFieldKey.DESCRIPTION to provenance(
+                        CanonicalFieldKey.DESCRIPTION,
+                        CanonicalFieldStrategy.PRIMARY_WITH_FALLBACK,
+                        fallback.sourceKey,
+                        "fusion:provider.b",
+                        "qualified-fallback",
+                    ),
+                    CanonicalFieldKey.SOURCE_URL to provenance(
+                        CanonicalFieldKey.SOURCE_URL,
+                        CanonicalFieldStrategy.PRIMARY_WITH_FALLBACK,
+                        fallback.sourceKey,
+                        "fusion:provider.b",
+                        "qualified-fallback",
+                    ),
+                    CanonicalFieldKey.POPULARITY_RANK to provenance(
+                        CanonicalFieldKey.POPULARITY_RANK,
+                        CanonicalFieldStrategy.PRIMARY_WITH_FALLBACK,
+                        fallback.sourceKey,
+                        "fusion:provider.b",
+                        "qualified-fallback",
+                    ),
+                    CanonicalFieldKey.COVER_URL to provenance(
+                        CanonicalFieldKey.COVER_URL,
+                        CanonicalFieldStrategy.PRIMARY_WITH_FALLBACK,
+                        primary.sourceKey,
+                        "fusion:provider.a",
+                        "effective-primary",
+                    ),
+                    CanonicalFieldKey.PUBLICATION_STATUS to provenance(
+                        CanonicalFieldKey.PUBLICATION_STATUS,
+                        CanonicalFieldStrategy.FRESHEST_QUALIFIED_VALUE,
+                        primary.sourceKey,
+                        "fusion:provider.a",
+                        "qualified-status",
+                    ),
+                ),
+                createdAtEpochMillis = 500L,
+                sourceContentTypes = mapOf(
+                    fallback.sourceKey to ContentType.MANGA,
+                    primary.sourceKey to ContentType.MANGA,
+                ),
+                primarySelection = PrimarySelectionDecision(
+                    selectedSource = primary.sourceKey,
+                    previousSource = null,
+                    challengerSource = fallback.sourceKey,
+                    reason = PrimarySelectionReason.PINNED,
+                ),
+            ),
+            candidate,
         )
     }
 
@@ -161,6 +238,26 @@ class CatalogFusionEngineFieldsTest {
             ),
             evaluatedAtEpochMillis = 500L,
         ),
+    )
+
+    private fun provenance(
+        field: CanonicalFieldKey,
+        strategy: CanonicalFieldStrategy,
+        sourceKey: SourceKey,
+        fusionFingerprint: String,
+        reasonCode: String,
+    ): CanonicalFieldProvenance = CanonicalFieldProvenance(
+        field = field,
+        strategy = strategy,
+        contributors = listOf(
+            CanonicalFieldContributor(
+                sourceKey = sourceKey,
+                fusionFingerprint = fusionFingerprint,
+                metadataLevel = app.openstory.catalog.metadata.CatalogMetadataLevel.Full,
+            ),
+        ),
+        reasonCodes = listOf(reasonCode),
+        policyVersion = 1,
     )
 
     private fun source(

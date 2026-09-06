@@ -6,8 +6,8 @@ import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.fusion.CanonicalFusionService
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
-import app.openstory.catalog.fusion.CanonicalGenerationValidator
-import app.openstory.catalog.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.CanonicalGenerationValidator
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
 import app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory
 import app.openstory.catalog.identity.StoryIdentityRepository

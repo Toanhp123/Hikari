@@ -1,6 +1,6 @@
 package app.openstory.storage.room.merge
 
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.orchestration.CanonicalEngineWorkReasons
 import app.openstory.catalog.orchestration.CanonicalEngineWorkType
 import app.openstory.common.id.StoryId

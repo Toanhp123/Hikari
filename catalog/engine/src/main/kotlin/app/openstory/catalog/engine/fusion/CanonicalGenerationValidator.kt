@@ -1,9 +1,9 @@
-package app.openstory.catalog.fusion
+package app.openstory.catalog.engine.fusion
 
 import app.openstory.catalog.canonical.CanonicalFieldKey
 import app.openstory.catalog.canonical.CanonicalScore
-import app.openstory.catalog.model.Story
 import app.openstory.catalog.identity.SourceKey
+import app.openstory.catalog.model.Story
 
 class CanonicalGenerationValidator {
     fun validate(

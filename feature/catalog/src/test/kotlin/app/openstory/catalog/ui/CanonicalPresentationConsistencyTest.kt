@@ -8,7 +8,7 @@ import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.fusion.CanonicalFusionService
-import app.openstory.catalog.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind

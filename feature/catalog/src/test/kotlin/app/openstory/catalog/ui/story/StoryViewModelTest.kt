@@ -6,7 +6,7 @@ import app.openstory.catalog.canonical.CanonicalStoryState
 import app.openstory.catalog.details.CatalogDetailsLoader
 import app.openstory.catalog.details.CatalogFullMetadataFallbackService
 import app.openstory.catalog.fusion.CanonicalFusionReason
-import app.openstory.catalog.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.SourceKey
