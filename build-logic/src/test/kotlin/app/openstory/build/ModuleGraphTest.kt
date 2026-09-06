@@ -256,6 +256,76 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun generatedArtProfilesTrackCatalogEnginePackages() {
+        val root = File("..").canonicalFile
+        val profiles = listOf(
+            File(root, "app/src/release/generated/baselineProfiles/baseline-prof.txt"),
+            File(root, "app/src/release/generated/baselineProfiles/startup-prof.txt"),
+        )
+        val staleMovedDescriptors = listOf(
+            "Lapp/openstory/catalog/matching/",
+            "Lapp/openstory/catalog/evidence/CatalogEvidenceFingerprints",
+            "Lapp/openstory/catalog/evidence/CatalogEvidenceNormalizer",
+            "Lapp/openstory/catalog/evidence/CatalogSourceRecordKt",
+            "Lapp/openstory/catalog/identity/CatalogStoryIdFactory",
+            "Lapp/openstory/catalog/reconciliation/CatalogCandidateIndex",
+            "Lapp/openstory/catalog/reconciliation/CatalogIngestReconciliationIndex",
+            "Lapp/openstory/catalog/reconciliation/CatalogReconciliationEngine",
+            "Lapp/openstory/catalog/reconciliation/InMemoryCatalogCandidateIndex",
+            "Lapp/openstory/catalog/reconciliation/IncomingSourceAction",
+            "Lapp/openstory/catalog/reconciliation/IncomingSourceResolution",
+            "Lapp/openstory/catalog/reconciliation/RankedReconciliationCandidate",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationAssessment",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationCandidateSelection",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationCaseKey",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationEvidence",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationEvidenceFactory",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationMergeEligibility",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationPolicy",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationReasonCode",
+            "Lapp/openstory/catalog/reconciliation/ReconciliationSemanticDecision",
+            "Lapp/openstory/catalog/fusion/CanonicalGenerationCandidate",
+            "Lapp/openstory/catalog/fusion/CanonicalGenerationValidator",
+            "Lapp/openstory/catalog/fusion/CatalogFusionEngine",
+            "Lapp/openstory/catalog/fusion/CatalogSourceFreshness",
+            "Lapp/openstory/catalog/fusion/CatalogSourceUsability",
+            "Lapp/openstory/catalog/fusion/FieldSelection",
+            "Lapp/openstory/catalog/fusion/FusionInput",
+            "Lapp/openstory/catalog/fusion/FusionPolicyKt",
+            "Lapp/openstory/catalog/fusion/FusionSource",
+            "Lapp/openstory/catalog/fusion/PrimaryQuality",
+            "Lapp/openstory/catalog/fusion/PrimarySelectionDecision",
+            "Lapp/openstory/catalog/fusion/PrimarySelectionPolicyKt",
+            "Lapp/openstory/catalog/fusion/PrimarySelectionReason",
+            "Lapp/openstory/catalog/fusion/TextContribution",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->similarityNormalized\$catalog(",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->tokensOfNormalized\$catalog(",
+        )
+        val requiredEngineDescriptors = listOf(
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->similarityNormalized\$Hikari_catalog_engine(",
+            "Lapp/openstory/catalog/engine/matching/TitleNormalizer;->tokensOfNormalized\$Hikari_catalog_engine(",
+            "Lapp/openstory/catalog/engine/evidence/CatalogEvidenceFingerprints;",
+            "Lapp/openstory/catalog/engine/evidence/CatalogSourceRecordFactoryKt;",
+            "Lapp/openstory/catalog/engine/reconciliation/CatalogReconciliationEngine;",
+            "Lapp/openstory/catalog/engine/fusion/CatalogFusionEngine;",
+        )
+
+        profiles.forEach { profile ->
+            val content = profile.readText()
+            val stale = staleMovedDescriptors.filter(content::contains)
+            val missing = requiredEngineDescriptors.filterNot(content::contains)
+
+            assertTrue(stale.isEmpty(), "${profile.name} retains moved Catalog descriptors: $stale")
+            assertTrue(missing.isEmpty(), "${profile.name} misses Catalog engine descriptors: $missing")
+        }
+        assertTrue(
+            "Lapp/openstory/catalog/engine/reconciliation/CatalogStoryIdFactory;" in profiles.first().readText(),
+            "baseline-prof.txt misses the moved CatalogStoryIdFactory descriptor",
+        )
+    }
+
+    @Test
     fun hesV1AndRiccV1ArchitectureAndPersistenceBoundaryAreFrozen() {
         val root = File("..").canonicalFile
         val policy = ModuleBoundaryPolicyLoader.load(

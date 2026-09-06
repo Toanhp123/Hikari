@@ -37,7 +37,7 @@ object TitleNormalizer {
         return intersectionSize.toDouble() / unionSize.toDouble()
     }
 
-    fun tokensOfNormalized(value: String): Set<String> = value
+    internal fun tokensOfNormalized(value: String): Set<String> = value
         .split(' ')
         .filter(String::isNotBlank)
         .toSet()
