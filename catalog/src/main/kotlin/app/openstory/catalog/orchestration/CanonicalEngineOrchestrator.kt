@@ -7,7 +7,7 @@ import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.reconciliation.CatalogReconciliationRunner
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.catalog.reconciliation.ReconciliationRunResult
 import app.openstory.common.id.StoryId
 import javax.inject.Inject

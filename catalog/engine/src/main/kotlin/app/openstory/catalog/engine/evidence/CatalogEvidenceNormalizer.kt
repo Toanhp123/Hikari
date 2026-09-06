@@ -1,4 +1,4 @@
-package app.openstory.catalog.evidence
+package app.openstory.catalog.engine.evidence
 
 import java.text.Normalizer
 import java.util.Locale

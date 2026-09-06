@@ -170,6 +170,7 @@ class ModuleBoundaryVerifierTest {
                 ":core:designsystem",
                 ":catalog",
                 ":catalog:model",
+                ":catalog:engine",
                 ":library",
                 ":chapters",
                 ":reader",

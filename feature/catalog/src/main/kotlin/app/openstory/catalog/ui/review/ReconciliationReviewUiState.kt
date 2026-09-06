@@ -1,6 +1,6 @@
 package app.openstory.catalog.ui.review
 
-import app.openstory.catalog.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.engine.reconciliation.ReconciliationReasonCode
 import app.openstory.catalog.ui.state.CatalogUiFailure
 import app.openstory.catalog.ui.state.ContentState
 import app.openstory.common.id.PluginId

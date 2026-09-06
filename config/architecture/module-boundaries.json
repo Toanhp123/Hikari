@@ -10,6 +10,7 @@
         ":core:designsystem",
         ":catalog",
         ":catalog:model",
+        ":catalog:engine",
         ":library",
         ":chapters",
         ":reader",
@@ -253,7 +254,7 @@
       "path": "feature/catalog",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:common", ":core:designsystem", ":catalog", ":catalog:model", ":library", ":chapters", ":reader", ":downloads"],
+      "productionDependencies": [":core:common", ":core:designsystem", ":catalog", ":catalog:model", ":catalog:engine", ":library", ":chapters", ":reader", ":downloads"],
       "testDependencies": [],
       "forbiddenProductionImports": ["app.openstory.storage.room.", "app.openstory.plugins."]
     },

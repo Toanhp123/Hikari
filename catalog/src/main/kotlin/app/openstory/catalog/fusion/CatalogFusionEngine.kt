@@ -9,7 +9,7 @@ import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalMetadata
 import app.openstory.catalog.canonical.CanonicalScore
 import app.openstory.catalog.canonical.CanonicalSourcePreference
-import app.openstory.catalog.evidence.CatalogEvidenceNormalizer
+import app.openstory.catalog.engine.evidence.CatalogEvidenceNormalizer
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.model.CatalogLatestUpdate

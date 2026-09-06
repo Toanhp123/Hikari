@@ -5,7 +5,7 @@ import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.reconciliation.CatalogReconciliationMaintenance
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.catalog.reconciliation.ReconciliationMaintenanceCase
 import app.openstory.catalog.reconciliation.ReconciliationRunResult
 import app.openstory.common.FakeClock

@@ -1,4 +1,4 @@
-package app.openstory.catalog.reconciliation
+package app.openstory.catalog.engine.reconciliation
 
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
@@ -182,11 +182,7 @@ class ReconciliationAdversarialFixtureTest {
         val forward = engine.rankCandidates(incoming, candidates)
         val reverse = engine.rankCandidates(incoming, candidates.reversed())
 
-        assertEquals(forward.semanticDecision, reverse.semanticDecision)
-        assertEquals(forward.mergeEligibility, reverse.mergeEligibility)
-        assertEquals(forward.winningLead, reverse.winningLead)
-        assertEquals(forward.reasons, reverse.reasons)
-        assertEquals(forward.ranked.map { it.storyId }, reverse.ranked.map { it.storyId })
+        assertEquals(forward, reverse)
     }
 
     private fun evidence(

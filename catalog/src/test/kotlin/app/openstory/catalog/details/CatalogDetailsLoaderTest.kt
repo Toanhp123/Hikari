@@ -35,9 +35,9 @@ import app.openstory.catalog.source.SourcePublicationStatus
 import app.openstory.catalog.source.SourceSearchPage
 import app.openstory.catalog.source.SourceSearchRequest
 import app.openstory.catalog.source.SourceSection
-import app.openstory.catalog.evidence.toSourceRecord
-import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
-import app.openstory.catalog.reconciliation.ReconciliationPolicy
+import app.openstory.catalog.engine.evidence.toSourceRecord
+import app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.engine.reconciliation.ReconciliationPolicy
 import app.openstory.catalog.repository.CatalogCommitChange
 import app.openstory.catalog.repository.CatalogDetailsCommitResult
 import app.openstory.common.Clock
@@ -246,10 +246,10 @@ class CatalogDetailsLoaderTest {
         return CatalogDetailsLoader(
             sources = registry,
             repository = repository,
-            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
-                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            reconciliationEngine = app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.engine.reconciliation.ReconciliationPolicy(),
             ),
-            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            storyIdFactory = app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory(),
             orchestrator = engine,
             clock = clock,
         )

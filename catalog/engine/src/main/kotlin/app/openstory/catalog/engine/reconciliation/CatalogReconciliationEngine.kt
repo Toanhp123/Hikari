@@ -1,4 +1,4 @@
-package app.openstory.catalog.reconciliation
+package app.openstory.catalog.engine.reconciliation
 
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope

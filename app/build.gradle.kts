@@ -119,6 +119,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":catalog"))
     implementation(project(":catalog:model"))
+    implementation(project(":catalog:engine"))
     implementation(project(":library"))
     implementation(project(":chapters"))
     implementation(project(":reader"))

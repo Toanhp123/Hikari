@@ -8,7 +8,7 @@ import app.openstory.catalog.canonical.CanonicalFieldKey
 import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
 import app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION
 import app.openstory.catalog.orchestration.CanonicalMaintenancePolicyState
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlin.test.Test

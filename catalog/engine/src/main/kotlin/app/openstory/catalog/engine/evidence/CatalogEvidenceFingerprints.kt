@@ -1,4 +1,4 @@
-package app.openstory.catalog.evidence
+package app.openstory.catalog.engine.evidence
 
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot

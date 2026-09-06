@@ -1,7 +1,6 @@
-package app.openstory.catalog.identity
+package app.openstory.catalog.engine.reconciliation
 
 import app.openstory.catalog.model.Story
-import app.openstory.catalog.reconciliation.ReconciliationEvidence
 import app.openstory.common.id.StoryId
 import java.security.MessageDigest
 

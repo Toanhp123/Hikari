@@ -8,11 +8,11 @@ import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResult
-import app.openstory.catalog.reconciliation.ReconciliationAssessment
-import app.openstory.catalog.reconciliation.ReconciliationCaseKey
-import app.openstory.catalog.reconciliation.ReconciliationMergeEligibility
-import app.openstory.catalog.reconciliation.ReconciliationReasonCode
-import app.openstory.catalog.reconciliation.ReconciliationSemanticDecision
+import app.openstory.catalog.engine.reconciliation.ReconciliationAssessment
+import app.openstory.catalog.engine.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.engine.reconciliation.ReconciliationSemanticDecision
 import app.openstory.common.FakeClock
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId

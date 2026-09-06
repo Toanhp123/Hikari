@@ -231,7 +231,7 @@ class CanonicalEngineOrchestratorTest {
                 survivor,
                 CanonicalEngineWorkType.RECONCILIATION_REEVALUATION,
                 CanonicalEngineWorkReasons.SOURCE_FULL_CHANGED,
-                app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION,
+                app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION,
             ),
             fixture.work.marks[0],
         )

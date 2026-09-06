@@ -1,4 +1,4 @@
-package app.openstory.catalog.reconciliation
+package app.openstory.catalog.engine.reconciliation
 
 const val RECONCILIATION_POLICY_VERSION = 1
 

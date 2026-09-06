@@ -8,7 +8,7 @@ import app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION
 import app.openstory.catalog.identity.StoryIdentityInvariantException
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.reconciliation.CatalogReconciliationMaintenance
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.catalog.reconciliation.ReconciliationMaintenanceCase
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId

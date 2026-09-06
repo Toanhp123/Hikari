@@ -9,36 +9,6 @@ import javax.inject.Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class CatalogMetadataScope
 
-data class CatalogMetadataKey(
-    val pluginId: PluginId,
-    val sourceId: String,
-) {
-    init {
-        require(sourceId.isNotBlank())
-    }
-}
-
-enum class CatalogMetadataLevel {
-    Summary,
-    Full,
-}
-
-data class CatalogMetadataStamp(
-    val pluginVersion: String,
-    val resolvedAtEpochMillis: Long,
-) {
-    init {
-        require(pluginVersion.isNotBlank())
-        require(resolvedAtEpochMillis >= 0)
-    }
-}
-
-data class CatalogMetadataSnapshot(
-    val entry: CatalogEntry,
-    val summary: CatalogMetadataStamp,
-    val full: CatalogMetadataStamp?,
-)
-
 interface CatalogMetadataAccess {
     suspend fun require(key: CatalogMetadataKey, level: CatalogMetadataLevel): CatalogMetadataResult
     suspend fun refresh(key: CatalogMetadataKey, level: CatalogMetadataLevel): CatalogMetadataResult

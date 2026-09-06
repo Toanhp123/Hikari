@@ -1,4 +1,4 @@
-package app.openstory.catalog.reconciliation
+package app.openstory.catalog.engine.reconciliation
 
 import app.openstory.common.id.StoryId
 import kotlin.test.Test

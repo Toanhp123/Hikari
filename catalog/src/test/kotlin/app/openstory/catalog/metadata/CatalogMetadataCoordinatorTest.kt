@@ -301,10 +301,10 @@ class CatalogMetadataCoordinatorTest {
         val loader = CatalogDetailsLoader(
             sources = registry,
             repository = repository,
-            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
-                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            reconciliationEngine = app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.engine.reconciliation.ReconciliationPolicy(),
             ),
-            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            storyIdFactory = app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory(),
             orchestrator = app.openstory.catalog.RecordingCanonicalEngineEventSink(),
             clock = clock,
         )

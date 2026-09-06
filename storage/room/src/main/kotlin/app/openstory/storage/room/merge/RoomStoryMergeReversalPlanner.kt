@@ -6,7 +6,7 @@ import app.openstory.catalog.identity.StoryMergeReverseRequest
 import app.openstory.catalog.identity.StoryMergeReversalAssessment
 import app.openstory.catalog.identity.StoryMergeReversibility
 import app.openstory.catalog.orchestration.CanonicalEngineWorkType
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.chapters.merge.ChapterStoryMergePolicy
 import app.openstory.common.merge.DomainMergeDecision
 import app.openstory.library.merge.ContentMappingStoryMergePolicy

@@ -1,7 +1,7 @@
-package app.openstory.catalog.identity
+package app.openstory.catalog.engine.reconciliation
 
+import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.ContentType
-import app.openstory.catalog.reconciliation.ReconciliationEvidenceFactory
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
 import kotlin.test.Test
