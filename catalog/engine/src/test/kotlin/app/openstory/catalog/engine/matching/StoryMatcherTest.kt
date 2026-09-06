@@ -1,4 +1,4 @@
-package app.openstory.catalog.matching
+package app.openstory.catalog.engine.matching
 
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope

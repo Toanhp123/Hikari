@@ -203,8 +203,9 @@ class ModuleBoundaryVerifierTest {
         assertTrue(":plugins:runtime" in policy.modules)
         assertTrue(":catalog" in policy.modules)
         assertTrue(":catalog:model" in policy.modules)
+        assertTrue(":catalog:engine" in policy.modules)
         assertEquals(
-            setOf(":core:common", ":catalog:model", ":plugins:api", ":plugins:runtime"),
+            setOf(":core:common", ":catalog:model", ":catalog:engine", ":plugins:api", ":plugins:runtime"),
             policy.modules.getValue(":catalog").productionDependencies.toSet(),
         )
     }

@@ -15,7 +15,7 @@ import app.openstory.catalog.fusion.CanonicalFusionReason
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.SourceKey
-import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.engine.matching.CatalogMatchCandidate
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.metadata.CatalogMetadataStamp

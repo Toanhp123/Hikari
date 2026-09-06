@@ -4,7 +4,7 @@ import app.openstory.catalog.evidence.CatalogEvidenceFingerprints
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.SourceKey
-import app.openstory.catalog.matching.TitleNormalizer
+import app.openstory.catalog.engine.matching.TitleNormalizer
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.ContentType
 

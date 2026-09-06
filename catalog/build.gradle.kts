@@ -10,6 +10,7 @@ android {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":catalog:model"))
+    implementation(project(":catalog:engine"))
     implementation(project(":plugins:api"))
     implementation(project(":plugins:runtime"))
     implementation(libs.kotlinx.coroutines.core)

@@ -1,4 +1,4 @@
-package app.openstory.catalog.matching
+package app.openstory.catalog.engine.matching
 
 data class MatchPolicy(
     val autoLinkTitleSimilarityAt: Double = 0.92,

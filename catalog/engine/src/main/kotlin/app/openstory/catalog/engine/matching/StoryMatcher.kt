@@ -1,4 +1,4 @@
-package app.openstory.catalog.matching
+package app.openstory.catalog.engine.matching
 
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.Story

@@ -4,7 +4,7 @@ import app.openstory.catalog.evidence.CatalogEvidenceNormalizer
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope
 import app.openstory.catalog.identity.SourceKey
-import app.openstory.catalog.matching.TitleNormalizer
+import app.openstory.catalog.engine.matching.TitleNormalizer
 import app.openstory.common.id.StoryId
 
 interface CatalogCandidateIndex {

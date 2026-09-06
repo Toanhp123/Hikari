@@ -1,4 +1,4 @@
-package app.openstory.catalog.matching
+package app.openstory.catalog.engine.matching
 
 import java.text.Normalizer
 import java.util.Locale
@@ -37,7 +37,7 @@ object TitleNormalizer {
         return intersectionSize.toDouble() / unionSize.toDouble()
     }
 
-    internal fun tokensOfNormalized(value: String): Set<String> = value
+    fun tokensOfNormalized(value: String): Set<String> = value
         .split(' ')
         .filter(String::isNotBlank)
         .toSet()
