@@ -1,9 +1,9 @@
 package app.openstory.catalog.details
 
 import app.openstory.catalog.canonical.CanonicalCatalogRepository
-import app.openstory.catalog.fusion.CatalogFusionEngine
+import app.openstory.catalog.engine.fusion.CatalogFusionEngine
 import app.openstory.catalog.fusion.CatalogSourceAvailabilityResolver
-import app.openstory.catalog.fusion.FusionInput
+import app.openstory.catalog.engine.fusion.FusionInput
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.metadata.CatalogMetadataAccess

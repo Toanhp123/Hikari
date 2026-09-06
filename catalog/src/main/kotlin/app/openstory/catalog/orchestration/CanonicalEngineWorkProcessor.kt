@@ -3,12 +3,12 @@ package app.openstory.catalog.orchestration
 import app.openstory.catalog.fusion.CanonicalFusionReason
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
-import app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION
 import app.openstory.catalog.identity.StoryIdentityInvariantException
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.reconciliation.CatalogReconciliationMaintenance
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.CancellationException

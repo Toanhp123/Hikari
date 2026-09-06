@@ -20,7 +20,6 @@ benchmark_build="$root/benchmark/build.gradle.kts"
 benchmark_test="$root/benchmark/src/main/kotlin/app/openstory/benchmark/HikariMacrobenchmark.kt"
 profile_test="$root/benchmark/src/main/kotlin/app/openstory/benchmark/BaselineProfileGenerator.kt"
 architecture_models="$root/build-logic/src/main/kotlin/app/openstory/build/architecture/ModuleBoundaryModels.kt"
-backdrop_mode="$root/core/designsystem/src/main/kotlin/app/openstory/designsystem/glass/HikariBackdropMode.kt"
 
 fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
 
@@ -28,7 +27,6 @@ fail() { echo "Performance Wave 4 policy violation: $1" >&2; exit 1; }
 [[ -f "$benchmark_build" ]] || fail "benchmark module is missing"
 [[ -f "$benchmark_test" ]] || fail "Macrobenchmark CUJ suite is missing"
 [[ -f "$profile_test" ]] || fail "Baseline Profile generator is missing"
-[[ -f "$backdrop_mode" ]] || fail "benchmark backdrop mode owner is missing"
 
 # Discover must have one retained Home observation, keyed canonical settlement, and one projection pipeline.
 [[ $(grep -o 'repository\.observeHomes()' "$discover_vm" | wc -l) -eq 1 ]] ||
@@ -133,11 +131,5 @@ grep -q 'optimization {' "$app_build" || fail "release optimization block is mis
 grep -A2 'optimization {' "$app_build" | grep -q 'enable = true' || fail "release optimization is not enabled"
 grep -q 'automaticGenerationDuringBuild = false' "$app_build" || fail "Baseline Profile generation must stay out of ordinary builds"
 grep -q 'dexLayoutOptimization = true' "$app_build" || fail "Startup Profile dex layout optimization is not enabled"
-
-# Blur A/B must be explicit and benchmark-only.
-grep -q 'enum class HikariBackdropMode' "$backdrop_mode" || fail "backdrop mode is not explicit"
-grep -q 'DISABLED_FOR_BENCHMARK' "$backdrop_mode" || fail "benchmark-only blur disable mode is missing"
-grep -q 'backdropDisabled' "$benchmark_test" || fail "blur-off benchmark is missing"
-grep -q 'backdropEnabled' "$benchmark_test" || fail "blur-on benchmark is missing"
 
 echo "Performance Wave 4 policy verified."

@@ -60,7 +60,8 @@ grep -q 'EnterTransition.None togetherWith ExitTransition.None' "$nav" || fail "
 grep -q 'useLegacyNavigationTransitions' "$nav" || fail "legacy transition A/B path is missing"
 grep -q 'noTopLevelTransitionMetadata' "$nav" || fail "top-level transition metadata is rebuilt instead of remaining identity-stable"
 grep -q 'val showFloatingNavigation = shouldShowFloatingNavigation(currentRoute)' "$shell" || fail "app shell does not isolate backdrop ownership to floating-navigation routes"
-grep -q 'captureBackdrop = showFloatingNavigation' "$shell" || fail "app shell moves navigation content between composition branches instead of toggling backdrop capture"
+grep -q 'captureBackdrop = false' "$shell" || fail "app shell re-enabled expensive top-level backdrop capture"
+grep -q 'backdropScope = null' "$shell" || fail "floating navigation does not use the no-capture fallback surface"
 grep -q 'captureBackdrop: Boolean = true' "$backdrop_host" || fail "backdrop host cannot disable capture without disposing its background composition"
 
 # Story section data is deferred until after first frame, then kept warm.

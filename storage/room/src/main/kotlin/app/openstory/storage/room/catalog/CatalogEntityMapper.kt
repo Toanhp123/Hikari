@@ -1,7 +1,7 @@
 package app.openstory.storage.room.catalog
 
-import app.openstory.catalog.matching.CatalogMatchCandidate
-import app.openstory.catalog.matching.CatalogMatchEvidence
+import app.openstory.catalog.engine.matching.CatalogMatchCandidate
+import app.openstory.catalog.engine.matching.CatalogMatchEvidence
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.ExternalIdentifierScope

@@ -5,9 +5,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import app.openstory.common.id.StoryId
@@ -24,7 +25,7 @@ internal fun LazyListScope.discoverLatestItems(
     val firstRow = rows.firstOrNull() ?: return
 
     item(
-        key = latestRowKey(firstRow, lead = true),
+        key = LATEST_LEAD_KEY,
         contentType = LATEST_LEAD_CONTENT_TYPE,
     ) {
         HikariSectionLead(
@@ -34,11 +35,11 @@ internal fun LazyListScope.discoverLatestItems(
             firstContent = { DiscoverLatestRow(firstRow, onSelected) },
         )
     }
-    items(
+    itemsIndexed(
         items = rows.drop(1),
-        key = { row -> latestRowKey(row, lead = false) },
-        contentType = { LATEST_ROW_CONTENT_TYPE },
-    ) { row ->
+        key = { index, _ -> "$LATEST_ROW_KEY_PREFIX:${index + 1}" },
+        contentType = { _, _ -> LATEST_ROW_CONTENT_TYPE },
+    ) { _, row ->
         DiscoverLatestRow(row, onSelected)
     }
 }
@@ -53,11 +54,13 @@ private fun DiscoverLatestRow(
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.itemGap),
     ) {
         items.forEach { item ->
-            DiscoverLatestCard(
-                item = item,
-                onSelected = onSelected,
-                modifier = Modifier.weight(1f),
-            )
+            key(item.storyId) {
+                DiscoverLatestCard(
+                    item = item,
+                    onSelected = onSelected,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
         repeat(LATEST_COLUMNS - items.size) {
             Spacer(Modifier.weight(1f))
@@ -65,15 +68,9 @@ private fun DiscoverLatestRow(
     }
 }
 
-private fun latestRowKey(items: List<DiscoverStoryItem>, lead: Boolean): String = buildString {
-    append(if (lead) "discover-latest-lead" else "discover-latest-row")
-    items.forEach { item ->
-        append(':')
-        append(item.storyId.value)
-    }
-}
-
 private const val LATEST_COLUMNS = 3
 private const val MAX_LATEST_ITEMS = 9
+private const val LATEST_LEAD_KEY = "discover-latest-lead"
+private const val LATEST_ROW_KEY_PREFIX = "discover-latest-row"
 private const val LATEST_LEAD_CONTENT_TYPE = "discover-latest-lead"
 private const val LATEST_ROW_CONTENT_TYPE = "discover-latest-row"

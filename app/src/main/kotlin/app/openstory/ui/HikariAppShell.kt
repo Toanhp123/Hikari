@@ -47,7 +47,7 @@ fun HikariAppShell(
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         HikariBackdropHost(
             modifier = Modifier.fillMaxSize(),
-            captureBackdrop = showFloatingNavigation,
+            captureBackdrop = false,
             background = { shellScope.content(contentPadding) },
         ) {
             if (showFloatingNavigation) {
@@ -67,7 +67,7 @@ fun HikariAppShell(
                                 horizontal = MaterialTheme.hikariSpacing.space20,
                                 vertical = MaterialTheme.hikariSpacing.space12,
                             ),
-                        backdropScope = this@HikariBackdropHost,
+                        backdropScope = null,
                     )
                 }
             }

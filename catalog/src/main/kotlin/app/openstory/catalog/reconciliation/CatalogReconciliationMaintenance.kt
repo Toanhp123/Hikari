@@ -1,5 +1,9 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.engine.reconciliation.InMemoryCatalogCandidateIndex
+import app.openstory.catalog.engine.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.engine.reconciliation.ReconciliationEvidenceFactory
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.id.StoryId

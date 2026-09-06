@@ -1,7 +1,7 @@
 package app.openstory.catalog.home
 
 import app.openstory.catalog.CatalogStoreFailure
-import app.openstory.catalog.identity.CatalogStoryIdFactory
+import app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.model.CatalogEntry
 import app.openstory.catalog.model.CatalogFeedKind
@@ -12,10 +12,10 @@ import app.openstory.catalog.model.ContentType
 import app.openstory.catalog.model.PublicationStatus
 import app.openstory.catalog.model.Score
 import app.openstory.catalog.model.Story
-import app.openstory.catalog.reconciliation.CatalogIngestReconciliationIndex
-import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
-import app.openstory.catalog.reconciliation.IncomingSourceResolution
-import app.openstory.catalog.reconciliation.ReconciliationEvidenceFactory
+import app.openstory.catalog.engine.reconciliation.CatalogIngestReconciliationIndex
+import app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.engine.reconciliation.IncomingSourceResolution
+import app.openstory.catalog.engine.reconciliation.ReconciliationEvidenceFactory
 import app.openstory.catalog.orchestration.CanonicalEngineEventSink
 import app.openstory.catalog.orchestration.CatalogEvidenceLevel
 import app.openstory.catalog.orchestration.toEvidenceChange

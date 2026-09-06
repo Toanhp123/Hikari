@@ -1,7 +1,7 @@
 package app.openstory.catalog.orchestration
 
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.common.id.StoryId
 
 fun List<CatalogEvidenceChange>.toDeferredCanonicalWorkRequests(): List<CanonicalEngineWorkRequest> =

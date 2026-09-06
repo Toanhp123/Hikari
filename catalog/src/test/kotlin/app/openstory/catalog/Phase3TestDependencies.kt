@@ -5,13 +5,13 @@ import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.fusion.CanonicalGenerationRebuilder
 import app.openstory.catalog.identity.CanonicalIdentityState
 import app.openstory.catalog.identity.StoryIdentityRepository
-import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine
 import app.openstory.catalog.reconciliation.CatalogReconciliationService
-import app.openstory.catalog.reconciliation.InMemoryCatalogCandidateIndex
+import app.openstory.catalog.engine.reconciliation.InMemoryCatalogCandidateIndex
 import app.openstory.catalog.reconciliation.ReconciliationCase
-import app.openstory.catalog.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.engine.reconciliation.ReconciliationCaseKey
 import app.openstory.catalog.reconciliation.ReconciliationCaseRepository
-import app.openstory.catalog.reconciliation.ReconciliationPolicy
+import app.openstory.catalog.engine.reconciliation.ReconciliationPolicy
 import app.openstory.catalog.reconciliation.ReconciliationResolutionOrigin
 import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.Clock
@@ -48,7 +48,7 @@ private object NoOpReconciliationCaseRepository : ReconciliationCaseRepository {
     override suspend fun findActive(key: ReconciliationCaseKey): ReconciliationCase? = null
     override suspend fun recordAssessment(
         key: ReconciliationCaseKey,
-        assessment: app.openstory.catalog.reconciliation.ReconciliationAssessment,
+        assessment: app.openstory.catalog.engine.reconciliation.ReconciliationAssessment,
         evaluatedAtEpochMillis: Long,
     ): ReconciliationCase? = null
     override suspend fun resolveSeparate(

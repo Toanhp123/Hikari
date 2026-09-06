@@ -15,9 +15,9 @@ import app.openstory.catalog.canonical.CanonicalSourcePreference
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
 import app.openstory.catalog.canonical.CanonicalSourceSummary
 import app.openstory.catalog.canonical.CanonicalStoryState
-import app.openstory.catalog.evidence.CatalogEvidenceNormalizer
+import app.openstory.catalog.engine.evidence.CatalogEvidenceNormalizer
 import app.openstory.catalog.evidence.CatalogSourceRecord
-import app.openstory.catalog.evidence.toSourceRecord
+import app.openstory.catalog.engine.evidence.toSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.metadata.CatalogMetadataLevel

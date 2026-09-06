@@ -1,5 +1,6 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.engine.reconciliation.ReconciliationCaseKey
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.common.id.StoryId
 

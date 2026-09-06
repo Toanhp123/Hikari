@@ -4,13 +4,13 @@ import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.FeatureNoOpCanonicalEngineEventSink
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.home.CatalogRefreshService
-import app.openstory.catalog.identity.CatalogStoryIdFactory
+import app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory
 import app.openstory.catalog.metadata.CatalogMetadataKey
 import app.openstory.catalog.metadata.CatalogMetadataSnapshot
 import app.openstory.catalog.model.CatalogHomeSnapshot
 import app.openstory.catalog.model.StoryCatalogSnapshot
-import app.openstory.catalog.reconciliation.CatalogReconciliationEngine
-import app.openstory.catalog.reconciliation.ReconciliationPolicy
+import app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.engine.reconciliation.ReconciliationPolicy
 import app.openstory.catalog.repository.CatalogDetailsCommitResult
 import app.openstory.catalog.repository.CatalogDetailsMutation
 import app.openstory.catalog.repository.CatalogHomeCommitResult

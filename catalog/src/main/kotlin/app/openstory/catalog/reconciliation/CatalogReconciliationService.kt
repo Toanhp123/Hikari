@@ -2,6 +2,16 @@ package app.openstory.catalog.reconciliation
 
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
+import app.openstory.catalog.engine.reconciliation.CatalogCandidateIndex
+import app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.engine.reconciliation.RankedReconciliationCandidate
+import app.openstory.catalog.engine.reconciliation.ReconciliationAssessment
+import app.openstory.catalog.engine.reconciliation.ReconciliationCandidateSelection
+import app.openstory.catalog.engine.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.engine.reconciliation.ReconciliationEvidence
+import app.openstory.catalog.engine.reconciliation.ReconciliationEvidenceFactory
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationSemanticDecision
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository
@@ -10,9 +20,9 @@ import app.openstory.catalog.identity.StoryMergeOrigin
 import app.openstory.catalog.identity.StoryMergeRequest
 import app.openstory.catalog.identity.StoryMergeResult
 import app.openstory.catalog.metadata.CatalogMetadataKey
-import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.orchestration.CanonicalEngineWorkType
+import app.openstory.catalog.repository.CatalogRepository
 import app.openstory.common.Clock
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.sync.Mutex

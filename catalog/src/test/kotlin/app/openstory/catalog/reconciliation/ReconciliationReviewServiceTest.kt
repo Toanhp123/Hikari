@@ -1,5 +1,10 @@
 package app.openstory.catalog.reconciliation
 
+import app.openstory.catalog.engine.reconciliation.ReconciliationAssessment
+import app.openstory.catalog.engine.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.engine.reconciliation.ReconciliationSemanticDecision
 import app.openstory.catalog.fusion.CanonicalFusionResult
 import app.openstory.catalog.identity.CanonicalIdentityState
 import app.openstory.catalog.identity.ProtectedContentMappingConflict

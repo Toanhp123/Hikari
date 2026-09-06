@@ -1,5 +1,8 @@
 package app.openstory.catalog.fusion
 
+import app.openstory.catalog.engine.fusion.CatalogSourceFreshness
+import app.openstory.catalog.engine.fusion.CatalogSourceUsability
+import app.openstory.catalog.engine.fusion.FusionSource
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.metadata.CatalogMetadataLevel
 import app.openstory.catalog.metadata.CatalogMetadataPolicy
@@ -23,12 +26,13 @@ class CatalogSourceAvailabilityResolver @Inject constructor(
         operationState: CatalogSourceOperationState = CatalogSourceOperationState.AVAILABLE,
     ): FusionSource {
         val source = registry.source(record.key.pluginId)
+        val full = record.full
         val freshness = when {
             source == null -> CatalogSourceFreshness.UNKNOWN
-            record.full == null -> CatalogSourceFreshness.UNKNOWN
+            full == null -> CatalogSourceFreshness.UNKNOWN
             metadataPolicy.isFresh(
                 CatalogMetadataLevel.Full,
-                record.full,
+                full,
                 source.version,
             ) -> CatalogSourceFreshness.FRESH
             else -> CatalogSourceFreshness.STALE
@@ -57,12 +61,13 @@ class CatalogSourceAvailabilityResolver @Inject constructor(
         source: CatalogSource?,
         operationState: CatalogSourceOperationState = CatalogSourceOperationState.AVAILABLE,
     ): FusionSource {
+        val full = record.full
         val freshness = when {
             source == null -> CatalogSourceFreshness.UNKNOWN
-            record.full == null -> CatalogSourceFreshness.UNKNOWN
+            full == null -> CatalogSourceFreshness.UNKNOWN
             metadataPolicy.isFresh(
                 CatalogMetadataLevel.Full,
-                record.full,
+                full,
                 source.version,
             ) -> CatalogSourceFreshness.FRESH
             else -> CatalogSourceFreshness.STALE

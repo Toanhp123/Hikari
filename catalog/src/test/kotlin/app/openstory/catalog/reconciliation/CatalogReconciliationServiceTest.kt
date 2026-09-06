@@ -5,6 +5,16 @@ import app.openstory.catalog.diagnostics.CanonicalDecisionTrace
 import app.openstory.catalog.diagnostics.CanonicalDiagnostics
 import app.openstory.catalog.diagnostics.CanonicalTraceKind
 import app.openstory.catalog.diagnostics.NoOpCanonicalDiagnosticsSink
+import app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine
+import app.openstory.catalog.engine.reconciliation.InMemoryCatalogCandidateIndex
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.ReconciliationAssessment
+import app.openstory.catalog.engine.reconciliation.ReconciliationCaseKey
+import app.openstory.catalog.engine.reconciliation.ReconciliationEvidenceFactory
+import app.openstory.catalog.engine.reconciliation.ReconciliationMergeEligibility
+import app.openstory.catalog.engine.reconciliation.ReconciliationPolicy
+import app.openstory.catalog.engine.reconciliation.ReconciliationReasonCode
+import app.openstory.catalog.engine.reconciliation.ReconciliationSemanticDecision
 import app.openstory.catalog.evidence.CatalogSourceRecord
 import app.openstory.catalog.identity.StoryIdentityRepository
 import app.openstory.catalog.identity.CanonicalIdentityState

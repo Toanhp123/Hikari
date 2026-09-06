@@ -695,7 +695,7 @@ class DiscoverViewModelTest {
     }
 
     @Test
-    fun freshDiscoverRefreshSelectsOnlyNineteenVisibleStoriesForImmediateConvergence() =
+    fun freshDiscoverRefreshDefersCanonicalConvergence() =
         runTest(dispatcher.scheduler) {
             val repository = FakeRepository(emptyList())
             val source = FakeSource().apply {
@@ -706,7 +706,7 @@ class DiscoverViewModelTest {
             viewModel(repository, source, engine = engine)
             runCurrent()
 
-            assertEquals(19, engine.immediateStoryIdBatches.single().size)
+            assertEquals(emptySet(), engine.immediateStoryIdBatches.single())
         }
 
     @Test
@@ -1065,10 +1065,10 @@ class DiscoverViewModelTest {
         val refreshService = CatalogRefreshService(
             sources = registry,
             repository = repository,
-            reconciliationEngine = app.openstory.catalog.reconciliation.CatalogReconciliationEngine(
-                app.openstory.catalog.reconciliation.ReconciliationPolicy(),
+            reconciliationEngine = app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine(
+                app.openstory.catalog.engine.reconciliation.ReconciliationPolicy(),
             ),
-            storyIdFactory = app.openstory.catalog.identity.CatalogStoryIdFactory(),
+            storyIdFactory = app.openstory.catalog.engine.reconciliation.CatalogStoryIdFactory(),
             orchestrator = engine,
             clock = clock,
         )

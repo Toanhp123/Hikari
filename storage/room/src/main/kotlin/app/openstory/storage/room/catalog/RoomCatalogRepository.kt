@@ -4,9 +4,9 @@ import androidx.room.withTransaction
 import app.openstory.catalog.CatalogStoreFailure
 import app.openstory.catalog.canonical.CanonicalHealth
 import app.openstory.catalog.canonical.CanonicalSourcePreferenceMode
-import app.openstory.catalog.matching.CatalogMatchCandidate
+import app.openstory.catalog.engine.matching.CatalogMatchCandidate
 import app.openstory.catalog.evidence.CatalogSourceRecord
-import app.openstory.catalog.evidence.toSourceRecord
+import app.openstory.catalog.engine.evidence.toSourceRecord
 import app.openstory.catalog.identity.ExternalIdentifier
 import app.openstory.catalog.identity.SourceKey
 import app.openstory.catalog.identity.StoryIdentityRepository

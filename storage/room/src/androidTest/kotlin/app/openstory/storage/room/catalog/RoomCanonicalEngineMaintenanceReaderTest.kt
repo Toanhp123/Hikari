@@ -5,10 +5,10 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.openstory.catalog.canonical.CanonicalFieldKey
-import app.openstory.catalog.fusion.FUSION_POLICY_VERSION
-import app.openstory.catalog.fusion.PRIMARY_SELECTION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.FUSION_POLICY_VERSION
+import app.openstory.catalog.engine.fusion.PRIMARY_SELECTION_POLICY_VERSION
 import app.openstory.catalog.orchestration.CanonicalMaintenancePolicyState
-import app.openstory.catalog.reconciliation.RECONCILIATION_POLICY_VERSION
+import app.openstory.catalog.engine.reconciliation.RECONCILIATION_POLICY_VERSION
 import app.openstory.common.id.StoryId
 import app.openstory.storage.room.OpenStoryDatabase
 import kotlin.test.Test

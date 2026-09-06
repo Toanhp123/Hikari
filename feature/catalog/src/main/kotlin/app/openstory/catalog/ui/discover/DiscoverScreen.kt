@@ -7,12 +7,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -25,10 +25,11 @@ import app.openstory.designsystem.layout.HikariTopLevelHeader
 import app.openstory.designsystem.layout.HikariTopLevelScaffold
 import app.openstory.designsystem.layout.withScreenContentInsets
 import app.openstory.designsystem.refresh.HikariPullToRefresh
+import app.openstory.designsystem.scroll.hikariScrollToTop
+import app.openstory.designsystem.scroll.rememberHikariScrollToTopAction
 import app.openstory.designsystem.theme.hikariAtmosphereBrush
 import app.openstory.designsystem.theme.hikariBreakpoints
 import app.openstory.designsystem.theme.hikariSpacing
-import kotlinx.coroutines.launch
 
 @Composable
 fun DiscoverScreen(
@@ -48,14 +49,16 @@ fun DiscoverScreen(
     utilityNextFocusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     val background = MaterialTheme.hikariAtmosphereBrush
-    val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-    val showScrollToTop = remember {
-        derivedStateOf { listState.firstVisibleItemIndex >= SCROLL_TO_TOP_ITEM_THRESHOLD }
+    val onScrollToTop = rememberHikariScrollToTopAction { listState.hikariScrollToTop() }
+    val showScrollToTop = remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
     }
-    val headerScrolled = remember {
+    val headerScrolled = remember(listState) {
         derivedStateOf { listState.canScrollBackward }
     }
 
@@ -89,7 +92,7 @@ fun DiscoverScreen(
                 },
                 headerScrolled = headerScrolled.value,
                 showScrollToTop = showScrollToTop.value,
-                onScrollToTop = { coroutineScope.launch { listState.animateScrollToItem(0) } },
+                onScrollToTop = onScrollToTop,
             ) { bodyPadding ->
                 HikariPullToRefresh(
                     refreshing = state.refresh.inProgress,
@@ -126,5 +129,3 @@ fun DiscoverScreen(
         }
     }
 }
-
-private const val SCROLL_TO_TOP_ITEM_THRESHOLD = 3
