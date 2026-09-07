@@ -140,7 +140,7 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                 contentType = ContentType.MANGA,
                 languageTags = setOf("en"),
                 coverUrl = BENCHMARK_BROWSE_COVER_URL,
-                score = Score(10.0 - index * 0.1, 10.0),
+                score = benchmarkBrowseScore(index),
                 popularityRank = (index + 1).toLong(),
                 publicationStatus = if (index % 5 == 0) {
                     PublicationStatus.COMPLETED
@@ -338,3 +338,6 @@ class BenchmarkFixtureActivity : ComponentActivity() {
             "This deterministic local content keeps Reader measurement independent from network and plugin state."
     }
 }
+
+internal fun benchmarkBrowseScore(index: Int): Score =
+    Score(value = (10.0 - index * 0.1).coerceAtLeast(0.0), scale = 10.0)

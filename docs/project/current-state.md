@@ -6,9 +6,10 @@ Purpose: single source of truth for the implemented repository boundary.
 ## Executive state
 
 - Whole-App Performance Big Update v3: **WAVE 0 IN PROGRESS**. Task 1 fixture profiles are
-  committed. Task 2 deterministic real-Search wiring is present and checkpointed, but its AGED
-  physical-device baseline is not accepted because fixture preparation currently reports
-  `IllegalArgumentException`; Task 3 has not started. See
+  committed. Task 2 deterministic real-Search wiring is verified and closed with valid SMALL/AGED
+  physical-device baselines; the AGED setup failure was fixed without reducing its 3,000-story or
+  4,096-character dimensions, and the final focused host/build plus root Detekt gates are green.
+  Task 3 is the next execution boundary. See
   `../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md`.
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.

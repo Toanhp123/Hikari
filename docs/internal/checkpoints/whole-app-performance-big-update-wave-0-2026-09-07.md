@@ -2,7 +2,7 @@
 
 Date: 2026-09-07
 Branch: `perf/whole-app-big-update-v3`
-Status: **TASK 1 COMMITTED; TASK 2 IMPLEMENTATION PRESENT; AGED DEVICE BASELINE OPEN**
+Status: **TASKS 1-2 VERIFIED AND CLOSED; TASK 3 READY**
 
 Design: `../../superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md`
 Master roadmap: `../../superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md`
@@ -13,8 +13,10 @@ Wave plan: `../../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-
 - `2db555f test(perf): parameterize whole-app benchmark fixtures` implements Wave 0 Task 1.
 - `5095164 docs: import whole-app performance update plans` places the v3 design, plans, and audit
   provenance under the governed `docs/` hierarchy.
-- The commit containing this checkpoint preserves the current Task 2 implementation for the next
-  session. Task 3 has not started.
+- `685a1f8 test(perf): checkpoint aged search benchmark setup` preserves the initial Task 2 Search
+  implementation and its then-open AGED failure.
+- The Task 2 closeout commit fixes that failure, records final verification evidence, and advances
+  the resume boundary to Task 3.
 
 ## Task 2 implementation present
 
@@ -35,8 +37,24 @@ Wave plan: `../../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-
   `measureRepeated`. Fixture readiness currently permits up to 300 seconds.
 - `CatalogSearchServiceTest.benchmarkQueryUsesDeterministicLocalSourceWithoutNetwork` verifies the
   exact query/result contract and verifies zero fallback-registry calls.
+- Aged browse scores preserve the original descending fixture shape but clamp at `0.0`, keeping all
+  3,000 generated `Score` values inside the catalog model's `0.0..scale` invariant.
 
-## Verification evidence retained from this session
+## Resolved AGED fixture failure
+
+Target device: Redmi Note 9S, Android 15.
+
+The failure was caused before persistence by the browse fixture expression
+`Score(10.0 - index * 0.1, 10.0)`. `Score` requires its value to remain within `0.0..scale`; the
+expression becomes negative at index 101, so the 3,000-row AGED fixture threw
+`IllegalArgumentException` while constructing its in-memory entries. The SMALL fixture never
+crossed that boundary.
+
+`BenchmarkCatalogFixtureTest.aged catalog keeps every generated score within its scale` protects the
+full 3,000-row dimension. It was observed RED before `benchmarkBrowseScore` existed, then GREEN after
+the score value was clamped at zero. No fixture dimension was reduced.
+
+## Verification evidence
 
 The focused contract was observed RED before the registry seam existed. An earlier Task 2 revision
 then passed:
@@ -49,45 +67,36 @@ then passed:
 The generated Catalog result currently records 9 tests, 0 failures, including
 `benchmarkQueryUsesDeterministicLocalSourceWithoutNetwork`.
 
-This green host command predates the final `AGED_CATALOG`, 300-second readiness timeout, and latest
-driver adjustments. It is retained as historical evidence only; the current committed tree has not
-been reverified after those edits.
-
-The SMALL physical-device Search journey completed five measured iterations after the editable-node
-and merged-accessibility selectors were corrected. Its result artifacts were overwritten by the
-subsequent AGED attempt, so this checkpoint intentionally records no performance numbers.
-
-## Open AGED device failure
-
-Target device: Redmi Note 9S, Android 15.
-
-The latest `searchQueryAgedCatalog` attempt did not produce a valid benchmark baseline. During
-fixture preparation, the target app displayed a white status screen containing:
+Current final-tree host evidence:
 
 ```text
-Hikari_Benchmark_Failed:IllegalArgumentException
+.\gradlew.bat :app:testBenchmarkReleaseUnitTest --tests '*BenchmarkCatalogFixtureTest*' --tests '*BenchmarkFixtureProfileTest*' :catalog:testDebugUnitTest --tests '*CatalogSearchServiceTest*' --no-daemon
+  BUILD SUCCESSFUL in 51s
+
+.\gradlew.bat :benchmark:assemble :app:assembleBenchmarkRelease --no-daemon
+  BUILD SUCCESSFUL in 1m 16s
+
+.\gradlew.bat detekt --no-daemon
+  BUILD SUCCESSFUL (user-supplied gate evidence)
 ```
 
-The instrumentation run was then canceled. The retained XML reports zero test failures but also
-contains `AndroidInstrumentationDriver was canceled` and a negative duration, so it must not be
-interpreted as PASS. The retained per-test logcat ends near test startup and does not contain the
-originating exception stack. Root cause is unresolved.
+Both focused device benchmarks completed 5/5 measured iterations with `BUILD SUCCESSFUL`:
+
+| Profile | Fixture dimensions | Frame count min / median / max | CPU frame duration P50 / P90 / P95 / P99 | Frame overrun P50 / P90 / P95 / P99 |
+|---|---|---|---|---|
+| SMALL | 30 stories, 96-char metadata | 30 / 30 / 33 | 9.6 / 14.8 / 20.1 / 28.2 ms | -2.1 / 6.2 / 10.7 / 21.7 ms |
+| AGED_CATALOG | 3,000 stories, 4,096-char metadata | 95 / 97 / 146 | 5.8 / 10.5 / 12.6 / 23.7 ms | 0.0 / 1.7 / 2.4 / 36.0 ms |
+
+These are characterization baselines for later Wave-2 comparison, not hard-coded pass/fail budgets.
 
 ## Commands intentionally not run at stop
 
-- No Task 2 Gradle test/build/Detekt rerun after the latest edits.
-- No second AGED reproduction or logcat capture.
 - No `verify.sh` or `verify-fast.sh`; both remain deferred until the whole performance program is
   ready for its final aggregate verification, per execution instructions.
 
 ## Resume boundary
 
-1. Start from this branch and this checkpoint; do not reimplement Task 1 or the Task 2 Search wiring.
-2. Reproduce only `searchQueryAgedCatalog` while capturing the application-side exception stack
-   from fixture preparation.
-3. Fix the setup failure without reducing the 3,000-row or 4,096-character AGED dimensions and
-   without scaling unrelated fixture dimensions.
-4. Rerun the focused Catalog test, benchmark/app assembly, and root `detekt` on the final Task 2 tree.
-5. Capture valid SMALL and AGED baseline results in this checkpoint, then close Task 2.
-6. Do not begin Wave 0 Task 3 until Task 2 device evidence is valid.
-
+1. Task 2 is verified and closed; do not reopen its Search wiring or device baselines without a
+   concrete regression.
+2. Resume Wave 0 Task 3 from the owning plan's `### Task 3` contract.
+3. Keep Reader image/cache fixture work benchmark-only and exercise the real asset pipeline.

@@ -20,14 +20,12 @@ acceptance remain separate states.
 
 ## Current position
 
-The Whole-App Performance Big Update v3 is the active engineering program. Wave 0 Task 1 is
-committed, and Task 2 has a committed implementation checkpoint with its AGED physical-device
-baseline still open because fixture preparation reports `IllegalArgumentException`. Task 3 has not
-started. Resume from
-`../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md`, the active design
-at `../superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md`, and the
-master roadmap at
-`../superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md`.
+The active execution boundary is **Whole-App Performance Big Update v3 - Wave 0 Task 3**.
+Tasks 1-2 are verified and closed. Task 2 retains valid SMALL and AGED physical-device Search
+baselines after fixing the invalid generated-score source without reducing its target dimensions.
+Task 3 has not started. Resume from
+`../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md` and the owning Wave 0
+plan at `../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-fixtures.md` Task 3.
 
 Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
 Design System Foundation and the full Product UI checkpoint are accepted; they preserved the historical
