@@ -1,10 +1,17 @@
 # Repository Current State
 
-Date: 2026-09-07
+Date: 2026-09-08
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
+- Hikari V2 Step 1 — Foundation + Clean Boot: Tasks 0–5 are implemented on branch
+  `v2/foundation-clean-boot`. The same-repository cutover provenance, V1 salvage ledger, capability
+  admission contract, strict source/build boundary, app structural ratchet, merged-manifest hidden
+  startup verifier, and aggregate `openstory.foundation` convention plugin are committed. Focused
+  build-logic tests and plugin validation are green. The runtime `:app` and active module graph remain
+  on the V1 boundary until Tasks 6–7 perform their explicit cutovers; resume from Task 6 via
+  `../implementation/current-roadmap.md`.
 - Whole-App Performance Big Update v3: **WAVE 0 IN PROGRESS**. Task 1 fixture profiles are
   committed. Task 2 deterministic real-Search wiring is verified and closed with valid SMALL/AGED
   physical-device baselines; the AGED setup failure was fixed without reducing its 3,000-story or
