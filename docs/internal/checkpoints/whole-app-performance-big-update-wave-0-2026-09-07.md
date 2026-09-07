@@ -2,7 +2,7 @@
 
 Date: 2026-09-07
 Branch: `perf/whole-app-big-update-v3`
-Status: **TASKS 1-2 VERIFIED AND CLOSED; TASK 3 READY**
+Status: **TASKS 1-2 VERIFIED AND CLOSED; TASK 3 IMPLEMENTATION PRESENT / DEVICE VERIFICATION OPEN**
 
 Design: `../../superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md`
 Master roadmap: `../../superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md`
@@ -54,6 +54,33 @@ crossed that boundary.
 full 3,000-row dimension. It was observed RED before `benchmarkBrowseScore` existed, then GREEN after
 the score value was clamped at zero. No fixture dimension was reduced.
 
+## Task 3 implementation present
+
+- `BenchmarkReaderDocumentSource` supplies chapter 1 as a deterministic image document when the
+  selected profile has `readerImagePages > 0`. Stable asset IDs and `https://benchmark.local/...`
+  locators pass the same Reader document/manifest validation as plugin-delivered images.
+- `BenchmarkReaderAssetDelivery` handles only that HTTPS host in `benchmarkRelease` and returns the
+  packaged `drawable-nodpi/benchmark_reader_page.png`. It remains behind the production
+  `ReaderAssetDeliveryPort`; no production HTTPS validation was weakened.
+- Empty contribution sets return the original `PluginReaderDocumentSourceRegistry` and
+  `OkHttpReaderAssetDelivery` directly. Normal production therefore retains the prior source,
+  availability, delivery, and hot-path behavior.
+- Fixture setup clears automatic metadata, seeds unrelated Reader-asset rows from
+  `readerAssetMetadataRows` and unrelated automatic-document rows from `automaticCacheRows`, then
+  reconciles the cache ledger before document/image publication. The visible image-page count stays
+  independent from both historical cardinalities.
+- Cold setup clears the benchmark source's durable image generations without preloading. Warm setup
+  uses the real `ReaderAssetLoader` delivery/persistence path and waits for every visible page's
+  metadata publication before the benchmark process restart.
+- `readerImageScrollColdCache`, `readerImageScrollWarmCache`, and
+  `readerImageMemoryWarmCache` use 12 visible pages with AGED Reader/cache metadata cardinalities
+  (`RA=5,003`, `AC=7,001`) while unrelated catalog/progress/Library/Chapter dimensions stay SMALL.
+- `readerScrollLongChapter` still uses the default profile (`readerImagePages=0`) and continues to
+  persist/read the original 24-paragraph text document.
+- The Task 1/2 benchmark-only profile and catalog fixture tests moved from `app/src/test` to
+  `app/src/testBenchmarkRelease`; this restores the Task 3 plan's exact debug-test command without
+  changing their assertions or benchmarkRelease ownership.
+
 ## Verification evidence
 
 The focused contract was observed RED before the registry seam existed. An earlier Task 2 revision
@@ -80,6 +107,23 @@ Current final-tree host evidence:
   BUILD SUCCESSFUL (user-supplied gate evidence)
 ```
 
+Task 3 TDD/host evidence:
+
+```text
+.\gradlew.bat :app:testDebugUnitTest --tests '*ReaderAssetIntegrationTest*' --no-daemon
+  BUILD SUCCESSFUL; ReaderAssetIntegrationTest: 5 tests, 0 failures/errors
+
+.\gradlew.bat :app:testBenchmarkReleaseUnitTest --tests '*ReaderAssetIntegrationTest*' \
+  :reader:testDebugUnitTest --tests '*ReaderAssetManifestFactoryTest*' \
+  :benchmark:assemble :app:assembleBenchmarkRelease :app:compileDebugKotlin --no-daemon
+  BUILD SUCCESSFUL; ReaderAssetManifestFactoryTest: 5 tests, 0 failures/errors
+```
+
+The new integration case was observed RED first because the exclusive Reader source/delivery seams
+did not exist, then GREEN after the benchmark contribution path was implemented. The independent
+cross-module reviewer could not run because the child runtime returned `404 No active credentials`;
+no reviewer verdict is claimed, and root self-review covered the changed dependency cone.
+
 Both focused device benchmarks completed 5/5 measured iterations with `BUILD SUCCESSFUL`:
 
 | Profile | Fixture dimensions | Frame count min / median / max | CPU frame duration P50 / P90 / P95 / P99 | Frame overrun P50 / P90 / P95 / P99 |
@@ -93,10 +137,22 @@ These are characterization baselines for later Wave-2 comparison, not hard-coded
 
 - No `verify.sh` or `verify-fast.sh`; both remain deferred until the whole performance program is
   ready for its final aggregate verification, per execution instructions.
+- No connected/device Macrobenchmark was agent-run. Physical-device frame/memory baselines remain
+  user-owned and must be reviewed before Task 3 can close.
 
 ## Resume boundary
 
-1. Task 2 is verified and closed; do not reopen its Search wiring or device baselines without a
-   concrete regression.
-2. Resume Wave 0 Task 3 from the owning plan's `### Task 3` contract.
-3. Keep Reader image/cache fixture work benchmark-only and exercise the real asset pipeline.
+1. Tasks 1-2 are verified and closed. The only Task 1/2 delta in Task 3 is the source-set correction
+   that restores debug-test compilation; do not reopen their behavior or device baselines.
+2. Task 3 implementation and focused host/build evidence are present. Do not advance to Task 4 yet.
+3. Run the three user-owned physical-device gates and return concise PASS summaries plus benchmark
+   medians/tails:
+
+   ```powershell
+   .\gradlew.bat :benchmark:connectedBenchmarkReleaseAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#readerImageScrollColdCache' --no-daemon
+   .\gradlew.bat :benchmark:connectedBenchmarkReleaseAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#readerImageScrollWarmCache' --no-daemon
+   .\gradlew.bat :benchmark:connectedBenchmarkReleaseAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.benchmark.HikariMacrobenchmark#readerImageMemoryWarmCache' --no-daemon
+   ```
+
+4. After those three gates pass and their results are recorded here, close Task 3 and advance the
+   roadmap to Wave 0 Task 4.

@@ -14,6 +14,7 @@ private const val BENCHMARK_FIXTURE_COMPONENT =
 private const val BENCHMARK_FIXTURE_READY_TEXT = "HIKARI_BENCHMARK_READY"
 private const val BENCHMARK_SEARCH_QUERY = "hikari deterministic search"
 private const val BENCHMARK_SEARCH_RESULT_TITLE = "Hikari Deterministic Search Result"
+private const val BENCHMARK_READER_CACHE_MODE_EXTRA = "app.openstory.benchmark.READER_CACHE_MODE"
 private const val SEARCH_INPUT_DESCRIPTION = "Search stories"
 private const val DISABLE_BACKDROP_EXTRA = "app.openstory.benchmark.DISABLE_BACKDROP"
 private const val DISABLE_SURFACE_SHADOWS_EXTRA = "app.openstory.benchmark.DISABLE_SURFACE_SHADOWS"
@@ -26,11 +27,13 @@ private const val SWIPE_STEPS = 20
 
 internal fun prepareBenchmarkFixture(
     profile: BenchmarkFixtureProfileRequest = BenchmarkFixtureProfileRequest.SMALL,
+    readerCacheMode: BenchmarkReaderCacheModeRequest = BenchmarkReaderCacheModeRequest.NONE,
 ) {
     val device = benchmarkDevice()
     device.executeShellCommand("am force-stop $HIKARI_PACKAGE")
     val launchResult = device.executeShellCommand(
-        "am start -W -n $BENCHMARK_FIXTURE_COMPONENT ${profile.shellExtras()}",
+        "am start -W -n $BENCHMARK_FIXTURE_COMPONENT ${profile.shellExtras()} " +
+            "--es $BENCHMARK_READER_CACHE_MODE_EXTRA ${readerCacheMode.name}",
     )
     check("Error" !in launchResult && "Exception" !in launchResult) {
         "Benchmark fixture activity failed to launch: $launchResult"
@@ -41,6 +44,8 @@ internal fun prepareBenchmarkFixture(
     device.pressHome()
     device.waitForIdle()
 }
+
+internal enum class BenchmarkReaderCacheModeRequest { NONE, COLD, WARM }
 
 private fun BenchmarkFixtureProfileRequest.shellExtras(): String = listOf(
     "app.openstory.benchmark.CATALOG_STORIES" to catalogStories,

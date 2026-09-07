@@ -15,16 +15,20 @@ import app.openstory.downloads.reconcile.StorageWriteAdmission
 import app.openstory.plugins.runtime.PluginRuntime
 import app.openstory.reader.AndroidReaderNetworkFactsPort
 import app.openstory.reader.assets.ContentFetchArbiter
+import app.openstory.reader.assets.ExclusiveReaderAssetDelivery
 import app.openstory.reader.assets.OkHttpReaderAssetDelivery
 import app.openstory.reader.assets.ReaderAssetAggregateDiagnostics
 import app.openstory.reader.assets.ReaderAssetCoordinator
 import app.openstory.reader.assets.ReaderAssetDiagnosticsSink
 import app.openstory.reader.assets.ReaderAssetDeliveryPort
+import app.openstory.reader.assets.ReaderAssetDeliverySource
 import app.openstory.reader.assets.ReaderAssetLoader
 import app.openstory.reader.assets.ReaderAssetSessionPort
 import app.openstory.reader.assets.ReaderAssetSingleFlight
 import app.openstory.reader.assets.ReaderAssetStorePort
 import app.openstory.reader.content.PluginReaderDocumentSourceRegistry
+import app.openstory.reader.content.ExclusiveReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentSource
 import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderDocumentStore
 import app.openstory.reader.content.ReaderSourceAvailability
@@ -113,7 +117,16 @@ object ReaderModule {
     @Singleton
     fun provideReaderAssetDeliveryPort(
         @ReaderAssetHttpClient client: OkHttpClient,
-    ): ReaderAssetDeliveryPort = OkHttpReaderAssetDelivery(client)
+        @ExclusiveReaderAssetDeliverySources exclusiveSources:
+        Set<@JvmSuppressWildcards ReaderAssetDeliverySource>,
+    ): ReaderAssetDeliveryPort {
+        val fallback = OkHttpReaderAssetDelivery(client)
+        return if (exclusiveSources.isEmpty()) {
+            fallback
+        } else {
+            ExclusiveReaderAssetDelivery(fallback, exclusiveSources)
+        }
+    }
 
     @Provides
     @Singleton
@@ -185,12 +198,24 @@ object ReaderModule {
     @Provides
     fun provideReaderDocumentSourceRegistry(
         registry: PluginReaderDocumentSourceRegistry,
-    ): ReaderDocumentSourceRegistry = registry
+        @ExclusiveReaderDocumentSources exclusiveSources:
+        Set<@JvmSuppressWildcards ReaderDocumentSource>,
+    ): ReaderDocumentSourceRegistry = if (exclusiveSources.isEmpty()) {
+        registry
+    } else {
+        ExclusiveReaderDocumentSourceRegistry(registry, exclusiveSources, registry)
+    }
 
     @Provides
     fun provideReaderSourceAvailability(
         registry: PluginReaderDocumentSourceRegistry,
-    ): ReaderSourceAvailability = registry
+        @ExclusiveReaderDocumentSources exclusiveSources:
+        Set<@JvmSuppressWildcards ReaderDocumentSource>,
+    ): ReaderSourceAvailability = if (exclusiveSources.isEmpty()) {
+        registry
+    } else {
+        ExclusiveReaderDocumentSourceRegistry(registry, exclusiveSources, registry)
+    }
 
     @Provides
     @Singleton

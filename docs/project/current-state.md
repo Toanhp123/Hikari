@@ -8,8 +8,10 @@ Purpose: single source of truth for the implemented repository boundary.
 - Whole-App Performance Big Update v3: **WAVE 0 IN PROGRESS**. Task 1 fixture profiles are
   committed. Task 2 deterministic real-Search wiring is verified and closed with valid SMALL/AGED
   physical-device baselines; the AGED setup failure was fixed without reducing its 3,000-story or
-  4,096-character dimensions, and the final focused host/build plus root Detekt gates are green.
-  Task 3 is the next execution boundary. See
+  4,096-character dimensions. Task 3 Reader image/cache fixtures now exercise a benchmark-only
+  HTTPS local delivery through the real source/manifest/coordinator/cache path, seed independent
+  AGED `RA/AC` metadata with 12 visible pages, and expose cold/warm frame plus warm memory scenarios.
+  Focused host/build evidence is green; Task 3 physical-device baselines remain verification-open. See
   `../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md`.
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.

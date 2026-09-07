@@ -23,7 +23,11 @@ import app.openstory.downloads.cache.CacheRepository
 import app.openstory.plugins.api.manifest.ReaderImageIdentityContract
 import app.openstory.plugins.api.manifest.ReaderImageLocatorContract
 import app.openstory.plugins.api.manifest.ReaderImagePersistenceContract
+import app.openstory.reader.content.ExclusiveReaderDocumentSourceRegistry
+import app.openstory.reader.content.ReaderDocumentSource
+import app.openstory.reader.content.ReaderDocumentSourceRegistry
 import app.openstory.reader.content.ReaderImageSourcePolicy
+import app.openstory.reader.content.ReaderSourceResult
 import app.openstory.reader.document.ReaderBlock
 import app.openstory.reader.document.ReaderDocument
 import app.openstory.reader.routing.ReaderNetworkFactsPort
@@ -54,6 +58,72 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ReaderAssetIntegrationTest {
+    @Test
+    fun `benchmark image source traverses coordinator delivery and durable cache`() = runBlocking {
+        ReaderAssetPersistentTestFixture().use { fixture ->
+            val release = benchmarkImageRelease()
+            val benchmarkSource = BenchmarkReaderImageSource(release)
+            val fallback = CountingReaderDocumentSourceRegistry()
+            val registry = ExclusiveReaderDocumentSourceRegistry(
+                fallback = fallback,
+                exclusive = setOf(benchmarkSource),
+            )
+            val source = registry.enabled().single()
+            assertEquals(setOf(benchmarkSource.pluginId), registry.enabledPluginIds())
+            assertEquals(setOf(benchmarkSource.pluginId), registry.offlineDownloadPluginIds())
+            val document = assertIs<ReaderSourceResult.Success>(source.fetch(release)).document
+            val sessionId = ReaderSessionId(41)
+            val manifest = requireNotNull(
+                ReaderAssetManifestFactory().create(
+                    sessionId = sessionId,
+                    storyId = release.storyId,
+                    canonicalChapterId = requireNotNull(release.canonicalChapterId),
+                    selectedRelease = release,
+                    graphRevision = ReaderAssetGraphRevision(1L),
+                    document = document,
+                    imageSourcePolicy = source.imageSourcePolicy,
+                    sourcePluginId = source.pluginId,
+                ),
+            )
+            val benchmarkDelivery = BenchmarkReaderAssetDeliverySource(fixture.payloadBytes)
+            val fallbackDelivery = CountingFallbackReaderAssetDelivery()
+            val runtime = fixture.newRuntime(
+                networkState = ReaderNetworkState.UNMETERED,
+                delivery = ExclusiveReaderAssetDelivery(
+                    fallback = fallbackDelivery,
+                    exclusive = setOf(benchmarkDelivery),
+                ),
+            )
+            val revision = runtime.coordinator.registerCommitted(sessionId, 1L, manifest)
+            val request = ReaderPageAssetRequest(sessionId, revision, manifest.descriptors.single())
+
+            assertIs<ReaderAssetLoadOutcome.Remote>(runtime.coordinator.requestPage(request))
+            fixture.awaitPersisted(request.descriptor.key)
+            val deliveryCallsAfterColdLoad = benchmarkDelivery.calls
+            val cached = assertIs<ReaderAssetLoadOutcome.Local>(runtime.coordinator.requestPage(request))
+
+            assertContentEquals(fixture.payloadBytes, cached.readAndClose())
+            assertEquals(1, deliveryCallsAfterColdLoad)
+            assertEquals(deliveryCallsAfterColdLoad, benchmarkDelivery.calls)
+            assertEquals(0, fallbackDelivery.calls)
+            assertEquals(0, fallback.enabledCalls)
+        }
+    }
+
+    @Test
+    fun `empty benchmark delivery contributions preserve the production fallback`() = runBlocking {
+        val fallback = CountingFallbackReaderAssetDelivery()
+        val delivery = ExclusiveReaderAssetDelivery(fallback = fallback, exclusive = emptySet())
+        val request = ReaderAssetDeliveryRequest(
+            assetKey = benchmarkPageAssetKey(),
+            deliveryLocator = "https://cdn.example.test/reader/page.png",
+        )
+
+        assertIs<ReaderAssetDeliveryResult.Failure>(delivery.fetch(request))
+
+        assertEquals(1, fallback.calls)
+    }
+
     @Test
     fun `same chapter and offline revisit read retained pages from RICC disk`() = runBlocking {
         ReaderAssetPersistentTestFixture().use { fixture ->
@@ -188,7 +258,15 @@ internal class ReaderAssetPersistentTestFixture : AutoCloseable {
     var semanticDocumentCalls: Int = 0
         private set
 
-    fun newRuntime(networkState: ReaderNetworkState): RuntimeHandle {
+    fun newRuntime(
+        networkState: ReaderNetworkState,
+        delivery: ReaderAssetDeliveryPort = ReaderAssetDeliveryPort {
+            imageDeliveryCalls += 1
+            ReaderAssetDeliveryResult.Success(
+                ReaderAssetPayload.verifiedBounded(payloadBytes, "image/png", null),
+            )
+        },
+    ): RuntimeHandle {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val diagnostics = RecordingReaderAssetDiagnostics()
         val budget = AutomaticCacheBudgetCoordinator(
@@ -212,12 +290,7 @@ internal class ReaderAssetPersistentTestFixture : AutoCloseable {
         val runtime = RuntimeHandle(scope, networkState, diagnostics)
         val loader = ReaderAssetLoader(
             store = store,
-            delivery = ReaderAssetDeliveryPort {
-                imageDeliveryCalls += 1
-                ReaderAssetDeliveryResult.Success(
-                    ReaderAssetPayload.verifiedBounded(payloadBytes, "image/png", null),
-                )
-            },
+            delivery = delivery,
             singleFlight = ReaderAssetSingleFlight(scope, diagnostics),
             fetchArbiter = ContentFetchArbiter(),
             persistenceScope = scope,
@@ -347,6 +420,116 @@ private object EmptyChapterBlobStore : ChapterBlobStore {
     override suspend fun read(key: ChapterBlobKey): ChapterBlob? = null
     override suspend fun write(key: ChapterBlobKey, blob: ChapterBlob) = Unit
     override suspend fun delete(key: ChapterBlobKey) = Unit
+}
+
+private class BenchmarkReaderImageSource(
+    private val release: ChapterRelease,
+) : ReaderDocumentSource {
+    override val pluginId: PluginId = release.pluginId
+    override val imageSourcePolicy = ReaderImageSourcePolicy(
+        identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+        locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+        persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+    )
+
+    override suspend fun fetch(release: ChapterRelease): ReaderSourceResult {
+        require(release.id == this.release.id)
+        return ReaderSourceResult.Success(
+            ReaderDocument(
+                title = "Benchmark Image Chapter",
+                blocks = listOf(
+                    ReaderBlock.ImagePage(
+                        id = "benchmark-image-page-0",
+                        stableAssetId = "benchmark/page-0.png",
+                        imageUrl = "https://benchmark.local/reader/page-0.png",
+                    ),
+                ),
+                fingerprint = "benchmark-image-document",
+            ),
+        )
+    }
+}
+
+private class CountingReaderDocumentSourceRegistry : ReaderDocumentSourceRegistry {
+    var enabledCalls: Int = 0
+        private set
+
+    override suspend fun enabled(): List<ReaderDocumentSource> {
+        enabledCalls += 1
+        return emptyList()
+    }
+}
+
+private class BenchmarkReaderAssetDeliverySource(
+    private val payloadBytes: ByteArray,
+) : ReaderAssetDeliverySource {
+    override val id: String = "benchmark-reader-assets"
+    var calls: Int = 0
+        private set
+
+    override fun matches(request: ReaderAssetDeliveryRequest): Boolean =
+        request.deliveryLocator.startsWith("https://benchmark.local/reader/")
+
+    override suspend fun fetch(request: ReaderAssetDeliveryRequest): ReaderAssetDeliveryResult {
+        calls += 1
+        return ReaderAssetDeliveryResult.Success(
+            ReaderAssetPayload.verifiedBounded(payloadBytes, "image/png", null),
+        )
+    }
+}
+
+private class CountingFallbackReaderAssetDelivery : ReaderAssetDeliveryPort {
+    var calls: Int = 0
+        private set
+
+    override suspend fun fetch(request: ReaderAssetDeliveryRequest): ReaderAssetDeliveryResult {
+        calls += 1
+        return ReaderAssetDeliveryResult.Failure(ReaderAssetFailure.TransportUnavailable(retryable = false))
+    }
+}
+
+private fun benchmarkImageRelease(): ChapterRelease = ChapterRelease(
+    id = ChapterReleaseId("benchmark-image-release"),
+    storyId = StoryId("benchmark-image-story"),
+    pluginId = PluginId("benchmark.local.reader"),
+    sourceStoryId = "benchmark-image-source-story",
+    sourceReleaseId = "benchmark-image-source-release",
+    displayLabel = "Benchmark Image Chapter",
+    parsedLabel = ParsedChapterLabel(ChapterKind.NUMBERED, null, null, null, null),
+    languageTag = "en",
+    publishedAtEpochMillis = 1L,
+    canonicalChapterId = CanonicalChapterId("benchmark-image-chapter"),
+)
+
+private fun benchmarkPageAssetKey(): ReaderPageAssetKey {
+    val release = benchmarkImageRelease()
+    val manifest = requireNotNull(
+        ReaderAssetManifestFactory().create(
+            sessionId = ReaderSessionId(42),
+            storyId = release.storyId,
+            canonicalChapterId = requireNotNull(release.canonicalChapterId),
+            selectedRelease = release,
+            graphRevision = ReaderAssetGraphRevision(1L),
+            document = ReaderDocument(
+                title = "Benchmark",
+                blocks = listOf(
+                    ReaderBlock.ImagePage(
+                        id = "benchmark-page",
+                        stableAssetId = "benchmark/page.png",
+                        imageUrl = "https://cdn.example.test/reader/page.png",
+                    ),
+                ),
+                fingerprint = "benchmark",
+            ),
+            imageSourcePolicy = ReaderImageSourcePolicy(
+                identityContract = ReaderImageIdentityContract.STABLE_ID_CHANGES_WITH_CONTENT,
+                locatorContract = ReaderImageLocatorContract.MUTABLE_OR_UNKNOWN,
+                persistenceContract = ReaderImagePersistenceContract.PUBLIC,
+            ),
+            sourcePluginId = release.pluginId,
+        ),
+    )
+    return manifest.descriptors.single().key
 }
 
 private fun viewport(request: ReaderPageAssetRequest, ordinal: Int) = ReaderViewportSnapshot(

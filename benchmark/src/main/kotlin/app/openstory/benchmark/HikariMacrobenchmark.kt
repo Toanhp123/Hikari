@@ -143,6 +143,25 @@ class HikariMacrobenchmark {
     }
 
     @Test
+    fun readerImageScrollColdCache() = measureReaderImages(
+        metrics = listOf(FrameTimingMetric()),
+        cacheMode = BenchmarkReaderCacheModeRequest.COLD,
+    )
+
+    @Test
+    fun readerImageScrollWarmCache() = measureReaderImages(
+        metrics = listOf(FrameTimingMetric()),
+        cacheMode = BenchmarkReaderCacheModeRequest.WARM,
+    )
+
+    @OptIn(ExperimentalMetricApi::class)
+    @Test
+    fun readerImageMemoryWarmCache() = measureReaderImages(
+        metrics = listOf(MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
+        cacheMode = BenchmarkReaderCacheModeRequest.WARM,
+    )
+
+    @Test
     fun chaptersExpandAndScroll() = measureNavigation(
         setup = {
             openBenchmarkFixtureStory()
@@ -229,6 +248,31 @@ class HikariMacrobenchmark {
         },
     ) {
         swipeUpOnTag("chapter-list", repetitions = SCROLL_SWIPE_COUNT)
+    }
+
+    private fun measureReaderImages(
+        metrics: List<androidx.benchmark.macro.Metric>,
+        cacheMode: BenchmarkReaderCacheModeRequest,
+    ) {
+        benchmarkRule.measureRepeated(
+            packageName = HIKARI_PACKAGE,
+            metrics = metrics,
+            compilationMode = benchmarkCompilationMode,
+            startupMode = null,
+            iterations = 5,
+            setupBlock = {
+                prepareBenchmarkFixture(BenchmarkFixtureProfileRequest.READER_IMAGES_AGED_CACHE, cacheMode)
+                killProcess()
+                pressHome()
+                startHikari()
+                openBenchmarkFixtureStory()
+                clickTag("story-read")
+                waitForTag("reader-content")
+            },
+            measureBlock = {
+                swipeUpOnTag("reader-content", repetitions = SCROLL_SWIPE_COUNT)
+            },
+        )
     }
 
     private fun measureNavigation(

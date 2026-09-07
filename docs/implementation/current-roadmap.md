@@ -20,10 +20,10 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Whole-App Performance Big Update v3 — Wave 0 Task 3**.
-Tasks 1-2 are verified and closed. Task 2 retains valid SMALL and AGED physical-device Search
-baselines after fixing the invalid generated-score source without reducing its target dimensions.
-Task 3 has not started.
+The active execution boundary is **Whole-App Performance Big Update v3 — Wave 0 Task 3 device verification**.
+Tasks 1-2 are verified and closed. Task 3 Reader image/cache fixture implementation, focused tests,
+debug/release compilation, and benchmark assembly are present. Its cold-cache, warm-cache, and
+warm-cache memory physical-device baselines have not yet been reviewed, so Task 4 is not active.
 
 Resume narrowly from:
 
@@ -32,8 +32,9 @@ Resume narrowly from:
 - owning plan: `../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-fixtures.md` — read
   `## Global Constraints` and `### Task 3` first.
 
-Do not reimplement Tasks 1-2 or rediscover the program from historical plans. Consult the performance
-design/master roadmap only when Task 3 or its checkpoint leaves a required invariant unresolved.
+Resume with the three exact connected Macrobenchmark commands in the checkpoint. Do not reimplement
+Tasks 1-3 or rediscover the program from historical plans. Advance to Task 4 only after recording and
+reviewing all three Task 3 device results.
 
 ## Historical execution context (non-current)
 

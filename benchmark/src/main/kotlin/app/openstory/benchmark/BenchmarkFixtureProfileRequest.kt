@@ -61,6 +61,12 @@ internal data class BenchmarkFixtureProfileRequest(
             metadataWidth = AGED.metadataWidth,
         )
 
+        val READER_IMAGES_AGED_CACHE = SMALL.copy(
+            readerImagePages = SMALL.chapterCount,
+            readerAssetMetadataRows = AGED.readerAssetMetadataRows,
+            automaticCacheRows = AGED.automaticCacheRows,
+        )
+
         val STRESS = BenchmarkFixtureProfileRequest(
             catalogStories = 12_000,
             progressRows = 1_501,
