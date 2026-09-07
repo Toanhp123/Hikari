@@ -23,6 +23,12 @@ gradlePlugin {
                 "app.openstory.build.ArchitectureConventionPlugin"
         }
 
+        register("v2Foundation") {
+            id = "openstory.foundation"
+            implementationClass =
+                "app.openstory.build.FoundationConventionPlugin"
+        }
+
         register("androidApplication") {
             id = "openstory.android.application"
             implementationClass =

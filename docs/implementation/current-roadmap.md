@@ -20,23 +20,23 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 5: add
-merged-manifest hidden-startup verification and the aggregate foundation plugin**. Tasks 0 through
-4 are complete on branch `v2/foundation-clean-boot` in the same Hikari Git repository/worktree
-lineage. The retained-core baseline and current architecture gate are green, the same-repository
-cutover provenance guard is committed, the V1 salvage ledger and V2 capability admission contract
-policy tests are green, and the strict foundation-policy/source-boundary and app-structure focused
-tests are green.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 6: cut `:app`
+to the minimal V2 shell and isolate development identity**. Tasks 0 through 5 are complete on branch
+`v2/foundation-clean-boot` in the same Hikari Git repository/worktree lineage. The retained-core
+baseline and current architecture gate are green, the same-repository cutover provenance guard is
+committed, the V1 salvage ledger and V2 capability admission contract policy tests are green, and
+the focused foundation-policy, source-boundary, app-structure, merged-manifest, and build-logic
+plugin-validation gates are green.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 5` first;
+  `## Global Constraints` and `## Task 6` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  `### 12.3 Manifest guard` first;
+  `## 10. Android entry points` and `## 11. Dependency policy for :app` first;
 - cutover provenance: `../internal/v2/cutover-provenance.md`.
 
-Resume at Task 5 Step 1. The shared Step 1 policy is canonical at
+Resume at Task 6 Step 1. The shared Step 1 policy is canonical at
 `../../config/architecture/v2-foundation-policy.json`; the V2 capability admission contract is
 canonical at `../internal/v2/capability-admission-contract.md`, and the V1 salvage ledger remains
 canonical at `../internal/v2/v1-salvage-ledger.md`. Do not delete or modify V1 runtime source before
