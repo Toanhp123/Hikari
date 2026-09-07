@@ -9,7 +9,7 @@ SCHEMA_DIR="$ROOT_DIR/storage/room/schemas/app.openstory.storage.room.OpenStoryD
 DATABASE_SOURCE="$ROOT_DIR/storage/room/src/main/kotlin/app/openstory/storage/room/OpenStoryDatabase.kt"
 BUNDLED_DESCRIPTOR_SOURCE="$ROOT_DIR/app/src/main/kotlin/app/openstory/di/BundledPlugins.kt"
 BASELINE_SCHEMA_ONE_SHA256="adbd52a78feebd2eee197ccb58f0c209852ca059abd9fe1327bbfa962ba2011a"
-HES_V1_PRODUCTION_MODULES=17
+HES_V1_PRODUCTION_MODULES=19
 HES_V1_ANDROID_TEST_MODULES=1
 RICC_V1_ROOM_SCHEMA=12
 
