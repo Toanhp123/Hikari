@@ -20,10 +20,14 @@ private const val UI_TIMEOUT_MILLIS = 10_000L
 private const val SWIPE_EDGE_DIVISOR = 5
 private const val SWIPE_STEPS = 20
 
-internal fun prepareBenchmarkFixture() {
+internal fun prepareBenchmarkFixture(
+    profile: BenchmarkFixtureProfileRequest = BenchmarkFixtureProfileRequest.SMALL,
+) {
     val device = benchmarkDevice()
     device.executeShellCommand("am force-stop $HIKARI_PACKAGE")
-    val launchResult = device.executeShellCommand("am start -W -n $BENCHMARK_FIXTURE_COMPONENT")
+    val launchResult = device.executeShellCommand(
+        "am start -W -n $BENCHMARK_FIXTURE_COMPONENT ${profile.shellExtras()}",
+    )
     check("Error" !in launchResult && "Exception" !in launchResult) {
         "Benchmark fixture activity failed to launch: $launchResult"
     }
@@ -33,6 +37,20 @@ internal fun prepareBenchmarkFixture() {
     device.pressHome()
     device.waitForIdle()
 }
+
+private fun BenchmarkFixtureProfileRequest.shellExtras(): String = listOf(
+    "app.openstory.benchmark.CATALOG_STORIES" to catalogStories,
+    "app.openstory.benchmark.PROGRESS_ROWS" to progressRows,
+    "app.openstory.benchmark.REDIRECT_ROWS" to redirectRows,
+    "app.openstory.benchmark.LIBRARY_ENTRIES" to libraryEntries,
+    "app.openstory.benchmark.EXPLICIT_DOWNLOAD_RECORDS" to explicitDownloadRecords,
+    "app.openstory.benchmark.READER_IMAGE_PAGES" to readerImagePages,
+    "app.openstory.benchmark.READER_ASSET_METADATA_ROWS" to readerAssetMetadataRows,
+    "app.openstory.benchmark.AUTOMATIC_CACHE_ROWS" to automaticCacheRows,
+    "app.openstory.benchmark.CHAPTER_COUNT" to chapterCount,
+    "app.openstory.benchmark.CHAPTER_PAGE_SIZE" to chapterPageSize,
+    "app.openstory.benchmark.METADATA_WIDTH" to metadataWidth,
+).joinToString(" ") { (key, value) -> "--ei $key $value" }
 
 internal fun MacrobenchmarkScope.startHikari(
     backdropDisabled: Boolean = false,

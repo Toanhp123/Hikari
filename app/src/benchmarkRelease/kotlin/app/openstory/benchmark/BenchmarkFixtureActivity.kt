@@ -29,6 +29,11 @@ import app.openstory.common.id.CanonicalChapterId
 import app.openstory.common.id.ChapterReleaseId
 import app.openstory.common.id.PluginId
 import app.openstory.common.id.StoryId
+import app.openstory.downloads.DownloadRecord
+import app.openstory.downloads.DownloadRepository
+import app.openstory.downloads.DownloadState
+import app.openstory.downloads.blob.ChapterBlobKey
+import app.openstory.downloads.blob.ChapterBlobNamespace
 import app.openstory.library.LibraryRepository
 import app.openstory.library.LibraryStatus
 import app.openstory.reader.content.ReaderDocumentStore
@@ -49,21 +54,21 @@ class BenchmarkFixtureActivity : ComponentActivity() {
     @Inject lateinit var chapters: ChapterRepository
     @Inject lateinit var documents: ReaderDocumentStore
     @Inject lateinit var progress: ReadingProgressRepository
+    @Inject lateinit var downloads: DownloadRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val status = TextView(this).apply { text = BENCHMARK_SEEDING_TEXT }
         setContentView(status)
         lifecycleScope.launch {
-            runCatching { seedFixture() }
+            runCatching { seedFixture(BenchmarkFixtureProfile.from(intent)) }
                 .onSuccess { status.text = BENCHMARK_READY_TEXT }
                 .onFailure { error -> status.text = "$BENCHMARK_FAILED_PREFIX${error::class.java.simpleName}" }
         }
     }
 
-    private suspend fun seedFixture() {
-        seedBrowseFixtures()
-
+    private suspend fun seedFixture(profile: BenchmarkFixtureProfile) {
+        val browseEntries = seedBrowseFixtures(profile)
         val storyId = StoryId(BENCHMARK_STORY_ID)
         val catalogResult = catalog.commitDetails(
             CatalogDetailsMutation(
@@ -74,7 +79,10 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                     sourceId = BENCHMARK_SOURCE_ID,
                     title = BENCHMARK_STORY_TITLE,
                     authors = setOf("Hikari"),
-                    description = "Deterministic local story used only by benchmarkRelease.",
+                    description = benchmarkMetadata(
+                        "Deterministic local story used only by benchmarkRelease.",
+                        profile.metadataWidth,
+                    ),
                     contentType = ContentType.MANGA,
                     languageTags = setOf("en"),
                 ),
@@ -83,16 +91,9 @@ class BenchmarkFixtureActivity : ComponentActivity() {
             ),
         )
         check(catalogResult is Outcome.Success)
-        library.add(storyId, LibraryStatus.READING, BENCHMARK_EPOCH_MILLIS)
-        check(
-            library.changeStatus(
-                storyId,
-                LibraryStatus.READING,
-                BENCHMARK_EPOCH_MILLIS + BENCHMARK_PRIMARY_ACTIVITY_OFFSET,
-            ) != null,
-        )
+        seedLibraryMembership(profile, storyId, browseEntries)
 
-        val chapterFixtures = (1..BENCHMARK_CHAPTER_COUNT).map { index -> chapterFixture(storyId, index) }
+        val chapterFixtures = (1..profile.chapterCount).map { index -> chapterFixture(storyId, index) }
         val commit = chapters.commit(
             ChapterMutation(
                 storyId = storyId,
@@ -110,35 +111,20 @@ class BenchmarkFixtureActivity : ComponentActivity() {
         )
         check(commit == ChapterCommitResult.Success)
 
-        chapterFixtures.forEach { fixture ->
+        chapterFixtures.forEachIndexed { zeroBasedIndex, fixture ->
             val document = benchmarkDocument(fixture.index)
             documents.write(fixture.release.id, document.fingerprint, document)
             check(documents.read(fixture.release.id, document.fingerprint) == document) {
                 "Benchmark Reader document was not persisted for chapter ${fixture.index}."
             }
-            progress.save(
-                ReadingProgress(
-                    storyId = storyId,
-                    canonicalChapterId = fixture.chapter.id,
-                    releaseId = fixture.release.id,
-                    contentFingerprint = document.fingerprint,
-                    position = ReadingPosition(document.blocks.first().id, 0, 0f),
-                    completedAtEpochMillis = if (fixture.index == BENCHMARK_RESUME_CHAPTER_INDEX) {
-                        null
-                    } else {
-                        BENCHMARK_EPOCH_MILLIS
-                    },
-                    updatedAtEpochMillis =
-                        BENCHMARK_EPOCH_MILLIS + (BENCHMARK_CHAPTER_COUNT - fixture.index),
-                ),
-            )
+            if (zeroBasedIndex < profile.progressRows) seedProgress(storyId, fixture, document, profile)
+            if (zeroBasedIndex < profile.explicitDownloadRecords) seedExplicitDownload(fixture, document)
         }
     }
 
-
-    private suspend fun seedBrowseFixtures() {
+    private suspend fun seedBrowseFixtures(profile: BenchmarkFixtureProfile): List<CatalogEntry> {
         val pluginId = PluginId(BENCHMARK_PLUGIN_ID)
-        val entries = List(BENCHMARK_BROWSE_STORY_COUNT) { index ->
+        val entries = List(profile.catalogStories) { index ->
             val storyId = StoryId("benchmark-browse-story-$index")
             CatalogEntry(
                 storyId = storyId,
@@ -146,7 +132,10 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                 sourceId = "benchmark-browse-source-$index",
                 title = "Benchmark Browse Story ${index + 1}",
                 authors = setOf("Hikari"),
-                description = "Deterministic browse fixture ${index + 1} for scroll macrobenchmarks.",
+                description = benchmarkMetadata(
+                    "Deterministic browse fixture ${index + 1} for scroll macrobenchmarks.",
+                    profile.metadataWidth,
+                ),
                 genres = setOf("Fantasy", "Adventure"),
                 contentType = ContentType.MANGA,
                 languageTags = setOf("en"),
@@ -160,7 +149,7 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                 },
                 latestUpdate = CatalogLatestUpdate(
                     atEpochMillis = BENCHMARK_EPOCH_MILLIS - index,
-                    releaseLabel = (BENCHMARK_BROWSE_STORY_COUNT - index).toString(),
+                    releaseLabel = (profile.catalogStories - index).toString(),
                 ),
             )
         }
@@ -204,13 +193,75 @@ class BenchmarkFixtureActivity : ComponentActivity() {
             ),
         )
         check(homeResult is Outcome.Success)
-        entries.forEachIndexed { index, entry ->
+        return entries
+    }
+
+    private suspend fun seedLibraryMembership(
+        profile: BenchmarkFixtureProfile,
+        targetStoryId: StoryId,
+        browseEntries: List<CatalogEntry>,
+    ) {
+        library.add(targetStoryId, LibraryStatus.READING, BENCHMARK_EPOCH_MILLIS)
+        check(
+            library.changeStatus(
+                targetStoryId,
+                LibraryStatus.READING,
+                BENCHMARK_EPOCH_MILLIS + BENCHMARK_PRIMARY_ACTIVITY_OFFSET,
+            ) != null,
+        )
+        browseEntries.take(profile.libraryEntries - 1).forEachIndexed { index, entry ->
             val activityAt = BENCHMARK_EPOCH_MILLIS - index - 1
             library.add(entry.storyId, LibraryStatus.WANT_TO_READ, activityAt)
             check(
                 library.changeStatus(entry.storyId, LibraryStatus.WANT_TO_READ, activityAt) != null,
             )
         }
+    }
+
+    private suspend fun seedProgress(
+        storyId: StoryId,
+        fixture: ChapterFixture,
+        document: ReaderDocument,
+        profile: BenchmarkFixtureProfile,
+    ) {
+        progress.save(
+            ReadingProgress(
+                storyId = storyId,
+                canonicalChapterId = fixture.chapter.id,
+                releaseId = fixture.release.id,
+                contentFingerprint = document.fingerprint,
+                position = ReadingPosition(document.blocks.first().id, 0, 0f),
+                completedAtEpochMillis = if (fixture.index == BENCHMARK_RESUME_CHAPTER_INDEX) {
+                    null
+                } else {
+                    BENCHMARK_EPOCH_MILLIS
+                },
+                updatedAtEpochMillis = BENCHMARK_EPOCH_MILLIS + (profile.chapterCount - fixture.index),
+            ),
+        )
+    }
+
+    private suspend fun seedExplicitDownload(fixture: ChapterFixture, document: ReaderDocument) {
+        downloads.save(
+            DownloadRecord(
+                key = ChapterBlobKey(
+                    namespace = ChapterBlobNamespace.EXPLICIT_DOWNLOAD,
+                    releaseId = fixture.release.id,
+                    contentFingerprint = document.fingerprint,
+                ),
+                state = DownloadState.QUEUED,
+                updatedAtEpochMillis = BENCHMARK_EPOCH_MILLIS + fixture.index,
+            ),
+        )
+    }
+
+    private fun benchmarkMetadata(base: String, width: Int): String = when {
+        width == BenchmarkFixtureProfile.DEFAULT.metadataWidth -> base
+        base.length >= width -> base.take(width)
+        else -> buildString(width) {
+            append(base)
+            while (length < width) append(" benchmark-metadata")
+        }.take(width)
     }
 
     private fun chapterFixture(storyId: StoryId, index: Int): ChapterFixture {
@@ -274,8 +325,6 @@ class BenchmarkFixtureActivity : ComponentActivity() {
         const val BENCHMARK_SOURCE_ID = "benchmark-fixture-source"
         const val BENCHMARK_PLUGIN_VERSION = "1.0.0"
         const val BENCHMARK_STORY_TITLE = "Hikari Benchmark Fixture"
-        const val BENCHMARK_CHAPTER_COUNT = 12
-        const val BENCHMARK_BROWSE_STORY_COUNT = 30
         const val BENCHMARK_BROWSE_COVER_URL =
             "android.resource://app.openstory/drawable/benchmark_browse_cover"
         const val BENCHMARK_RESUME_CHAPTER_INDEX = 1

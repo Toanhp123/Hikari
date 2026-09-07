@@ -103,6 +103,9 @@ baselineProfile {
 // build types during finalizeDsl. Re-attach the deterministic fixture afterwards
 // to both target variants used by Macrobenchmark and Baseline Profile generation.
 androidComponents {
+    beforeVariants(selector().withBuildType("benchmarkRelease")) { variantBuilder ->
+        variantBuilder.hostTests["UnitTest"]?.enable = true
+    }
     finalizeDsl { extension ->
         listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
             extension.sourceSets.getByName(sourceSetName).apply {
