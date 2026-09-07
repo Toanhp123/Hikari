@@ -20,22 +20,23 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 2: freeze the
-V2 performance constitution and capability admission form**. Tasks 0 and 1 are complete on branch
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 3: add a strict
+V2 source/build boundary policy and verifier**. Tasks 0 through 2 are complete on branch
 `v2/foundation-clean-boot` in the same Hikari Git repository/worktree lineage. The retained-core
 baseline and current architecture gate are green, the same-repository cutover provenance guard is
-committed, and the V1 salvage ledger policy test is green.
+committed, and the V1 salvage ledger and V2 capability admission contract policy tests are green.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 2` first;
+  `## Global Constraints` and `## Task 3` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  PERF-01..08 and the ten-field Capability Admission Contract;
+  `## 11. Dependency policy for :app` and `### 12.1` through `### 12.2` first;
 - cutover provenance: `../internal/v2/cutover-provenance.md`.
 
-Resume at Task 2 Step 1. The V1 salvage ledger is canonical at
-`../internal/v2/v1-salvage-ledger.md`; do not delete or modify V1 runtime source before later plan
+Resume at Task 3 Step 1. The V2 capability admission contract is canonical at
+`../internal/v2/capability-admission-contract.md`, and the V1 salvage ledger remains canonical at
+`../internal/v2/v1-salvage-ledger.md`. Do not delete or modify V1 runtime source before later plan
 tasks authorize it. The Step 1 checkpoint is created only by Task 15; do not invent an intermediate
 checkpoint file.
 
