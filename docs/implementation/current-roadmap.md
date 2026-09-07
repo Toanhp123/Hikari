@@ -20,22 +20,24 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 1: preserve V1
-invariants before any runtime deletion**. Task 0 is complete on branch `v2/foundation-clean-boot`
-in the same Hikari Git repository/worktree lineage. The retained-core baseline and current
-architecture gate are green, and the same-repository cutover provenance guard is committed.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 2: freeze the
+V2 performance constitution and capability admission form**. Tasks 0 and 1 are complete on branch
+`v2/foundation-clean-boot` in the same Hikari Git repository/worktree lineage. The retained-core
+baseline and current architecture gate are green, the same-repository cutover provenance guard is
+committed, and the V1 salvage ledger policy test is green.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 1` first;
+  `## Global Constraints` and `## Task 2` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  retention tiers, Gate 0, and only the Task 1 invariants needed for the salvage ledger;
+  PERF-01..08 and the ten-field Capability Admission Contract;
 - cutover provenance: `../internal/v2/cutover-provenance.md`.
 
-Resume at Task 1 Step 1. Do not delete or modify V1 runtime source before the salvage ledger and its
-focused policy tests are green. The Step 1 checkpoint is created only by Task 15; do not invent an
-intermediate checkpoint file.
+Resume at Task 2 Step 1. The V1 salvage ledger is canonical at
+`../internal/v2/v1-salvage-ledger.md`; do not delete or modify V1 runtime source before later plan
+tasks authorize it. The Step 1 checkpoint is created only by Task 15; do not invent an intermediate
+checkpoint file.
 
 ## Historical execution context (non-current)
 
