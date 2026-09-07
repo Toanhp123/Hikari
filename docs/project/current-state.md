@@ -1,10 +1,15 @@
 # Repository Current State
 
-Date: 2026-09-05
+Date: 2026-09-07
 Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
+- Whole-App Performance Big Update v3: **WAVE 0 IN PROGRESS**. Task 1 fixture profiles are
+  committed. Task 2 deterministic real-Search wiring is present and checkpointed, but its AGED
+  physical-device baseline is not accepted because fixture preparation currently reports
+  `IllegalArgumentException`; Task 3 has not started. See
+  `../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md`.
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
 - Current production Gradle graph: 17 modules.

@@ -12,11 +12,15 @@ internal const val READER_NEXT_ACTION_COUNT = 10
 private const val BENCHMARK_FIXTURE_COMPONENT =
     "app.openstory/app.openstory.benchmark.BenchmarkFixtureActivity"
 private const val BENCHMARK_FIXTURE_READY_TEXT = "HIKARI_BENCHMARK_READY"
+private const val BENCHMARK_SEARCH_QUERY = "hikari deterministic search"
+private const val BENCHMARK_SEARCH_RESULT_TITLE = "Hikari Deterministic Search Result"
+private const val SEARCH_INPUT_DESCRIPTION = "Search stories"
 private const val DISABLE_BACKDROP_EXTRA = "app.openstory.benchmark.DISABLE_BACKDROP"
 private const val DISABLE_SURFACE_SHADOWS_EXTRA = "app.openstory.benchmark.DISABLE_SURFACE_SHADOWS"
 private const val LEGACY_NAVIGATION_TRANSITIONS_EXTRA =
     "app.openstory.benchmark.LEGACY_NAVIGATION_TRANSITIONS"
 private const val UI_TIMEOUT_MILLIS = 10_000L
+private const val FIXTURE_TIMEOUT_MILLIS = 300_000L
 private const val SWIPE_EDGE_DIVISOR = 5
 private const val SWIPE_STEPS = 20
 
@@ -31,7 +35,7 @@ internal fun prepareBenchmarkFixture(
     check("Error" !in launchResult && "Exception" !in launchResult) {
         "Benchmark fixture activity failed to launch: $launchResult"
     }
-    check(device.wait(Until.hasObject(By.text(BENCHMARK_FIXTURE_READY_TEXT)), UI_TIMEOUT_MILLIS)) {
+    check(device.wait(Until.hasObject(By.text(BENCHMARK_FIXTURE_READY_TEXT)), FIXTURE_TIMEOUT_MILLIS)) {
         "Benchmark fixture did not become ready."
     }
     device.pressHome()
@@ -87,6 +91,29 @@ internal fun waitForTag(tag: String) {
 internal fun waitForDiscoverReady() {
     waitForTag("discover-ready-content")
     waitForTag("discover-popular-pager")
+}
+
+internal fun enterBenchmarkSearchQueryAndWaitForResult() {
+    val device = benchmarkDevice()
+    check(device.wait(Until.hasObject(By.desc(SEARCH_INPUT_DESCRIPTION)), UI_TIMEOUT_MILLIS)) {
+        "Benchmark Search semantics were not found."
+    }
+    val input = device.wait(Until.findObject(By.clazz("android.widget.EditText")), UI_TIMEOUT_MILLIS)
+    requireNotNull(input) { "Benchmark Search input was not found." }
+    input.click()
+    input.text = BENCHMARK_SEARCH_QUERY
+    check(device.wait(Until.hasObject(By.text(BENCHMARK_SEARCH_QUERY)), UI_TIMEOUT_MILLIS)) {
+        "Benchmark Search query was not entered."
+    }
+    check(device.wait(Until.gone(By.res("search-progress")), UI_TIMEOUT_MILLIS)) {
+        "Benchmark Search did not leave the pending state."
+    }
+    check(device.wait(Until.hasObject(By.descContains(BENCHMARK_SEARCH_RESULT_TITLE)), UI_TIMEOUT_MILLIS)) {
+        val visibleContent = device.findObjects(By.pkg(HIKARI_PACKAGE))
+            .flatMap { node -> listOfNotNull(node.text, node.contentDescription) }
+            .distinct()
+        "Benchmark Search result was not found. Visible content: $visibleContent"
+    }
 }
 
 internal fun pressBackAndWait() {

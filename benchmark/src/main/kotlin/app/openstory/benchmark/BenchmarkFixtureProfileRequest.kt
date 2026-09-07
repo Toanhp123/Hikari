@@ -56,6 +56,11 @@ internal data class BenchmarkFixtureProfileRequest(
             metadataWidth = 4_096,
         )
 
+        val AGED_CATALOG = SMALL.copy(
+            catalogStories = AGED.catalogStories,
+            metadataWidth = AGED.metadataWidth,
+        )
+
         val STRESS = BenchmarkFixtureProfileRequest(
             catalogStories = 12_000,
             progressRows = 1_501,

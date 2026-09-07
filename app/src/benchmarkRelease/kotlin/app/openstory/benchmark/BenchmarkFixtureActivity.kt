@@ -131,7 +131,7 @@ class BenchmarkFixtureActivity : ComponentActivity() {
                 pluginId = pluginId,
                 sourceId = "benchmark-browse-source-$index",
                 title = "Benchmark Browse Story ${index + 1}",
-                authors = setOf("Hikari"),
+                authors = setOf("Historical Fixture Author ${index + 1}"),
                 description = benchmarkMetadata(
                     "Deterministic browse fixture ${index + 1} for scroll macrobenchmarks.",
                     profile.metadataWidth,

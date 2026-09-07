@@ -28,6 +28,8 @@ import app.openstory.catalog.orchestration.CanonicalEngineWorkRepository
 import app.openstory.catalog.orchestration.CanonicalMaintenanceHealthMarker
 import app.openstory.catalog.ranking.AggregateRanking
 import app.openstory.catalog.source.CatalogSourceRegistry
+import app.openstory.catalog.source.CatalogSource
+import app.openstory.catalog.source.ExclusiveCatalogSourceRegistry
 import app.openstory.catalog.source.PluginCatalogSourceRegistry
 import app.openstory.common.Clock
 import app.openstory.common.SystemClock
@@ -161,5 +163,9 @@ object CatalogModule {
     fun provideCatalogSourceRegistry(
         runtime: PluginRuntime,
         json: Json,
-    ): CatalogSourceRegistry = PluginCatalogSourceRegistry(runtime, json)
+        @ExclusiveCatalogSources exclusiveSources: Set<@JvmSuppressWildcards CatalogSource>,
+    ): CatalogSourceRegistry = ExclusiveCatalogSourceRegistry(
+        fallback = PluginCatalogSourceRegistry(runtime, json),
+        exclusive = exclusiveSources,
+    )
 }

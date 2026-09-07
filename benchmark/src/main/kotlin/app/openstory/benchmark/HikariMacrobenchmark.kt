@@ -76,6 +76,12 @@ class HikariMacrobenchmark {
     }
 
     @Test
+    fun searchQuerySmallCatalog() = measureSearchQuery(BenchmarkFixtureProfileRequest.SMALL)
+
+    @Test
+    fun searchQueryAgedCatalog() = measureSearchQuery(BenchmarkFixtureProfileRequest.AGED_CATALOG)
+
+    @Test
     fun storyTabs() = measureNavigation(
         setup = { openBenchmarkFixtureStory() },
     ) {
@@ -198,6 +204,21 @@ class HikariMacrobenchmark {
         }
     }
 
+    private fun measureSearchQuery(profile: BenchmarkFixtureProfileRequest) {
+        prepareBenchmarkFixture(profile)
+        measureNavigation(
+            profile = profile,
+            prepareFixtureInSetup = false,
+            setup = {
+                clickTag("navigation-discover")
+                clickTag("discover-search")
+                waitForTag("search-content")
+            },
+        ) {
+            enterBenchmarkSearchQueryAndWaitForResult()
+        }
+    }
+
     private fun measureChapterScroll(surfaceShadowsDisabled: Boolean) = measureNavigation(
         surfaceShadowsDisabled = surfaceShadowsDisabled,
         setup = {
@@ -211,6 +232,8 @@ class HikariMacrobenchmark {
     }
 
     private fun measureNavigation(
+        profile: BenchmarkFixtureProfileRequest = BenchmarkFixtureProfileRequest.SMALL,
+        prepareFixtureInSetup: Boolean = true,
         surfaceShadowsDisabled: Boolean = false,
         legacyNavigationTransitions: Boolean = false,
         setup: MacrobenchmarkScope.() -> Unit = {},
@@ -223,7 +246,7 @@ class HikariMacrobenchmark {
             startupMode = null,
             iterations = 5,
             setupBlock = {
-                prepareBenchmarkFixture()
+                if (prepareFixtureInSetup) prepareBenchmarkFixture(profile)
                 killProcess()
                 pressHome()
                 startHikari(

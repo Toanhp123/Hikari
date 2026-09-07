@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-08-25
+Date: 2026-09-07
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -19,6 +19,15 @@ acceptance remain separate states.
 - **Planned**: approved work has not started in this repository.
 
 ## Current position
+
+The Whole-App Performance Big Update v3 is the active engineering program. Wave 0 Task 1 is
+committed, and Task 2 has a committed implementation checkpoint with its AGED physical-device
+baseline still open because fixture preparation reports `IllegalArgumentException`. Task 3 has not
+started. Resume from
+`../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md`, the active design
+at `../superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md`, and the
+master roadmap at
+`../superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md`.
 
 Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
 Design System Foundation and the full Product UI checkpoint are accepted; they preserved the historical

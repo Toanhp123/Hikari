@@ -36,6 +36,7 @@ import app.openstory.catalog.repository.CatalogSearchSummaryMutation
 import app.openstory.catalog.source.CatalogSource
 import app.openstory.catalog.source.CatalogSourceRegistry
 import app.openstory.catalog.source.CatalogSourceResult
+import app.openstory.catalog.source.ExclusiveCatalogSourceRegistry
 import app.openstory.catalog.source.SourceContentType
 import app.openstory.catalog.source.SourceDetails
 import app.openstory.catalog.source.SourceFilter
@@ -58,6 +59,28 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class CatalogSearchServiceTest {
+
+    @Test
+    fun benchmarkQueryUsesDeterministicLocalSourceWithoutNetwork() = runTest {
+        val canonical = FakeCanonicalRepository()
+        val repository = FakeRepository(canonical)
+        val benchmarkSource = QueryMatchingSource(
+            expectedQuery = "hikari deterministic search",
+            item = item("benchmark-result", "Hikari Deterministic Search Result"),
+        )
+        val externalRegistry = CountingRegistry()
+        val registry = ExclusiveCatalogSourceRegistry(
+            fallback = externalRegistry,
+            exclusive = setOf(benchmarkSource),
+        )
+        val service = service(emptyList(), repository, canonical, sourceRegistry = registry)
+
+        val result = service.search(CatalogSearchRequest("hikari deterministic search"))
+
+        assertEquals(listOf("Canonical Hikari Deterministic Search Result"), result.stories.map { it.presentation.title })
+        assertEquals(listOf("hikari deterministic search"), benchmarkSource.queries)
+        assertEquals(0, externalRegistry.enabledCalls)
+    }
 
     @Test
     fun committedSearchChangesRouteThroughSummaryEvidenceEvents() = runTest {
@@ -219,10 +242,11 @@ class CatalogSearchServiceTest {
         canonical: FakeCanonicalRepository,
         rebuilder: FakeRebuilder = FakeRebuilder(canonical, promote = true),
         engine: RecordingCanonicalEngineEventSink = RecordingCanonicalEngineEventSink(),
+        sourceRegistry: CatalogSourceRegistry = Registry(sourceList),
     ): CatalogSearchService {
         val clock = Clock { 100L }
         return CatalogSearchService(
-            sources = Registry(sourceList),
+            sources = sourceRegistry,
             repository = repository,
             reconciliationEngine = app.openstory.catalog.engine.reconciliation.CatalogReconciliationEngine(
                 app.openstory.catalog.engine.reconciliation.ReconciliationPolicy(),
@@ -244,6 +268,36 @@ class CatalogSearchServiceTest {
         scoreValue = 9.0,
         scoreScale = 10.0,
     )
+}
+
+private class QueryMatchingSource(
+    private val expectedQuery: String,
+    private val item: SourceItem,
+) : CatalogSource {
+    override val pluginId = PluginId("benchmark.local")
+    override val version: String = "1.0.0"
+    val queries = mutableListOf<String>()
+
+    override suspend fun search(request: SourceSearchRequest): CatalogSourceResult<SourceSearchPage> {
+        queries += request.query
+        val items = listOf(item).takeIf { request.query == expectedQuery }.orEmpty()
+        return CatalogSourceResult.Success(SourceSearchPage(items, null))
+    }
+
+    override suspend fun details(sourceId: String): CatalogSourceResult<SourceDetails> = error("unused")
+    override suspend fun home(request: SourceHomeRequest): CatalogSourceResult<List<SourceSection>> = error("unused")
+    override suspend fun filters(): CatalogSourceResult<List<SourceFilter>> = CatalogSourceResult.Success(emptyList())
+}
+
+private class CountingRegistry : CatalogSourceRegistry {
+    var enabledCalls = 0
+
+    override suspend fun enabled(): List<CatalogSource> {
+        enabledCalls++
+        return emptyList()
+    }
+
+    override suspend fun source(pluginId: PluginId): CatalogSource? = null
 }
 
 private class Registry(private val sources: List<CatalogSource>) : CatalogSourceRegistry {
