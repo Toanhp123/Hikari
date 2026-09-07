@@ -20,22 +20,23 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 4: add the V2
-structural ratchet for newly introduced app code**. Tasks 0 through 3 are complete on branch
-`v2/foundation-clean-boot` in the same Hikari Git repository/worktree lineage. The retained-core
-baseline and current architecture gate are green, the same-repository cutover provenance guard is
-committed, the V1 salvage ledger and V2 capability admission contract policy tests are green, and
-the strict foundation-policy/source-boundary focused tests are green.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 5: add
+merged-manifest hidden-startup verification and the aggregate foundation plugin**. Tasks 0 through
+4 are complete on branch `v2/foundation-clean-boot` in the same Hikari Git repository/worktree
+lineage. The retained-core baseline and current architecture gate are green, the same-repository
+cutover provenance guard is committed, the V1 salvage ledger and V2 capability admission contract
+policy tests are green, and the strict foundation-policy/source-boundary and app-structure focused
+tests are green.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 4` first;
+  `## Global Constraints` and `## Task 5` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  `### 12.4 V2 structural ratchet` first;
+  `### 12.3 Manifest guard` first;
 - cutover provenance: `../internal/v2/cutover-provenance.md`.
 
-Resume at Task 4 Step 1. The shared Step 1 policy is canonical at
+Resume at Task 5 Step 1. The shared Step 1 policy is canonical at
 `../../config/architecture/v2-foundation-policy.json`; the V2 capability admission contract is
 canonical at `../internal/v2/capability-admission-contract.md`, and the V1 salvage ledger remains
 canonical at `../internal/v2/v1-salvage-ledger.md`. Do not delete or modify V1 runtime source before
