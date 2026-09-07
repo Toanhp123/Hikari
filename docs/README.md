@@ -6,11 +6,9 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 
 1. [PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md) - project orientation, ownership, and contributor rules.
 2. [project/current-state.md](project/current-state.md) - exact implemented repository boundary.
-3. [implementation/current-roadmap.md](implementation/current-roadmap.md) - current execution position.
-4. [superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md](superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md) - active whole-app performance design.
-5. [superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md](superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md) - Wave 0-8 execution order and closure matrix.
-6. [internal/performance-big-update-v3/REPOSITORY-PLACEMENT.md](internal/performance-big-update-v3/REPOSITORY-PLACEMENT.md) - imported audit bundle provenance and repository placement.
-7. [internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md) - verified historical schema-9 CCE closeout evidence.
+3. [implementation/current-roadmap.md](implementation/current-roadmap.md) - canonical current execution position and resume route.
+4. [project/document-governance.md](project/document-governance.md) - source precedence when records disagree.
+5. [project/approved-product-design.md](project/approved-product-design.md) - approved product/domain baseline.
 
 ## Normative product and architecture documents
 
@@ -27,18 +25,12 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 
 ## Current execution records
 
-The Product UI, Discover semantic-feed, and Canonical Catalog Reconciliation & Fusion Engine plans
-are completed implementation records. CCE Phases 0-7 / Tasks 1-42 remain verified and closed on
-their Room schema-9 boundary.
+The canonical execution position is `implementation/current-roadmap.md`. Read only its `Current
+position` section first, then follow the checkpoint and owning plan named there. Do not infer next work
+from the newest dated file, a completed Wave, or an older readiness record.
 
-The later canonical performance/durability patch advances current source to schema 10 with queue
-leases and a transactional catalog-change outbox. Its policy, full host, and API 26/API 37 entry
-verification is accepted. Wave 10 is ready to start from its active plan.
-
-Wave 01-09 plans are historical delivery records. Wave 10-11 remain planned future capability work
-under the approved post-Baseline-2 architecture. Canonical foundation owns `8 -> 9`; canonical
-durability owns `9 -> 10`; Wave 10 notification persistence owns `10 -> 11`; Wave 11 enters on
-schema 11 unless another reviewed migration intervenes.
+Historical Wave, CCE, HES, Reader, performance, and other completed plans/checkpoints remain audit
+evidence; load them only when the active task or a concrete root-cause trail requires them.
 
 ## Public/plugin documentation
 

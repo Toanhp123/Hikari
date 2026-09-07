@@ -92,15 +92,11 @@ the repository implementation baseline, not a product-scope rewrite.
   -> :catalog -> plugin facade (:plugins:runtime) -> wire/package contracts (:plugins:api)
 ```
 
-The accepted Baseline 2 production graph is the historical seven-module boundary:
-`:app`, `:core:common`, `:catalog`, `:feature:catalog`, `:storage:room`, `:plugins:api`,
-and `:plugins:runtime`. Wave 06 added `:library`, Wave 07 added `:chapters`, Wave 08
-added `:reader` plus `:feature:reader`, and Wave 09 added `:downloads` plus
-`:storage:files`, producing the thirteen-module capability graph. The approved
-between-wave foundation adds `:core:designsystem`, producing the current
-fourteen-module graph. Exact current edges are governed by
-`config/architecture/module-boundaries.json`; later modules are created only
-through their owning wave or a dedicated approved architecture decision.
+The accepted Baseline 2 production graph is a historical seven-module boundary. Post-baseline
+capabilities subsequently added modules through their owning reviewed architecture decisions. This
+handbook intentionally does not duplicate the fast-changing current module count. Use
+`settings.gradle.kts` for included modules, `config/architecture/module-boundaries.json` for exact
+dependency edges, and `project/current-state.md` for the implemented architecture boundary.
 
 Room owns private schema, DAOs, transactions, and persistence adapters. Plugin lifecycle,
 JavaScript execution, bounded host capabilities, and runtime persistence SPI belong to
@@ -129,41 +125,14 @@ URLs or raw cursor values.
 
 ## 7. Current execution position
 
-**Waves 06-09, the Design System Foundation, Product UI checkpoint, and Discover semantic-feed redesign are complete. CCE Phases 0-7 / Tasks 1-42 are verified and closed on schema 9. Current source is schema 10 after the accepted canonical durability entry gate. Wave 10 is ready to start.**
+Current execution changes too quickly to duplicate safely in this handbook. Use
+`implementation/current-roadmap.md` as the canonical next-work authority and read only its `Current
+position` range first. Follow the checkpoint/owning plan named there for the exact resume boundary.
+Use `project/current-state.md` for implemented repository state.
 
-Architecture Baseline 2 is accepted after local, API 26/API 37, launcher, plugin runtime,
-Room, Compose, and final ownership verification. Waves 06-09 are verified and complete;
-Wave 09 established the cache/download/offline boundary and Room schema 6. The between-wave
-Design System Foundation was accepted on 2026-08-12, and the Product UI checkpoint was
-accepted on 2026-08-14 while preserving the 14-module production graph.
-
-The 2026-08-19 Discover semantic-feed redesign is now implemented on top of that UI
-baseline. It adds explicit `CatalogFeedKind` semantics, publication/latest-update metadata,
-Room migration 6 -> 7, source-agnostic `DiscoverUiState`, the `Manga | Light Novel` media
-selector, a manual Popular hero pager (max 5), Latest Updates 3-column grid (max 9), and
-Top Rated list (max 5). Discover projection deduplicates by canonical `StoryId`, reads only
-cached Home emissions, and runs on the shared Default-dispatcher projection boundary.
-Light Novel remains visible but disabled in the current delivery.
-
-Targeted unit/instrumentation suites, app navigation/smoke tests, Roborazzi baselines, and
-the `discoverScroll` Macrobenchmark were rerun after the redesign. The 2026-08-20 catalog
-metadata-lifecycle unification then advanced Room from schema 7 to schema 8 without changing
-the module graph. `CatalogMetadataCoordinator` now owns only `Summary` / `Full` lifecycle
-requirements; Full uses 24-hour freshness, plugin-version invalidation, stale-while-revalidate,
-retry suppression, and process-wide single-flight. Home/Search listing payload quality remains a
-plugin-operation responsibility: missing optional artwork or other presentation metadata stays
-degraded and never triggers host-side Details enrichment. `CatalogDetailsLoader` is the sole
-production `CatalogSource.details(...)` call site, while persisted source identity is stable across
-metadata refreshes. Room schema 8 introduced Summary/Full provenance; canonical foundation then
-advanced to schema 9, and the canonical durability patch advanced current source to schema 10.
-
-The Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on Room schema 9.
-Phases 0-7 / Tasks 1-42 are accepted, including the schema-9 foundation, canonical read path,
-guarded atomic Story graph merge, durable review, shared orchestration, background safety, controlled
-reversal, bounded fail-open diagnostics, and final certification. The later canonical durability
-implementation advances current source to schema 10 through `MIGRATION_9_10` for leased work and the
-catalog-change outbox. Wave 10 notification persistence is rebased to `10 -> 11`; Wave 11 enters on
-schema 11 unless another reviewed migration intervenes.
+For agentic work, root `../AGENTS.md` defines the narrow-first discovery and self-review contract.
+Historical capability descriptions below remain orientation only and must not override the canonical
+roadmap/checkpoint.
 
 ## 8. Roadmap
 
@@ -179,12 +148,12 @@ schema 11 unless another reviewed migration intervenes.
 | 08 | text reader, release selection/switching and exact progress |
 | 09 | cache/download namespaces, quotas, integrity and offline reading |
 | UI | accepted design system + Product UI + semantic Discover presentation |
-| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phases 0-7 / Tasks 1-42 verified/closed on schema 9 | **Completed** |
-| CED | canonical engine leases, outbox, and bounded foreground convergence on schema 10 | **Entry baseline accepted** |
-| 10 | local scheduling, guarded source login and deduplicated notifications | **Ready to start** |
+| CCE | provider-agnostic canonical Story reconciliation/fusion engine; Phases 0-7 / Tasks 1-42 verified/closed on schema 9 |
+| CED | canonical engine leases, outbox, and bounded foreground convergence on schema 10 |
+| 10 | local scheduling, guarded source login and deduplicated notifications |
 | 11 | security/performance/accessibility/docs/reproducible APK hardening |
 
-Detailed lifecycle/status: `implementation/current-roadmap.md`.
+This table is capability/history orientation only. Detailed current lifecycle/status: `implementation/current-roadmap.md`.
 
 Wave 06-11 module ownership and dependency evolution is fixed by
 `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. Later
@@ -210,25 +179,19 @@ Evidence files under `internal/checkpoints/` retain `PASS`, `FAIL`, `NOT RUN`, o
 
 ## 10. Documentation map
 
-Read in this order:
+Read narrowly in this order:
 
-1. `project/current-state.md` — what exists now and what remains.
-2. `implementation/current-roadmap.md` — where to continue and wave sequencing.
-3. `superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md` — current canonical catalog identity/fusion architecture.
-4. `superpowers/plans/2026-08-21-canonical-catalog-reconciliation-fusion-engine-implementation-plan.md` — active task-by-task execution record.
-5. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-2.md` — verified Phase-2 Tasks 12–21 evidence.
-6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md` — verified Phase-1 Tasks 5–11 evidence.
-6. `internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md` — verified Phase-0 Tasks 1–4 evidence.
-7. `project/approved-product-design.md` — product/domain baseline plus accepted current amendments.
-8. `superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md` — current Discover behavior and semantic-feed contract until canonical read-path cutover.
-9. `internal/checkpoints/discover-semantic-feed-redesign.md` — Discover acceptance evidence and benchmark snapshot.
-10. `superpowers/specs/2026-08-12-redantotsu-inspired-product-ui-design.md` — accepted broader Product UI baseline; its Discover-specific composition is superseded by the 2026-08-19 spec.
-11. `superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md` when changing post-baseline module ownership.
-12. `plugin-sdk/` when changing public plugin contracts/packages.
-13. `internal/checkpoints/` when deciding whether a gate is proven.
-14. `internal/archive/` only for historical provenance.
+1. `project/current-state.md` — what is implemented now.
+2. `implementation/current-roadmap.md` — read `Current position` first for current work and resume routing.
+3. The checkpoint and owning plan named by `Current position` — exact execution/evidence boundary.
+4. `project/document-governance.md` — precedence when documents disagree.
+5. `project/approved-product-design.md` — product/domain baseline and accepted amendments.
+6. The specific architecture/design section required by the active task — do not load all specs by default.
+7. `plugin-sdk/` only when changing public plugin contracts/packages.
+8. `internal/checkpoints/` when deciding whether a gate is proven.
+9. `internal/archive/` only for historical provenance or a concrete contradiction/root-cause trail.
 
-`project/document-governance.md` defines precedence when documents disagree.
+For agentic work, root `../AGENTS.md` owns the context-budget and evidence-expansion rules.
 
 Reusable public contract fixtures belong to `:plugins:api` test resources or owning-module
 test builders. There is no cross-feature fixture module, and routine tests do not call live
@@ -246,9 +209,6 @@ websites.
 
 ## 12. Next action
 
-Start Wave 10 from
-`implementation/waves/wave-10-background-sync-auth-and-notifications.md`. CCE Phases 0-7 / Tasks
-1-42 remain verified on schema 9. Canonical durability owns `MIGRATION_9_10`; Wave 10 notification
-persistence owns `MIGRATION_10_11`; never redefine earlier migrations.
-The accepted entry evidence is in `internal/checkpoints/wave-10-entry-readiness-2026-08-24.md`.
-Use `./scripts/verify.sh` as the full host gate before Wave-10 task checkpoints are promoted.
+Do not encode a task/wave-specific next action in this handbook. Read `implementation/current-roadmap.md`
+`Current position`, then follow its named checkpoint and owning plan. Historical roadmap/capability
+sections in this handbook are orientation only and never override that route.

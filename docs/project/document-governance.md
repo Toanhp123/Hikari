@@ -22,21 +22,18 @@ exists, and code existence is not proof that a checkpoint passed.
 
 ### What is implemented next?
 
-Use `../implementation/current-roadmap.md`, then the active owning plan. Waves 06-09, the Design
-System Foundation, Product UI, Discover semantic-feed redesign, and CCE Phases 0-7 / Tasks 1-42 are
-complete. The accepted CCE checkpoint closes on Room schema 9.
+Use `../implementation/current-roadmap.md`, then the active owning checkpoint/plan named by its
+`Current position` section. Do not infer next work from a completed Wave, old readiness document, or
+the most recently dated plan.
 
-The separately reviewed Canonical Engine Performance and Durability work advances current source to
-schema 10 through `MIGRATION_9_10` for queue leases and the transactional catalog-change outbox.
-Its entry verification is accepted. Wave 10 is ready to start under
-`../implementation/waves/wave-10-background-sync-auth-and-notifications.md`. Wave 10
-enters on schema 10 and notification persistence owns `MIGRATION_10_11`.
+Do not duplicate the active program, Wave, Task, or resume status in this governance file. Those
+fast-changing facts are owned by `../implementation/current-roadmap.md` and the checkpoint/owning plan
+its `Current position` section references. Completed execution records remain evidence/architecture
+provenance, not current next-work instructions.
 
-Architecture Baseline 2 remains accepted. The broader Wave 06-11 path is
-`../superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md`. The 2026-08-19
-Discover spec owns Discover semantic composition. The 2026-08-20 CCE spec owns canonical catalog
-identity, reconciliation, fusion, and canonical presentation. The 2026-08-24 durability spec owns
-the schema-10 performance/durable-work extension.
+Architecture Baseline 2 remains accepted. The broader Wave 06-11 architecture and later scoped designs
+remain authoritative for the boundaries they own; use those designs only when the active task needs
+that invariant or when a concrete contradiction/root-cause trail crosses the boundary.
 
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions that retain
 development-only database migrations or selector generations.
@@ -66,7 +63,7 @@ and tested fixtures.
 | 2026-08-19 Discover design/plan | Accepted Discover semantic-feed contract and execution record |
 | 2026-08-20 CCE design + 2026-08-21 plan | Accepted canonical identity/fusion authority; Phases 0-7 / Tasks 1-42 close on schema 9 |
 | 2026-08-24 canonical performance/durability design + plan | Current schema-10 queue lease/outbox authority; owns `MIGRATION_9_10`; entry baseline accepted |
-| Wave 10 schema `6 -> 7`, `7 -> 8`, `8 -> 9`, or `9 -> 10` text | Superseded. Wave 10 enters schema 10, notification persistence owns `10 -> 11`, and Wave 11 enters schema 11 |
+| Wave 10 future/readiness wording or schema `6 -> 7`, `7 -> 8`, `8 -> 9`, or `9 -> 10` text | Historical/superseded as current-work guidance. Wave 10 is completed evidence; its notification persistence owns `10 -> 11`. Use `current-roadmap.md` for present next-work status. |
 
 ## Lifecycle labels
 
@@ -80,7 +77,8 @@ and tested fixtures.
 ## Change rules
 
 - Do not edit historical results to make the timeline cleaner.
-- Do not duplicate project status; `current-state.md` owns it.
+- Do not duplicate fast-changing status: `current-state.md` owns implemented-now state and
+  `current-roadmap.md` owns next-work/resume state.
 - Root and docs READMEs link to canonical files instead of duplicating the roadmap.
 - Public SDK examples point to tested fixtures where possible.
 - When a design correction changes ownership, update this supersession map.

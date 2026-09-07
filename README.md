@@ -6,18 +6,13 @@ novel library. The Android package namespace and application ID are
 
 ## Current repository status
 
-The accepted Product UI and Discover semantic-feed redesigns are implemented. Discover is
-source-agnostic at the presentation boundary and renders `Popular`, a full-width
-`Manga | Light Novel` selector, `Latest Updates`, and `Top Rated` from cached semantic Home
-feeds. Room schema **10** is current after the post-closeout Canonical Engine Performance and
-Durability work added leased durable work and the transactional catalog-change outbox. The
-production capability graph remains at 14 modules. The original Canonical Catalog Reconciliation &
-Fusion Engine rollout remains verified/closed on its schema-9 boundary; the schema-10 durability
-patch has passed policy, full host, and API 26/API 37 entry verification. Wave 10 is **ready to
-start** and its notification persistence is rebased to `10 -> 11`.
+Hikari keeps current implementation state and next-work status in canonical documents instead of
+duplicating a fast-moving execution ledger in this README.
 
-See `docs/project/current-state.md` for the exact boundary and
-`docs/implementation/current-roadmap.md` for what comes next.
+- See `docs/project/current-state.md` for what is implemented now.
+- See the `Current position` section of `docs/implementation/current-roadmap.md` for the active
+  engineering program, resume boundary, and owning checkpoint/plan.
+- Agentic work should start from `AGENTS.md` so bounded tasks do not recursively load historical docs.
 
 ## Requirements
 

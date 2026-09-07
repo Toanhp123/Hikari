@@ -20,12 +20,26 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Whole-App Performance Big Update v3 - Wave 0 Task 3**.
+The active execution boundary is **Whole-App Performance Big Update v3 — Wave 0 Task 3**.
 Tasks 1-2 are verified and closed. Task 2 retains valid SMALL and AGED physical-device Search
 baselines after fixing the invalid generated-score source without reducing its target dimensions.
-Task 3 has not started. Resume from
-`../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md` and the owning Wave 0
-plan at `../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-fixtures.md` Task 3.
+Task 3 has not started.
+
+Resume narrowly from:
+
+- checkpoint: `../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md` — read
+  `## Resume boundary` first;
+- owning plan: `../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-fixtures.md` — read
+  `## Global Constraints` and `### Task 3` first.
+
+Do not reimplement Tasks 1-2 or rediscover the program from historical plans. Consult the performance
+design/master roadmap only when Task 3 or its checkpoint leaves a required invariant unresolved.
+
+## Historical execution context (non-current)
+
+The material below is retained for architecture/provenance. Any older wording such as `current`,
+`open`, `next`, or `unblocked` describes its historical boundary and must not select present work; the
+`Current position` section above is the sole next-work authority in this file.
 
 Architecture Baseline 2 is accepted. Waves 06-09 are verified and complete. The between-wave
 Design System Foundation and the full Product UI checkpoint are accepted; they preserved the historical
@@ -38,9 +52,9 @@ Summary/Full freshness and single-flight in `:catalog`, and preserved the same m
 
 The **Canonical Catalog Reconciliation & Fusion Engine rollout is verified and closed on its Room schema-9 boundary**.
 Phases 0-7 / Tasks 1-42 are accepted. The schema-10 durability entry gate is also accepted.
-**Wave 10 production implementation and remediation Phase 7 coverage are present on Room schema 11,
-with final host/device verification still open.** The current
-design/plan/readiness records are:
+At the earlier Wave 10 remediation checkpoint, production implementation and Phase 7 coverage were
+present on Room schema 11 while final host/device verification was still open. The associated
+design/plan/readiness records were:
 
 - `../superpowers/specs/2026-08-24-canonical-engine-performance-and-durability-design.md`
 - `../superpowers/specs/2026-08-24-wave-10-clean-background-auth-notifications-design.md`
@@ -85,8 +99,8 @@ remain under `../internal/checkpoints/`. Phase-6 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-1.md`; Phase-0 acceptance remains in
 `../internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-0.md`. Current Discover acceptance
 evidence remains in `../internal/checkpoints/discover-semantic-feed-redesign.md`; keep the accepted Discover semantic-feed checkpoint as part of the Wave 10 entry baseline
-for its completed feed/UI behavior. The schema-10 durability gate is the accepted pre-Wave-10
-engineering boundary; the currently open gate is Wave 10 final host acceptance on schema 11 after its required API 26/API 37 matrix passed. The accepted broader Product UI evidence remains in
+for its completed feed/UI behavior. The schema-10 durability gate was the accepted pre-Wave-10 engineering boundary; at that historical
+point, Wave 10 final host acceptance on schema 11 remained open after its required API 26/API 37 matrix passed. The accepted broader Product UI evidence remains in
 `../internal/checkpoints/product-ui-redesign.md`. Wave-06 task evidence is recorded in:
 
 - `../internal/checkpoints/wave-06-task-01-metadata-only-library.md`
@@ -155,7 +169,10 @@ with Reader/HES ownership additionally governed by the 2026-08-25 HES design and
 No catch-all synchronization module is planned. Pure orchestration stays with its
 capability; WorkManager and notification adapters stay in `:app`.
 
-## Wave status
+## Historical wave/capability status
+
+This table is lifecycle/evidence history, not the current execution queue. Select present work only
+from `Current position`.
 
 | Wave | Ownership | Status | Canonical document |
 |---|---|---|---|
@@ -284,28 +301,24 @@ architecture
                       -> release hardening
 ```
 
-## Execution rule
+## Execution rules
 
-1. Use the current 17-production-module HES graph plus `:benchmark`, Room schema 11, and the accepted
-   Wave 10 production-remediation checkpoint as the active source baseline. M0–M7.3 remain verified/closed
-   historical milestones; M7.4 and M7.5 are verified/closed from the accepted final-tree matrix; HES-v1 is final re-frozen
-   until its fresh blocking final-tree matrix is green. Historical M7.3/Wave 10 evidence remains accepted
-   evidence for those milestones; M7.5 is now the accepted final HES-v1 closure evidence.
-2. Phase 1 Tasks 5–11, Phase 2 Tasks 12–21, Phase 3 Tasks 22–25, Phase 4 Tasks 26–32, Phase 5 Tasks 33–35, Phase 6 Tasks 36–38, and Phase 7 Tasks 39–42 are verified and closed. Wave 11 remains the next product-wave boundary; HES-v1 is final re-frozen/reference-grade after M7.5. `MIGRATION_8_9` belongs exclusively to the canonical-engine foundation.
-3. `MIGRATION_8_9` belongs to canonical foundation and `MIGRATION_9_10` belongs to canonical durability. Wave 10 notification persistence uses `MIGRATION_10_11`.
-4. Evolve modules only at the owning wave boundary defined by the approved post-baseline architecture design.
-5. Treat Wave 01-09, Product UI, and Discover checkpoints as accepted/historical evidence, not active implementation plans.
-6. Require every capability wave to consume the prior boundary's named contracts and contiguous schema.
-7. When a needed contract is absent or insufficient in current code, create it in the consuming
+1. Select active work only from `Current position`, then follow its named checkpoint and owning plan.
+2. Use `../project/current-state.md`, code, and tests for what is implemented now; a historical plan or
+   lifecycle row is never proof of current behavior.
+3. Treat completed Wave/HES/CCE records as architecture/evidence provenance unless the active task or a
+   concrete root-cause trail requires them.
+4. Preserve established migration ownership: canonical foundation owns `MIGRATION_8_9`, canonical
+   durability owns `MIGRATION_9_10`, and Wave 10 notification persistence owns `MIGRATION_10_11`.
+5. Evolve modules only at the owning boundary defined by the applicable approved architecture/design.
+6. When a needed contract is absent or insufficient in current code, create it in the consuming
    capability and migrate the current consumer in the same task; do not encode a false existing-port
    assumption in implementation docs.
-8. Update current state and checkpoints only after actual command/device evidence is reviewed.
+7. Update current state/checkpoints only after actual command/device evidence is reviewed.
 
-Discover / Home / Library remains the final top-level model. Discover itself is now semantic rather
-than catalog-selector driven: `Popular -> Manga | Light Novel -> Latest Updates -> Top Rated`.
-Downloads and Updates remain avatar-utility routes. Wave 10 Settings is implemented through that utility
-sheet and never top-level navigation; Wave 11 Plugin Management follows the same rule and remains planned.
-Settings is no longer future-only work, but Wave 10 is not accepted until its final matrix closes.
+Discover / Home / Library remains the top-level product model. Downloads, Updates, and Settings remain
+utility surfaces rather than top-level navigation. Current task/Wave sequencing is intentionally not
+duplicated here; use `Current position`.
 
 ## Verification workflow
 
