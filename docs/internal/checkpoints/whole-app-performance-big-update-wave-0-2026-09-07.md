@@ -17,6 +17,8 @@ Wave plan: `../../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-
   implementation and its then-open AGED failure.
 - The Task 2 closeout commit fixes that failure, records final verification evidence, and advances
   the resume boundary to Task 3.
+- `b131352 test(perf): add reader image cache macrobenchmarks` implements Task 3 and leaves its
+  three physical-device benchmark gates explicitly open.
 
 ## Task 2 implementation present
 
