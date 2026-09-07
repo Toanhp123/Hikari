@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "maxProductionKotlinLines": 300,
+  "forbiddenSourceTokens": [
+    "androidx.room.",
+    "androidx.work.",
+    "androidx.navigation",
+    "androidx.lifecycle.viewmodel",
+    "androidx.startup.",
+    "okhttp3.",
+    "coil.",
+    "dagger.hilt.",
+    "javax.inject.",
+    "app.openstory.catalog.",
+    "app.openstory.library.",
+    "app.openstory.chapters.",
+    "app.openstory.reader.",
+    "app.openstory.downloads.",
+    "app.openstory.settings.",
+    "app.openstory.storage.",
+    "app.openstory.plugins."
+  ],
+  "forbiddenBuildTokens": [
+    "id(\"openstory.hilt\")",
+    "id(\"openstory.room\")",
+    "implementation(project(",
+    "libs.androidx.room",
+    "libs.androidx.work",
+    "libs.androidx.navigation3",
+    "libs.androidx.javascriptengine",
+    "libs.okhttp",
+    "libs.coil",
+    "libs.hilt",
+    "libs.androidx.hilt",
+    "libs.javax.inject",
+    "libs.backdrop",
+    "libs.roborazzi"
+  ],
+  "forbiddenBroadTypeSuffixes": [
+    "Manager",
+    "Coordinator",
+    "Registry",
+    "ServiceLocator"
+  ],
+  "forbiddenManifestPermissions": [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.POST_NOTIFICATIONS"
+  ],
+  "allowedStartupInitializers": [
+    "androidx.profileinstaller.ProfileInstallerInitializer"
+  ]
+}
