@@ -20,21 +20,22 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Whole-App Performance Big Update v3 — Wave 0 Task 3 device verification**.
-Tasks 1-2 are verified and closed. Task 3 Reader image/cache fixture implementation, focused tests,
-debug/release compilation, and benchmark assembly are present. Its cold-cache, warm-cache, and
-warm-cache memory physical-device baselines have not yet been reviewed, so Task 4 is not active.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 1: preserve V1
+invariants before any runtime deletion**. Task 0 is complete on branch `v2/foundation-clean-boot`
+in the same Hikari Git repository/worktree lineage. The retained-core baseline and current
+architecture gate are green, and the same-repository cutover provenance guard is committed.
 
 Resume narrowly from:
 
-- checkpoint: `../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md` — read
-  `## Resume boundary` first;
-- owning plan: `../superpowers/plans/2026-09-07-hikari-perf-wave-0-contracts-and-fixtures.md` — read
-  `## Global Constraints` and `### Task 3` first.
+- owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
+  `## Global Constraints` and `## Task 1` first;
+- approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
+  retention tiers, Gate 0, and only the Task 1 invariants needed for the salvage ledger;
+- cutover provenance: `../internal/v2/cutover-provenance.md`.
 
-Resume with the three exact connected Macrobenchmark commands in the checkpoint. Do not reimplement
-Tasks 1-3 or rediscover the program from historical plans. Advance to Task 4 only after recording and
-reviewing all three Task 3 device results.
+Resume at Task 1 Step 1. Do not delete or modify V1 runtime source before the salvage ledger and its
+focused policy tests are green. The Step 1 checkpoint is created only by Task 15; do not invent an
+intermediate checkpoint file.
 
 ## Historical execution context (non-current)
 
