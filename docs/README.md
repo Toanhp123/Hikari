@@ -7,9 +7,9 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 1. [PROJECT-HANDBOOK.md](PROJECT-HANDBOOK.md) - project orientation, ownership, and contributor rules.
 2. [project/current-state.md](project/current-state.md) - exact implemented repository boundary.
 3. [implementation/current-roadmap.md](implementation/current-roadmap.md) - current execution position.
-4. [implementation/waves/wave-10-background-sync-auth-and-notifications.md](implementation/waves/wave-10-background-sync-auth-and-notifications.md) - active next-wave plan, rebased to schema 10 entry and `10 -> 11` notification persistence.
-5. [superpowers/specs/2026-08-24-canonical-engine-performance-and-durability-design.md](superpowers/specs/2026-08-24-canonical-engine-performance-and-durability-design.md) - current schema-10 durability authority.
-6. [internal/checkpoints/wave-10-entry-readiness-2026-08-24.md](internal/checkpoints/wave-10-entry-readiness-2026-08-24.md) - accepted Wave 10 entry evidence.
+4. [superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md](superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md) - active whole-app performance design.
+5. [superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md](superpowers/plans/2026-09-07-hikari-whole-app-performance-big-update-master-roadmap.md) - Wave 0-8 execution order and closure matrix.
+6. [internal/performance-big-update-v3/REPOSITORY-PLACEMENT.md](internal/performance-big-update-v3/REPOSITORY-PLACEMENT.md) - imported audit bundle provenance and repository placement.
 7. [internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md](internal/checkpoints/canonical-catalog-reconciliation-fusion-phase-7.md) - verified historical schema-9 CCE closeout evidence.
 
 ## Normative product and architecture documents
@@ -19,6 +19,7 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 - [Post-Baseline Wave 06-11 architecture](superpowers/specs/2026-08-10-post-baseline-wave-06-11-architecture-design.md)
 - [Canonical catalog reconciliation and metadata fusion engine](superpowers/specs/2026-08-20-canonical-catalog-reconciliation-fusion-engine-design.md)
 - [Canonical engine performance and durability](superpowers/specs/2026-08-24-canonical-engine-performance-and-durability-design.md)
+- [Whole-app performance big update](superpowers/specs/2026-09-07-hikari-whole-app-performance-big-update-design.md)
 - [Discover semantic-feed redesign](superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md)
 - [Requirement coverage](project/requirement-coverage.md)
 - [Documentation precedence/governance](project/document-governance.md)

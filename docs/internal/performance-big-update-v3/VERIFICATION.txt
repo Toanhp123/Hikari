@@ -1,0 +1,85 @@
+Hikari Performance Big Update Baseline v3 — Verification Record
+Date: 2026-09-07
+
+SCOPE OF THIS VERIFICATION
+- Documentation/audit/implementation-plan bundle only.
+- No production Hikari code was modified by this bundle.
+- No Gradle/unit/instrumentation benchmark claim is made here; those commands are execution requirements inside Waves 0–8.
+- Verification below is fresh static/source consistency evidence against the supplied Hikari-master.zip.
+
+PROVENANCE
+PASS master archive SHA-256:
+  a4b7b17a5f59dde6ff5d7ae1884dae043f638f9d36c35b8b1b601a98feb1f9b1
+PASS superseded v2 baseline SHA-256:
+  d3813d2a3a1c4216ccfd2c1d33e1593949ac2fc59a7d3412da87a49d3139ad0d
+
+AUTHORITATIVE CENSUS
+PASS audit root-cause headings: 33 exact IDs
+PASS design traceability matrix: 33 exact IDs, identical set/order
+PASS roadmap closure matrix: 33 exact IDs, identical set/order
+PASS authoritative risk set: 7 exact risks in audit/design/roadmap/Wave 8
+
+Expected confirmed IDs:
+  A1 A2 A3 A5 A6 A7 A8
+  L1 L3 L4 L5 L6 L7 L8
+  D1
+  X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18
+
+Expected risks:
+  RISK-A4
+  RISK-BIND
+  RISK-LIFECYCLE
+  RISK-GLOBAL-RESOURCE
+  RISK-PLUGIN-ISOLATE
+  RISK-PLUGIN-AUTH-CACHE
+  RISK-STARTUP-CONTENTION
+
+PLAN STRUCTURE
+PASS 9 wave files exist exactly as Wave 0..Wave 8.
+PASS task numbering is contiguous in every wave:
+  Wave 0: 7 tasks
+  Wave 1: 6 tasks
+  Wave 2: 7 tasks
+  Wave 3: 8 tasks
+  Wave 4: 6 tasks
+  Wave 5: 7 tasks
+  Wave 6: 7 tasks
+  Wave 7: 7 tasks
+  Wave 8: 9 tasks
+PASS Markdown code fences are balanced.
+PASS placeholder scan found no TODO/TBD/FIXME/"implement later"/"fill in details"/"similar to Task"/"as appropriate"/"if present" planning placeholders.
+PASS stale-v2 reference scan found no 30/30, 6/6, 8-wave or old Wave-4/5/6/7 filename/dependency wording in active docs.
+
+FILE LEDGER
+PASS parsed task file references: 313
+PASS planned Create targets: 71
+PASS unresolved Modify/Test/Inspect/Delete/Move references: 0
+PASS no planned Create target already exists in supplied master source.
+PASS referenced bundle/source Markdown filenames resolve, except intentionally future-created checkpoint/spec/plan paths.
+
+NEW ROOT-CAUSE SOURCE EVIDENCE
+PASS X16: DefaultPluginRuntime.enabled(operation) reaches package loading while readPackage reads manifest.json + main.js.
+PASS X16: AndroidBundledPluginSource.packages() reads descriptor asset bytes eagerly.
+PASS X16: InstalledPackageAuthenticationPolicySource enumerates state.all() and reads manifest.json for all installed plugins.
+PASS X17: BundledPluginProvisioner uses success-only provisioningSucceeded memoization and maps NEEDS_REVIEW to nonretryable plugin.update_needs_review.
+PASS X18: DefaultPluginSessionService request path reads the session store then refreshSummary reads the store again.
+PASS X18: AndroidKeystorePluginSessionStore decrypt/encrypt helpers call key(), whose implementation loads AndroidKeyStore/getKey.
+PASS X18 hot-path reachability: PluginHttpCapability request construction obtains managed credential headers through ManagedCredentialRequest.
+
+SELF-REVIEW / NEGATIVE EVIDENCE
+PASS generalized semantic-scope→physical-work census was expanded beyond Room to filesystem/package/assets/secure storage/process maps/work queues/plugin control plane.
+PASS failure-amplification census distinguishes success, terminal/user-action-required, transient retryable and cancellation outcomes.
+PASS retained-tab lifecycle remains evidence-gated rather than being promoted from static composition evidence alone.
+PASS fresh-isolate reuse and decrypted credential caching remain evidence-gated; v3 does not authorize either optimization speculatively.
+PASS process-map review did not classify all maps as defects: active-source registries, execution lanes, blob locks, probes and single-flight structures have explicit pruning/bounds.
+PASS Wave 7 now plans a fail-closed production-binding guard so bounded UI APIs cannot silently regress to global convenience defaults.
+
+STATIC VERIFICATION COMMAND RESULT
+  HIKARI V3 STATIC VERIFICATION
+  ...
+  plan_file_refs=313, creates=71, unresolved=0
+  FAILURES=0
+  RESULT=PASS
+
+LIMITATION / HONEST STATUS
+This verification proves the v3 audit/design/plan bundle is internally consistent with the supplied source evidence and has complete planning references. It does NOT prove the future performance fixes pass tests or benchmarks; implementation has not started in this artifact. Each wave contains its own RED/GREEN, module, architecture, security and benchmark acceptance commands that must be executed when production code changes are made.
