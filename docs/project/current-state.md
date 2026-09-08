@@ -5,12 +5,10 @@ Purpose: single source of truth for the implemented repository boundary.
 
 ## Executive state
 
-- Hikari V2 Step 1 — Foundation + Clean Boot: Tasks 0–5 are implemented on branch
-  `v2/foundation-clean-boot`. The same-repository cutover provenance, V1 salvage ledger, capability
-  admission contract, strict source/build boundary, app structural ratchet, merged-manifest hidden
-  startup verifier, and aggregate `openstory.foundation` convention plugin are committed. Focused
-  build-logic tests and plugin validation are green. The runtime `:app` and active module graph remain
-  on the V1 boundary until Tasks 6–7 perform their explicit cutovers; resume from Task 6 via
+- Hikari V2 Step 1 — Foundation + Clean Boot: Tasks 0–7 are committed on branch
+  `v2/foundation-clean-boot`. Task 7's seven-module active Gradle graph, exact boundary policy,
+  aggregate app-foundation dependency, and V1-only build-test retirement are GREEN under the full
+  user-owned aggregate gate. Task 7 is committed as `2f7cf17`; resume from Task 8A via
   `../implementation/current-roadmap.md`.
 - Whole-App Performance Big Update v3: **WAVE 0 IN PROGRESS**. Task 1 fixture profiles are
   committed. Task 2 deterministic real-Search wiring is verified and closed with valid SMALL/AGED
@@ -22,7 +20,7 @@ Purpose: single source of truth for the implemented repository boundary.
   `../internal/checkpoints/whole-app-performance-big-update-wave-0-2026-09-07.md`.
 - Product baseline: Android-native, local-first unified novel library design.
 - Package namespace and application ID: `app.openstory`.
-- Current production Gradle graph: 17 modules.
+- Current active production Gradle graph: 6 modules.
 - Performance tooling graph: 1 `android-test` module (`:benchmark`), excluded from production capability ownership.
 - Wave 01-05 implementation and checkpoints remain historical delivery evidence.
 - Architecture Baseline 2: **ACCEPTED**.
@@ -105,28 +103,15 @@ These versions are independent. A change in one does not imply a change in anoth
 
 | Module | Current responsibility |
 |---|---|
-| `:app` | Android entry points, Hilt composition, Navigation 3 routes/back stack, thin WorkManager adapters |
-| `:core:common` | `Outcome`, clocks, stable cross-capability IDs, narrow dispatcher abstraction |
-| `:core:designsystem` | Domain-neutral theme/tokens, artwork and glass primitives, adaptive layout/content chrome, pull-to-refresh, shared actions/states, equal-width segmented control, static skeleton, and screenshot rendering boundary |
-| `:catalog` | Story/catalog models, repository/source contracts, matching/ranking, Home/Search services, unified Summary/Full metadata lifecycle, canonical evidence/read contracts, shared canonical-engine orchestration, durable-work contracts, and local-only bootstrap boundary |
-| `:feature:catalog` | Discover, Home, Search, Story, Library, mapping-review, chapter-list, downloads/updates presentation and UI state |
-| `:storage:room` | Private Room schema/entities/DAOs/transactions and persistence adapters |
-| `:plugins:api` | Pure plugin manifest, wire protocol, package, and repository contracts, including bounded optional catalog external identifiers and opaque latest-update labels |
-| `:plugins:runtime` | Package lifecycle, JavaScript isolation, bounded capabilities, runtime facade and persistence SPI |
-| `:library` | Library membership/status, pure explainable matching, bounded plugin content-source search, and protected content-mapping policy/services |
-| `:chapters` | Chapter-label normalization, provider-neutral release sources, deterministic aggregation, synchronization policy, and repository contracts |
-| `:reader` | Sanitized document loading, HES-v1 session/effect coordination, Reader image identity/manifests/single-flight/working-set policy, process-scoped source health/execution limits, prefetch/competition, and exact progress policy/contracts |
-| `:reader:engine` | HES-v1 pure JVM routing values/policy/facts and deterministic adaptive reasoner; no effects/runtime ownership |
-| `:feature:reader` | Restorable Reader state and accessible structured text / vertical semantic image-page Compose presentation; no storage ownership |
-| `:downloads` | Explicit download state, unified automatic document/image-cache quota and retention, Reader asset store orchestration, Reader resolution, and reconciliation policy |
-| `:settings` | Wave 10 typed settings/auth/background/notification policy contracts and persistence-facing ports |
-| `:feature:settings` | Independent Wave 10 Settings presentation and status controls |
-| `:storage:files` | Atomic opaque chapter and Reader image blob persistence, read leases, bounded inventory, and low-space admission |
+| `:app` | Minimal V2 Android shell with zero production project dependencies |
+| `:core:common` | Retained narrow common primitives required by candidate contracts |
+| `:catalog:model` | Quarantined pure-JVM Catalog contracts/reference models |
+| `:catalog:engine` | Quarantined pure-JVM Catalog algorithms pending a future admission gate |
+| `:reader:engine` | Retained HES-v1 pure-JVM routing engine candidate |
+| `:plugins:api` | Retained pure plugin protocol/contract surface |
 
-The exact dependency policy is `../../config/architecture/module-boundaries.json`. Package
-rules additionally keep feature code away from storage/runtime, catalog away from Compose
-and Android context, and Room imports limited to reviewed capability contracts plus the
-runtime persistence SPI.
+The exact active dependency policy is `../../config/architecture/module-boundaries.json`. Catalog
+model/engine remain quarantine/reference candidates and are not reachable from `:app`.
 
 ## Implemented product boundary
 

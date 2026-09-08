@@ -20,14 +20,13 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 7: cut the
-active Gradle graph to the retained/quarantined Step 1 set**. Tasks 0 through 6 are complete on
-branch `v2/foundation-clean-boot` in the same Hikari Git repository/worktree lineage. Task 6 is
-committed as `7d3e4b9`: `:app` now has four production Kotlin files and zero production project
-dependencies, uses the `app.openstory.v2dev`/`app.openstory.v2benchmark` development identities,
-and retains `app.openstory` for release. The focused app foundation/unit/assemble gate and the
-Android-test APK compile are green. All four production/benchmark merged manifests contain only
-`androidx.profileinstaller.ProfileInstallerInitializer` and no service.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 8A: retire
+obsolete V1 runtime source without touching retained/quarantined cores**. Tasks 0 through 7 are
+complete on branch `v2/foundation-clean-boot`. Task 7 is committed as `2f7cf17`: the active Gradle
+graph and exact boundary policy contain only `:app`, `:core:common`, `:catalog:model`,
+`:catalog:engine`, `:reader:engine`, `:plugins:api`, and `:benchmark`; synthetic `:catalog`/`:reader`
+parents do not evaluate their V1 root build scripts; `verifyArchitecture` includes
+`:app:verifyFoundation`; and V1-only active-policy tests are retired.
 
 Resume narrowly from:
 
@@ -37,14 +36,20 @@ Resume narrowly from:
   `## 6.3 Removed from the active Step 1 graph` and `## 6.4 Active Step 1 graph` first;
 - cutover provenance: `../internal/v2/cutover-provenance.md`.
 
-Resume at Task 7 Step 1. Rewrite `ModuleGraphTest` and prove the existing V1 module policy fails
-before changing `settings.gradle.kts` or `module-boundaries.json`. The shared Step 1 policy is
-canonical at `../../config/architecture/v2-foundation-policy.json`; the V2 capability admission
-contract is canonical at `../internal/v2/capability-admission-contract.md`, and the V1 salvage
-ledger remains canonical at `../internal/v2/v1-salvage-ledger.md`. Task 7 changes only the active
-graph/policy and its build-logic tests; do not begin later runtime-source retirement in the same
-turn. The Step 1 checkpoint is created only by Task 15; do not invent an intermediate checkpoint
-file.
+Task 7 aggregate evidence is GREEN: `verifyArchitecture`, all build-logic tests, retained-module
+tests, `:plugins:api:test`, and `:app:testDebugUnitTest` completed successfully; module-boundary
+verification reported exactly seven modules. The gate emitted two non-fatal warning classes: no-op
+initializer removal markers in the debug unit-test manifest merge, and a pre-existing unnecessary
+non-null assertion in a retained `:plugins:api` test. Neither changes the accepted production
+manifest or Task 7 graph contract. The salvage ledger still classifies `:catalog:engine` as
+`REDESIGN | QUARANTINE`.
+
+Resume at Task 8A Step 1. Read `## Global Constraints` and `## Task 8A` in the owning plan. Write and
+prove the retired-runtime absence test RED, record hashes for `core/common`, `catalog/model`,
+`catalog/engine`, `reader/engine`, and `plugins/api`, then delete only the explicitly listed V1 paths.
+Do not prune build logic or the version catalog; Task 8B owns that work. Do not modify any retained or
+quarantined source while making the absence gate green. The Step 1 checkpoint is created only by
+Task 15; do not invent an intermediate checkpoint file.
 
 ## Historical execution context (non-current)
 
