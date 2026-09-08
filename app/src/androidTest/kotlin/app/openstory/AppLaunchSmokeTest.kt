@@ -11,7 +11,8 @@ class AppLaunchSmokeTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun appRendersStableShell() {
-        composeRule.onNodeWithTag("startup-shell").assertIsDisplayed()
+    fun freshInstallReachesFirstRunShell() {
+        composeRule.onNodeWithTag("startup-first-run")
+            .assertIsDisplayed()
     }
 }
