@@ -26,12 +26,10 @@
             tools:node="merge">
             <meta-data
                 android:name="androidx.emoji2.text.EmojiCompatInitializer"
-                tools:node="remove"
-                tools:selector="androidx.emoji2" />
+                tools:node="remove" />
             <meta-data
                 android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-                tools:node="remove"
-                tools:selector="androidx.lifecycle.process" />
+                tools:node="remove" />
         </provider>
     </application>
 </manifest>

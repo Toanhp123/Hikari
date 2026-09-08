@@ -14,6 +14,20 @@ object MergedManifestStartupVerifier {
         val document = manifestDocument(xml)
 
         return buildList {
+            document.getElementsByTagName("meta-data").elements()
+                .filterNot { metadata ->
+                    metadata.hasAttributeNS(ANDROID_NS, "value") ||
+                        metadata.hasAttributeNS(ANDROID_NS, "resource")
+                }
+                .forEach { metadata ->
+                    add(
+                        FoundationViolation(
+                            code = "v2_manifest.metadata_value_missing",
+                            detail = metadata.androidName(),
+                        ),
+                    )
+                }
+
             document.getElementsByTagName("service").elements().forEach { service ->
                 add(
                     FoundationViolation(

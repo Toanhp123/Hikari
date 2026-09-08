@@ -51,6 +51,9 @@ class MergedManifestStartupVerifierTest {
                   <meta-data
                     android:name="androidx.profileinstaller.ProfileInstallerInitializer"
                     android:value="androidx.startup" />
+                  <meta-data
+                    android:name="example.ResourceBackedMetadata"
+                    android:resource="@xml/example_config" />
                 </provider>
               </application>
             </manifest>
@@ -167,6 +170,33 @@ class MergedManifestStartupVerifierTest {
             listOf(
                 FoundationViolation(
                     code = "v2_manifest.initializer_unclassified",
+                    detail = "androidx.lifecycle.ProcessLifecycleInitializer",
+                ),
+            ),
+            MergedManifestStartupVerifier.verify(xml, foundationTestPolicy()),
+        )
+    }
+
+    @Test
+    fun rejectsInitializerMetadataWithoutValueOrResource() {
+        val xml = """
+            <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application>
+                <provider android:name="androidx.startup.InitializationProvider">
+                  <meta-data
+                    android:name="androidx.lifecycle.ProcessLifecycleInitializer" />
+                  <meta-data
+                    android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+                    android:value="androidx.startup" />
+                </provider>
+              </application>
+            </manifest>
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                FoundationViolation(
+                    code = "v2_manifest.metadata_value_missing",
                     detail = "androidx.lifecycle.ProcessLifecycleInitializer",
                 ),
             ),

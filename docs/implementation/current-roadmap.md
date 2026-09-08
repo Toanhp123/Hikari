@@ -20,36 +20,55 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 11 verification:
-StartupGate, FirstRun completion, and returning Home shell**. Tasks 0 through 10 are verified and
-complete on branch `v2/foundation-clean-boot`. Task 11 implementation is committed as `6ed7bec`;
-its user-owned unfiltered app gate remains open.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 12 verified
+complete; stop before Task 13**. Tasks 0 through 12 are verified and complete on branch
+`v2/foundation-clean-boot`. Task 13 has not started.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 11` first;
+  `## Global Constraints` and `## Task 13` only when execution is explicitly resumed;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  `## 9. Startup UI and routing`, plus §§8.3 and 15.2-15.3, first;
-- affected cone: `../../app/src/main/kotlin/app/openstory/MainActivity.kt`, new
-  `../../app/src/main/kotlin/app/openstory/startup/ui/` shell files,
-  `../../app/src/test/kotlin/app/openstory/AppShellContractTest.kt`, and
-  `../../app/src/androidTest/kotlin/app/openstory/AppLaunchSmokeTest.kt`.
+  only the Task 13-required sections when execution is explicitly resumed;
+- no Step 1 checkpoint exists yet; Task 15 owns its creation.
 
-Task 11 TDD and agent-owned verification are GREEN. The focused shell contract baseline passed, then
-the new test produced the expected RED with three tests run and one failure because `StartupGate.kt`
-was absent. The final focused command covered `AppShellContractTest` and `AppLaunchStateStoreTest`
-with 10 tests, zero failures/errors, while `:app:verifyFoundation :app:assembleDebug --no-daemon`
-also completed at exit 0. The implementation renders `Unknown` without awaiting storage, creates the
-application-context store inside `HikariStartupApp()`, keeps `MainActivity` ownership-free, avoids
-Navigation/animation frameworks, and remains on retryable FirstRun after a failed completion write.
+Task 12 adds an explicit `androidx.test:core` instrumentation dependency, direct component coverage
+for `Unknown`, retryable FirstRun failure, and Home, plus real `ActivityScenario` flows for fresh
+package, completion, pre-completed returning launch, and recreation after completion. The first
+instrumentation compile exposed invalid top-level imports for Compose 1.11 member assertions; after
+that test-source correction, `:app:compileDebugAndroidTestKotlin --no-daemon` passed at exit 0. The
+focused `AppShellContractTest` and `AppLaunchStateStoreTest` set plus `:app:assembleDebug --no-daemon`
+also passed at exit 0.
 
-Resume at Task 11 Step 9 by running the user-owned unfiltered gate with the existing host SDK path:
-`$env:ANDROID_HOME='C:\Users\toanp\AppData\Local\Android\Sdk'; .\gradlew.bat
-:app:testDebugUnitTest :app:verifyFoundation :app:assembleDebug --no-daemon`. On PASS, record the
-evidence and advance the roadmap to Task 12 Step 1. Android/device behavior remains owned by Task 12;
-do not run or claim its instrumentation acceptance as part of Task 11. The Step 1 checkpoint is
-created only by Task 15; do not invent an intermediate checkpoint file.
+The first user-owned device run on Redmi Note 9S / API 35 started zero tests because the debug APK
+failed installation with `INSTALL_PARSE_FAILED_MANIFEST_MALFORMED`: two AndroidX Startup removal
+markers were emitted as `<meta-data>` nodes without `android:value` or `android:resource`. The same
+pre-fix tree passed the user-owned unfiltered unit/assemble/foundation/architecture command, exposing
+a verifier gap. A focused verifier regression test produced the expected RED, then passed after the
+verifier began rejecting malformed metadata. Removing the ineffective `tools:selector` attributes
+from the two manifest removal markers leaves only the classified Profile Installer initializer in
+the rebuilt debug merged manifest. The full focused verifier test class and
+`:app:assembleDebug :app:verifyDebugMergedManifestStartup --no-daemon` pass at exit 0. Android SDK
+`apkanalyzer manifest print` also parses the packaged debug APK at exit 0 and reports only the
+Profile Installer `<meta-data android:value="androidx.startup">` entry.
+
+The second user-owned device run installed successfully and executed all eight Task 12 tests. The
+three direct surface tests and pre-completed returning launch passed; the smoke test plus three flows
+that first assert FirstRun failed because the FirstRun semantics node was not yet globally displayed.
+The captured Android 15 logcat shows the activity/splash visibility transition in the same short
+window, while the passing returning test and per-test Orchestrator isolation rule out a stale launch
+fact as the shared cause. Activity-flow assertions now condition-wait for the destination node to be
+displayed before asserting or interacting; no production behavior changed. The final instrumentation
+source compiles with `:app:compileDebugAndroidTestKotlin --no-daemon` at exit 0. The user-owned
+unfiltered unit/assemble/foundation/architecture gate on the manifest-fix tree passed at exit 0.
+
+After the activity-flow assertions were changed to condition-wait for the resolved destination, the
+user reported the final Task 12 verification `BUILD SUCCESSFUL` on 2026-09-08. This accepts the
+connected-device startup behavior together with the already-green unfiltered
+unit/assemble/foundation/architecture gate. Task 12 is closed.
+
+Stop here. On explicit resume, begin at Task 13 Step 1; do not reopen Task 12 without a regression or
+dependency trail, and do not create the Step 1 checkpoint before Task 15.
 
 ## Historical execution context (non-current)
 
