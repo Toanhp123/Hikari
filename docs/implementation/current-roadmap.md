@@ -20,9 +20,10 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 11: StartupGate,
-FirstRun completion, and returning Home shell**. Tasks 0 through 10 are verified and complete on
-branch `v2/foundation-clean-boot`. Task 10 is committed as `1124c9c`.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 11 verification:
+StartupGate, FirstRun completion, and returning Home shell**. Tasks 0 through 10 are verified and
+complete on branch `v2/foundation-clean-boot`. Task 11 implementation is committed as `6ed7bec`;
+its user-owned unfiltered app gate remains open.
 
 Resume narrowly from:
 
@@ -35,20 +36,20 @@ Resume narrowly from:
   `../../app/src/test/kotlin/app/openstory/AppShellContractTest.kt`, and
   `../../app/src/androidTest/kotlin/app/openstory/AppLaunchSmokeTest.kt`.
 
-Task 10 TDD and verification are GREEN. After the three approved dependencies were added, the seven
-focused store tests first failed on the absent `AppLaunchState` and `AppLaunchStateStore` symbols.
-The implementation now persists only `initial_setup_completed`, owns one application-context
-Preferences DataStore, falls back to `FirstRun` on I/O/corruption, reports non-sensitive read/write
-codes, and propagates cancellation. The final `:app:testDebugUnitTest --tests
-'*AppLaunchStateStoreTest*' :app:verifyFoundation --no-daemon` gate completed at exit 0 on
-2026-09-08. In this linked worktree, Gradle commands require the existing host SDK path through
-`ANDROID_HOME` because the checkout-local `local.properties` is intentionally absent.
+Task 11 TDD and agent-owned verification are GREEN. The focused shell contract baseline passed, then
+the new test produced the expected RED with three tests run and one failure because `StartupGate.kt`
+was absent. The final focused command covered `AppShellContractTest` and `AppLaunchStateStoreTest`
+with 10 tests, zero failures/errors, while `:app:verifyFoundation :app:assembleDebug --no-daemon`
+also completed at exit 0. The implementation renders `Unknown` without awaiting storage, creates the
+application-context store inside `HikariStartupApp()`, keeps `MainActivity` ownership-free, avoids
+Navigation/animation frameworks, and remains on retryable FirstRun after a failed completion write.
 
-Resume at Task 11 Step 1 by extending `AppShellContractTest` before UI implementation. Preserve the
-non-blocking first frame, keep store creation inside `HikariStartupApp()` rather than
-`MainActivity`, avoid Navigation/animation frameworks, and keep failed completion persistence on a
-retryable FirstRun state. The Step 1 checkpoint is created only by Task 15; do not invent an
-intermediate checkpoint file.
+Resume at Task 11 Step 9 by running the user-owned unfiltered gate with the existing host SDK path:
+`$env:ANDROID_HOME='C:\Users\toanp\AppData\Local\Android\Sdk'; .\gradlew.bat
+:app:testDebugUnitTest :app:verifyFoundation :app:assembleDebug --no-daemon`. On PASS, record the
+evidence and advance the roadmap to Task 12 Step 1. Android/device behavior remains owned by Task 12;
+do not run or claim its instrumentation acceptance as part of Task 11. The Step 1 checkpoint is
+created only by Task 15; do not invent an intermediate checkpoint file.
 
 ## Historical execution context (non-current)
 
