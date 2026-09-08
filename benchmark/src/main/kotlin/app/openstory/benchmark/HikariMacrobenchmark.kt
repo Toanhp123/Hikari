@@ -1,13 +1,7 @@
 package app.openstory.benchmark
 
-import androidx.benchmark.macro.BaselineProfileMode
-import androidx.benchmark.macro.CompilationMode
-import androidx.benchmark.macro.ExperimentalMetricApi
-import androidx.benchmark.macro.FrameTimingMetric
-import androidx.benchmark.macro.MemoryUsageMetric
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.StartupTimingMetric
-import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
@@ -22,293 +16,38 @@ class HikariMacrobenchmark {
     val benchmarkRule = MacrobenchmarkRule()
 
     @Test
-    fun coldStartup() {
-        prepareBenchmarkFixture()
+    fun coldFreshInstall() {
         benchmarkRule.measureRepeated(
             packageName = HIKARI_PACKAGE,
             metrics = listOf(StartupTimingMetric()),
             compilationMode = benchmarkCompilationMode,
             startupMode = StartupMode.COLD,
             iterations = 5,
-            setupBlock = { pressHome() },
-            measureBlock = { startHikari() },
-        )
-    }
-
-    @Test
-    fun homeLibraryHome() = measureNavigation {
-        clickTag("navigation-library")
-        clickTag("navigation-home")
-    }
-
-    @Test
-    fun homeDiscoverHome() = measureNavigation {
-        clickTag("navigation-discover")
-        clickTag("navigation-home")
-    }
-
-    @Test
-    fun homeDiscoverWarm() = measureNavigation(
-        setup = {
-            clickTag("navigation-discover")
-            clickTag("navigation-home")
-        },
-    ) {
-        clickTag("navigation-discover")
-        clickTag("navigation-home")
-    }
-
-    @Test
-    fun homeDiscoverLegacyTransitions() = measureNavigation(legacyNavigationTransitions = true) {
-        clickTag("navigation-discover")
-        clickTag("navigation-home")
-    }
-
-    @Test
-    fun searchReopen() = measureNavigation(
-        setup = { clickTag("navigation-discover") },
-    ) {
-        clickTag("discover-search")
-        waitForTag("search-content")
-        pressBackAndWait()
-        clickTag("discover-search")
-        waitForTag("search-content")
-    }
-
-    @Test
-    fun searchQuerySmallCatalog() = measureSearchQuery(BenchmarkFixtureProfileRequest.SMALL)
-
-    @Test
-    fun searchQueryAgedCatalog() = measureSearchQuery(BenchmarkFixtureProfileRequest.AGED_CATALOG)
-
-    @Test
-    fun storyTabs() = measureNavigation(
-        setup = { openBenchmarkFixtureStory() },
-    ) {
-        clickTag("story-tab-sources")
-        clickTag("story-tab-chapters")
-        clickTag("story-tab-overview")
-    }
-
-    @Test
-    fun storyTabSources() = measureStoryTab("story-tab-sources")
-
-    @Test
-    fun storyTabChapters() = measureStoryTab("story-tab-chapters")
-
-    @Test
-    fun readerNextTen() = measureNavigation(
-        setup = {
-            openBenchmarkFixtureStory()
-            clickTag("story-read")
-            waitForTag("reader-content")
-        },
-    ) {
-        repeat(READER_NEXT_ACTION_COUNT) { clickTag("reader-next") }
-    }
-
-    @OptIn(ExperimentalMetricApi::class)
-    @Test
-    fun readerMemory() {
-        benchmarkRule.measureRepeated(
-            packageName = HIKARI_PACKAGE,
-            metrics = listOf(MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
-            compilationMode = benchmarkCompilationMode,
-            startupMode = null,
-            iterations = 5,
             setupBlock = {
-                prepareBenchmarkFixture()
-                killProcess()
+                prepareFreshInstall()
                 pressHome()
-                startHikari()
-                openBenchmarkFixtureStory()
-                clickTag("story-read")
-                waitForTag("reader-content")
             },
             measureBlock = {
-                repeat(READER_NEXT_ACTION_COUNT) { clickTag("reader-next") }
+                startHikariAndWait(FIRST_RUN_TAG)
             },
         )
     }
 
     @Test
-    fun readerScrollLongChapter() = measureNavigation(
-        setup = {
-            openBenchmarkFixtureStory()
-            clickTag("story-read")
-            waitForTag("reader-content")
-        },
-    ) {
-        swipeUpOnTag("reader-content", repetitions = SCROLL_SWIPE_COUNT)
-    }
-
-    @Test
-    fun readerImageScrollColdCache() = measureReaderImages(
-        metrics = listOf(FrameTimingMetric()),
-        cacheMode = BenchmarkReaderCacheModeRequest.COLD,
-    )
-
-    @Test
-    fun readerImageScrollWarmCache() = measureReaderImages(
-        metrics = listOf(FrameTimingMetric()),
-        cacheMode = BenchmarkReaderCacheModeRequest.WARM,
-    )
-
-    @OptIn(ExperimentalMetricApi::class)
-    @Test
-    fun readerImageMemoryWarmCache() = measureReaderImages(
-        metrics = listOf(MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
-        cacheMode = BenchmarkReaderCacheModeRequest.WARM,
-    )
-
-    @Test
-    fun chaptersExpandAndScroll() = measureNavigation(
-        setup = {
-            openBenchmarkFixtureStory()
-            clickTag("story-tab-chapters")
-            waitForTag("chapter-list")
-            clickTag("chapter-summary-first")
-        },
-    ) {
-        swipeUpOnTag("chapter-list", repetitions = SCROLL_SWIPE_COUNT)
-    }
-
-    @Test
-    fun chaptersScrollShadowEnabled() = measureChapterScroll(surfaceShadowsDisabled = false)
-
-    @Test
-    fun chaptersScrollShadowDisabled() = measureChapterScroll(surfaceShadowsDisabled = true)
-
-    @Test
-    fun libraryListScroll() = measureNavigation(
-        setup = {
-            clickTag("navigation-library")
-            waitForTag("library-collection")
-            clickTag("library-view-switch")
-            waitForTag("library-collection")
-        },
-    ) {
-        swipeUpOnTag("library-collection", repetitions = SCROLL_SWIPE_COUNT)
-    }
-
-    @Test
-    fun discoverScroll() = measureNavigation(
-        setup = {
-            clickTag("navigation-discover")
-            waitForDiscoverReady()
-        },
-    ) {
-        swipeUpOnTag("discover-list", repetitions = SCROLL_SWIPE_COUNT)
-    }
-
-    @Test
-    fun discoverBackToTop() = measureNavigation(
-        setup = {
-            clickTag("navigation-discover")
-            waitForDiscoverReady()
-        },
-    ) {
-        swipeUpOnTag("discover-list", repetitions = SCROLL_SWIPE_COUNT)
-        waitForTag("hikari-scroll-to-top")
-        clickTag("hikari-scroll-to-top")
-        waitForTag("discover-popular-pager")
-    }
-
-    private fun measureStoryTab(tabTag: String) = measureNavigation(
-        setup = { openBenchmarkFixtureStory() },
-    ) {
-        repeat(STORY_TAB_MEASUREMENT_CYCLE_COUNT) {
-            clickTag(tabTag)
-            clickTag("story-tab-overview")
-        }
-    }
-
-    private fun measureSearchQuery(profile: BenchmarkFixtureProfileRequest) {
-        prepareBenchmarkFixture(profile)
-        measureNavigation(
-            profile = profile,
-            prepareFixtureInSetup = false,
-            setup = {
-                clickTag("navigation-discover")
-                clickTag("discover-search")
-                waitForTag("search-content")
-            },
-        ) {
-            enterBenchmarkSearchQueryAndWaitForResult()
-        }
-    }
-
-    private fun measureChapterScroll(surfaceShadowsDisabled: Boolean) = measureNavigation(
-        surfaceShadowsDisabled = surfaceShadowsDisabled,
-        setup = {
-            openBenchmarkFixtureStory()
-            clickTag("story-tab-chapters")
-            waitForTag("chapter-list")
-            clickTag("chapter-summary-first")
-        },
-    ) {
-        swipeUpOnTag("chapter-list", repetitions = SCROLL_SWIPE_COUNT)
-    }
-
-    private fun measureReaderImages(
-        metrics: List<androidx.benchmark.macro.Metric>,
-        cacheMode: BenchmarkReaderCacheModeRequest,
-    ) {
+    fun coldReturningLaunch() {
         benchmarkRule.measureRepeated(
             packageName = HIKARI_PACKAGE,
-            metrics = metrics,
+            metrics = listOf(StartupTimingMetric()),
             compilationMode = benchmarkCompilationMode,
-            startupMode = null,
+            startupMode = StartupMode.COLD,
             iterations = 5,
             setupBlock = {
-                prepareBenchmarkFixture(BenchmarkFixtureProfileRequest.READER_IMAGES_AGED_CACHE, cacheMode)
-                killProcess()
+                prepareReturningLaunch()
                 pressHome()
-                startHikari()
-                openBenchmarkFixtureStory()
-                clickTag("story-read")
-                waitForTag("reader-content")
             },
             measureBlock = {
-                swipeUpOnTag("reader-content", repetitions = SCROLL_SWIPE_COUNT)
+                startHikariAndWait(HOME_TAG)
             },
         )
-    }
-
-    private fun measureNavigation(
-        profile: BenchmarkFixtureProfileRequest = BenchmarkFixtureProfileRequest.SMALL,
-        prepareFixtureInSetup: Boolean = true,
-        surfaceShadowsDisabled: Boolean = false,
-        legacyNavigationTransitions: Boolean = false,
-        setup: MacrobenchmarkScope.() -> Unit = {},
-        measure: MacrobenchmarkScope.() -> Unit,
-    ) {
-        benchmarkRule.measureRepeated(
-            packageName = HIKARI_PACKAGE,
-            metrics = listOf(FrameTimingMetric()),
-            compilationMode = benchmarkCompilationMode,
-            startupMode = null,
-            iterations = 5,
-            setupBlock = {
-                if (prepareFixtureInSetup) prepareBenchmarkFixture(profile)
-                killProcess()
-                pressHome()
-                startHikari(
-                    surfaceShadowsDisabled = surfaceShadowsDisabled,
-                    legacyNavigationTransitions = legacyNavigationTransitions,
-                )
-                setup()
-            },
-            measureBlock = measure,
-        )
-    }
-
-    private val benchmarkCompilationMode = CompilationMode.Partial(
-        baselineProfileMode = BaselineProfileMode.Require,
-    )
-
-    private companion object {
-        const val SCROLL_SWIPE_COUNT = 6
-        const val STORY_TAB_MEASUREMENT_CYCLE_COUNT = 3
     }
 }

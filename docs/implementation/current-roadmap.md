@@ -20,38 +20,38 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 13 verified
-complete; stop before Task 14**. Tasks 0 through 13 are verified and complete on branch
-`v2/foundation-clean-boot`. Task 14 has not started.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 14 verified
+complete; stop before Task 15**. Tasks 0 through 14 are verified and complete on branch
+`v2/foundation-clean-boot`. Task 15 has not started.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 14` only when execution is explicitly resumed;
+  `## Global Constraints` and `## Task 15` only when execution is explicitly resumed;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  only the Task 14-required benchmark sections when execution is explicitly resumed;
+  only the Task 15-required baseline/verification sections when execution is explicitly resumed;
 - no Step 1 checkpoint exists yet; Task 15 owns its creation.
 
-Task 13 adds six stable `HikariV2:*` trace labels and top-level `android.os.Trace` helpers without a
-startup manager. `HikariApplication` and `MainActivity` emit trace-only platform/content milestones;
-the root composition marks the first Compose frame without blocking it; launch-state resolution is
-marked only after `resolve()` returns; and FirstRun/Home mark destination readiness when first entering
-composition. No domain collaborator, scheduler, maintenance trigger, or global observer was added.
+Task 14 replaces the V1 product benchmark suite with exactly two V2 cold-start measurements:
+`coldFreshInstall` clears `app.openstory.v2benchmark` data and waits for the FirstRun destination;
+`coldReturningLaunch` uses an exported benchmark-only activity to persist only
+`initial_setup_completed=true`, force-stops the package, and waits for the Home destination. Both use
+`StartupTimingMetric` and shipping-style partial compilation with a required Baseline Profile.
 
-The focused trace-contract test first failed at compile time because `startupTraceLabels` did not
-exist, then passed after implementation. The Task 13 foundation gate initially exposed a plan/policy
-mismatch: the pre-task app tree already consumed the exact `300`-line structural budget, while the
-planned trace code raised the verifier count to `377`. The policy ratchet is now set to the exact new
-baseline `377`, with no spare headroom; no verifier semantics or production ownership rule was
-weakened.
+The deterministic fixture is isolated to `src/benchmarkRelease` and re-attached only to the generated
+`benchmarkRelease` and `nonMinifiedRelease` target variants after Baseline Profile DSL finalization.
+Production startup has no benchmark extra or switch. The Baseline Profile journey now covers only a
+returning startup, and all Library/Discover/Search/Story/Reader benchmark helpers, scenarios, and
+fixture-profile requests were removed.
 
 Fresh final evidence on 2026-09-08:
-`./gradlew :app:testDebugUnitTest --tests '*StartupTraceContractTest*' --tests
-'*AppShellContractTest*' :app:verifyFoundation --no-daemon` passed at exit 0 (`BUILD SUCCESSFUL`, 45
-actionable tasks; 7 executed and 38 up-to-date). No Task 13 user-owned gate remains.
+`./gradlew :app:assembleBenchmarkRelease :benchmark:compileBenchmarkReleaseKotlin
+:app:verifyFoundation --no-daemon` passed at exit 0 (`BUILD SUCCESSFUL`, 65 actionable tasks; 44
+executed, 5 from cache, and 16 up-to-date). The retired-journey source scan returned no matches. No
+Task 14 user-owned gate remains; device baseline capture and full Step 1 acceptance belong to Task 15.
 
-Stop here. On explicit resume, begin at Task 14 Step 1; do not reopen Task 13 without a regression or
-dependency trail, and do not create the Step 1 checkpoint before Task 15.
+Stop here. On explicit resume, begin at Task 15 Step 1; do not reopen Task 14 without a regression or
+dependency trail. Task 15 must create and own the Step 1 checkpoint.
 
 ## Historical execution context (non-current)
 
