@@ -20,31 +20,35 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 10: tiny
-launch-state model and DataStore persistence**. Tasks 0 through 9 are verified and complete on
-branch `v2/foundation-clean-boot`. Task 9 is committed as `1c4c449`.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 11: StartupGate,
+FirstRun completion, and returning Home shell**. Tasks 0 through 10 are verified and complete on
+branch `v2/foundation-clean-boot`. Task 10 is committed as `1124c9c`.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 10` first;
+  `## Global Constraints` and `## Task 11` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  `## 8. Startup state model`, especially §§8.1-8.3, and `## 15. Failure semantics` first;
-- affected cone: `../../app/build.gradle.kts`, new `../../app/src/main/kotlin/app/openstory/startup/`
-  state/store files, and focused tests under `../../app/src/test/kotlin/app/openstory/startup/`.
+  `## 9. Startup UI and routing`, plus §§8.3 and 15.2-15.3, first;
+- affected cone: `../../app/src/main/kotlin/app/openstory/MainActivity.kt`, new
+  `../../app/src/main/kotlin/app/openstory/startup/ui/` shell files,
+  `../../app/src/test/kotlin/app/openstory/AppShellContractTest.kt`, and
+  `../../app/src/androidTest/kotlin/app/openstory/AppLaunchSmokeTest.kt`.
 
-Task 9 TDD and verification are GREEN. The old Room/Wave entrypoint calls and inherited `pending`
-allowance first produced the expected RED failures. The final shared static gates completed at exit
-0, and the user-owned `bash scripts/verify-fast.sh` gate completed with `BUILD SUCCESSFUL` on
-2026-09-08. Detekt emitted non-blocking structural warnings only for the benchmark plus retained or
-quarantined engine code; no suppression or source-layout allowance was added. The static glob now
-contains exactly seven V2 contracts, and both debt allowlists have zero active rows.
+Task 10 TDD and verification are GREEN. After the three approved dependencies were added, the seven
+focused store tests first failed on the absent `AppLaunchState` and `AppLaunchStateStore` symbols.
+The implementation now persists only `initial_setup_completed`, owns one application-context
+Preferences DataStore, falls back to `FirstRun` on I/O/corruption, reports non-sensitive read/write
+codes, and propagates cancellation. The final `:app:testDebugUnitTest --tests
+'*AppLaunchStateStoreTest*' :app:verifyFoundation --no-daemon` gate completed at exit 0 on
+2026-09-08. In this linked worktree, Gradle commands require the existing host SDK path through
+`ANDROID_HOME` because the checkout-local `local.properties` is intentionally absent.
 
-Resume at Task 10 Step 1 by adding only Preferences DataStore, coroutines core, and coroutine-test to
-`:app`; then write the focused store tests before production state/store code. Preserve cancellation,
-I/O fallback, application-context ownership, and the single `initial_setup_completed` fact exactly as
-specified. The Step 1 checkpoint is created only by Task 15; do not invent an intermediate checkpoint
-file.
+Resume at Task 11 Step 1 by extending `AppShellContractTest` before UI implementation. Preserve the
+non-blocking first frame, keep store creation inside `HikariStartupApp()` rather than
+`MainActivity`, avoid Navigation/animation frameworks, and keep failed completion persistence on a
+retryable FirstRun state. The Step 1 checkpoint is created only by Task 15; do not invent an
+intermediate checkpoint file.
 
 ## Historical execution context (non-current)
 
