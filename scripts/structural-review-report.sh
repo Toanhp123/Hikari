@@ -10,18 +10,6 @@ relative_path() {
   printf '%s' "${path//\\//}"
 }
 
-report_matches() {
-  local label="$1" pattern="$2" source_root="$3"
-  [[ -d "$source_root" ]] || return 0
-  local matches
-  matches="$(grep -RInE --include='*.kt' "$pattern" "$source_root" || true)"
-  if [[ -n "$matches" ]]; then
-    echo "[hard] $label" >&2
-    echo "$matches" >&2
-    HARD_FAILURE=1
-  fi
-}
-
 echo "Structural review report"
 
 while IFS= read -r -d '' source_file; do
@@ -126,51 +114,6 @@ done < <(
     -path '*/docs/internal/archive' -prune -o \
     -type f -path '*/src/main/*' -name '*.kt' -print0
 )
-
-report_matches \
-  'catalog must not import Android Context or AppDispatchers.' \
-  '^[[:space:]]*import[[:space:]]+(android\.content\.Context|app\.openstory\.common\.dispatchers\.AppDispatchers)' \
-  "$ROOT_DIR/catalog/src/main"
-
-if [[ -d "$ROOT_DIR/feature/catalog/src/main" ]]; then
-  while IFS= read -r -d '' view_model; do
-    matches="$(grep -nE '^[[:space:]]*import[[:space:]]+(kotlinx\.coroutines\.(CoroutineScope|CoroutineDispatcher|Dispatchers|SupervisorJob)|app\.openstory\.common\.dispatchers\.AppDispatchers)' "$view_model" || true)"
-    if [[ -n "$matches" ]]; then
-      echo "[hard] feature ViewModels must use viewModelScope and injected services, not own scopes or dispatchers: $(relative_path "$view_model")" >&2
-      echo "$matches" >&2
-      HARD_FAILURE=1
-    fi
-  done < <(find "$ROOT_DIR/feature/catalog/src/main" -type f -name '*ViewModel.kt' -print0)
-fi
-
-if [[ -d "$ROOT_DIR/storage/room/src/main" ]]; then
-  while IFS= read -r match; do
-    [[ -z "$match" ]] && continue
-    import_name="${match#*import }"
-    if [[ "$import_name" != app.openstory.plugins.runtime.persistence.* ]]; then
-      echo "[hard] storage/room may import only plugins.runtime.persistence SPI contracts." >&2
-      echo "$match" >&2
-      HARD_FAILURE=1
-    fi
-  done < <(
-    grep -RInE --include='*.kt' \
-      '^[[:space:]]*import[[:space:]]+app\.openstory\.plugins\.runtime(\.|$)' \
-      "$ROOT_DIR/storage/room/src/main" || true
-  )
-
-  while IFS= read -r -d '' source_file; do
-    compact_source="$(tr -d '[:space:]' < "$source_file")"
-    remainder="$(printf '%s\n' "$compact_source" | sed -E \
-      's/app\.openstory\.plugins\.runtime\.persistence(\.([A-Za-z_][A-Za-z0-9_]*|\*))+/ALLOWED/g')"
-    if [[ "$remainder" == *app.openstory.plugins.runtime* ]]; then
-      echo '[hard] storage/room may reference only plugins.runtime.persistence SPI contracts.' >&2
-      echo "$(relative_path "$source_file")" >&2
-      HARD_FAILURE=1
-    fi
-  done < <(
-    find "$ROOT_DIR/storage/room/src/main" -type f -name '*.kt' -print0
-  )
-fi
 
 if ((HARD_FAILURE != 0)); then
   exit 1

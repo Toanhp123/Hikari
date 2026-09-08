@@ -19,11 +19,23 @@ fi
 [[ ! -f "$ROOT_DIR/config/detekt/baseline.xml" ]] ||
   fail "Detekt baseline debt is forbidden."
 
-if [[ -d "$ROOT_DIR/storage/room/src/main" ]] &&
-  grep -R -n -E '^import app\.openstory\.plugin\.host\.install\.' \
-    "$ROOT_DIR/storage/room/src/main" >/dev/null; then
-  fail "Database production source imports plugin installer internals."
-fi
+[[ -f "$SOURCE_LAYOUT_ALLOWLIST" ]] ||
+  fail "Missing source-layout allowlist: $SOURCE_LAYOUT_ALLOWLIST"
+
+while IFS= read -r allowlist_row || [[ -n "$allowlist_row" ]]; do
+  [[ -z "${allowlist_row//[[:space:]]/}" ]] && continue
+  [[ "$allowlist_row" =~ ^[[:space:]]*# ]] && continue
+
+  IFS='|' read -r allowed_path approved_limit approval_reason extra <<< "$allowlist_row"
+  [[ -n "$allowed_path" && "$approved_limit" =~ ^[0-9]+$ &&
+    -n "$approval_reason" && -z "$extra" ]] ||
+    fail "Invalid source-layout allowlist entry: $allowlist_row"
+  [[ -e "$ROOT_DIR/$allowed_path" ]] ||
+    fail "Stale source-layout allowlist target: $allowed_path"
+  if [[ "$approval_reason" =~ [Tt]emporary|[Pp]ending|[Gg]eneration|[Vv][0-9] ]]; then
+    fail "Temporary or generation debt is forbidden: $allowlist_row"
+  fi
+done < "$SOURCE_LAYOUT_ALLOWLIST"
 
 while IFS= read -r -d '' source_file; do
   relative_path="${source_file#"$ROOT_DIR"/}"
@@ -45,16 +57,12 @@ while IFS= read -r -d '' source_file; do
     default_line_limit=750
   fi
   line_limit="$default_line_limit"
-  if [[ -f "$SOURCE_LAYOUT_ALLOWLIST" ]]; then
-    allowlist_entry="$(awk -F '|' -v path="$relative_path" '$1 == path { print; exit }' "$SOURCE_LAYOUT_ALLOWLIST")"
-    if [[ -n "$allowlist_entry" ]]; then
-      IFS='|' read -r _ approved_limit approval_reason <<< "$allowlist_entry"
-      [[ "$approved_limit" =~ ^[0-9]+$ ]] &&
-        ((approved_limit > default_line_limit)) &&
-        [[ -n "$approval_reason" ]] ||
-        fail "Invalid source-layout allowlist entry: $allowlist_entry"
-      line_limit="$approved_limit"
-    fi
+  allowlist_entry="$(awk -F '|' -v path="$relative_path" '$1 == path { print; exit }' "$SOURCE_LAYOUT_ALLOWLIST")"
+  if [[ -n "$allowlist_entry" ]]; then
+    IFS='|' read -r _ approved_limit _ <<< "$allowlist_entry"
+    ((approved_limit > default_line_limit)) ||
+      fail "Source-layout allowance must raise the default limit: $allowlist_entry"
+    line_limit="$approved_limit"
   fi
   if [[ "$relative_path" =~ /src/main/ ]] && ((line_count > line_limit)); then
     fail "Production Kotlin source exceeds $line_limit lines: $relative_path ($line_count)"

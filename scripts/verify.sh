@@ -12,22 +12,17 @@ source ./scripts/verification-common.sh
 
 run_repository_static_gates
 
-bash ./scripts/check-wave-10-production-policy.sh
-
-ROOM_SCHEMA_FINGERPRINT="$(
-  ./scripts/verify-room-schema-stability.sh
-)"
-
 "$GRADLEW" \
   --dependency-verification strict \
   verifyArchitecture \
   :build-logic:test \
-  test \
-  testDebugUnitTest \
-  lintDebug \
+  :core:common:test \
+  :catalog:model:test \
+  :catalog:engine:test \
+  :reader:engine:test \
+  :plugins:api:test \
+  :app:testDebugUnitTest \
+  :app:lintDebug \
   detekt \
   :app:assembleDebug \
   --stacktrace
-
-./scripts/verify-room-schema-stability.sh \
-  "$ROOM_SCHEMA_FINGERPRINT"

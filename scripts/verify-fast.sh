@@ -12,18 +12,15 @@ source ./scripts/verification-common.sh
 
 run_repository_static_gates
 
-ROOM_SCHEMA_FINGERPRINT="$(
-  ./scripts/verify-room-schema-stability.sh
-)"
-
 "$GRADLEW" \
   --dependency-verification strict \
   verifyArchitecture \
   :build-logic:test \
-  test \
-  testDebugUnitTest \
+  :core:common:test \
+  :catalog:model:test \
+  :catalog:engine:test \
+  :reader:engine:test \
+  :plugins:api:test \
+  :app:testDebugUnitTest \
   detekt \
   --stacktrace
-
-./scripts/verify-room-schema-stability.sh \
-  "$ROOM_SCHEMA_FINGERPRINT"

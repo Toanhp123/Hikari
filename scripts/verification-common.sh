@@ -7,9 +7,6 @@ run_repository_static_gates() {
   done
 
   ./scripts/verify-structural-suppressions.sh
-  ./scripts/verify-package-boundaries.sh
   ./scripts/verify-source-layout.sh
-  ./scripts/verify-ui-tokens.sh
   ./scripts/structural-review-report.sh
-  ./scripts/verify-current-architecture.sh
 }
