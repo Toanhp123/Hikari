@@ -20,14 +20,15 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 14 verified
-complete; stop before Task 15**. Tasks 0 through 14 are verified and complete on branch
-`v2/foundation-clean-boot`. Task 15 has not started.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 15 Step 7**.
+Tasks 0 through 14 are verified and complete on branch `v2/foundation-clean-boot`; Task 15 Steps 1–6
+are green. The returning-startup regression discovered by the Task 15 device gates is fixed in Task
+14 ownership, and both returning gates now pass. Do not begin Step 2 work.
 
 Resume narrowly from:
 
-- owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 15` only when execution is explicitly resumed;
+- owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — keep
+  Task 15 as the execution boundary and resume at Step 7;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
   only the Task 15-required baseline/verification sections when execution is explicitly resumed;
 - no Step 1 checkpoint exists yet; Task 15 owns its creation.
@@ -44,14 +45,28 @@ Production startup has no benchmark extra or switch. The Baseline Profile journe
 returning startup, and all Library/Discover/Search/Story/Reader benchmark helpers, scenarios, and
 fixture-profile requests were removed.
 
-Fresh final evidence on 2026-09-08:
-`./gradlew :app:assembleBenchmarkRelease :benchmark:compileBenchmarkReleaseKotlin
-:app:verifyFoundation --no-daemon` passed at exit 0 (`BUILD SUCCESSFUL`, 65 actionable tasks; 44
-executed, 5 from cache, and 16 up-to-date). The retired-journey source scan returned no matches. No
-Task 14 user-owned gate remains; device baseline capture and full Step 1 acceptance belong to Task 15.
+Task 15 evidence on 2026-09-08 using Redmi Note 9S / API 35:
 
-Stop here. On explicit resume, begin at Task 15 Step 1; do not reopen Task 14 without a regression or
-dependency trail. Task 15 must create and own the Step 1 checkpoint.
+- Steps 1–3 PASS: `scripts/verify-fast.sh`, `scripts/verify.sh`, and eight
+  `:app:connectedDebugAndroidTest` tests completed successfully.
+- Step 4 PASS after the fix: `:app:generateBaselineProfile` completed at exit 0 with the
+  startup-only Baseline Profile test passing and the two Macrobenchmark tests skipped as expected.
+- Step 5 PASS: `coldFreshInstall` completed at exit 0; the agent rerun also completed one test with
+  `BUILD SUCCESSFUL` in 1m21s.
+- Step 6 PASS after the fix: `coldReturningLaunch` completed all five measured iterations at exit 0
+  (`BUILD SUCCESSFUL` in 1m47s on the final source tree).
+- Failure diagnostics proved the target remained `MainActivity`, the persisted launch state was
+  `Ready`, and the screen visibly rendered the Home text while UiAutomator exposed only
+  `android:id/content`. The Home destination tag was attached directly to a small `Text` drawn under
+  the status bar by edge-to-edge layout, unlike the working full-screen FirstRun destination tag.
+- `HomeShell` now owns `startup-home` on a centered full-screen container. The returning control
+  changed from reproducible failure to pass; attempted accessibility-cache clearing and fixture
+  self-finish hypotheses did not change the failure and were reverted.
+
+Resume at Task 15 Step 7. Record exact fresh/returning raw values and medians from final-tree
+benchmark artifacts, then continue trace verification, architecture/engine gates, self-review, and
+the Step 1 baseline/checkpoint. Generated release Baseline/Startup Profile files are present and
+uncommitted under `app/src/release/generated/baselineProfiles/`.
 
 ## Historical execution context (non-current)
 
