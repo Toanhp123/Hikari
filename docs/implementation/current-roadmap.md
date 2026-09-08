@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-09-07
+Date: 2026-09-08
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -20,53 +20,28 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 15 Step 7**.
-Tasks 0 through 14 are verified and complete on branch `v2/foundation-clean-boot`; Task 15 Steps 1–6
-are green. The returning-startup regression discovered by the Task 15 device gates is fixed in Task
-14 ownership, and both returning gates now pass. Do not begin Step 2 work.
+**Hikari V2 Step 1 - Foundation + Clean Boot is completed and accepted.** Tasks 0 through 15 are
+closed on branch `v2/foundation-clean-boot`. The accepted checkpoint is
+`../internal/checkpoints/hikari-v2-step-1-foundation-clean-boot.md`; the immutable comparison point is
+`../internal/v2/startup-baseline-2026-09-07.md`.
 
-Resume narrowly from:
+Final Step 1 evidence on 2026-09-08:
 
-- owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — keep
-  Task 15 as the execution boundary and resume at Step 7;
-- approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  only the Task 15-required baseline/verification sections when execution is explicitly resumed;
-- no Step 1 checkpoint exists yet; Task 15 owns its creation.
+- final runtime/source SHA: `eb4d3bfd869a5b9df78a5802de31510b3984c3c3`;
+- exactly six production modules plus the `:benchmark` Android test/performance module are active;
+- fast/full verification, eight startup instrumentation tests, Baseline Profile generation,
+  architecture/foundation/build-logic gates, retained/quarantine module tests, and the final fast
+  gate pass;
+- Redmi Note 9S / API 35 cold fresh-install median: `394.210469 ms`;
+- Redmi Note 9S / API 35 cold returning-launch median: `412.547813 ms`;
+- one fresh and one returning Perfetto trace each contain all six required `HikariV2:*` milestones;
+- generated `baseline-prof.txt` and `startup-prof.txt` both have SHA-256
+  `0c414b23dc0f409cb1f082ce63f7dd9935845b016539e441507846500e696ad0`.
 
-Task 14 replaces the V1 product benchmark suite with exactly two V2 cold-start measurements:
-`coldFreshInstall` clears `app.openstory.v2benchmark` data and waits for the FirstRun destination;
-`coldReturningLaunch` uses an exported benchmark-only activity to persist only
-`initial_setup_completed=true`, force-stops the package, and waits for the Home destination. Both use
-`StartupTimingMetric` and shipping-style partial compilation with a required Baseline Profile.
-
-The deterministic fixture is isolated to `src/benchmarkRelease` and re-attached only to the generated
-`benchmarkRelease` and `nonMinifiedRelease` target variants after Baseline Profile DSL finalization.
-Production startup has no benchmark extra or switch. The Baseline Profile journey now covers only a
-returning startup, and all Library/Discover/Search/Story/Reader benchmark helpers, scenarios, and
-fixture-profile requests were removed.
-
-Task 15 evidence on 2026-09-08 using Redmi Note 9S / API 35:
-
-- Steps 1–3 PASS: `scripts/verify-fast.sh`, `scripts/verify.sh`, and eight
-  `:app:connectedDebugAndroidTest` tests completed successfully.
-- Step 4 PASS after the fix: `:app:generateBaselineProfile` completed at exit 0 with the
-  startup-only Baseline Profile test passing and the two Macrobenchmark tests skipped as expected.
-- Step 5 PASS: `coldFreshInstall` completed at exit 0; the agent rerun also completed one test with
-  `BUILD SUCCESSFUL` in 1m21s.
-- Step 6 PASS after the fix: `coldReturningLaunch` completed all five measured iterations at exit 0
-  (`BUILD SUCCESSFUL` in 1m47s on the final source tree).
-- Failure diagnostics proved the target remained `MainActivity`, the persisted launch state was
-  `Ready`, and the screen visibly rendered the Home text while UiAutomator exposed only
-  `android:id/content`. The Home destination tag was attached directly to a small `Text` drawn under
-  the status bar by edge-to-edge layout, unlike the working full-screen FirstRun destination tag.
-- `HomeShell` now owns `startup-home` on a centered full-screen container. The returning control
-  changed from reproducible failure to pass; attempted accessibility-cache clearing and fixture
-  self-finish hypotheses did not change the failure and were reverted.
-
-Resume at Task 15 Step 7. Record exact fresh/returning raw values and medians from final-tree
-benchmark artifacts, then continue trace verification, architecture/engine gates, self-review, and
-the Step 1 baseline/checkpoint. Generated release Baseline/Startup Profile files are present and
-uncommitted under `app/src/release/generated/baselineProfiles/`.
+Stop before Step 2. No Step 2 capability or implementation plan is approved. A future explicit
+request must first choose and design the first real capability against
+`../internal/v2/capability-admission-contract.md`; Catalog model/engine remain quarantine/reference
+and are not implicitly admitted.
 
 ## Historical execution context (non-current)
 
