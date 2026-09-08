@@ -31,10 +31,11 @@ parents do not evaluate their V1 root build scripts; `verifyArchitecture` includ
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 7` first;
+  `## Global Constraints` and `## Task 8A` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
   `## 6.3 Removed from the active Step 1 graph` and `## 6.4 Active Step 1 graph` first;
-- cutover provenance: `../internal/v2/cutover-provenance.md`.
+- V1 retirement authority: `../internal/v2/v1-salvage-ledger.md` and
+  `../internal/v2/cutover-provenance.md`.
 
 Task 7 aggregate evidence is GREEN: `verifyArchitecture`, all build-logic tests, retained-module
 tests, `:plugins:api:test`, and `:app:testDebugUnitTest` completed successfully; module-boundary
