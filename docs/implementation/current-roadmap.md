@@ -20,28 +20,31 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 6: cut `:app`
-to the minimal V2 shell and isolate development identity**. Tasks 0 through 5 are complete on branch
-`v2/foundation-clean-boot` in the same Hikari Git repository/worktree lineage. The retained-core
-baseline and current architecture gate are green, the same-repository cutover provenance guard is
-committed, the V1 salvage ledger and V2 capability admission contract policy tests are green, and
-the focused foundation-policy, source-boundary, app-structure, merged-manifest, and build-logic
-plugin-validation gates are green.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 7: cut the
+active Gradle graph to the retained/quarantined Step 1 set**. Tasks 0 through 6 are complete on
+branch `v2/foundation-clean-boot` in the same Hikari Git repository/worktree lineage. Task 6 is
+committed as `7d3e4b9`: `:app` now has four production Kotlin files and zero production project
+dependencies, uses the `app.openstory.v2dev`/`app.openstory.v2benchmark` development identities,
+and retains `app.openstory` for release. The focused app foundation/unit/assemble gate and the
+Android-test APK compile are green. All four production/benchmark merged manifests contain only
+`androidx.profileinstaller.ProfileInstallerInitializer` and no service.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 6` first;
+  `## Global Constraints` and `## Task 7` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
-  `## 10. Android entry points` and `## 11. Dependency policy for :app` first;
+  `## 6.3 Removed from the active Step 1 graph` and `## 6.4 Active Step 1 graph` first;
 - cutover provenance: `../internal/v2/cutover-provenance.md`.
 
-Resume at Task 6 Step 1. The shared Step 1 policy is canonical at
-`../../config/architecture/v2-foundation-policy.json`; the V2 capability admission contract is
-canonical at `../internal/v2/capability-admission-contract.md`, and the V1 salvage ledger remains
-canonical at `../internal/v2/v1-salvage-ledger.md`. Do not delete or modify V1 runtime source before
-later plan tasks authorize it. The Step 1 checkpoint is created only by Task 15; do not invent an
-intermediate checkpoint file.
+Resume at Task 7 Step 1. Rewrite `ModuleGraphTest` and prove the existing V1 module policy fails
+before changing `settings.gradle.kts` or `module-boundaries.json`. The shared Step 1 policy is
+canonical at `../../config/architecture/v2-foundation-policy.json`; the V2 capability admission
+contract is canonical at `../internal/v2/capability-admission-contract.md`, and the V1 salvage
+ledger remains canonical at `../internal/v2/v1-salvage-ledger.md`. Task 7 changes only the active
+graph/policy and its build-logic tests; do not begin later runtime-source retirement in the same
+turn. The Step 1 checkpoint is created only by Task 15; do not invent an intermediate checkpoint
+file.
 
 ## Historical execution context (non-current)
 
