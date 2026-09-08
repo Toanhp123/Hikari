@@ -20,37 +20,34 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 8A: retire
-obsolete V1 runtime source without touching retained/quarantined cores**. Tasks 0 through 7 are
-complete on branch `v2/foundation-clean-boot`. Task 7 is committed as `2f7cf17`: the active Gradle
-graph and exact boundary policy contain only `:app`, `:core:common`, `:catalog:model`,
-`:catalog:engine`, `:reader:engine`, `:plugins:api`, and `:benchmark`; synthetic `:catalog`/`:reader`
-parents do not evaluate their V1 root build scripts; `verifyArchitecture` includes
-`:app:verifyFoundation`; and V1-only active-policy tests are retired.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 8B: prune build
+logic and the dependency catalog to the active V2 surface**. Tasks 0 through 8A are complete on
+branch `v2/foundation-clean-boot`. Task 8A is committed as `71be701`: obsolete V1 runtime source is
+retired while retained/quarantined source remains byte-identical.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 8A` first;
+  `## Global Constraints` and `## Task 8B` first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
   `## 6.3 Removed from the active Step 1 graph` and `## 6.4 Active Step 1 graph` first;
-- V1 retirement authority: `../internal/v2/v1-salvage-ledger.md` and
-  `../internal/v2/cutover-provenance.md`.
+- active build inputs: `../../build-logic/build.gradle.kts`, `../../gradle/libs.versions.toml`, root
+  `../../build.gradle.kts`, and their direct active build-script consumers.
 
-Task 7 aggregate evidence is GREEN: `verifyArchitecture`, all build-logic tests, retained-module
-tests, `:plugins:api:test`, and `:app:testDebugUnitTest` completed successfully; module-boundary
-verification reported exactly seven modules. The gate emitted two non-fatal warning classes: no-op
-initializer removal markers in the debug unit-test manifest merge, and a pre-existing unnecessary
-non-null assertion in a retained `:plugins:api` test. Neither changes the accepted production
-manifest or Task 7 graph contract. The salvage ledger still classifies `:catalog:engine` as
-`REDESIGN | QUARANTINE`.
+Task 8A evidence is GREEN. `scripts/tests/v2-retired-runtime-absence-test.sh` first failed on
+`core/designsystem`, then passed after deletion. The committed delta contains exactly 786 deleted
+tracked files under the Task 8A allowlist plus the absence gate. SHA-256 snapshots covered 112 files
+across `core/common`, `catalog/model`, `catalog/engine`, `reader/engine`, and `plugins/api`; the
+before/after comparison was byte-identical. The user-owned aggregate `verifyArchitecture` plus
+retained-module, Plugin API, and app debug unit-test gate completed with `BUILD SUCCESSFUL` on
+2026-09-08.
 
-Resume at Task 8A Step 1. Read `## Global Constraints` and `## Task 8A` in the owning plan. Write and
-prove the retired-runtime absence test RED, record hashes for `core/common`, `catalog/model`,
-`catalog/engine`, `reader/engine`, and `plugins/api`, then delete only the explicitly listed V1 paths.
-Do not prune build logic or the version catalog; Task 8B owns that work. Do not modify any retained or
-quarantined source while making the absence gate green. The Step 1 checkpoint is created only by
-Task 15; do not invent an intermediate checkpoint file.
+Resume at Task 8B Step 1. Write `scripts/tests/v2-build-surface-test.sh` exactly against the approved
+active build surface and prove it RED before pruning. Remove only the inactive convention plugins,
+packaging task, build-logic dependencies, version-catalog entries, and root plugin aliases owned by
+Task 8B. Keep ProfileInstaller and every alias still consumed by the seven-module graph. Do not
+modify retained/quarantined engine behavior. The Step 1 checkpoint is created only by Task 15; do
+not invent an intermediate checkpoint file.
 
 ## Historical execution context (non-current)
 
