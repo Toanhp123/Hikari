@@ -48,6 +48,7 @@ class FoundationConventionPlugin : Plugin<Project> {
             group = "verification"
             description = "Verifies the V2 app structural ratchet."
             policyFile.set(policy)
+            appDirectory.set(layout.projectDirectory)
             this.productionSources.from(productionSources)
         }
 

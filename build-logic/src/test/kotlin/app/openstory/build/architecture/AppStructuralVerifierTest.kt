@@ -8,6 +8,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
+import org.gradle.testkit.runner.GradleRunner
 
 class AppStructuralVerifierTest {
     @Test
@@ -220,9 +221,9 @@ class AppStructuralVerifierTest {
                 }
                 """.trimIndent(),
             )
-            val appDirectory = File(root, "app").apply { mkdirs() }
+            val appProjectDirectory = File(root, "app").apply { mkdirs() }
             val source = File(
-                appDirectory,
+                appProjectDirectory,
                 "src/main/kotlin/app/openstory/StartupManager.kt",
             ).apply {
                 parentFile.mkdirs()
@@ -234,12 +235,13 @@ class AppStructuralVerifierTest {
                     """.trimIndent(),
                 )
             }
-            val project = ProjectBuilder.builder().withProjectDir(appDirectory).build()
+            val project = ProjectBuilder.builder().withProjectDir(appProjectDirectory).build()
             val task = project.tasks.register(
                 "verifyAppStructure",
                 VerifyAppStructureTask::class.java,
             ).get().apply {
                 this.policyFile.set(policyFile)
+                appDirectory.set(appProjectDirectory)
                 productionSources.from(source)
             }
 
@@ -253,6 +255,66 @@ class AppStructuralVerifierTest {
             assertTrue(
                 "src/main/kotlin/app/openstory/StartupManager.kt" in error.message.orEmpty(),
             )
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun gradleTaskSupportsConfigurationCache() {
+        val root = createTempDirectory("app-structure-configuration-cache").toFile()
+        try {
+            File(root, "settings.gradle.kts").writeText(
+                "rootProject.name = \"app-structure-configuration-cache\"",
+            )
+            File(root, "build.gradle").writeText(
+                """
+                plugins {
+                    id 'openstory.foundation'
+                }
+
+                def taskType = Class.forName(
+                    'app.openstory.build.architecture.VerifyAppStructureTask'
+                )
+                tasks.register('verifyAppStructure', taskType) {
+                    policyFile.set(layout.projectDirectory.file(
+                        'config/architecture/v2-foundation-policy.json'
+                    ))
+                    productionSources.from(layout.projectDirectory.file(
+                        'src/main/kotlin/app/openstory/App.kt'
+                    ))
+                    appDirectory.set(layout.projectDirectory)
+                }
+                """.trimIndent(),
+            )
+            File(root, "config/architecture/v2-foundation-policy.json").apply {
+                parentFile.mkdirs()
+                writeText(
+                    """
+                    {
+                      "schemaVersion": 1,
+                      "maxProductionKotlinLines": 10,
+                      "forbiddenSourceTokens": [],
+                      "forbiddenBuildTokens": [],
+                      "forbiddenBroadTypeSuffixes": [],
+                      "forbiddenManifestPermissions": [],
+                      "allowedStartupInitializers": []
+                    }
+                    """.trimIndent(),
+                )
+            }
+            File(root, "src/main/kotlin/app/openstory/App.kt").apply {
+                parentFile.mkdirs()
+                writeText("package app.openstory\nclass App")
+            }
+
+            val result = GradleRunner.create()
+                .withProjectDir(root)
+                .withPluginClasspath()
+                .withArguments("verifyAppStructure", "--configuration-cache")
+                .build()
+
+            assertTrue("BUILD SUCCESSFUL" in result.output)
         } finally {
             root.deleteRecursively()
         }

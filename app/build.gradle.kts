@@ -1,78 +1,25 @@
-import app.openstory.build.packaging.CanonicalPluginPackageTask
-
 plugins {
-    alias(libs.plugins.roborazzi)
     alias(libs.plugins.androidx.baselineprofile)
     id("openstory.android.application")
-    id("openstory.hilt")
     id("openstory.compose")
-    alias(libs.plugins.kotlin.serialization)
+    id("openstory.foundation")
 }
-
-val packageMyAnimeListPlugin by tasks.registering(Zip::class) {
-    from(layout.projectDirectory.dir("../bundled-plugins/myanimelist-catalog")) {
-        include("manifest.json", "main.js")
-    }
-    destinationDirectory.set(layout.projectDirectory.dir("src/main/assets/plugins"))
-    archiveFileName.set("myanimelist-catalog.osp")
-    isReproducibleFileOrder = true
-    isPreserveFileTimestamps = false
-}
-
-val packageMangaDexPlugin by tasks.registering(CanonicalPluginPackageTask::class) {
-    manifestFile.set(
-        layout.projectDirectory.file("../bundled-plugins/mangadex-content/manifest.json"),
-    )
-    mainScriptFile.set(
-        layout.projectDirectory.file("../bundled-plugins/mangadex-content/main.js"),
-    )
-    archiveFile.set(
-        layout.projectDirectory.file("src/main/assets/plugins/mangadex-content.osp"),
-    )
-}
-
-val packageMangaUpdatesPlugin by tasks.registering(CanonicalPluginPackageTask::class) {
-    manifestFile.set(
-        layout.projectDirectory.file("../bundled-plugins/mangaupdates-catalog/manifest.json"),
-    )
-    mainScriptFile.set(
-        layout.projectDirectory.file("../bundled-plugins/mangaupdates-catalog/main.js"),
-    )
-    archiveFile.set(
-        layout.projectDirectory.file("src/main/assets/plugins/mangaupdates-catalog.osp"),
-    )
-}
-
-tasks.named("preBuild") {
-    dependsOn(packageMangaDexPlugin, packageMangaUpdatesPlugin)
-}
-
-val myAnimeListClientId = providers.gradleProperty("openstory.malClientId")
-    .orElse(providers.environmentVariable("OPENSTORY_MAL_CLIENT_ID"))
-    .orElse("")
 
 android {
     namespace = "app.openstory"
 
-    buildFeatures {
-        buildConfig = true
-    }
-
     defaultConfig {
         applicationId = "app.openstory"
         versionCode = 1
-        versionName = "1.0"
-
+        versionName = "2.0-step1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
-        buildConfigField(
-            "String",
-            "MYANIMELIST_CLIENT_ID",
-            "\"${myAnimeListClientId.get().replace("\\", "\\\\").replace("\"", "\\\"")}\"",
-        )
     }
 
     buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".v2dev"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -82,9 +29,11 @@ android {
         }
         create("benchmarkRelease") {
             signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".v2benchmark"
         }
         create("nonMinifiedRelease") {
             signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".v2benchmark"
         }
     }
 
@@ -99,81 +48,23 @@ baselineProfile {
     dexLayoutOptimization = true
 }
 
-// The Baseline Profile plugin copies release sources into its generated benchmark
-// build types during finalizeDsl. Re-attach the deterministic fixture afterwards
-// to both target variants used by Macrobenchmark and Baseline Profile generation.
-androidComponents {
-    beforeVariants(selector().withBuildType("benchmarkRelease")) { variantBuilder ->
-        variantBuilder.hostTests["UnitTest"]?.enable = true
-    }
-    finalizeDsl { extension ->
-        listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
-            extension.sourceSets.getByName(sourceSetName).apply {
-                kotlin.directories.add("src/benchmarkRelease/kotlin")
-                manifest.srcFile("src/benchmarkRelease/AndroidManifest.xml")
-            }
-        }
-    }
-}
-
 dependencies {
     "baselineProfile"(project(":benchmark"))
-    implementation(project(":core:common"))
-    implementation(project(":core:designsystem"))
-    implementation(project(":catalog"))
-    implementation(project(":catalog:model"))
-    implementation(project(":catalog:engine"))
-    implementation(project(":library"))
-    implementation(project(":chapters"))
-    implementation(project(":reader"))
-    implementation(project(":downloads"))
-    implementation(project(":settings"))
-    implementation(project(":storage:room"))
-    implementation(project(":storage:files"))
-    implementation(project(":plugins:api"))
-    implementation(project(":plugins:runtime"))
-    implementation(project(":feature:catalog"))
-    implementation(project(":feature:reader"))
-    implementation(project(":feature:settings"))
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.okhttp.client)
-    implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.profileinstaller)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.androidx.datastore.preferences)
+
     testImplementation(libs.junit)
-    testImplementation(platform(libs.androidx.compose.bom))
-    testImplementation(libs.androidx.compose.ui.test.junit4)
-    testImplementation(libs.roborazzi.core)
-    testImplementation(libs.roborazzi.compose)
-    testImplementation(libs.robolectric)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.okhttp.mockwebserver)
+
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.javascriptengine)
+    androidTestImplementation(libs.androidx.espresso.core)
     androidTestUtil(libs.androidx.test.orchestrator)
+
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation(libs.kotlinx.serialization.json)
-    testImplementation(libs.kotlin.test.junit)
-    implementation(libs.androidx.navigation3.runtime)
-    implementation(libs.androidx.navigation3.ui)
 }

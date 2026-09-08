@@ -3,9 +3,11 @@ package app.openstory.build.architecture
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -19,9 +21,12 @@ abstract class VerifyAppStructureTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val productionSources: ConfigurableFileCollection
 
+    @get:Internal
+    abstract val appDirectory: DirectoryProperty
+
     @TaskAction
     fun verifyStructure() {
-        val appDirectory = project.projectDir.canonicalFile
+        val canonicalAppDirectory = appDirectory.get().asFile.canonicalFile
         val sources = productionSources.files
             .asSequence()
             .filter { file ->
@@ -30,7 +35,7 @@ abstract class VerifyAppStructureTask : DefaultTask() {
             .sortedBy { file -> file.canonicalPath }
             .associateTo(linkedMapOf()) { file ->
                 val canonicalFile = file.canonicalFile
-                canonicalFile.relativeTo(appDirectory).invariantSeparatorsPath to
+                canonicalFile.relativeTo(canonicalAppDirectory).invariantSeparatorsPath to
                     canonicalFile.readText()
             }
         val policy = FoundationPolicyLoader.parse(
