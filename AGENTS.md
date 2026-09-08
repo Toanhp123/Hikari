@@ -1,10 +1,12 @@
 # Hikari Agent Guide
 
 ## Purpose
+
 Compact routing instructions for agentic work. This file is a map, not a roadmap, architecture
 ledger, module list, or status database. Prefer canonical repository sources over copied status.
 
 ## Stable repository facts
+
 - Android/Kotlin multi-module repository with modular-monolith / Clean-style capability boundaries.
 - Module inclusion: `settings.gradle.kts`.
 - Dependency edges: `config/architecture/module-boundaries.json`.
@@ -12,14 +14,19 @@ ledger, module list, or status database. Prefer canonical repository sources ove
 - Do not copy fast-changing task, wave, schema, or module-count status into this file.
 
 ## Resolve scope before reading
+
 - Direct user instructions and an explicitly named task/plan/file define the initial scope.
 - If the exact task/plan is named, read it directly; on continue/resume also read its owning checkpoint/open-work record. Use the roadmap only if ownership/resume is ambiguous.
 - For "continue current work" or ambiguous execution, read only `## Current position` in `docs/implementation/current-roadmap.md` far enough to identify active task, checkpoint, and owning plan.
+- Freeze that resolved active task as the execution boundary for the current
+  turn. Later checkpoint/roadmap updates during the same turn do not change
+  the execution boundary.
 - Then read the checkpoint resume/open-work slice, owning plan global constraints + active `Task N`, and only design/spec sections needed for missing invariants.
 - Inspect production code, tests, scripts, and direct callers/callees in the affected dependency cone.
 - Find headings/ranges before opening whole large documents; expand only when the narrow slice is insufficient.
 
 ## Source precedence by question
+
 - Implemented now: `docs/project/current-state.md`, then code/tests.
 - Next work: `docs/implementation/current-roadmap.md`, then active checkpoint/owning plan.
 - Product/domain scope: `docs/project/approved-product-design.md`.
@@ -30,6 +37,7 @@ ledger, module list, or status database. Prefer canonical repository sources ove
 README/handbook prose is navigation only and never overrides canonical state, roadmap, checkpoint, or owning task contract.
 
 ## Context-budget rules
+
 - Do not recursively read `docs/` or load every plan/spec/checkpoint "for completeness".
 - Do not scan every module before a bounded task.
 - Do not reopen completed tasks/waves without a regression, contradiction, or dependency trail.
@@ -42,6 +50,7 @@ README/handbook prose is navigation only and never overrides canonical state, ro
 These are discovery defaults, not evidence bans. If root-cause evidence crosses the initial cone, expand to the necessary caller/callee/module/boundary/authority and state why.
 
 ## Skill routing
+
 - Approved task/plan/checkpoint execution is implementation work, not a new brainstorming cycle.
 - Do not invoke brainstorming merely to continue/resume/implement/test/review/fix work whose contract is already defined.
 - Use brainstorming for a new feature/design/architecture/public-interface decision, an explicit user request, or a genuine design ambiguity/contradiction that invalidates the current contract.
@@ -50,6 +59,7 @@ These are discovery defaults, not evidence bans. If root-cause evidence crosses 
 - Generic brainstorming/design ceremony does not reopen approved execution; debugging/TDD and other execution-specific skills still apply. If a load-bearing architectural contradiction invalidates the contract, preserve task state and brainstorm only that new decision.
 
 ## Implementation workflow
+
 1. Resolve the exact task contract and resume boundary.
 2. Build the smallest production/test dependency cone that can explain the behavior.
 3. Characterize/reproduce before changing behavior when the task or plan requires TDD.
@@ -57,9 +67,17 @@ These are discovery defaults, not evidence bans. If root-cause evidence crosses 
 5. Run only focused agent-owned tests/checks needed for RED/GREEN and local diagnosis; wall-clock duration alone does not change ownership.
 6. Self-review the final changed cone; fix discovered in-scope issues before handoff.
 7. Hand expensive repository/module/device/performance gates to the user with exact commands unless explicitly delegated back.
-8. Before final handoff at every stop, update the existing owning checkpoint with durable delta/evidence/open gates/risks/exact resume boundary. Update `current-roadmap.md` when active task, verification state, or next-work pointer changes; never require a separate user reminder.
+8. At the end of the active canonical Task N, update the existing owning
+   checkpoint with durable delta/evidence/open gates/risks/exact resume boundary.
+   Update `current-roadmap.md` when active task, verification state, or next-work
+   pointer changes. This persistence may point to Task N+1, but MUST NOT trigger
+   execution of Task N+1 in the current turn unless the user explicitly requested it.
+9. Stop and hand control back to the user after the active canonical Task N.
+   Do not consume the newly updated roadmap/checkpoint as authorization to begin
+   the next task.ication state, or next-work pointer changes; never require a separate user reminder.
 
 ## Self-review contract
+
 Self-review is mandatory inside the changed dependency cone plus justified root-cause expansion. Check:
 
 - correctness, failure semantics, and regressions;
@@ -73,6 +91,7 @@ Self-review is mandatory inside the changed dependency cone plus justified root-
 Do not turn each task self-review into a whole-repository audit. For an explicit whole-repo/red-team audit, inspect the full relevant architecture deliberately.
 
 ## Subagent budget
+
 - Do not delegate by default; keep a single dependency cone or sequential task in the root agent.
 - Parallel implementation/exploration requires at least two genuinely independent workstreams and a material quality or wall-clock benefit.
 - For a bounded parent task, default maximum is 2 subagent workstreams total (concurrent or sequential, reviewers included). More requires explicit user direction or a justified whole-repo/red-team decomposition.
@@ -86,6 +105,7 @@ Do not turn each task self-review into a whole-repository audit. For an explicit
 - If delegation duplicates more context than useful work, stay single-agent.
 
 ## Subagent model and effort routing
+
 - Model/effort selection is part of the delegation budget; request both explicitly when the runtime supports them.
 - Mechanical search/inventory/classification/extraction only: prefer GPT-5.6 Luna at low effort.
 - Normal bounded implementation/investigation: prefer GPT-5.6 Terra at medium effort.
@@ -97,6 +117,7 @@ Do not turn each task self-review into a whole-repository audit. For an explicit
 - If the runtime catalog changes, preserve the intent: cheapest adequate model for mechanical work, balanced model for normal work, flagship only for consequential judgment.
 
 ## Command execution / polling budget
+
 - Agent-owned non-interactive commands must use one synchronous/blocking invocation that keeps control inside the tool until process exit; redirect stdout/stderr to an OS temp file and preserve the real exit code.
 - Wall-clock duration alone is not a reason to hand off: a focused test/check may run for minutes when the runtime can block without model turns.
 - While the blocking call is live, do not `tail -f`, reopen logs, request progress, or poll merely to observe liveness.
@@ -104,6 +125,7 @@ Do not turn each task self-review into a whole-repository audit. For an explicit
 - For explicitly delegated supervision, poll only as coarsely/status-only as the runtime requires and read diagnostics only after exit/failure. Interactive/watch-mode commands remain user-owned unless interaction itself is the task.
 
 ## Verification ownership and handoff
+
 - Use the narrowest evidence that can falsify the change first; existing repository/task gates stay authoritative.
 - Agent-owned by default: individual/focused tests (prefer `--tests`), narrow compile/diagnostic checks, and similarly bounded-scope checks with bounded output.
 - User-owned by default: unfiltered module/full regression, cross-module gates, Detekt/lint, `verify*.sh`, connected/device tests, benchmarks/profiling, and physical-device acceptance.
