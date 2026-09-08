@@ -6,9 +6,6 @@ dependencies {
     implementation(libs.android.gradle.plugin)
     implementation(libs.kotlin.gradle.plugin)
     implementation(libs.kotlin.compose.gradle.plugin)
-    implementation(libs.hilt.gradle.plugin)
-    implementation(libs.ksp.gradle.plugin)
-    implementation(libs.room.gradle.plugin)
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test-junit"))
@@ -35,27 +32,10 @@ gradlePlugin {
                 "app.openstory.build.AndroidApplicationConventionPlugin"
         }
 
-        register("androidLibrary") {
-            id = "openstory.android.library"
-            implementationClass =
-                "app.openstory.build.AndroidLibraryConventionPlugin"
-        }
-
         register("compose") {
             id = "openstory.compose"
             implementationClass =
                 "app.openstory.build.ComposeConventionPlugin"
-        }
-        register("hilt") {
-            id = "openstory.hilt"
-            implementationClass =
-                "app.openstory.build.HiltConventionPlugin"
-        }
-
-        register("room") {
-            id = "openstory.room"
-            implementationClass =
-                "app.openstory.build.RoomConventionPlugin"
         }
         register("kotlinJvm") {
             id = "openstory.kotlin.jvm"
