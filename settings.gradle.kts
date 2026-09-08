@@ -38,22 +38,12 @@ rootProject.name = "Hikari"
 
 include(":app")
 include(":core:common")
-include(":core:designsystem")
-include(":catalog")
 include(":catalog:model")
 include(":catalog:engine")
-include(":library")
-include(":chapters")
-include(":reader")
 include(":reader:engine")
-include(":feature:catalog")
-include(":feature:reader")
-include(":feature:settings")
-include(":downloads")
-include(":settings")
-include(":storage:room")
-include(":storage:files")
 include(":plugins:api")
-include(":plugins:runtime")
-
 include(":benchmark")
+
+// Nested retained modules require parent Gradle projects, but their V1 builds are inactive.
+project(":catalog").buildFileName = "inactive-parent.gradle.kts"
+project(":reader").buildFileName = "inactive-parent.gradle.kts"

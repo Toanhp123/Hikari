@@ -24,8 +24,8 @@ class ArchitectureConventionPlugin : Plugin<Project> {
         tasks.register("verifyArchitecture") {
             group = "verification"
             description =
-                "Runs module-boundary and application-identity verification."
-            dependsOn(boundaryTask, identityTask)
+                "Runs module-boundary, identity, and V2 foundation verification."
+            dependsOn(boundaryTask, identityTask, ":app:verifyFoundation")
         }
 
         gradle.projectsEvaluated {
