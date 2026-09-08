@@ -2,15 +2,30 @@ package app.openstory
 
 import java.io.File
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppShellContractTest {
     @Test
-    fun applicationHasNoStartupOverride() {
+    fun applicationOnCreateIsTraceOnly() {
         val source = rootFile(
             "app/src/main/kotlin/app/openstory/HikariApplication.kt",
         ).readText()
-        assertFalse("override fun onCreate" in source)
+
+        assertTrue("startupTraceSection" in source)
+        assertTrue("super.onCreate()" in source)
+
+        listOf(
+            "WorkManager",
+            "Reader",
+            "Catalog",
+            "PluginRuntime",
+            "DataStore",
+            "CoroutineScope",
+            "launch {",
+        ).forEach { forbidden ->
+            assertFalse("Forbidden Application startup work: $forbidden", forbidden in source)
+        }
     }
 
     @Test

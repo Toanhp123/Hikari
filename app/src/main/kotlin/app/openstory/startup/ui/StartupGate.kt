@@ -7,10 +7,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
 import app.openstory.startup.AppLaunchState
 import app.openstory.startup.AppLaunchStateStore
+import app.openstory.startup.TRACE_FIRST_FRAME
+import app.openstory.startup.TRACE_LAUNCH_STATE_RESOLVED
 import app.openstory.startup.createAppLaunchStateStore
+import app.openstory.startup.startupTraceMark
 import app.openstory.ui.HikariBootSurface
 import app.openstory.ui.HikariBootTheme
 import kotlinx.coroutines.launch
@@ -20,6 +24,12 @@ internal fun HikariStartupApp() {
     val context = LocalContext.current.applicationContext
     val store = remember(context) {
         createAppLaunchStateStore(context)
+    }
+
+    LaunchedEffect(Unit) {
+        withFrameNanos {
+            startupTraceMark(TRACE_FIRST_FRAME)
+        }
     }
 
     HikariBootTheme {
@@ -38,6 +48,7 @@ internal fun StartupGate(store: AppLaunchStateStore) {
 
     LaunchedEffect(store) {
         launchState = store.resolve()
+        startupTraceMark(TRACE_LAUNCH_STATE_RESOLVED)
     }
 
     fun completeInitialSetup() {

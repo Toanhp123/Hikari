@@ -8,10 +8,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import app.openstory.startup.TRACE_DESTINATION_READY
+import app.openstory.startup.startupTraceMark
 
 @Composable
 internal fun FirstRunScreen(
@@ -19,6 +22,10 @@ internal fun FirstRunScreen(
     saveFailed: Boolean,
     onComplete: () -> Unit,
 ) {
+    LaunchedEffect(Unit) {
+        startupTraceMark(TRACE_DESTINATION_READY)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()

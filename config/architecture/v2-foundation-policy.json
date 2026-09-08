@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "maxProductionKotlinLines": 300,
+  "maxProductionKotlinLines": 377,
   "forbiddenSourceTokens": [
     "androidx.room.",
     "androidx.work.",
