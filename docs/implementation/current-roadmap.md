@@ -20,34 +20,35 @@ acceptance remain separate states.
 
 ## Current position
 
-The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 8B: prune build
-logic and the dependency catalog to the active V2 surface**. Tasks 0 through 8A are complete on
-branch `v2/foundation-clean-boot`. Task 8A is committed as `71be701`: obsolete V1 runtime source is
-retired while retained/quarantined source remains byte-identical.
+The active execution boundary is **Hikari V2 Step 1 — Foundation + Clean Boot, Task 8B: user
+verification of the pruned active V2 build surface**. Tasks 0 through 8A are complete on branch
+`v2/foundation-clean-boot`. Task 8B implementation is committed as `af64dc8`; required aggregate
+verification remains open.
 
 Resume narrowly from:
 
 - owning plan: `../superpowers/plans/2026-09-07-hikari-v2-step-1-foundation-clean-boot.md` — read
-  `## Global Constraints` and `## Task 8B` first;
+  `## Global Constraints` and `## Task 8B`, especially Steps 6-7, first;
 - approved design: `../superpowers/specs/2026-09-07-hikari-v2-foundation-clean-boot-design.md` — read
   `## 6.3 Removed from the active Step 1 graph` and `## 6.4 Active Step 1 graph` first;
 - active build inputs: `../../build-logic/build.gradle.kts`, `../../gradle/libs.versions.toml`, root
   `../../build.gradle.kts`, and their direct active build-script consumers.
 
-Task 8A evidence is GREEN. `scripts/tests/v2-retired-runtime-absence-test.sh` first failed on
-`core/designsystem`, then passed after deletion. The committed delta contains exactly 786 deleted
-tracked files under the Task 8A allowlist plus the absence gate. SHA-256 snapshots covered 112 files
-across `core/common`, `catalog/model`, `catalog/engine`, `reader/engine`, and `plugins/api`; the
-before/after comparison was byte-identical. The user-owned aggregate `verifyArchitecture` plus
-retained-module, Plugin API, and app debug unit-test gate completed with `BUILD SUCCESSFUL` on
-2026-09-08.
+Task 8B TDD evidence is GREEN at agent-owned scope. `scripts/tests/v2-build-surface-test.sh` first
+failed on `AndroidLibraryConventionPlugin.kt`, then passed after pruning. The commit deletes the
+Android-library, Hilt, Room, and plugin-packaging build artifacts; removes their registrations and
+build-logic dependencies; removes inactive V1 catalog entries plus the root Roborazzi alias; and
+retains ProfileInstaller and the aliases needed by the seven-module Step 1 graph. Focused
+`:build-logic:test --tests '*ArchitectureConventionPluginTest*'` completed with `BUILD SUCCESSFUL`
+in 1m 23s. No retained/quarantined engine source changed.
 
-Resume at Task 8B Step 1. Write `scripts/tests/v2-build-surface-test.sh` exactly against the approved
-active build surface and prove it RED before pruning. Remove only the inactive convention plugins,
-packaging task, build-logic dependencies, version-catalog entries, and root plugin aliases owned by
-Task 8B. Keep ProfileInstaller and every alias still consumed by the seven-module graph. Do not
-modify retained/quarantined engine behavior. The Step 1 checkpoint is created only by Task 15; do
-not invent an intermediate checkpoint file.
+Resume at Task 8B Step 6. Run the user-owned aggregate Gradle command exactly as written in the
+owning plan and review its result before closing Task 8B or advancing to Task 9. The Step 7 grep has
+one known contract-level false positive: it reports only the two `settings.gradle.kts` assignments
+that give the synthetic `:catalog` and `:reader` parent projects inert build files required by the
+nested retained modules. No other active Gradle script matches the retired project/plugin pattern;
+do not remove or reactivate those parent containers merely to make the broad regex silent. The Step
+1 checkpoint is created only by Task 15; do not invent an intermediate checkpoint file.
 
 ## Historical execution context (non-current)
 
