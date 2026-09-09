@@ -17,15 +17,21 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
 import app.openstory.catalog.domain.read.DiscoverReadPort
+import app.openstory.catalog.domain.read.StoryDetailProjection
+import app.openstory.catalog.domain.read.StoryDetailReadPort
 import app.openstory.catalog.domain.source.AcquisitionProvenance
 import app.openstory.catalog.domain.validation.CatalogPublicationValidator
 import app.openstory.catalog.domain.write.CatalogMutationDiagnostics
+import app.openstory.catalog.domain.write.CatalogWritePort
 import app.openstory.catalog.domain.write.DiscoverPublicationCommand
+import app.openstory.catalog.domain.write.StoryDetailPublicationCommand
 import app.openstory.catalog.storage.discover.CatalogSourceStateEntity
 import app.openstory.catalog.storage.discover.DiscoverCardEntity
 import app.openstory.catalog.storage.discover.DiscoverObservationRow
 import app.openstory.catalog.storage.story.StorySourceIdentityEntity
 import app.openstory.catalog.storage.story.StorySourceSummaryEntity
+import app.openstory.catalog.storage.story.matches
+import app.openstory.catalog.storage.story.toIdentityEntity
 import app.openstory.common.id.StoryId
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.Flow
@@ -34,8 +40,9 @@ import kotlinx.coroutines.flow.map
 
 class RoomCatalogStore internal constructor(
     private val database: CatalogDatabase,
-) : DiscoverReadPort, AutoCloseable {
+) : DiscoverReadPort, StoryDetailReadPort, CatalogWritePort, AutoCloseable {
     private val dao = database.discoverDao()
+    private val storyStorage = StoryStorage(database)
     private val closed = AtomicBoolean(false)
 
     override fun observe(
@@ -46,7 +53,7 @@ class RoomCatalogStore internal constructor(
         .catch { error -> throw error.toStorageFailure(CatalogStorageOperation.READ_DISCOVER) }
 
     @Suppress("UnusedParameter")
-    suspend fun publishDiscover(
+    override suspend fun publishDiscover(
         command: DiscoverPublicationCommand,
         retentionProtectedStoryIds: Set<StoryId>,
     ): CatalogMutationDiagnostics {
@@ -87,6 +94,24 @@ class RoomCatalogStore internal constructor(
             throw error.toStorageFailure(CatalogStorageOperation.PUBLISH_DISCOVER)
         }
     }
+
+    override fun observe(ref: StorySourceRef): Flow<StoryDetailProjection?> = storyStorage.observe(ref)
+
+    override suspend fun publishStoryDetail(command: StoryDetailPublicationCommand) =
+        storyStorage.publishStoryDetail(command)
+
+    override suspend fun touchStoryAccess(ref: StorySourceRef, accessedAtEpochMs: Long) =
+        storyStorage.touchStoryAccess(ref, accessedAtEpochMs)
+
+    override suspend fun releaseStoryDemand(
+        ref: StorySourceRef,
+        retentionProtectedStoryIds: Set<StoryId>,
+        releasedAtEpochMs: Long,
+    ): CatalogMutationDiagnostics = storyStorage.releaseStoryDemand(
+        ref = ref,
+        retentionProtectedStoryIds = retentionProtectedStoryIds,
+        releasedAtEpochMs = releasedAtEpochMs,
+    )
 
     override fun close() {
         if (closed.compareAndSet(false, true)) database.close()
@@ -146,22 +171,11 @@ private fun nextGeneration(previous: Long?): Long = when (previous) {
     else -> previous + 1L
 }
 
-private fun throwValidation(field: String, reason: CatalogValidationReason): Nothing =
+internal fun throwValidation(field: String, reason: CatalogValidationReason): Nothing =
     throw CatalogFailureException(CatalogFailure.Validation(field, reason))
 
-private fun throwIdentityCollision(storyId: StoryId): Nothing =
+internal fun throwIdentityCollision(storyId: StoryId): Nothing =
     throw CatalogFailureException(CatalogFailure.IdentityCollision(storyId.value))
-
-private fun StorySourceIdentityEntity.matches(ref: StorySourceRef): Boolean =
-    storyId == ref.storyId.value &&
-        sourceKey == ref.catalogSourceKey.value &&
-        sourceStoryId == ref.sourceStoryId
-
-private fun StorySourceRef.toIdentityEntity() = StorySourceIdentityEntity(
-    storyId = storyId.value,
-    sourceKey = catalogSourceKey.value,
-    sourceStoryId = sourceStoryId,
-)
 
 private fun DiscoverCard.toSummaryEntity(lastSeenEpochMs: Long): StorySourceSummaryEntity {
     val cover = coverColumns()

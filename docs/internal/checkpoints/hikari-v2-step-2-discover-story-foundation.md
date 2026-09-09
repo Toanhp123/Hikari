@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-09
-Status: **TASKS 0-2 COMPLETED/ACCEPTED; TASK 3 READY TO START**
+Status: **TASKS 0-3 COMPLETED/ACCEPTED; TASK 4 READY TO START**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-2.
-- Next execution boundary: Task 3, not started.
+- Completed/accepted execution boundary: Tasks 0-3.
+- Current execution boundary: Task 4 ready to start; not executed in the Task 3 closure turn.
 
 Reviewed artifact SHA-256:
 
@@ -270,19 +270,109 @@ behavior on API 26 and 37.
   no active provider credentials. The root therefore completed the required changed-cone review
   directly; no unresolved in-scope source defect was found before the open device/broad gates.
 
+## Task 3 Delta
+
+- Added the keyed Story Detail Room schema: `story_detail` plus position-keyed `story_author`,
+  `story_artist`, and `story_genre` tables. Detail source version/acquisition time remains separate
+  from the mutable Discover summary, and ordered child values are reconstructed by persisted
+  position.
+- Added a `StorySourceRef`-keyed transactional observer. Room's generated implementation performs
+  one joined identity/summary/detail query plus exactly one bounded relation query for each child
+  table, for four SQL statements per coherent snapshot independent of unrelated Catalog rows.
+- Added one atomic `publishStoryDetail` transaction that snapshots mutable lists, repeats complete
+  validation at the storage boundary, verifies exact persisted identity, upserts summary/detail,
+  replaces all bounded children, preserves monotonic access time, and maps unrelated rollback
+  failures to `Storage(PUBLISH_STORY)` without changing materialized Discover cards.
+- Added explicit access-touch storage behavior with no observation-driven writes. Touch and later
+  detail publication advance an existing orphan candidate's aging timestamp monotonically so
+  retention order cannot become stale.
+- Added the storage-internal `story_orphan_retention` DAO/index and atomic release cleanup. It uses
+  only keyed current-Discover reachability/detail checks plus `LIMIT 65`/`LIMIT 1` indexed orphan
+  queries, retains at most 64 candidates after commit, excludes active protected IDs from eviction,
+  and deletes unreachable no-detail or evicted Story rows through identity-owned cascades.
+- Added instrumentation contracts for summary-before-detail, full detail/child round-trip,
+  four-query shape with 250 unrelated rows, atomic rollback, provenance independence, Discover
+  isolation, storage-boundary revalidation, explicit access writes, aged 500-row retention query
+  shape, the 64-row cap, release cleanup, current reachability, and child-position uniqueness.
+
+## Task 3 Agent-Owned Evidence
+
+- TDD RED: `./gradlew :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` failed on the
+  missing Task 3 Story Detail/retention schema and store APIs before production implementation, as
+  expected, 2026-09-09.
+- Focused GREEN compile: `./gradlew :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` -
+  PASS (exit 0), 2026-09-09.
+- Focused final gate: `./gradlew :catalog:storage:assembleDebug
+  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL in 24s`,
+  36 actionable tasks (2 executed, 34 up-to-date), 2026-09-09.
+- User-run RED evidence: the selected connected suite ran 14 tests and failed only
+  `oneStorySnapshotUsesFourQueriesRegardlessOfUnrelatedRows`, with `expected:<4> but was:<5>`.
+  Generated Room 2.8.4 code confirmed the `@Relation` adapter stepped the parent SELECT once to
+  collect relation keys, reset it, and stepped it again to materialize the row before executing
+  the three child SELECTs.
+- Remediation replaces the generated relation adapter with an invalidation-tracked observer whose
+  snapshot read is one explicit Room transaction: one keyed parent DAO query plus one ordered
+  authors, artists, and genres query. The same instrumentation assertion remains the RED/GREEN
+  behavioral contract.
+- The same user-run broad gate passed the architecture checks but Detekt failed on the Task 3
+  `evictOneOverflow` helper's three returns. The helper now selects a nullable eviction and has one
+  final return without changing the bounded overflow behavior.
+- Post-remediation focused gate: `./gradlew :catalog:storage:assembleDebug
+  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS (exit 0), 2026-09-09.
+- Generated schema review confirms the five Task 3 tables, detail route uniqueness, child primary
+  keys/foreign keys, and `(last_accessed_epoch_ms, story_id)` retention index.
+- Post-remediation generated DAO review confirms each of the four Story SELECT methods executes its
+  statement once; the storage observer composes them inside one transaction. No production
+  retention query contains global `COUNT(*)` or history-wide `ORDER BY story_detail`.
+
+## Task 3 Required User-Owned Gate
+
+Status: **PASS / ACCEPTED**
+
+```bash
+./gradlew :catalog:storage:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.storage.StoryDetailPersistenceInstrumentedTest,app.openstory.catalog.storage.StoryRetentionInstrumentedTest \
+  --no-daemon
+./gradlew verifyArchitecture detekt --no-daemon
+```
+
+The first returned results exposed and drove the two remediations recorded above. The user rerun
+on the remediated tree reports `BUILD SUCCESSFUL` for both required commands, 2026-09-09. Task 3 is
+accepted. Task 13 later repeats Room behavior on API 26 and API 37.
+
+## Task 3 Self-Review
+
+- Story reads are keyed by the full validated route identity and observe only the selected summary,
+  optional detail, and its three bounded child tables. The generated query set is fixed at four;
+  unrelated row count cannot amplify SQL statement count or result cardinality.
+- Complete detail state publishes inside one Room transaction. A forced child insert failure rolls
+  back description, authors, artists, genres, provenance, and summary together; detail enrichment
+  never writes `discover_card`.
+- Detail provenance is owned by `story_detail` and survives later Discover summary/source-version
+  publication. Summary-only projections remain valid before enrichment.
+- Retention work is driven only by the released Story plus a maximum 65-row indexed candidate read
+  and one indexed unprotected eviction lookup. No production global Story/detail enumeration,
+  count, or history sort was introduced.
+- Observation performs no access write. Explicit touch/detail refresh keeps both detail and an
+  existing orphan marker monotonic, avoiding reactive write loops and stale eviction order.
+- DAO-shaped retention methods and Room entities remain module-internal. No runtime/app/network,
+  startup, V1 quarantine, or new dependency edge was introduced.
+- Independent review dispatch was attempted under the review skill but the child runtime returned
+  `404 No active credentials for provider: openai`. The root completed the required changed-cone
+  review directly; the final connected behavior and broad architecture/Detekt reruns are accepted.
+
 ## Later Task Status
 
-Tasks 0-2: **COMPLETED/ACCEPTED**. Task 3: **READY TO START**.
-Tasks 4 through 16: **NOT RUN**.
+Tasks 0-3: **COMPLETED/ACCEPTED**. Task 4: **READY TO START**.
+Tasks 5 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- Task 2 has no remaining open gate or unresolved in-scope risk.
 - API 26/API 37 repetition, later device/UI, performance, profile, and plugin-integration gates
   remain owned by later tasks and are `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Start Step 2 Task 3 at plan Step 1: write RED keyed Story Detail persistence and bounded
-orphan-retention tests. Re-read the plan global constraints and Task 3 section before changing
-code. Do not reopen Tasks 0-2 without a regression, contradiction, or dependency trail.
+Task 3 is completed/accepted. Resume Step 2 at plan Task 4, Step 1. Re-read Task 4's contract and
+only its direct storage/runtime dependency cone before writing RED publication/identity tests. Do
+not execute Task 4 in the Task 3 closure turn.

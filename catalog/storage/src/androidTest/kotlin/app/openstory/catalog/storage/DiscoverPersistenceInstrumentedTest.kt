@@ -30,7 +30,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -191,23 +190,25 @@ class DiscoverPersistenceInstrumentedTest {
     }
 
     @Test
-    fun discoverReadNeedsNoDetailOrChildTables() = runBlocking {
+    fun discoverReadDoesNotQueryDetailOrChildTables() = runBlocking {
+        store.close()
+        val detailQueries = AtomicInteger(0)
+        database = Room.inMemoryDatabaseBuilder(context, CatalogDatabase::class.java)
+            .allowMainThreadQueries()
+            .setQueryCallback(
+                { sql, _ ->
+                    val normalized = sql.lowercase()
+                    if (DETAIL_TABLES.any(normalized::contains)) detailQueries.incrementAndGet()
+                },
+                Executor(Runnable::run),
+            )
+            .build()
+        store = RoomCatalogStore(database)
         store.publishDiscover(publication(listOf(card("one", CatalogSectionKind.POPULAR, 0))), emptySet())
 
-        val cursor = database.openHelper.readableDatabase.query(
-            "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
-        )
-        val tableNames = buildList {
-            cursor.use {
-                while (it.moveToNext()) add(it.getString(0))
-            }
-        }
-
-        assertFalse(tableNames.contains("story_detail"))
-        assertFalse(tableNames.contains("story_author"))
-        assertFalse(tableNames.contains("story_artist"))
-        assertFalse(tableNames.contains("story_genre"))
+        detailQueries.set(0)
         assertTrue(store.observe(SOURCE_KEY, CatalogMediaType.MANGA).first() is DiscoverPersistenceState.Published)
+        assertEquals(0, detailQueries.get())
     }
 
     private fun publication(cards: List<DiscoverCard>) = DiscoverPublicationCommand(
@@ -252,5 +253,6 @@ class DiscoverPersistenceInstrumentedTest {
 
     private companion object {
         val SOURCE_KEY = CatalogSourceKey("fixture.source")
+        val DETAIL_TABLES = listOf("story_detail", "story_author", "story_artist", "story_genre")
     }
 }

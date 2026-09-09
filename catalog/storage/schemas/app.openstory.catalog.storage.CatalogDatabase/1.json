@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "990c866c7fdde810f0cacd8693ee8aa9",
+    "identityHash": "58d9398d34bf305e2b158a1fa3d09bda",
     "entities": [
       {
         "tableName": "catalog_source_state",
@@ -382,11 +382,280 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "story_detail",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `source_key` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, `source_version` TEXT NOT NULL, `description` TEXT, `publication_status` TEXT, `language` TEXT, `fetched_at_epoch_ms` INTEGER NOT NULL, `last_accessed_epoch_ms` INTEGER NOT NULL, PRIMARY KEY(`story_id`), FOREIGN KEY(`story_id`) REFERENCES `story_source_summary`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "source_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceVersion",
+            "columnName": "source_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "publicationStatus",
+            "columnName": "publication_status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fetchedAtEpochMs",
+            "columnName": "fetched_at_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastAccessedEpochMs",
+            "columnName": "last_accessed_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_detail_source_key_source_story_id",
+            "unique": true,
+            "columnNames": [
+              "source_key",
+              "source_story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_story_detail_source_key_source_story_id` ON `${TABLE_NAME}` (`source_key`, `source_story_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "story_source_summary",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_author",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `position` INTEGER NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`story_id`, `position`), FOREIGN KEY(`story_id`) REFERENCES `story_detail`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "position"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "story_detail",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_artist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `position` INTEGER NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`story_id`, `position`), FOREIGN KEY(`story_id`) REFERENCES `story_detail`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "position"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "story_detail",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_genre",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `position` INTEGER NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`story_id`, `position`), FOREIGN KEY(`story_id`) REFERENCES `story_detail`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id",
+            "position"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "story_detail",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_orphan_retention",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `last_accessed_epoch_ms` INTEGER NOT NULL, PRIMARY KEY(`story_id`), FOREIGN KEY(`story_id`) REFERENCES `story_source_identity`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastAccessedEpochMs",
+            "columnName": "last_accessed_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_orphan_retention_last_accessed_epoch_ms_story_id",
+            "unique": false,
+            "columnNames": [
+              "last_accessed_epoch_ms",
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_orphan_retention_last_accessed_epoch_ms_story_id` ON `${TABLE_NAME}` (`last_accessed_epoch_ms`, `story_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "story_source_identity",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '990c866c7fdde810f0cacd8693ee8aa9')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '58d9398d34bf305e2b158a1fa3d09bda')"
     ]
   }
 }

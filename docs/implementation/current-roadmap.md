@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-2; Task 3 is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-3; Task 4 is
 READY TO START.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -44,8 +44,17 @@ The focused `assembleDebug` plus `compileDebugAndroidTestKotlin` gate passes, an
 connected Room suite is accepted as PASS. The broad command passed every architecture check but
 Detekt exposed four Task 2 storage findings; those findings are remediated and the focused compile
 gate remains green. The user rerun of `verifyArchitecture detekt` is accepted as
-`BUILD SUCCESSFUL`, so Task 2 is completed/accepted. Resume only at Task 3 Step 1 from the owning
-plan; Task 3 has not started.
+`BUILD SUCCESSFUL`, so Task 2 is completed/accepted. Task 3 now adds atomic keyed Story Detail
+persistence, a fixed four-query coherent observer, deterministic bounded children, explicit
+non-reactive access touch, and a <=64 indexed orphan-retention/release path. The final agent-owned
+assemble plus instrumentation compile gate passes. The first user-run connected gate exposed that
+Room 2.8.4's generated `@Relation` adapter executes the parent SELECT twice, producing five rather
+than four observed Story queries; the broad gate separately exposed one `ReturnCount` finding in
+the Task 3 overflow eviction helper. Both source defects are remediated, the focused assemble plus
+instrumentation compile gate remains green, and generated DAO review now shows one parent plus
+three ordered child queries. The user rerun reports `BUILD SUCCESSFUL` for the required connected
+Story Detail/retention classes and `verifyArchitecture detekt`, so Task 3 is completed/accepted.
+The next execution boundary is Task 4; do not begin it without a new user request.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is
