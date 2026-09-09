@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-09
-Status: **TASKS 0-1 COMPLETED/ACCEPTED; TASK 2 READY TO START**
+Status: **TASKS 0-2 COMPLETED/ACCEPTED; TASK 3 READY TO START**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed execution boundary: Tasks 0-1.
-- Next execution boundary: Task 2, not started.
+- Completed/accepted execution boundary: Tasks 0-2.
+- Next execution boundary: Task 3, not started.
 
 Reviewed artifact SHA-256:
 
@@ -183,18 +183,106 @@ Final result on 2026-09-09: **PASS; Task 1 accepted.**
   Japanese, mixed-hyphen, and sharp-s vectors.
 - No unresolved in-scope defect was found in the Task 1 dependency cone.
 
+## Task 2 Delta
+
+- Added the new `hikari-v2-catalog.db` Room schema baseline at version 1 with exactly the four
+  Task 2 product tables: `catalog_source_state`, `story_source_identity`,
+  `story_source_summary`, and `discover_card`; no V1 entity or migration chain is imported.
+- Added database-backed uniqueness for exact `(source_key, source_story_id)`, `story_id`,
+  Discover section positions, and per-section Story membership, with indexed current-generation
+  lookup and foreign-key ownership.
+- Added one atomic Discover publication transaction that revalidates the bounded command at the
+  storage boundary, verifies exact source identity fail-closed, upserts identity/summary data,
+  writes one bounded materialized generation, advances durable source state, and removes the
+  obsolete generation. First publication is generation 1; `Long.MAX_VALUE` fails closed rather
+  than wrapping.
+- Added one coherent Room Flow query whose left side is `catalog_source_state` and whose only
+  observed join is the bounded `discover_card` generation. It preserves `Absent` versus durable
+  `Published(empty)` and orders `POPULAR -> LATEST_UPDATES -> TOP_RATED`, then item position,
+  without observing Story summary/detail tables.
+- Added lazy `CatalogStorageFactory.open()` ownership, open/read/write failure translation,
+  cancellation preservation, and idempotent `RoomCatalogStore.close()`.
+- Added real Room instrumentation contracts for fresh/empty/reopen state, materialized field
+  round-trip, deterministic ordering, one coherent SQL query per invalidation snapshot, absence
+  of detail/child-table read requirements, database uniqueness, typed identity collision,
+  storage-boundary position/cap rejection, and generation overflow preservation.
+
+## Task 2 Agent-Owned Evidence
+
+- TDD RED: `./gradlew :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` failed at
+  compile time on the missing Task 2 DB/store/factory symbols before production implementation,
+  as expected, 2026-09-09.
+- Focused GREEN: `./gradlew :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS,
+  `BUILD SUCCESSFUL`, 20 actionable tasks, 2026-09-09.
+- Focused final gate: `./gradlew :catalog:storage:assembleDebug
+  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL`,
+  36 actionable tasks on the final source tree, 2026-09-09.
+- Post-Detekt remediation compile: `./gradlew :catalog:storage:assembleDebug
+  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL` in 23s,
+  36 actionable tasks, 2026-09-09.
+- Generated schema review confirms version 1 contains only the four Task 2 product tables, both
+  identity uniqueness authorities, both Discover uniqueness authorities, and the intended
+  foreign keys/indices.
+- Generated DAO review confirms the observer tracks only `catalog_source_state` and
+  `discover_card` and executes one `LEFT JOIN discover_card` query for each invalidation read.
+- Focused source scan found no forbidden Compose/Coil/OkHttp/`java.net`/quarantined Catalog
+  imports, no production or test Kotlin line over 120 characters, and no trailing whitespace.
+
+## Task 2 Required User-Owned Gate
+
+Status: **PASS**
+
+```bash
+./gradlew :catalog:storage:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.storage.DiscoverPersistenceInstrumentedTest,app.openstory.catalog.storage.CatalogIdentityIntegrityInstrumentedTest \
+  --no-daemon
+./gradlew verifyArchitecture detekt --no-daemon
+```
+
+The focused connected Room command is accepted as user-reported PASS on one available Android
+target. The first broad command verified every architecture check, then Detekt failed on four
+Task 2 findings: two generic catch boundaries, a three-throw mapping helper, and the intentionally
+deferred retention parameter. The source preserves the same failure/cancellation semantics
+through value-based failure mapping, removes both generic catches, and narrowly documents the
+Task 4-owned unused parameter. The user reran `./gradlew verifyArchitecture detekt --no-daemon` on
+the remediated tree and reported `BUILD SUCCESSFUL`; Task 2 is accepted. Task 13 later repeats Room
+behavior on API 26 and 37.
+
+## Task 2 Self-Review
+
+- The hot-path observer is one state-left-join-card SQL shape; summary/detail changes cannot
+  invalidate it, an inner join cannot collapse an empty publication, and no broad JSON/blob or
+  per-card read contract exists.
+- Publication validation occurs before the transaction and is repeated from an immutable card
+  snapshot at the store boundary; all DB mutation then commits or rolls back as one Room
+  transaction. Typed validation/identity failures remain specific, while unrelated framework
+  failures map to the matching storage operation and caller cancellation is rethrown.
+- Identity has both exact source-key and derived Story-ID uniqueness. A mismatched persisted
+  triple fails as `IdentityCollision` without suffix, random, or insertion-order repair.
+- Primary/index order covers the bounded current-generation query and both duplicate membership
+  invariants. Section/card cap rejection is enforced through the only product write boundary,
+  not an invented DAO bypass or unsupported Room check annotation.
+- The exported schema starts at version 1 and contains no V1 migration history, detail children,
+  retention table, startup initializer, service, provider, network dependency, or app-owned DB
+  access. Factory construction performs no Room work; opening is explicit and final close is
+  idempotent.
+- An independent review dispatch was attempted under the review skill but the child runtime had
+  no active provider credentials. The root therefore completed the required changed-cone review
+  directly; no unresolved in-scope source defect was found before the open device/broad gates.
+
 ## Later Task Status
 
-Task 1: **COMPLETED/ACCEPTED**. Task 2: **READY TO START**. Tasks 3 through 16: **NOT RUN**.
+Tasks 0-2: **COMPLETED/ACCEPTED**. Task 3: **READY TO START**.
+Tasks 4 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- Device, connected, performance, profile, and plugin-integration gates belong to later tasks
-  and remain `NOT RUN`.
-- Task 1 has no remaining open gate or unresolved in-scope risk.
+- Task 2 has no remaining open gate or unresolved in-scope risk.
+- API 26/API 37 repetition, later device/UI, performance, profile, and plugin-integration gates
+  remain owned by later tasks and are `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Start Step 2 Task 2 at plan Step 1: write the RED coherent-observation/schema tests. Re-read the
-plan global constraints and Task 2 section before changing code. Do not reopen Tasks 0-1 without a
-regression, contradiction, or dependency trail.
+Start Step 2 Task 3 at plan Step 1: write RED keyed Story Detail persistence and bounded
+orphan-retention tests. Re-read the plan global constraints and Task 3 section before changing
+code. Do not reopen Tasks 0-2 without a regression, contradiction, or dependency trail.

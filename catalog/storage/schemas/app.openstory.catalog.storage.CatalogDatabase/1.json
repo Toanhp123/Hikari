@@ -1,0 +1,392 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "990c866c7fdde810f0cacd8693ee8aa9",
+    "entities": [
+      {
+        "tableName": "catalog_source_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`source_key` TEXT NOT NULL, `media_type` TEXT NOT NULL, `source_version` TEXT NOT NULL, `published_generation` INTEGER NOT NULL, `published_at_epoch_ms` INTEGER NOT NULL, `last_success_epoch_ms` INTEGER NOT NULL, PRIMARY KEY(`source_key`, `media_type`))",
+        "fields": [
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "source_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaType",
+            "columnName": "media_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceVersion",
+            "columnName": "source_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "publishedGeneration",
+            "columnName": "published_generation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "publishedAtEpochMs",
+            "columnName": "published_at_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSuccessEpochMs",
+            "columnName": "last_success_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "source_key",
+            "media_type"
+          ]
+        }
+      },
+      {
+        "tableName": "story_source_identity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `source_key` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, PRIMARY KEY(`story_id`))",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "source_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_source_identity_source_key_source_story_id",
+            "unique": true,
+            "columnNames": [
+              "source_key",
+              "source_story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_story_source_identity_source_key_source_story_id` ON `${TABLE_NAME}` (`source_key`, `source_story_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "story_source_summary",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `source_key` TEXT NOT NULL, `source_version` TEXT NOT NULL, `title` TEXT NOT NULL, `content_type` TEXT NOT NULL, `cover_locator_type` TEXT, `cover_locator_value` TEXT, `cover_locator_aux` TEXT, `cover_revision` TEXT, `rating_value` REAL, `rating_scale` REAL, `publication_status_summary` TEXT, `latest_update_epoch_ms` INTEGER, `last_seen_epoch_ms` INTEGER NOT NULL, PRIMARY KEY(`story_id`), FOREIGN KEY(`story_id`) REFERENCES `story_source_identity`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "source_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceVersion",
+            "columnName": "source_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentType",
+            "columnName": "content_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverLocatorType",
+            "columnName": "cover_locator_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverLocatorValue",
+            "columnName": "cover_locator_value",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverLocatorAux",
+            "columnName": "cover_locator_aux",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverRevision",
+            "columnName": "cover_revision",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ratingValue",
+            "columnName": "rating_value",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "ratingScale",
+            "columnName": "rating_scale",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "publicationStatusSummary",
+            "columnName": "publication_status_summary",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latestUpdateEpochMs",
+            "columnName": "latest_update_epoch_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastSeenEpochMs",
+            "columnName": "last_seen_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_source_summary_source_key",
+            "unique": false,
+            "columnNames": [
+              "source_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_source_summary_source_key` ON `${TABLE_NAME}` (`source_key`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "story_source_identity",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "discover_card",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`source_key` TEXT NOT NULL, `media_type` TEXT NOT NULL, `source_version` TEXT NOT NULL, `generation` INTEGER NOT NULL, `section_kind` TEXT NOT NULL, `item_position` INTEGER NOT NULL, `story_id` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, `title` TEXT NOT NULL, `content_type` TEXT NOT NULL, `cover_locator_type` TEXT, `cover_locator_value` TEXT, `cover_locator_aux` TEXT, `cover_revision` TEXT, `rating_value` REAL, `rating_scale` REAL, `publication_status_summary` TEXT, `latest_update_epoch_ms` INTEGER, PRIMARY KEY(`source_key`, `media_type`, `generation`, `section_kind`, `item_position`), FOREIGN KEY(`source_key`, `media_type`) REFERENCES `catalog_source_state`(`source_key`, `media_type`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED, FOREIGN KEY(`story_id`) REFERENCES `story_source_identity`(`story_id`) ON UPDATE NO ACTION ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "source_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaType",
+            "columnName": "media_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceVersion",
+            "columnName": "source_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generation",
+            "columnName": "generation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sectionKind",
+            "columnName": "section_kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemPosition",
+            "columnName": "item_position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentType",
+            "columnName": "content_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverLocatorType",
+            "columnName": "cover_locator_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverLocatorValue",
+            "columnName": "cover_locator_value",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverLocatorAux",
+            "columnName": "cover_locator_aux",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverRevision",
+            "columnName": "cover_revision",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ratingValue",
+            "columnName": "rating_value",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "ratingScale",
+            "columnName": "rating_scale",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "publicationStatusSummary",
+            "columnName": "publication_status_summary",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latestUpdateEpochMs",
+            "columnName": "latest_update_epoch_ms",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "source_key",
+            "media_type",
+            "generation",
+            "section_kind",
+            "item_position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_discover_card_source_key_media_type",
+            "unique": false,
+            "columnNames": [
+              "source_key",
+              "media_type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_discover_card_source_key_media_type` ON `${TABLE_NAME}` (`source_key`, `media_type`)"
+          },
+          {
+            "name": "index_discover_card_story_id",
+            "unique": false,
+            "columnNames": [
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_discover_card_story_id` ON `${TABLE_NAME}` (`story_id`)"
+          },
+          {
+            "name": "index_discover_card_source_key_media_type_generation_section_kind_story_id",
+            "unique": true,
+            "columnNames": [
+              "source_key",
+              "media_type",
+              "generation",
+              "section_kind",
+              "story_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_discover_card_source_key_media_type_generation_section_kind_story_id` ON `${TABLE_NAME}` (`source_key`, `media_type`, `generation`, `section_kind`, `story_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "catalog_source_state",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "source_key",
+              "media_type"
+            ],
+            "referencedColumns": [
+              "source_key",
+              "media_type"
+            ]
+          },
+          {
+            "table": "story_source_identity",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "story_id"
+            ],
+            "referencedColumns": [
+              "story_id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '990c866c7fdde810f0cacd8693ee8aa9')"
+    ]
+  }
+}

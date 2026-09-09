@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-1; Task 2 is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-2; Task 3 is
 READY TO START.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -37,7 +37,15 @@ errors. The second run passed every architecture check and exposed one remaining
 error in the Task 1 Punycode encoder; that source-level finding is remediated without changing
 behavior, and the focused domain suite remains green. The final user-owned
 `./gradlew verifyArchitecture detekt --no-daemon` rerun is accepted as `BUILD SUCCESSFUL`.
-Resume only at Task 2 Step 1 from the owning plan; Task 2 has not started.
+Task 2 now has the new four-table Room v1 schema, atomic bounded Discover publication, durable
+`Absent | Published(empty/content)` state, one coherent state-left-join-card observation, exact
+identity/Discover uniqueness, lazy storage ownership, and compiled connected Room contracts.
+The focused `assembleDebug` plus `compileDebugAndroidTestKotlin` gate passes, and the user-run
+connected Room suite is accepted as PASS. The broad command passed every architecture check but
+Detekt exposed four Task 2 storage findings; those findings are remediated and the focused compile
+gate remains green. The user rerun of `verifyArchitecture detekt` is accepted as
+`BUILD SUCCESSFUL`, so Task 2 is completed/accepted. Resume only at Task 3 Step 1 from the owning
+plan; Task 3 has not started.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is
