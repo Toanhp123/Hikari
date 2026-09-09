@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-4; Task 5 is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-5; Task 6 is
 the next canonical task and remains NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -63,7 +63,14 @@ first user-owned connected run passed 10/12 tests but exposed two invalid setup 
 architecture checks but Detekt exposed one blocking `MaxLineLength` finding. Both findings are
 remediated and the focused storage assemble/instrumentation compile gate is green. The user reports
 `BUILD SUCCESSFUL` for both required connected and `verifyArchitecture detekt` reruns, so Task 4 is
-completed/accepted. Task 5 is the next canonical task but remains `NOT RUN` in this closure turn.
+completed/accepted. Task 5 now adds lazy demand activation, explicit absent-binding/source-
+unavailable semantics, immutable host source/asset-policy authority, keyed Discover and Story
+Detail observers, active-only acquisition single-flight, host-clock provenance, typed failure and
+cancellation handling, one-per-demand Story access touch, pin rollback on failed activation, and
+keyed session removal after release. The exact Task 5 focused gate passes 24 tests; a widened
+runtime dependency-cone run passes 36 tests. The user reports `BUILD SUCCESSFUL` for the required
+unfiltered runtime plus `verifyArchitecture detekt` gate, so Task 5 is completed/accepted. Task 6
+is the next canonical task but remains `NOT RUN` in this closure turn.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

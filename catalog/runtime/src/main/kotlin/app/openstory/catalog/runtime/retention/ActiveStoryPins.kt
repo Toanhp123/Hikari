@@ -37,6 +37,10 @@ class ActiveStoryPins(
 
     suspend fun snapshot(): Set<StoryId> = mutationGate.withMutation(::snapshotWithinMutation)
 
+    internal suspend fun unregisterFailedActivation(ref: StorySourceRef) {
+        mutationGate.withMutation { active.remove(ref) }
+    }
+
     internal suspend fun <T> withMutationSnapshot(
         block: suspend (Set<StoryId>) -> T,
     ): T = mutationGate.withMutation { block(snapshotWithinMutation()) }

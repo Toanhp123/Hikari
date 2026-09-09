@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-09
-Status: **TASKS 0-4 COMPLETED/ACCEPTED; TASK 5 NOT RUN**
+Status: **TASKS 0-5 COMPLETED/ACCEPTED; TASK 6 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-4.
-- Next canonical execution boundary: Task 5, not started in the Task 4 closure turn.
+- Completed/accepted execution boundary: Tasks 0-5.
+- Next canonical execution boundary: Task 6, not started in the Task 5 closure turn.
 
 Reviewed artifact SHA-256:
 
@@ -458,9 +458,81 @@ repetition remains owned by Task 13.
   routing, the root did not silently retry on an unverified profile and completed the changed-cone
   review directly.
 
+## Task 5 Delta
+
+- Added `CatalogRuntimeFactory` and one activity/capability-owned `CatalogCapabilitySession`.
+  Construction is inert; an absent release binding returns typed `SourceUnavailable` without
+  opening Room, while an admitted binding opens one storage handle asynchronously on first demand
+  and reuses the activation result.
+- Added immutable binding-backed `SourceAssetPolicyProvider`; runtime uses only the binding source
+  key/version plus the injected host clock when accepting acquisition data. Source payloads cannot
+  provide provenance authority.
+- Added `CatalogAcquisitionExecutor` with active-only single-flight keys for Discover
+  `(source, mediaType)` and Story Detail `StorySourceRef`. Joined work shares one source execution;
+  success, failure, and cancellation remove the terminal map entry. Caller/source cancellation is
+  rethrown, source failures map to typed acquisition failures, and write failures remain typed
+  storage failures.
+- Added keyed `DiscoverSession` observation/bootstrap. Only durable `Absent` can claim the one
+  automatic bootstrap attempt; `Published(empty)` and `Published(content)` never bootstrap. A
+  known binding without an acquisition source exposes `SourceUnavailable`, and media switching
+  affects only the selected persistence key.
+- Added keyed `StoryDetailSession` ownership. A validated ref is pinned before one semantic access
+  touch and before observation; failed touch rolls the pin back under the mutation gate. Missing
+  detail starts one keyed acquisition, cached detail does not, explicit retry can rerun after a
+  terminal failure, and ref/binding mismatch fails before source execution.
+- Discover and Story state collectors share one active persistence observer per session/key via
+  `WhileSubscribed`; Story sessions are cached by ref and removed after successful demand release,
+  preventing observer/session growth across historical Story visits.
+
+## Task 5 Agent-Owned Evidence
+
+- TDD RED: the unfiltered runtime unit command failed on the missing factory/session/executor APIs,
+  as expected, 2026-09-09.
+- Additional RED regressions reproduced duplicate observers across collectors/keyed Story demand,
+  retained released Story sessions, raw write-failure leakage, pin leakage after failed access
+  touch, and acquisition incorrectly starting after a Story read failure.
+- Exact focused gate: `./gradlew :catalog:runtime:testDebugUnitTest --tests
+  '*CatalogCapabilitySession*' --tests '*DiscoverSession*' --tests '*StoryDetailSession*' --tests
+  '*CatalogAcquisitionExecutor*' --no-daemon` - PASS, 24 tests, exit 0, 2026-09-09.
+- Widened direct dependency-cone gate adding `CatalogImporter`, `ActiveStoryPins`, and
+  `CatalogMutationGate` - PASS, 36 tests, exit 0, 2026-09-09.
+- Static changed-cone checks pass `git diff --check`, find no Kotlin line over 120 characters, and
+  find no WorkManager, AndroidX Startup, `GlobalScope`, or Main-dispatch runtime owner.
+
+## Task 5 Required User-Owned Gate
+
+Status: **PASS / COMPLETED / ACCEPTED**
+
+```bash
+./gradlew :catalog:runtime:testDebugUnitTest verifyArchitecture detekt --no-daemon
+```
+
+The user reported `BUILD SUCCESSFUL` for the required unfiltered runtime unit suite plus
+`verifyArchitecture detekt` command on 2026-09-09. The returned evidence is accepted, so Task 5 is
+completed/accepted.
+
+## Task 5 Self-Review
+
+- Room remains unopened before explicit activation, and no absent binding fabricates a source key
+  or development seed. The runtime owns no process/global singleton, startup component, worker,
+  scheduler, or Main-dispatch work.
+- Source work and storage opening run on the injected I/O dispatcher; validation/projection remains
+  in the existing importer CPU owner. The mutation gate is not held across source acquisition,
+  observation, or user wait.
+- Discover bootstrap authority is persistence-state based, not card-count based. Repeated `Absent`
+  emissions and concurrent callers cannot create duplicate work, while both forms of durable
+  `Published` state remain terminal for automatic bootstrap.
+- Story source identity is carried only by the validated `StorySourceRef`; no mutable current-source
+  state exists. The pin/access-touch ordering is explicit, touch failure cannot consume the two-pin
+  budget, and one demand session cannot write access metadata on observer emissions.
+- Persistence observers and acquisition maps are keyed and active-only. Released Story sessions are
+  removed from the capability cache; shared flow collection does not duplicate Room observers.
+- Framework/raw source, read, open, and write exceptions do not enter feature-facing state.
+  Cancellation remains cancellation and does not become a user issue.
+
 ## Later Task Status
 
-Tasks 0-4: **COMPLETED/ACCEPTED**. Tasks 5 through 16: **NOT RUN**.
+Tasks 0-5: **COMPLETED/ACCEPTED**. Tasks 6 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
@@ -469,6 +541,6 @@ Tasks 0-4: **COMPLETED/ACCEPTED**. Tasks 5 through 16: **NOT RUN**.
 
 ## Exact Resume Boundary
 
-Task 4 is completed/accepted and its required connected Room plus broad architecture/Detekt gates
-are green. Resume Step 2 at Task 5 of the owning implementation plan. Task 5 was not executed in
-the Task 4 closure turn.
+Task 5 is completed/accepted: its focused runtime evidence is green and the required unfiltered
+runtime plus architecture/Detekt gate is accepted as `BUILD SUCCESSFUL`. Resume Step 2 at Task 6
+of the owning implementation plan. Task 6 was not executed in the Task 5 closure turn.
