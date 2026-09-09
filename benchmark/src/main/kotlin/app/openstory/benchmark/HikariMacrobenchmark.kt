@@ -46,7 +46,7 @@ class HikariMacrobenchmark {
                 pressHome()
             },
             measureBlock = {
-                startHikariAndWait(HOME_TAG)
+                startHikariAndWait(DISCOVER_TAG)
             },
         )
     }

@@ -11,9 +11,21 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
     override val binding = CatalogSourceBinding(
         catalogSourceKey = sourceKey,
         sourceVersion = "debug-seed-v1",
-        acquisitionSource = LocalSeedCatalogSource(sourceKey),
+        acquisitionSource = LocalSeedCatalogSource(
+            catalogSourceKey = sourceKey,
+            onAcquisitionStarted = CatalogDebugDiagnostics::recordAcquisitionStarted,
+        ),
         assetPolicy = SourceAssetPolicy(sourceKey, emptySet()),
     )
+    override val diagnostics = object : CatalogCompositionDiagnostics {
+        override fun activationStarted() {
+            CatalogDebugDiagnostics.recordActivationStarted()
+        }
+
+        override fun storageReady() {
+            CatalogDebugDiagnostics.recordStorageReady()
+        }
+    }
 
     override fun localCoverResource(logicalAssetId: String, assetVersion: String): Int? {
         if (assetVersion != ASSET_VERSION) return null

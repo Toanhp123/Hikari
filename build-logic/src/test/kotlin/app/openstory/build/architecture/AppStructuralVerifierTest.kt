@@ -112,6 +112,29 @@ class AppStructuralVerifierTest {
     }
 
     @Test
+    fun ignoresExternalModuleImportBelowAnOwnedPackagePrefix() {
+        val violations = AppStructuralVerifier.verify(
+            sources = mapOf(
+                "MainActivity.kt" to
+                    """
+                    package app.openstory
+                    import app.openstory.startup.ui.HikariStartupApp
+                    class MainActivity
+                    """.trimIndent(),
+                "startup/ui/StartupGate.kt" to
+                    """
+                    package app.openstory.startup.ui
+                    import app.openstory.catalog.feature.CatalogEntryPoint
+                    class StartupGate
+                    """.trimIndent(),
+            ),
+            policy = foundationTestPolicy(),
+        )
+
+        assertTrue(violations.isEmpty())
+    }
+
+    @Test
     fun resolvesImportToLongestDeclaredPackagePrefix() {
         val violations = AppStructuralVerifier.verify(
             sources = mapOf(

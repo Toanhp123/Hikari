@@ -10,7 +10,7 @@ import androidx.test.uiautomator.Until
 
 internal const val HIKARI_PACKAGE = "app.openstory.v2benchmark"
 internal const val FIRST_RUN_TAG = "startup-first-run"
-internal const val HOME_TAG = "startup-home"
+internal const val DISCOVER_TAG = "catalog-discover"
 
 internal val benchmarkCompilationMode = CompilationMode.Partial(
     baselineProfileMode = BaselineProfileMode.Require,

@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-09
-Status: **TASKS 0-6 COMPLETED/ACCEPTED; TASK 7 NOT RUN**
+Status: **TASKS 0-7 COMPLETED/ACCEPTED; TASK 8 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-6.
-- Next canonical execution boundary: Task 7, not started in the Task 6 closure turn.
+- Completed/accepted execution boundary: Tasks 0-7.
+- Active canonical execution boundary: Task 8, not started.
 
 Reviewed artifact SHA-256:
 
@@ -617,9 +617,99 @@ completed/accepted.
   review plus the corrected shell gate confirms release cleanliness and benchmark/non-minified
   resolution.
 
+## Task 7 Delta
+
+- Replaced the static app-owned returning `HomeShell` with the public no-argument
+  `CatalogEntryPoint`; `:app` now imports only that narrow feature boundary and owns no Catalog
+  runtime, storage, source, image, or variant wiring.
+- Gated Catalog composition on both resolved `AppLaunchState.Ready` and completion of the first
+  application-owned frame. FirstRun still transitions only after
+  `markInitialSetupCompleted()` succeeds, and `destination-ready` is not marked before that same
+  first-frame boundary.
+- Added feature-owned composition that resolves `VariantCatalogBinding`, lazily creates and closes
+  one `CatalogCapabilitySession`, activates it asynchronously, maps source-unavailable/failure to
+  bounded feature state, and exposes the Task 7 Discover root without pulling Task 8 presentation
+  into scope.
+- Added Android-free `CatalogTrace`/`CatalogTraceSink` authority under `:catalog:runtime` with all
+  seven frozen Step 2 labels. `AndroidCatalogTraceSink` is the feature-only Android adapter, and
+  Task 7 emits only `HikariV2:catalog-activation-start`.
+- Added debug-only activation/storage/acquisition/image-init diagnostics and the connected handoff
+  test for pre-Ready zero work, returning Ready launch, and FirstRun persistence ordering. Updated
+  existing startup UI tests and benchmark/profile journeys from the deleted `startup-home` tag to
+  the feature-owned `catalog-discover` destination.
+
+## Task 7 Agent-Owned Evidence
+
+- TDD RED: the focused app host suite failed three tests because the entry point/composition did not
+  exist and `StartupGate` still selected `HomeShell`.
+- Self-review RED: focused app-shell tests failed on the stale benchmark `startup-home` target and
+  on `destination-ready` not being gated by `firstFrameReached`; both regressions are remediated.
+- Fresh canonical focused gate:
+  `./gradlew :app:testDebugUnitTest --tests '*AppShellContractTest*'
+  --tests '*StartupTraceContractTest*' :app:compileDebugAndroidTestKotlin
+  :feature:catalog:compileDebugKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
+- Fresh widened changed-cone gate:
+  `./gradlew :feature:catalog:testDebugUnitTest :feature:catalog:compileReleaseKotlin
+  :feature:catalog:compileBenchmarkReleaseKotlin
+  :feature:catalog:compileNonMinifiedReleaseKotlin :benchmark:compileBenchmarkReleaseKotlin
+  :benchmark:compileNonMinifiedReleaseKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
+- Static changed-cone checks pass `git diff --check`, find no Kotlin line over 120 characters, leave
+  exactly one `:app` production Catalog import (`CatalogEntryPoint`), and find no remaining
+  production/caller `HomeShell`, `startup-home`, or `HOME_TAG` Kotlin reference; the only
+  `HOME_TAG` text is the negative contract assertion.
+- User-returned connected gate: `CatalogLaunchHandoffTest` passes 3/3 on Redmi Note 9S/API 35;
+  `BUILD SUCCESSFUL`, 2026-09-09.
+- The first user-run `:app:verifyFoundation verifyArchitecture` gate failed only at
+  `:app:verifyAppStructure` with
+  `v2_structure.package_cycle: packages=app.openstory,app.openstory.startup.ui`. Root-cause tracing
+  showed that the verifier treated the external
+  `app.openstory.catalog.feature.CatalogEntryPoint` import as a dependency on the local ancestor
+  package `app.openstory`, creating a false reverse edge to `MainActivity`'s real
+  `app.openstory -> app.openstory.startup.ui` edge.
+- TDD remediation evidence: the exact external-import/root-package fixture failed before the fix;
+  the complete `AppStructuralVerifierTest` class passes after the fix. Fresh
+  `./gradlew :app:verifyAppStructure --no-daemon` passes and verifies 11 production files, exit 0,
+  2026-09-09.
+- User-returned broad rerun: `./gradlew :app:verifyFoundation verifyArchitecture --no-daemon` -
+  `BUILD SUCCESSFUL`, 2026-09-09. Both required Task 7 user-owned gates are accepted as PASS.
+
+## Task 7 Required User-Owned Gate
+
+Status: **PASSED / ACCEPTED**
+
+```bash
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.startup.CatalogLaunchHandoffTest \
+  --no-daemon
+./gradlew :app:verifyFoundation verifyArchitecture --no-daemon
+```
+
+Both returned gate results are reviewed and accepted as PASS. Task 7 is completed/accepted; this
+closure turn does not execute Task 8.
+
+## Task 7 Self-Review
+
+- Startup ordering is explicit: resolving Ready cannot compose or trace the Catalog destination
+  until the first-frame callback has completed; failed FirstRun persistence retains FirstRun and
+  therefore cannot create a session or increment any Catalog work counter.
+- Session/runtime construction remains feature-owned and demand-scoped. Release/null binding
+  activates to typed source-unavailable without opening Room; debug storage opens only inside
+  asynchronous `session.activate()` after the feature entry is composed.
+- `:app` has no new dependency edge or implementation import. Trace names are unique, Android-free
+  in runtime, and Android tracing stays in the feature adapter.
+- Debug diagnostics are absent from release/main and observe real activation/storage/source entry
+  points. Task 7 initializes no image loader, so its debug image-init count remains structurally zero
+  until the later image task adds real instrumentation.
+- Direct deleted-surface callers are migrated, including startup instrumentation and benchmark/
+  profile wait targets. Task 8 UI behavior, device execution, and broad foundation/architecture
+  acceptance remain deliberately outside agent-owned execution here.
+- The structural-verifier root-cause expansion remains build-logic-only: local package edges still
+  resolve to the most specific declared owner, including nested declared types, while imports owned
+  by another Gradle module no longer fall back to a broad local package ancestor.
+
 ## Later Task Status
 
-Tasks 0-6: **COMPLETED/ACCEPTED**. Tasks 7 through 16: **NOT RUN**.
+Tasks 0-7: **COMPLETED/ACCEPTED**. Tasks 8 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
@@ -628,7 +718,6 @@ Tasks 0-6: **COMPLETED/ACCEPTED**. Tasks 7 through 16: **NOT RUN**.
 
 ## Exact Resume Boundary
 
-Task 6 is completed/accepted: the fresh focused cone is green, the user-owned four-AAR assemble plus
-architecture gate is accepted, direct AAR inspection confirms benchmark/non-minified resolution and
-release cleanliness, and the corrected shell gate is accepted as `BUILD SUCCESSFUL`. Resume Step 2
-at Task 7 of the owning implementation plan. Task 7 was not executed in the Task 6 closure turn.
+Task 7 is completed/accepted with focused, connected, foundation, and architecture evidence. Resume
+Step 2 at Task 8 in the owning plan. Do not reopen Task 7 without a regression, contradiction, or
+dependency trail.

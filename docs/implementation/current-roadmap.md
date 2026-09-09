@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-6; Task 7 is
-the next canonical task and remains NOT RUN.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-7; Task 8 is
+the next canonical execution boundary and is NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -80,7 +80,19 @@ compiles. The user reports `BUILD SUCCESSFUL` for the required four-AAR assemble
 artifacts, required non-release fixture classes/assets, and release cleanliness. That review exposed
 and fixed a shell matcher that did not account for AGP's packaged `drawable-nodpi-v4` directory. The
 user reports `BUILD SUCCESSFUL` for the corrected shell-gate rerun, so Task 6 is completed/accepted.
-Task 7 is the next canonical task but remains `NOT RUN` in this closure turn.
+Task 7 replaces the static returning Home with the narrow feature-owned `CatalogEntryPoint`, gates
+activation behind Ready plus the first application-owned frame, adds the Android-free seven-label
+Catalog trace authority and feature Android adapter, migrates startup/benchmark destination callers,
+and adds debug-only pre-demand diagnostics plus the connected handoff test. The canonical focused
+host/compile gate and widened variant/benchmark compile cone pass. The user-run connected
+`CatalogLaunchHandoffTest` passes 3/3 on Redmi Note 9S/API 35. The first
+`:app:verifyFoundation verifyArchitecture` run exposed a false package cycle because the app
+structural verifier resolved the external `CatalogEntryPoint` import to the local
+`app.openstory` ancestor package. A TDD regression and ownership-correct verifier remediation are
+present; the focused verifier suite and `:app:verifyAppStructure` pass. The user reports
+`BUILD SUCCESSFUL` for the remediated `:app:verifyFoundation verifyArchitecture` rerun, so Task 7
+is completed/accepted. Task 8 is authorized as the next work boundary but was not started during
+Task 7 closure.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

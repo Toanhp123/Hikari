@@ -63,15 +63,74 @@ class AppShellContractTest {
         }
     }
 
+    @Test
+    fun readyDestinationUsesOnlyTheNarrowCatalogEntryPoint() {
+        val source = rootFile(
+            "app/src/main/kotlin/app/openstory/startup/ui/StartupGate.kt",
+        ).readText()
+
+        assertTrue("import app.openstory.catalog.feature.CatalogEntryPoint" in source)
+        assertTrue("AppLaunchState.Ready ->" in source)
+        assertTrue("firstFrameReached" in source)
+        assertTrue("CatalogEntryPoint()" in source)
+        assertTrue("launchState == AppLaunchState.Ready && firstFrameReached" in source)
+        listOf(
+            "CatalogCapabilitySession",
+            "CatalogRuntimeFactory",
+            "CatalogSourceBinding",
+            "CatalogStorageFactory",
+            "ImageLoader",
+            "Room",
+            "VariantCatalogBinding",
+        ).forEach { forbidden ->
+            assertFalse("App shell owns Catalog implementation detail: $forbidden", forbidden in source)
+        }
+    }
+
+    @Test
+    fun catalogEntryPointIsAFeatureOwnedNoArgumentComposableBoundary() {
+        val entryPoint = repositoryFile(
+            "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt",
+        )
+
+        assertTrue("Catalog entry point is missing", entryPoint.isFile)
+        val source = entryPoint.readText()
+        assertTrue("@Composable\nfun CatalogEntryPoint()" in source)
+        assertFalse("Context" in source.substringBefore("fun CatalogEntryPoint"))
+    }
+
+    @Test
+    fun returningBenchmarkWaitsForTheCatalogDestination() {
+        val driver = rootFile(
+            "benchmark/src/main/kotlin/app/openstory/benchmark/HikariBenchmarkDriver.kt",
+        ).readText()
+        val macrobenchmark = rootFile(
+            "benchmark/src/main/kotlin/app/openstory/benchmark/HikariMacrobenchmark.kt",
+        ).readText()
+        val profile = rootFile(
+            "benchmark/src/main/kotlin/app/openstory/benchmark/BaselineProfileGenerator.kt",
+        ).readText()
+
+        assertTrue("DISCOVER_TAG = \"catalog-discover\"" in driver)
+        assertTrue("startHikariAndWait(DISCOVER_TAG)" in macrobenchmark)
+        assertTrue("startHikariAndWait(DISCOVER_TAG)" in profile)
+        val benchmarkSources = driver + macrobenchmark + profile
+        assertFalse("HOME_TAG" in benchmarkSources)
+    }
+
     private fun rootFile(relativePath: String): File {
+        return repositoryFile(relativePath).also { file ->
+            check(file.isFile) { "Required repository file is missing: ${file.path}" }
+        }
+    }
+
+    private fun repositoryFile(relativePath: String): File {
         val userDirectory = checkNotNull(System.getProperty("user.dir"))
         var current = File(userDirectory).canonicalFile
         while (!File(current, "settings.gradle.kts").isFile) {
             current = current.parentFile
                 ?: error("Repository root not found from $userDirectory")
         }
-        return File(current, relativePath).also { file ->
-            check(file.isFile) { "Required repository file is missing: ${file.path}" }
-        }
+        return File(current, relativePath)
     }
 }

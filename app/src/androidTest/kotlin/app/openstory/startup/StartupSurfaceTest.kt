@@ -5,7 +5,6 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import app.openstory.startup.ui.FirstRunScreen
-import app.openstory.startup.ui.HomeShell
 import app.openstory.startup.ui.UnknownScreen
 import app.openstory.ui.HikariBootSurface
 import app.openstory.ui.HikariBootTheme
@@ -24,7 +23,7 @@ class StartupSurfaceTest {
 
         composeRule.onNodeWithTag("startup-unknown").assertExists()
         composeRule.onNodeWithTag("startup-first-run").assertDoesNotExist()
-        composeRule.onNodeWithTag("startup-home").assertDoesNotExist()
+        composeRule.onNodeWithTag("catalog-discover").assertDoesNotExist()
     }
 
     @Test
@@ -39,15 +38,6 @@ class StartupSurfaceTest {
 
         composeRule.onNodeWithTag("startup-completion-error").assertExists()
         composeRule.onNodeWithTag("startup-complete").assertIsEnabled()
-    }
-
-    @Test
-    fun homeShellExposesReturningDestination() {
-        setStartupContent {
-            HomeShell()
-        }
-
-        composeRule.onNodeWithTag("startup-home").assertExists()
     }
 
     private fun setStartupContent(content: @Composable () -> Unit) {

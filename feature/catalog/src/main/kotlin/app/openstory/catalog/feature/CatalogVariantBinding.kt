@@ -4,6 +4,20 @@ import app.openstory.catalog.runtime.source.CatalogSourceBinding
 
 internal interface CatalogVariantBinding {
     val binding: CatalogSourceBinding?
+    val diagnostics: CatalogCompositionDiagnostics
+        get() = NoOpCatalogCompositionDiagnostics
 
     fun localCoverResource(logicalAssetId: String, assetVersion: String): Int?
+}
+
+internal interface CatalogCompositionDiagnostics {
+    fun activationStarted()
+
+    fun storageReady()
+}
+
+private object NoOpCatalogCompositionDiagnostics : CatalogCompositionDiagnostics {
+    override fun activationStarted() = Unit
+
+    override fun storageReady() = Unit
 }

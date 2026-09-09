@@ -21,7 +21,7 @@ class BaselineProfileGenerator {
             includeInStartupProfile = true,
         ) {
             pressHome()
-            startHikariAndWait(HOME_TAG)
+            startHikariAndWait(DISCOVER_TAG)
         }
     }
 }

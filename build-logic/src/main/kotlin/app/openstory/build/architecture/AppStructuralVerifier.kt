@@ -64,11 +64,20 @@ object AppStructuralVerifier {
                 imports = PROJECT_IMPORT.findAll(text)
                     .map { match -> match.groupValues[1] }
                     .toList(),
+                declaredTypeNames = TYPE_DECLARATION.findAll(text)
+                    .map { match -> match.groupValues[1] }
+                    .toSet(),
             )
         }
         val declaredPackages = parsedSources
             .mapNotNull(ParsedSource::packageName)
             .toSortedSet()
+        val declaredTypesByPackage = parsedSources
+            .filter { source -> source.packageName != null }
+            .groupBy { source -> checkNotNull(source.packageName) }
+            .mapValues { (_, packageSources) ->
+                packageSources.flatMapTo(linkedSetOf(), ParsedSource::declaredTypeNames)
+            }
         val graph = declaredPackages.associateWith { linkedSetOf<String>() }
 
         parsedSources.forEach { source ->
@@ -77,7 +86,11 @@ object AppStructuralVerifier {
                 val targetPackage = declaredPackages
                     .asSequence()
                     .filter { candidate ->
-                        importedName == candidate || importedName.startsWith("$candidate.")
+                        importedNameTargetsPackage(
+                            importedName = importedName,
+                            candidate = candidate,
+                            declaredTypeNames = declaredTypesByPackage.getValue(candidate),
+                        )
                     }
                     .maxByOrNull(String::length)
                 if (targetPackage != null && targetPackage != sourcePackage) {
@@ -90,6 +103,20 @@ object AppStructuralVerifier {
             .filter { component -> component.size > 1 }
             .map { component -> component.sorted() }
             .sortedBy { component -> component.joinToString("\u0000") }
+    }
+
+    private fun importedNameTargetsPackage(
+        importedName: String,
+        candidate: String,
+        declaredTypeNames: Set<String>,
+    ): Boolean {
+        val importedTarget = importedName.removeSuffix(".*")
+        if (importedTarget == candidate) return true
+        if (!importedTarget.startsWith("$candidate.")) return false
+
+        val relativeTarget = importedTarget.removePrefix("$candidate.")
+        val directOwner = importedTarget.substringBeforeLast('.')
+        return directOwner == candidate || relativeTarget.substringBefore('.') in declaredTypeNames
     }
 
     private fun stronglyConnectedComponents(
@@ -139,6 +166,7 @@ object AppStructuralVerifier {
     private data class ParsedSource(
         val packageName: String?,
         val imports: List<String>,
+        val declaredTypeNames: Set<String>,
     )
 
     private val PACKAGE_DECLARATION = Regex(

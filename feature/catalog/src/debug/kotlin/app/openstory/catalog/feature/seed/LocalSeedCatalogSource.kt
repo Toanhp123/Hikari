@@ -14,11 +14,15 @@ import app.openstory.catalog.domain.source.StoryDetailAcquisition
 
 internal class LocalSeedCatalogSource(
     private val catalogSourceKey: CatalogSourceKey,
+    private val onAcquisitionStarted: () -> Unit = {},
 ) : CatalogAcquisitionSource {
-    override suspend fun acquireDiscover(mediaType: CatalogMediaType): DiscoverAcquisition =
-        debugStories.getValue(mediaType).toDiscoverAcquisition()
+    override suspend fun acquireDiscover(mediaType: CatalogMediaType): DiscoverAcquisition {
+        onAcquisitionStarted()
+        return debugStories.getValue(mediaType).toDiscoverAcquisition()
+    }
 
     override suspend fun acquireStoryDetail(ref: StorySourceRef): StoryDetailAcquisition {
+        onAcquisitionStarted()
         require(ref.catalogSourceKey == catalogSourceKey)
         return debugStories.values.flatten()
             .single { it.sourceStoryId == ref.sourceStoryId }

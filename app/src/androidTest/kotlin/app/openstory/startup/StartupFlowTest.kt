@@ -25,20 +25,20 @@ class StartupFlowTest {
     }
 
     @Test
-    fun completingSetupReachesHome() {
+    fun completingSetupReachesCatalog() {
         ActivityScenario.launch(MainActivity::class.java).use {
             assertDisplayedEventually("startup-first-run")
             composeRule.onNodeWithTag("startup-complete").performClick()
-            assertDisplayedEventually("startup-home")
+            assertDisplayedEventually("catalog-discover")
         }
     }
 
     @Test
-    fun completedSetupLaunchesHome() {
+    fun completedSetupLaunchesCatalog() {
         markInitialSetupCompleted()
 
         ActivityScenario.launch(MainActivity::class.java).use {
-            assertDisplayedEventually("startup-home")
+            assertDisplayedEventually("catalog-discover")
         }
     }
 
@@ -47,11 +47,11 @@ class StartupFlowTest {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             assertDisplayedEventually("startup-first-run")
             composeRule.onNodeWithTag("startup-complete").performClick()
-            assertDisplayedEventually("startup-home")
+            assertDisplayedEventually("catalog-discover")
 
             scenario.recreate()
 
-            assertDisplayedEventually("startup-home")
+            assertDisplayedEventually("catalog-discover")
         }
     }
 
