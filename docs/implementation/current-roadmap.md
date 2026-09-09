@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-09-08
+Date: 2026-09-09
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -20,8 +20,20 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 1 - Foundation + Clean Boot is completed and accepted.** Tasks 0 through 15 are
-closed on branch `v2/foundation-clean-boot`. The accepted checkpoint is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Task 0; Task 1 is
+READY TO START.** The owning plan is
+`../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
+the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
+Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
+package-SCC enforcement, and product authority. Earlier verification attempts exposed a
+configuration-cache-unsafe `Task.project` access, a missing Step 2 shell-gate path, and Room
+2.8.4's unused multi-process invalidation service in every app merged manifest; all three are
+fixed. The focused suite passes 60 build-logic tests and all four app merged-manifest startup
+checks; the user-owned architecture/foundation and Step 2 shell gates are accepted as PASS.
+Resume only at Task 1 Step 1 from the owning plan; Task 1 implementation has not started.
+
+Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
+`v2/foundation-clean-boot`. Its accepted checkpoint is
 `../internal/checkpoints/hikari-v2-step-1-foundation-clean-boot.md`; the immutable comparison point is
 `../internal/v2/startup-baseline-2026-09-07.md`.
 
@@ -38,10 +50,8 @@ Final Step 1 evidence on 2026-09-08:
 - generated `baseline-prof.txt` and `startup-prof.txt` both have SHA-256
   `0c414b23dc0f409cb1f082ce63f7dd9935845b016539e441507846500e696ad0`.
 
-Stop before Step 2. No Step 2 capability or implementation plan is approved. A future explicit
-request must first choose and design the first real capability against
-`../internal/v2/capability-admission-contract.md`; Catalog model/engine remain quarantine/reference
-and are not implicitly admitted.
+The reviewed Step 2 design explicitly admits the new Catalog foundation while `:catalog:model`
+and `:catalog:engine` remain quarantine/reference and outside the Step 2 production graph.
 
 ## Historical execution context (non-current)
 

@@ -12,7 +12,7 @@ import org.gradle.testfixtures.ProjectBuilder
 
 class BootSourceBoundaryVerifierTest {
     @Test
-    fun repositoryStepOnePolicyRejectsDeferredRuntimeReferences() {
+    fun repositoryStepTwoPolicyKeepsStartupSourceBansWhileGraphVerifierOwnsProjectEdges() {
         val policyFile = File("../config/architecture/v2-foundation-policy.json")
         assertTrue(policyFile.isFile, "Canonical V2 foundation policy is missing")
         val policy = FoundationPolicyLoader.parse(policyFile.readText())
@@ -27,10 +27,6 @@ class BootSourceBoundaryVerifierTest {
 
         assertEquals(
             listOf(
-                FoundationViolation(
-                    "v2_boot.forbidden_build_reference",
-                    "implementation(project(",
-                ),
                 FoundationViolation(
                     "v2_boot.forbidden_source_reference",
                     "MainActivity.kt:androidx.work.",

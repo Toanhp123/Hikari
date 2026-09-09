@@ -61,7 +61,7 @@ class FoundationConventionPlugin : Plugin<Project> {
         androidComponents.onVariants(androidComponents.selector().all()) { variant ->
             val manifestVerification =
                 tasks.register<VerifyMergedManifestStartupTask>(
-                    "verify${variant.name.taskSegment()}MergedManifestStartup",
+                    foundationManifestVerificationTaskName(variant.name),
                 ) {
                     group = "verification"
                     description =
@@ -77,8 +77,16 @@ class FoundationConventionPlugin : Plugin<Project> {
         }
     }
 
-    private fun String.taskSegment(): String =
-        replaceFirstChar { character ->
-            if (character.isLowerCase()) character.titlecase() else character.toString()
-        }
 }
+
+internal fun foundationManifestVerificationTaskNames(
+    variantNames: Set<String>,
+): Set<String> = variantNames.mapTo(linkedSetOf(), ::foundationManifestVerificationTaskName)
+
+private fun foundationManifestVerificationTaskName(variantName: String): String =
+    "verify${variantName.taskSegment()}MergedManifestStartup"
+
+private fun String.taskSegment(): String =
+    replaceFirstChar { character ->
+        if (character.isLowerCase()) character.titlecase() else character.toString()
+    }

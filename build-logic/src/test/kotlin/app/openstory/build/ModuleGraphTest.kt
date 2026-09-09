@@ -12,7 +12,7 @@ class ModuleGraphTest {
     )
 
     @Test
-    fun activePolicyContainsExactlyTheStepOneFoundationGraph() {
+    fun activePolicyContainsExactlyTheStepTwoFoundationGraph() {
         assertEquals(expectedModules.keys, policy.modules.keys)
 
         expectedModules.forEach { (module, expected) ->
@@ -39,7 +39,7 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun settingsDeclaresExactlyTheStepOneFoundationGraph() {
+    fun settingsDeclaresExactlyTheStepTwoFoundationGraph() {
         val settings = File(root, "settings.gradle.kts").readText()
         val declaredModules = Regex("""include\("([^"]+)"\)""")
             .findAll(settings)
@@ -62,7 +62,11 @@ class ModuleGraphTest {
                 "coil.",
                 "dagger.hilt.",
                 "javax.inject.",
-                "app.openstory.catalog.",
+                "app.openstory.catalog.domain.",
+                "app.openstory.catalog.runtime.",
+                "app.openstory.catalog.storage.",
+                "app.openstory.catalog.model.",
+                "app.openstory.catalog.engine.",
                 "app.openstory.library.",
                 "app.openstory.chapters.",
                 "app.openstory.reader.",
@@ -89,6 +93,7 @@ class ModuleGraphTest {
                 path = "app",
                 platform = "android-application",
                 dependencyMode = "exact",
+                productionDependencies = setOf(":feature:catalog"),
                 testDependencies = setOf(":benchmark"),
             ),
             ":core:common" to ExpectedModule(
@@ -124,6 +129,30 @@ class ModuleGraphTest {
                 platform = "android-test",
                 dependencyMode = "allowlist",
                 testDependencies = setOf(":app"),
+            ),
+            ":catalog:domain" to ExpectedModule(
+                path = "catalog/domain",
+                platform = "jvm",
+                dependencyMode = "exact",
+                productionDependencies = setOf(":core:common"),
+            ),
+            ":catalog:storage" to ExpectedModule(
+                path = "catalog/storage",
+                platform = "android-library",
+                dependencyMode = "exact",
+                productionDependencies = setOf(":catalog:domain", ":core:common"),
+            ),
+            ":catalog:runtime" to ExpectedModule(
+                path = "catalog/runtime",
+                platform = "android-library",
+                dependencyMode = "exact",
+                productionDependencies = setOf(":catalog:domain", ":catalog:storage"),
+            ),
+            ":feature:catalog" to ExpectedModule(
+                path = "feature/catalog",
+                platform = "android-library",
+                dependencyMode = "exact",
+                productionDependencies = setOf(":catalog:domain", ":catalog:runtime"),
             ),
         )
     }

@@ -37,6 +37,12 @@ gradlePlugin {
             implementationClass =
                 "app.openstory.build.ComposeConventionPlugin"
         }
+
+        register("androidLibrary") {
+            id = "openstory.android.library"
+            implementationClass =
+                "app.openstory.build.AndroidLibraryConventionPlugin"
+        }
         register("kotlinJvm") {
             id = "openstory.kotlin.jvm"
             implementationClass =

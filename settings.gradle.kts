@@ -40,10 +40,15 @@ include(":app")
 include(":core:common")
 include(":catalog:model")
 include(":catalog:engine")
+include(":catalog:domain")
+include(":catalog:storage")
+include(":catalog:runtime")
+include(":feature:catalog")
 include(":reader:engine")
 include(":plugins:api")
 include(":benchmark")
 
 // Nested retained modules require parent Gradle projects, but their V1 builds are inactive.
 project(":catalog").buildFileName = "inactive-parent.gradle.kts"
+project(":feature").buildFileName = "inactive-parent.gradle.kts"
 project(":reader").buildFileName = "inactive-parent.gradle.kts"

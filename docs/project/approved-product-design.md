@@ -23,8 +23,9 @@ supersedes older source/category-driven Discover presentation requirements:
 - Feed identity is explicit (`POPULAR`, `LATEST_UPDATES`, `TOP_RATED`, `OTHER`) and is never
   inferred from provider IDs or section titles. Canonical `StoryId` deduplication occurs before
   Compose.
-- `MANGA` is currently enabled/selected; `LIGHT_NOVEL` remains visible but disabled for this
-  delivery. This presentation amendment does **not** silently rewrite unrelated reader, plugin,
+- From Hikari V2 Step 2 onward, both `MANGA` and `LIGHT_NOVEL` are enabled; `MANGA` remains the
+  initial selection. Search remains later scope even though its position in the intended Discover
+  hierarchy is preserved. This presentation amendment does **not** silently rewrite unrelated reader, plugin,
   Library, or release-scope decisions in the 2026-08-03 baseline. Any broader scope change must
   be approved separately.
 - Separate per-catalog pages are no longer required as part of the current primary Discover

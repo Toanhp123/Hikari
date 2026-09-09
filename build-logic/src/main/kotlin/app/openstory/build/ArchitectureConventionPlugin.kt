@@ -2,6 +2,8 @@ package app.openstory.build
 
 import app.openstory.build.architecture.VerifyApplicationIdentityTask
 import app.openstory.build.architecture.VerifyModuleBoundariesTask
+import app.openstory.build.architecture.VerifyProductionPackageStructureTask
+import app.openstory.build.architecture.VerifyStep2BuildSurfaceTask
 import app.openstory.build.architecture.ModulePlatform
 import com.android.build.api.dsl.ApplicationExtension
 import java.io.File
@@ -20,12 +22,20 @@ class ArchitectureConventionPlugin : Plugin<Project> {
 
         val boundaryTask = registerBoundaryTask()
         val identityTask = registerIdentityTask()
+        val packageStructureTask = registerPackageStructureTask()
+        val step2BuildSurfaceTask = registerStep2BuildSurfaceTask()
 
         tasks.register("verifyArchitecture") {
             group = "verification"
             description =
                 "Runs module-boundary, identity, and V2 foundation verification."
-            dependsOn(boundaryTask, identityTask, ":app:verifyFoundation")
+            dependsOn(
+                boundaryTask,
+                identityTask,
+                ":app:verifyFoundation",
+                packageStructureTask,
+                step2BuildSurfaceTask,
+            )
         }
 
         gradle.projectsEvaluated {
@@ -33,6 +43,58 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             configureIdentityInputs(identityTask)
         }
     }
+
+    private fun Project.registerPackageStructureTask():
+        TaskProvider<VerifyProductionPackageStructureTask> =
+        tasks.register<VerifyProductionPackageStructureTask>(
+            "verifyProductionPackageStructure",
+        ) {
+            group = "verification"
+            description = "Rejects package cycles in Step 2 production modules."
+            moduleDirectories.set(STEP2_MODULE_DIRECTORIES)
+            rootDirectory.set(layout.projectDirectory)
+            productionSources.from(
+                STEP2_MODULE_DIRECTORIES.values.map { moduleDirectory ->
+                    fileTree("$moduleDirectory/src/main") {
+                        include("**/*.kt")
+                        include("**/*.java")
+                    }
+                },
+            )
+        }
+
+    private fun Project.registerStep2BuildSurfaceTask():
+        TaskProvider<VerifyStep2BuildSurfaceTask> =
+        tasks.register<VerifyStep2BuildSurfaceTask>(
+            "verifyStep2BuildSurface",
+        ) {
+            group = "verification"
+            description = "Verifies exact Step 2 framework, source-set, and app ownership."
+            policyFile.set(
+                layout.projectDirectory.file(
+                    "config/architecture/module-boundaries.json",
+                ),
+            )
+            rootDirectory.set(layout.projectDirectory)
+            surfaceFiles.from(
+                file("settings.gradle.kts"),
+                file("gradle/libs.versions.toml"),
+                fileTree(rootDir) {
+                    include("app/build.gradle.kts")
+                    include("catalog/*/build.gradle.kts")
+                    include("feature/*/build.gradle.kts")
+                    include("app/src/main/**")
+                    include("catalog/*/src/main/**")
+                    include("feature/*/src/main/**")
+                    include("feature/*/src/release/**")
+                    include(
+                        "build-logic/src/main/kotlin/app/openstory/build/" +
+                            "AndroidLibraryConventionPlugin.kt",
+                    )
+                    exclude("**/build/**")
+                },
+            )
+        }
 
     private fun Project.registerBoundaryTask():
         TaskProvider<VerifyModuleBoundariesTask> =
@@ -222,6 +284,12 @@ class ArchitectureConventionPlugin : Plugin<Project> {
     }
 
     private companion object {
+        val STEP2_MODULE_DIRECTORIES = linkedMapOf(
+            ":catalog:domain" to "catalog/domain",
+            ":catalog:storage" to "catalog/storage",
+            ":catalog:runtime" to "catalog/runtime",
+            ":feature:catalog" to "feature/catalog",
+        )
         val productionConfigurationSuffixes: Set<String> = setOf(
             "api",
             "implementation",
