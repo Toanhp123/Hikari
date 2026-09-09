@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-7; Task 8 is
-the next canonical execution boundary and is NOT RUN.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-8; Task 9 is
+the next canonical boundary and is NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -91,8 +91,22 @@ structural verifier resolved the external `CatalogEntryPoint` import to the loca
 `app.openstory` ancestor package. A TDD regression and ownership-correct verifier remediation are
 present; the focused verifier suite and `:app:verifyAppStructure` pass. The user reports
 `BUILD SUCCESSFUL` for the remediated `:app:verifyFoundation verifyArchitecture` rerun, so Task 7
-is completed/accepted. Task 8 is authorized as the next work boundary but was not started during
-Task 7 closure.
+is completed/accepted. Task 8 now replaces the static activation status with a ViewModel-owned,
+bounded Discover surface: Manga and Light Novel are enabled; media selection replaces exactly one
+observer; new ViewModels default to Manga without durable selection state; `Absent`, durable
+`Published(empty)`, retained content/refresh, and safe typed failure states map explicitly;
+Popular/Latest/Top Rated render under one vertical `LazyColumn` with stable keys/tags, accessible
+semantics, geometry-shaped skeletons, partial-section omission, and defensive 5/9/5 caps. The fresh
+focused ViewModel suite passes 9 tests, the instrumentation source compiles, and the direct app
+caller compiles. The user-run connected `DiscoverScreenInstrumentedTest` passes 4/4 on Redmi Note
+9S/API 35. The first `verifyArchitecture detekt` run passes the architecture verifier but Detekt
+exposes 12 blocking findings across Task 6-8 feature source sets. Those findings are remediated by
+reusing domain-owned section caps, naming fixture/UI constants, preserving the intentional Task 7
+diagnostic method and Task 8 unexpected-failure boundary with local suppressions, and moving
+`DiscoverTestTags` to its matching file. Fresh focused debug/benchmark compiles, the 9-test
+ViewModel suite, and Detekt over the changed source cone pass. The user reports `BUILD SUCCESSFUL`
+for the post-remediation `verifyArchitecture detekt` rerun, so Task 8 is completed/accepted. Task 9
+is the next canonical boundary and remains `NOT RUN`; it must not start in this Task 8 closure turn.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

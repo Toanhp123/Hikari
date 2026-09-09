@@ -24,6 +24,7 @@ object CatalogDebugDiagnostics {
     fun acquisitionStartCount(): Int = acquisitionStarts.get()
 
     @JvmStatic
+    @Suppress("FunctionOnlyReturningConstant")
     fun imageLoaderInitializationCount(): Int = 0
 
     internal fun recordActivationStarted() {

@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
-Date: 2026-09-09
-Status: **TASKS 0-7 COMPLETED/ACCEPTED; TASK 8 NOT RUN**
+Date: 2026-09-10
+Status: **TASKS 0-8 COMPLETED/ACCEPTED; TASK 9 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-7.
-- Active canonical execution boundary: Task 8, not started.
+- Completed/accepted execution boundary: Tasks 0-8.
+- Next canonical execution boundary: Task 9, not started in this Task 8 closure turn.
 
 Reviewed artifact SHA-256:
 
@@ -707,9 +707,104 @@ closure turn does not execute Task 8.
   resolve to the most specific declared owner, including nested declared types, while imports owned
   by another Gradle module no longer fall back to a broad local package ancestor.
 
+## Task 8 Delta
+
+- Replaced the Task 7 static activation status with a bounded Discover presentation state that
+  distinguishes `NoContentLoading`, durable `Empty`, retained `Content`, and
+  `NoContentFailure`. Published content remains visible during refresh and read/acquisition failure.
+- Added one ViewModel-owned Catalog runtime session. Manga is the default for each newly created
+  ViewModel, ordinary configuration recreation retains the selected medium through the existing
+  ViewModel, and process-death-style ViewModel recreation defaults to Manga without
+  `SavedStateHandle`, DataStore, or another durable selection store.
+- Added both enabled Manga and Light Novel controls. Selection cancels the prior collector and
+  observes only the selected media scope; the feature-facing runtime adapter exposes Discover
+  observation/refresh only, so card rendering and media selection cannot issue Story Detail calls.
+- Added safe typed issue mapping with only `CatalogIssueKind` plus retryability. Cancellation is
+  rethrown, raw exception/source/URL/payload text is not retained, and source/validation/identity/
+  acquisition/storage/artwork/internal failures map to bounded feature-owned kinds.
+- Added a single-`LazyColumn` Discover surface with semantic Popular, Latest Updates, and Top Rated
+  sections, stable section/card keys and tags, partial-section omission, geometry-shaped loading
+  skeletons, placeholder/local visual slots, accessible card labels, and no nested vertical owner.
+  Presentation defensively caps each section at 5/9/5 and the selected snapshot at 19 memberships.
+- Moved `CatalogCapabilitySession` lifetime from composition-local `remember` ownership into the
+  ViewModel runtime adapter, preserving the Task 7 post-Ready activation trace/diagnostics while
+  closing the session only when the ViewModel is cleared.
+
+## Task 8 Agent-Owned Evidence
+
+- TDD RED: `:feature:catalog:testDebugUnitTest --tests '*DiscoverViewModel*'` failed because the
+  Task 8 state, ViewModel, runtime adapter, and safe issue mapper did not exist.
+- Compose RED: `:feature:catalog:compileDebugAndroidTestKotlin` failed because the Discover screen,
+  semantic tags, section models, and loading/content tree did not exist.
+- Self-review regression RED: the new unavailable-activation/media-switch test failed because a
+  media change replaced the terminal source-unavailable state with loading indefinitely; the
+  ViewModel now retains the bounded activation issue across media selection.
+- Fresh focused host gate:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*DiscoverViewModel*' --no-daemon` - PASS,
+  exit 0, 9 tests, 2026-09-10.
+- Fresh instrumentation source gate:
+  `./gradlew :feature:catalog:compileDebugAndroidTestKotlin --no-daemon` - PASS, exit 0,
+  2026-09-10.
+- Fresh direct app-caller compile:
+  `./gradlew :app:compileDebugKotlin --no-daemon` - PASS, exit 0, 2026-09-10.
+- User-run connected gate:
+  `:feature:catalog:connectedDebugAndroidTest` filtered to `DiscoverScreenInstrumentedTest` - PASS,
+  exit 0, 4/4 tests on Redmi Note 9S/API 35, 2026-09-10.
+- First user-run broad gate: `verifyArchitecture` completed successfully, but `detekt` failed with
+  12 blocking feature findings: eight fixture magic numbers from Task 6, one intentional constant
+  diagnostic method from Task 7, and three Task 8 naming/magic-number/generic-catch findings.
+- Root-cause remediation reuses `CatalogSectionCaps.cap(...)` for fixture section limits, names the
+  rating scale and popular-card aspect ratio, moves `DiscoverTestTags` to its matching file, and
+  locally suppresses only the intentional zero-valued pre-image diagnostic method and the
+  contract-required unexpected-`Throwable` mapping boundary.
+- Fresh post-remediation focused compile:
+  `./gradlew :feature:catalog:compileDebugKotlin :feature:catalog:compileBenchmarkReleaseKotlin --no-daemon`
+  - PASS, exit 0, 2026-09-10.
+- Fresh post-remediation focused Detekt over the six affected production files - PASS, exit 0,
+  2026-09-10. This is changed-cone evidence, not acceptance of the required full gate.
+- Fresh post-remediation ViewModel regression:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*DiscoverViewModel*' --no-daemon` - PASS,
+  exit 0, 9 tests, 2026-09-10.
+- Static changed-cone review finds no Kotlin line over 120 characters; no `SavedStateHandle`,
+  DataStore, Story Detail acquisition, nested vertical list/grid, Search, Chapters, WorkManager,
+  AndroidX Startup, or `GlobalScope` was introduced in Task 8 production code.
+
+## Task 8 Required User-Owned Gate
+
+Status: **PASSED / ACCEPTED**
+
+```bash
+./gradlew :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.discover.DiscoverScreenInstrumentedTest \
+  --no-daemon
+./gradlew verifyArchitecture detekt --no-daemon
+```
+
+- Connected gate: PASS, 4/4 tests on Redmi Note 9S/API 35.
+- Post-remediation broad gate: user reports `BUILD SUCCESSFUL`; `verifyArchitecture` and `detekt`
+  are accepted as PASS.
+
+Task 8 is completed/accepted. The closure turn does not execute Task 9.
+
+## Task 8 Self-Review
+
+- Recomposition state is bounded to one selected medium, four presentation variants, at most three
+  sections, and at most 19 lightweight card projections; no rich Story Detail DTO or bitmap is held.
+- Each media selection owns exactly one collector job. Replacement cancels the old job, stale
+  emissions/results are media-key checked, and ViewModel clearing cancels work then closes runtime
+  storage/session ownership idempotently.
+- `Published(empty)` remains Empty and never becomes bootstrap authority. Content and Empty retain
+  non-blocking refresh issues; a read failure with no usable snapshot becomes a bounded fatal state.
+- Popular uses one bounded horizontal `LazyRow`; Latest and Top Rated are finite children of the
+  root `LazyColumn`, so there is one vertical scroll owner and no full-feed eager image request.
+- Section/card identities derive from semantic kind plus stable source Story identity. Empty
+  sections are omitted, both media controls remain enabled, and the UI emits only
+  `StorySourceRef` plus optional `CoverAssetKey` on card selection.
+- Actual Compose tree/scroll/accessibility execution and the broad architecture/Detekt gate pass.
+
 ## Later Task Status
 
-Tasks 0-7: **COMPLETED/ACCEPTED**. Tasks 8 through 16: **NOT RUN**.
+Tasks 0-8: **COMPLETED/ACCEPTED**. Tasks 9 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
@@ -718,6 +813,6 @@ Tasks 0-7: **COMPLETED/ACCEPTED**. Tasks 8 through 16: **NOT RUN**.
 
 ## Exact Resume Boundary
 
-Task 7 is completed/accepted with focused, connected, foundation, and architecture evidence. Resume
-Step 2 at Task 8 in the owning plan. Do not reopen Task 7 without a regression, contradiction, or
-dependency trail.
+Resume Step 2 at Task 9: implement the Story Detail route, pin lifecycle, keyed observation, and
+atomic enrichment flow according to the owning plan. Task 9 remains `NOT RUN`; do not infer its
+execution from this Task 8 closure record.

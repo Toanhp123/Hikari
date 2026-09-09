@@ -5,6 +5,7 @@ import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogRating
+import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.source.CatalogAcquisitionSource
 import app.openstory.catalog.domain.source.DiscoverAcquisition
@@ -41,11 +42,16 @@ private data class DebugStory(
 
 private fun List<DebugStory>.toDiscoverAcquisition() = DiscoverAcquisition(
     sections = listOf(
-        DiscoverAcquisitionSection(CatalogSectionKind.POPULAR, take(5).map(DebugStory::toItem)),
+        DiscoverAcquisitionSection(
+            CatalogSectionKind.POPULAR,
+            take(CatalogSectionCaps.cap(CatalogSectionKind.POPULAR)).map(DebugStory::toItem),
+        ),
         DiscoverAcquisitionSection(CatalogSectionKind.LATEST_UPDATES, map(DebugStory::toItem)),
         DiscoverAcquisitionSection(
             CatalogSectionKind.TOP_RATED,
-            sortedByDescending(DebugStory::rating).take(5).map(DebugStory::toItem),
+            sortedByDescending(DebugStory::rating)
+                .take(CatalogSectionCaps.cap(CatalogSectionKind.TOP_RATED))
+                .map(DebugStory::toItem),
         ),
     ),
 )
@@ -55,7 +61,7 @@ private fun DebugStory.toItem() = DiscoverAcquisitionItem(
     title = title,
     contentType = contentType,
     cover = AcquisitionCoverInput.TrustedLocal(logicalAssetId, ASSET_VERSION),
-    rating = CatalogRating(rating, 10.0),
+    rating = CatalogRating(rating, RATING_SCALE),
     publicationStatusSummary = "Ongoing",
     latestUpdateEpochMs = latestUpdateEpochMs,
 )
@@ -65,7 +71,7 @@ private fun DebugStory.toStoryDetail() = StoryDetailAcquisition(
     title = title,
     contentType = contentType,
     cover = AcquisitionCoverInput.TrustedLocal(logicalAssetId, ASSET_VERSION),
-    rating = CatalogRating(rating, 10.0),
+    rating = CatalogRating(rating, RATING_SCALE),
     publicationStatusSummary = "Ongoing",
     latestUpdateEpochMs = latestUpdateEpochMs,
     description = "A deterministic local story used to exercise the complete Catalog import path.",
@@ -128,3 +134,4 @@ private fun debugStories(
 }
 
 private const val ASSET_VERSION = "1"
+private const val RATING_SCALE = 10.0
