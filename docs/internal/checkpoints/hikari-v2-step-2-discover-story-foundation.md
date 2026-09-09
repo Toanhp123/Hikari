@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-09
-Status: **TASK 0 COMPLETED/ACCEPTED; TASK 1 READY TO START**
+Status: **TASKS 0-1 COMPLETED/ACCEPTED; TASK 2 READY TO START**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed execution boundary: Task 0 only.
-- Next execution boundary: Task 1, not started in this session.
+- Completed execution boundary: Tasks 0-1.
+- Next execution boundary: Task 2, not started.
 
 Reviewed artifact SHA-256:
 
@@ -95,17 +95,106 @@ Task 0 commands are accepted as PASS.
 
 Result: **PASS; no unresolved in-scope defect found.**
 
+## Task 1 Delta
+
+- Added the pure-JVM Catalog domain contract for source-stable identity, strict UTF-8/scalar
+  limits, typed failures, host-owned provenance, semantic section models, acquisition/read/write
+  ports, publication commands, and bounded mutation diagnostics.
+- Froze `SourceStoryIdV1` and cover-revision domain-separated SHA-256 framing with full lowercase
+  256-bit vectors; malformed UTF-16 is rejected before encoding and opaque source identity is not
+  trimmed, normalized, case-folded, or derived from mutable metadata.
+- Added typed remote HTTPS locator normalization with IDNA/STD3 host canonicalization, default-443
+  removal, exact raw path/query preservation, relative redirect revalidation, and rejection of
+  userinfo, fragments, non-HTTPS/non-DNS authorities, controls, backslashes, and oversized input.
+- After the first broad gate exposed the module policy's intentional `java.net` ban, replaced the
+  initial JDK URI/IDN adapter with domain-owned HTTPS parsing, RFC-style relative dot-segment
+  resolution, conservative IDNA/STD3 validation, and RFC 3492 Punycode encoding. The architecture
+  policy remains unchanged and no network implementation was admitted.
+- Added acquisition/publication validators for the frozen identifier, text, collection, rating,
+  timestamp, semantic-section, provenance, cover-alignment, and Story Detail bounds. Public
+  validation failures cross the boundary as `CatalogFailure.Validation`; cancellation cannot be
+  wrapped as a Catalog failure.
+- Added deterministic Popular/Latest Updates/Top Rated projection and exact 5/9/5 caps while
+  preserving original rating values/scales and excluding missing or invalid eligibility signals.
+- Kept `:catalog:domain` Android/Room/Compose/Coil/HTTP-client/plugin DTO-free with one-way package
+  ownership matching the reviewed Task 1 file map.
+
+## Task 1 Agent-Owned Evidence
+
+- TDD RED: `./gradlew :catalog:domain:test --no-daemon` failed at compile time on the missing Task 1
+  domain symbols, as expected, before production implementation.
+- Focused final tree: `./gradlew :catalog:domain:test :catalog:storage:compileDebugKotlin
+  :catalog:runtime:compileDebugKotlin :feature:catalog:compileDebugKotlin --no-daemon` - PASS,
+  41 domain tests, 0 failures, 0 errors, 0 skipped after broad-gate remediation, 2026-09-09.
+- Post-`ReturnCount` remediation: `./gradlew :catalog:domain:test --no-daemon` - PASS,
+  `BUILD SUCCESSFUL`, 6 actionable tasks, 2026-09-09.
+- `git diff --check` - PASS, 2026-09-09.
+- Focused forbidden-framework scan of `catalog/domain/src` and its build file found no
+  Android/Room/Compose/Coil/OkHttp/plugin/quarantined-Catalog imports, 2026-09-09.
+- Focused remediation scans found zero `java.net` imports and zero production lines above the
+  Detekt 120-character threshold, 2026-09-09.
+
+## Task 1 User-Owned Gate Evidence
+
+Final result on 2026-09-09: **PASS; Task 1 accepted.**
+
+```bash
+./gradlew verifyArchitecture detekt --no-daemon
+```
+
+- `verifyApplicationIdentity`, app structure/boot boundaries, all four merged-manifest startup
+  checks, Step 2 production package structure, and Step 2 build surface passed.
+- `verifyModuleBoundaries` rejected exactly three Task 1 imports: `java.net.IDN`, `java.net.URI`,
+  and `java.net.URISyntaxException` from `RemoteHttpsUriV1`.
+- Detekt reported 14 Task 1 errors: seven magic-number findings and seven maximum-line-length
+  findings. Existing quarantined Catalog/Reader long-method/complexity diagnostics were warnings,
+  not the Task 1 failure cause.
+- Remediation removed all `java.net` usage without weakening module policy, named the flagged hash
+  shift/mask and semantic-cap constants, wrapped all flagged long lines, and expanded domain tests
+  with independent Punycode/redirect vectors.
+- Second run passed `verifyApplicationIdentity`, both app source-structure checks, all four merged-
+  manifest startup checks, Step 2 package/build-surface checks, and `verifyModuleBoundaries` for 11
+  modules. Detekt then failed on one remaining Task 1 issue: `DnsHostCanonicalizer.encodeCodePoint`
+  had three returns versus the configured limit of two. Existing Catalog/Reader long-method,
+  large-class, and complexity diagnostics remained warnings and did not fail the task.
+- The Punycode encoder now preserves the same three branches through one expression return; the
+  focused domain vectors remain green.
+- Final user-owned rerun: `./gradlew verifyArchitecture detekt --no-daemon` - PASS,
+  `BUILD SUCCESSFUL`, 2026-09-09. The pre-existing Catalog/Reader complexity diagnostics remain
+  non-blocking warnings under the repository Detekt policy.
+
+## Task 1 Self-Review
+
+- Golden IDs/revisions use exact domain prefixes, NUL separator, unsigned big-endian length
+  framing, full SHA-256 output, and strict UTF-8; cover URI revision uses the frozen 4,096-character
+  locator ceiling rather than incorrectly treating it as a byte ceiling.
+- Validation distinguishes malformed input, over-limit input, authority mismatch, and invariant
+  violations; acquisition payloads contain no source key/version/timestamp or trusted revision
+  authority that could impersonate the host binding.
+- Publication commands revalidate scalar/collection shape, contiguous section positions,
+  duplicate positions/Stories, source/media/version alignment, and cover locator/key alignment
+  before the future storage boundary.
+- Semantic projection has deterministic ordering and bounded output; no V1 canonical/fusion type,
+  framework exception, network implementation, persistence implementation, or UI concern entered
+  the domain module.
+- The custom locator parser preserves absolute raw path/query identity, normalizes dot segments
+  only while resolving relative redirects, canonicalizes IDNA dot/case forms, rejects leading
+  combining marks and unsafe authorities, and is covered by independent `bücher`, `mañana`,
+  Japanese, mixed-hyphen, and sharp-s vectors.
+- No unresolved in-scope defect was found in the Task 1 dependency cone.
+
 ## Later Task Status
 
-Task 1: **READY TO START**. Tasks 2 through 16: **NOT RUN**.
+Task 1: **COMPLETED/ACCEPTED**. Task 2: **READY TO START**. Tasks 3 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
 - Device, connected, performance, profile, and plugin-integration gates belong to later tasks
   and remain `NOT RUN`.
+- Task 1 has no remaining open gate or unresolved in-scope risk.
 
 ## Exact Resume Boundary
 
-Start Step 2 Task 1 at plan Step 1: write the RED golden-vector tests for
-`SourceStoryIdV1`. Re-read Task 1 global constraints and its active section before changing code.
-Do not reopen Task 0 without a regression, contradiction, or dependency trail.
+Start Step 2 Task 2 at plan Step 1: write the RED coherent-observation/schema tests. Re-read the
+plan global constraints and Task 2 section before changing code. Do not reopen Tasks 0-1 without a
+regression, contradiction, or dependency trail.

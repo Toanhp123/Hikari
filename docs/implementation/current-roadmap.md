@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Task 0; Task 1 is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-1; Task 2 is
 READY TO START.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -30,7 +30,14 @@ configuration-cache-unsafe `Task.project` access, a missing Step 2 shell-gate pa
 2.8.4's unused multi-process invalidation service in every app merged manifest; all three are
 fixed. The focused suite passes 60 build-logic tests and all four app merged-manifest startup
 checks; the user-owned architecture/foundation and Step 2 shell gates are accepted as PASS.
-Resume only at Task 1 Step 1 from the owning plan; Task 1 implementation has not started.
+Task 1 now freezes the pure-domain identity/provenance/bounds/semantic-section/port contract and
+passes 41 focused domain tests plus the direct storage/runtime/feature consumer compile checks.
+The first user-owned broad run exposed three forbidden `java.net` imports and 14 Task 1 Detekt
+errors. The second run passed every architecture check and exposed one remaining `ReturnCount`
+error in the Task 1 Punycode encoder; that source-level finding is remediated without changing
+behavior, and the focused domain suite remains green. The final user-owned
+`./gradlew verifyArchitecture detekt --no-daemon` rerun is accepted as `BUILD SUCCESSFUL`.
+Resume only at Task 2 Step 1 from the owning plan; Task 2 has not started.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is
