@@ -3,6 +3,8 @@ package app.openstory.catalog.runtime
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.failure.CatalogFailure
 import app.openstory.catalog.domain.failure.CatalogStorageOperation
+import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.execution.CatalogExecutionDispatchers
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 import java.util.concurrent.CancellationException
@@ -97,6 +99,22 @@ class CatalogCapabilitySessionTest {
                 app.openstory.catalog.domain.identity.CatalogSourceKey("other.source"),
             ),
         )
+    }
+
+    @Test
+    fun explicitDiscoverAcquisitionRunsThroughTheBoundSourceAndImporter() = runTest {
+        val source = RecordingSource()
+        val storage = RuntimeFakeStorage()
+        val activation = testFactory(
+            binding = TEST_BINDING.copy(acquisitionSource = source),
+            openStorage = { storage },
+        ).createSession().activate() as CatalogCapabilityActivation.Available
+
+        val result = activation.acquireDiscover(CatalogMediaType.LIGHT_NOVEL)
+
+        assertEquals(CatalogAcquisitionResult.Success, result)
+        assertEquals(listOf(CatalogMediaType.LIGHT_NOVEL), source.discoverCalls)
+        assertEquals(CatalogMediaType.LIGHT_NOVEL, storage.discoverCommands.single().mediaType)
     }
 
     private fun TestScope.testFactory(

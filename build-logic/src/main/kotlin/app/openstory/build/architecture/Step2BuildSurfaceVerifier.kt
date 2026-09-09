@@ -11,6 +11,7 @@ object Step2BuildSurfaceVerifier {
         addAll(buildDependencyViolations(rootDirectory, policy))
         addAll(sourceViolations(rootDirectory, policy))
         addAll(androidLibraryVariantViolations(rootDirectory))
+        addAll(CatalogVariantSurfaceVerifier.verify(rootDirectory))
     }.distinct().sorted()
 
     private fun graphViolations(

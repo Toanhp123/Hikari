@@ -86,6 +86,9 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                     include("app/src/main/**")
                     include("catalog/*/src/main/**")
                     include("feature/*/src/main/**")
+                    include("feature/*/src/debug/**")
+                    include("feature/*/src/benchmarkRelease/**")
+                    include("feature/*/src/nonMinifiedRelease/**")
                     include("feature/*/src/release/**")
                     include(
                         "build-logic/src/main/kotlin/app/openstory/build/" +

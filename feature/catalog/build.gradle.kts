@@ -15,6 +15,21 @@ android {
     }
 }
 
+androidComponents {
+    beforeVariants(selector().withBuildType("benchmarkRelease")) { variantBuilder ->
+        variantBuilder.hostTests["UnitTest"]?.enable = true
+    }
+    finalizeDsl { extension ->
+        listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
+            extension.sourceSets.getByName(sourceSetName).apply {
+                kotlin.directories.add("src/benchmarkRelease/kotlin")
+                res.srcDir("src/benchmarkRelease/res")
+                manifest.srcFile("src/benchmarkRelease/AndroidManifest.xml")
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(project(":catalog:domain"))
     implementation(project(":catalog:runtime"))

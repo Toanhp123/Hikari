@@ -7,6 +7,7 @@ import app.openstory.catalog.domain.failure.CatalogStorageOperation
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionExecutor
+import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogImporter
 import app.openstory.catalog.runtime.concurrency.CatalogMutationGate
 import app.openstory.catalog.runtime.discover.DiscoverSession
@@ -54,6 +55,9 @@ sealed interface CatalogCapabilityActivation {
                     scope = scope,
                 )
             }
+
+        suspend fun acquireDiscover(mediaType: CatalogMediaType): CatalogAcquisitionResult =
+            executor.acquireDiscover(mediaType)
 
         @Synchronized
         fun storyDetailSession(ref: StorySourceRef): StoryDetailSession =

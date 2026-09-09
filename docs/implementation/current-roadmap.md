@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-5; Task 6 is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-6; Task 7 is
 the next canonical task and remains NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -70,7 +70,17 @@ cancellation handling, one-per-demand Story access touch, pin rollback on failed
 keyed session removal after release. The exact Task 5 focused gate passes 24 tests; a widened
 runtime dependency-cone run passes 36 tests. The user reports `BUILD SUCCESSFUL` for the required
 unfiltered runtime plus `verifyArchitecture detekt` gate, so Task 5 is completed/accepted. Task 6
-is the next canonical task but remains `NOT RUN` in this closure turn.
+now adds deterministic typed debug/benchmark sources for both media, exact 5/9/5 fixture
+memberships, real compressed local covers with logical persisted identity, release-null wiring,
+explicit benchmark/profile source-set reuse, real importer/Room benchmark preparation, and AAR
+content checks. The fresh focused cone passes 67 build-logic tests, 37 runtime tests, one fixture
+test in each non-release variant, all four feature variant compiles, and both app benchmark/profile
+compiles. The user reports `BUILD SUCCESSFUL` for the required four-AAR assemble plus
+`verifyArchitecture` command. Direct AAR review confirms byte-identical benchmark/non-minified
+artifacts, required non-release fixture classes/assets, and release cleanliness. That review exposed
+and fixed a shell matcher that did not account for AGP's packaged `drawable-nodpi-v4` directory. The
+user reports `BUILD SUCCESSFUL` for the corrected shell-gate rerun, so Task 6 is completed/accepted.
+Task 7 is the next canonical task but remains `NOT RUN` in this closure turn.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

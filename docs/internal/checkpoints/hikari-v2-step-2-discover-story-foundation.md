@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-09
-Status: **TASKS 0-5 COMPLETED/ACCEPTED; TASK 6 NOT RUN**
+Status: **TASKS 0-6 COMPLETED/ACCEPTED; TASK 7 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-5.
-- Next canonical execution boundary: Task 6, not started in the Task 5 closure turn.
+- Completed/accepted execution boundary: Tasks 0-6.
+- Next canonical execution boundary: Task 7, not started in the Task 6 closure turn.
 
 Reviewed artifact SHA-256:
 
@@ -530,9 +530,96 @@ completed/accepted.
 - Framework/raw source, read, open, and write exceptions do not enter feature-facing state.
   Cancellation remains cancellation and does not become a user issue.
 
+## Task 6 Delta
+
+- Added the feature-owned `CatalogVariantBinding` contract. Debug resolves one deterministic local
+  binding/source, `benchmarkRelease` resolves one deterministic benchmark binding/source,
+  `nonMinifiedRelease` explicitly reuses the benchmark Kotlin/resources/manifest directories, and
+  release resolves a source-free `binding = null`.
+- Added typed MANGA and LIGHT_NOVEL fixtures with exact 5/9/5 semantic-section memberships,
+  bounded Story Detail payloads, Unicode source IDs, stable logical local-cover IDs/versions, and
+  eight real compressed WebP resources. Android resource integers exist only in the variant-local
+  logical asset resolver and are never persisted.
+- Added explicit runtime Discover acquisition on an activated capability plus Context-owned runtime
+  construction so feature composition can drive the existing executor/importer/storage path without
+  adding a `:feature:catalog -> :catalog:storage` edge.
+- Added public benchmark/profile-source-set-only `BenchmarkCatalogFixture.prepare(context)`. It
+  imports both enabled media snapshots through `CatalogAcquisitionExecutor -> CatalogImporter ->
+  Room`, waits until matching provenance is durably observable, closes the short-lived session, and
+  only then allows `BenchmarkLaunchStateActivity` to expose its ready marker.
+- Extended the Step 2 build-surface verifier and shell gate to enforce concrete variant bindings,
+  exact benchmark source reuse, no duplicate `nonMinifiedRelease` fixture, compressed fixture
+  assets, required variant inputs, and release AAR cleanliness by inspecting actual AAR/class/resource
+  entries.
+
+## Task 6 Agent-Owned Evidence
+
+- TDD RED: four build-surface tests failed on missing variant/mapping/release policies; the runtime
+  test failed on the missing explicit acquisition API; debug and benchmark fixture tests failed with
+  `ClassNotFoundException` while concrete variant bindings were intentionally absent.
+- RED/GREEN verifier cycles also proved missing/invalid WebP assets and a concrete binding that does
+  not implement `CatalogVariantBinding` are rejected.
+- Fresh final focused cone:
+  `./gradlew :build-logic:test :catalog:runtime:testDebugUnitTest
+  :feature:catalog:testDebugUnitTest :feature:catalog:testBenchmarkReleaseUnitTest
+  :feature:catalog:compileDebugKotlin :feature:catalog:compileReleaseKotlin
+  :feature:catalog:compileBenchmarkReleaseKotlin
+  :feature:catalog:compileNonMinifiedReleaseKotlin :app:compileBenchmarkReleaseKotlin
+  :app:compileNonMinifiedReleaseKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
+- The fresh test results contain 67 build-logic tests, 37 runtime tests, and one fixture test in each
+  of debug and benchmarkRelease, all with zero failures/errors.
+- Static changed-cone checks pass `git diff --check`, find no Kotlin line over 120 characters, and
+  confirm all eight fixture assets have `RIFF`/`WEBP` headers.
+
+## Task 6 Required User-Owned Gate
+
+Status: **PASS / COMPLETED / ACCEPTED**
+
+```bash
+./gradlew :feature:catalog:assembleDebug :feature:catalog:assembleRelease \
+  :feature:catalog:assembleBenchmarkRelease :feature:catalog:assembleNonMinifiedRelease \
+  verifyArchitecture --no-daemon
+bash scripts/tests/v2-step2-build-surface-test.sh
+```
+
+The user reported `BUILD SUCCESSFUL` for the four-variant assemble plus `verifyArchitecture`
+command on 2026-09-09. Direct inspection confirms all four AARs exist, benchmark/non-minified AARs
+are byte-identical and contain the benchmark source/fixture, debug contains its local source, and
+release contains no seed/fixture/plugin-harness class or resource.
+
+Post-gate inspection exposed one shell-test false negative: AGP writes `drawable-nodpi` inputs as
+`res/drawable-nodpi-v4/...` AAR entries, while the script required the unqualified directory name.
+The matcher now accepts the canonical optional `-vN` qualifier; Git Bash syntax and the corrected
+matcher pass against the assembled debug/benchmark/non-minified AARs. The user then reported
+`BUILD SUCCESSFUL` for the corrected shell-gate rerun on 2026-09-09:
+
+```bash
+bash scripts/tests/v2-step2-build-surface-test.sh
+```
+
+The returned Gradle, artifact, and corrected shell evidence is accepted, so Task 6 is
+completed/accepted.
+
+## Task 6 Self-Review
+
+- Release/main contains only the shared interface plus the release-null object; all typed source
+  implementations, fixture data, benchmark preparation, and bundled covers stay in non-release
+  source sets. `nonMinifiedRelease` owns no duplicate source tree.
+- Both media fixtures cross the real validator/projection/importer/write boundary and remain at 19
+  memberships each. Repeated Story memberships are identity-consistent, details are bounded, and
+  source lookup remains keyed by host-authoritative source identity.
+- Benchmark preparation performs no direct DAO writes, waits after each successful import for a
+  matching durable publication, and closes the capability session. Room remains lazy until this
+  explicit benchmark setup demand.
+- The feature gains no direct storage dependency. The runtime addition delegates to the existing
+  single-flight executor and preserves typed failure/cancellation behavior.
+- Build-surface policy reads actual variant inputs and validates compressed asset signatures. AAR
+  review plus the corrected shell gate confirms release cleanliness and benchmark/non-minified
+  resolution.
+
 ## Later Task Status
 
-Tasks 0-5: **COMPLETED/ACCEPTED**. Tasks 6 through 16: **NOT RUN**.
+Tasks 0-6: **COMPLETED/ACCEPTED**. Tasks 7 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
@@ -541,6 +628,7 @@ Tasks 0-5: **COMPLETED/ACCEPTED**. Tasks 6 through 16: **NOT RUN**.
 
 ## Exact Resume Boundary
 
-Task 5 is completed/accepted: its focused runtime evidence is green and the required unfiltered
-runtime plus architecture/Detekt gate is accepted as `BUILD SUCCESSFUL`. Resume Step 2 at Task 6
-of the owning implementation plan. Task 6 was not executed in the Task 5 closure turn.
+Task 6 is completed/accepted: the fresh focused cone is green, the user-owned four-AAR assemble plus
+architecture gate is accepted, direct AAR inspection confirms benchmark/non-minified resolution and
+release cleanliness, and the corrected shell gate is accepted as `BUILD SUCCESSFUL`. Resume Step 2
+at Task 7 of the owning implementation plan. Task 7 was not executed in the Task 6 closure turn.

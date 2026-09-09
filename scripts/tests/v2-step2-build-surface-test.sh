@@ -29,6 +29,76 @@ if find feature/catalog/src/main feature/catalog/src/release \
   exit 1
 fi
 
+AAR_DIR="$ROOT_DIR/feature/catalog/build/outputs/aar"
+DEBUG_AAR="$AAR_DIR/catalog-debug.aar"
+RELEASE_AAR="$AAR_DIR/catalog-release.aar"
+BENCHMARK_AAR="$AAR_DIR/catalog-benchmarkRelease.aar"
+NON_MINIFIED_AAR="$AAR_DIR/catalog-nonMinifiedRelease.aar"
+
+for artifact in "$DEBUG_AAR" "$RELEASE_AAR" "$BENCHMARK_AAR" "$NON_MINIFIED_AAR"; do
+  [[ -f "$artifact" ]] || {
+    echo "Missing assembled Catalog artifact: $artifact" >&2
+    exit 1
+  }
+done
+
+ARTIFACT_TMP="$(mktemp -d)"
+trap 'rm -rf "$ARTIFACT_TMP"' EXIT
+
+inspect_aar() {
+  local name="$1"
+  local artifact="$2"
+  local output="$ARTIFACT_TMP/$name"
+  mkdir -p "$output"
+  unzip -Z1 "$artifact" > "$output/aar-entries.txt"
+  unzip -q "$artifact" classes.jar -d "$output"
+  jar tf "$output/classes.jar" > "$output/class-entries.txt"
+}
+
+inspect_aar debug "$DEBUG_AAR"
+inspect_aar release "$RELEASE_AAR"
+inspect_aar benchmark "$BENCHMARK_AAR"
+inspect_aar non-minified "$NON_MINIFIED_AAR"
+
+require_entry() {
+  local listing="$1"
+  local expected="$2"
+  grep -F -q "$expected" "$listing" || {
+    echo "Expected artifact entry missing: $expected ($listing)" >&2
+    exit 1
+  }
+}
+
+require_drawable_entry() {
+  local listing="$1"
+  local resource="$2"
+  grep -E -q "^res/drawable-nodpi(-v[0-9]+)?/$resource$" "$listing" || {
+    echo "Expected drawable artifact entry missing: $resource ($listing)" >&2
+    exit 1
+  }
+}
+
+require_entry "$ARTIFACT_TMP/debug/class-entries.txt" \
+  'app/openstory/catalog/feature/seed/LocalSeedCatalogSource.class'
+require_drawable_entry "$ARTIFACT_TMP/debug/aar-entries.txt" \
+  'catalog_debug_manga_a.webp'
+
+for variant in benchmark non-minified; do
+  require_entry "$ARTIFACT_TMP/$variant/class-entries.txt" \
+    'app/openstory/catalog/feature/seed/BenchmarkCatalogSource.class'
+  require_entry "$ARTIFACT_TMP/$variant/class-entries.txt" \
+    'app/openstory/catalog/feature/seed/BenchmarkCatalogFixture.class'
+  require_drawable_entry "$ARTIFACT_TMP/$variant/aar-entries.txt" \
+    'catalog_benchmark_manga_a.webp'
+done
+
+if grep -E -i -q \
+  '(seed|BenchmarkCatalogFixture|LocalSeedCatalogSource|BenchmarkCatalogSource|Plugin.*Harness)' \
+  "$ARTIFACT_TMP/release/class-entries.txt" "$ARTIFACT_TMP/release/aar-entries.txt"; then
+  echo "Release Catalog AAR contains non-release fixture or plugin-harness content." >&2
+  exit 1
+fi
+
 [[ ! -e "$ROOT_DIR/build-logic/src/main/kotlin/app/openstory/build/RoomConventionPlugin.kt" ]] || {
   echo "Generic Room convention is not admitted in Step 2." >&2
   exit 1

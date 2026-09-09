@@ -126,6 +126,109 @@ class Step2BuildSurfaceVerifierTest {
     }
 
     @Test
+    fun missingVariantBindingContractIsRejected() = withFixture { fixture ->
+        fixture.delete(
+            "feature/catalog/src/debug/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+        )
+
+        assertViolation(
+            fixture.verify(),
+            "step2_surface.variant_binding_missing",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
+    fun nonMinifiedReleaseMustReuseBenchmarkSourceDirectories() = withFixture { fixture ->
+        fixture.write("feature/catalog/build.gradle.kts", "plugins {}")
+
+        val violations = fixture.verify()
+
+        assertViolation(
+            violations,
+            "step2_surface.benchmark_source_mapping",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
+    fun duplicateNonMinifiedFixtureImplementationIsRejected() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/nonMinifiedRelease/kotlin/app/openstory/catalog/feature/" +
+                "VariantCatalogBinding.kt",
+            "package app.openstory.catalog.feature",
+        )
+
+        assertViolation(
+            fixture.verify(),
+            "step2_surface.non_minified_fixture_duplicate",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
+    fun releaseBindingMustBeSourceFree() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/release/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+            """
+                package app.openstory.catalog.feature
+
+                internal object VariantCatalogBinding : CatalogVariantBinding {
+                    override val binding = BenchmarkCatalogFixture.binding
+                }
+            """.trimIndent(),
+        )
+
+        assertViolation(
+            fixture.verify(),
+            "step2_surface.release_fixture",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
+    fun missingFixtureCoverIsRejected() = withFixture { fixture ->
+        fixture.delete(
+            "feature/catalog/src/benchmarkRelease/res/drawable-nodpi/" +
+                "catalog_benchmark_manga_a.webp",
+        )
+
+        assertViolation(
+            fixture.verify(),
+            "step2_surface.fixture_asset_missing",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
+    fun fixtureCoverMustBeCompressedWebp() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/debug/res/drawable-nodpi/catalog_debug_manga_a.webp",
+            "not a webp",
+        )
+
+        assertViolation(
+            fixture.verify(),
+            "step2_surface.fixture_asset_invalid",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
+    fun concreteVariantBindingMustImplementTheSharedContract() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/debug/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+            "package app.openstory.catalog.feature\ninternal class VariantCatalogBinding",
+        )
+
+        assertViolation(
+            fixture.verify(),
+            "step2_surface.variant_binding_contract",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
     fun appMayImportOnlyTheCatalogEntryPoint() = withFixture { fixture ->
         fixture.write(
             "app/src/main/kotlin/app/openstory/BadImport.kt",
@@ -169,6 +272,82 @@ class Step2BuildSurfaceVerifierTest {
                 write("${rule.path}/build.gradle.kts", "plugins {}")
             }
             write(
+                "feature/catalog/build.gradle.kts",
+                """
+                    plugins {}
+                    androidComponents {
+                        finalizeDsl { extension ->
+                            listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
+                                extension.sourceSets.getByName(sourceSetName).apply {
+                                    kotlin.directories.add("src/benchmarkRelease/kotlin")
+                                    res.srcDir("src/benchmarkRelease/res")
+                                    manifest.srcFile("src/benchmarkRelease/AndroidManifest.xml")
+                                }
+                            }
+                        }
+                    }
+                """.trimIndent(),
+            )
+            write(
+                "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogVariantBinding.kt",
+                "package app.openstory.catalog.feature\ninternal interface CatalogVariantBinding",
+            )
+            write(
+                "feature/catalog/src/debug/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+                "package app.openstory.catalog.feature\n" +
+                    "internal object VariantCatalogBinding : CatalogVariantBinding",
+            )
+            write(
+                "feature/catalog/src/debug/kotlin/app/openstory/catalog/feature/seed/" +
+                    "LocalSeedCatalogSource.kt",
+                "package app.openstory.catalog.feature.seed\ninternal class LocalSeedCatalogSource",
+            )
+            listOf(
+                "catalog_debug_manga_a.webp",
+                "catalog_debug_manga_b.webp",
+                "catalog_debug_light_novel_a.webp",
+                "catalog_debug_light_novel_b.webp",
+            ).forEach { name ->
+                writeWebp("feature/catalog/src/debug/res/drawable-nodpi/$name")
+            }
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/" +
+                    "VariantCatalogBinding.kt",
+                "package app.openstory.catalog.feature\n" +
+                    "internal object VariantCatalogBinding : CatalogVariantBinding",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+                    "BenchmarkCatalogSource.kt",
+                "package app.openstory.catalog.feature.seed\ninternal class BenchmarkCatalogSource",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+                    "BenchmarkCatalogFixture.kt",
+                "package app.openstory.catalog.feature.seed\npublic object BenchmarkCatalogFixture",
+            )
+            listOf(
+                "catalog_benchmark_manga_a.webp",
+                "catalog_benchmark_manga_b.webp",
+                "catalog_benchmark_light_novel_a.webp",
+                "catalog_benchmark_light_novel_b.webp",
+            ).forEach { name ->
+                writeWebp("feature/catalog/src/benchmarkRelease/res/drawable-nodpi/$name")
+            }
+            write(
+                "feature/catalog/src/benchmarkRelease/AndroidManifest.xml",
+                "<manifest />",
+            )
+            write(
+                "feature/catalog/src/release/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+                """
+                    package app.openstory.catalog.feature
+                    internal object VariantCatalogBinding : CatalogVariantBinding {
+                        override val binding = null
+                    }
+                """.trimIndent(),
+            )
+            write(
                 "app/src/main/kotlin/app/openstory/CatalogUse.kt",
                 """
                     package app.openstory
@@ -182,6 +361,17 @@ class Step2BuildSurfaceVerifierTest {
             File(root, relativePath).apply {
                 parentFile.mkdirs()
                 writeText(text)
+            }
+        }
+
+        fun delete(relativePath: String) {
+            File(root, relativePath).delete()
+        }
+
+        private fun writeWebp(relativePath: String) {
+            File(root, relativePath).apply {
+                parentFile.mkdirs()
+                writeBytes("RIFF0000WEBPVP8 ".encodeToByteArray())
             }
         }
 

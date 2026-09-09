@@ -1,5 +1,6 @@
 package app.openstory.catalog.runtime
 
+import android.content.Context
 import app.openstory.catalog.domain.read.DiscoverReadPort
 import app.openstory.catalog.domain.read.StoryDetailReadPort
 import app.openstory.catalog.domain.write.CatalogWritePort
@@ -15,6 +16,18 @@ class CatalogRuntimeFactory internal constructor(
     private val dispatchers: CatalogExecutionDispatchers,
 ) {
     constructor(
+        context: Context,
+        binding: CatalogSourceBinding?,
+        wallClockEpochMs: () -> Long = System::currentTimeMillis,
+        dispatchers: CatalogExecutionDispatchers = CatalogExecutionDispatchers(),
+    ) : this(
+        storageFactory = CatalogStorageFactory(context),
+        binding = binding,
+        wallClockEpochMs = wallClockEpochMs,
+        dispatchers = dispatchers,
+    )
+
+    private constructor(
         storageFactory: CatalogStorageFactory,
         binding: CatalogSourceBinding?,
         wallClockEpochMs: () -> Long = System::currentTimeMillis,
