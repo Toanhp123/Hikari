@@ -1,6 +1,8 @@
 package app.openstory.catalog.storage
 
 import androidx.room.withTransaction
+import app.openstory.catalog.domain.failure.CatalogFailure
+import app.openstory.catalog.domain.failure.CatalogFailureException
 import app.openstory.catalog.domain.failure.CatalogStorageOperation
 import app.openstory.catalog.domain.failure.CatalogValidationReason
 import app.openstory.catalog.domain.identity.StorySourceRef
@@ -8,6 +10,7 @@ import app.openstory.catalog.domain.read.StoryDetailProjection
 import app.openstory.catalog.domain.read.StoryRichDetailProjection
 import app.openstory.catalog.domain.validation.CatalogPublicationValidator
 import app.openstory.catalog.domain.write.CatalogMutationDiagnostics
+import app.openstory.catalog.domain.write.CatalogMutationBounds
 import app.openstory.catalog.domain.write.StoryDetailPublicationCommand
 import app.openstory.catalog.storage.story.StoryArtistEntity
 import app.openstory.catalog.storage.story.StoryAuthorEntity
@@ -16,6 +19,7 @@ import app.openstory.catalog.storage.story.StoryDetailRecord
 import app.openstory.catalog.storage.story.StoryGenreEntity
 import app.openstory.catalog.storage.story.matches
 import app.openstory.catalog.storage.story.toIdentityEntity
+import app.openstory.catalog.storage.retention.StoryRetentionStorage
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -27,6 +31,7 @@ internal class StoryStorage(
     private val identityDao = database.discoverDao()
     private val storyDao = database.storyDetailDao()
     private val retentionDao = database.storyRetentionDao()
+    private val retentionStorage = StoryRetentionStorage(retentionDao)
 
     fun observe(ref: StorySourceRef): Flow<StoryDetailProjection?> = database.invalidationTracker
         .createFlow(*STORY_OBSERVED_TABLES)
@@ -55,6 +60,10 @@ internal class StoryStorage(
         runCatching {
             database.withTransaction {
                 ensureIdentity(command.ref)
+                val storedContentType = storyDao.summaryContentType(command.ref.storyId.value)
+                if (storedContentType != null && storedContentType != command.summary.contentType.name) {
+                    throwValidation("summary.contentType", CatalogValidationReason.AUTHORITY_MISMATCH)
+                }
                 storyDao.upsertSummary(
                     command.summary.toSummaryEntity(command.provenance.acquiredAtEpochMs),
                 )
@@ -102,16 +111,30 @@ internal class StoryStorage(
         ref: StorySourceRef,
         retentionProtectedStoryIds: Set<StoryId>,
         releasedAtEpochMs: Long,
-    ): CatalogMutationDiagnostics = runCatching {
-        database.withTransaction {
-            val identityExists = matchingIdentityExists(ref)
-            val touched = linkedSetOf(ref.storyId)
-            classifyReleasedStory(ref, identityExists, retentionProtectedStoryIds, releasedAtEpochMs)
-            evictOneOverflow(retentionProtectedStoryIds)?.let(touched::add)
-            CatalogMutationDiagnostics(touched)
+    ): CatalogMutationDiagnostics {
+        requireProtectedStoryBound(retentionProtectedStoryIds)
+        return runCatching {
+            database.withTransaction {
+                val identityExists = matchingIdentityExists(ref)
+                val touched = linkedSetOf(ref.storyId)
+                retentionStorage.classify(
+                    storyId = ref.storyId,
+                    identityExists = identityExists,
+                    protectedStoryIds = retentionProtectedStoryIds,
+                    lastAccessedEpochMs = releasedAtEpochMs,
+                )
+                retentionStorage.evictOneOverflow(retentionProtectedStoryIds)?.let(touched::add)
+                retentionStorage.requireWithinLimit()
+                if (touched.size > CatalogMutationBounds.MAX_RELEASE_TOUCHED_STORY_IDS) {
+                    throw CatalogFailureException(
+                        CatalogFailure.InternalInvariant("release_mutation_touch_limit"),
+                    )
+                }
+                CatalogMutationDiagnostics(touched)
+            }
+        }.getOrElse { error ->
+            throw error.toStorageFailure(CatalogStorageOperation.RETENTION)
         }
-    }.getOrElse { error ->
-        throw error.toStorageFailure(CatalogStorageOperation.RETENTION)
     }
 
     private suspend fun ensureIdentity(ref: StorySourceRef) {
@@ -149,43 +172,7 @@ internal class StoryStorage(
         })
     }
 
-    private suspend fun classifyReleasedStory(
-        ref: StorySourceRef,
-        identityExists: Boolean,
-        protectedStoryIds: Set<StoryId>,
-        releasedAtEpochMs: Long,
-    ) {
-        val storyId = ref.storyId.value
-        when {
-            !identityExists -> retentionDao.removeOrphan(storyId)
-            retentionDao.isReachableFromAnyCurrentDiscover(storyId) -> retentionDao.removeOrphan(storyId)
-            ref.storyId in protectedStoryIds || retentionDao.hasDetail(storyId) -> {
-                retentionDao.touchOrphan(storyId, releasedAtEpochMs)
-            }
-            else -> {
-                retentionDao.removeOrphan(storyId)
-                retentionDao.deleteUnreachableStories(setOf(storyId))
-            }
-        }
-    }
-
-    private suspend fun evictOneOverflow(protectedStoryIds: Set<StoryId>): StoryId? {
-        val oldest = retentionDao.oldestOrphans()
-        val protected = protectedStoryIds.mapTo(mutableSetOf(), StoryId::value)
-        val eviction = when {
-            oldest.size <= RETENTION_LIMIT -> null
-            protected.isEmpty() -> oldest.first()
-            else -> retentionDao.oldestOrphanExcluding(protected)
-        }
-        if (eviction != null) {
-            retentionDao.removeOrphan(eviction.storyId)
-            retentionDao.deleteUnreachableStories(setOf(eviction.storyId))
-        }
-        return eviction?.let { StoryId(it.storyId) }
-    }
-
     private companion object {
-        const val RETENTION_LIMIT = 64
         val STORY_OBSERVED_TABLES = arrayOf(
             "story_source_identity",
             "story_source_summary",

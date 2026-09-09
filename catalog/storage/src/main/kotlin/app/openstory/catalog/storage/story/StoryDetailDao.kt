@@ -57,6 +57,9 @@ internal interface StoryDetailDao {
     @Upsert
     suspend fun upsertSummary(entity: StorySourceSummaryEntity)
 
+    @Query("SELECT content_type FROM story_source_summary WHERE story_id = :storyId")
+    suspend fun summaryContentType(storyId: String): String?
+
     @Query("SELECT last_accessed_epoch_ms FROM story_detail WHERE story_id = :storyId")
     suspend fun lastAccessedEpochMs(storyId: String): Long?
 

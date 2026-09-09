@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-3; Task 4 is
-READY TO START.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-4; Task 5 is
+the next canonical task and remains NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -54,7 +54,16 @@ the Task 3 overflow eviction helper. Both source defects are remediated, the foc
 instrumentation compile gate remains green, and generated DAO review now shows one parent plus
 three ordered child queries. The user rerun reports `BUILD SUCCESSFUL` for the required connected
 Story Detail/retention classes and `verifyArchitecture detekt`, so Task 3 is completed/accepted.
-The next execution boundary is Task 4; do not begin it without a new user request.
+Task 4 implementation now adds host-authoritative import/provenance, CPU-owned validation and
+projection, one shared pin/publication mutation gate, a two-Story active pin cap, bounded bulk Room
+identity publication, delta-driven cross-media retention, durable pinned orphan candidates, and
+post-release cleanup. Focused runtime tests and storage assemble/instrumentation compile pass. The
+first user-owned connected run passed 10/12 tests but exposed two invalid setup cards whose
+`sourceVersion` did not match their publication provenance; the first broad run passed the
+architecture checks but Detekt exposed one blocking `MaxLineLength` finding. Both findings are
+remediated and the focused storage assemble/instrumentation compile gate is green. The user reports
+`BUILD SUCCESSFUL` for both required connected and `verifyArchitecture detekt` reruns, so Task 4 is
+completed/accepted. Task 5 is the next canonical task but remains `NOT RUN` in this closure turn.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

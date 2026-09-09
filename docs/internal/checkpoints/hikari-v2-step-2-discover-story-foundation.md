@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-09
-Status: **TASKS 0-3 COMPLETED/ACCEPTED; TASK 4 READY TO START**
+Status: **TASKS 0-4 COMPLETED/ACCEPTED; TASK 5 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-3.
-- Current execution boundary: Task 4 ready to start; not executed in the Task 3 closure turn.
+- Completed/accepted execution boundary: Tasks 0-4.
+- Next canonical execution boundary: Task 5, not started in the Task 4 closure turn.
 
 Reviewed artifact SHA-256:
 
@@ -361,10 +361,106 @@ accepted. Task 13 later repeats Room behavior on API 26 and API 37.
   `404 No active credentials for provider: openai`. The root completed the required changed-cone
   review directly; the final connected behavior and broad architecture/Detekt reruns are accepted.
 
+## Task 4 Delta
+
+- Added the runtime-owned immutable `CatalogSourceBinding`, injectable CPU/I/O dispatchers, and
+  `CatalogImporter`. Discover/detail payloads are snapshotted and completely validated on the CPU
+  dispatcher; provenance comes only from the binding plus host timestamp. Story IDs, semantic
+  ordering/caps, normalized cover locators, and stable cover revisions are derived before entering
+  the mutation gate or Room.
+- Added one coroutine `CatalogMutationGate` shared by Discover publication and active Story pin
+  transitions. `ActiveStoryPins` is an in-memory active-demand set capped at exactly two distinct
+  refs; registration completes before route exposure can continue, publication snapshots pins
+  under the same gate, and release removes the pin then invokes one atomic keyed cleanup with only
+  the remaining protected IDs.
+- Reworked Discover identity persistence into bounded bulk reads/insertion/revalidation. Identity
+  collision remains fail-closed and typed, with no suffix/random/retry repair. Existing summary
+  content type cannot be rewritten through another Discover media scope or Story Detail command.
+- Extended the atomic Discover transaction with delta-driven retention: remove newly reachable
+  orphan markers, classify only removed bounded IDs through keyed any-current-Discover/detail/pin
+  checks, retain pinned removed rows as durable candidates, delete unreachable summary-only rows,
+  and evict only bounded oldest unprotected candidates until the ledger is at most 64.
+- Added post-mutation invariant guards for the two-pin protection snapshot, 57-ID publication
+  diagnostic bound, two-ID release diagnostic bound, and 64-row orphan ledger. No publication or
+  release query enumerates historical Story/detail rows.
+- Added focused runtime tests for host provenance, zero/content publication, deterministic section
+  order, remote cover normalization, typed collision propagation without retry, detail authority,
+  CPU dispatch, pin cap/release snapshots, exclusive mutation ordering, and both publication/pin
+  race orderings.
+- Expanded the real-Room Task 4 fixture for atomic rollback, obsolete-generation deletion,
+  storage-boundary duplicate rejection, raw collision injection, content-type consistency,
+  fixed semantic summary priority, cross-media reachability, pinned/detail/summary-only branches,
+  post-unpin deletion, exact 57-touch maximum replacement, 64-row retention, abandoned-pin later
+  eviction, and preservation of unrelated aged history.
+
+## Task 4 Agent-Owned Evidence
+
+- TDD RED: `./gradlew :catalog:runtime:testDebugUnitTest --tests '*CatalogImporter*' --tests
+  '*CatalogMutationGate*' --no-daemon` failed on the missing Task 4 runtime types and importer APIs,
+  as expected, 2026-09-09.
+- Focused GREEN: `./gradlew :catalog:runtime:testDebugUnitTest --tests '*CatalogImporter*' --tests
+  '*CatalogMutationGate*' --tests '*ActiveStoryPins*' --no-daemon` - PASS (exit 0), 2026-09-09.
+- Storage build/connected-test compile: `./gradlew :catalog:storage:assembleDebug
+  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS (exit 0), 2026-09-09.
+- Post-user-failure remediation rerun of the same storage assemble/instrumentation compile command
+  - PASS (exit 0), 2026-09-09.
+- Final closure gate: focused runtime importer/mutation/pin tests plus storage assemble and
+  instrumentation compile in one Gradle invocation - PASS (exit 0), 2026-09-09.
+- One attempted verification invocation included a nonexistent
+  `:catalog:storage:compileDebugPAndroidTestKotlin` task and failed during command-line task
+  selection before compilation. The diagnostic named the valid
+  `compileDebugAndroidTestKotlin` candidate; the corrected command above passes.
+
+## Task 4 Required User-Owned Gate
+
+Status: **PASS / COMPLETED / ACCEPTED**
+
+```bash
+./gradlew :catalog:storage:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.storage.DiscoverPublicationRetentionInstrumentedTest \
+  --no-daemon
+./gradlew verifyArchitecture detekt --no-daemon
+```
+
+The first returned connected run executed 12 tests on Redmi Note 9S / API 35. Ten passed; two
+content-type authority tests failed during setup before reaching storage because their initial
+cards retained the helper default `sourceVersion = "discover-v1"` while their publication
+provenance used `"manga-v1"`. Both setup cards now explicitly use `"manga-v1"`. The first returned
+broad run passed the reported architecture checks and failed Detekt only on one blocking
+`MaxLineLength` finding in `RoomCatalogStore.requireConsistentStoredContentTypes`; the condition is
+now split without changing behavior. The focused storage assemble/instrumentation compile rerun
+passes after both remediations. The user then reported `BUILD SUCCESSFUL` for both required reruns,
+so the connected Task 4 behavior and broad architecture/Detekt gates are accepted. API 26/API 37
+repetition remains owned by Task 13.
+
+## Task 4 Self-Review
+
+- Slow/untrusted validation, projection, hashing, URI normalization, and cover revision derivation
+  complete before the mutation gate. The gate contains only active-pin set transitions and one
+  bounded Room mutation; it contains no source/network/image/UI/user wait.
+- Publication performs bounded bulk identity/summary/card work, reads only the previous current
+  generation, and classifies only removed IDs. Retention uses keyed reachability/detail queries and
+  indexed `LIMIT 65`/`LIMIT 1` candidate reads; 1,000 unrelated summary rows in the connected
+  fixture are outside the physical work set.
+- The same ref may keep section-local cards in multiple semantic sections, while storage chooses
+  summary authority by fixed `POPULAR -> LATEST_UPDATES -> TOP_RATED` priority then position.
+  Cross-publication content-type disagreement fails before overwriting the summary.
+- Caller cancellation propagates through CPU dispatch, mutex acquisition, write-port calls, and
+  storage failure translation unchanged. Typed validation/collision/invariant failures are not
+  remapped to generic storage failures.
+- Removed pinned Stories enter the durable bounded candidate ledger before publication commits;
+  normal release reclassifies them under the same gate, and a later bounded mutation can evict an
+  abandoned process-death candidate after it is no longer protected.
+- Runtime packages preserve the planned leaf/shared DAG and add no app, feature, plugin, network,
+  image, startup, or quarantine dependency edge. Room/DAO implementation remains storage-internal.
+- Independent review dispatch was attempted with the requested high-risk reviewer profile, but the
+  child runtime returned `404 No active credentials for provider: openai`. Per repository model
+  routing, the root did not silently retry on an unverified profile and completed the changed-cone
+  review directly.
+
 ## Later Task Status
 
-Tasks 0-3: **COMPLETED/ACCEPTED**. Task 4: **READY TO START**.
-Tasks 5 through 16: **NOT RUN**.
+Tasks 0-4: **COMPLETED/ACCEPTED**. Tasks 5 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
@@ -373,6 +469,6 @@ Tasks 5 through 16: **NOT RUN**.
 
 ## Exact Resume Boundary
 
-Task 3 is completed/accepted. Resume Step 2 at plan Task 4, Step 1. Re-read Task 4's contract and
-only its direct storage/runtime dependency cone before writing RED publication/identity tests. Do
-not execute Task 4 in the Task 3 closure turn.
+Task 4 is completed/accepted and its required connected Room plus broad architecture/Detekt gates
+are green. Resume Step 2 at Task 5 of the owning implementation plan. Task 5 was not executed in
+the Task 4 closure turn.

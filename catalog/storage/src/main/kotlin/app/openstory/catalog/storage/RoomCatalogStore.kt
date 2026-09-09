@@ -13,6 +13,7 @@ import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogRating
+import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
@@ -22,6 +23,7 @@ import app.openstory.catalog.domain.read.StoryDetailReadPort
 import app.openstory.catalog.domain.source.AcquisitionProvenance
 import app.openstory.catalog.domain.validation.CatalogPublicationValidator
 import app.openstory.catalog.domain.write.CatalogMutationDiagnostics
+import app.openstory.catalog.domain.write.CatalogMutationBounds
 import app.openstory.catalog.domain.write.CatalogWritePort
 import app.openstory.catalog.domain.write.DiscoverPublicationCommand
 import app.openstory.catalog.domain.write.StoryDetailPublicationCommand
@@ -32,6 +34,7 @@ import app.openstory.catalog.storage.story.StorySourceIdentityEntity
 import app.openstory.catalog.storage.story.StorySourceSummaryEntity
 import app.openstory.catalog.storage.story.matches
 import app.openstory.catalog.storage.story.toIdentityEntity
+import app.openstory.catalog.storage.retention.StoryRetentionStorage
 import app.openstory.common.id.StoryId
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +46,7 @@ class RoomCatalogStore internal constructor(
 ) : DiscoverReadPort, StoryDetailReadPort, CatalogWritePort, AutoCloseable {
     private val dao = database.discoverDao()
     private val storyStorage = StoryStorage(database)
+    private val retentionStorage = StoryRetentionStorage(database.storyRetentionDao())
     private val closed = AtomicBoolean(false)
 
     override fun observe(
@@ -52,11 +56,11 @@ class RoomCatalogStore internal constructor(
         .map(::toPersistenceState)
         .catch { error -> throw error.toStorageFailure(CatalogStorageOperation.READ_DISCOVER) }
 
-    @Suppress("UnusedParameter")
     override suspend fun publishDiscover(
         command: DiscoverPublicationCommand,
         retentionProtectedStoryIds: Set<StoryId>,
     ): CatalogMutationDiagnostics {
+        requireProtectedStoryBound(retentionProtectedStoryIds)
         val cards = command.cards.toList()
         validatePublication(command, cards)
         return runCatching {
@@ -71,7 +75,8 @@ class RoomCatalogStore internal constructor(
 
                 val summaryCards = cards.sortedWith(DISCOVER_ORDER)
                     .distinctBy { it.ref.storyId }
-                summaryCards.forEach { card -> ensureIdentity(card.ref) }
+                ensureIdentities(summaryCards.map(DiscoverCard::ref))
+                requireConsistentStoredContentTypes(summaryCards)
                 dao.upsertSummaries(summaryCards.map { it.toSummaryEntity(command.provenance.acquiredAtEpochMs) })
                 dao.upsertSourceState(
                     CatalogSourceStateEntity(
@@ -86,8 +91,37 @@ class RoomCatalogStore internal constructor(
                 dao.insertDiscoverCards(cards.map { it.toDiscoverEntity(sourceKey, mediaType, nextGeneration) })
                 previousState?.let { dao.deleteGeneration(sourceKey, mediaType, it.publishedGeneration) }
 
+                val currentStoryIds = cards.mapTo(linkedSetOf()) { it.ref.storyId }
+                val touched = linkedSetOf<StoryId>().apply {
+                    previousStoryIds.mapTo(this, ::StoryId)
+                    addAll(currentStoryIds)
+                }
+                retentionStorage.removeNewlyReachable(currentStoryIds)
+                previousStoryIds.asSequence()
+                    .map(::StoryId)
+                    .filterNot(currentStoryIds::contains)
+                    .forEach { removedStoryId ->
+                        retentionStorage.classify(
+                            storyId = removedStoryId,
+                            identityExists = true,
+                            protectedStoryIds = retentionProtectedStoryIds,
+                            lastAccessedEpochMs = command.provenance.acquiredAtEpochMs,
+                        )
+                    }
+                var remainingEvictions = CatalogSectionCaps.MAX_DISCOVER_MEMBERSHIPS
+                while (remainingEvictions > 0) {
+                    val evicted = retentionStorage.evictOneOverflow(retentionProtectedStoryIds) ?: break
+                    touched += evicted
+                    remainingEvictions -= 1
+                }
+                retentionStorage.requireWithinLimit()
+                if (touched.size > CatalogMutationBounds.MAX_DISCOVER_TOUCHED_STORY_IDS) {
+                    throw CatalogFailureException(
+                        CatalogFailure.InternalInvariant("discover_mutation_touch_limit"),
+                    )
+                }
                 CatalogMutationDiagnostics(
-                    touchedStoryIds = (previousStoryIds.map(::StoryId) + cards.map { it.ref.storyId }).toSet(),
+                    touchedStoryIds = touched,
                 )
             }
         }.getOrElse { error ->
@@ -117,15 +151,51 @@ class RoomCatalogStore internal constructor(
         if (closed.compareAndSet(false, true)) database.close()
     }
 
-    private suspend fun ensureIdentity(ref: StorySourceRef) {
-        val byStoryId = dao.identityByStoryId(ref.storyId.value)
-        if (byStoryId != null && !byStoryId.matches(ref)) throwIdentityCollision(ref.storyId)
-        val bySourceKey = dao.identityBySourceStoryKey(ref.catalogSourceKey.value, ref.sourceStoryId)
-        if (bySourceKey != null && bySourceKey.storyId != ref.storyId.value) throwIdentityCollision(ref.storyId)
-        if (byStoryId == null && bySourceKey == null) {
-            dao.insertIdentity(ref.toIdentityEntity())
-            val persisted = dao.identityByStoryId(ref.storyId.value)
-            if (persisted == null || !persisted.matches(ref)) throwIdentityCollision(ref.storyId)
+    private suspend fun ensureIdentities(refs: List<StorySourceRef>) {
+        if (refs.isEmpty()) return
+        val distinctRefs = refs.distinctBy { it.storyId }
+        val storyIds = distinctRefs.mapTo(linkedSetOf()) { it.storyId.value }
+        val sourceStoryIds = distinctRefs.mapTo(linkedSetOf()) { it.sourceStoryId }
+        val byStoryId = dao.identitiesByStoryIds(storyIds).associateBy { it.storyId }
+        val bySourceStoryId = dao.identitiesBySourceStoryIds(
+            distinctRefs.first().catalogSourceKey.value,
+            sourceStoryIds,
+        ).associateBy { it.sourceStoryId }
+        distinctRefs.forEach { ref -> validateIdentity(ref, byStoryId, bySourceStoryId) }
+        val missing = distinctRefs.filter { ref ->
+            ref.storyId.value !in byStoryId && ref.sourceStoryId !in bySourceStoryId
+        }
+        if (missing.isNotEmpty()) dao.insertIdentities(missing.map { it.toIdentityEntity() })
+        val persisted = dao.identitiesByStoryIds(storyIds).associateBy { it.storyId }
+        distinctRefs.forEach { ref ->
+            if (persisted[ref.storyId.value]?.matches(ref) != true) throwIdentityCollision(ref.storyId)
+        }
+    }
+
+    private fun validateIdentity(
+        ref: StorySourceRef,
+        byStoryId: Map<String, StorySourceIdentityEntity>,
+        bySourceStoryId: Map<String, StorySourceIdentityEntity>,
+    ) {
+        val persistedByStoryId = byStoryId[ref.storyId.value]
+        if (persistedByStoryId != null && !persistedByStoryId.matches(ref)) {
+            throwIdentityCollision(ref.storyId)
+        }
+        val persistedBySourceStoryId = bySourceStoryId[ref.sourceStoryId]
+        if (persistedBySourceStoryId != null && persistedBySourceStoryId.storyId != ref.storyId.value) {
+            throwIdentityCollision(ref.storyId)
+        }
+    }
+
+    private suspend fun requireConsistentStoredContentTypes(cards: List<DiscoverCard>) {
+        if (cards.isEmpty()) return
+        val storyIds = cards.mapTo(linkedSetOf()) { it.ref.storyId.value }
+        val stored = dao.summariesByStoryIds(storyIds).associateBy { it.storyId }
+        val hasContentTypeConflict = cards.any { card ->
+            stored[card.ref.storyId.value]?.contentType?.let { it != card.contentType.name } == true
+        }
+        if (hasContentTypeConflict) {
+            throwValidation("cards.contentType", CatalogValidationReason.AUTHORITY_MISMATCH)
         }
     }
 
@@ -176,6 +246,12 @@ internal fun throwValidation(field: String, reason: CatalogValidationReason): No
 
 internal fun throwIdentityCollision(storyId: StoryId): Nothing =
     throw CatalogFailureException(CatalogFailure.IdentityCollision(storyId.value))
+
+internal fun requireProtectedStoryBound(storyIds: Set<StoryId>) {
+    if (storyIds.size > CatalogMutationBounds.MAX_RETENTION_PROTECTED_STORY_IDS) {
+        throw CatalogFailureException(CatalogFailure.InternalInvariant("retention_protected_story_limit"))
+    }
+}
 
 private fun DiscoverCard.toSummaryEntity(lastSeenEpochMs: Long): StorySourceSummaryEntity {
     val cover = coverColumns()

@@ -68,6 +68,9 @@ internal interface DiscoverDao {
     @Query("SELECT * FROM story_source_identity WHERE story_id = :storyId")
     suspend fun identityByStoryId(storyId: String): StorySourceIdentityEntity?
 
+    @Query("SELECT * FROM story_source_identity WHERE story_id IN (:storyIds)")
+    suspend fun identitiesByStoryIds(storyIds: Set<String>): List<StorySourceIdentityEntity>
+
     @Query(
         """
         SELECT * FROM story_source_identity
@@ -76,8 +79,25 @@ internal interface DiscoverDao {
     )
     suspend fun identityBySourceStoryKey(sourceKey: String, sourceStoryId: String): StorySourceIdentityEntity?
 
+    @Query(
+        """
+        SELECT * FROM story_source_identity
+        WHERE source_key = :sourceKey AND source_story_id IN (:sourceStoryIds)
+        """,
+    )
+    suspend fun identitiesBySourceStoryIds(
+        sourceKey: String,
+        sourceStoryIds: Set<String>,
+    ): List<StorySourceIdentityEntity>
+
+    @Query("SELECT * FROM story_source_summary WHERE story_id IN (:storyIds)")
+    suspend fun summariesByStoryIds(storyIds: Set<String>): List<StorySourceSummaryEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIdentity(entity: StorySourceIdentityEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIdentities(entities: List<StorySourceIdentityEntity>): List<Long>
 
     @Upsert
     suspend fun upsertSummaries(entities: List<StorySourceSummaryEntity>)

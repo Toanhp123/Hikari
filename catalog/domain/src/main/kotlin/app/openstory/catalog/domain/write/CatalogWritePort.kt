@@ -45,6 +45,7 @@ data class StoryDetailPublicationCommand(
 object CatalogMutationBounds {
     const val MAX_DISCOVER_TOUCHED_STORY_IDS = 57
     const val MAX_RELEASE_TOUCHED_STORY_IDS = 2
+    const val MAX_RETENTION_PROTECTED_STORY_IDS = 2
 }
 
 data class CatalogMutationDiagnostics(
