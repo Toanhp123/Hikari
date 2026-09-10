@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-10; Task 11 is
-the active canonical boundary and is NOT RUN.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-11; Task 12 is
+the active canonical boundary and has NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -141,7 +141,18 @@ remediations are present, and the focused cache/failure/layout plus production/i
 compile gate passes. The user reports `BUILD SUCCESSFUL` for both required reruns: the filtered
 connected `LocalCoverContinuityInstrumentedTest` class and `verifyArchitecture detekt`. The fresh
 closure cone passes all 22 focused host tests plus debug production and instrumentation-source
-compilation. Task 10 is completed/accepted; Task 11 is the active canonical boundary and is NOT RUN.
+compilation. Task 10 is completed/accepted. Task 11 now adds the feature-private injected transport
+seam, source-scoped initial/redirect host policy, exact 5-hop and 10s/20s timeout contract, bounded
+ 8 MiB streaming spool, JPEG/PNG/WebP media admission, Android bounds/animation/target-size preflight,
+ policy-before-disk-hit recovery, and a main/release concrete-transport ratchet. The fresh focused cone
+ passes 11 remote-policy tests, 12 domain cover/URI tests, 16 build-surface verifier tests, debug and
+ instrumentation-source compilation; release dependency output contains no OkHttp or Coil network
+ artifact, and manifests retain no `INTERNET`. A returned connected failure exposed extended-WebP
+ `VP8X` canvas bounds being accepted before later `VP8`/`VP8L` bitstream bounds; the parser now checks
+ both layers and requires consistent static-image dimensions. The user reports `BUILD SUCCESSFUL` for
+ the final filtered connected class and `:app:verifyFoundation verifyArchitecture detekt`; the fresh
+ focused closure also passes. Task 11 is completed/accepted. Task 12 begins with RED runtime
+ refresh/failure/cancellation tests and no Task 12 implementation has started.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

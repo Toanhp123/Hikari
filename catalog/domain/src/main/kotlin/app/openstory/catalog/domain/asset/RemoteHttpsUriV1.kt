@@ -12,7 +12,7 @@ value class RemoteHttpsUriV1 private constructor(val value: String) {
             return RemoteHttpsUriV1("https://${parts.host}${parts.rawPath}$querySuffix")
         }
 
-        internal fun resolveAndNormalize(
+        fun resolveAndNormalize(
             current: RemoteHttpsUriV1,
             redirectTarget: String,
         ): RemoteHttpsUriV1 {

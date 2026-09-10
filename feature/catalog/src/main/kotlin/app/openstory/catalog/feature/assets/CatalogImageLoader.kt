@@ -2,6 +2,7 @@ package app.openstory.catalog.feature.assets
 
 import android.content.Context
 import androidx.compose.runtime.staticCompositionLocalOf
+import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
 import coil3.ImageLoader
 import coil3.disk.DiskCache
 import coil3.disk.directory
@@ -69,6 +70,8 @@ internal class CatalogImageSession(
 internal class CatalogImageLoader(
     private val context: Context,
     private val localResolver: LocalCoverAssetResolver,
+    private val remoteTransport: RemoteCoverTransport? = null,
+    private val policyProvider: suspend () -> SourceAssetPolicyProvider? = { null },
     private val callbacksRegistry: CatalogImageCallbacksRegistry =
         AndroidCatalogImageCallbacksRegistry(context.applicationContext),
     private val decodedMemoryCacheFactory: () -> DecodedCoverMemoryCache = {
@@ -117,7 +120,14 @@ internal class CatalogImageLoader(
             .decoderCoroutineContext(imageDispatcher)
             .components {
                 add(CoverJobLimiterInterceptor(limiter))
-                add(CoverFetcher.Factory(localResolver, encodedDiskCache))
+                add(
+                    CoverFetcher.Factory(
+                        localResolver = localResolver,
+                        encodedCache = encodedDiskCache,
+                        remoteTransport = remoteTransport,
+                        policyProvider = policyProvider,
+                    ),
+                )
             }
             .build()
         val memoryPressureController = CatalogImageMemoryPressureController(

@@ -77,6 +77,42 @@ class Step2BuildSurfaceVerifierTest {
     }
 
     @Test
+    fun productionRemoteTransportImplementationIsRejectedWithoutRelyingOnClientImports() =
+        withFixture { fixture ->
+            fixture.write(
+                "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/assets/" +
+                    "HiddenNetworkTransport.kt",
+                """
+                    package app.openstory.catalog.feature.assets
+
+                    internal class HiddenNetworkTransport : RemoteCoverTransport
+                """.trimIndent(),
+            )
+
+            assertViolation(
+                fixture.verify(),
+                "step2_surface.remote_transport_implementation_forbidden",
+                ":feature:catalog",
+            )
+        }
+
+    @Test
+    fun remoteTransportConsumersAreNotMistakenForImplementations() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/assets/Consumer.kt",
+            """
+                package app.openstory.catalog.feature.assets
+
+                internal class Consumer(
+                    private val transport: RemoteCoverTransport?,
+                )
+            """.trimIndent(),
+        )
+
+        assertEquals(emptyList(), fixture.verify())
+    }
+
+    @Test
     fun coilImportsOutsideFeatureAssetsAreRejected() = withFixture { fixture ->
         fixture.write(
             "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/Card.kt",

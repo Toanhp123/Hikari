@@ -1005,18 +1005,140 @@ Status: **ACCEPTED**.
   state, caller cancellation propagates, disposal cancels in-flight demand, and metadata/geometry
   remain stable.
 
+## Task 11 Delta
+
+- Added the feature-private `RemoteCoverTransport` seam with only normalized HTTPS URI, finite
+  timeout values, status/redirect/media metadata, and an encoded body stream; no HTTP-library type
+  or concrete production transport is present.
+- Added source-scoped `RemoteCoverPolicy`: initial and redirected URI text reuses the Task 1 strict
+  parser/canonicalizer, validates every hop against the current host-owned
+  `SourceAssetPolicyProvider`, follows only 301/302/303/307/308, rejects loops or more than five
+  redirects, preserves raw path/query identity, and applies 10s connect plus 20s read/call policy.
+- Operation-owned call deadlines map only to `Artwork(TIMEOUT)`. Caller/session cancellation is
+  preserved as the same exception instance across the timeout scope; every returned response/body
+  closes once, and close/cancellation/failure paths delete transient encoded files.
+- Remote bodies spool through an 8 KiB buffer into a temporary file with an 8 MiB declared and
+  streaming hard cap. Content type is normalized case-insensitively with parameters stripped and
+  only JPEG/PNG/WebP are admitted before Android decoder preflight.
+- Added Android bounds-only preflight for source width/height <=8,192 and overflow-safe pixel
+  surface <=32,000,000. The remote path rejects malformed/type-mismatched containers, animated
+  WebP/APNG, and original-size requests; it computes target-size power-of-two sampling before the
+  unchanged Coil decode path.
+- Extended `CoverFetcher` so a remote disk hit first recovers and validates the current host-owned
+  source policy. A miss follows policy -> bounded spool -> preflight -> atomic encoded-cache commit;
+  preflight/fetch failure cannot commit a partial entry, and a later disk hit performs no transport
+  request.
+- Wired image policy lookup through the demand-owned runtime activation. Persisted locator/source
+  state does not carry a remembered policy object; rebuilding against the current binding succeeds
+  only when that binding still supplies the matching policy and otherwise fails `POLICY_REJECTED`.
+- Extended the Step 2 build-surface verifier to reject any concrete `RemoteCoverTransport`
+  implementation under main/release, independent of known client imports. Existing dependency and
+  source gates continue to reject OkHttp, Coil network, `HttpURLConnection`, and `java.net.URL`.
+
+## Task 11 Agent-Owned Evidence
+
+- TDD RED was observed for the missing remote policy/transport API, Android preflight API, concrete
+  production transport verifier, source-policy-before-transport ordering, and response-close
+  transient-file cleanup before each production change.
+- JVM remote policy/transport gate:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' --no-daemon`
+  - PASS, 11/11 tests with zero failures/errors/skips.
+- Fresh focused closure cone:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' :catalog:domain:test --tests '*CoverAssetContractsTest*' :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS: 11 remote-policy tests, 12 domain cover/URI tests, 16 build-surface verifier tests, debug
+    production compile, and instrumentation-source compile. The only emitted warnings were two
+    pre-existing Compose-test API deprecations outside the Task 11 changed cone; the Task 11 WebP
+    fixture deprecation is locally scoped in test source.
+- Release dependency proof:
+  `./gradlew :feature:catalog:dependencies --configuration releaseRuntimeClasspath --no-daemon`
+  - PASS; dependency output contains Coil Compose/Core only and no `okhttp`,
+    `coil-network-okhttp`, or `coil-network-core` artifact.
+- Direct source/manifest review finds no `android.permission.INTERNET` in app/feature manifests and
+  no concrete production `RemoteCoverTransport`, OkHttp, Coil-network, `HttpURLConnection`, or
+  `java.net.URL` source/import.
+- Reviewed the 2026-09-10 returned user-owned gate failures. The connected test reached all eight
+  cases but the oversized-header case returned `DECODE_FAILED`; the broad gate also exposed a
+  verifier false positive for constructor parameters typed as `RemoteCoverTransport` plus the new
+  Task 11 Detekt findings.
+- Added a verifier regression that distinguishes transport consumers from concrete implementations;
+  RED was observed for the false positive, then the complete `Step2BuildSurfaceVerifierTest` suite
+  passed with 17 tests. `verifyStep2BuildSurface` now passes against the real working tree.
+- Preflight now reads JPEG/PNG/WebP container dimensions before invoking `BitmapFactory`, applies
+  the individual-dimension and overflow-safe pixel limits to those encoded bounds, then requires the
+  Android bounds probe to succeed and agree before admitting the image. This preserves fail-closed
+  decoder validation while classifying encoded image bombs as `DIMENSIONS_TOO_LARGE` even when the
+  platform decoder refuses their patched headers.
+- Fresh focused closure after the fixes:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' :catalog:domain:test --tests '*CoverAssetContractsTest*' :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS; 55 actionable tasks, with the affected test/compile outputs current.
+- Final combined agent-owned rerun included focused Detekt source selection for
+  `CoverImagePreflight.kt` and `RemoteCoverPolicy.kt`, the same closure tests/compiles, and
+  `verifyStep2BuildSurface`.
+  - PASS; 57 actionable tasks, 6 executed and 51 up-to-date. The temporary Detekt init script was
+    removed after the run and is not part of the repository delta.
+- Reviewed the 2026-09-10 user re-verification. The broad
+  `:app:verifyFoundation verifyArchitecture detekt` gate passed (`BUILD SUCCESSFUL` in 21s; 47
+  actionable tasks). The filtered connected class ran 8/8 tests but retained one failure in
+  `sourceWidthHeightAndPixelSurfaceAreRejectedBeforeFullDecode`: expected
+  `DIMENSIONS_TOO_LARGE`, received `DECODE_FAILED`.
+- Root-cause inspection of that connected failure found that an extended static WebP can expose a
+  `VP8X` canvas before its `VP8`/`VP8L` image bitstream. Returning the first bounds chunk admitted a
+  small canvas without checking the later image-bitstream dimensions, leaving `BitmapFactory` to
+  reject the inconsistent patched fixture. The parser now scans through `VP8X`, applies the source
+  limits to both canvas and image bounds, requires a real static image bitstream, and fails closed
+  when the two dimensions disagree. The existing failing connected fixture is the regression RED.
+- Fresh affected closure after the WebP parser fix:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' :catalog:domain:test --tests '*CoverAssetContractsTest*' :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS; `BUILD SUCCESSFUL` in 12s, 51 actionable tasks (5 executed, 46 up-to-date).
+- User returned `BUILD SUCCESSFUL` for both required final reruns after the WebP fix: the filtered
+  connected `CoverImagePreflightInstrumentedTest` and
+  `:app:verifyFoundation verifyArchitecture detekt` gates.
+- Final fresh agent-owned closure rerun of the same focused test/compile cone passed:
+  `BUILD SUCCESSFUL` in 11s, 51 actionable tasks (4 executed, 47 up-to-date).
+
+## Task 11 Required User-Owned Gate
+
+Status: **ACCEPTED**.
+
+```powershell
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.assets.CoverImagePreflightInstrumentedTest' `
+  --no-daemon
+.\gradlew.bat :app:verifyFoundation verifyArchitecture detekt --no-daemon
+```
+
+- The returned connected result covers all local JPEG/PNG/WebP bounds, malformed/animated-container,
+  target sampling, controlled remote miss/disk hit, preflight-no-commit, and recreated-policy cases.
+- Both required user-owned gates and the final fresh agent-owned closure are accepted.
+
+## Task 11 Self-Review
+
+- Redirect count, loop detection, relative resolution, canonical DNS-host comparison, and policy
+  lookup happen before issuing each hop. Cached remote bytes are not trusted after their source
+  policy disappears.
+- Response lifetime is per-hop and close-exactly-once; success payloads, partial bodies, cancellation,
+  typed rejection, unexpected I/O, and response-close failure all remove transient files.
+- Remote bytes are never materialized as an additional full 8 MiB array in production. The only
+  full arrays are bounded deterministic test fixtures; production spools then commits by stream.
+- Bounds probing uses `BitmapFactory.Options.inJustDecodeBounds`, validates individual dimensions
+  before overflow-safe `Long` pixel multiplication, and does not admit animated or original-size
+  remote decoding.
+- Ownership remains acyclic: domain owns strict URI/policy types, runtime owns the current source
+  binding/provider, and only `feature.assets` owns transport policy, preflight, cache sequencing,
+  and Coil integration. App/discover/story packages gain no HTTP/image-policy authority.
+
 ## Later Task Status
 
-Tasks 0-10: **COMPLETED/ACCEPTED**. Tasks 11 through 16: **NOT RUN**.
+Tasks 0-11: **COMPLETED/ACCEPTED**. Task 12: **NOT RUN** and is the next canonical boundary. Tasks
+13 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- API 26/API 37 repetition, later device/UI, performance, profile, and plugin-integration gates
+- API 26/API 37 repetition, later lifecycle/UI, performance, profile, and plugin-integration gates
   remain owned by later tasks and are `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Resume Step 2 at Task 11, Step 1: write the RED JVM remote artwork policy/transport tests. Preserve
-the Task 10 capability-private image-session/cache ownership and do not add a concrete production
-HTTP adapter, OkHttp/Coil network dependency, or main/release `INTERNET` permission. Task 11 has not
-started in this Task 10 closure turn.
+Resume Step 2 at Task 12, Step 1: write the RED runtime refresh/failure/cancellation tests in
+`DiscoverRefreshOwnershipTest.kt` and the smallest directly affected runtime/feature test cone. Task
+11 is completed/accepted. Do not reopen it or begin Task 13 while executing Task 12.

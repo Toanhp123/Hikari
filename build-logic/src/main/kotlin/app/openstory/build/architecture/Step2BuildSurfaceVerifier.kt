@@ -114,6 +114,17 @@ object Step2BuildSurfaceVerifier {
                         return@forEach
                     }
                     val text = file.readText()
+                    if (module == ":feature:catalog" &&
+                        REMOTE_TRANSPORT_IMPLEMENTATION.containsMatchIn(text)
+                    ) {
+                        add(
+                            ArchitectureViolation(
+                                code = "step2_surface.remote_transport_implementation_forbidden",
+                                module = module,
+                                detail = relativePath,
+                            ),
+                        )
+                    }
                     HTTP_IMPORT.findAll(text).forEach { match ->
                         add(
                             ArchitectureViolation(
@@ -218,6 +229,12 @@ object Step2BuildSurfaceVerifier {
     private val ROOM_CONVENTION_TOKEN = Regex("""openstory\.room""")
     private val PRODUCTION_SOURCE_PATH = Regex("""/src/(main|release)/""")
     private val RELEASE_FIXTURE_NAME = Regex("""(?i)(seed|plugin.*harness|harness.*plugin)""")
+    private val REMOTE_TRANSPORT_IMPLEMENTATION = Regex(
+        """(?ms)^\s*(?:(?:public|internal|private|protected|abstract|final|open|data|sealed|value)\s+)*""" +
+            """(?:class\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*<[^>{}]*>)?(?:\s*\(.*?\))?""" +
+            """|object(?:\s+[A-Za-z_][A-Za-z0-9_]*)?)\s*:\s*""" +
+            """(?:app\.openstory\.catalog\.feature\.assets\.)?RemoteCoverTransport\b""",
+    )
     private val HTTP_IMPORT = Regex(
         """(?m)^\s*import\s+((?:okhttp3\.|java\.net\.(?:HttpURLConnection|URL)\b|org\.apache\.http\.)[^\s;]*)""",
     )

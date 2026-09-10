@@ -22,6 +22,7 @@ import app.openstory.catalog.feature.story.StoryDetailViewModel
 import app.openstory.catalog.feature.assets.CatalogImageLoader
 import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
 import app.openstory.catalog.feature.trace.AndroidCatalogTraceSink
+import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.CatalogCapabilitySession
 import app.openstory.catalog.runtime.CatalogRuntimeFactory
@@ -39,7 +40,7 @@ internal fun CatalogComposition() {
 private fun rememberCatalogRuntimeHolder(applicationContext: Context): CatalogRuntimeHolder {
     val runtimeFactory = remember(applicationContext) {
         CatalogRuntimeHolder.factory {
-            CatalogRuntimeHost(
+            val runtime = CatalogRuntimeHost(
                 session = CatalogRuntimeFactory(
                     context = applicationContext,
                     binding = VariantCatalogBinding.binding,
@@ -49,7 +50,12 @@ private fun rememberCatalogRuntimeHolder(applicationContext: Context): CatalogRu
                     AndroidCatalogTraceSink.mark(CatalogTrace.ACTIVATION_START)
                 },
                 onStorageReady = VariantCatalogBinding.diagnostics::storageReady,
-            ) to CatalogImageLoader(applicationContext, VariantLocalCoverAssets)
+            )
+            runtime to CatalogImageLoader(
+                context = applicationContext,
+                localResolver = VariantLocalCoverAssets,
+                policyProvider = runtime::assetPolicyProvider,
+            )
         }
     }
     return viewModel(factory = runtimeFactory)
@@ -172,6 +178,12 @@ internal class CatalogRuntimeHost(
 
         override fun close() = Unit
     }
+
+    suspend fun assetPolicyProvider(): SourceAssetPolicyProvider? =
+        when (val activation = activate()) {
+            is CatalogCapabilityActivation.Unavailable -> null
+            is CatalogCapabilityActivation.Available -> activation.assetPolicyProvider
+        }
 
     override fun close() = session.close()
 }
