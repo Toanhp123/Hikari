@@ -288,6 +288,7 @@ class ArchitectureConventionPlugin : Plugin<Project> {
 
     private companion object {
         val STEP2_MODULE_DIRECTORIES = linkedMapOf(
+            ":core:designsystem" to "core/designsystem",
             ":catalog:domain" to "catalog/domain",
             ":catalog:storage" to "catalog/storage",
             ":catalog:runtime" to "catalog/runtime",

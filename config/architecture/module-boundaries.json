@@ -5,7 +5,7 @@
       "path": "app",
       "platform": "android-application",
       "dependencyMode": "exact",
-      "productionDependencies": [":feature:catalog"],
+      "productionDependencies": [":core:designsystem", ":feature:catalog"],
       "testDependencies": [":benchmark"],
       "forbiddenProductionImports": [
         "androidx.room.",
@@ -40,6 +40,25 @@
       "forbiddenProductionImports": [
         "android.",
         "androidx."
+      ]
+    },
+    ":core:designsystem": {
+      "path": "core/designsystem",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "androidx.lifecycle.",
+        "androidx.room.",
+        "androidx.work.",
+        "androidx.javascriptengine.",
+        "coil.",
+        "okhttp3.",
+        "java.net.",
+        "kotlinx.coroutines.",
+        "app.openstory.catalog.",
+        "app.openstory.plugins."
       ]
     },
     ":catalog:model": {
@@ -151,7 +170,7 @@
       "path": "feature/catalog",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":catalog:domain", ":catalog:runtime"],
+      "productionDependencies": [":catalog:domain", ":catalog:runtime", ":core:designsystem"],
       "testDependencies": [],
       "forbiddenProductionImports": [
         "androidx.room.",

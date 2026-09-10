@@ -1,20 +1,20 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-10
-Status: **TASKS 0-12 COMPLETED/ACCEPTED; TASK 13 NOT RUN**
+Status: **TASKS 0-13 COMPLETED/ACCEPTED; TASK 14 NOT RUN**
 
 ## Authority
 
-- Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
+- Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.4.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-12.
-- Active canonical execution boundary: Task 13, `NOT RUN`.
+- Completed/accepted execution boundary: Tasks 0-13.
+- Next canonical execution boundary: Task 14, `NOT RUN`.
 
 Reviewed artifact SHA-256:
 
-- design: `a00b2721a831f33e700323c27ea705110d1fb6b163bf91156b4c369c0eea2074`
-- plan: `945a13e374306a779c6265b1fe3c7da7e713f21c81025c77cd0a7b6936d1a0ff`
+- design: `2f7ffe3ec7693c6f4b3219c795bcd08f0260f4804c8eff78d38626c6603cdb6f`
+- plan: `41f51a26bf860fc8e3ba89ce9d30e36010774520d05e27bc2aa1494f506506d2`
 
 ## Task 0 Delta
 
@@ -1202,19 +1202,216 @@ Status: **ACCEPTED**.
 - No new module edge, app import, startup initializer, WorkManager owner, process scope, or remote
   source/network surface is introduced.
 
+## Task 13 Delta
+
+- Synchronized the user-reviewed R2.4 design and implementation plan into their canonical repository
+  paths, updated the checkpoint authority hashes, and corrected the resume/task-routing split so API
+  26/API 37 correctness is owned by Task 15 rather than the new Task 13 presentation foundation.
+- Admitted `:core:designsystem` as an exact zero-project-dependency Android library. The final app
+  graph has one Catalog product edge plus one separately classified presentation edge:
+  `:app -> :feature:catalog, :core:designsystem` and
+  `:feature:catalog -> :catalog:domain, :catalog:runtime, :core:designsystem`.
+- Added exact graph/import/dependency/package-SCC verification. App code may import only
+  `CatalogEntryPoint` from Catalog and `theme.HikariTheme` from the Design System; the shared module
+  rejects Catalog/plugin/runtime/storage/image/network/work dependencies and imports.
+- Replaced the temporary `HikariBootTheme` fork with one root `HikariTheme` in `HikariStartupApp`.
+  Light/dark root backgrounds remain exact white/black and the accepted first-frame/Ready ordering is
+  unchanged.
+- Added the frozen work-free Step 2 presentation vocabulary: stable palette, typography, Material 3
+  shapes, allocation-free `HikariSpacing`, bounded segmented control, section header, static skeleton,
+  caller-sized empty/error/inline feedback, and enabled-only Material 3 pull refresh.
+- Migrated only shared Catalog chrome. Discover retains one vertical `LazyColumn`, stable section/card
+  keys and 5/9/5 caps; it emits sections directly without `DiscoverViewportRow`/flattened render lists,
+  keeps durable content visible while refreshing, and removes duplicate progress/manual Refresh chrome.
+  Story Detail gains shared static metadata skeleton/inline feedback and remains non-pull-refreshable.
+- Exposed distinct Discover `refresh()` and failure-recovery `retry()` intents while preserving one
+  `refreshJob`/runtime acquisition owner. The R2.4 amendment exposed missing Task 12 behavior in the
+  supplied tree; focused regressions now prove retryable activation failure re-activates once,
+  storage-read Retry restarts only the selected observer, refresh+Retry join one acquisition, and
+  resume restarts activation cancelled by quiescence.
+- Rewrote `docs/ui/design-system.md` as the active scoped V2 policy, classified the V1 Design System
+  as `REDESIGN | REFERENCE` in the salvage ledger, and added the fail-closed exact source/API/caller
+  and hidden-work gate `scripts/tests/v2-step2-designsystem-slice-test.sh`.
+
+No V1 implementation module was transplanted. The exact references adapted were the R2.4 frozen
+palette/typography/shape/API contract, the prior active V1-derived `docs/ui/design-system.md` policy,
+and `docs/internal/v2/v1-salvage-ledger.md`; artwork/network/backdrop/full-component ownership remains
+reference-only.
+
+## Task 13 Agent-Owned Evidence
+
+- TDD RED was observed for the missing module/edges/root theme, Design System dependency/import
+  ratchets, missing shared Compose API, distinct Discover refresh intent, activation/read-failure
+  recovery, and resume-after-cancel behavior.
+- Graph admission gate:
+  `./gradlew :build-logic:test verifyArchitecture :core:designsystem:assembleDebug --no-daemon`
+  - PASS; `BUILD SUCCESSFUL` in 1m 5s after correcting the plan's nonexistent Foundation alias to
+    the repository's existing Material3-provided Foundation dependency pattern.
+- Fresh focused final-tree closure:
+  `./gradlew :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' --tests '*ModuleGraphTest*' :core:designsystem:assembleDebug :feature:catalog:testDebugUnitTest :app:testDebugUnitTest :core:designsystem:compileDebugAndroidTestKotlin :feature:catalog:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS; fresh final-tree rerun after checkpoint/roadmap synchronization reports
+    `BUILD SUCCESSFUL` in 12s with 136 tasks up-to-date. Current reports contain 25 focused
+    build-logic tests, 43 feature unit tests, and 16 app unit tests with zero failures/errors; all
+    three instrumentation source sets compile.
+- `bash scripts/tests/v2-step2-designsystem-slice-test.sh`
+  - PASS; exact source/API budget, caller map, app import authority, disabled refresh branch,
+    no hidden work/state/scroll/effects, and stale V1 policy exclusions are green.
+- `git diff --check` reports no whitespace errors; Git emits only repository LF-to-CRLF notices.
+
+## Task 13 Big Update Regression Matrix
+
+| Audit family | Status | Task 13 evidence / reason |
+|---|---|---|
+| A1 | PROTECTED | Pull refresh delegates to the existing bounded Task 12 acquisition path; no reconciliation index is added. |
+| A2 | N/A | No request/provider ingest-session fork or index rebuild is added. |
+| A3 | N/A | No Story-ID allocation or all-Story scan is added. |
+| A5 | PROTECTED | Shared UI performs no projection lookup/data read; keyed/bounded repositories remain authoritative. |
+| A6 | N/A | No redirect or identity resolution is added. |
+| A7 | PROTECTED | Design System has zero Story observers or reactive identity resolution. |
+| A8 | OWNED | Module/import/hidden-work gates reject repositories and Flow collectors; feature observations remain bounded. |
+| L1 | OWNED | Exact slice gate rejects coroutine/effect/CPU/I-O ownership in shared UI. |
+| L3 | PROTECTED | UI routes pull to `refresh()` and failures to `retry()`; focused tests prove both join one acquisition owner. |
+| L4 | N/A | No Search or canonical settlement path exists. |
+| L5 | N/A | No canonical fusion path exists. |
+| L6 | N/A | No canonical hydration/hash/currentness path exists. |
+| L7 | N/A | No DAO write loop or per-entry commit path is introduced. |
+| L8 | PROTECTED | Shared primitives create no subscription demand; feature retains selected-media/keyed observation scope. |
+| D1 | OWNED | Design System owns no persistence, history, cache, registry, or corpus-sized lifetime. |
+| X1 | PROTECTED | Root theme and controls add no storage observer or invalidation source. |
+| X2 | N/A | No application-scope progress/cache-policy history scan exists. |
+| X3 | OWNED | APIs accept narrow presentation values; static media options leave UiState and flattened viewport rows are removed. |
+| X4 | PROTECTED | No storage trigger, read-combine observation, or snapshot reconstruction is added. |
+| X5 | OWNED | Design System starts no foreground or durable work and cannot compete for an existing work item. |
+| X6 | N/A | No durable recovery backlog, outbox, or worker path exists. |
+| X7 | N/A | No reconciliation point/batch API is introduced. |
+| X8 | N/A | Reader automatic-cache ledger/planning is untouched. |
+| X9 | N/A | Reader eviction/detach paths are untouched. |
+| X10 | N/A | Reader state/publication lock ownership is untouched. |
+| X11 | PROTECTED | Design System receives no encoded image/page payload and owns no payload copies. |
+| X12 | PROTECTED | Design System owns no operational memoization or metadata-suppression cache. |
+| X13 | N/A | No Chapter aggregation path is added. |
+| X14 | N/A | No Chapter Room commit/notification path is added. |
+| X15 | N/A | No Chapter scheduling/pagination path is added. |
+| X16 | PROTECTED | Design System has no plugin manifest/package/executable discovery dependency. |
+| X17 | PROTECTED | Design System has no plugin provisioning/package outcome/state ownership. |
+| X18 | PROTECTED | Design System has no credential/session/Keystore access. |
+| RISK-A4 | N/A | No candidate lookup/search-index path is added. |
+| RISK-BIND | N/A | No Story-ID bounded-set data API is added. |
+| RISK-LIFECYCLE | OWNED | Root theme has zero collectors/effects/work; startup tests retain Unknown/FirstRun without Catalog composition. |
+| RISK-GLOBAL-RESOURCE | OWNED | Gates reject image/network/CPU arbiter, cache, service, registry, or process-resource ownership. |
+| RISK-PLUGIN-ISOLATE | N/A | No JavaScript isolate/runtime path is added. |
+| RISK-PLUGIN-AUTH-CACHE | N/A | No credential cache/session/auth path is added. |
+| RISK-STARTUP-CONTENTION | OWNED | Root theme has no initializer, I/O, DB/network/image access, runtime font load, job, or mutable registry. |
+| baseline L2 | OWNED via RISK-LIFECYCLE | Root theming has zero upstream semantic demand and introduces no hidden destination collection. |
+| baseline RISK-PROVIDER | PROTECTED | UI adds no provider launch/fan-out; both acquisition-capable intents use the existing guarded owner. |
+
+Amplifier checks are also closed in the focused/static cone: one vertical scroll owner; stable lazy
+keys; bounded section/card counts; no hidden destination collector; no image/cache ownership move;
+no application-lifetime shared UI owner; no independent loading/publication stream; and no cosmetic
+`distinctUntilChanged()` placed after expensive work.
+
+## Task 13 Required User-Owned Gate
+
+Status: **COMPLETED/ACCEPTED**.
+
+Run the four focused connected classes on one intended Android target:
+
+```powershell
+.\gradlew.bat :core:designsystem:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.designsystem.HikariDesignSystemContractTest' `
+  --no-daemon
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.startup.StartupSurfaceTest' `
+  --no-daemon
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.discover.DiscoverScreenInstrumentedTest' `
+  --no-daemon
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.story.StoryDetailScreenInstrumentedTest' `
+  --no-daemon
+```
+
+Then run the broad/release/architecture gates:
+
+```powershell
+.\gradlew.bat :feature:catalog:assembleDebug :feature:catalog:assembleRelease `
+  :feature:catalog:assembleBenchmarkRelease :feature:catalog:assembleNonMinifiedRelease `
+  :app:assembleDebug :app:assembleRelease :app:verifyFoundation verifyArchitecture detekt `
+  --no-daemon
+& 'C:\Program Files\Git\bin\bash.exe' scripts/tests/v2-step2-build-surface-test.sh
+& 'C:\Program Files\Git\bin\bash.exe' scripts/tests/v2-step2-designsystem-slice-test.sh
+```
+
+Returned user evidence on 2026-09-10:
+
+- `StartupSurfaceTest`: PASS, 2 tests on Redmi Note 9S / API 35.
+- `StoryDetailScreenInstrumentedTest`: PASS, 2 tests on Redmi Note 9S / API 35.
+- `HikariDesignSystemContractTest`: FAIL, 3 of 7 tests. Two failures were invalid test
+  assumptions: a disabled Material3 button retains an `OnClick` semantics action while exposing the
+  disabled state, and Compose 1.11 permits only one test-rule `setContent` call per test. The remaining
+  no-hierarchy failure was isolated to the segmented-control test and followed no production assertion;
+  its rerun remains required after the deterministic test-contract repairs.
+- `DiscoverScreenInstrumentedTest`: FAIL, 1 of 6 tests because one test called the rule's `setContent`
+  twice. The two states are now separate tests with one composition each.
+- Broad/release/architecture invocation: FAIL only at Detekt's two Task 13 errors. The segmented-control
+  bounds now use named constants, and `DiscoverViewModel.retry()` now expresses the same guarded branch
+  behavior without four early returns. Reported architecture/foundation checks remained green; warning-
+  severity pre-existing Detekt findings are unchanged.
+- `v2-step2-build-surface-test.sh`: PASS.
+- `v2-step2-designsystem-slice-test.sh`: no terminal result was included in the returned transcript, so
+  this result remains open rather than inferred.
+
+Focused post-repair agent-owned evidence:
+
+- `:core:designsystem:compileDebugAndroidTestKotlin`,
+  `:feature:catalog:compileDebugAndroidTestKotlin`, and
+  `:feature:catalog:testDebugUnitTest`: PASS; `BUILD SUCCESSFUL` in 40s, 66 actionable tasks.
+- `git diff --check`: no whitespace errors; Git reports only the repository's existing LF-to-CRLF
+  notices.
+
+Final returned user evidence on 2026-09-10 confirms every remaining gate passes after repair:
+
+- `HikariDesignSystemContractTest`: PASS.
+- `DiscoverScreenInstrumentedTest`: PASS.
+- broad Debug/Release/BenchmarkRelease/NonMinifiedRelease assembly plus foundation, architecture, and
+  Detekt gate: `BUILD SUCCESSFUL`.
+- `v2-step2-designsystem-slice-test.sh`: PASS.
+
+Together with the previously accepted `StartupSurfaceTest`, `StoryDetailScreenInstrumentedTest`, and
+`v2-step2-build-surface-test.sh` results, this closes the complete Task 13 user-owned gate. The tracked
+generated baseline-profile files still contain historical `HikariBootTheme` entries; Task 16 owns
+profile regeneration and no Task 13 acceptance claim relies on those stale profile bytes.
+
+## Task 13 Self-Review
+
+- Root theming changes presentation only; it adds no Catalog composition before the accepted
+  `Ready && firstFrameReached` gate and preserves exact window-background continuity.
+- Shared code knows no Catalog/Story/image/failure/runtime type and owns no effect, collector,
+  coroutine, cache, registry, navigation, or semantic mutable state. Material3 transient pull state
+  exists only in the enabled branch.
+- Discover pull refresh is available only for durable Empty/Content; Absent/fatal states retain the
+  explicit loading/Retry route. Refresh and Retry are distinct UI intents but cannot create parallel
+  source acquisition.
+- Cover artwork, cache/security/decode, route identity, Story pin/release, retention, Room, and
+  benchmark-threshold ownership are unchanged. Story Detail has no pull refresh or new acquisition.
+- Every admitted public Design System symbol has a production caller and a documented semantic
+  reason; no generic layout/text/card/artwork/navigation wrapper or future-only API remains.
+- Task 14 remains `NOT RUN` and owns all visual restoration/polish.
+
 ## Later Task Status
 
-Tasks 0-12: **COMPLETED/ACCEPTED**. Task 13 is the next canonical boundary and is **NOT RUN**.
-Tasks 14 through 16: **NOT RUN**.
+Tasks 0-13: **COMPLETED/ACCEPTED**.
+Tasks 14 through 18: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- API 26/API 37 repetition, later UI evidence, performance, profile, and plugin-integration gates
-  remain owned by later tasks and are `NOT RUN`.
+- No Task 13 gate remains open. Task 14 visual restoration, Task 15 API 26/API 37 and
+  screenshot/correctness evidence, Task 16 performance/profile evidence, Task 17 plugin integration,
+  and Task 18 final acceptance remain `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Resume Step 2 at Task 13, Step 1: finish the API 26/API 37 Room matrix under
-`catalog/storage/src/androidTest/kotlin/app/openstory/catalog/storage/...`. Task 12 is
-completed/accepted. No Task 13 implementation has started; do not begin Task 14 while executing
-Task 13.
+Task 13 is completed/accepted. Stop at this boundary. On a new explicit instruction to begin Task 14,
+resume from this checkpoint and read only the owning plan's Task 14 section plus its materially relevant
+global constraints and affected code. Do not begin Task 15 or reopen Task 13 ownership while executing
+Task 14 unless focused evidence proves a Task 13 regression.

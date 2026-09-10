@@ -4,19 +4,21 @@
 
 **Goal:** Admit Hikari V2's first real product capability so a returning launch reaches a bounded, persistence-backed multi-section Discover surface for Manga and Light Novel, a Story opens a keyed metadata-only Story Detail surface, covers retain bounded visual continuity, and the Step 1 startup/ownership constitution remains mechanically enforced.
 
-**Architecture:** Keep `:app` as a thin launch-state/destination shell and add exactly four production modules: pure-JVM `:catalog:domain`, Room-owned `:catalog:storage`, demand-owned `:catalog:runtime`, and Compose-owned `:feature:catalog`. Discover is a bounded materialized read model with durable `Absent` versus `Published(empty)` semantics; Story Detail is a keyed bounded read/write model; acquisition is single-owner foreground work; image loading is a capability-private bounded subsystem; deterministic debug/benchmark sources and the final MangaUpdates harness remain non-release. The quarantined V1 `:catalog:model` and `:catalog:engine` stay outside the Step 2 production graph.
+**Architecture:** Keep `:app` as a thin launch-state/destination composition root and admit the four Catalog production modules plus one minimal presentation-only `:core:designsystem` module. Task 0 gives `:app` one product edge to `:feature:catalog`; Task 13 later adds one presentation-infrastructure edge to `:core:designsystem` and moves `HikariTheme` to the application root so Unknown, FirstRun, Discover, and Story share one visual environment without giving the Design System any runtime/data authority. Discover remains a bounded materialized read model with durable `Absent` versus `Published(empty)` semantics; Story Detail remains keyed/bounded; acquisition stays single-owner foreground work; image loading stays capability-private; deterministic sources and the final MangaUpdates harness remain non-release. The V1 design-system implementation is reference evidence only: Task 13 salvages a narrow work-free/domain-neutral slice with no app-owned semantic state/effects and explicitly excludes artwork/network/backdrop/Roborazzi/Robolectric debt. Task 14 then reuses the resulting theme/primitives while redesigning feature-local Discover/Story composition to a V1-quality-or-better visual floor; it does not broaden Design System/runtime ownership merely to mimic V1.
 
 **Tech Stack:** Existing Step 1 baseline: Kotlin 2.4.10, JDK 17, AGP 9.3.0, Android minSdk 26 / targetSdk 37, Compose BOM 2026.06.00, coroutines 1.11.0, AndroidX Macrobenchmark/Baseline Profile 1.5.0-beta01. Re-admit only the dependency versions required by the Step 2 production shape and already proven in the supplied V1 tree: KSP 2.3.9, Room 2.8.4, Coil 3.5.0, Lifecycle 2.11.0; JavaScriptEngine 1.1.0 is `androidTest`-only for the final plugin gate. The V1 tree's OkHttp 5.3.0 is reference evidence only and is **not** admitted to Step 2 production/test dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
+**Spec:** `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.4.md`
 
 **Baseline repository:** branch `v2/foundation-clean-boot`, accepted Step 1 runtime/source SHA `eb4d3bfd869a5b9df78a5802de31510b3984c3c3`.
+
+**2026-09-10 R2.4 amendment:** Task 13 is now deliberately limited to the root Design System, shared stateless primitives, Discover pull-to-refresh wiring, and structural/performance-debt closure. It is **not** the visual-restoration task. A new Task 14 follows only after Task 13 is accepted and owns the V1-quality-or-better Discover/Story visual restoration and UX polish. Former Tasks 14-17 are renumbered 15-18. Earlier completed Task 0-12 behavior is unchanged; Task 13 still evolves the exact app graph by adding `:core:designsystem`, while Task 14 must preserve that graph and all Task 13 ownership ratchets.
 
 ---
 
 ## Repository audit basis
 
-This plan was derived by reading the R2.1 design and comparing it against both supplied repositories.
+This plan was derived by reading the R2.4 design and comparing it against both supplied repositories.
 
 ### Step 1 facts that constrain implementation
 
@@ -51,7 +53,7 @@ Reject as migration targets:
 
 ### Negative performance/structural evidence converted into permanent gates
 
-The supplied whole-app and structural audits specifically identified A1-A8, L1/L3-L8, D1, X1-X7 and package-SCC debt, including a 658-line V1 `DiscoverViewModel`. Step 2 therefore treats the following as architecture tests, not conventions by prose:
+The supplied Big Update evidence is read in two layers, not collapsed into the older count. The red-team **baseline audit** records 23 confirmed structural root-cause families plus 3 structural/scaling risks (`RISK-A4`, `RISK-BIND`, `RISK-PROVIDER`). The later **target-architecture design** expands the remediation traceability to **33/33 confirmed families** (`A1/A2/A3/A5/A6/A7/A8`, `L1/L3-L8`, `D1`, `X1-X18`) and **7 risk-promotion gates** (`RISK-A4`, `RISK-BIND`, `RISK-LIFECYCLE`, `RISK-GLOBAL-RESOURCE`, `RISK-PLUGIN-ISOLATE`, `RISK-PLUGIN-AUTH-CACHE`, `RISK-STARTUP-CONTENTION`). Baseline `L2` is represented by the later `RISK-LIFECYCLE`; baseline `RISK-PROVIDER` remains a Step 2-specific guard because provider fan-out is directly relevant to Catalog refresh. The audit also records package-SCC/god-module debt, including a 658-line V1 `DiscoverViewModel`. Step 2 therefore treats the following as architecture tests, not conventions by prose:
 
 - no global canonical read/reconciliation/fusion path reachable from Discover/Story;
 - no per-card DAO/detail calls on Discover;
@@ -64,7 +66,7 @@ The supplied whole-app and structural audits specifically identified A1-A8, L1/L
 - no `okhttp3`, raw `java.net` HTTP ownership, or concrete network-client imports from `feature.catalog.discover`, `feature.catalog.story`, or the feature root UI/router packages; only `feature.assets` may own the concrete remote transport.
 
 
-### Package-DAG constraint for the four new modules
+### Package-DAG constraint for the five newly admitted production modules
 
 The zero-package-SCC ratchet is not left for implementation to discover accidentally. Keep the production package direction acyclic:
 
@@ -90,6 +92,10 @@ runtime.discover/story/acquisition/retention
     -> runtime.source/execution/concurrency as needed + domain/storage ports;
        never import catalog.runtime root facade/factory
 
+designsystem.theme is the lowest shared presentation package
+designsystem.control/refresh/state/feedback/content -> designsystem.theme only
+no designsystem package imports app/catalog/runtime/storage/assets/plugin/network packages
+
 catalog.feature (root composition/router)
     -> feature.discover, feature.story, feature.assets
 feature.discover/story
@@ -109,20 +115,27 @@ In particular, shared runtime types such as `CatalogSourceBinding` and `CatalogE
 - Release identity remains `app.openstory`; JDK is exactly 17; minSdk 26; targetSdk 37.
 - Step 2 explicitly enables both `MANGA` and `LIGHT_NOVEL`. Update the authoritative product-design amendment in the same admission change so no active text still says Light Novel is disabled.
 - Step 2 is a production-shaped internal/product vertical slice, **not** a ship-ready production remote Catalog source.
-- Add exactly four production modules: `:catalog:domain`, `:catalog:storage`, `:catalog:runtime`, `:feature:catalog`.
-- Production graph is exact:
+- Admit exactly five Step 2 production modules beyond the Step 1 graph: `:catalog:domain`, `:catalog:storage`, `:catalog:runtime`, `:feature:catalog`, and the minimal presentation-only `:core:designsystem`.
+- Final production graph after Task 13 is exact:
 
 ```text
-:app -> :feature:catalog
-:feature:catalog -> :catalog:domain, :catalog:runtime
+:app -> :feature:catalog, :core:designsystem
+:feature:catalog -> :catalog:domain, :catalog:runtime, :core:designsystem
+:core:designsystem -> (no project dependencies)
 :catalog:runtime -> :catalog:domain, :catalog:storage
 :catalog:storage -> :catalog:domain, :core:common
 :catalog:domain -> :core:common
 ```
 
+  Task 0 initially admits only the four Catalog modules and the single app product edge; Task 13 is the reviewed graph evolution that adds `:core:designsystem` and the app presentation-infrastructure edge.
+
 - `:catalog:model` and `:catalog:engine` stay quarantine/reference and gain no Step 2 production edge.
-- `:plugins:api` is allowed only as `androidTestImplementation` of `:feature:catalog` for Task 15; it is not a Step 2 production dependency.
-- Preserve the existing exact test-edge authority while adding Step 2: `:app` keeps test dependency `:benchmark`; `:benchmark` keeps test dependency `:app`; new Step 2 modules start with zero project test dependencies, and only Task 15 changes `:feature:catalog` test dependencies to `[":plugins:api"]`.
+- `:core:designsystem` has zero project dependencies. `:feature:catalog` consumes shared presentation primitives; `:app` consumes only `app.openstory.designsystem.theme.HikariTheme`. The app still has exactly one product/capability edge (`:feature:catalog`).
+- The admitted design-system slice has no Coil, `coil-network-okhttp`, OkHttp/raw HTTP, Room, WorkManager, JavaScriptEngine, backdrop/blur, Robolectric, Roborazzi, coroutine/Flow collector, lifecycle observer, app-owned/custom semantic mutable state, cache/registry, or work-owner surface. The only transient state tolerated is Material3's internal pull-gesture state while `HikariPullToRefresh(enabled = true)` is actually composed; the wrapper may not retain or promote that state into an app work owner.
+- The Step 2 design-system public slice is intentionally small: `HikariTheme`, `MaterialTheme.hikariSpacing`, `HikariSegmentedControl`/`HikariSegmentedOption`, `HikariSectionHeader`, `HikariSkeleton`, `HikariEmptyState`, `HikariErrorState`, `HikariInlineFeedback`, and `HikariPullToRefresh`. `MaterialTheme.colorScheme`, `typography`, and `shapes` are configured by `HikariTheme`; no extra public `HikariDimensions`/semantic-shape hierarchy or wrapper-for-wrapper controls are admitted without a proven caller.
+- Discover pull refresh is enabled only for durable `Published(empty/content)` presentation; initial `Absent` loading/no-content failure keep explicit loading/Retry. Story Detail does not gain pull refresh in Step 2.
+- `:plugins:api` is allowed only as `androidTestImplementation` of `:feature:catalog` for Task 17; it is not a Step 2 production dependency.
+- Preserve the existing exact test-edge authority while adding Step 2: `:app` keeps test dependency `:benchmark`; `:benchmark` keeps test dependency `:app`; new Step 2 modules start with zero project test dependencies, and only Task 17 changes `:feature:catalog` test dependencies to `[":plugins:api"]`.
 - `:catalog:domain` remains pure JVM and Android/Room/Compose/Coil/OkHttp-free. Because its public API exposes `StoryId` from `:core:common`, it applies `java-library` in addition to `openstory.kotlin.jvm` and exposes `api(project(":core:common"))`; because public read ports expose `Flow`, it also uses `api(libs.kotlinx.coroutines.core)` rather than hiding Coroutines behind `implementation`. Later modules must not add a second direct `:core:common` edge merely to make transitive compilation happen.
 - Room runtime/compiler/KSP exist only in `:catalog:storage`; do not restore `openstory.room` or a generic Room convention plugin.
 - Coil concrete image implementation exists only in `:feature:catalog`. Step 2 production ships **no concrete HTTP/network transport at all**: release/main has no remote Catalog source, no `INTERNET`, no OkHttp dependency, and no Coil network module. `RemoteCoverTransport` is a narrow injected port exercised by deterministic test/integration transports; a concrete production HTTP adapter is admitted only with a later production remote-source capability.
@@ -133,16 +146,16 @@ In particular, shared runtime types such as `CatalogSourceBinding` and `CatalogE
 - Discover persistence is `Absent | Published(generation, provenance, cards)`; `Published(empty)` is durable data and never automatic-bootstrap authority.
 - Only `Absent + admitted source` may auto-bootstrap, with exactly one active foreground single-flight per `(CatalogSourceKey, mediaType)`.
 - Discover selected-media cardinality is at most 19 memberships (5/9/5); both current persisted scopes together at most 38 memberships under the initial policy.
-- Story identity is exactly `source-story:v1:<64 lowercase hex>` from the R2.1 domain-separated, length-prefixed exact UTF-8 SHA-256 derivation. Java/Kotlin malformed UTF-16 (for example an unpaired surrogate) is rejected before encoding; no replacement-character UTF-8 encoding is allowed. No metadata normalization, digest truncation, suffix repair, random fallback, or insertion-order resolver.
+- Story identity is exactly `source-story:v1:<64 lowercase hex>` from the R2.4 domain-separated, length-prefixed exact UTF-8 SHA-256 derivation. Java/Kotlin malformed UTF-16 (for example an unpaired surrogate) is rejected before encoding; no replacement-character UTF-8 encoding is allowed. No metadata normalization, digest truncation, suffix repair, random fallback, or insertion-order resolver.
 - `StorySourceRef` is self-consistent: `storyId` must equal `SourceStoryIdV1.derive(SourceStoryKey(catalogSourceKey, sourceStoryId))` at construction/restore/import boundaries. A mismatched triple fails closed instead of choosing one field as authority.
 - Failure authority is typed and framework-free. `:catalog:domain` owns `CatalogFailure`; storage/runtime/image boundaries may transport it through `CatalogFailureException`, but Room/SQLite/Coil/JavaScript/HTTP exception classes never escape into feature state. **Caller/session cancellation** is always rethrown unchanged before any failure mapping. Operation-owned deadlines must not rely on catching `TimeoutCancellationException` as a generic `CancellationException`: implement them with `withTimeoutOrNull`/an equivalent dedicated deadline result so a controlled timeout maps to the typed operation failure while external cancellation still propagates. UI maps typed failures to a small `CatalogIssueUi` kind/retryability pair and never renders raw exception messages, raw URLs, host-policy internals, or plugin payload text as an error message.
-- Input ceilings include every exact R2.1 maximum: source key 128 UTF-8 bytes; sourceStoryId 512 UTF-8 bytes; title 1,024 Unicode scalar values; description 64 KiB UTF-8; authors 32 x 512 scalars; artists 32 x 512; genres 64 x 256; locator text 4,096 chars; section caps 5/9/5. The plan additionally freezes bounded scalar/control fields that R2.1 leaves implementation-shaped: sourceVersion <=256 UTF-8 bytes; publication-status summary/detail <=512 Unicode scalars each; language <=128 Unicode scalars; local logical asset ID <=512 UTF-8 bytes; local asset version <=128 UTF-8 bytes; reviewed stable artwork token <=512 UTF-8 bytes; acquisition sections <=3, one per semantic kind, and acquisition items are already bounded to the section's 5/9/5 cap before they cross the generic `CatalogAcquisitionSource` boundary.
+- Input ceilings include every exact R2.4 maximum: source key 128 UTF-8 bytes; sourceStoryId 512 UTF-8 bytes; title 1,024 Unicode scalar values; description 64 KiB UTF-8; authors 32 x 512 scalars; artists 32 x 512; genres 64 x 256; locator text 4,096 chars; section caps 5/9/5. The plan additionally freezes bounded scalar/control fields that R2.4 leaves implementation-shaped: sourceVersion <=256 UTF-8 bytes; publication-status summary/detail <=512 Unicode scalars each; language <=128 Unicode scalars; local logical asset ID <=512 UTF-8 bytes; local asset version <=128 UTF-8 bytes; reviewed stable artwork token <=512 UTF-8 bytes; acquisition sections <=3, one per semantic kind, and acquisition items are already bounded to the section's 5/9/5 cap before they cross the generic `CatalogAcquisitionSource` boundary.
 - Discover publication and Story Detail enrichment are atomic Room transactions.
 - Retention foreground work is delta-driven and may scale only with bounded previous/current snapshot + removed bounded delta + bounded orphan overflow. `story_orphan_retention` is <=64 after every successful mutation.
 - Active Story pin transitions and publication/pruning share one short mutation gate; the gate is never held across source/network/image/UI/user wait. A Story removed while actively pinned is entered into the same <=64 bounded orphan-retention **candidate ledger** before publication commits and is protected from eviction while pinned; this makes process death crash-safe without a global sweep. A no-detail candidate is deleted on normal unpin, or may remain only as a bounded ledger entry until a later bounded mutation evicts it after an abnormal process death.
 - One Discover observer is keyed by selected media type; one Story observer is keyed by `StorySourceRef`; no application-lifetime Catalog observer.
 - Discover persistence observation is exactly one coherent SQL/Room query per invalidation snapshot. Story Detail observation is capped at **4 SQL statements per coherent snapshot**: one summary/detail projection plus at most one bounded query each for authors, artists, and genres; this upper bound is independent of total Catalog rows.
-- Initial image configuration is explicit, not framework-default: decoded memory cache = **32 MiB**, disk cache = **128 MiB**, foreground cover job ceiling = **8**, and **manual offscreen prefetch = 0** for the first implementation. Task 14 may lower cache/concurrency or add at most one viewport of manual prefetch only if benchmark evidence justifies it. If prefetch is introduced, it is lower-priority/cancellable and **may not occupy all image capacity while visible/selected-Story requests wait**; the implementation must reserve/bypass capacity for visible demand and add a starvation regression test. Encoded remote response <=8 MiB, source width/height <=8,192 px, source pixel surface <=32,000,000 pixels.
+- Initial image configuration is explicit, not framework-default: decoded memory cache = **32 MiB**, disk cache = **128 MiB**, foreground cover job ceiling = **8**, and **manual offscreen prefetch = 0** for the first implementation. Task 16 may lower cache/concurrency or add at most one viewport of manual prefetch only if benchmark evidence justifies it. If prefetch is introduced, it is lower-priority/cancellable and **may not occupy all image capacity while visible/selected-Story requests wait**; the implementation must reserve/bypass capacity for visible demand and add a starvation regression test. Encoded remote response <=8 MiB, source width/height <=8,192 px, source pixel surface <=32,000,000 pixels.
 - Remote artwork is HTTPS-only, source-host allowlisted, redirect-revalidated, finite-timeout, accepted-media-type-only, and bounded before dangerous decode allocation.
 - Debug may wire deterministic local source; `benchmarkRelease` and `nonMinifiedRelease` must wire deterministic benchmark source; release/main wires no seed and no remote source; `androidTest` owns the plugin harness.
 - Search, Chapters, Reader, Library, Downloads, Mapping, multi-source fusion, production plugin runtime, background refresh/work, Hilt, Navigation 3, and V1 Room migration are out of scope.
@@ -157,7 +170,7 @@ Exact filenames may be adjusted only when an existing repository naming rule mak
 
 ### Build and architecture
 
-- `settings.gradle.kts` — admit exactly four new production modules.
+- `settings.gradle.kts` — Task 0 admits the four Catalog modules; Task 13 later admits the minimal `:core:designsystem` module as a separate reviewed graph evolution.
 - `gradle/libs.versions.toml` — re-admit reviewed Room/KSP/Coil/Lifecycle/test aliases; no Step 2 HTTP client alias is added.
 - `build-logic/src/main/kotlin/app/openstory/build/AndroidLibraryConventionPlugin.kt` — minimal Android library convention, including explicit Step 2 benchmark/profile build types.
 - `build-logic/src/main/kotlin/app/openstory/build/FoundationConventionPlugin.kt` — retain app-shell startup verification; aggregate Step 2 structural gates without turning capability modules into startup owners.
@@ -234,7 +247,7 @@ Exact filenames may be adjusted only when an existing repository naming rule mak
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogComposition.kt`
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogRoute.kt`
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogScreen.kt`
-- `catalog/runtime/src/main/kotlin/app/openstory/catalog/runtime/trace/CatalogTrace.kt` — Android-free trace names + `CatalogTraceSink` contract; Task 14 extends usage/evidence rather than creating a second authority.
+- `catalog/runtime/src/main/kotlin/app/openstory/catalog/runtime/trace/CatalogTrace.kt` — Android-free trace names + `CatalogTraceSink` contract; Task 16 extends usage/evidence rather than creating a second authority.
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/trace/AndroidCatalogTraceSink.kt` — the only Step 2 production adapter that calls `android.os.Trace`.
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/state/CatalogIssueUi.kt` — safe UI issue mapping from typed domain failures; no raw exception/payload/URL text.
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverUiState.kt`
@@ -249,7 +262,7 @@ Exact filenames may be adjusted only when an existing repository naming rule mak
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/assets/CoverEncodedDiskCache.kt` — capability-private explicit encoded-byte cache keyed only by `CoverAssetKey.stableCacheKey`, backed by the one Coil `DiskCache` instance capped at 128 MiB; remote custom fetches read/write it explicitly rather than assuming Coil will persist arbitrary custom-fetcher bytes.
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/assets/RemoteCoverPolicy.kt`
 - non-release source adapters under `src/debug`, `src/benchmarkRelease`, and `src/nonMinifiedRelease` as defined in Task 6.
-- plugin harness/support under `src/androidTest` only as defined in Task 15.
+- plugin harness/support under `src/androidTest` only as defined in Task 17.
 
 ### App shell and benchmark
 
@@ -262,7 +275,7 @@ Exact filenames may be adjusted only when an existing repository naming rule mak
 
 ### Documentation/evidence
 
-- `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md` — canonical checked-in copy of the reviewed R2.1 design before Task 0 closes.
+- `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.4.md` — canonical checked-in copy of the reviewed R2.4 design before Task 0 closes.
 - `docs/superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md` — this reviewed plan, checked in with Task 0 so every later thread can resume from repository authority rather than chat/file-upload history.
 - `docs/project/approved-product-design.md` — Step 2 Light Novel amendment.
 - `docs/project/current-state.md` — update only as tasks are actually accepted.
@@ -635,7 +648,7 @@ interface CatalogWritePort {
 }
 ```
 
-`CatalogSourceBinding` is a `:catalog:runtime` composition type, not plugin payload data. It carries the host-authoritative `CatalogSourceKey`, verified `sourceVersion`, optional `CatalogAcquisitionSource`, and optional `SourceAssetPolicy`. Runtime constructs `AcquisitionProvenance` from that binding plus the host clock; acquisition payloads never provide provenance authority. Debug/benchmark/plugin-test bindings contain a source; a release binding may be absent entirely. Focused runtime tests also cover a known binding whose `acquisitionSource == null` so R2.1's `Absent + no source` semantics are executable without inventing a fake release source key.
+`CatalogSourceBinding` is a `:catalog:runtime` composition type, not plugin payload data. It carries the host-authoritative `CatalogSourceKey`, verified `sourceVersion`, optional `CatalogAcquisitionSource`, and optional `SourceAssetPolicy`. Runtime constructs `AcquisitionProvenance` from that binding plus the host clock; acquisition payloads never provide provenance authority. Debug/benchmark/plugin-test bindings contain a source; a release binding may be absent entirely. Focused runtime tests also cover a known binding whose `acquisitionSource == null` so R2.4's `Absent + no source` semantics are executable without inventing a fake release source key.
 
 `CoverRevisionV1` is also frozen here so cache identity cannot drift between adapters. All inputs use strict well-formed UTF-8 encoding and the same `uint32_be(length) + exact UTF-8 bytes` framing as Story identity. Prefixes are exact: `hikari:v2:cover-revision:local:v1\0` for `(logicalAssetId, assetVersion)`, `hikari:v2:cover-revision:remote-uri:v1\0` for one normalized URI, and `hikari:v2:cover-revision:remote-token:v1\0` for one reviewed stable token. All three retain the full SHA-256 digest and encode `cover:v1:<64-lowercase-hex>`. Golden vectors include:
 
@@ -651,7 +664,7 @@ remoteStableToken("cover-123-v2")
 A raw plugin/payload revision field is never authoritative.
 
 `RemoteHttpsUriV1.parseAndNormalize` freezes the generic safe locator normalization instead of leaving URL identity to whichever HTTP library is later selected: reject malformed UTF-16 and input longer than 4,096 characters; parse a non-opaque absolute URI; require HTTPS; reject userinfo and fragment; require a DNS hostname; canonicalize the hostname with IDNA/STD3 ASCII rules, lowercase it with `Locale.ROOT`, and remove one terminal DNS dot; allow only absent port or `443` and canonicalize `:443` away; preserve the URI's **raw path and raw query exactly** (including query ordering, percent-escape spelling, and an explicitly empty query) rather than stripping/re-sorting signed parameters or applying dot-segment guesses; canonicalize an empty path to `/`; reject backslashes/control characters. `SourceAssetPolicy.allowedHttpsHosts` uses the same host canonicalizer. Redirect targets are resolved against the current validated URI first, then re-run through this same parser/policy before transport follows them.
-`CatalogIdentifierRules` lives in the `identity` package (not the higher-level acquisition `validation` package) to preserve the package DAG. `requireValidSourceKey` enforces the R2.1 source-key ceiling at type construction (strict well-formed UTF-8, nonblank, <=128 UTF-8 bytes); `SourceStoryIdV1.derive` calls `requireValidSourceStoryId` immediately before hashing. `COVER_REVISION_PATTERN` is exactly `cover:v1:[0-9a-f]{64}`. `CoverAssetKey.stableCacheKey` is the only production string supplied to image-memory/disk key APIs; never use data-class `toString()`, a raw model object, or an undefined `.value` property as cache identity.
+`CatalogIdentifierRules` lives in the `identity` package (not the higher-level acquisition `validation` package) to preserve the package DAG. `requireValidSourceKey` enforces the R2.4 source-key ceiling at type construction (strict well-formed UTF-8, nonblank, <=128 UTF-8 bytes); `SourceStoryIdV1.derive` calls `requireValidSourceStoryId` immediately before hashing. `COVER_REVISION_PATTERN` is exactly `cover:v1:[0-9a-f]{64}`. `CoverAssetKey.stableCacheKey` is the only production string supplied to image-memory/disk key APIs; never use data-class `toString()`, a raw model object, or an undefined `.value` property as cache identity.
 
 `CatalogWritePort` is the cross-module **atomic mutation boundary**. Runtime never orchestrates a publication by calling DAO-shaped primitives one-by-one: one `publishDiscover(...)` call maps to one Room transaction containing previous-generation lookup, bulk identity/summary/card writes, generation advance, obsolete-generation delete, and bounded delta retention; one `publishStoryDetail(...)` maps to one keyed detail transaction. `releaseStoryDemand(...)` is the separate bounded atomic cleanup used after a pin is removed. Publication-command constructors and the storage boundary both fail closed on authority/alignment drift: provenance source must match the command/ref, every Discover card must belong to the command source/media and provenance sourceVersion, Story summary ref/version must match its command, `CoverAssetKey.storyId` must match the routed Story, trusted-local revisions must equal `CoverRevisionV1.local(logicalAssetId, assetVersion)`, remote locators must carry the same host-authoritative source key and the same revision as the asset key, and section positions are 0-based contiguous values below the 5/9/5 caps. `CatalogMutationDiagnostics.touchedStoryIds` exists only to prove bounded work in tests/benchmarks and is itself bounded by the mutation inputs; it is not a history API. Assert `<=57` touched IDs for Discover publication and `<=2` for release cleanup; exceeding either bound is a test/diagnostic invariant failure, not an invitation to enumerate history. Storage owns `CatalogFailure.IdentityCollision` when an existing `story_id` maps to a different exact `(source_key, source_story_id)` pair and transports it as `CatalogFailureException`; the write-port success signature remains `CatalogMutationDiagnostics`, so collision is a typed exceptional failure rather than a fake success value. Import validation likewise raises `CatalogFailure.Validation`, source execution becomes `CatalogFailure.Acquisition`, framework storage failures become `CatalogFailure.Storage`, and artwork policy/resource failures become `CatalogFailure.Artwork`. Every catch boundary distinguishes external cancellation from owned deadline expiry: external `CancellationException` is rethrown unchanged, while operation-owned deadlines are produced as dedicated timeout results (`withTimeoutOrNull`/equivalent) and only then mapped to the typed timeout/acquisition failure.
 
@@ -660,7 +673,7 @@ A raw plugin/payload revision field is never authoritative.
 # Task 0: Admit Step 2 build surface, exact module graph, variants, and product authority
 
 **Files:**
-- Create/copy reviewed artifact: `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
+- Create/copy reviewed artifact: `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.4.md`
 - Create/copy reviewed artifact: `docs/superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Modify: `docs/project/approved-product-design.md`
 - Create: `docs/internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`
@@ -719,7 +732,7 @@ Expected: FAIL because the new verifier/module policy does not exist.
 
 Register `openstory.android.library` in `build-logic/build.gradle.kts` and implement the convention with only `com.android.library`, compileSdk 37, minSdk 26, Java 17, plus explicit `benchmarkRelease` and `nonMinifiedRelease` build types compatible with the app. It must **not** apply Room, KSP, Compose, Coil, Hilt, or any source dependency automatically.
 
-Add only the aliases that are actually consumed: KSP 2.3.9 with plugin alias `com.google.devtools.ksp`; Room 2.8.4 with plugin alias `androidx.room` plus `room-runtime`, `room-ktx`, `room-compiler`, `room-testing`; Lifecycle 2.11.0 (`lifecycle-runtime-compose`, `lifecycle-viewmodel`, `lifecycle-viewmodel-compose`); and Coil 3.5.0 `coil-compose`. Step 2 does **not** add OkHttp, MockWebServer, `coil-network-okhttp`, or any other production/test HTTP stack: redirect/timeout/stream-cap behavior is tested against the injectable `RemoteCoverTransport` contract with deterministic in-memory responses, matching the R2.1 controlled-transport gate. Do **not** add a direct `com.android.library` catalog alias merely to duplicate the convention plugin and do **not** add an `openstory.room` plugin. The absence of Coil's network module is deliberate: remote cover bytes may enter only through Task 11's policy-enforcing injected transport port, so a raw URI cannot silently bypass host/redirect/size checks. Root `build.gradle.kts` does not need a new apply-false Room/KSP/Android-library alias solely for this task.
+Add only the aliases that are actually consumed: KSP 2.3.9 with plugin alias `com.google.devtools.ksp`; Room 2.8.4 with plugin alias `androidx.room` plus `room-runtime`, `room-ktx`, `room-compiler`, `room-testing`; Lifecycle 2.11.0 (`lifecycle-runtime-compose`, `lifecycle-viewmodel`, `lifecycle-viewmodel-compose`); and Coil 3.5.0 `coil-compose`. Step 2 does **not** add OkHttp, MockWebServer, `coil-network-okhttp`, or any other production/test HTTP stack: redirect/timeout/stream-cap behavior is tested against the injectable `RemoteCoverTransport` contract with deterministic in-memory responses, matching the R2.4 controlled-transport gate. Do **not** add a direct `com.android.library` catalog alias merely to duplicate the convention plugin and do **not** add an `openstory.room` plugin. The absence of Coil's network module is deliberate: remote cover bytes may enter only through Task 11's policy-enforcing injected transport port, so a raw URI cannot silently bypass host/redirect/size checks. Root `build.gradle.kts` does not need a new apply-false Room/KSP/Android-library alias solely for this task.
 
 Freeze the module build contracts now rather than leaving Gradle transitivity to Task 1+:
 
@@ -756,7 +769,7 @@ The Android library convention only supplies SDK/Java/build-type mechanics. Each
 
 - [ ] **Step 4: Admit exact modules/edges and evolve app-shell policy**
 
-`module-boundaries.json` must exactly encode the production graph in Global Constraints **and preserve the existing exact test graph**: `:app.testDependencies = [":benchmark"]`, `:benchmark.testDependencies = [":app"]`, every new Step 2 module starts with `testDependencies = []`, and Task 15 alone later changes `:feature:catalog.testDependencies` to `[":plugins:api"]`. Because the existing verifier supports forbidden-prefix matching rather than allow-exceptions, remove the single broad `app.openstory.catalog.` app ban and replace it with explicit forbidden prefixes for `app.openstory.catalog.domain.`, `app.openstory.catalog.runtime.`, `app.openstory.catalog.storage.`, and the quarantined Catalog namespaces. The project edge alone is **not** sufficient permission: `Step2BuildSurfaceVerifier` must scan `app/src/main` and allow exactly one Catalog feature import, `app.openstory.catalog.feature.CatalogEntryPoint`; imports of `feature.discover`, `feature.story`, `feature.assets`, `feature.composition`/router internals, or any other `app.openstory.catalog.feature.*` symbol fail. The exact `:app -> :feature:catalog` project edge plus this one-symbol source allowlist is the app-facing permission; Room/WorkManager/OkHttp/Coil/plugin/Reader/etc. remain forbidden from the app shell.
+`module-boundaries.json` must exactly encode the production graph in Global Constraints **and preserve the existing exact test graph**: `:app.testDependencies = [":benchmark"]`, `:benchmark.testDependencies = [":app"]`, every new Step 2 module starts with `testDependencies = []`, and Task 17 alone later changes `:feature:catalog.testDependencies` to `[":plugins:api"]`. Because the existing verifier supports forbidden-prefix matching rather than allow-exceptions, remove the single broad `app.openstory.catalog.` app ban and replace it with explicit forbidden prefixes for `app.openstory.catalog.domain.`, `app.openstory.catalog.runtime.`, `app.openstory.catalog.storage.`, and the quarantined Catalog namespaces. The project edge alone is **not** sufficient permission: `Step2BuildSurfaceVerifier` must scan `app/src/main` and allow exactly one Catalog feature import, `app.openstory.catalog.feature.CatalogEntryPoint`; imports of `feature.discover`, `feature.story`, `feature.assets`, `feature.composition`/router internals, or any other `app.openstory.catalog.feature.*` symbol fail. The exact `:app -> :feature:catalog` project edge plus this one-symbol source allowlist is the app-facing permission; Room/WorkManager/OkHttp/Coil/plugin/Reader/etc. remain forbidden from the app shell.
 
 Replace the foundation policy's blanket `implementation(project(` rejection with exact graph verification; do not remove source, startup, permission, broad-authority, or line/SCC ratchets.
 
@@ -778,7 +791,7 @@ The package verifier scans production Kotlin/Java under the four Step 2 modules 
 
 - [ ] **Step 6: Persist the reviewed design/plan and update product authority/checkpoint**
 
-Copy the exact reviewed R2.1 design and this reviewed implementation plan into the canonical `docs/superpowers/specs` / `docs/superpowers/plans` paths listed above before Task 0 closes. Record SHA-256 of both artifacts in the new Step 2 checkpoint so later execution cannot silently resume from a different upload.
+Copy the exact reviewed R2.4 design and this reviewed implementation plan into the canonical `docs/superpowers/specs` / `docs/superpowers/plans` paths listed above before Task 0 closes. Record SHA-256 of both artifacts in the new Step 2 checkpoint so later execution cannot silently resume from a different upload.
 
 Amend the 2026-08-19 Discover block so `MANGA` and `LIGHT_NOVEL` are both enabled from Step 2 onward, and explicitly state Search remains later scope. Create the Step 2 checkpoint with Task 0 as current boundary and all later gates `NOT RUN`.
 
@@ -799,7 +812,7 @@ User-owned by default under repository `AGENTS.md` unless explicitly delegated b
 bash scripts/tests/v2-step2-build-surface-test.sh
 ```
 
-Expected: PASS with the exact four new production modules/edges, preserved `:app <-> :benchmark` test edges, no stale allowlist entry, and no production behavior/seed/plugin leakage. Task 0 remains `READY FOR USER VERIFICATION` until this evidence is reviewed.
+Expected: PASS with the exact four newly admitted Catalog production modules/edges, preserved `:app <-> :benchmark` test edges, no `:core:designsystem` module/edge yet, no stale allowlist entry, and no production behavior/seed/plugin leakage. Task 0 remains `READY FOR USER VERIFICATION` until this evidence is reviewed.
 
 - [ ] **Step 9: Self-review Task 0**
 
@@ -862,7 +875,7 @@ Then SHA-256 full 32 bytes -> 64 lowercase hex -> `source-story:v1:<hex>`. Add `
 
 - [ ] **Step 2: Write RED validation/provenance/asset-identity tests**
 
-Cover every R2.1 ceiling and host authority: payload cannot select another `CatalogSourceKey`, sourceVersion, or acquiredAt timestamp; importer-facing validation maps malformed/oversized input to `CatalogFailure.Validation(field, reason)` and is never silently truncated. Strict UTF-8 validation rejects malformed surrogate input before byte counting. Primitive invariant constructors may fail fast internally, but the public acquisition/import boundary must translate those invariant violations to the typed validation failure before persistence/UI exposure. Add failure-taxonomy tests proving `CatalogFailureException` contains only the typed value/cause and that cancellation is not represented by a `CatalogFailure`.
+Cover every R2.4 ceiling and host authority: payload cannot select another `CatalogSourceKey`, sourceVersion, or acquiredAt timestamp; importer-facing validation maps malformed/oversized input to `CatalogFailure.Validation(field, reason)` and is never silently truncated. Strict UTF-8 validation rejects malformed surrogate input before byte counting. Primitive invariant constructors may fail fast internally, but the public acquisition/import boundary must translate those invariant violations to the typed validation failure before persistence/UI exposure. Add failure-taxonomy tests proving `CatalogFailureException` contains only the typed value/cause and that cancellation is not represented by a `CatalogFailure`.
 
 Add `CoverRevisionV1` vectors proving: local revision changes if either logical asset ID or version changes; default remote revision hashes the exact `RemoteHttpsUriV1.value`; source-stable token revision uses a distinct domain prefix; plugin/raw payload data cannot directly provide a trusted `CoverRevision`. Add `RemoteHttpsUriV1` tests for scheme/IDNA-host/default-443 canonicalization, empty-path -> `/`, exact raw-query preservation (including signed/query-order differences), no generic dot-segment/query stripping, relative redirect resolution followed by full revalidation, and rejection of userinfo/fragment/non-HTTPS/non-DNS-host/control/backslash/oversize input. Add hard tests that malformed `CoverRevision` strings are rejected and that `CoverAssetKey.stableCacheKey` is deterministic, changes when either StoryId or revision changes, and never depends on `toString()`. Add `SourceAssetPolicy` validation for canonical nonblank HTTPS host names and mismatched `CatalogSourceKey`. Add publication-command invariant tests: mismatched provenance source/ref/sourceVersion/media fail before storage; section positions are exactly 0-based/contiguous and below `CatalogSectionCaps.cap(kind)`; duplicate `(sectionKind, itemPosition)` or `(sectionKind, storyId)` fails; every published card scalar/locator/rating/timestamp is revalidated against the frozen limits even if a rogue caller bypasses the importer; `CoverAssetKey.storyId` mismatch fails; trusted-local locator/key revision mismatch fails; remote locator source-key mismatch or revision mismatch fails; locator/key nullability mismatch fails. Construct `StoryDetailPublicationCommand` directly with over-bound/malformed summary/detail fields and child collections and prove it fails before `CatalogWritePort`; storage re-runs the same publication validator before opening its mutation transaction so a cross-module caller cannot persist an unchecked projection. Acquisition boundary tests also reject >3 sections, duplicate semantic section kinds, any source section already larger than its 5/9/5 cap, total memberships >19, negative timestamps where a timestamp is present, invalid/non-finite ratings, overbound status/language/asset-token fields, and Story Detail child collections beyond their frozen caps.
 
@@ -912,7 +925,7 @@ object CatalogInputLimits {
 }
 ```
 
-Use true Unicode scalar counting, not a naïve `String.length`. `CatalogSourceKey` validates itself through `CatalogIdentifierRules`; `SourceStoryIdV1.derive` validates `sourceStoryId` again at the hash boundary. Reject unpaired UTF-16 surrogates and use a strict UTF-8 encoder (`CodingErrorAction.REPORT` or an equivalent explicit scalar encoder) so malformed strings cannot collapse to replacement bytes. Use UTF-8 byte counting only where the R2.1 limit is byte-based. Host-owned `sourceVersion` is nonblank and <=256 UTF-8 bytes; `acquiredAtEpochMs` must be >=0.
+Use true Unicode scalar counting, not a naïve `String.length`. `CatalogSourceKey` validates itself through `CatalogIdentifierRules`; `SourceStoryIdV1.derive` validates `sourceStoryId` again at the hash boundary. Reject unpaired UTF-16 surrogates and use a strict UTF-8 encoder (`CodingErrorAction.REPORT` or an equivalent explicit scalar encoder) so malformed strings cannot collapse to replacement bytes. Use UTF-8 byte counting only where the R2.4 limit is byte-based. Host-owned `sourceVersion` is nonblank and <=256 UTF-8 bytes; `acquiredAtEpochMs` must be >=0.
 
 - [ ] **Step 6: Implement typed acquisition/read/asset models and ports**
 
@@ -998,7 +1011,7 @@ Expected: FAIL because DB/DAO/schema types are not implemented yet. Do not add R
 
 - [ ] **Step 3: Implement schema baseline**
 
-Create only the R2.1 tables needed at this point:
+Create only the R2.4 tables needed at this point:
 
 ```text
 catalog_source_state
@@ -1036,7 +1049,7 @@ Required user-owned behavior gate unless explicitly delegated back:
 ./gradlew verifyArchitecture detekt --no-daemon
 ```
 
-Task 2 stays `READY FOR USER VERIFICATION` until these results are reviewed. Task 13 later repeats Room behavior on both API 26 and API 37; Task 2 needs one available Android target before schema acceptance so later tasks do not build on an unexecuted Room contract.
+Task 2 stays `READY FOR USER VERIFICATION` until these results are reviewed. Task 15 later repeats Room behavior on both API 26 and API 37; Task 2 needs one available Android target before schema acceptance so later tasks do not build on an unexecuted Room contract.
 
 - [ ] **Step 7: Self-review, checkpoint, commit, stop**
 
@@ -1372,7 +1385,7 @@ Freeze the public app-facing API to `@Composable fun CatalogEntryPoint()` with n
 
 - [ ] **Step 4: Preserve startup traces and add catalog activation trace**
 
-Keep all six Step 1 labels unchanged. Create Android-free `CatalogTrace` as the single Step 2 trace-name authority and freeze all seven R2.1/plan labels there now, plus `fun interface CatalogTraceSink { fun mark(name: String) }`. `AndroidCatalogTraceSink` in the feature module is the only production adapter to `android.os.Trace`; runtime host tests inject a recording/no-op sink and therefore do not require Robolectric. Task 7 emits only `HikariV2:catalog-activation-start` from the feature activation boundary, while later tasks add the matching event marks through the injected sink. Do not define the same trace string ad hoc in feature code and do not repurpose historical Step 1 labels.
+Keep all six Step 1 labels unchanged. Create Android-free `CatalogTrace` as the single Step 2 trace-name authority and freeze all seven R2.4/plan labels there now, plus `fun interface CatalogTraceSink { fun mark(name: String) }`. `AndroidCatalogTraceSink` in the feature module is the only production adapter to `android.os.Trace`; runtime host tests inject a recording/no-op sink and therefore do not require Robolectric. Task 7 emits only `HikariV2:catalog-activation-start` from the feature activation boundary, while later tasks add the matching event marks through the injected sink. Do not define the same trace string ad hoc in feature code and do not repurpose historical Step 1 labels.
 
 - [ ] **Step 5: Run focused GREEN, then request connected/foundation gates**
 
@@ -1407,7 +1420,7 @@ Review direct app imports/dependencies and trace timing. Commit e.g. `feat: hand
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverScreen.kt`
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverSections.kt`
 - focused reducer tests under `feature/catalog/src/test/.../discover/`.
-- `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/discover/DiscoverScreenInstrumentedTest.kt` for actual Compose tree/scroll/accessibility behavior. Golden/artifact screenshot capture is deferred to Task 13 using standard Android/Compose test APIs; Task 8 does not re-admit Roborazzi.
+- `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/discover/DiscoverScreenInstrumentedTest.kt` for actual Compose tree/scroll/accessibility behavior. Golden/artifact screenshot capture is deferred to Task 15 using standard Android/Compose test APIs; Task 8 does not re-admit Roborazzi.
 
 **Interfaces:**
 - Consumes one `DiscoverPersistenceState` observer for selected `(source, mediaType)` and runtime refresh/bootstrap status.
@@ -1427,7 +1440,7 @@ Content + refresh active -> retained Content + refreshing
 Content + refresh failed -> retained Content + issue
 ```
 
-Also prove both media options enabled, default Manga in a newly created ViewModel after process death, selection retained across ordinary configuration recreation **only through ViewModel lifetime**, collector replacement only for selected media scope, and no card/detail N+1 calls. Do not use `SavedStateHandle`, DataStore, or another durable/saveable store for media selection in Step 2, because R2.1 requires process-death default = Manga. Add safe failure mapping tests: `SourceUnavailable -> SOURCE_UNAVAILABLE`, `Validation/IdentityCollision -> INVALID_SOURCE_DATA`, `Acquisition -> ACQUISITION_FAILED`, `Storage -> STORAGE_FAILED`; raw exception messages, URLs, host lists, and plugin payload strings never enter `CatalogIssueUi`. A storage/read failure with no usable snapshot becomes `NoContentFailure(STORAGE_FAILED)`; if a usable content snapshot is already retained in the ViewModel, a later refresh/acquisition failure is an issue layered on that content rather than destructive loading.
+Also prove both media options enabled, default Manga in a newly created ViewModel after process death, selection retained across ordinary configuration recreation **only through ViewModel lifetime**, collector replacement only for selected media scope, and no card/detail N+1 calls. Do not use `SavedStateHandle`, DataStore, or another durable/saveable store for media selection in Step 2, because R2.4 requires process-death default = Manga. Add safe failure mapping tests: `SourceUnavailable -> SOURCE_UNAVAILABLE`, `Validation/IdentityCollision -> INVALID_SOURCE_DATA`, `Acquisition -> ACQUISITION_FAILED`, `Storage -> STORAGE_FAILED`; raw exception messages, URLs, host lists, and plugin payload strings never enter `CatalogIssueUi`. A storage/read failure with no usable snapshot becomes `NoContentFailure(STORAGE_FAILED)`; if a usable content snapshot is already retained in the ViewModel, a later refresh/acquisition failure is an issue layered on that content rather than destructive loading.
 
 - [ ] **Step 2: Write RED Compose instrumentation tests**
 
@@ -1576,7 +1589,7 @@ Task 1 already proves revision derivation. Here prove the Android pipeline uses 
 
 - [ ] **Step 2: Write RED demand/cancellation/failure tests**
 
-Initial manual prefetch is frozen to zero, so only composed/visible cards and the selected Story transition may own requests. Assert active jobs never exceed 8, offscreen disposal cancels/lowers unnecessary work, selected-Story continuity may remain prioritized during transition, and one stable failure for the same asset key does not create an automatic recomposition retry loop. Task 14 may add at most one viewport of manual prefetch only if measured evidence requires it; if it does, prefetch uses lower-priority/cancellable capacity and a focused test must prove prefetch cannot occupy all 8 slots while a newly visible/selected-Story request waits. Local resolver/decode failures surface as `CatalogFailure.Artwork` to the requesting cover state; they never collapse Story/Discover metadata into whole-screen failure and never expose resource IDs/technical exceptions as UI text.
+Initial manual prefetch is frozen to zero, so only composed/visible cards and the selected Story transition may own requests. Assert active jobs never exceed 8, offscreen disposal cancels/lowers unnecessary work, selected-Story continuity may remain prioritized during transition, and one stable failure for the same asset key does not create an automatic recomposition retry loop. Task 16 may add at most one viewport of manual prefetch only if measured evidence requires it; if it does, prefetch uses lower-priority/cancellable capacity and a focused test must prove prefetch cannot occupy all 8 slots while a newly visible/selected-Story request waits. Local resolver/decode failures surface as `CatalogFailure.Artwork` to the requesting cover state; they never collapse Story/Discover metadata into whole-screen failure and never expose resource IDs/technical exceptions as UI text.
 
 - [ ] **Step 3: Verify RED instrumentation compile**
 
@@ -1628,7 +1641,7 @@ Review exact cache/job ceilings, zero manual prefetch, stable failure behavior, 
 - `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/assets/CoverImagePreflight.kt`
 - JVM policy/transport tests under `feature/catalog/src/test/.../assets/` using a deterministic in-memory `RecordingRemoteCoverTransport`; no HTTP client is admitted.
 - `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/assets/CoverImagePreflightInstrumentedTest.kt` for Android bounds/decode behavior.
-- No test manifest network permission is required for these Task 11 tests: JVM policy tests use only deterministic in-memory transport responses and Android preflight uses local encoded fixtures. Task 15 controlled plugin transport is also in-memory by default.
+- No test manifest network permission is required for these Task 11 tests: JVM policy tests use only deterministic in-memory transport responses and Android preflight uses local encoded fixtures. Task 17 controlled plugin transport is also in-memory by default.
 
 **Interfaces:**
 - Presentation receives typed `CoverLocator`, never a raw plugin URL/HTTP client.
@@ -1677,7 +1690,7 @@ Agent-owned:
 
 - [ ] **Step 4: Implement policy/transport/preflight**
 
-Freeze the **transport-policy contract** to `maxRedirects = 5`, `connectTimeout = 10s`, `readTimeout = 20s`, and `callTimeout = 20s`. Apply any operation-owned coroutine deadline with `withTimeoutOrNull` (or an equivalent dedicated timeout result) and map only that owned deadline to `CatalogFailure.Artwork(TIMEOUT)`; never catch/map a broad `CancellationException`, because user/session cancellation must propagate unchanged. `RemoteCoverTransport` is the only narrow injected byte-transport port used by the fetcher. Step 2 deliberately provides **no production HTTP implementation** of that port: debug/benchmark local fixtures do not need one, release has no remote source, and Task 15 injects deterministic controlled transport. The fetch/policy layer—not the transport—owns redirect state: resolve `Location`, run `RemoteHttpsUriV1` + source-host policy on every hop, then issue the next transport request. The transport contract receives the finite timeout policy so any later admitted HTTP adapter cannot ignore it. Read/buffer with the hard 8 MiB encoded-image ceiling and close every response/body on success, redirect, rejection, timeout, and cancellation. Admit only `image/jpeg`, `image/png`, and `image/webp` initially because the Android bounds-only path is explicitly tested for them; reject other untrusted remote formats until a separate design/checkpoint admits a safe preflight path. Inspect dimensions before full decode and reject any path that cannot be safely preflighted. Benchmark/androidTest code injects an in-memory implementation of this same interface; it must not add a second image-fetch architecture. A later production remote-source admission may add an HTTP adapter + `INTERNET` only with a separate build/startup/network proof.
+Freeze the **transport-policy contract** to `maxRedirects = 5`, `connectTimeout = 10s`, `readTimeout = 20s`, and `callTimeout = 20s`. Apply any operation-owned coroutine deadline with `withTimeoutOrNull` (or an equivalent dedicated timeout result) and map only that owned deadline to `CatalogFailure.Artwork(TIMEOUT)`; never catch/map a broad `CancellationException`, because user/session cancellation must propagate unchanged. `RemoteCoverTransport` is the only narrow injected byte-transport port used by the fetcher. Step 2 deliberately provides **no production HTTP implementation** of that port: debug/benchmark local fixtures do not need one, release has no remote source, and Task 17 injects deterministic controlled transport. The fetch/policy layer—not the transport—owns redirect state: resolve `Location`, run `RemoteHttpsUriV1` + source-host policy on every hop, then issue the next transport request. The transport contract receives the finite timeout policy so any later admitted HTTP adapter cannot ignore it. Read/buffer with the hard 8 MiB encoded-image ceiling and close every response/body on success, redirect, rejection, timeout, and cancellation. Admit only `image/jpeg`, `image/png`, and `image/webp` initially because the Android bounds-only path is explicitly tested for them; reject other untrusted remote formats until a separate design/checkpoint admits a safe preflight path. Inspect dimensions before full decode and reject any path that cannot be safely preflighted. Benchmark/androidTest code injects an in-memory implementation of this same interface; it must not add a second image-fetch architecture. A later production remote-source admission may add an HTTP adapter + `INTERNET` only with a separate build/startup/network proof.
 
 - [ ] **Step 5: Implement source-policy recovery after recreation**
 
@@ -1715,11 +1728,14 @@ Review redirect loops/count, DNS/host comparison normalization, relative redirec
 - Create/modify: `catalog/runtime/src/test/kotlin/app/openstory/catalog/runtime/discover/DiscoverRefreshOwnershipTest.kt`
 - Create/modify: `catalog/runtime/src/test/kotlin/app/openstory/catalog/runtime/CatalogQuiescenceTest.kt`
 - Create/modify: `feature/catalog/src/test/kotlin/app/openstory/catalog/feature/discover/DiscoverRefreshStateTest.kt`
+- Modify: `feature/catalog/src/test/kotlin/app/openstory/catalog/feature/discover/DiscoverViewModelTest.kt`
 - Create: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/lifecycle/CatalogLifecycleInstrumentedTest.kt`
 - Modify only as required by failing tests: `DiscoverSession.kt`, `StoryDetailSession.kt`, `CatalogCapabilitySession.kt`, `DiscoverViewModel.kt`, `StoryDetailViewModel.kt`, `CatalogScreen.kt`/feature collection boundary.
 
 **Interfaces:**
 - Manual refresh for one `(CatalogSourceKey, mediaType)` joins one existing work owner; no second acquisition is launched.
+- `DiscoverViewModel` leaves Task 12 with two explicit feature intents already implemented and unit-tested: `refresh()` = normal manual source acquisition for the selected media; `retry()` = recover the currently exposed retryable failure. Retry re-activates after transient activation/storage-open failure, restarts the bounded selected-media observation after a read failure, and invokes source acquisition only for acquisition failure/when the recovered state still requires it. Both acquisition-capable paths converge on the same `refreshJob`/runtime single-flight owner.
+- Initial activation and activation Retry share one feature `activationJob`/equivalent single-flight helper; no retryable no-content action is allowed to be a decorative no-op.
 - Backgrounding starts no substitute WorkManager/scheduler/periodic owner.
 - Runtime cancellation/quiescence is testable without Android UI; actual lifecycle-aware Compose collection/disposal is connected Android evidence.
 - Existing bounded Room handle/image caches may remain dormant; quiescence means no observation/work, not forced resource churn. Final activity/capability-session destruction is different: the feature composition closes `CatalogImageSession` and runtime `CatalogCapabilitySession`; runtime then closes its owned `RoomCatalogStore` exactly once.
@@ -1736,6 +1752,13 @@ cancellation before publication      -> no partial generation/detail write
 CancellationException                 -> propagates; is not mapped to user failure
 non-cancel source/storage failures     -> typed `CatalogFailure` -> safe scoped `CatalogIssueUi`
 terminal success/failure/cancel       -> active single-flight entry removed
+Discover acquisition failure + retry     -> same guarded source-acquisition owner
+Discover transient storage-open failure + retry -> exactly one re-activation; observation resumes on success
+Discover storage-read failure + retry    -> selected-media observation restarts without erasing retained content
+Discover non-retryable failure + retry   -> no activation/acquisition side effect
+concurrent refresh()+retry()              -> at most one source acquisition
+quiesce during activation -> activation cancels; resume -> exactly one re-activation when the prior failure/state is retryable/unfinished
+successful activation/re-activation -> clears stale activation issue before observing selected media
 ```
 
 - [ ] **Step 2: Write RED runtime quiescence/repeated-activation tests**
@@ -1755,6 +1778,7 @@ Using recording read/source/image-demand ports rather than Android lifecycle obj
   --no-daemon
 ./gradlew :feature:catalog:testDebugUnitTest \
   --tests '*DiscoverRefreshStateTest*' \
+  --tests '*DiscoverViewModelTest*' \
   --no-daemon
 ./gradlew :feature:catalog:compileDebugAndroidTestKotlin --no-daemon
 ```
@@ -1763,7 +1787,7 @@ Expected: focused failures/compile gaps before lifecycle hardening exists.
 
 - [ ] **Step 5: Implement minimal hardening**
 
-Use lifecycle-aware collection (`collectAsStateWithLifecycle`/equivalent at the feature surface), session-owned child jobs, and explicit cancellation of viewport/detail demand. Keep a single feature composition owner for final teardown: STOP calls quiescence only; terminal composition/activity session disposal closes image session then runtime session/storage, each idempotently. Keep retry authority in runtime; do not put `LaunchedEffect`-driven source execution in UI. No WorkManager, AndroidX Startup, process-scope `GlobalScope`, or background retry owner is introduced.
+Use lifecycle-aware collection (`collectAsStateWithLifecycle`/equivalent at the feature surface), session-owned child jobs, and explicit cancellation of viewport/detail demand. Keep a single feature composition owner for final teardown: STOP calls quiescence only; terminal composition/activity session disposal closes image session then runtime session/storage, each idempotently. In `DiscoverViewModel`, route initial activation, retry activation, and resume-after-cancel through one guarded helper; successful activation clears stale `activationIssue` before selected-media observation; quiesce cancels screen-owned activation/observation/refresh jobs; expose `refresh()` separately from `retry()`; restart the selected-media collector after retryable storage-read failure; and converge every path that actually needs source acquisition on the same guarded `refreshJob`/runtime single-flight owner. Non-retryable issues are no-ops. Do not put `LaunchedEffect`-driven source execution in UI. No WorkManager, AndroidX Startup, process-scope `GlobalScope`, or background retry owner is introduced.
 
 - [ ] **Step 6: Run focused agent-owned GREEN checks and static scans**
 
@@ -1790,11 +1814,954 @@ Task 12 stays `READY FOR USER VERIFICATION` until the connected lifecycle result
 
 - [ ] **Step 8: Self-review, checkpoint, commit, stop**
 
-Review retained-content semantics, retry authority, cancellation propagation, lifecycle collection, terminal map/pin cleanup, STOP-vs-DESTROY resource semantics, Room/image close ownership, dormant-resource policy, and absence of a background continuation. Only after required evidence is green, commit e.g. `fix: harden catalog lifecycle and refresh ownership`. **Stop.**
+Review retained-content semantics, distinct `refresh()` versus failure-recovery `retry()` semantics, activation/read-failure recovery, one acquisition owner under concurrent refresh+retry, cancellation propagation, lifecycle collection, terminal map/pin cleanup, STOP-vs-DESTROY resource semantics, Room/image close ownership, dormant-resource policy, and absence of a background continuation. Only after required evidence is green, commit e.g. `fix: harden catalog lifecycle and refresh ownership`. **Stop.**
 
 ---
 
-# Task 13: Close storage connected verification and cross-module correctness acceptance before performance work
+# Task 13: Admit the root V2 Design System, wire Discover pull-to-refresh, and close structural presentation debt
+
+**Why this task exists now:** Tasks 8-12 intentionally prove persistence, image, acquisition, and lifecycle ownership before presentation consolidation. Task 13 establishes the **presentation foundation only**: one root visual environment, the smallest shared stateless vocabulary with proven callers, the already-owned Discover refresh gesture, and fail-closed structural/performance ratchets. **Task 13 must not redesign Discover or Story Detail, chase V1 screenshot parity, or declare the UI visually final.** The current feature geometry/content hierarchy may change only as required to consume the admitted shared primitives without altering product behavior. Task 14 starts only after Task 13 is accepted and owns visual restoration/polish against V1 reference quality.
+
+**Big Update rule:**** the 2026-09-07 red-team audit **and** its later target-architecture design are normative negative evidence for this task. Task 13 must explicitly classify the target design's **33/33 confirmed families** plus **7 risk-promotion gates** as `OWNED`, `PROTECTED`, or `N/A`; it must also preserve explicit rows for baseline `L2` and `RISK-PROVIDER` so no concern disappears merely because the later design reclassified/absorbed it. `N/A` requires a short reason proving this task creates no new path into that failure family. `PROTECTED` requires an existing Step 2 owner/gate that Task 13 leaves intact. `OWNED` requires a Task 13 test/static gate that fails when the debt shape is reintroduced. A task is not accepted merely because the UI looks correct.
+
+**Files:**
+- Create: `core/designsystem/build.gradle.kts`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariTheme.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariPalette.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariTypography.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariSpacing.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedOption.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedControl.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionHeader.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariSkeleton.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariEmptyState.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariErrorState.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/feedback/HikariInlineFeedback.kt`
+- Create: `core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt`
+- Create: `core/designsystem/src/androidTest/kotlin/app/openstory/designsystem/HikariDesignSystemContractTest.kt`
+- Create: `scripts/tests/v2-step2-designsystem-slice-test.sh`
+- Modify: `settings.gradle.kts`
+- Modify: `app/build.gradle.kts`
+- Modify: `feature/catalog/build.gradle.kts`
+- Modify: `config/architecture/module-boundaries.json`
+- Modify: `build-logic/src/main/kotlin/app/openstory/build/ArchitectureConventionPlugin.kt`
+- Modify: `build-logic/src/main/kotlin/app/openstory/build/architecture/Step2BuildSurfaceVerifier.kt`
+- Modify: `build-logic/src/test/kotlin/app/openstory/build/ModuleGraphTest.kt`
+- Modify: `build-logic/src/test/kotlin/app/openstory/build/architecture/Step2BuildSurfaceVerifierTest.kt`
+- Modify: `scripts/tests/v2-step2-build-surface-test.sh`
+- Modify: `app/src/main/kotlin/app/openstory/startup/ui/StartupGate.kt`
+- Delete after migration: `app/src/main/kotlin/app/openstory/ui/HikariBootTheme.kt`
+- Modify: `app/src/test/kotlin/app/openstory/AppShellContractTest.kt`
+- Modify: `app/src/androidTest/kotlin/app/openstory/startup/StartupSurfaceTest.kt`
+- Modify: `docs/internal/v2/v1-salvage-ledger.md`
+- Modify: `docs/ui/design-system.md`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogComposition.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogScreen.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverUiState.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverScreen.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverSections.kt`
+- Delete: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverViewportRow.kt`
+- Delete after coverage migrates: `feature/catalog/src/test/kotlin/app/openstory/catalog/feature/discover/DiscoverViewportLayoutTest.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverTestTags.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryDetailScreen.kt`
+- Modify: `feature/catalog/src/test/kotlin/app/openstory/catalog/feature/discover/DiscoverRefreshStateTest.kt`
+- Modify: `feature/catalog/src/test/kotlin/app/openstory/catalog/feature/discover/DiscoverViewModelTest.kt`
+- Modify: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/discover/DiscoverScreenInstrumentedTest.kt`
+- Create: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/story/StoryDetailScreenInstrumentedTest.kt`
+- Modify: `docs/internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`
+- Do **not** modify Catalog Room/runtime acquisition contracts, `feature/catalog/.../assets` fetch/cache/security code, Story route identity, retention/pin behavior, or benchmark thresholds unless a focused regression proves Task 13 itself broke an existing contract.
+
+**Interfaces:**
+- Final exact production edges introduced/changed by this task:
+  - `:app -> :feature:catalog, :core:designsystem`
+  - `:feature:catalog -> :catalog:domain, :catalog:runtime, :core:designsystem`
+  - `:core:designsystem -> []`
+- `:app -> :feature:catalog` remains the **only product/capability edge** from the app shell. `:app -> :core:designsystem` is classified separately as presentation infrastructure. App production code may import only `app.openstory.catalog.feature.CatalogEntryPoint` from Catalog and only `app.openstory.designsystem.theme.HikariTheme` from the Design System.
+- Root theme ownership is application composition, not feature composition:
+
+```kotlin
+@Composable
+internal fun HikariStartupApp() {
+    val darkTheme = isSystemInDarkTheme()
+    HikariTheme(darkTheme = darkTheme) {
+        HikariBootSurface {
+            StartupGate(
+                store = store,
+                firstFrameReached = firstFrameReached,
+            )
+        }
+    }
+}
+```
+
+`CatalogEntryPoint()` must not install another `MaterialTheme`/`HikariTheme`. FirstRun/Unknown keep their existing state/actions/layout ownership and simply consume the root Hikari visual environment. Keep the Step 1 light/dark root background exact (`Color.White` / `Color.Black`) so the Compose first surface still matches the existing window background and does not introduce a splash-to-content color flash.
+- The Step 2 Design System owns **no work**. It has no repository/domain/runtime types, no I/O, no coroutine/Flow collector, no lifecycle observer, no app-owned/custom semantic mutable state, no cache/registry/singleton work owner, no navigation state, and no image/network path. State enters through parameters; events leave through callbacks. Material3's bounded internal pull-gesture state is allowed only inside the enabled pull-refresh primitive and must disappear entirely from the disabled branch.
+- The public Step 2 surface is deliberately smaller than the earlier proposed slice:
+  - `@Composable fun HikariTheme(darkTheme: Boolean, content: @Composable () -> Unit)`
+  - `val MaterialTheme.hikariSpacing: HikariSpacing`
+  - `data class HikariSegmentedOption<T>(val key: T, val label: String, val enabled: Boolean = true)`
+  - `@Composable fun <T> HikariSegmentedControl(options: List<HikariSegmentedOption<T>>, selectedKey: T, onSelected: (T) -> Unit, modifier: Modifier = Modifier)`
+  - `@Composable fun HikariSectionHeader(title: String, modifier: Modifier = Modifier)`
+  - `@Composable fun HikariSkeleton(modifier: Modifier = Modifier, shape: Shape)`
+  - `@Composable fun HikariEmptyState(title: String, modifier: Modifier = Modifier, body: String? = null)`
+  - `@Composable fun HikariErrorState(title: String, modifier: Modifier = Modifier, body: String? = null, actionLabel: String? = null, actionEnabled: Boolean = true, onAction: (() -> Unit)? = null)`
+  - `@Composable fun HikariInlineFeedback(message: String, modifier: Modifier = Modifier, actionLabel: String? = null, actionEnabled: Boolean = true, onAction: (() -> Unit)? = null)`
+  - `@Composable fun HikariPullToRefresh(refreshing: Boolean, enabled: Boolean = true, onRefresh: () -> Unit, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit)`
+- Do **not** create public `HikariDimensions`, `HikariSemanticShapes`, `HikariText`, `HikariRow/Column/Box`, generic card wrappers, artwork APIs, snackbar/navigation hosts, or motion abstractions in Step 2. `MaterialTheme.colorScheme`, `typography`, and `shapes` are already normalized by `HikariTheme`; a second public token hierarchy without a proven caller is rejected.
+- `HikariSegmentedControl` is a bounded small-choice primitive: require **2..5 options**, unique keys, and a selected key present in the list. Validate with direct indexed comparisons over the already-bounded input; do not allocate `map`/`distinct`/`toSet`/`groupBy`/temporary-key collections on recomposition merely to prove uniqueness. This prevents the generic shared control from becoming an unbounded row/list abstraction or a tiny recurring allocation source.
+- `HikariPullToRefresh` owns only Material3 gesture/indicator/accessibility presentation. It dispatches no callback when `enabled == false` or `refreshing == true`; it launches no coroutine and owns no single-flight state. It must use the caller-provided `modifier` as its sizing contract, never append `fillMaxSize`, `verticalScroll`, `LazyColumn`/grid, or any scroll state. When `enabled == false`, render the content through a plain `Box` branch and do **not** compose `PullToRefreshBox`/gesture state at all. `DiscoverViewModel.refresh()` remains the feature entry to Task 12's one runtime foreground refresh owner.
+- Consume the **two user intents / one acquisition-owner** contract already accepted by Task 12: `DiscoverViewModel.refresh()` is normal manual acquisition and `DiscoverViewModel.retry()` is failure recovery. Task 13 does not change their orchestration. `CatalogScreenActions` exposes both `onDiscoverRefresh` and `onDiscoverRetry`; `DiscoverScreen` routes the pull gesture only to `onDiscoverRefresh` and visible failure actions only to `onDiscoverRetry`. Story Detail keeps its separate `StoryDetailViewModel.retry()` and does not gain pull refresh.
+- Remove `DiscoverUiState.mediaOptions` and `DiscoverMediaOption`. Manga/Light-Novel availability is frozen Step 2 presentation policy, not mutable runtime state; `DiscoverScreen` owns one immutable `List<HikariSegmentedOption<CatalogMediaType>>` constant and `DiscoverUiState` retains only the selected media plus content state.
+- `CoverArtwork`, `CoverAssetKey`, source policy, encoded/disk/decoded caches, preflight/decode, request priority and image concurrency are unchanged by Task 13.
+- **Visual non-goal:** Task 13 does not convert Popular into a hero, change Latest density/grid strategy, redesign Top Rated rows, change Story Detail hero/cover geometry, add responsive two-pane composition, rewrite product copy for visual tone, or attempt screenshot parity with V1. Those decisions belong to Task 14. Task 13 may only make the minimum caller-side layout edits necessary to replace generic shared chrome while preserving one vertical scroll owner, existing stable keys/caps, image ownership, and state semantics.
+
+- [ ] **Step 1: Freeze RED graph, root-theme ownership, and pre-benchmark debt contracts**
+
+Extend `Step2BuildSurfaceVerifierTest`, `ModuleGraphTest`, and `AppShellContractTest` before creating the module. Add exact failing tests for:
+
+```text
+module set adds :core:designsystem only at Task 13
+:core:designsystem.productionDependencies == []
+:feature:catalog.productionDependencies == [:catalog:domain, :catalog:runtime, :core:designsystem]
+:app.productionDependencies == [:core:designsystem, :feature:catalog]
+:app has exactly one product/capability edge: :feature:catalog
+app Catalog imports allow exactly app.openstory.catalog.feature.CatalogEntryPoint
+app Design System imports allow exactly app.openstory.designsystem.theme.HikariTheme
+any other app -> designsystem component/state/control import is rejected
+any project dependency from :core:designsystem is rejected
+Room/Coil/coil-network/OkHttp/raw HTTP/backdrop/JavaScriptEngine/WorkManager dependency in :core:designsystem is rejected
+Catalog/Room/Coil/HTTP/plugin imports from core/designsystem/src/main are rejected
+:core:designsystem participates in production package-SCC verification
+HikariStartupApp owns HikariTheme
+CatalogEntryPoint owns no HikariTheme/MaterialTheme root
+HikariBootTheme is absent after migration
+```
+
+Also update the V1 salvage ledger classification to `REDESIGN | REFERENCE`: V1 theme/interaction semantics are evidence, but its module/build/test/artwork/backdrop/network surface is not an approved transplant.
+
+- [ ] **Step 2: Run the focused architecture tests and confirm RED for the intended missing admission**
+
+```bash
+./gradlew :build-logic:test \
+  --tests '*Step2BuildSurfaceVerifierTest*' \
+  --tests '*ModuleGraphTest*' \
+  :app:testDebugUnitTest \
+  --no-daemon
+```
+
+Expected before Task 13 production changes: FAIL specifically because `:core:designsystem`, the two reviewed consumer edges, and root `HikariTheme` ownership do not exist yet. Unrelated failures do not count as the RED proof.
+
+- [ ] **Step 3: Admit the minimal module and distinguish product edges from presentation infrastructure**
+
+Create `core/designsystem/build.gradle.kts` with only the existing Android-library + Compose conventions and Material3/Foundation/UI dependencies:
+
+```kotlin
+plugins {
+    id("openstory.android.library")
+    id("openstory.compose")
+}
+
+android {
+    namespace = "app.openstory.designsystem"
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+}
+
+dependencies {
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.material3)
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+```
+
+Then update the exact graph:
+
+```text
+settings.gradle.kts:
+  include(":core:designsystem")
+
+app/build.gradle.kts:
+  implementation(project(":core:designsystem"))
+
+feature/catalog/build.gradle.kts:
+  implementation(project(":core:designsystem"))
+
+module-boundaries.json:
+  :app productionDependencies = [:core:designsystem, :feature:catalog]
+  :core:designsystem platform=android-library, dependencyMode=exact, project deps=[]
+  :feature:catalog productionDependencies = [:catalog:domain, :catalog:runtime, :core:designsystem]
+```
+
+Update `ArchitectureConventionPlugin.STEP2_MODULE_DIRECTORIES`, `Step2BuildSurfaceVerifier.EXPECTED_GRAPH/STEP2_MODULES`, `ModuleGraphTest`, and shell/build-surface fixtures. Do not loosen app Catalog import authority while allowing the new presentation edge. Do not add Coil/Room/HTTP allowances for the shared module.
+
+Run:
+
+```bash
+./gradlew :build-logic:test verifyArchitecture :core:designsystem:assembleDebug --no-daemon
+```
+
+Expected: GREEN for the exact graph, including two direct app project edges but still exactly one app product/capability edge.
+
+- [ ] **Step 4: Write RED shared-component and root-theme behavior contracts**
+
+Create `HikariDesignSystemContractTest` and update `StartupSurfaceTest` first. Freeze:
+
+```text
+HikariTheme:
+  - explicit darkTheme input; no internal settings/DataStore/context lookup
+  - light background remains Color.White; dark background remains Color.Black so HikariBootSurface still matches the window background
+  - exposes one stable immutable HikariSpacing singleton through `MaterialTheme.hikariSpacing`; no CompositionLocal is added for a value that never varies in Step 2
+  - applies reviewed typography and Material3 shape family
+  - has no progress, loading, acquisition, lifecycle, or navigation semantics
+HikariSegmentedControl:
+  - rejects <2 or >5 options
+  - rejects duplicate keys and missing selectedKey
+  - exactly one option selected
+  - disabled option never dispatches
+  - each target preserves >=48.dp interactive height
+  - validation uses the bounded input directly and does not build a key list/set (`map`, `distinct`, `toSet`, `groupBy`, `buildList`) during composition
+HikariSectionHeader:
+  - exposes heading semantics
+HikariSkeleton:
+  - static geometry only; no progress semantics or animation
+HikariEmptyState:
+  - title/body only; no implicit Refresh/retry action
+  - does not own a scroll container or force fillMaxSize; caller controls placement/available height
+HikariErrorState / HikariInlineFeedback:
+  - `actionLabel` and `onAction` are either both absent or both present; reject a dead label/callback mismatch
+  - optional visible action dispatches exactly once when enabled and dispatches zero callbacks when disabled
+  - do not own a scroll container/lifecycle collector or force full-screen geometry
+HikariPullToRefresh:
+  - idle+enabled exposes accessibility action "Refresh" and dispatches exactly once
+  - refreshing exposes "Refreshing" state and dispatches zero additional callbacks
+  - disabled exposes no Refresh action and renders content normally without composing Material3 pull-gesture state
+  - never forces `fillMaxSize` and never owns vertical/horizontal scroll state; the feature remains the sole scroll owner
+StartupSurface:
+  - Unknown and FirstRun still render under root HikariTheme
+  - neither surface composes Catalog content
+  - existing startup actions/semantics remain unchanged
+```
+
+Run:
+
+```bash
+./gradlew :core:designsystem:compileDebugAndroidTestKotlin \
+  :app:compileDebugAndroidTestKotlin \
+  --no-daemon
+```
+
+Expected before implementation: compile failure because the frozen Design System API does not exist yet.
+
+- [ ] **Step 5: Implement only stable theme/tokens/primitives; no hidden work is allowed**
+
+Implement the minimum reviewed vocabulary:
+
+```text
+HikariSpacing = one stable immutable 4 / 8 / 12 / 16 / 20 / 24 / 32.dp singleton exposed through MaterialTheme.hikariSpacing; do not add a CompositionLocal for this fixed Step 2 value
+Hikari palette = salvage the exact reviewed V1 Material3 base roles frozen below, with only `background` changed to Step 1 exact white/black for window continuity; do not salvage V1 semantic-color/brush locals
+Hikari typography = salvage the exact reviewed V1 base Material3 `Typography` frozen below; do not salvage `HikariSemanticTypography`/its CompositionLocal and do not add runtime font loading
+Hikari palette/typography/shape constants stay internal; consumers read them through MaterialTheme rather than a second public token API
+Hikari shapes = configure MaterialTheme.shapes internally from the reviewed V1 base family (8/12/20/28/36.dp); do not expose a second public semantic-shape token type
+HikariSkeleton = one caller-sized MaterialTheme surface fill; no shimmer
+HikariSegmentedControl = Material3 single-choice segmented row, bounded 2..5 options; validate size/selection/unique keys with direct indexed loops over the bounded list and create no temporary key collection
+HikariSectionHeader = title + heading semantics only
+HikariEmptyState = generic caller-sized title/body surface only; no fillMaxSize/scroll ownership
+HikariErrorState = generic caller-sized title/body + validated optional action pair; no fillMaxSize/scroll ownership
+HikariInlineFeedback = compact caller-sized message + validated optional action pair; no domain failure type or scroll/lifecycle ownership
+HikariPullToRefresh = Material3 PullToRefreshBox/default cheap indicator only when enabled; disabled branch is a plain caller-sized Box; no forced fillMaxSize, no scroll owner, no custom layer/blur/shadow
+```
+
+Freeze the visual token baseline so execution does not invent a new palette while "polishing":
+
+```kotlin
+// HikariPalette.kt — exact R2.4 Step 2 base roles.
+private val Coral = Color(0xFFFF7461)
+private val CoralLight = Color(0xFFFFDAD4)
+private val Teal = Color(0xFF2E8B80)
+private val TealLight = Color(0xFFB4CCC6)
+private val Cream = Color(0xFFF6F0E8)
+private val Paper = Color(0xFFFFF9F2)
+private val WarmSurfaceContainer = Color(0xFFF2EAE1)
+private val WarmSurfaceContainerHigh = Color(0xFFEFE6DD)
+private val WarmSurfaceContainerHighest = Color(0xFFECE3DA)
+private val WarmSurfaceDim = Color(0xFFDED4CB)
+private val Ink = Color(0xFF241A17)
+private val MutedInk = Color(0xFF665F5B)
+private val DarkSurface = Color(0xFF18211D)
+private val DarkSurfaceRaised = Color(0xFF24302A)
+private val DarkSurfaceLow = Color(0xFF141C18)
+private val DarkSurfaceHigh = Color(0xFF1E2924)
+private val DarkText = Color(0xFFF1EDE6)
+
+internal val HikariLightColorScheme = lightColorScheme(
+    primary = Coral,
+    onPrimary = Color.White,
+    primaryContainer = CoralLight,
+    onPrimaryContainer = Color(0xFF3B0903),
+    secondary = Teal,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFCDE8E2),
+    onSecondaryContainer = Color(0xFF06201C),
+    tertiary = Color(0xFF51734F),
+    onTertiary = Color.White,
+    background = Color.White, // Step 1 window/first-frame continuity; intentionally not V1 Cream.
+    onBackground = Ink,
+    surface = Paper,
+    onSurface = Ink,
+    surfaceVariant = WarmSurfaceContainerHighest,
+    onSurfaceVariant = MutedInk,
+    surfaceBright = Paper,
+    surfaceDim = WarmSurfaceDim,
+    surfaceContainerLowest = Paper,
+    surfaceContainerLow = Cream,
+    surfaceContainer = WarmSurfaceContainer,
+    surfaceContainerHigh = WarmSurfaceContainerHigh,
+    surfaceContainerHighest = WarmSurfaceContainerHighest,
+    outline = Color(0xFF85736D),
+    outlineVariant = Color(0xFFD8C8C1),
+    error = Color(0xFFBA1A1A),
+)
+
+internal val HikariDarkColorScheme = darkColorScheme(
+    primary = Color(0xFFFF8B79),
+    onPrimary = Color(0xFF5D160C),
+    primaryContainer = Color(0xFF7C2D20),
+    onPrimaryContainer = CoralLight,
+    secondary = Color(0xFF8FD5CA),
+    onSecondary = Color(0xFF003730),
+    secondaryContainer = Color(0xFF145047),
+    onSecondaryContainer = Color(0xFFACEFE4),
+    tertiary = Color(0xFFA5CFA2),
+    onTertiary = Color(0xFF113817),
+    background = Color.Black, // Step 1 window/first-frame continuity; intentionally not V1 #101714.
+    onBackground = DarkText,
+    surface = DarkSurface,
+    onSurface = DarkText,
+    surfaceVariant = DarkSurfaceRaised,
+    onSurfaceVariant = TealLight,
+    surfaceBright = DarkSurfaceRaised,
+    surfaceDim = Color(0xFF101714),
+    surfaceContainerLowest = Color(0xFF101714),
+    surfaceContainerLow = DarkSurfaceLow,
+    surfaceContainer = DarkSurface,
+    surfaceContainerHigh = DarkSurfaceHigh,
+    surfaceContainerHighest = DarkSurfaceRaised,
+    outline = Color(0xFFA9958E),
+    outlineVariant = Color(0xFF54443F),
+    error = Color(0xFFFFB4AB),
+)
+
+// HikariTypography.kt — exact V1 base Material3 family, no semantic typography local.
+private val SerifDisplay = FontFamily.Serif
+private val SansBody = FontFamily.SansSerif
+
+internal val HikariTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = SerifDisplay,
+        fontWeight = FontWeight.Bold,
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp,
+    ),
+    displayMedium = TextStyle(fontFamily = SerifDisplay, fontWeight = FontWeight.Bold, fontSize = 45.sp, lineHeight = 52.sp),
+    displaySmall = TextStyle(fontFamily = SerifDisplay, fontWeight = FontWeight.Bold, fontSize = 36.sp, lineHeight = 44.sp),
+    headlineLarge = TextStyle(fontFamily = SerifDisplay, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 40.sp),
+    headlineMedium = TextStyle(fontFamily = SerifDisplay, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 36.sp),
+    headlineSmall = TextStyle(fontFamily = SerifDisplay, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 32.sp),
+    titleLarge = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp),
+    titleMedium = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 24.sp),
+    titleSmall = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
+    bodyLarge = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
+    bodySmall = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 16.sp),
+    labelLarge = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp),
+    labelMedium = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 16.sp),
+    labelSmall = TextStyle(fontFamily = SansBody, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, lineHeight = 16.sp),
+)
+
+internal val HikariShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(28.dp),
+    extraLarge = RoundedCornerShape(36.dp),
+)
+```
+
+Do not change these font family/weight/size/line-height/letter-spacing values in Task 13. Do not introduce V1 `HikariSemanticTypography`, semantic colors/brushes, opacity, dimensions, breakpoints, layout ratios/policy, glyph geometry, motion policy, or their `CompositionLocal`s.
+
+Lock the two allocation/ownership-sensitive primitives to these implementation shapes (equivalent code is allowed only if the same tests/static gates prove the same properties):
+
+```kotlin
+object HikariSpacing {
+    val space4 = 4.dp
+    val space8 = 8.dp
+    val space12 = 12.dp
+    val space16 = 16.dp
+    val space20 = 20.dp
+    val space24 = 24.dp
+    val space32 = 32.dp
+}
+
+val MaterialTheme.hikariSpacing: HikariSpacing
+    get() = HikariSpacing
+
+private fun <T> validateSegmentedOptions(
+    options: List<HikariSegmentedOption<T>>,
+    selectedKey: T,
+) {
+    require(options.size in 2..5)
+    var selectedFound = false
+    for (i in options.indices) {
+        if (options[i].key == selectedKey) selectedFound = true
+        for (j in (i + 1) until options.size) {
+            require(options[i].key != options[j].key)
+        }
+    }
+    require(selectedFound)
+}
+```
+
+The `O(n^2)` uniqueness check is intentional here: with `n <= 5` it performs at most ten key comparisons and avoids a recurring temporary collection. Do not replace it with a theoretically more scalable hash/set pipeline for this bounded UI control.
+
+`HikariPullToRefresh` follows this branch ownership:
+
+```kotlin
+if (!enabled) {
+    Box(modifier = modifier, content = content)
+    return
+}
+
+PullToRefreshBox(
+    isRefreshing = refreshing,
+    onRefresh = { if (!refreshing) onRefresh() },
+    modifier = modifier,
+    content = content,
+)
+```
+
+Accessibility semantics may decorate the same caller modifier, but must not require a second outer scroll/sizing container or an app-owned remembered state.
+
+Keep light/dark color schemes, typography, shapes, and the spacing singleton as stable top-level immutable values so ordinary recomposition does not recreate token graphs. `HikariTheme` selects between those existing values only. Use platform/Compose typography in Step 2: no runtime font resolver, downloadable font, resource decoding, or Context lookup. The Design System must not call `LocalContext`, read preferences, create a service, allocate a cache, or start work.
+
+- [ ] **Step 6: Move HikariTheme to the app root and remove the temporary boot-theme fork**
+
+Change `HikariStartupApp()` to compute the existing system light/dark choice and install `HikariTheme` **outside** `HikariBootSurface`. Preserve `withFrameNanos`, launch-state resolution, `Ready && firstFrameReached`, and `CatalogEntryPoint()` timing exactly.
+
+Delete `HikariBootTheme.kt` after all callers/tests migrate; do not leave an unused compatibility wrapper. Update `StartupSurfaceTest` to wrap surfaces with `HikariTheme(darkTheme = false/true)` as appropriate. Update `CatalogEntryPoint()` so it only enters Catalog composition and does not nest another theme/surface merely for styling.
+
+Add/retain static assertions that `HikariTheme` does not cause Catalog composition during Unknown/FirstRun and that root theming introduces no provider/initializer/permission.
+
+Run focused regression:
+
+```bash
+./gradlew :app:testDebugUnitTest \
+  :app:compileDebugAndroidTestKotlin \
+  :feature:catalog:compileDebugKotlin \
+  --no-daemon
+```
+
+Expected: GREEN; Step 1 launch-state/first-frame gate is behaviorally unchanged apart from consuming the final Hikari visual vocabulary.
+
+- [ ] **Step 7: Write RED Catalog interaction tests before minimal shared-primitive migration**
+
+Update `DiscoverRefreshStateTest`, `DiscoverScreenInstrumentedTest`, and create `StoryDetailScreenInstrumentedTest`. Freeze:
+
+```text
+Discover Published(content)/Published(empty):
+  - exactly one accessibility Refresh action on the refreshable container
+  - idle action invokes onRefresh once
+  - refreshing state rejects a second dispatch
+  - existing cards/empty state remain visible during refresh
+  - retryable refresh failure retains usable content + visible Try again
+  - pull Refresh and issue Retry may be invoked close together but source acquisition still has one active owner
+Discover Absent/no-content loading/failure:
+  - no pull Refresh action
+  - retryable no-content failure keeps explicit Try again
+  - non-retryable failure exposes no dead action
+  - Task 12 activation/open-storage Retry remains actionable and single-flight through UI wiring
+  - Task 12 storage-read Retry remains actionable through UI wiring; usable prior content is never erased
+Discover presentation:
+  - no feature-local full-width LinearProgressIndicator for refresh
+  - successful Empty has no visible manual Refresh button
+  - Manga and Light Novel remain enabled
+  - `DiscoverUiState` does not carry a static media-option list; the two frozen options are one immutable presentation constant
+  - shared segmented/header/state primitives are consumed
+  - exactly one vertical LazyColumn scroll owner remains
+  - sections are emitted directly into `LazyListScope`; no `flatMap(...viewportRows)` intermediate list or `DiscoverViewportRow` wrapper objects remain
+  - section order/caps/stable header/carousel/card keys are unchanged
+  - skeleton geometry remains stable/static
+Story Detail:
+  - summary/cover stay visible while rich metadata loads/fails
+  - metadata loading uses bounded static skeleton geometry
+  - retryable metadata failure uses shared inline feedback + visible Try again
+  - no pull Refresh action
+  - no Chapters/Reader CTA
+```
+
+Tests may assert shared public accessibility semantics, but feature tests must not couple to private Design System test tags or implementation structure.
+
+- [ ] **Step 8: Migrate only shared chrome/refresh callers; preserve current visual composition for Task 14**
+
+Make the smallest production changes that satisfy Step 7:
+
+```text
+Task 12 already provides DiscoverViewModel.refresh() and DiscoverViewModel.retry() with distinct tested semantics and one source-acquisition owner
+CatalogScreenActions keeps onDiscoverRetry and adds onDiscoverRefresh
+CatalogComposition wires onDiscoverRefresh = discoverViewModel::refresh and onDiscoverRetry = discoverViewModel::retry
+pull gesture calls onDiscoverRefresh; visible Try again calls onDiscoverRetry
+```
+
+Do **not** reopen Task 12 acquisition/activation/observation orchestration in this UI task. If a Task 13 interaction test reveals that `refresh()`/`retry()` semantics are wrong, stop and fix/re-verify the Task 12 owner first rather than adding a second recovery path in Compose or Design System.
+
+For Discover:
+
+- **preserve the current section composition/layout strategy in Task 13**; do not redesign Popular/Latest/Top Rated presentation, card density, artwork prominence, responsive composition, or user-facing product copy merely because V1 differs; Task 14 owns those choices after this foundation is green;
+- keep the existing `LazyListState` and exactly one vertical `LazyColumn`;
+- enable `HikariPullToRefresh` only for `Empty`/`Content`; derive `refreshing` only from those durable states;
+- replace the FilterChip row with `HikariSegmentedControl`;
+- delete `DiscoverMediaOption`/`DiscoverUiState.mediaOptions`; define one top-level immutable `DISCOVER_MEDIA_OPTIONS: List<HikariSegmentedOption<CatalogMediaType>> = listOf(...)` literal for the frozen Manga/Light-Novel choices so ViewModel state does not carry or recreate static presentation policy; do not derive it with `CatalogMediaType.entries.map` or rebuild it in a composable;
+- replace repeated heading chrome with `HikariSectionHeader`;
+- consume `MaterialTheme.hikariSpacing` for repeated generic 4/8/12/16/20/24/32.dp padding/gap roles that already match the admitted scale; keep feature-specific cover sizes/aspect ratios and odd geometry local rather than inventing more tokens merely to eliminate every literal;
+- migrate generic rounded-surface roles from local `RoundedCornerShape(...)` instances to the root `MaterialTheme.shapes` family where the role is equivalent (for example hero/card/state/skeleton chrome); do not create a public `HikariSemanticShapes` layer;
+- replace skeleton fills with `HikariSkeleton` without changing tested width/height/aspect geometry;
+- use `HikariInlineFeedback` for retained refresh issues, `HikariEmptyState` for successful empty, and `HikariErrorState` for no-content failure;
+- delete `refreshIndicator()`/`LinearProgressIndicator`, `DiscoverTestTags.REFRESHING`, and the successful-empty `Refresh` button;
+- preserve section caps 5/9/5 and stable keys;
+- replace `content.sections.flatMap(DiscoverSectionUi::viewportRows)` with a focused `LazyListScope` extension that emits each bounded section directly; delete `DiscoverViewportRow` and the now-redundant row-shape unit test after equivalent section order/cap/stable-key coverage exists in existing ViewModel + connected UI tests. Do not introduce a replacement presentation model solely to preserve the old abstraction.
+
+For Story Detail:
+
+- **preserve the existing content/layout composition in Task 13** except for replacing shared loading/failure chrome; do not change cover aspect/hero geometry, metadata grouping, responsive layout, typography hierarchy, or product copy for visual parity yet; Task 14 owns that redesign;
+- consume root Material/Hikari theme; do not install another theme;
+- replace only metadata loading/failure chrome with shared static skeleton/inline feedback;
+- keep cover/image and route semantics unchanged;
+- keep standard one-off Material controls direct when a Hikari wrapper would add no stable rule;
+- do not add pull refresh, a second source operation, Chapters/Reader, or new data observation.
+
+Small bounded string joining/sorting that is already capped by Step 2 is **not** a reason to expand Task 13 into new UI-state/domain models; the Big Update audit explicitly separates small bounded work from structural defects.
+
+- [ ] **Step 9: Add the fail-closed pre-benchmark Design System debt gate**
+
+Expand `v2-step2-designsystem-slice-test.sh` so it rejects both dependency creep and hidden-work creep. It must fail if production `core/designsystem` contains any of:
+
+```text
+project(
+coil / coil-network / okhttp / java.net / Room / WorkManager / JavaScriptEngine
+backdrop / blur / glass / Roborazzi / Robolectric
+app.openstory.catalog.* / app.openstory.plugins.* / feature/domain/runtime imports
+LaunchedEffect / DisposableEffect / SideEffect / produceState
+rememberCoroutineScope / CoroutineScope / launch( / async(
+Flow / StateFlow / SharedFlow / collectAsState / collectAsStateWithLifecycle
+LocalContext / LocalLifecycleOwner / LocalViewModelStoreOwner
+CompositionLocalProvider / staticCompositionLocalOf / compositionLocalOf
+remember( / rememberSaveable / rememberUpdatedState / derivedStateOf
+mutableStateOf / mutableStateListOf / mutableStateMapOf
+LazyColumn / LazyRow / LazyVerticalGrid / LazyHorizontalGrid / verticalScroll / horizontalScroll / rememberScrollState / LazyListState / ScrollState / HorizontalPager / VerticalPager / fillMaxSize
+rememberInfiniteTransition / infiniteRepeatable / Animatable / AnimatedVisibility / Crossfade / animate*AsState / shimmer
+Brush. / Shader / RenderEffect / graphicsLayer / drawWithCache / Modifier.shadow( / dropShadow
+androidx.compose.ui.text.googlefonts / GoogleFont / ResourcesCompat / downloadable font / runtime font resolver
+service locator / registry / cache singleton / worker / initializer/provider/service/receiver ownership
+```
+
+For this small Step 2 slice, shared components are intentionally free of app-owned semantic state/effects/work. The one narrow exception is Material3's transient internal pull-gesture state, and only in the `enabled == true` branch of `HikariPullToRefresh`; disabled refresh must be a plain `Box`. Any later need for internal asynchronous/stateful behavior requires a separate reviewed admission rather than silently weakening this gate.
+
+The slice gate also freezes an **exact production source/API budget** before benchmark. Production `core/designsystem/src/main` may contain only the Task 13 files listed in this task. Public top-level surface is limited to `HikariTheme`, `HikariSpacing`/`MaterialTheme.hikariSpacing`, `HikariSegmentedOption`, `HikariSegmentedControl`, `HikariSectionHeader`, `HikariSkeleton`, `HikariEmptyState`, `HikariErrorState`, `HikariInlineFeedback`, and `HikariPullToRefresh`; palette/typography/shape implementation symbols remain `internal`/`private`. Any new Design System production file or public primitive requires an explicit reviewed admission rather than entering silently before benchmark.
+
+Apply the Structural Simplification audit as a second surface ratchet: every admitted public symbol must have at least one **production** caller by the end of Task 13 and a written semantic reason in `docs/ui/design-system.md`; test-only reachability does not count. Freeze this caller map:
+
+```text
+HikariTheme -> app/HikariStartupApp
+MaterialTheme.hikariSpacing -> Discover and/or Story generic chrome
+HikariSegmentedOption + HikariSegmentedControl -> Discover media selector
+HikariSectionHeader -> Discover semantic section heading
+HikariSkeleton -> Discover + Story loading geometry
+HikariEmptyState -> Discover durable successful-empty presentation
+HikariErrorState -> Discover no-content failure presentation
+HikariInlineFeedback -> retained Discover issue + Story metadata issue
+HikariPullToRefresh -> Discover durable published states only
+```
+
+If a symbol has no production caller after migration, remove it from Task 13 rather than keeping it for future use. Do **not** add a generic `HikariStateContent`, `HikariText`, layout wrapper, or base-card abstraction merely to deduplicate a few Compose lines; the structural audit explicitly prefers small local duplication over a parameter-heavy abstraction that hides visual intent.
+
+The same script/build verifier must also fail if:
+
+```text
+app imports a designsystem package other than theme.HikariTheme
+CatalogEntryPoint installs HikariTheme/MaterialTheme
+feature Discover uses Material3 PullToRefreshBox directly instead of HikariPullToRefresh
+StoryDetailScreen uses HikariPullToRefresh
+Discover reintroduces LinearProgressIndicator or a normal successful-empty Refresh button
+DiscoverUiState reintroduces mediaOptions/DiscoverMediaOption static presentation policy
+Discover reintroduces `flatMap(DiscoverSectionUi::viewportRows)`, `DiscoverViewportRow`, or another per-render flattened row list
+core/designsystem public API adds Dimensions/SemanticShapes/Text/Row/Column/Box/artwork/navigation hosts without a reviewed Task 13 caller
+any admitted public Design System symbol has zero production callers or exists only for tests/future speculation
+a generic shared helper/base component is introduced solely to DRY a few lines without owning a stable semantic rule
+feature Catalog keeps generic `RoundedCornerShape(...)`/matching raw spacing literals where an admitted MaterialTheme shape/HikariSpacing role already exists, unless the literal is explicitly documented as feature geometry
+HikariSegmentedControl validation uses `map`/`distinct`/`toSet`/`groupBy`/`buildList` or another temporary collection to validate the bounded option set
+HikariPullToRefresh appends `fillMaxSize`, owns a scroll state/container, explicitly remembers gesture state, or composes `PullToRefreshBox` when `enabled == false`
+HikariTheme.kt constructs `lightColorScheme`/`darkColorScheme`/`Typography`/`Shapes` inside composition instead of selecting stable top-level values
+core/designsystem adds a CompositionLocal/CompositionLocalProvider for fixed Step 2 tokens or a runtime/downloadable-font path
+docs/ui/design-system.md still actively requires `MaterialTheme.hikariDimensions`, `MaterialTheme.hikariShapes`/semantic shapes, Hikari custom shadow/backdrop, a blanket no-local-dp rule, or Story/Chapters pull-to-refresh
+```
+
+Rewrite `docs/ui/design-system.md` as the **active V2 Step 2 canonical policy**, not an append-only amendment to the copied V1 document. Remove stale active rules that would force unadmitted V1 surface back into V2 (for example public `hikariDimensions`/semantic-shape families, feature-wide ban on all local `dp`, Hikari custom shadow/backdrop requirements, app-wide shared component catalog, and Story/Chapters pull-to-refresh claims). The rewritten document must contain only: root `HikariTheme` ownership; stable palette/typography/Material3 shapes + fixed Hikari spacing scale; exact admitted public primitive/caller map; Material-direct rule; caller-sized/no-scroll shared-state rule; Discover-only pull-refresh semantics; feature-owned copy/state/geometry/image/acquisition; accessibility; and the explicit non-goal list. Record V1 artwork/network/backdrop/full component catalog and the old pull-refresh policy in `v1-salvage-ledger.md` as reference-only rather than leaving contradictory canonical text active.
+
+Run:
+
+```bash
+bash scripts/tests/v2-step2-designsystem-slice-test.sh
+./gradlew :build-logic:test verifyArchitecture \
+  :core:designsystem:assembleDebug \
+  :feature:catalog:testDebugUnitTest \
+  :app:testDebugUnitTest \
+  :core:designsystem:compileDebugAndroidTestKotlin \
+  :feature:catalog:compileDebugAndroidTestKotlin \
+  :app:compileDebugAndroidTestKotlin \
+  --no-daemon
+```
+
+Expected: all host/static/compile gates GREEN.
+
+- [ ] **Step 10: Execute the full Big Update regression matrix before any benchmark work**
+
+Record this matrix in the Step 2 checkpoint with `status`, `Task 13 evidence`, and `reason` for **every** row. This is intentionally broader than the UI code touched by Task 13: the point is to prove the new root Design System/pull-refresh surface does not recreate an old V1 work path before quantitative benchmarking.
+
+Use the later Big Update target architecture as the primary superset: **33 confirmed families + 7 risk-promotion gates**. Preserve two legacy rows from the baseline audit (`L2`, `RISK-PROVIDER`) because they were reclassified/absorbed later and remain directly useful to Step 2. Minimum classification:
+
+| Audit family | Task 13 classification / required evidence |
+|---|---|
+| A1 | `PROTECTED` — refresh delegates to the existing bounded Task 12 acquisition path; no global reconciliation-index construction is added |
+| A2 | `N/A` — no request/provider ingest-session fork/index rebuild is added |
+| A3 | `N/A` — no Story-ID allocation or all-Story scan is added |
+| A5 | `PROTECTED` — shared UI performs no projection lookup/data read; existing keyed/bounded repository path remains authoritative |
+| A6 | `N/A` — no redirect/identity resolution is added |
+| A7 | `PROTECTED` — Design System has zero Story observers and zero reactive identity resolution |
+| A8 | `OWNED` — Design System has no repository/Flow collector; feature keeps only the existing bounded media/keyed observations |
+| L1 | `OWNED` — shared UI performs bounded presentation work only; no coroutine/effect/CPU-I/O owner is admitted |
+| L3 | `PROTECTED` — Task 12 already proves distinct `refresh()`/`retry()` semantics, activation Retry single-flight, and one guarded source-acquisition owner; Task 13 only proves pull/Retry UI routes to those existing intents and cannot introduce a second execution path |
+| L4 | `N/A` — no Search/canonical settlement path |
+| L5 | `N/A` — no canonical fusion path |
+| L6 | `N/A` — no canonical hydration/hash/currentness path |
+| L7 | `N/A` — no DAO write loop or per-entry commit path |
+| L8 | `PROTECTED` — shared components create no subscription demand and no presentation policy may widen feature observation scope |
+| D1 | `OWNED` — Design System owns no persistence/history/cache/registry lifetime and therefore cannot age with Catalog corpus size |
+| X1 | `PROTECTED` — root theme/controls create no new invalidation source or storage observer |
+| X2 | `N/A` — no application-scope progress/cache-policy history scan |
+| X3 | `OWNED` — shared APIs accept narrow presentation scalars/options only, never wide Catalog records/evidence/fingerprints; static media-option policy is removed from `DiscoverUiState`; Discover no longer materializes a flattened viewport-row wrapper list per render; segmented validation does not build a transient key collection on recomposition |
+| X4 | `PROTECTED` — no new storage trigger/read-combine observation or snapshot reconstruction |
+| X5 | `OWNED` — Design System starts no foreground/durable work and cannot compete for an existing durable work item |
+| X6 | `N/A` — no durable recovery backlog/outbox/worker path |
+| X7 | `N/A` — no reconciliation point/batch API is introduced |
+| X8 | `N/A` — no Reader automatic-cache ledger/planning path is touched |
+| X9 | `N/A` — no Reader eviction candidate/detach path is touched |
+| X10 | `N/A` — no Reader state/publication lock ownership is touched |
+| X11 | `PROTECTED` — Design System receives no encoded image/page payload and cannot copy/retain Reader payload ownership |
+| X12 | `PROTECTED` — Design System owns no Reader/Catalog operational memoization or metadata-suppression cache |
+| X13 | `N/A` — no Chapter aggregation path |
+| X14 | `N/A` — no Chapter Room commit/notification path |
+| X15 | `N/A` — no Chapter schedule/pagination path |
+| X16 | `PROTECTED` — Design System has no plugin manifest/package/executable discovery dependency |
+| X17 | `PROTECTED` — Design System has no plugin provisioning/package outcome/state ownership |
+| X18 | `PROTECTED` — Design System has no credential/session/Keystore access |
+| RISK-A4 | `N/A` — no candidate lookup/search index path |
+| RISK-BIND | `N/A` — no Story-ID `IN (...)`/bounded-set data API |
+| RISK-LIFECYCLE | `OWNED` — root theme has zero collectors/effects/work owners; Task 13 must prove Unknown/FirstRun do not compose Catalog and inactive product UI is not retained by the Design System |
+| RISK-GLOBAL-RESOURCE | `OWNED` — no global image/network/CPU arbiter, executor, cache, service, or process resource owner is introduced under the Design System |
+| RISK-PLUGIN-ISOLATE | `N/A` — no JavaScript isolate/runtime path |
+| RISK-PLUGIN-AUTH-CACHE | `N/A` — no credential cache/session/auth path |
+| RISK-STARTUP-CONTENTION | `OWNED` — root theming adds no initializer, I/O, DB/network/image access, background job, service lookup, runtime font load, or mutable process registry before first content |
+| baseline L2 | `OWNED via RISK-LIFECYCLE` — theming is allowed to remain root-composed because it has zero upstream semantic demand; no hidden destination collection is introduced |
+| baseline RISK-PROVIDER | `PROTECTED` — Task 13 does not add provider launches; Discover refresh remains behind the existing bounded/single-owner provider execution policy and must not add UI-triggered parallel fan-out |
+
+Also record the **effect/amplifier checks** from the baseline audit instead of treating them as independent patch targets: one vertical scroll owner; stable Lazy keys; bounded section/card counts; no hidden destination collector; no image/cache ownership transfer; no application-lifetime UI work owner; no independent loading/publication stream that can wake unrelated UI; no `distinctUntilChanged()`-style cosmetic fix placed after expensive work.
+
+Any row that cannot honestly receive one of these statuses keeps Task 13 open and is fixed **before Task 14**. Do not weaken a gate simply to make the matrix pass.
+
+- [ ] **Step 11: Hand off focused connected UI/startup contracts**
+
+Connected execution remains user-owned by default under repository `AGENTS.md`. Run on one intended Android target:
+
+```bash
+./gradlew :core:designsystem:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.designsystem.HikariDesignSystemContractTest \
+  --no-daemon
+
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.startup.StartupSurfaceTest \
+  --no-daemon
+
+./gradlew :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.discover.DiscoverScreenInstrumentedTest \
+  --no-daemon
+
+./gradlew :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.story.StoryDetailScreenInstrumentedTest \
+  --no-daemon
+```
+
+Task 13 remains `READY FOR USER VERIFICATION` until these results are reviewed. Compile/static success alone is not acceptance.
+
+- [ ] **Step 12: Re-run the full changed-cone gate, self-review for V1 debt, commit, and STOP**
+
+Run/hand off according to repository ownership:
+
+```bash
+./gradlew :feature:catalog:assembleDebug \
+  :feature:catalog:assembleRelease \
+  :feature:catalog:assembleBenchmarkRelease \
+  :feature:catalog:assembleNonMinifiedRelease \
+  :app:assembleDebug \
+  :app:assembleRelease \
+  :app:verifyFoundation \
+  verifyArchitecture \
+  detekt \
+  --no-daemon
+
+bash scripts/tests/v2-step2-build-surface-test.sh
+bash scripts/tests/v2-step2-designsystem-slice-test.sh
+```
+
+Expected final structural state:
+
+```text
+:core:designsystem has zero project/network/image/storage/runtime dependencies
+:core:designsystem has zero production Android component/initializer and zero effect/coroutine/collector ownership
+:app direct production deps == [:core:designsystem, :feature:catalog]
+:app product/capability deps == [:feature:catalog] only
+app Design System import == theme.HikariTheme only
+HikariTheme is installed once at HikariStartupApp root
+HikariBootTheme no longer exists
+CatalogEntryPoint owns no nested theme
+release still contains no seed/plugin harness and no new network permission
+only feature.catalog.assets owns Coil imports
+Design System owns zero effects/collectors/coroutines/app-owned semantic mutable state; it declares no fixed-token CompositionLocal; disabled pull refresh creates no Material3 gesture state
+package-SCC verification is green including :core:designsystem
+Detekt has no new blocking finding
+```
+
+Deep self-review the changed cone specifically for:
+
+```text
+1. Was any V1 dependency/component copied because it existed rather than because a Step 2 caller needs it?
+2. Did the root theme acquire Context/settings/resource I/O, an effect, observer, coroutine, mutable registry, or service lookup?
+3. Does root theming alter Ready/firstFrame ordering or cause Catalog composition before the existing gate?
+4. Does the Compose root background still match the existing light/dark window background, avoiding startup color flash?
+5. Did app start importing Design System controls/state instead of only HikariTheme?
+6. Did Design System learn CatalogMediaType, CatalogIssueUi, StorySourceRef, CoverAssetKey, source policy, transport, or feature copy?
+7. Can pull refresh fire during Absent/no-content failure, or dispatch twice while refreshing?
+8. Do pull Refresh and failure Retry preserve distinct semantics while converging on one source-acquisition owner, with retryable activation/storage failures actually recoverable rather than decorative/no-op UI?
+9. Did Story Detail gain pull refresh or broaden acquisition behavior?
+10. Did the minimal shared-chrome migration move CoverArtwork/cache/security/decode ownership or alter Task 10-11 image semantics?
+11. Did we add shimmer/blur/backdrop/infinite animation/gradient/graphics-layer/custom-shadow or another unmeasured visual effect?
+12. Did we add wrapper-for-wrapper abstractions (`HikariText`, layout wrappers, generic cards, generic state base content) without a stable shared semantic rule, or leave any admitted public symbol with zero production callers?
+13. Did Discover or any shared primitive gain another scroll owner, force `fillMaxSize`, lose stable keys/caps, or rebuild any avoidable flattened/wrapper collection during composition?
+14. Does `DiscoverUiState` still carry static media-option policy or recreate immutable selector data on each state? If yes, remove it before benchmark.
+15. Did any shared component create subscription demand, application-lifetime state, or data observation?
+16. Are all 33 target-architecture Big Update families + 7 risk gates, plus legacy baseline L2/RISK-PROVIDER rows, explicitly classified in the checkpoint with no hand-waved blank row?
+17. Is Task 14 guaranteed to begin from exactly this accepted root-themed/shared-primitive foundation, with Task 15 screenshot correctness and Task 16 benchmark/profile blocked behind the later visual-restoration acceptance?
+18. Does segmented-control validation create temporary key collections each recomposition, or does any fixed theme token graph get reconstructed inside a composable? If yes, fix it before benchmark.
+19. When pull refresh is disabled, is Material3 pull gesture/state still composed anyway? If yes, split the disabled branch to a plain caller-sized `Box` before benchmark.
+20. Does every admitted public Design System symbol have a production caller and a documented semantic owner? Remove zero-caller/test-only/future-facing surface before benchmark.
+21. Does the active `docs/ui/design-system.md` still contain V1-only canonical requirements that contradict this scoped module/API/refresh contract? Rewrite/remove them now; do not rely on an appended disclaimer.
+```
+
+Fix every in-scope issue now and rerun its owning focused gate; **do not defer a known structural/ownership debt to Task 16 just because Task 16 can measure it**. Visual-composition debt intentionally assigned to Task 14 is the exception; Task 16 may optimize only evidence-dependent thresholds/trade-offs that remain after Task 14 is accepted.
+
+After connected + architecture/build-surface evidence is green, update the checkpoint with exact V1 reference files reviewed, exact V2 files adapted, the full 33+7 matrix plus legacy baseline L2/RISK-PROVIDER rows, command/device results, architecture result, and release-cleanliness result. Commit, e.g.:
+
+```bash
+git add -A
+git commit -m "feat: establish v2 root design system foundation"
+```
+
+**Stop.** Task 14 owns visual restoration/UX polish and must start only from this accepted foundation. Task 15 then owns final cross-module correctness/screenshot freeze. Task 16 owns quantitative performance/profile evidence; it must not become a cleanup bucket for structural debt detectable in Task 13 or visual debt assigned to Task 14.
+
+---
+
+# Task 14: Restore V1-quality-or-better Discover and Story visuals without reopening V1 architecture
+
+**Why this task exists:** Task 13 deliberately stops at presentation infrastructure. Task 14 is the first task allowed to redesign the Step 2 product surfaces. Its acceptance bar is not pixel parity with V1; it is **product-quality parity or improvement** while preserving every V2 ownership/performance constraint. A correct but obviously prototype/generic Material UI is not accepted merely because Compose tests pass.
+
+**Visual authority:** use the reviewed V1 screenshots and visual-system reference as comparative evidence, not source code to transplant and not pixel-perfect goldens. At minimum review the V1 references equivalent to:
+
+```text
+feature/catalog/src/test/snapshots/discover/compact-light.png
+feature/catalog/src/test/snapshots/discover/compact-dark.png
+feature/catalog/src/test/snapshots/discover/medium-dark.png
+feature/catalog/src/test/snapshots/story/compact-overview.png
+feature/catalog/src/test/snapshots/story/large-phone.png
+feature/catalog/src/test/snapshots/story/medium-two-pane.png
+docs/ui/references/product-ui/approved-visual-system.png
+```
+
+Record the exact archive/commit/path and SHA-256 of every reference actually used in the Step 2 checkpoint/evidence file. The comparison is semantic/visual, not screenshot-diff based.
+
+**Hard boundary:** Task 14 changes feature-local composition only unless a focused blocker proves a Task 13 primitive is insufficient. It must not broaden the public `:core:designsystem` API by default, add a new project edge, move artwork/network/cache/runtime ownership, reopen Catalog acquisition/storage contracts, or restore V1 backdrop/blur/glass/shimmer/global animation machinery. Small feature-local composables are preferred over new generic Design System wrappers.
+
+**Files:**
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverScreen.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverSections.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverTestTags.kt` only when semantic targets genuinely change
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryDetailScreen.kt`
+- Modify/create focused feature-local presentation composables under the existing `feature.discover` / `feature.story` packages only when they own a clear visual role
+- Modify: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/discover/DiscoverScreenInstrumentedTest.kt`
+- Modify: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/story/StoryDetailScreenInstrumentedTest.kt`
+- Create: `docs/internal/v2/step-2-visual-acceptance-2026-09-10.md`
+- Modify: `docs/internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`
+- Do **not** modify `core/designsystem` public API, Catalog runtime/storage/domain contracts, image transport/cache/security ownership, Story route identity, benchmark thresholds, or release/source wiring unless an explicit focused regression proves the existing contract cannot express the approved visual result.
+
+**Quality floor:** V2 may look different from V1, but the final Task 14 result must be judged **not worse than V1** on all of these dimensions unless an evidence-backed performance/product reason is recorded:
+
+```text
+artwork prominence and correctness of portrait-cover presentation
+visual hierarchy / immediately obvious primary content
+content density and scan speed
+section differentiation
+headline/body typography hierarchy
+spacing rhythm and surface coherence
+metadata scanability
+loading/error/refresh visual continuity
+light/dark coherence
+compact/wider-screen reflow
+navigation continuity Discover -> Story -> Back
+```
+
+A regression in one dimension cannot be hidden by improvement in another without an explicit review note. A screenshot that merely records a weak UI is evidence of the weakness, not a PASS.
+
+- [ ] **Step 1: Freeze RED visual/product contracts before changing layouts**
+
+Extend connected Compose tests around stable behavior, not private pixel implementation. At minimum prove:
+
+```text
+Discover:
+  - one vertical scroll owner remains
+  - section semantic order/caps and stable Story keys remain unchanged
+  - Manga/Light Novel selector remains accessible and both enabled
+  - Popular has an artwork-led featured hierarchy; it is not a row of visually equal generic boxes
+  - Latest remains compact enough to expose multiple covers per viewport on compact phones
+  - Top Rated exposes rank + artwork + title + rating/status/supporting information without N+1 detail reads
+  - portrait covers reserve stable portrait geometry and are not stretched into a full-width landscape crop
+  - no developer/architecture copy such as boundedness/implementation commentary appears in product UI
+  - Search is not faked; Step 2 still has no Search implementation
+Story Detail:
+  - portrait cover remains visually primary without full-width landscape crop
+  - title/content type/rating/status form one coherent hero/summary hierarchy
+  - description and available authors/artists/genres/status/language metadata are grouped for scanning rather than emitted as an undifferentiated debug-style list
+  - summary/cover stay visible while rich detail loads/fails
+  - no Chapter/Reader CTA and no pull refresh
+  - compact and wider configurations both remain usable without overlapping/clipped content
+```
+
+Do not assert exact dp positions that would turn these tests into brittle pixel clones. Geometry/aspect/accessibility assertions are allowed where they guard real product behavior.
+
+- [ ] **Step 2: Capture a V1 -> V2 visual-gap ledger before implementation**
+
+Create `step-2-visual-acceptance-2026-09-10.md` with one row per surface/configuration. Record `V1 reference`, `current V2 problem`, `Task 14 target`, and later `final result`. At minimum include Discover compact light/dark, Discover wider/dark, Story compact, and Story wider/two-pane reference evidence.
+
+Explicitly record the known pre-Task-14 gaps instead of silently normalizing them as V2 style: generic/equal-weight Popular cards, low-density Latest rows, shallow Top Rated hierarchy, prototype/developer copy, weak Story metadata grouping, and any portrait-cover crop/geometry regression found in the implementation being reviewed.
+
+- [ ] **Step 3: Redesign Discover as feature-local composition on top of Task 13 primitives**
+
+Preserve `HikariTheme`, `HikariSegmentedControl`, `HikariSectionHeader`, state/feedback primitives, and `HikariPullToRefresh`. Keep the existing data/card model and image ownership.
+
+The default compact direction is:
+
+```text
+Discover header / product title
+Manga | Light Novel segmented control
+Popular       -> artwork-led featured composition, bounded by the existing <=5 cards
+Latest Updates-> compact poster-first composition showing multiple cards per viewport; <=9 total
+Top Rated     -> ranked full-width rows with clear artwork/title/rating/status hierarchy; <=5 total
+```
+
+For Latest, a bounded feature-local 3-column row composition on compact phones is allowed and preferred when it matches the V1 density target; because the list is already capped at 9, emit bounded `Row` groups directly inside the single outer `LazyColumn`. Do not add a nested vertical `LazyVerticalGrid` or a second vertical scroll owner merely to get a grid appearance.
+
+Popular may use a bounded horizontal/featured composition but must prioritize the cover and primary Story identity instead of rendering every field with equal weight. Top Rated remains rank-led and scan-friendly. Omit empty semantic sections as before.
+
+Remove implementation-facing copy from the product surface. Do not add a fake Search box/action while Search remains out of scope.
+
+- [ ] **Step 4: Redesign Story Detail around portrait artwork and metadata hierarchy**
+
+Replace any full-width landscape-style cover crop with portrait-preserving artwork geometry. On compact screens, prefer a compact hero/summary composition where portrait cover and title/rating/status/content-type information are visually connected; on wider screens, reflow the same information with more horizontal room rather than merely scaling every compact dimension.
+
+Below the hero, group description and available bounded metadata into readable sections/chips/rows using direct Material3 + Task 13 theme primitives. Feature-specific geometry remains feature-local. Do not introduce backdrop/blur/glass/shimmer, another theme, another image owner, or a new data acquisition just to imitate V1.
+
+`CatalogSourceKey`, raw `sourceVersion`, host allowlists, and acquisition timestamps are **not user-facing copy**. Task 14 must not invent a friendly source name from those internal authority values. If a later product requirement wants a displayed source name, it requires an explicit user-safe presentation field/contract.
+
+- [ ] **Step 5: Preserve loading/refresh/failure continuity while changing hierarchy**
+
+Re-shape static skeletons to the final Task 14 geometry so loading does not jump into the finished layout. Retained Discover content remains visible during pull refresh; Story summary/cover remains visible during rich-detail loading/failure; local artwork failure remains scoped. Do not reintroduce the removed full-width refresh progress bar or a second retry/refresh owner.
+
+- [ ] **Step 6: Run focused behavior/architecture checks before judging appearance**
+
+Agent-owned focused checks:
+
+```bash
+./gradlew :feature:catalog:testDebugUnitTest \
+  :feature:catalog:compileDebugAndroidTestKotlin \
+  verifyArchitecture \
+  --no-daemon
+
+bash scripts/tests/v2-step2-designsystem-slice-test.sh
+```
+
+Expected: Task 13 graph/API/debt ratchets remain GREEN; no new Design System public API or production dependency is required.
+
+- [ ] **Step 7: Capture final deterministic V2 screenshots and perform explicit human visual acceptance**
+
+On the intended reference device/configurations, capture deterministic local-fixture screenshots using the existing connected Compose evidence path. Compare side-by-side with the recorded V1 references. The reviewer must fill PASS/FAIL for every quality-floor dimension; do not mark PASS solely because the screenshot test executed.
+
+Required acceptance statement:
+
+```text
+V2 is visually at least comparable to V1 for hierarchy, artwork presentation,
+content density, typography/spacing coherence, metadata scanability, and adaptive layout,
+while preserving the stricter V2 architecture/performance ownership model.
+```
+
+If any dimension is visibly worse without a deliberate product/performance reason, keep Task 14 open and revise feature-local composition. Pixel equality is neither required nor desired.
+
+- [ ] **Step 8: Self-review for V1 architecture relapse and hidden performance debt**
+
+Verify all of the following before closing:
+
+```text
+no V1 Design System/module wholesale transplant
+no new core/designsystem public primitive solely for this screen
+no blur/backdrop/glass/shimmer/infinite animation/custom expensive layer
+no nested vertical scrolling
+no unbounded list/materialization introduced for visual layout
+no eager full-feed image prefetch
+no new detail acquisition/N+1 call to make Discover cards prettier
+no raw source/provenance/security values exposed as product copy
+no Search/Chapter/Reader scope leak
+no image/cache/network/route ownership moved into visual composables
+stable keys/caps and pull-refresh/retry semantics preserved
+compact/wide layouts use the same bounded data authority
+```
+
+Fix all in-scope findings, rerun their owning focused/connected gates, update the visual-gap ledger and Step 2 checkpoint, then commit, e.g.:
+
+```bash
+git add -A
+git commit -m "feat: restore v2 catalog visual quality"
+```
+
+**Stop.** Task 15 owns cross-module correctness and final screenshot evidence after the visual result is accepted. Task 16 owns performance/profile measurement of this accepted visual surface.
+
+---
+
+# Task 15: Close storage connected verification and cross-module correctness acceptance before performance work
 
 **Files:**
 - Finish all Room behavior tests under `catalog/storage/src/androidTest/kotlin/app/openstory/catalog/storage/...` from Tasks 2-4.
@@ -1807,8 +2774,8 @@ Review retained-content semantics, retry authority, cancellation propagation, li
 - No new production feature scope.
 
 **Interfaces:**
-- Produces the complete deterministic **local correctness** gate required before performance/profile work and before the plugin gate.
-- Connected/device and full-repository commands are user-owned by default; Task 13 is explicitly a verification checkpoint and does not advance until evidence is returned/reviewed.
+- Produces the complete deterministic **local correctness** gate for the Task 14 visually accepted UI on top of the Task 13 Design-System foundation, required before performance/profile work and before the plugin gate.
+- Connected/device and full-repository commands are user-owned by default; Task 15 is explicitly a verification checkpoint and does not advance until evidence is returned/reviewed.
 
 - [ ] **Step 1: Finish the API 26/API 37 Room matrix**
 
@@ -1819,11 +2786,13 @@ The same focused Room test classes must cover fresh DB creation, file-backed clo
 `CatalogScreenshotEvidenceTest` must render at least:
 
 ```text
-Discover: loading geometry
+Discover: loading geometry under the Catalog-local Hikari theme
 Discover: Manga with Popular/Latest/Top Rated
 Discover: Light Novel with Popular/Latest/Top Rated
-Discover: retained content + refresh issue
-Story Detail: summary/cover + detail loading
+Discover: durable Empty state with pull-refresh capability
+Discover: retained content + active pull-refresh indicator
+Discover: retained content + refresh issue + visible Retry
+Story Detail: summary/cover + static metadata-loading skeleton
 Story Detail: complete metadata
 Story Detail: metadata issue while cover remains usable
 ```
@@ -1861,15 +2830,15 @@ bash scripts/verify-fast.sh
 bash scripts/verify.sh
 ```
 
-Task 13 remains `READY FOR USER VERIFICATION` until API 26, API 37, architecture, and full-repository results are reviewed.
+Task 15 remains `READY FOR USER VERIFICATION` until API 26, API 37, architecture, and full-repository results are reviewed.
 
 - [ ] **Step 6: Self-review local acceptance, checkpoint, commit, stop**
 
-Map every R2.1 criterion that can be proven without performance/profile/plugin execution to exact test/source/artifact evidence. Performance and plugin criteria stay explicitly `OPEN — OWNED BY TASK 14/15`, never silently “pass”. Only after the local gate is green, commit e.g. `test: close step2 local catalog correctness`. **Stop.**
+Map every R2.4 criterion that can be proven without performance/profile/plugin execution to exact test/source/artifact evidence. Performance and plugin criteria stay explicitly `OPEN — OWNED BY TASK 15/16`, never silently “pass”. Only after the local gate is green, commit e.g. `test: close step2 local catalog correctness`. **Stop.**
 
 ---
 
-# Task 14: Add deterministic performance/aging benchmarks, optimize from evidence, regenerate profiles, and compare startup
+# Task 16: Add deterministic performance/aging benchmarks, optimize from evidence, regenerate profiles, and compare startup
 
 **Files:**
 - Modify: `benchmark/src/main/kotlin/app/openstory/benchmark/HikariBenchmarkDriver.kt`
@@ -1890,7 +2859,7 @@ Map every R2.1 criterion that can be proven without performance/profile/plugin e
 - Product/current-state fixtures always enter through `CatalogSourceBinding -> CatalogAcquisitionExecutor -> CatalogImporter -> Room`.
 - Exception for **pathological unrelated historical rows only**: `BenchmarkAgedCatalogFixture` may use benchmark-only storage setup to create thousands of irrelevant rows when the measured subject is query/pruning shape rather than import semantics. Current Discover generation, active Story state, refresh publication, and any assertion about importer behavior still use the real importer path. No benchmark helper enters `main`/`release`.
 - Final startup comparison happens only after the Step 2 baseline/startup profile is regenerated from the final deterministic journey.
-- Macrobenchmark/profile/device execution is user-owned by default under `AGENTS.md`; Task 14 remains open while awaiting those results.
+- Macrobenchmark/profile/device execution is user-owned by default under `AGENTS.md`; Task 16 remains open while awaiting those results.
 
 - [ ] **Step 1: Add and contract-test Catalog traces without renaming Step 1 traces**
 
@@ -1958,7 +2927,7 @@ frameDurationCpuMs P99 > 25.00 ms
 frameOverrunMs     P95 > 16.67 ms
 ```
 
-This is intentionally looser than the supplied V1 2026-09-06 `discoverScroll` evidence (CPU P95 12.43 ms, P99 13.91 ms, Overrun P95 9.86 ms) while still flagging sustained work beyond a 60 Hz frame budget. For `openStoryMemoryHit`, `openStoryDiskHit`, and `storyBackToDiscover`, trigger review when `frameDurationCpuMs P95 > 33.33 ms` or `frameOverrunMs P95 > 33.33 ms`. Additionally, for any same-device journey, a >10% deterioration in a final P95/Overrun-P95 metric versus the first correctness-green Step 2 measurement from this task requires explanation/optimization rather than being hidden by a good TTID. These are **review triggers**, not permission to waive R2.1 hard ownership/query/cache gates.
+This is intentionally looser than the supplied V1 2026-09-06 `discoverScroll` evidence (CPU P95 12.43 ms, P99 13.91 ms, Overrun P95 9.86 ms) while still flagging sustained work beyond a 60 Hz frame budget. For `openStoryMemoryHit`, `openStoryDiskHit`, and `storyBackToDiscover`, trigger review when `frameDurationCpuMs P95 > 33.33 ms` or `frameOverrunMs P95 > 33.33 ms`. Additionally, for any same-device journey, a >10% deterioration in a final P95/Overrun-P95 metric versus the first correctness-green Step 2 measurement from this task requires explanation/optimization rather than being hidden by a good TTID. These are **review triggers**, not permission to waive R2.4 hard ownership/query/cache gates.
 
 If the exact AndroidX version reports equivalent field names rather than these display labels, the checkpoint records the one-to-one metric mapping; it may not substitute an easier metric after seeing results.
 
@@ -2009,7 +2978,7 @@ ANDROID_SERIAL=<serial> ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTes
 
 - [ ] **Step 8: Perform evidence-driven optimization only where a gate fails/regresses**
 
-Allowed corrections are exactly the R2.1 optimization authority: lower card counts while retaining all three semantic sections, defer below-fold composition, reduce metadata/decode target/prefetch/concurrency/cache, improve index/projection/state width, remove redundant animation/effects. Do not move work to startup, introduce background ownership, bypass persistence/validation, or enlarge caches to mask latency.
+Allowed corrections are exactly the R2.4 optimization authority: lower card counts while retaining all three semantic sections, defer below-fold composition, reduce metadata/decode target/prefetch/concurrency/cache, improve index/projection/state width, remove redundant animation/effects. Do not move work to startup, introduce background ownership, bypass persistence/validation, or enlarge caches to mask latency.
 
 After each correction, rerun the affected focused unit/connected evidence and then hand off only the affected benchmark journey. Keep an evidence table of “symptom -> root cause -> bounded change -> before/after”.
 
@@ -2035,11 +3004,11 @@ Review the absolute frame triggers from Step 4, the same-task >10% regression ru
 
 - [ ] **Step 12: Self-review, checkpoint, commit, stop**
 
-Confirm profile hashes belong to final code, no stale-profile comparison remains, direct aged-row seeding was used only for unrelated pathological state, product/import semantics still go through importer, memory/maps/pins do not grow monotonically, and optimization did not weaken source/image bounds or ownership. Task 14 remains `READY FOR USER VERIFICATION` until all required device/profile evidence is reviewed; only then commit e.g. `perf: validate and profile v2 catalog journey`. **Stop.**
+Confirm profile hashes belong to final code, no stale-profile comparison remains, direct aged-row seeding was used only for unrelated pathological state, product/import semantics still go through importer, memory/maps/pins do not grow monotonically, and optimization did not weaken source/image bounds or ownership. Task 16 remains `READY FOR USER VERIFICATION` until all required device/profile evidence is reviewed; only then commit e.g. `perf: validate and profile v2 catalog journey`. **Stop.**
 
 ---
 
-# Task 15: Execute isolated deterministic MangaUpdates real-plugin integration gate
+# Task 17: Execute isolated deterministic MangaUpdates real-plugin integration gate
 
 **Files:**
 - Create: `feature/catalog/src/androidTest/assets/reference-plugins/mangaupdates/manifest.json`
@@ -2058,7 +3027,7 @@ Confirm profile hashes belong to final code, no stale-profile comparison remains
 
 **Interfaces:**
 - `androidTestImplementation(project(":plugins:api"))` is the only new project test edge and is allowed only here.
-- Exact Task 15-only additions are `androidTestImplementation(project(":plugins:api"))`, `androidTestImplementation(libs.androidx.javascriptengine)`, `androidTestImplementation(libs.kotlinx.serialization.json)`, and `androidTestImplementation(libs.kotlinx.coroutines.core)`; reuse the feature's already-admitted AndroidX test/Compose-test dependencies. No `:plugins:runtime` production/test project edge is admitted.
+- Exact Task 17-only additions are `androidTestImplementation(project(":plugins:api"))`, `androidTestImplementation(libs.androidx.javascriptengine)`, `androidTestImplementation(libs.kotlinx.serialization.json)`, and `androidTestImplementation(libs.kotlinx.coroutines.core)`; reuse the feature's already-admitted AndroidX test/Compose-test dependencies. No `:plugins:runtime` production/test project edge is admitted.
 - Adapter outputs unchanged Step 2 `DiscoverAcquisition` / `StoryDetailAcquisition`; host `CatalogSourceBinding` supplies `CatalogSourceKey`, verified source version, clock provenance, and source asset policy.
 - Controlled transport executes the real reviewed JS deterministically. Live network is outside acceptance.
 
@@ -2100,7 +3069,7 @@ fun javascriptSandboxSupportIsRequiredForAcceptance() {
 }
 ```
 
-A device where this assertion fails leaves Task 15 **OPEN** and must not be reported as a skipped/pass integration gate. Execute the actual copied `main.js`. Prove:
+A device where this assertion fails leaves Task 17 **OPEN** and must not be reported as a skipped/pass integration gate. Execute the actual copied `main.js`. Prove:
 
 ```text
 Home emits explicit POPULAR/LATEST_UPDATES/TOP_RATED kinds; adapter never infers kind from title/sourceId
@@ -2175,7 +3144,7 @@ ANDROID_SERIAL=<javascript-sandbox-supported-serial> \
   --no-daemon
 ```
 
-`<javascript-sandbox-supported-serial>` is an execution-time device value, not a plan placeholder to guess; the checkpoint records the actual serial/model/API used. If no available device supports JavaScriptSandbox, keep Task 15 `OPEN` and obtain a supported device rather than accepting an `assumeTrue` skip. After focused iteration is green, run the full `:feature:catalog:connectedDebugAndroidTest` once on that same supported device for Task 15 regression evidence. Task 15 remains `READY FOR USER VERIFICATION` until the device result is reviewed.
+`<javascript-sandbox-supported-serial>` is an execution-time device value, not a plan placeholder to guess; the checkpoint records the actual serial/model/API used. If no available device supports JavaScriptSandbox, keep Task 17 `OPEN` and obtain a supported device rather than accepting an `assumeTrue` skip. After focused iteration is green, run the full `:feature:catalog:connectedDebugAndroidTest` once on that same supported device for Task 17 regression evidence. Task 17 remains `READY FOR USER VERIFICATION` until the device result is reviewed.
 
 - [ ] **Step 9: Hand off release-cleanliness/architecture proof**
 
@@ -2196,19 +3165,19 @@ Review semantic mapping, unsupported-content handling, Step 2 stricter-bound enf
 
 ---
 
-# Task 16: Full Step 2 acceptance, documentation freeze, and final self-review
+# Task 18: Full Step 2 acceptance, documentation freeze, and final self-review
 
 **Files:**
 - Modify: `docs/internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`
 - Modify: `docs/project/current-state.md`
 - Modify: `docs/implementation/current-roadmap.md`
 - Modify/finalize: `docs/internal/v2/catalog-step2-performance-baseline-2026-09-08.md`
-- Generated profile files only if Task 14 produced reviewed replacements.
+- Generated profile files only if Task 16 produced reviewed replacements.
 - No new production behavior unless this red-team identifies a concrete in-scope defect; any such defect returns to its owning focused test/gate before closure.
 
 **Interfaces:**
 - Produces the final acceptance/freeze record for **Step 2 as a production-shaped internal/product vertical slice, not a ship-ready production remote-catalog release**.
-- Every one of the 67 R2.1 acceptance criteria must have evidence or Step 2 remains open.
+- Every one of the 67 R2.4 acceptance criteria must have evidence or Step 2 remains open.
 - Final full/device/performance commands are user-owned by default. The agent reviews returned evidence; it does not mark acceptance from unexecuted command text.
 
 - [ ] **Step 1: Run focused agent-owned final static/document consistency review**
@@ -2228,15 +3197,15 @@ Record exact commands/results. A failed broad gate returns to the owning task/pr
 
 - [ ] **Step 3: Hand off/reconfirm required device correctness matrix**
 
-Reconfirm API 26 and API 37 Room/feature/app instrumentation evidence and the deterministic MangaUpdates integration gate from Tasks 13/15. Re-running is required if code affecting those surfaces changed after their accepted evidence; otherwise the final checkpoint may reference immutable command/device/result artifacts from the final commit candidate. No fabricated “API 26 + 37 passed” claim is allowed without actual device evidence.
+Reconfirm Task 14 visual-acceptance evidence, API 26 and API 37 Room/feature/app instrumentation evidence from Task 15, and the deterministic MangaUpdates integration gate from Task 17. Re-running is required if code affecting those surfaces changed after their accepted evidence; otherwise the final checkpoint may reference immutable command/device/result artifacts from the final commit candidate. No fabricated “API 26 + 37 passed” claim is allowed without actual device evidence.
 
 - [ ] **Step 4: Reconfirm final performance/profile evidence from the final commit candidate**
 
-The acceptance record must include final profile hashes, source/runtime SHA, five-iteration same-device startup values where comparison is claimed, meaningful-content trace values, frozen frame review results, Story open/back, memory/disk hit transport counts, aged-state SQL/work cardinality, and repeated-navigation memory/map/pin evidence. If production/layout/query/image code changed after Task 14, regenerate profiles and rerun affected benchmark gates before acceptance.
+The acceptance record must include final profile hashes, source/runtime SHA, five-iteration same-device startup values where comparison is claimed, meaningful-content trace values, frozen frame review results, Story open/back, memory/disk hit transport counts, aged-state SQL/work cardinality, and repeated-navigation memory/map/pin evidence. If production/layout/query/image code changed after Task 16, regenerate profiles and rerun affected benchmark gates before acceptance.
 
-- [ ] **Step 5: Build the explicit 67-row spec-to-implementation acceptance matrix**
+- [ ] **Step 5: Build the explicit 68-row spec-to-implementation acceptance matrix**
 
-For each R2.1 acceptance criterion `1..67`, record:
+For each R2.4 acceptance criterion `1..68`, record:
 
 ```text
 criterion number + short text
@@ -2249,9 +3218,9 @@ PASS | OPEN | FAIL
 ```
 
 No load-bearing row may be `OPEN` or `FAIL` when Step 2 is marked accepted. “Covered by architecture” is insufficient unless the cited verifier/test actually checks that exact requirement.
-Start from the pre-mapped 67-row ownership/evidence table in the plan self-review below; Task 16 fills concrete command/artifact hashes/results rather than inventing owners at closure time. If implementation changes an owner, update both the plan/checkpoint mapping explicitly.
+Start from the pre-mapped 68-row ownership/evidence table in the plan self-review below; Task 18 fills concrete command/artifact hashes/results rather than inventing owners at closure time. If implementation changes an owner, update both the plan/checkpoint mapping explicitly.
 
-- [ ] **Step 6: Perform final structural/debt red-team across all four modules**
+- [ ] **Step 6: Perform final structural/debt red-team across all five Step 2 production modules**
 
 Inspect source plus dependency/package reports for:
 
@@ -2288,7 +3257,7 @@ Fix only concrete Step 2 defects. Every fix reruns its owning focused tests and 
 
 - [ ] **Step 8: Final commit and stop**
 
-Only after the 67-row matrix and all required gates are PASS:
+Only after the 68-row matrix and all required gates are PASS:
 
 ```bash
 git add -A
@@ -2346,7 +3315,7 @@ bash scripts/verify.sh
 # Baseline/startup profile generation after final local code is frozen
 ./gradlew :app:generateBaselineProfile --no-daemon
 
-# Macrobenchmark journeys are invoked with the repository benchmark runner/class filters documented by Task 14,
+# Macrobenchmark journeys are invoked with the repository benchmark runner/class filters documented by Task 16,
 # on the accepted reference device/build class, with 5 iterations for final evidence.
 ```
 
@@ -2358,12 +3327,12 @@ Do not supervise long-running Gradle/device commands with repeated polling. One 
 
 ### 1. Spec coverage review
 
-The task mapping covers every normative R2.1 area:
+The task mapping covers every normative R2.4 area:
 
-| R2.1 area | Owning tasks |
+| R2.4 area | Owning tasks |
 | --- | --- |
 | Product authority / Light Novel enablement | 0 |
-| Exact modules/build surface/variant matrix/package SCC | 0, 6, 16 |
+| Exact modules/build surface/variant matrix/package SCC | 0, 13, 16, 17 |
 | Frozen StoryId v1 / host provenance / input ceilings | 1 |
 | New Room boundary / `Absent` vs `Published(empty)` / coherent Discover read | 2 |
 | Keyed atomic Story Detail / child bounds / access aging / retention index | 3 |
@@ -2375,121 +3344,127 @@ The task mapping covers every normative R2.1 area:
 | Story Detail route / process recreation / pin restoration / metadata-only | 9 |
 | Local cover identity/cache/continuity/viewport/concurrency | 10 |
 | Remote cover policy/redirect/encoded+decoded bounds | 11 |
-| Manual refresh/failure/quiescence/repeated activation | 12 |
-| API26/API37 + local correctness freeze | 13 |
-| performance/aged state/query work/frame metrics/profile regeneration/startup delta | 14 |
-| isolated deterministic MangaUpdates real-plugin proof | 15 |
-| all 67 acceptance criteria + structural freeze | 16 |
+| Refresh owner/failure retention/quiescence/repeated activation | 12 |
+| Minimal V2 Design System admission + Discover pull refresh + structural presentation foundation | 13 |
+| V1-quality-or-better feature-local visual restoration + UX polish | 14 |
+| API26/API37 + local correctness/screenshot freeze | 15 |
+| Performance/aged state/query work/frame metrics/profile regeneration/startup delta | 16 |
+| Isolated deterministic MangaUpdates real-plugin proof | 17 |
+| All 68 acceptance criteria + structural/documentation freeze | 18 |
 
-No load-bearing R2.1 section is intentionally deferred beyond Step 2.
+No load-bearing R2.4 section is intentionally deferred beyond Step 2. In particular, Task 13 freezes the presentation foundation before Task 14 visual restoration, Task 15 screenshot/correctness evidence, and Task 16 performance/profile evidence, so benchmark evidence is not collected against a disposable UI scaffold.
 
-### 1.1 Acceptance criteria 1–67 pre-mapped to executable evidence
+### 1.1 Acceptance criteria 1–68 pre-mapped to executable evidence
 
-This table is part of the plan contract, not something Task 16 invents at the end. Task 16 replaces the planned proof with concrete command/device/artifact results and may not mark a row PASS from prose alone.
+This table is part of the plan contract, not something Task 18 invents at the end. Task 18 replaces the planned proof with concrete command/device/artifact results and may not mark a row PASS from prose alone.
 
 | # | Short criterion | Owner | Planned executable proof |
 | ---: | --- | --- | --- |
 | 1 | Launch handoff | 7 | CatalogLaunchHandoffTest: returning Ready -> Discover; FirstRun persist -> Discover |
-| 2 | First frame independent | 7,14 | app shell/trace contract + pre-demand/startup counters; no Catalog work gates Step 1 first frame |
+| 2 | First frame independent | 7,16 | app shell/trace contract + pre-demand/startup counters; no Catalog work gates Step 1 first frame |
 | 3 | Manga + Light Novel authority | 0,8 | approved-product-design amendment + enabled media reducer/UI tests |
-| 4 | Internal slice classification | 0,16 | checkpoint/current-state text explicitly says not ship-ready remote Catalog |
+| 4 | Internal slice classification | 0,18 | checkpoint/current-state text explicitly says not ship-ready remote Catalog |
 | 5 | Real Room-backed Discover | 2,6 | Room connected tests + deterministic source/importer path; no direct UI JSON/read shortcut |
 | 6 | Seed uses real write boundary | 6 | variant fixture tests prove source -> executor -> importer -> Room |
 | 7 | Exact variant wiring | 0,6 | Step2BuildSurfaceVerifier + variant compile/artifact tests |
-| 8 | Release seed/harness clean | 6,15 | release artifact/source scan before and after plugin test edge |
-| 9 | Four modules + fail-closed ratchet | 0 | module-boundary/build-surface verifier tests |
+| 8 | Release seed/harness clean | 6,17 | release artifact/source scan before and after plugin test edge |
+| 9 | Five Step 2 modules + fail-closed ratchet | 0,13 | Task 0 ratchet + Task 13 exact Design System module/edge admission tests |
 | 10 | Android library + Room confinement | 0 | build-logic negative fixtures; no RoomConventionPlugin |
-| 11 | App only feature entry edge | 0,7 | exact graph + app source scanner allows only CatalogEntryPoint |
+| 11 | App has one product edge plus one root-theme infrastructure edge | 0,13 | exact graph + app scanner allows CatalogEntryPoint and HikariTheme only; no storage/runtime/image/network ownership |
 | 12 | Quarantine model/engine | 0 | module-boundary negative fixtures and final graph |
-| 13 | Zero production package SCC | 0,16 | ProductionPackageStructureVerifier + final report |
-| 14 | Multi-section both media persisted scopes | 2,5,8 | Room state + selected-media runtime + Compose tests |
-| 15 | 5/9/5 bound and no N+1 | 1,2,8 | section-policy tests + one Discover SQL observation + ViewModel no-detail-call test |
-| 16 | Absent vs Published(empty) | 2 | DiscoverPersistenceInstrumentedTest including left-side state row |
-| 17 | Published(empty) survives reopen/no bootstrap | 2,5 | file-backed reopen test + runtime no-bootstrap test |
-| 18 | Only Absent bootstraps | 5 | DiscoverSession single-flight/source-unavailable tests |
-| 19 | Host-authoritative CatalogSourceKey | 1,5 | domain authority tests + immutable CatalogSourceBinding tests |
-| 20 | Frozen StoryId v1 | 1 | literal SHA-256 golden vectors, malformed UTF-16 and metadata-stability tests |
-| 21 | Collision fails closed | 2,4 | pre-seeded conflict through public store + typed IdentityCollision propagation |
-| 22 | Explicit StorySourceRef route | 1,9 | self-consistency + route serialization/restoration tests |
-| 23 | Metadata-only Story Detail | 9 | Story UI/action tests + architecture/scope scan: no Chapters/Reader |
-| 24 | Story read keyed and bounded | 3,14 | connected <=4 SQL proof + aged-row invariance |
-| 25 | Acquisition input bounds | 1,15 | domain bound tests + looser real-plugin output rejection |
-| 26 | Host-stamped provenance | 1,5,15 | binding/clock authority tests + plugin cannot override |
-| 27 | Provenance survives source-version change | 2,3 | Discover/detail connected provenance tests |
-| 28 | Coherent Discover publication read | 2 | single Room query/snapshot and atomic generation tests |
-| 29 | Discover duplicate/order invariants | 1,2 | publication-command validation + DB/public-store uniqueness tests |
-| 30 | Zero-card atomic publication/rollback | 4 | connected publication transaction tests |
-| 31 | Bounded delta pruning work | 4,14 | touchedStoryIds diagnostics with aged unrelated rows |
-| 32 | No history-wide retention scan/sort/count | 3,4,14 | DAO/query-shape tests + aged critical-path counters |
-| 33 | Atomic detail and Discover untouched | 3,4 | Story transaction rollback/coherence + Discover-card invariance tests |
-| 34 | Failed detail preserves prior coherent state | 3 | faulted transaction connected test |
-| 35 | Pin/prune race closed | 4,9 | barrier race tests + pin-first restored route test |
-| 36 | Mutation gate short | 4,16 | lock-scope tests/review; slow source/image/UI work outside gate |
-| 37 | No access-touch invalidation loop | 3,5 | one semantic touch per demand; repeated Flow emission = zero extra writes |
-| 38 | Real covers local + plugin | 10,15 | LocalCoverContinuityInstrumentedTest + MangaUpdates UI success path |
-| 39 | Cover independent of rich detail | 9,10 | Story state test + image state remains separate from detail loading |
-| 40 | Discover/Story/Back cache continuity | 9,10,14 | same asset key, no bitmap route copy, memory/disk-hit counters |
-| 41 | Process recreation route/pin/policy recovery | 9,11 | StoryRouteRestorationInstrumentedTest + host-policy recreation test |
-| 42 | Stable card/image geometry | 8,10 | Compose geometry/skeleton and local cover instrumentation |
-| 43 | Presentation owns no raw HTTP/trust | 0,11 | source/import dependency scanner + typed locator/transport contract |
-| 44 | Local locator uses logical IDs | 1,6,10 | revision/fixture/storage tests prove no persisted R.drawable integer |
-| 45 | Remote locator security | 11,15 | HTTPS/host/redirect/timeout/media/size controlled-transport tests |
-| 46 | Remote revision keeps meaningful query | 1,11 | RemoteHttpsUriV1 and CoverRevisionV1 golden/identity tests |
-| 47 | Image/cache/decode hard ceilings | 10,11,14 | configuration assertions + preflight bombs + runtime benchmark counters |
-| 48 | Manual refresh one owner/retained content | 12 | DiscoverRefreshOwnershipTest + DiscoverRefreshStateTest |
-| 49 | No process-start/background initializer | 0,7,12 | all-variant merged-manifest checks + pre-demand/static owner tests |
-| 50 | No production INTERNET for plugin gate | 0,11,15 | all-variant merged manifest + release artifact check |
-| 51 | Bounded state under aging/navigation | 3,4,10,12,14 | retention/cache caps + repeated activation/long-browse diagnostics |
-| 52 | Persisted returning path no acquisition/network | 5,14 | Published(content/empty) runtime tests + benchmark counters |
-| 53 | Memory/disk hit no lower-tier fetch | 10,14 | cache instrumentation + memory/disk-hit benchmark counters |
-| 54 | No Main DB/source/decode/importer work | 4,11,14 | dispatcher tests + Room/config/static checks + decode-thread evidence |
-| 55 | Mandatory performance-validation task | 14 | Task 14 benchmark/optimization gate before plugin integration |
-| 56 | Regenerate final profiles first | 14 | BaselineProfileGenerator journey + generated file SHA-256 evidence |
-| 57 | Startup and meaningful-content deltas recorded | 14 | same-device 5-iteration baseline document + Catalog trace metrics |
-| 58 | TTID >10% review trigger | 14 | frozen numerical thresholds and checkpoint pass/review result |
-| 59 | Frame/jank explicit threshold | 14 | FrameTimingMetric thresholds frozen before measurement |
-| 60 | No monotonic repeated-navigation growth | 12,14 | terminal map/pin tests + 20-cycle long-browse diagnostics |
-| 61 | All local gates before plugin | 13,14,15 | canonical task order; Task 15 cannot start until Tasks 13/14 accepted |
-| 62 | MangaUpdates default semantic proof | 15 | real copied JS with explicit three Home kinds; no title/ID guessing |
-| 63 | Plugin androidTest feeds unchanged product path | 15 | real JS -> adapter -> importer -> Room -> unchanged Discover/Story UI |
-| 64 | Plugin provenance/hash and release isolation | 15 | frozen archive/script hashes + test-edge/release-cleanliness proof |
-| 65 | Live network smoke optional only | 15 | explicit non-blocking optional step; deterministic transport owns acceptance |
-| 66 | Failures/rejections preserve usable content | 4,12,15 | transaction rollback + retained-refresh + plugin bounded-rejection tests |
-| 67 | No load-bearing placeholder/owner gap | 0-16 | this pre-mapping + placeholder/type/command scans + Task 16 concrete 67-row evidence fill |
-
+| 13 | Zero production package SCC incl. Design System | 0,13,18 | ProductionPackageStructureVerifier + Task 13 Design System slice gate + final report |
+| 14 | Multi-section both media + shared visual vocabulary | 2,5,8,13,14 | Room/runtime/Compose behavior + Task 13 shared primitives + Task 14 visual-composition acceptance |
+| 15 | V1-quality-or-better visual acceptance | 14 | Task 14 V1-reference gap ledger + deterministic V2 screenshots + explicit human PASS/FAIL quality-floor review; no pixel-parity requirement |
+| 16 | 5/9/5 bound and no N+1 | 1,2,8 | section-policy tests + one Discover SQL observation + ViewModel no-detail-call test |
+| 17 | Absent vs Published(empty) | 2 | DiscoverPersistenceInstrumentedTest including left-side state row |
+| 18 | Published(empty) survives reopen/no bootstrap | 2,5 | file-backed reopen test + runtime no-bootstrap test |
+| 19 | Only Absent bootstraps | 5 | DiscoverSession single-flight/source-unavailable tests |
+| 20 | Host-authoritative CatalogSourceKey | 1,5 | domain authority tests + immutable CatalogSourceBinding tests |
+| 21 | Frozen StoryId v1 | 1 | literal SHA-256 golden vectors, malformed UTF-16 and metadata-stability tests |
+| 22 | Collision fails closed | 2,4 | pre-seeded conflict through public store + typed IdentityCollision propagation |
+| 23 | Explicit StorySourceRef route | 1,9 | self-consistency + route serialization/restoration tests |
+| 24 | Metadata-only Story Detail | 9 | Story UI/action tests + architecture/scope scan: no Chapters/Reader |
+| 25 | Story read keyed and bounded | 3,16 | connected <=4 SQL proof + aged-row invariance |
+| 26 | Acquisition input bounds | 1,17 | domain bound tests + looser real-plugin output rejection |
+| 27 | Host-stamped provenance | 1,5,17 | binding/clock authority tests + plugin cannot override |
+| 28 | Provenance survives source-version change | 2,3 | Discover/detail connected provenance tests |
+| 29 | Coherent Discover publication read | 2 | single Room query/snapshot and atomic generation tests |
+| 30 | Discover duplicate/order invariants | 1,2 | publication-command validation + DB/public-store uniqueness tests |
+| 31 | Zero-card atomic publication/rollback | 4 | connected publication transaction tests |
+| 32 | Bounded delta pruning work | 4,16 | touchedStoryIds diagnostics with aged unrelated rows |
+| 33 | No history-wide retention scan/sort/count | 3,4,16 | DAO/query-shape tests + aged critical-path counters |
+| 34 | Atomic detail and Discover untouched | 3,4 | Story transaction rollback/coherence + Discover-card invariance tests |
+| 35 | Failed detail preserves prior coherent state | 3 | faulted transaction connected test |
+| 36 | Pin/prune race closed | 4,9 | barrier race tests + pin-first restored route test |
+| 37 | Mutation gate short | 4,18 | lock-scope tests/review; slow source/image/UI work outside gate |
+| 38 | No access-touch invalidation loop | 3,5 | one semantic touch per demand; repeated Flow emission = zero extra writes |
+| 39 | Real covers local + plugin | 10,17 | LocalCoverContinuityInstrumentedTest + MangaUpdates UI success path |
+| 40 | Cover independent of rich detail | 9,10 | Story state test + image state remains separate from detail loading |
+| 41 | Discover/Story/Back cache continuity | 9,10,16 | same asset key, no bitmap route copy, memory/disk-hit counters |
+| 42 | Process recreation route/pin/policy recovery | 9,11 | StoryRouteRestorationInstrumentedTest + host-policy recreation test |
+| 43 | Stable card/image geometry + static shared skeleton | 8,10,13,14 | existing geometry/image tests + Task 13 HikariSkeleton contract + Task 14 final portrait/layout geometry |
+| 44 | Presentation owns no raw HTTP/trust | 0,11 | source/import dependency scanner + typed locator/transport contract |
+| 45 | Local locator uses logical IDs | 1,6,10 | revision/fixture/storage tests prove no persisted R.drawable integer |
+| 46 | Remote locator security | 11,17 | HTTPS/host/redirect/timeout/media/size controlled-transport tests |
+| 47 | Remote revision keeps meaningful query | 1,11 | RemoteHttpsUriV1 and CoverRevisionV1 golden/identity tests |
+| 48 | Image/cache/decode hard ceilings | 10,11,16 | configuration assertions + preflight bombs + runtime benchmark counters |
+| 49 | Discover pull refresh one owner/retained content | 12,13 | Task 12 single-flight/retained-state tests + Task 13 shared pull-refresh/feature accessibility tests |
+| 50 | No process-start/background initializer or root-theme hidden work | 0,7,12,13 | merged-manifest/pre-demand gates + Task 13 effect/collector/I-O/initializer Design System scan |
+| 51 | No production INTERNET for plugin gate | 0,11,17 | all-variant merged manifest + release artifact check |
+| 52 | Bounded state under aging/navigation | 3,4,10,12,16 | retention/cache caps + repeated activation/long-browse diagnostics |
+| 53 | Persisted returning path no acquisition/network | 5,16 | Published(content/empty) runtime tests + benchmark counters |
+| 54 | Memory/disk hit no lower-tier fetch | 10,16 | cache instrumentation + memory/disk-hit benchmark counters |
+| 55 | No Main DB/source/decode/importer work | 4,11,16 | dispatcher tests + Room/config/static checks + decode-thread evidence |
+| 56 | Mandatory post-polish performance-validation task | 16 | Task 16 benchmarks the Task 14 visually accepted UI before plugin integration |
+| 57 | Regenerate final profiles first | 16 | BaselineProfileGenerator journey + generated file SHA-256 evidence |
+| 58 | Startup and meaningful-content deltas recorded | 16 | same-device 5-iteration baseline document + Catalog trace metrics |
+| 59 | TTID >10% review trigger | 16 | frozen numerical thresholds and checkpoint pass/review result |
+| 60 | Frame/jank explicit threshold | 16 | FrameTimingMetric thresholds frozen before measurement |
+| 61 | No monotonic repeated-navigation growth | 12,16 | terminal map/pin tests + 20-cycle long-browse diagnostics |
+| 62 | All local/Design-System/visual/correctness/perf gates before plugin | 13,14,15,16 | Task 13 Design System foundation + Task 14 visual acceptance + Task 15 correctness + Task 16 performance; Task 17 is blocked until all four are accepted |
+| 63 | MangaUpdates default semantic proof | 17 | real copied JS with explicit three Home kinds; no title/ID guessing |
+| 64 | Plugin androidTest feeds unchanged product path | 17 | real JS -> adapter -> importer -> Room -> unchanged Discover/Story UI |
+| 65 | Plugin provenance/hash and release isolation | 17 | frozen archive/script hashes + test-edge/release-cleanliness proof |
+| 66 | Live network smoke optional only | 17 | explicit non-blocking optional step; deterministic transport owns acceptance |
+| 67 | Failures/rejections preserve usable content | 4,12,17 | transaction rollback + retained-refresh + plugin bounded-rejection tests |
+| 68 | No load-bearing placeholder/owner gap | 0-18 | this pre-mapping + placeholder/type/command scans + Task 18 concrete 68-row evidence fill |
 ### 2. Cross-repository contradiction review
 
-**Conflict: Step 1 blanket rejects `implementation(project(...))`, but Step 2 requires one app project edge.**  
+**Conflict: Step 1 blanket rejects `implementation(project(...))`, but Step 2 requires one app project edge.**
 Resolution: Task 0 replaces blanket token rejection with exact graph verification while keeping app-shell import/startup/permission bans.
 
-**Conflict: Step 1 structural verifier scans only app source, while R2.1 requires zero package SCC across four new modules.**  
+**Conflict: Step 1 structural verifier scans only app source, while R2.4 requires zero package SCC across five newly admitted production modules.**
 Resolution: Task 0 adds a production-package verifier over all Step 2 modules and attaches it to root `verifyArchitecture`.
 
-**Conflict: Android library convention is absent in Step 1; V1 has one plus a generic Room convention.**  
+**Conflict: V1 `:core:designsystem` correctly established app-wide theme ownership, but the historical module also accumulated Coil networking, backdrop and Roborazzi/Robolectric surface.**
+Resolution: Task 13 preserves the correct dependency direction (`:app` and presentation features consume a zero-project-dependency Design System) while rebuilding only the exact work-free primitives needed by Step 2; shared code owns no app semantic state/effects, while Material3 transient pull-gesture state exists only in the enabled refresh branch. `HikariTheme` moves to `HikariStartupApp`; `HikariBootTheme` is removed; the app still has exactly one product/capability edge (`:feature:catalog`) plus one explicitly classified presentation-infrastructure edge (`:core:designsystem`).
+
+**Conflict: Android library convention is absent in Step 1; V1 has one plus a generic Room convention.**
 Resolution: Task 0 restores only the tiny Android-library convention; storage applies Room/KSP directly. No generic Room convention returns.
 
-**Conflict: Step 1 benchmark fixture knows only launch-state persistence; Step 2 benchmarks need Catalog persisted data.**  
-Resolution: Tasks 6/14 add deterministic benchmark source/importer preparation and forbid direct DAO fixture shortcuts for measured importer semantics.
+**Conflict: Step 1 benchmark fixture knows only launch-state persistence; Step 2 benchmarks need Catalog persisted data.**
+Resolution: Tasks 6/15 add deterministic benchmark source/importer preparation and forbid direct DAO fixture shortcuts for measured importer semantics.
 
-**Conflict: V1 Discover uses multiple settling streams/canonical bootstrap and had first-entry jank/debt.**  
+**Conflict: V1 Discover uses multiple settling streams/canonical bootstrap and had first-entry jank/debt.**
 Resolution: Tasks 2/5/8 enforce one durable publication state + one selected-media observer; no canonical settlement exists in the production graph.
 
-**Conflict: V1 Story screen depends on canonical/Library/progress/reconciliation.**  
+**Conflict: V1 Story screen depends on canonical/Library/progress/reconciliation.**
 Resolution: Task 9 consumes only keyed source Story summary/detail plus scoped acquisition/image state.
 
-**Conflict: Production release has no remote acquisition source but image implementation can support remote typed locators.**  
+**Conflict: Production release has no remote acquisition source but image implementation can support remote typed locators.**
 Resolution: release composition supplies no acquisition source and no `INTERNET`; remote policy code is dormant production-shaped capability support exercised by deterministic androidTest, not a hidden release source.
 
-**Conflict: final plugin proof needs real JS while production plugin runtime is quarantined.**  
-Resolution: Task 15 scopes `:plugins:api`, JavaScriptEngine and copied/adapted executor support to `:feature:catalog/src/androidTest` only and re-verifies release artifact cleanliness.
+**Conflict: final plugin proof needs real JS while production plugin runtime is quarantined.**
+Resolution: Task 17 scopes `:plugins:api`, JavaScriptEngine and copied/adapted executor support to `:feature:catalog/src/androidTest` only and re-verifies release artifact cleanliness.
 
 ### 3. Task sizing review
 
-The original R2.1 A-M sequence was split further at the highest-risk seams:
+The R2.4 A-O ownership sequence was split further at the highest-risk seams:
 
 - coherent Discover storage separate from Story Detail/retention;
 - importer/mutation ordering separate from runtime single-flight;
 - local image continuity separate from remote image security;
+- lifecycle/refresh ownership is accepted before Task 13 Design System foundation and the separate Task 14 feature-local visual restoration, so visual polish cannot invent data ownership;
 - local correctness freeze separate from performance/profile work;
 - performance/profile work separate from plugin integration.
 
@@ -2502,10 +3477,12 @@ Each Task N has an independently rejectable/committable result and a focused tes
 - Source authority/provenance comes from host/session metadata, not acquisition payload fields.
 - Discover uses `CatalogMediaType` and `CatalogSectionKind`; no V1 broad `ContentType`/canonical engine type leaks into the new boundary.
 - Storage write APIs are bulk/validated-publication oriented; no public per-card transaction interface is introduced.
+- `:core:designsystem` is domain-neutral and sees no Catalog types; `CatalogMediaType`/`CatalogIssueUi` are mapped to strings/options/actions in `:feature:catalog`.
+- Discover adds a normal `refresh()` intent while retaining a distinct `retry()` recovery intent; both converge on one guarded source-acquisition owner when acquisition is needed. Story Detail retains its explicit `retry()` because Step 2 does not admit normal Story pull refresh.
 
 ### 5. Placeholder/deferred-decision review
 
-All load-bearing choices frozen by R2.1 are concretized here: module graph/test graph, source sets, identity and cover-revision algorithms, strict UTF-8 validation, self-consistent route identity, publication state, exact Discover/Story query caps, schema responsibilities, retention bound/work shape including unpin cleanup, mutation-gate ordering, cache/concurrency/image limits, lifecycle ownership, plugin reference/stricter V2 bounds, deterministic transport/disk-hit proof, and profile ordering. The frame/jank review triggers are now frozen in Task 14 **before execution** using the available `FrameTimingMetric` family and the supplied V1 Redmi evidence; Task 14 may record equivalent field-name mapping but may not choose an easier threshold after observing results.
+All load-bearing choices frozen by R2.4 are concretized here: module graph/test graph, source sets, identity and cover-revision algorithms, strict UTF-8 validation, self-consistent route identity, publication state, exact Discover/Story query caps, schema responsibilities, retention bound/work shape including unpin cleanup, mutation-gate ordering, cache/concurrency/image limits, lifecycle ownership, plugin reference/stricter V2 bounds, deterministic transport/disk-hit proof, and profile ordering. The frame/jank review triggers are now frozen in Task 16 **before execution** using the available `FrameTimingMetric` family and the supplied V1 Redmi evidence; Task 16 may record equivalent field-name mapping but may not choose an easier threshold after observing results.
 
 ### 6. Red-team review against known V1 debt
 
@@ -2522,19 +3499,26 @@ The plan contains explicit negative gates for every Step 2-relevant V1 family:
 - X16-X18: production plugin control plane/runtime absent;
 - structural S6/S7/S12: no god-ish migration target, package SCC = 0, build ratchets fail closed.
 
-### 7. Final consistency pass — 2026-09-09
+### 7. Final consistency pass — 2026-09-09 baseline + 2026-09-10 R2.4 amendment
 
-A final red-team pass was run after the main plan self-review. It specifically closed execution-level gaps that were still capable of producing a correct-looking but unsafe implementation:
+The 2026-09-09 red-team baseline was preserved, then the 2026-09-10 pre-benchmark Design System amendment was reviewed again after Task 13 insertion. The combined pass specifically closed execution-level gaps that were still capable of producing a correct-looking but unsafe implementation:
 
 - publication validation now fails closed at the cross-module command/storage boundary for **both** Discover cards and Story Detail projections; a rogue caller cannot bypass importer bounds;
 - operation-owned timeouts use a dedicated deadline result (`withTimeoutOrNull`/equivalent) so `TimeoutCancellationException` cannot be confused with external/session cancellation;
 - invalid restored Story route identity fails safely back to Discover, starts no Story acquisition, and cannot crash the Activity;
 - any evidence-driven prefetch introduced later must be lower priority and cannot consume all cover-job capacity while visible/selected-Story demand waits;
 - benchmark host compilation uses the already-proven `:benchmark:assemble` surface rather than an unproven `:benchmark:assembleBenchmarkRelease` task name;
-- package direction was rechecked after splitting low-level limits/caps from acquisition/publication validators so the plan does not create the package SCC it later forbids.
+- package direction was rechecked after splitting low-level limits/caps from acquisition/publication validators so the plan does not create the package SCC it later forbids;
+- Task 13 was checked for startup contamination: `:app` gains only the reviewed `HikariTheme` presentation edge; the Design System owns no app semantic state/effects/work and fixed tokens are stable top-level values, `HikariBootTheme` is removed, FirstRun/Unknown state/action ownership is unchanged, and Ready/first-frame ordering remains intact;
+- Task 13 was checked for transport/image contamination: the shared module owns no Coil/HTTP/artwork path and `CoverArtwork` remains feature-owned;
+- refresh semantics were checked for duplicate ownership: only durable Discover states expose pull refresh; pull calls `DiscoverViewModel.refresh()`, failure UI calls distinct `DiscoverViewModel.retry()`, and both converge on the same guarded source-acquisition owner whenever acquisition is needed; Story Detail remains retry-only;
+- empty/error presentation was checked for remaining feature-local forks: shared `HikariEmptyState`/`HikariErrorState`/`HikariSkeleton` primitives are admitted, while Discover/Story keep feature-owned geometry/copy so the Design System does not grow a generic loading/state model;
+- the V1 Design System structural shape was checked against the Structural Simplification audit: no fixed-token CompositionLocal tree, zero-caller/test-only public primitive, wrapper-for-wrapper base component, scroll owner, runtime font path, or transient validation collection is admitted;
+- Discover composition was checked for known pre-benchmark allocation debt: static media options leave `DiscoverUiState`, viewport-row flattening is removed, segmented validation uses bounded direct comparisons, and generic shape/spacing roles consume the root tokens without tokenizing feature-specific cover geometry;
+- visual restoration is explicitly Task 14, screenshot/correctness evidence Task 15, and performance/profile evidence Task 16; Task 13 is no longer mislabeled as the polished final surface.
 
-Machine consistency audit of this reviewed artifact: exactly **17 Task headings (0..16)**; exactly **67 unique acceptance rows (1..67)**; zero `TBD`/`TODO`/deferred-placeholder phrases; balanced Markdown code fences; no stale `CatalogSectionPolicy`, old `validation/CatalogInputLimits`, fake collision-success wording, or unproven benchmark assemble task. Existing baseline scripts referenced by the final gate (`scripts/verify-fast.sh`, `scripts/verify.sh`) were confirmed in the supplied Step 1 tree; `scripts/tests/v2-step2-build-surface-test.sh` is intentionally a Task 0 creation.
+Machine consistency audit of this reviewed artifact: exactly **19 Task headings (0..18)**; exactly **68 unique acceptance rows (1..68)**; zero load-bearing `TBD`/`TODO`/deferred-decision markers; balanced Markdown code fences; no stale pre-amendment Task 13-17 ownership mapping; Task 0 now correctly admits four Catalog modules while Task 13 separately admits `:core:designsystem`; no stale `CatalogSectionPolicy`, old `validation/CatalogInputLimits`, fake collision-success wording, or unproven benchmark assemble task. Execution-time device/profile identifiers remain explicitly runtime evidence values rather than design placeholders. Existing baseline scripts referenced by the final gate (`scripts/verify-fast.sh`, `scripts/verify.sh`) were confirmed in the supplied Step 1 tree; `scripts/tests/v2-step2-build-surface-test.sh` is intentionally a Task 0 creation and `scripts/tests/v2-step2-designsystem-slice-test.sh` is intentionally a Task 13 creation.
 
 ### 8. Final assessment
 
-**READY FOR IMPLEMENTATION-PLAN REVIEW.** No remaining load-bearing contradiction or uncovered R2.1 acceptance criterion was found in the final pass. This is still not implementation authorization by itself: after plan approval, execution begins at Task 0 only and repository `AGENTS.md` requires stopping after each canonical Task N.
+**READY FOR IMPLEMENTATION-PLAN REVIEW.** No remaining load-bearing contradiction or uncovered R2.4 acceptance criterion was found in the final pass. This is still not implementation authorization by itself: after plan approval, execution begins at Task 0 only and repository `AGENTS.md` requires stopping after each canonical Task N.

@@ -65,6 +65,7 @@ baselineProfile {
 dependencies {
     "baselineProfile"(project(":benchmark"))
 
+    implementation(project(":core:designsystem"))
     implementation(project(":feature:catalog"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

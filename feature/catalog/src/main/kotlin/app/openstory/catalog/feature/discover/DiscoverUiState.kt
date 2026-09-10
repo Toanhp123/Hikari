@@ -9,15 +9,7 @@ import app.openstory.catalog.feature.state.CatalogIssueUi
 
 internal data class DiscoverUiState(
     val selectedMediaType: CatalogMediaType = CatalogMediaType.MANGA,
-    val mediaOptions: List<DiscoverMediaOption> = CatalogMediaType.entries.map { mediaType ->
-        DiscoverMediaOption(mediaType, enabled = true)
-    },
     val content: DiscoverContentState = DiscoverContentState.NoContentLoading,
-)
-
-internal data class DiscoverMediaOption(
-    val mediaType: CatalogMediaType,
-    val enabled: Boolean,
 )
 
 internal sealed interface DiscoverContentState {

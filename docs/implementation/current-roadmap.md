@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-12; Task 13 is
-the active canonical boundary and has NOT RUN.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-13; Task 14 is
+the next canonical boundary and is NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -157,8 +157,13 @@ seam, source-scoped initial/redirect host policy, exact 5-hop and 10s/20s timeou
  idempotent image-before-runtime terminal teardown. Fresh runtime/feature host suites pass 87 tests
  with zero failures/errors, and the lifecycle instrumentation source compiles. The filtered
  connected lifecycle class plus `:app:verifyFoundation verifyArchitecture detekt` are accepted from
- the user's `BUILD SUCCESSFUL` results on 2026-09-10. Task 12 is completed/accepted. Task 13 is the
- next canonical boundary and no Task 13 implementation has started.
+ the user's `BUILD SUCCESSFUL` results on 2026-09-10. Task 12 is completed/accepted. Task 13 adds the
+ root Design System, shared stateless primitives, Discover pull-refresh wiring, and structural debt
+ gates. Initial user verification exposed invalid Compose test assumptions plus two blocking Detekt
+ findings; the repaired connected classes, broad release/architecture/Detekt command, build-surface
+ script, and Design System slice script are all accepted from the user's final PASS confirmation on
+ 2026-09-10. Task 13 is completed/accepted. Task 14 remains `NOT RUN` and requires a new explicit user
+ instruction before visual restoration begins.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

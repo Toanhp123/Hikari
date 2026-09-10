@@ -3,6 +3,7 @@ package app.openstory.catalog.feature.discover
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertContentDescriptionEquals
@@ -15,6 +16,8 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.identity.CatalogSourceKey
@@ -23,6 +26,8 @@ import app.openstory.catalog.domain.identity.SourceStoryKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogSectionKind
+import app.openstory.catalog.feature.state.CatalogIssueKind
+import app.openstory.catalog.feature.state.CatalogIssueUi
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -94,8 +99,8 @@ class DiscoverScreenInstrumentedTest {
         val state = contentState()
         setContent(state)
 
-        composeRule.onNodeWithTag(DiscoverTestTags.MEDIA_MANGA).assertIsEnabled()
-        composeRule.onNodeWithTag(DiscoverTestTags.MEDIA_LIGHT_NOVEL).assertIsEnabled()
+        composeRule.onNodeWithText("Manga").assertIsEnabled()
+        composeRule.onNodeWithText("Light Novel").assertIsEnabled()
         val content = state.content as DiscoverContentState.Content
         val firstCard = content.sections.first().cards.first()
         composeRule.onNodeWithTag(DiscoverTestTags.card(CatalogSectionKind.POPULAR, firstCard.ref))
@@ -103,7 +108,54 @@ class DiscoverScreenInstrumentedTest {
         assertTrue(content.sections.sumOf { it.cards.size } <= 19)
     }
 
-    private fun setContent(state: DiscoverUiState) {
+    @Test
+    fun durableContentRoutesRefreshAndRetryToDistinctIntents() {
+        var refreshCalls = 0
+        var retryCalls = 0
+        val state = contentState().copy(
+            content = (contentState().content as DiscoverContentState.Content).copy(
+                issue = CatalogIssueUi(CatalogIssueKind.ACQUISITION_FAILED, retryable = true),
+            ),
+        )
+        setContent(state, onRefresh = { refreshCalls += 1 }, onRetry = { retryCalls += 1 })
+
+        val refreshNode = composeRule.onAllNodes(
+            SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions),
+        ).assertCountEquals(1)[0]
+        val action = refreshNode.fetchSemanticsNode().config[SemanticsActions.CustomActions].single()
+        assertTrue(action.action())
+        composeRule.onNodeWithText("Try again").performClick()
+
+        composeRule.runOnIdle {
+            assertTrue(refreshCalls == 1)
+            assertTrue(retryCalls == 1)
+        }
+    }
+
+    @Test
+    fun absentContentDoesNotExposeRefreshAction() {
+        setContent(contentState().copy(content = DiscoverContentState.NoContentLoading))
+
+        composeRule.onAllNodes(
+            SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions),
+        ).assertCountEquals(0)
+    }
+
+    @Test
+    fun successfulEmptyUsesPullRefreshWithoutManualButton() {
+        setContent(contentState().copy(content = DiscoverContentState.Empty()))
+
+        composeRule.onNodeWithText("Refresh").assertDoesNotExist()
+        composeRule.onAllNodes(
+            SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions),
+        ).assertCountEquals(1)
+    }
+
+    private fun setContent(
+        state: DiscoverUiState,
+        onRefresh: () -> Unit = {},
+        onRetry: () -> Unit = {},
+    ) {
         composeRule.setContent {
             MaterialTheme {
                 DiscoverScreen(
@@ -111,7 +163,8 @@ class DiscoverScreenInstrumentedTest {
                     listState = rememberLazyListState(),
                     onMediaSelected = {},
                     onStorySelected = { _, _ -> },
-                    onRetry = {},
+                    onRefresh = onRefresh,
+                    onRetry = onRetry,
                 )
             }
         }
@@ -130,9 +183,6 @@ class DiscoverScreenInstrumentedTest {
 
         fun contentState() = DiscoverUiState(
             selectedMediaType = CatalogMediaType.MANGA,
-            mediaOptions = CatalogMediaType.entries.map { mediaType ->
-                DiscoverMediaOption(mediaType, enabled = true)
-            },
             content = DiscoverContentState.Content(
                 sections = listOf(
                     section(CatalogSectionKind.POPULAR, 5),

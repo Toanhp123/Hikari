@@ -87,6 +87,7 @@ class StoryRouteRestorationInstrumentedTest {
                     actions = CatalogScreenActions(
                         onMediaSelected = {},
                         onStorySelected = { _, _ -> storyAcquisitionStarted = true },
+                        onDiscoverRefresh = {},
                         onDiscoverRetry = {},
                         onStoryRetry = {},
                         onBack = {},
@@ -121,6 +122,7 @@ class StoryRouteRestorationInstrumentedTest {
                     actions = CatalogScreenActions(
                         onMediaSelected = {},
                         onStorySelected = { _, _ -> },
+                        onDiscoverRefresh = {},
                         onDiscoverRetry = {},
                         onStoryRetry = viewModel::retry,
                         onBack = viewModel::closeDestination,
@@ -154,6 +156,7 @@ class StoryRouteRestorationInstrumentedTest {
                     actions = CatalogScreenActions(
                         onMediaSelected = {},
                         onStorySelected = { _, _ -> },
+                        onDiscoverRefresh = {},
                         onDiscoverRetry = {},
                         onStoryRetry = {},
                         onBack = {

@@ -88,6 +88,27 @@ class AppShellContractTest {
     }
 
     @Test
+    fun startupRootOwnsTheOnlyHikariTheme() {
+        val startup = rootFile(
+            "app/src/main/kotlin/app/openstory/startup/ui/StartupGate.kt",
+        ).readText()
+        val entryPoint = rootFile(
+            "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt",
+        ).readText()
+
+        assertTrue("import androidx.compose.foundation.isSystemInDarkTheme" in startup)
+        assertTrue("import app.openstory.designsystem.theme.HikariTheme" in startup)
+        assertTrue("val darkTheme = isSystemInDarkTheme()" in startup)
+        assertTrue("HikariTheme(darkTheme = darkTheme)" in startup)
+        assertFalse("HikariBootTheme" in startup)
+        assertFalse(
+            repositoryFile("app/src/main/kotlin/app/openstory/ui/HikariBootTheme.kt").exists(),
+        )
+        assertFalse("HikariTheme" in entryPoint)
+        assertFalse("MaterialTheme" in entryPoint)
+    }
+
+    @Test
     fun catalogEntryPointIsAFeatureOwnedNoArgumentComposableBoundary() {
         val entryPoint = repositoryFile(
             "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt",

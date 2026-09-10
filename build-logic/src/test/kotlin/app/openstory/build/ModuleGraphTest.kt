@@ -50,6 +50,30 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun appKeepsOneProductEdgeBesidePresentationInfrastructure() {
+        val appDependencies = policy.modules.getValue(":app").productionDependencies
+
+        assertEquals(setOf(":core:designsystem"), appDependencies intersect presentationInfrastructure)
+        assertEquals(setOf(":feature:catalog"), appDependencies - presentationInfrastructure)
+    }
+
+    @Test
+    fun designSystemParticipatesInProductionPackageStructureVerification() {
+        val pluginSource = File(
+            root,
+            "build-logic/src/main/kotlin/app/openstory/build/ArchitectureConventionPlugin.kt",
+        ).readText()
+
+        assertEquals(
+            "core/designsystem",
+            Regex("\"(:core:designsystem)\"\\s+to\\s+\"([^\"]+)\"")
+                .find(pluginSource)
+                ?.groupValues
+                ?.get(2),
+        )
+    }
+
+    @Test
     fun appPolicyRejectsAllFoundationForbiddenImports() {
         assertEquals(
             setOf(
@@ -93,12 +117,17 @@ class ModuleGraphTest {
                 path = "app",
                 platform = "android-application",
                 dependencyMode = "exact",
-                productionDependencies = setOf(":feature:catalog"),
+                productionDependencies = setOf(":core:designsystem", ":feature:catalog"),
                 testDependencies = setOf(":benchmark"),
             ),
             ":core:common" to ExpectedModule(
                 path = "core/common",
                 platform = "jvm",
+                dependencyMode = "exact",
+            ),
+            ":core:designsystem" to ExpectedModule(
+                path = "core/designsystem",
+                platform = "android-library",
                 dependencyMode = "exact",
             ),
             ":catalog:model" to ExpectedModule(
@@ -152,8 +181,13 @@ class ModuleGraphTest {
                 path = "feature/catalog",
                 platform = "android-library",
                 dependencyMode = "exact",
-                productionDependencies = setOf(":catalog:domain", ":catalog:runtime"),
+                productionDependencies = setOf(
+                    ":catalog:domain",
+                    ":catalog:runtime",
+                    ":core:designsystem",
+                ),
             ),
         )
+        val presentationInfrastructure = setOf(":core:designsystem")
     }
 }

@@ -1,6 +1,7 @@
 package app.openstory.startup.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
 import app.openstory.catalog.feature.CatalogEntryPoint
+import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.startup.AppLaunchState
 import app.openstory.startup.AppLaunchStateStore
 import app.openstory.startup.TRACE_DESTINATION_READY
@@ -18,11 +20,11 @@ import app.openstory.startup.TRACE_LAUNCH_STATE_RESOLVED
 import app.openstory.startup.createAppLaunchStateStore
 import app.openstory.startup.startupTraceMark
 import app.openstory.ui.HikariBootSurface
-import app.openstory.ui.HikariBootTheme
 import kotlinx.coroutines.launch
 
 @Composable
 internal fun HikariStartupApp() {
+    val darkTheme = isSystemInDarkTheme()
     val context = LocalContext.current.applicationContext
     var firstFrameReached by remember { mutableStateOf(false) }
     val store = remember(context) {
@@ -36,7 +38,7 @@ internal fun HikariStartupApp() {
         }
     }
 
-    HikariBootTheme {
+    HikariTheme(darkTheme = darkTheme) {
         HikariBootSurface {
             StartupGate(
                 store = store,

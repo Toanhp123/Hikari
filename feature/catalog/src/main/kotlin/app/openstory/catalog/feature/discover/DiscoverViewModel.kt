@@ -11,6 +11,7 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
 import app.openstory.catalog.feature.state.CatalogIssueUi
+import app.openstory.catalog.feature.state.CatalogIssueKind
 import app.openstory.catalog.feature.state.toCatalogIssueUi
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
@@ -47,17 +48,41 @@ internal class DiscoverViewModel(
 
     private var available: DiscoverRuntimeActivation.Available? = null
     private var activationIssue: CatalogIssueUi? = null
+    private var activationJob: Job? = null
     private var observationJob: Job? = null
     private var refreshJob: Job? = null
     private var quiesceJob: Job? = null
     private var quiescent = false
 
     init {
-        viewModelScope.launch {
+        activateIfNeeded()
+    }
+
+    fun refresh() {
+        requestRefresh()
+    }
+
+    fun retry() {
+        val issue = mutableState.value.content.issueOrNull()
+        val activation = available
+        when {
+            issue == null || !issue.retryable -> Unit
+            activation == null -> activateIfNeeded()
+            issue.kind == CatalogIssueKind.STORAGE_FAILED -> {
+                observeSelectedMedia(activation, mutableState.value.selectedMediaType)
+            }
+            else -> requestRefresh()
+        }
+    }
+
+    private fun activateIfNeeded() {
+        if (activationJob?.isActive == true || available != null || quiescent) return
+        activationJob = viewModelScope.launch {
             try {
                 when (val activation = runtime.activate()) {
                     is DiscoverRuntimeActivation.Available -> {
                         available = activation
+                        activationIssue = null
                         if (!quiescent) observeSelectedMedia(activation, mutableState.value.selectedMediaType)
                     }
                     is DiscoverRuntimeActivation.Unavailable -> showFailure(activation.failure)
@@ -68,6 +93,8 @@ internal class DiscoverViewModel(
                 showFailure(failure.failure)
             } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
                 showActivationIssue(error.toCatalogIssueUi())
+            } finally {
+                activationJob = null
             }
         }
     }
@@ -83,7 +110,7 @@ internal class DiscoverViewModel(
         available?.takeUnless { quiescent }?.let { activation -> observeSelectedMedia(activation, mediaType) }
     }
 
-    fun retry() {
+    private fun requestRefresh() {
         val activation = available ?: return
         if (refreshJob?.isActive == true) return
         val mediaType = mutableState.value.selectedMediaType
@@ -109,6 +136,8 @@ internal class DiscoverViewModel(
     fun quiesce() {
         if (quiescent) return
         quiescent = true
+        activationJob?.cancel()
+        activationJob = null
         observationJob?.cancel()
         observationJob = null
         refreshJob?.cancel()
@@ -121,7 +150,12 @@ internal class DiscoverViewModel(
     fun resume() {
         if (!quiescent) return
         quiescent = false
-        available?.let { activation -> observeSelectedMedia(activation, mutableState.value.selectedMediaType) }
+        val activation = available
+        if (activation != null) {
+            observeSelectedMedia(activation, mutableState.value.selectedMediaType)
+        } else if (activationIssue?.retryable != false) {
+            activateIfNeeded()
+        }
     }
 
     override fun onCleared() {
@@ -235,4 +269,11 @@ private fun DiscoverContentState.withIssue(issue: CatalogIssueUi): DiscoverConte
     -> DiscoverContentState.NoContentFailure(issue)
     is DiscoverContentState.Empty -> copy(refreshing = false, issue = issue)
     is DiscoverContentState.Content -> copy(refreshing = false, issue = issue)
+}
+
+private fun DiscoverContentState.issueOrNull(): CatalogIssueUi? = when (this) {
+    DiscoverContentState.NoContentLoading -> null
+    is DiscoverContentState.NoContentFailure -> issue
+    is DiscoverContentState.Empty -> issue
+    is DiscoverContentState.Content -> issue
 }

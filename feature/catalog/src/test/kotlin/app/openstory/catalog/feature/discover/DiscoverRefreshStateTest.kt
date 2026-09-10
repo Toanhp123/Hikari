@@ -20,6 +20,7 @@ import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.discover.DiscoverSessionState
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -53,7 +54,7 @@ class DiscoverRefreshStateTest {
     }
 
     @Test
-    fun repeatedRetryTapsJoinOneRefreshAndRetainPublishedContentOnFailure() = runTest(dispatcher.scheduler) {
+    fun refreshAndRetryJoinOneRefreshAndRetainPublishedContentOnFailure() = runTest(dispatcher.scheduler) {
         val refreshResult = CompletableDeferred<CatalogAcquisitionResult>()
         val runtime = RecordingDiscoverRuntime { refreshResult.await() }
         val owner = TestOwner(runtime)
@@ -61,7 +62,7 @@ class DiscoverRefreshStateTest {
         runtime.emit(published(content = true), CatalogAcquisitionStatus.Idle)
         advanceUntilIdle()
 
-        owner.viewModel.retry()
+        owner.viewModel.refresh()
         owner.viewModel.retry()
         runCurrent()
 
@@ -90,7 +91,7 @@ class DiscoverRefreshStateTest {
         runtime.emit(published(content = false), CatalogAcquisitionStatus.Idle)
         advanceUntilIdle()
 
-        owner.viewModel.retry()
+        owner.viewModel.refresh()
         advanceUntilIdle()
 
         val failed = owner.viewModel.state.value.content as DiscoverContentState.Empty
@@ -125,6 +126,39 @@ class DiscoverRefreshStateTest {
         advanceUntilIdle()
         assertEquals(1, runtime.activeCollectors)
         assertEquals(2, runtime.observeCalls)
+        owner.clear()
+    }
+
+    @Test
+    fun resumeRestartsActivationCancelledByQuiescence() = runTest(dispatcher.scheduler) {
+        val firstActivationEntered = CompletableDeferred<Unit>()
+        var activationCalls = 0
+        val states = MutableSharedFlow<DiscoverSessionState>(replay = 1)
+        val runtime = object : DiscoverRuntime {
+            override suspend fun activate(): DiscoverRuntimeActivation {
+                activationCalls += 1
+                if (activationCalls == 1) {
+                    firstActivationEntered.complete(Unit)
+                    awaitCancellation()
+                }
+                return DiscoverRuntimeActivation.Available(
+                    observe = { states },
+                    refresh = { CatalogAcquisitionResult.Success },
+                )
+            }
+
+            override fun close() = Unit
+        }
+        val owner = TestOwner(runtime)
+        runCurrent()
+        firstActivationEntered.await()
+
+        owner.viewModel.quiesce()
+        runCurrent()
+        owner.viewModel.resume()
+        advanceUntilIdle()
+
+        assertEquals(2, activationCalls)
         owner.clear()
     }
 

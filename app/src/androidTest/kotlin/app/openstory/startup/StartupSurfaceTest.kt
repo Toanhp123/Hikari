@@ -6,8 +6,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import app.openstory.startup.ui.FirstRunScreen
 import app.openstory.startup.ui.UnknownScreen
+import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.ui.HikariBootSurface
-import app.openstory.ui.HikariBootTheme
 import org.junit.Rule
 import org.junit.Test
 
@@ -42,7 +42,7 @@ class StartupSurfaceTest {
 
     private fun setStartupContent(content: @Composable () -> Unit) {
         composeRule.setContent {
-            HikariBootTheme {
+            HikariTheme(darkTheme = false) {
                 HikariBootSurface(content = content)
             }
         }

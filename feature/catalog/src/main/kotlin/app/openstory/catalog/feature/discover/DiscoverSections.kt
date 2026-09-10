@@ -1,9 +1,7 @@
 package app.openstory.catalog.feature.discover
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -13,8 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
@@ -34,45 +32,41 @@ import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.assets.CoverArtwork
+import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.state.HikariSkeleton
+import app.openstory.designsystem.theme.hikariSpacing
 
-internal fun DiscoverSectionUi.viewportRows(): List<DiscoverViewportRow> = buildList {
-    add(DiscoverViewportRow.Header(kind))
-    if (kind == CatalogSectionKind.POPULAR) {
-        add(DiscoverViewportRow.Carousel(kind, cards))
-    } else {
-        cards.forEachIndexed { index, card ->
-            add(DiscoverViewportRow.VerticalCard(kind, index, card))
-        }
-    }
-}
-
-@Composable
-internal fun DiscoverViewportRowContent(
-    row: DiscoverViewportRow,
+internal fun LazyListScope.discoverSections(
+    sections: List<DiscoverSectionUi>,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
 ) {
-    when (row) {
-        is DiscoverViewportRow.Header -> SectionHeader(row.kind)
-        is DiscoverViewportRow.Carousel -> PopularCards(row.cards, onStorySelected)
-        is DiscoverViewportRow.VerticalCard -> when (row.kind) {
-            CatalogSectionKind.LATEST_UPDATES -> LatestCard(row.card, onStorySelected)
-            CatalogSectionKind.TOP_RATED -> TopRatedCard(row.index, row.card, onStorySelected)
-            CatalogSectionKind.POPULAR -> error("Popular cards belong to the carousel row")
+    sections.forEach { section ->
+        item(key = "section-header:${section.kind.name}") { SectionHeader(section.kind) }
+        when (section.kind) {
+            CatalogSectionKind.POPULAR -> item(key = "section-carousel:${section.kind.name}") {
+                PopularCards(section.cards, onStorySelected)
+            }
+            CatalogSectionKind.LATEST_UPDATES -> items(
+                items = section.cards,
+                key = { card -> "section-card:${section.kind.name}:${card.ref.storyId.value}" },
+            ) { card -> LatestCard(card, onStorySelected) }
+            CatalogSectionKind.TOP_RATED -> itemsIndexed(
+                items = section.cards,
+                key = { _, card -> "section-card:${section.kind.name}:${card.ref.storyId.value}" },
+            ) { index, card -> TopRatedCard(index, card, onStorySelected) }
         }
     }
 }
 
 @Composable
 private fun SectionHeader(kind: CatalogSectionKind) {
-    Text(
-        text = kind.title,
-        style = MaterialTheme.typography.headlineSmall,
+    HikariSectionHeader(
+        title = kind.title,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = MaterialTheme.hikariSpacing.space20)
             .testTag(DiscoverTestTags.section(kind))
             .semantics {
-                heading()
                 traversalIndex = kind.traversalIndex
             },
     )
@@ -84,8 +78,10 @@ private fun PopularCards(
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
 ) {
     LazyRow(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = MaterialTheme.hikariSpacing.space20,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         items(cards, key = { card -> card.ref.storyId.value }) { card ->
             Surface(
@@ -94,7 +90,7 @@ private fun PopularCards(
                     .testTag(DiscoverTestTags.card(CatalogSectionKind.POPULAR, card.ref))
                     .semantics { contentDescription = card.title }
                     .clickable { onStorySelected(card.ref, card.coverAssetKey) },
-                shape = RoundedCornerShape(28.dp),
+                shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
                 Column {
@@ -111,7 +107,7 @@ private fun PopularCards(
                         style = MaterialTheme.typography.titleLarge,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(MaterialTheme.hikariSpacing.space16),
                     )
                 }
             }
@@ -127,17 +123,17 @@ private fun LatestCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = MaterialTheme.hikariSpacing.space20)
             .testTag(DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, card.ref))
             .semantics { contentDescription = card.title }
             .clickable { onStorySelected(card.ref, card.coverAssetKey) },
-        shape = RoundedCornerShape(18.dp),
+        shape = MaterialTheme.shapes.medium,
         tonalElevation = 1.dp,
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(MaterialTheme.hikariSpacing.space12),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
         ) {
             CoverArtwork(
                 title = card.title,
@@ -173,14 +169,17 @@ private fun TopRatedCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = MaterialTheme.hikariSpacing.space20)
             .testTag(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, card.ref))
             .semantics { contentDescription = card.title }
-            .clip(RoundedCornerShape(18.dp))
+            .clip(MaterialTheme.shapes.medium)
             .clickable { onStorySelected(card.ref, card.coverAssetKey) }
-            .padding(vertical = 12.dp, horizontal = 14.dp),
+            .padding(
+                vertical = MaterialTheme.hikariSpacing.space12,
+                horizontal = MaterialTheme.hikariSpacing.space16,
+            ),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         Text(
             text = (index + 1).toString().padStart(2, '0'),
@@ -230,14 +229,13 @@ private fun SkeletonSection(
         modifier = Modifier.padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
-        Box(
+        HikariSectionHeader(title)
+        HikariSkeleton(
             modifier = Modifier
                 .width(width)
                 .height(height)
-                .clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .testTag(tag),
+            shape = MaterialTheme.shapes.large,
         )
     }
 }

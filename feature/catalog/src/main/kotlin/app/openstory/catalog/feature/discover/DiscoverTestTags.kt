@@ -5,9 +5,6 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 
 internal object DiscoverTestTags {
     const val ROOT = "catalog-discover"
-    const val MEDIA_MANGA = "discover-media-manga"
-    const val MEDIA_LIGHT_NOVEL = "discover-media-light-novel"
-    const val REFRESHING = "discover-refreshing"
     const val EMPTY = "discover-empty"
     const val POPULAR_SKELETON = "discover-skeleton-popular"
     const val LATEST_SKELETON = "discover-skeleton-latest"

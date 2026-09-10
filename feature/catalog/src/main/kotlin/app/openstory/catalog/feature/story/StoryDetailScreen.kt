@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -16,8 +15,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.feature.assets.CoverArtwork
+import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.state.HikariSkeleton
 
 @Composable
 internal fun StoryDetailScreen(
@@ -38,10 +40,13 @@ internal fun StoryDetailScreen(
         }
         if (state.detailLoading && state.detail == null) {
             item(key = "story-detail-loading") {
-                Text(
-                    text = "Loading metadata...",
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                HikariSkeleton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .height(72.dp)
+                        .testTag("story-detail-skeleton"),
+                    shape = MaterialTheme.shapes.medium,
                 )
             }
         }
@@ -98,13 +103,12 @@ private fun StoryIssue(retryable: Boolean, onRetry: () -> Unit) {
         color = MaterialTheme.colorScheme.errorContainer,
         shape = MaterialTheme.shapes.large,
     ) {
-        Column(
+        HikariInlineFeedback(
+            message = "Story metadata could not be refreshed.",
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text("Story metadata could not be refreshed.")
-            if (retryable) Button(onClick = onRetry) { Text("Try again") }
-        }
+            actionLabel = "Try again".takeIf { retryable },
+            onAction = onRetry.takeIf { retryable },
+        )
     }
 }
 

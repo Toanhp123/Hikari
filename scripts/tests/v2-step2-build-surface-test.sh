@@ -16,7 +16,7 @@ for forbidden in \
   if grep -R -F --include='*.kt' --include='*.java' --include='*.kts' \
     --exclude-dir=build --exclude-dir=.gradle --exclude-dir=androidTest \
     --exclude-dir=test "$forbidden" \
-    app catalog/domain catalog/storage catalog/runtime feature/catalog; then
+    app core/designsystem catalog/domain catalog/storage catalog/runtime feature/catalog; then
     echo "Forbidden Step 2 production surface found: $forbidden" >&2
     exit 1
   fi

@@ -30,9 +30,11 @@ class Step2BuildSurfaceVerifierTest {
 
         val details = fixture.verify().map(ArchitectureViolation::detail)
 
-        assertTrue(":app expected=:feature:catalog actual=:catalog:runtime" in details)
         assertTrue(
-            ":feature:catalog expected=:catalog:domain,:catalog:runtime " +
+            ":app expected=:core:designsystem,:feature:catalog actual=:catalog:runtime" in details,
+        )
+        assertTrue(
+            ":feature:catalog expected=:catalog:domain,:catalog:runtime,:core:designsystem " +
                 "actual=:catalog:model" in details,
         )
         assertTrue(
@@ -278,6 +280,70 @@ class Step2BuildSurfaceVerifierTest {
         assertViolation(fixture.verify(), "step2_surface.app_catalog_import", ":app")
     }
 
+    @Test
+    fun appMayImportOnlyTheRootDesignSystemTheme() = withFixture { fixture ->
+        fixture.write(
+            "app/src/main/kotlin/app/openstory/BadDesignSystemImport.kt",
+            """
+                package app.openstory
+
+                import app.openstory.designsystem.control.HikariSegmentedControl
+            """.trimIndent(),
+        )
+
+        assertViolation(fixture.verify(), "step2_surface.app_designsystem_import", ":app")
+    }
+
+    @Test
+    fun designSystemRejectsFrameworkAndWorkOwnerDependencies() = withFixture { fixture ->
+        fixture.policy = fixture.policy.copy(
+            modules = fixture.policy.modules + mapOf(
+                ":core:designsystem" to fixture.policy.modules
+                    .getValue(":core:designsystem")
+                    .copy(productionDependencies = setOf(":core:common")),
+            ),
+        )
+        fixture.write(
+            "core/designsystem/build.gradle.kts",
+            """
+                implementation(project(":core:common"))
+                implementation(libs.androidx.room.runtime)
+                implementation(libs.coil.compose)
+                implementation(libs.okhttp)
+                implementation(libs.androidx.work.runtime)
+                implementation(libs.androidx.javascriptengine)
+                implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
+            """.trimIndent(),
+        )
+
+        val violations = fixture.verify()
+
+        assertViolation(violations, "step2_surface.production_graph", ":core:designsystem")
+        assertViolation(violations, "step2_surface.room_owner", ":core:designsystem")
+        assertViolation(violations, "step2_surface.coil_owner", ":core:designsystem")
+        assertViolation(violations, "step2_surface.http_dependency", ":core:designsystem")
+        assertViolation(violations, "step2_surface.designsystem_dependency", ":core:designsystem")
+    }
+
+    @Test
+    fun designSystemRejectsCatalogRuntimeAndPlatformWorkImports() = withFixture { fixture ->
+        fixture.write(
+            "core/designsystem/src/main/kotlin/app/openstory/designsystem/BadOwner.kt",
+            """
+                package app.openstory.designsystem
+
+                import androidx.room.Room
+                import androidx.work.WorkManager
+                import coil.ImageLoader
+                import okhttp3.OkHttpClient
+                import app.openstory.catalog.runtime.CatalogRuntime
+                import app.openstory.plugins.api.Plugin
+            """.trimIndent(),
+        )
+
+        assertViolation(fixture.verify(), "step2_surface.designsystem_import", ":core:designsystem")
+    }
+
     private fun assertViolation(
         violations: List<ArchitectureViolation>,
         code: String,
@@ -389,6 +455,7 @@ class Step2BuildSurfaceVerifierTest {
                     package app.openstory
 
                     import app.openstory.catalog.feature.CatalogEntryPoint
+                    import app.openstory.designsystem.theme.HikariTheme
                 """.trimIndent(),
             )
         }
@@ -436,10 +503,14 @@ class Step2BuildSurfaceVerifierTest {
                         ":app" to rule(
                             "app",
                             ModulePlatform.ANDROID_APPLICATION,
-                            production = setOf(":feature:catalog"),
+                            production = setOf(":core:designsystem", ":feature:catalog"),
                             test = setOf(":benchmark"),
                         ),
                         ":core:common" to rule("core/common", ModulePlatform.JVM),
+                        ":core:designsystem" to rule(
+                            "core/designsystem",
+                            ModulePlatform.ANDROID_LIBRARY,
+                        ),
                         ":catalog:model" to rule(
                             "catalog/model",
                             ModulePlatform.JVM,
@@ -479,7 +550,11 @@ class Step2BuildSurfaceVerifierTest {
                         ":feature:catalog" to rule(
                             "feature/catalog",
                             ModulePlatform.ANDROID_LIBRARY,
-                            setOf(":catalog:domain", ":catalog:runtime"),
+                            setOf(
+                                ":catalog:domain",
+                                ":catalog:runtime",
+                                ":core:designsystem",
+                            ),
                         ),
                     ),
                 )

@@ -203,6 +203,7 @@ private fun catalogScreenActions(
             onDestinationReady = { navigation.showStory(ref, coverAssetKey) },
         )
     },
+    onDiscoverRefresh = discoverViewModel::refresh,
     onDiscoverRetry = discoverViewModel::retry,
     onStoryRetry = storyViewModel::retry,
     onBack = {

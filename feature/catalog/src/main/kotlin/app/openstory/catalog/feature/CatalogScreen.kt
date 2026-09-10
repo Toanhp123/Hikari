@@ -31,6 +31,7 @@ internal fun CatalogScreen(
                 listState = discoverListState,
                 onMediaSelected = actions.onMediaSelected,
                 onStorySelected = actions.onStorySelected,
+                onRefresh = actions.onDiscoverRefresh,
                 onRetry = actions.onDiscoverRetry,
             )
         } ?: CatalogRouteLoading()
@@ -48,6 +49,7 @@ internal fun CatalogScreen(
 internal data class CatalogScreenActions(
     val onMediaSelected: (CatalogMediaType) -> Unit,
     val onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    val onDiscoverRefresh: () -> Unit,
     val onDiscoverRetry: () -> Unit,
     val onStoryRetry: () -> Unit,
     val onBack: () -> Unit,

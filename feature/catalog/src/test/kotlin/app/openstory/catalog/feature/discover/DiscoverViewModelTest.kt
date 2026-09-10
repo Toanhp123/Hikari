@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import app.openstory.catalog.domain.failure.CatalogFailure
+import app.openstory.catalog.domain.failure.CatalogFailureException
 import app.openstory.catalog.domain.failure.CatalogArtworkFailureReason
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
@@ -63,18 +64,13 @@ class DiscoverViewModelTest {
     }
 
     @Test
-    fun newViewModelDefaultsToMangaWithBothMediaOptionsEnabled() = runTest(dispatcher.scheduler) {
+    fun newViewModelDefaultsToMangaWithoutStaticPresentationOptionsInState() = runTest(dispatcher.scheduler) {
         val runtime = FakeDiscoverRuntime()
         val owner = TestViewModelOwner(runtime)
 
         advanceUntilIdle()
 
         assertEquals(CatalogMediaType.MANGA, owner.viewModel.state.value.selectedMediaType)
-        assertEquals(
-            listOf(CatalogMediaType.MANGA, CatalogMediaType.LIGHT_NOVEL),
-            owner.viewModel.state.value.mediaOptions.map { it.mediaType },
-        )
-        assertTrue(owner.viewModel.state.value.mediaOptions.all { it.enabled })
         assertEquals(listOf(CatalogMediaType.MANGA), runtime.observedMedia)
         owner.clear()
     }
@@ -203,6 +199,73 @@ class DiscoverViewModelTest {
         )
         owner.clear()
     }
+
+    @Test
+    fun retryAfterStorageOpenFailureReactivatesExactlyOnce() = runTest(dispatcher.scheduler) {
+        val states = MutableSharedFlow<DiscoverSessionState>(replay = 1)
+        var activationCalls = 0
+        val runtime = object : DiscoverRuntime {
+            override suspend fun activate(): DiscoverRuntimeActivation {
+                activationCalls += 1
+                if (activationCalls == 1) {
+                    throw CatalogFailureException(
+                        CatalogFailure.Storage(CatalogStorageOperation.OPEN),
+                    )
+                }
+                return DiscoverRuntimeActivation.Available(
+                    observe = { states },
+                    refresh = { CatalogAcquisitionResult.Success },
+                )
+            }
+
+            override fun close() = Unit
+        }
+        val owner = TestViewModelOwner(runtime)
+        advanceUntilIdle()
+
+        assertEquals(1, activationCalls)
+        assertEquals(
+            DiscoverContentState.NoContentFailure(
+                CatalogIssueUi(CatalogIssueKind.STORAGE_FAILED, retryable = true),
+            ),
+            owner.viewModel.state.value.content,
+        )
+
+        owner.viewModel.retry()
+        owner.viewModel.retry()
+        advanceUntilIdle()
+
+        assertEquals(2, activationCalls)
+        owner.clear()
+    }
+
+    @Test
+    fun retryAfterStorageReadFailureRestartsObservationWithoutAcquisition() =
+        runTest(dispatcher.scheduler) {
+            val runtime = FakeDiscoverRuntime()
+            val owner = TestViewModelOwner(runtime)
+            advanceUntilIdle()
+            runtime.emit(
+                CatalogMediaType.MANGA,
+                DiscoverSessionState(
+                    persistence = null,
+                    acquisition = CatalogAcquisitionStatus.Failed(
+                        CatalogFailure.Storage(CatalogStorageOperation.READ_DISCOVER),
+                    ),
+                ),
+            )
+            advanceUntilIdle()
+
+            owner.viewModel.retry()
+            advanceUntilIdle()
+
+            assertEquals(
+                listOf(CatalogMediaType.MANGA, CatalogMediaType.MANGA),
+                runtime.observedMedia,
+            )
+            assertTrue(runtime.refreshCalls.isEmpty())
+            owner.clear()
+        }
 
     @Test
     fun unavailableActivationRemainsVisibleWhenMediaSelectionChanges() = runTest(dispatcher.scheduler) {

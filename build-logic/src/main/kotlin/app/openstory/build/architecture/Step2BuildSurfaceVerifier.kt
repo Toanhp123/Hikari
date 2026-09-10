@@ -82,6 +82,11 @@ object Step2BuildSurfaceVerifier {
             if (ROOM_CONVENTION_TOKEN.containsMatchIn(text)) {
                 add(violation("step2_surface.room_convention_forbidden", module, buildFile))
             }
+            if (module == ":core:designsystem" &&
+                DESIGN_SYSTEM_FORBIDDEN_DEPENDENCY_TOKEN.containsMatchIn(text)
+            ) {
+                add(violation("step2_surface.designsystem_dependency", module, buildFile))
+            }
         }
     }
 
@@ -160,6 +165,29 @@ object Step2BuildSurfaceVerifier {
                                 )
                             }
                         }
+                        DESIGN_SYSTEM_IMPORT.findAll(text).forEach { match ->
+                            val imported = match.groupValues[1]
+                            if (imported != ALLOWED_APP_DESIGN_SYSTEM_IMPORT) {
+                                add(
+                                    ArchitectureViolation(
+                                        code = "step2_surface.app_designsystem_import",
+                                        module = module,
+                                        detail = "$relativePath:$imported",
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                    if (module == ":core:designsystem" &&
+                        DESIGN_SYSTEM_FORBIDDEN_IMPORT.containsMatchIn(text)
+                    ) {
+                        add(
+                            ArchitectureViolation(
+                                code = "step2_surface.designsystem_import",
+                                module = module,
+                                detail = relativePath,
+                            ),
+                        )
                     }
                 }
         }
@@ -195,8 +223,12 @@ object Step2BuildSurfaceVerifier {
     )
 
     private val EXPECTED_GRAPH = linkedMapOf(
-        ":app" to ExpectedEdges(setOf(":feature:catalog"), setOf(":benchmark")),
+        ":app" to ExpectedEdges(
+            setOf(":core:designsystem", ":feature:catalog"),
+            setOf(":benchmark"),
+        ),
         ":core:common" to ExpectedEdges(),
+        ":core:designsystem" to ExpectedEdges(),
         ":catalog:model" to ExpectedEdges(setOf(":core:common")),
         ":catalog:engine" to ExpectedEdges(setOf(":catalog:model", ":core:common")),
         ":reader:engine" to ExpectedEdges(setOf(":core:common")),
@@ -205,9 +237,12 @@ object Step2BuildSurfaceVerifier {
         ":catalog:domain" to ExpectedEdges(setOf(":core:common")),
         ":catalog:storage" to ExpectedEdges(setOf(":catalog:domain", ":core:common")),
         ":catalog:runtime" to ExpectedEdges(setOf(":catalog:domain", ":catalog:storage")),
-        ":feature:catalog" to ExpectedEdges(setOf(":catalog:domain", ":catalog:runtime")),
+        ":feature:catalog" to ExpectedEdges(
+            setOf(":catalog:domain", ":catalog:runtime", ":core:designsystem"),
+        ),
     )
     private val STEP2_MODULES = setOf(
+        ":core:designsystem",
         ":catalog:domain",
         ":catalog:storage",
         ":catalog:runtime",
@@ -222,11 +257,17 @@ object Step2BuildSurfaceVerifier {
     )
     private const val ALLOWED_APP_CATALOG_IMPORT =
         "app.openstory.catalog.feature.CatalogEntryPoint"
+    private const val ALLOWED_APP_DESIGN_SYSTEM_IMPORT =
+        "app.openstory.designsystem.theme.HikariTheme"
     private val ROOM_TOKEN = Regex("""(?i)(androidx[.-]room|libs\.androidx\.room|libs\.room)""")
     private val COIL_TOKEN = Regex("""(?i)(libs\.coil|io\.coil-kt)""")
     private val COIL_NETWORK_TOKEN = Regex("""(?i)(coil[-.]network|coil\.network)""")
     private val HTTP_DEPENDENCY_TOKEN = Regex("""(?i)(okhttp|ktor[-.]client|httpclient)""")
     private val ROOM_CONVENTION_TOKEN = Regex("""openstory\.room""")
+    private val DESIGN_SYSTEM_FORBIDDEN_DEPENDENCY_TOKEN = Regex(
+        """(?i)(project\s*\(|room|coil|okhttp|java\.net|workmanager|androidx\.work|""" +
+            """javascriptengine|backdrop|blur|roborazzi|robolectric)""",
+    )
     private val PRODUCTION_SOURCE_PATH = Regex("""/src/(main|release)/""")
     private val RELEASE_FIXTURE_NAME = Regex("""(?i)(seed|plugin.*harness|harness.*plugin)""")
     private val REMOTE_TRANSPORT_IMPLEMENTATION = Regex(
@@ -241,6 +282,14 @@ object Step2BuildSurfaceVerifier {
     private val COIL_IMPORT = Regex("""(?m)^\s*import\s+(coil\.[A-Za-z0-9_.*]+)""")
     private val CATALOG_IMPORT = Regex(
         """(?m)^\s*import\s+(app\.openstory\.catalog\.[A-Za-z0-9_.*]+)""",
+    )
+    private val DESIGN_SYSTEM_IMPORT = Regex(
+        """(?m)^\s*import\s+(app\.openstory\.designsystem\.[A-Za-z0-9_.*]+)""",
+    )
+    private val DESIGN_SYSTEM_FORBIDDEN_IMPORT = Regex(
+        """(?m)^\s*import\s+(?:androidx\.(?:lifecycle|room|work|javascriptengine)\.|""" +
+            """coil\.|okhttp3\.|java\.net\.|kotlinx\.coroutines\.|""" +
+            """app\.openstory\.(?:catalog|plugins)\.)""",
     )
     private val PACKAGE_DECLARATION = Regex(
         """(?m)^\s*package\s+([A-Za-z_][A-Za-z0-9_.]*)\b""",

@@ -1,7 +1,7 @@
 # Hikari V2 V1 Salvage Ledger
 
-Date: 2026-09-08
-Status: Canonical pre-deletion classification for V2 Step 1
+Date: 2026-09-10
+Status: Canonical V1 salvage classification through V2 Step 2 Task 13
 
 This ledger preserves contracts and architectural evidence that must survive the V1 runtime cutover. It does not approve quarantined implementations, prescribe later capability internals, or keep obsolete runtime composition alive.
 
@@ -61,6 +61,7 @@ This ledger preserves contracts and architectural evidence that must survive the
 | SAL-044 | V1 feature ViewModels as migration targets | DROP | NONE | Future feature owners | Preserve user-facing semantics where approved, not V1 presentation/orchestration classes or their dependency graphs. |
 | SAL-045 | V1 benchmark product journeys | DROP | NONE | V2 benchmark owner | Step 1 establishes fresh-install and returning-launch baselines; old product journeys do not define the clean-shell performance contract. |
 | SAL-046 | old runtime-specific structural suppressions/temporary source-layout allowances | DROP | NONE | V2 architecture verification | V2 starts with no inherited temporary debt exemptions or test-only production escape hatches. |
+| SAL-047 | V1 Design System theme and interaction semantics | REDESIGN | REFERENCE | `:core:designsystem` and feature presentation owners | Preserve the reviewed base Material 3 palette, typography, shapes, accessibility intent, static skeleton concept, and pull-refresh semantics. Reject wholesale module/build/test transplantation, semantic token families, artwork/network/backdrop ownership, app-wide component catalog, Roborazzi/Robolectric surface, and Story/Chapters pull-refresh policy. |
 
 ## Source authority
 
