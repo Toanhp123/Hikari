@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-8; Task 9 is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-9; Task 10 is
 the next canonical boundary and is NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -106,7 +106,28 @@ diagnostic method and Task 8 unexpected-failure boundary with local suppressions
 `DiscoverTestTags` to its matching file. Fresh focused debug/benchmark compiles, the 9-test
 ViewModel suite, and Detekt over the changed source cone pass. The user reports `BUILD SUCCESSFUL`
 for the post-remediation `verifyArchitecture detekt` rerun, so Task 8 is completed/accepted. Task 9
-is the next canonical boundary and remains `NOT RUN`; it must not start in this Task 8 closure turn.
+now adds the validated primitive saved Story route, pin-first restored/card navigation, one shared
+feature runtime owner, keyed Story Detail ViewModel/UI state, inline safe retry/failure retention,
+explicit Back release, and exact in-memory Discover scroll continuity. The fresh focused route/Story
+suite passes 11 tests, the Story instrumentation source and direct app caller compile, and the
+widened 9-test Discover reducer suite remains green. The required `verifyArchitecture detekt` gate
+is accepted as `BUILD SUCCESSFUL`; its Detekt output contains warnings only. The first direct
+PowerShell invocation of the connected `StoryRouteRestorationInstrumentedTest` gate did not execute
+tests because PowerShell stripped the `-Pandroid` prefix and Gradle treated
+`.testInstrumentationRunnerArguments...` as a task. The corrected connected run then executed 4
+tests and exposed one invalid scroll-continuity fixture: it first rendered Story with a Discover
+list index of 6 even though the empty Discover surface had only three top-level items, so Compose
+correctly clamped the newly measured list to index 0. The instrumentation test now renders a real
+three-section Discover surface at valid index 2 before Story -> Back and asserts the exact state
+instance/offset; its source compiles and the user rerun reports `BUILD SUCCESSFUL`. Final self-review
+then exposed an immediate Back -> reopen race where the old demand remained feature-active until
+its asynchronous release coroutine ran, allowing the same Story to reuse a demand being released.
+A focused RED regression now blocks release and proves reopen waits; the ViewModel detaches the old
+demand synchronously and serializes reactivation after its release. Because production code changed
+after the earlier device/broad evidence, both required gates were rerun; the user reports
+`BUILD SUCCESSFUL` for the filtered connected class and `verifyArchitecture detekt`. Task 9 is
+completed/accepted. Task 10 is the next canonical boundary and must not start in this Task 9 closure
+turn.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

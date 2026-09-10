@@ -1,6 +1,7 @@
 package app.openstory.catalog.feature.discover
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
@@ -107,6 +108,7 @@ class DiscoverScreenInstrumentedTest {
             MaterialTheme {
                 DiscoverScreen(
                     state = state,
+                    listState = rememberLazyListState(),
                     onMediaSelected = {},
                     onStorySelected = { _, _ -> },
                     onRetry = {},

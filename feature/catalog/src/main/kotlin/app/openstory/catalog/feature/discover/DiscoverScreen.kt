@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -31,11 +32,13 @@ import app.openstory.catalog.feature.state.CatalogIssueUi
 @Composable
 internal fun DiscoverScreen(
     state: DiscoverUiState,
+    listState: LazyListState,
     onMediaSelected: (CatalogMediaType) -> Unit,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
     onRetry: () -> Unit,
 ) {
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .testTag(DiscoverTestTags.ROOT),

@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-10
-Status: **TASKS 0-8 COMPLETED/ACCEPTED; TASK 9 NOT RUN**
+Status: **TASKS 0-9 COMPLETED/ACCEPTED; TASK 10 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-8.
-- Next canonical execution boundary: Task 9, not started in this Task 8 closure turn.
+- Completed/accepted execution boundary: Tasks 0-9.
+- Next canonical execution boundary: Task 10, not started in this Task 9 closure turn.
 
 Reviewed artifact SHA-256:
 
@@ -802,9 +802,114 @@ Task 8 is completed/accepted. The closure turn does not execute Task 9.
   `StorySourceRef` plus optional `CoverAssetKey` on card selection.
 - Actual Compose tree/scroll/accessibility execution and the broad architecture/Detekt gate pass.
 
+## Task 9 Delta
+
+- Added a saved Story route whose persisted representation is one bounded primitive string carrying
+  only the `StorySourceRef` identity fields plus the optional cover revision. Restore re-derives the
+  exact Story identity, validates cover alignment, and fails closed to Discover on malformed or
+  mismatched input.
+- Added a feature-owned runtime holder shared by Discover and Story ViewModels. A restored Story
+  does not construct the Discover ViewModel first; `StoryDetailSession.activate()` completes pin
+  registration and access touch before Story content becomes visible.
+- Added the keyed Story Detail ViewModel/UI flow with separable summary, metadata, loading, and safe
+  typed issue state. Missing detail relies on the existing keyed runtime acquisition, retry remains
+  inline, cached summary/detail/cover survive acquisition or read failures, and cancellation never
+  becomes issue UI.
+- Added explicit destination release on button/system Back. Release and unexpected observer failures
+  fail closed without leaking raw payload/error text or leaving the old demand active.
+- Moved the Discover `LazyListState` above the route branch and passes the same instance back into
+  Discover, preserving exact in-memory scroll continuity across Discover -> Story -> Back.
+- Story Detail remains metadata-only. No Chapter, Reader, Library, progress/reconciliation, bitmap,
+  entity, or broad DTO navigation state was introduced.
+
+## Task 9 Agent-Owned Evidence
+
+- TDD RED was observed for missing route/ViewModel production types, then focused GREEN passes:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*StoryDetailViewModel*' --tests '*CatalogRoute*' --rerun-tasks --no-daemon`
+  - PASS, 11 tests total: 7 Story ViewModel tests and 4 route tests; zero failures/errors.
+- `./gradlew :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS; the Story restoration/pin-order/Back continuity instrumentation source compiles.
+- Post-device-failure focused compile:
+  `.\gradlew.bat :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS after correcting the scroll-continuity instrumentation fixture; no production source was
+    changed by this remediation.
+- Post-remediation focused host regression:
+  `.\gradlew.bat :feature:catalog:testDebugUnitTest --tests '*StoryDetailViewModel*' --tests '*CatalogRoute*' --tests '*DiscoverViewModel*' --no-daemon`
+  - PASS; the route, Story Detail, and Discover state cone remains green.
+- Final self-review race regression:
+  `.\gradlew.bat :feature:catalog:testDebugUnitTest --tests '*StoryDetailViewModelTest.immediateReopenAfterBackDoesNotReuseTheDemandBeingReleased' --no-daemon`
+  - RED before remediation: one assertion failure while the old demand remained active during a
+    blocked release.
+  - GREEN after remediation: PASS; immediate reopen waits for the captured release and creates a
+    fresh active demand.
+- Fresh final agent-owned gate after the race remediation:
+  - focused Story/route/Discover host tests: PASS.
+  - `:feature:catalog:compileDebugAndroidTestKotlin`: PASS.
+- Fresh closure rerun after final user evidence:
+  - focused Story/route/Discover host tests: PASS.
+  - `:feature:catalog:compileDebugAndroidTestKotlin`: PASS.
+- Widened changed-cone checks:
+  - `./gradlew :feature:catalog:testDebugUnitTest --tests '*DiscoverViewModel*' --no-daemon`
+    - PASS, 9 tests; shared runtime ownership does not regress the bounded Discover reducer.
+  - `./gradlew :app:compileDebugKotlin --no-daemon`
+    - PASS; the direct app caller compiles against the evolved feature entry composition.
+- `git diff --check` passes; only expected line-ending conversion warnings are reported by Git.
+
+## Task 9 Required User-Owned Gate
+
+Status: **PASS / ACCEPTED**.
+
+```powershell
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.story.StoryRouteRestorationInstrumentedTest' `
+  --no-daemon
+.\gradlew.bat verifyArchitecture detekt --no-daemon
+```
+
+- Broad gate: PASS. The user-returned `verifyArchitecture detekt` run completed with
+  `BUILD SUCCESSFUL`; all architecture checks passed and the reported Detekt findings are warnings
+  only.
+- Connected gate: PASS. The first direct PowerShell invocation stripped the `-Pandroid` prefix,
+  so Gradle rejected `.testInstrumentationRunnerArguments...` as an unknown task before executing
+  instrumentation. A local `gradlew help` probe confirms that quoting the whole project-property
+  argument preserves it correctly. The corrected user run executed 4 tests on Redmi Note 9S/API 35:
+  3 passed and `backReturnsToDiscoverWithTheSameScrollStateInstance` failed with `expected:<6> but
+  was:<0>`. Root-cause review found that the test began on Story and first measured an empty Discover
+  surface with an impossible top-level index 6, which Compose correctly clamped to 0. The test now
+  first renders a real three-section Discover surface at valid index 2, transitions to Story, then
+  verifies Back retains the same `LazyListState` instance and exact index/offset. The corrected
+  user rerun reports `BUILD SUCCESSFUL` for the filtered
+  `StoryRouteRestorationInstrumentedTest` class on Redmi Note 9S/API 35.
+- Final self-review subsequently exposed and remediated a production Back -> immediate reopen race:
+  `closeDestination()` previously left the old demand feature-active until its asynchronous release
+  coroutine ran, so reopening the same Story could reuse the demand being released. The ViewModel
+  now detaches route/demand state synchronously and makes the next activation await the captured
+  release job. A blocking-release regression was observed RED and passes after the fix. Because this
+  production change post-dated the earlier evidence, both commands above required one final rerun.
+- Final user reruns: both the filtered connected class and `verifyArchitecture detekt` report
+  `BUILD SUCCESSFUL` after the race remediation.
+
+Task 9 is completed/accepted. This closure turn commits Task 9 and does not execute Task 10.
+
+## Task 9 Self-Review
+
+- Pin-first ordering is preserved for both card navigation and restored Story routes. Discover is
+  not activated first on restored Story, and publication/pruning still shares the runtime mutation
+  gate with active pins.
+- The feature consumes the existing keyed runtime observer and atomic importer/write boundary; it
+  adds no DAO-shaped orchestration and does not widen the <=4-query storage contract.
+- Route save data is length-framed and bounded by existing domain identity/revision limits. Restore
+  never repairs identity drift or exposes the rejected raw payload to UI.
+- One shared runtime/session owner survives configuration recreation; Story demand is reusable after
+  Back, and release/observer failure paths clear stale feature state without crashing the route.
+- Back detaches the feature's old demand synchronously; an immediate reopen waits for its captured
+  release to finish, preventing reuse of a session/pin in the middle of release.
+- The changed cone contains no Chapter/Reader/Library/progress fan-in, bitmap navigation, or direct
+  storage/app-shell ownership violation.
+
 ## Later Task Status
 
-Tasks 0-8: **COMPLETED/ACCEPTED**. Tasks 9 through 16: **NOT RUN**.
+Tasks 0-9: **COMPLETED/ACCEPTED**. Tasks 10 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
@@ -813,6 +918,6 @@ Tasks 0-8: **COMPLETED/ACCEPTED**. Tasks 9 through 16: **NOT RUN**.
 
 ## Exact Resume Boundary
 
-Resume Step 2 at Task 9: implement the Story Detail route, pin lifecycle, keyed observation, and
-atomic enrichment flow according to the owning plan. Task 9 remains `NOT RUN`; do not infer its
-execution from this Task 8 closure record.
+Resume Step 2 at Task 10: add the local visual fast path, stable asset identity, bounded caches,
+viewport demand, and continuity according to the owning plan. Task 10 remains `NOT RUN`; do not
+infer its execution from this Task 9 closure record.

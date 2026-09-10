@@ -12,8 +12,6 @@ import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
 import app.openstory.catalog.feature.state.CatalogIssueUi
 import app.openstory.catalog.feature.state.toCatalogIssueUi
-import app.openstory.catalog.runtime.CatalogCapabilityActivation
-import app.openstory.catalog.runtime.CatalogCapabilitySession
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.discover.DiscoverSessionState
@@ -38,28 +36,6 @@ internal sealed interface DiscoverRuntimeActivation {
         val observe: (CatalogMediaType) -> Flow<DiscoverSessionState>,
         val refresh: suspend (CatalogMediaType) -> CatalogAcquisitionResult,
     ) : DiscoverRuntimeActivation
-}
-
-internal class CatalogDiscoverRuntime(
-    private val session: CatalogCapabilitySession,
-    private val onActivationStarted: () -> Unit,
-    private val onStorageReady: () -> Unit,
-) : DiscoverRuntime {
-    override suspend fun activate(): DiscoverRuntimeActivation {
-        onActivationStarted()
-        return when (val activation = session.activate()) {
-            is CatalogCapabilityActivation.Unavailable -> DiscoverRuntimeActivation.Unavailable(activation.failure)
-            is CatalogCapabilityActivation.Available -> {
-                onStorageReady()
-                DiscoverRuntimeActivation.Available(
-                    observe = { mediaType -> activation.discoverSession(mediaType).states },
-                    refresh = activation::acquireDiscover,
-                )
-            }
-        }
-    }
-
-    override fun close() = session.close()
 }
 
 internal class DiscoverViewModel(
