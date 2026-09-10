@@ -95,6 +95,8 @@ internal class StoryDetailViewModel(
                             detailLoading = true,
                             issue = null,
                             destinationActive = true,
+                            coverLocator = null,
+                            coverAssetKey = coverAssetKey,
                         )
                         onDestinationReady()
                         activation.states.collect(::reduce)
@@ -194,7 +196,7 @@ private fun StoryDetailSessionState.toUiState(
     routeCoverAssetKey: CoverAssetKey?,
 ): StoryDetailUiState {
     val currentProjection = projection
-    val summary = currentProjection?.toSummaryUi(routeCoverAssetKey) ?: previous?.summary
+    val summary = currentProjection?.toSummaryUi() ?: previous?.summary
     val detail = currentProjection?.detail?.let { richDetail ->
         StoryDetailUi(
             description = richDetail.description,
@@ -213,15 +215,22 @@ private fun StoryDetailSessionState.toUiState(
         detailLoading = currentProjection?.detail == null && issue == null,
         issue = issue,
         destinationActive = true,
+        coverLocator = currentProjection?.summary?.coverLocator ?: previous?.coverLocator,
+        coverAssetKey = if (currentProjection != null) {
+            currentProjection.summary.coverAssetKey ?: previous?.coverAssetKey ?: routeCoverAssetKey
+        } else {
+            previous?.coverAssetKey ?: routeCoverAssetKey
+        },
     )
 }
 
-private fun StoryDetailProjection.toSummaryUi(routeCoverAssetKey: CoverAssetKey?): StorySummaryUi =
+private fun StoryDetailProjection.toSummaryUi(): StorySummaryUi =
     StorySummaryUi(
         title = summary.title,
-        coverAssetKey = summary.coverAssetKey ?: routeCoverAssetKey,
+        coverAssetKey = summary.coverAssetKey,
         ratingLabel = summary.rating?.let { rating ->
             String.format(Locale.ROOT, "%.1f / %.0f", rating.value, rating.scale)
         },
         publicationStatus = summary.publicationStatusSummary,
+        coverLocator = summary.coverLocator,
     )

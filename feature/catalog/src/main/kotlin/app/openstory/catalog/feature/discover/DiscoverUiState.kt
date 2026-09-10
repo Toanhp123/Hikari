@@ -1,6 +1,7 @@
 package app.openstory.catalog.feature.discover
 
 import app.openstory.catalog.domain.asset.CoverAssetKey
+import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogSectionKind
@@ -49,4 +50,5 @@ internal data class DiscoverCardUi(
     val coverAssetKey: CoverAssetKey?,
     val ratingLabel: String?,
     val supportingLabel: String?,
+    val coverLocator: CoverLocator? = null,
 )

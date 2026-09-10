@@ -1,7 +1,8 @@
 package app.openstory.catalog.feature.story
 
 import app.openstory.catalog.domain.asset.CoverAssetKey
-import app.openstory.catalog.domain.asset.CoverRevision
+import app.openstory.catalog.domain.asset.CoverLocator
+import app.openstory.catalog.domain.asset.CoverRevisionV1
 import app.openstory.catalog.domain.failure.CatalogFailure
 import app.openstory.catalog.domain.failure.CatalogOperation
 import app.openstory.catalog.domain.identity.CatalogSourceKey
@@ -64,6 +65,8 @@ class StoryDetailViewModelTest {
 
         assertEquals(listOf("pin-active", "route-visible"), events)
         assertTrue(viewModel.state.value?.destinationActive == true)
+        assertEquals(COVER_KEY, viewModel.state.value?.coverAssetKey)
+        assertNull(viewModel.state.value?.coverLocator)
     }
 
     @Test
@@ -83,6 +86,7 @@ class StoryDetailViewModelTest {
 
         val state = requireNotNull(viewModel.state.value)
         assertEquals("Story 17", state.summary?.title)
+        assertEquals(COVER_LOCATOR, state.summary?.coverLocator)
         assertEquals(COVER_KEY, state.summary?.coverAssetKey)
         assertNull(state.detail)
         assertTrue(state.detailLoading)
@@ -264,10 +268,9 @@ class StoryDetailViewModelTest {
         )
         val COVER_KEY = CoverAssetKey(
             storyId = REF.storyId,
-            coverRevision = CoverRevision(
-                "cover:v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-            ),
+            coverRevision = CoverRevisionV1.local("debug:manga:cover-a", "1"),
         )
+        val COVER_LOCATOR = CoverLocator.TrustedLocalResource("debug:manga:cover-a", "1")
         val DETAIL = StoryRichDetailProjection(
             description = "Cached description",
             authors = listOf("Author"),
@@ -284,7 +287,7 @@ class StoryDetailViewModelTest {
                 title = "Story 17",
                 contentType = CatalogMediaType.MANGA,
                 sourceVersion = "fixture-v1",
-                coverLocator = null,
+                coverLocator = COVER_LOCATOR,
                 coverAssetKey = COVER_KEY,
                 rating = CatalogRating(8.5, 10.0),
                 publicationStatusSummary = "Ongoing",

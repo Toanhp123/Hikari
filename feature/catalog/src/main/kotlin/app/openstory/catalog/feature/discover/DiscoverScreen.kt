@@ -69,13 +69,10 @@ internal fun DiscoverScreen(
                     DiscoverIssuePanel(issue, onRetry)
                 } }
                 items(
-                    items = content.sections,
-                    key = { section -> section.kind.name },
-                ) { section ->
-                    DiscoverSection(
-                        section = section,
-                        onStorySelected = onStorySelected,
-                    )
+                    items = content.sections.flatMap(DiscoverSectionUi::viewportRows),
+                    key = DiscoverViewportRow::stableKey,
+                ) { row ->
+                    DiscoverViewportRowContent(row, onStorySelected)
                 }
             }
         }

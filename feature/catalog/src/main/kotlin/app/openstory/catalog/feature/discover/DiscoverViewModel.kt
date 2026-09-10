@@ -188,6 +188,7 @@ private fun DiscoverCard.toUi() = DiscoverCardUi(
         String.format(Locale.ROOT, "%.1f / %.0f", value.value, value.scale)
     },
     supportingLabel = publicationStatusSummary ?: latestUpdateEpochMs?.let { "Recently updated" },
+    coverLocator = coverLocator,
 )
 
 private fun DiscoverContentState.withRefreshRunning(): DiscoverContentState = when (this) {

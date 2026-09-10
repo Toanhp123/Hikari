@@ -7,7 +7,6 @@ internal interface CatalogVariantBinding {
     val diagnostics: CatalogCompositionDiagnostics
         get() = NoOpCatalogCompositionDiagnostics
 
-    fun localCoverResource(logicalAssetId: String, assetVersion: String): Int?
 }
 
 internal interface CatalogCompositionDiagnostics {

@@ -39,7 +39,7 @@ class CatalogVariantFixtureTest {
             acquisition.sections.flattenItems().forEach { item ->
                 assertEquals(mediaType, item.contentType)
                 val cover = item.cover as AcquisitionCoverInput.TrustedLocal
-                assertNotNull(variant.localCoverResource(cover.logicalAssetId, cover.assetVersion))
+                assertNotNull(VariantLocalCoverAssets.resolve(cover.logicalAssetId, cover.assetVersion))
             }
 
             val first = acquisition.sections.first().items.first()
@@ -61,7 +61,7 @@ class CatalogVariantFixtureTest {
         }
 
         assertEquals(binding.catalogSourceKey, binding.assetPolicy?.catalogSourceKey)
-        assertEquals(null, variant.localCoverResource("unknown", "1"))
+        assertEquals(null, VariantLocalCoverAssets.resolve("unknown", "1"))
     }
 
     private fun List<app.openstory.catalog.domain.source.DiscoverAcquisitionSection>.flattenItems() =

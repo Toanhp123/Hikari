@@ -26,17 +26,4 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
             CatalogDebugDiagnostics.recordStorageReady()
         }
     }
-
-    override fun localCoverResource(logicalAssetId: String, assetVersion: String): Int? {
-        if (assetVersion != ASSET_VERSION) return null
-        return when (logicalAssetId) {
-            "debug:manga:cover-a" -> R.drawable.catalog_debug_manga_a
-            "debug:manga:cover-b" -> R.drawable.catalog_debug_manga_b
-            "debug:light-novel:cover-a" -> R.drawable.catalog_debug_light_novel_a
-            "debug:light-novel:cover-b" -> R.drawable.catalog_debug_light_novel_b
-            else -> null
-        }
-    }
-
-    private const val ASSET_VERSION = "1"
 }

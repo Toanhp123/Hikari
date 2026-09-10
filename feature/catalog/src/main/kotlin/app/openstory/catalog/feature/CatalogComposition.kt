@@ -2,6 +2,7 @@ package app.openstory.catalog.feature
 
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +19,8 @@ import app.openstory.catalog.feature.discover.DiscoverRuntimeActivation
 import app.openstory.catalog.feature.discover.DiscoverViewModel
 import app.openstory.catalog.feature.story.CatalogStoryDetailRuntime
 import app.openstory.catalog.feature.story.StoryDetailViewModel
+import app.openstory.catalog.feature.assets.CatalogImageLoader
+import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
 import app.openstory.catalog.feature.trace.AndroidCatalogTraceSink
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.CatalogCapabilitySession
@@ -46,7 +49,7 @@ private fun rememberCatalogRuntimeHolder(applicationContext: Context): CatalogRu
                     AndroidCatalogTraceSink.mark(CatalogTrace.ACTIVATION_START)
                 },
                 onStorageReady = VariantCatalogBinding.diagnostics::storageReady,
-            )
+            ) to CatalogImageLoader(applicationContext, VariantLocalCoverAssets)
         }
     }
     return viewModel(factory = runtimeFactory)
@@ -69,13 +72,15 @@ private fun CatalogSessionContent(runtimeHolder: CatalogRuntimeHolder) {
     val discoverViewModel = discoverViewModel(route, runtimeHolder)
     val discoverState = discoverViewModel?.state?.collectAsStateWithLifecycle()?.value
 
-    CatalogScreen(
-        route = route,
-        discoverListState = navigation.discoverListState,
-        discoverState = discoverState,
-        storyState = storyState,
-        actions = catalogScreenActions(navigation, discoverViewModel, storyViewModel),
-    )
+    CompositionLocalProvider(LocalCatalogImageLoader provides runtimeHolder.images) {
+        CatalogScreen(
+            route = route,
+            discoverListState = navigation.discoverListState,
+            discoverState = discoverState,
+            storyState = storyState,
+            actions = catalogScreenActions(navigation, discoverViewModel, storyViewModel),
+        )
+    }
 }
 
 @Composable
@@ -173,18 +178,21 @@ internal class CatalogRuntimeHost(
 
 internal class CatalogRuntimeHolder(
     val runtime: CatalogRuntimeHost,
+    val images: CatalogImageLoader,
 ) : ViewModel() {
     override fun onCleared() {
+        images.close()
         runtime.close()
     }
 
     companion object {
-        fun factory(createRuntime: () -> CatalogRuntimeHost): ViewModelProvider.Factory =
+        fun factory(createRuntime: () -> Pair<CatalogRuntimeHost, CatalogImageLoader>): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     require(modelClass.isAssignableFrom(CatalogRuntimeHolder::class.java))
-                    return CatalogRuntimeHolder(createRuntime()) as T
+                    val (runtime, images) = createRuntime()
+                    return CatalogRuntimeHolder(runtime, images) as T
                 }
             }
     }

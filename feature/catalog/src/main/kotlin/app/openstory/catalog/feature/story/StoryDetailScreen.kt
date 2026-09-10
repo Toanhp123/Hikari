@@ -1,8 +1,6 @@
 package app.openstory.catalog.feature.story
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,9 +16,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.openstory.catalog.feature.assets.CoverArtwork
 
 @Composable
 internal fun StoryDetailScreen(
@@ -69,26 +66,14 @@ private fun StoryHeader(state: StoryDetailUiState, onBack: () -> Unit) {
             TextButton(onClick = onBack) { Text("Back") }
             Text("Story detail", style = MaterialTheme.typography.labelLarge)
         }
-        Box(
+        CoverArtwork(
+            title = state.summary?.title ?: "Story cover",
+            locator = state.coverLocator,
+            assetKey = state.coverAssetKey,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.tertiaryContainer,
-                        ),
-                    ),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = state.summary?.title?.firstOrNull()?.uppercase() ?: "H",
-                style = MaterialTheme.typography.displayLarge,
-                fontWeight = FontWeight.Black,
-            )
-        }
+                .height(220.dp),
+        )
     }
 }
 

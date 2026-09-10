@@ -19,11 +19,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -35,32 +33,49 @@ import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogSectionKind
+import app.openstory.catalog.feature.assets.CoverArtwork
 
-@Composable
-internal fun DiscoverSection(
-    section: DiscoverSectionUi,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(DiscoverTestTags.section(section.kind))
-            .semantics { traversalIndex = section.kind.traversalIndex },
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = section.kind.title,
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .semantics { heading() },
-        )
-        when (section.kind) {
-            CatalogSectionKind.POPULAR -> PopularCards(section.cards, onStorySelected)
-            CatalogSectionKind.LATEST_UPDATES -> LatestCards(section.cards, onStorySelected)
-            CatalogSectionKind.TOP_RATED -> TopRatedCards(section.cards, onStorySelected)
+internal fun DiscoverSectionUi.viewportRows(): List<DiscoverViewportRow> = buildList {
+    add(DiscoverViewportRow.Header(kind))
+    if (kind == CatalogSectionKind.POPULAR) {
+        add(DiscoverViewportRow.Carousel(kind, cards))
+    } else {
+        cards.forEachIndexed { index, card ->
+            add(DiscoverViewportRow.VerticalCard(kind, index, card))
         }
     }
+}
+
+@Composable
+internal fun DiscoverViewportRowContent(
+    row: DiscoverViewportRow,
+    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+) {
+    when (row) {
+        is DiscoverViewportRow.Header -> SectionHeader(row.kind)
+        is DiscoverViewportRow.Carousel -> PopularCards(row.cards, onStorySelected)
+        is DiscoverViewportRow.VerticalCard -> when (row.kind) {
+            CatalogSectionKind.LATEST_UPDATES -> LatestCard(row.card, onStorySelected)
+            CatalogSectionKind.TOP_RATED -> TopRatedCard(row.index, row.card, onStorySelected)
+            CatalogSectionKind.POPULAR -> error("Popular cards belong to the carousel row")
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(kind: CatalogSectionKind) {
+    Text(
+        text = kind.title,
+        style = MaterialTheme.typography.headlineSmall,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .testTag(DiscoverTestTags.section(kind))
+            .semantics {
+                heading()
+                traversalIndex = kind.traversalIndex
+            },
+    )
 }
 
 @Composable
@@ -83,8 +98,10 @@ private fun PopularCards(
                 color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
                 Column {
-                    CoverPlaceholder(
+                    CoverArtwork(
                         title = card.title,
+                        locator = card.coverLocator,
+                        assetKey = card.coverAssetKey,
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(POPULAR_COVER_ASPECT_RATIO),
@@ -103,91 +120,44 @@ private fun PopularCards(
 }
 
 @Composable
-private fun LatestCards(
-    cards: List<DiscoverCardUi>,
+private fun LatestCard(
+    card: DiscoverCardUi,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
 ) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .testTag(DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, card.ref))
+            .semantics { contentDescription = card.title }
+            .clickable { onStorySelected(card.ref, card.coverAssetKey) },
+        shape = RoundedCornerShape(18.dp),
+        tonalElevation = 1.dp,
     ) {
-        cards.forEach { card ->
-            key(DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, card.ref)) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag(DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, card.ref))
-                        .semantics { contentDescription = card.title }
-                        .clickable { onStorySelected(card.ref, card.coverAssetKey) },
-                    shape = RoundedCornerShape(18.dp),
-                    tonalElevation = 1.dp,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        CoverPlaceholder(card.title, Modifier.size(width = 64.dp, height = 82.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = card.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            card.supportingLabel?.let { label ->
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TopRatedCards(
-    cards: List<DiscoverCardUi>,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        cards.forEachIndexed { index, card ->
-            key(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, card.ref)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, card.ref))
-                        .semantics { contentDescription = card.title }
-                        .clip(RoundedCornerShape(18.dp))
-                        .clickable { onStorySelected(card.ref, card.coverAssetKey) }
-                        .padding(vertical = 12.dp, horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            CoverArtwork(
+                title = card.title,
+                locator = card.coverLocator,
+                assetKey = card.coverAssetKey,
+                modifier = Modifier.size(width = 64.dp, height = 82.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = card.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                card.supportingLabel?.let { label ->
                     Text(
-                        text = (index + 1).toString().padStart(2, '0'),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(card.title, style = MaterialTheme.typography.titleMedium)
-                        card.ratingLabel?.let { rating ->
-                            Text(
-                                text = rating,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -195,25 +165,45 @@ private fun TopRatedCards(
 }
 
 @Composable
-private fun CoverPlaceholder(title: String, modifier: Modifier) {
-    Box(
-        modifier = modifier.background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer,
-                    MaterialTheme.colorScheme.primaryContainer,
-                    MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ),
-        ),
-        contentAlignment = Alignment.Center,
+private fun TopRatedCard(
+    index: Int,
+    card: DiscoverCardUi,
+    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .testTag(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, card.ref))
+            .semantics { contentDescription = card.title }
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { onStorySelected(card.ref, card.coverAssetKey) }
+            .padding(vertical = 12.dp, horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text(
-            text = title.firstOrNull()?.uppercase() ?: "H",
-            style = MaterialTheme.typography.displayMedium,
+            text = (index + 1).toString().padStart(2, '0'),
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f),
+            color = MaterialTheme.colorScheme.tertiary,
         )
+        CoverArtwork(
+            title = card.title,
+            locator = card.coverLocator,
+            assetKey = card.coverAssetKey,
+            modifier = Modifier.size(width = 48.dp, height = 64.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(card.title, style = MaterialTheme.typography.titleMedium)
+            card.ratingLabel?.let { rating ->
+                Text(
+                    text = rating,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

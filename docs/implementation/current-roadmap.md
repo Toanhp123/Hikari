@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-9; Task 10 is
-the next canonical boundary and is NOT RUN.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-10; Task 11 is
+the active canonical boundary and is NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -126,8 +126,22 @@ A focused RED regression now blocks release and proves reopen waits; the ViewMod
 demand synchronously and serializes reactivation after its release. Because production code changed
 after the earlier device/broad evidence, both required gates were rerun; the user reports
 `BUILD SUCCESSFUL` for the filtered connected class and `verifyArchitecture detekt`. Task 9 is
-completed/accepted. Task 10 is the next canonical boundary and must not start in this Task 9 closure
-turn.
+completed/accepted. Task 10 now adds the lazy capability-private image session, exact 32 MiB
+decoded/128 MiB encoded cache ceilings, an eight-job foreground cap, zero manual prefetch, stable
+`CoverAssetKey` request identity, build-type logical local-asset resolution, Android memory-pressure
+handling, typed artwork-only failure state, Story route cover continuity before metadata, and
+viewport-owned vertical cover demand. The final focused cone passes 22 host tests, debug and
+instrumentation-source compiles, the app shell contract, all release/profile variant compiles, and
+the benchmark resolver fixture with no warnings. The first user-owned connected run passed 8/9
+tests and exposed an invalid metadata-visibility fixture that asserted the full cover title even
+though `CoverArtwork` intentionally renders only its first placeholder character; the fixture now
+renders metadata independently beside the failed cover. The first broad run passed all architecture
+checks and exposed five blocking Detekt findings in the Task 10 feature cone; source-only
+remediations are present, and the focused cache/failure/layout plus production/instrumentation
+compile gate passes. The user reports `BUILD SUCCESSFUL` for both required reruns: the filtered
+connected `LocalCoverContinuityInstrumentedTest` class and `verifyArchitecture detekt`. The fresh
+closure cone passes all 22 focused host tests plus debug production and instrumentation-source
+compilation. Task 10 is completed/accepted; Task 11 is the active canonical boundary and is NOT RUN.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

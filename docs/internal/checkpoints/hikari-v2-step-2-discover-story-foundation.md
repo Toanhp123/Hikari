@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-10
-Status: **TASKS 0-9 COMPLETED/ACCEPTED; TASK 10 NOT RUN**
+Status: **TASKS 0-10 COMPLETED/ACCEPTED; TASK 11 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-9.
-- Next canonical execution boundary: Task 10, not started in this Task 9 closure turn.
+- Completed/accepted execution boundary: Tasks 0-10.
+- Active canonical execution boundary: Task 11, `NOT RUN`.
 
 Reviewed artifact SHA-256:
 
@@ -907,9 +907,107 @@ Task 9 is completed/accepted. This closure turn commits Task 9 and does not exec
 - The changed cone contains no Chapter/Reader/Library/progress fan-in, bitmap navigation, or direct
   storage/app-shell ownership violation.
 
+## Task 10 Delta
+
+- Added a capability-private, lazily created Catalog image session. No Coil loader, decoded cache,
+  disk cache, callback registration, or cover work exists before the first composed cover demand;
+  final feature-session destruction closes the image session before the runtime session and every
+  close/unregister path is idempotent.
+- Configured exact initial ceilings: 32 MiB decoded memory, one 128 MiB Coil disk cache, at most
+  eight active cover pipelines, and zero manual offscreen prefetch. Android low-memory/pressure
+  callbacks clear only decoded memory; `TRIM_MEMORY_UI_HIDDEN` alone preserves warm continuity and
+  decoded-memory trims do not clear encoded disk entries.
+- Added `CoverRequest`, the local `CoverFetcher`, and `CoverEncodedDiskCache`. Both Coil memory and
+  encoded disk identity use only `CoverAssetKey.stableCacheKey`; the explicit disk adapter closes
+  snapshots, replaces atomically, aborts incomplete/failed/oversized writes, and rethrows caller
+  cancellation after releasing its editor.
+- Moved Android drawable resolution behind build-type-owned `VariantLocalCoverAssets`: debug and
+  benchmark/profile variants map stable logical asset ID/version pairs to packaged resources;
+  release resolves nothing and still packages no deterministic seed artwork. Raw resource integers
+  do not enter domain, storage, route, or UI model state.
+- Preserved `CoverLocator` beside `CoverAssetKey` through Discover/Story presentation. Discover and
+  Story issue the same stable request for unchanged artwork; the route cover key is available to
+  Story before metadata arrives, enabling the memory fast path without carrying a bitmap/DTO.
+- Replaced placeholder-only cover slots with fixed-geometry asynchronous cover surfaces. Artwork
+  failure is scoped to typed `CatalogFailure.Artwork` state while metadata remains rendered, and a
+  stable failed request does not automatically restart on unrelated recomposition.
+- Converted Latest Updates and Top Rated cards into individual top-level LazyColumn rows while
+  retaining Popular as one horizontal carousel. This makes vertical offscreen disposal cancel image
+  demand instead of composing all 9/5 vertical cards eagerly.
+
+## Task 10 Agent-Owned Evidence
+
+- TDD RED was observed for the missing image/cache/session API, missing locator projection, route
+  cover readiness, scoped artwork failure, composition disposal, viewport-row ownership, and disk
+  editor failure cleanup before each production change.
+- Final focused feature cone:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*CoverEncodedDiskCacheTest' --tests '*CoverJobLimiterTest' --tests '*CoverArtworkFailureTest' --tests '*DiscoverViewportLayoutTest' --tests '*DiscoverViewModelTest' --tests '*StoryDetailViewModelTest' --tests '*CatalogVariantFixtureTest' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS, 22 focused host tests, debug production compile, and instrumentation-source compile; zero
+    failures/errors/warnings.
+- Direct app-shell regression:
+  `./gradlew :app:testDebugUnitTest --tests '*AppShellContractTest*' --no-daemon`
+  - PASS with zero warnings.
+- Variant cone:
+  `./gradlew :feature:catalog:compileReleaseKotlin :feature:catalog:compileBenchmarkReleaseKotlin :feature:catalog:compileNonMinifiedReleaseKotlin :feature:catalog:testBenchmarkReleaseUnitTest --tests '*CatalogVariantFixtureTest*' --no-daemon`
+  - PASS for release, benchmarkRelease, and nonMinifiedRelease compilation plus the real benchmark
+    logical-asset resolver fixture; zero warnings.
+- Post-user-failure focused remediation gate:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*CoverEncodedDiskCacheTest' --tests '*CoverArtworkFailureTest' --tests '*DiscoverViewportLayoutTest' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS after separating visible metadata from the cover placeholder fixture, preserving cache
+    cancellation/abort behavior while satisfying source shape, and moving public-in-file state/row
+    declarations to matching files.
+- Fresh closure gate after user-owned acceptance:
+  `./gradlew :feature:catalog:testDebugUnitTest --tests '*CoverEncodedDiskCacheTest' --tests '*CoverJobLimiterTest' --tests '*CoverArtworkFailureTest' --tests '*DiscoverViewportLayoutTest' --tests '*DiscoverViewModelTest' --tests '*StoryDetailViewModelTest' --tests '*CatalogVariantFixtureTest' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS, 22/22 focused host tests with zero failures/errors/skips plus debug production and
+    instrumentation-source compilation.
+- `git diff --check` passes; only expected working-copy line-ending notices are emitted by Git.
+
+## Task 10 Required User-Owned Gate
+
+Status: **ACCEPTED**.
+
+```powershell
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.assets.LocalCoverContinuityInstrumentedTest' `
+  --no-daemon
+.\gradlew.bat verifyArchitecture detekt --no-daemon
+```
+
+- The first connected run executed 9 tests on Redmi Note 9S/API 35 and passed 8/9. The sole failure
+  was an invalid test fixture: it asserted `Visible metadata 10` from `CoverArtwork`, whose visual
+  placeholder intentionally renders only the title's first character. The fixture now renders an
+  independent metadata `Text` beside the failed cover while retaining the stable-failure/no-retry
+  assertion; the class is compiled and requires a connected rerun.
+- The first broad run passed every architecture verifier and Detekt reported five blocking Task 10
+  feature findings: one `MaxLineLength`, two `MatchingDeclarationName`, one `ReturnCount`, and one
+  `TooGenericExceptionCaught`. Source-only remediations are present; `verifyArchitecture detekt`
+  required a user rerun before acceptance.
+- The user reports `BUILD SUCCESSFUL` for both required reruns: the filtered connected
+  `LocalCoverContinuityInstrumentedTest` class and `verifyArchitecture detekt`. This accepts the
+  connected continuity behavior and the architecture/Detekt remediation evidence.
+
+## Task 10 Self-Review
+
+- Coil and concrete Android resource ownership remain confined to `feature.assets` plus the
+  build-type resolver; domain/storage/runtime/app-shell production source gained no image or raw
+  resource dependency.
+- The loader/cache/callback graph is created only by cover demand. Feature activation and skeleton
+  rendering alone cannot initialize it, and final holder teardown closes image ownership before
+  runtime/storage ownership.
+- Exact stable identity is used for memory and explicit encoded disk keys; UI object identity,
+  `toString()`, mutable Story metadata, and raw `R.drawable` values are not cache authority.
+- Vertical viewport work is physically bounded by LazyColumn composition; zero manual prefetch is
+  present, and the shared limiter prevents more than eight active cover pipelines.
+- Memory-hit requests bypass fetcher/resolver/disk work; disk snapshots are attached to the decode
+  source and close after consumption. Failed writes retain the prior atomic entry and do not leave
+  editors locked.
+- Artwork error/cancellation lifetimes are scoped: generic decode failures map to safe typed artwork
+  state, caller cancellation propagates, disposal cancels in-flight demand, and metadata/geometry
+  remain stable.
+
 ## Later Task Status
 
-Tasks 0-9: **COMPLETED/ACCEPTED**. Tasks 10 through 16: **NOT RUN**.
+Tasks 0-10: **COMPLETED/ACCEPTED**. Tasks 11 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
@@ -918,6 +1016,7 @@ Tasks 0-9: **COMPLETED/ACCEPTED**. Tasks 10 through 16: **NOT RUN**.
 
 ## Exact Resume Boundary
 
-Resume Step 2 at Task 10: add the local visual fast path, stable asset identity, bounded caches,
-viewport demand, and continuity according to the owning plan. Task 10 remains `NOT RUN`; do not
-infer its execution from this Task 9 closure record.
+Resume Step 2 at Task 11, Step 1: write the RED JVM remote artwork policy/transport tests. Preserve
+the Task 10 capability-private image-session/cache ownership and do not add a concrete production
+HTTP adapter, OkHttp/Coil network dependency, or main/release `INTERNET` permission. Task 11 has not
+started in this Task 10 closure turn.

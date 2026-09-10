@@ -14,17 +14,4 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
         acquisitionSource = BenchmarkCatalogSource(sourceKey),
         assetPolicy = SourceAssetPolicy(sourceKey, emptySet()),
     )
-
-    override fun localCoverResource(logicalAssetId: String, assetVersion: String): Int? {
-        if (assetVersion != ASSET_VERSION) return null
-        return when (logicalAssetId) {
-            "benchmark:manga:cover-a" -> R.drawable.catalog_benchmark_manga_a
-            "benchmark:manga:cover-b" -> R.drawable.catalog_benchmark_manga_b
-            "benchmark:light-novel:cover-a" -> R.drawable.catalog_benchmark_light_novel_a
-            "benchmark:light-novel:cover-b" -> R.drawable.catalog_benchmark_light_novel_b
-            else -> null
-        }
-    }
-
-    private const val ASSET_VERSION = "1"
 }

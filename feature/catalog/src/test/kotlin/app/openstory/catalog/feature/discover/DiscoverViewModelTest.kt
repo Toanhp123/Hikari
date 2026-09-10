@@ -6,6 +6,9 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import app.openstory.catalog.domain.failure.CatalogFailure
 import app.openstory.catalog.domain.failure.CatalogArtworkFailureReason
+import app.openstory.catalog.domain.asset.CoverAssetKey
+import app.openstory.catalog.domain.asset.CoverLocator
+import app.openstory.catalog.domain.asset.CoverRevisionV1
 import app.openstory.catalog.domain.failure.CatalogOperation
 import app.openstory.catalog.domain.failure.CatalogStorageOperation
 import app.openstory.catalog.domain.failure.CatalogValidationReason
@@ -147,6 +150,8 @@ class DiscoverViewModelTest {
         advanceUntilIdle()
         val content = owner.viewModel.state.value.content as DiscoverContentState.Content
         assertEquals("Persistent title", content.sections.single().cards.single().title)
+        assertEquals(cards.single().coverLocator, content.sections.single().cards.single().coverLocator)
+        assertEquals(cards.single().coverAssetKey, content.sections.single().cards.single().coverAssetKey)
         assertFalse(content.refreshing)
         assertEquals(null, content.issue)
 
@@ -347,6 +352,7 @@ class DiscoverViewModelTest {
 
     private companion object {
         val SOURCE_KEY = CatalogSourceKey("discover-view-model-test")
+        val COVER_LOCATOR = CoverLocator.TrustedLocalResource("debug:manga:cover-a", "1")
 
         fun published(cards: List<DiscoverCard>) = DiscoverPersistenceState.Published(
             generation = 7L,
@@ -357,19 +363,24 @@ class DiscoverViewModelTest {
         fun card(kind: CatalogSectionKind, position: Int, title: String): DiscoverCard {
             val sourceStoryId = "${kind.name.lowercase()}-$position"
             val sourceKey = SourceStoryKey(SOURCE_KEY, sourceStoryId)
-            return DiscoverCard(
-                ref = StorySourceRef(
+            val ref = StorySourceRef(
                     storyId = SourceStoryIdV1.derive(sourceKey),
                     catalogSourceKey = SOURCE_KEY,
                     sourceStoryId = sourceStoryId,
-                ),
+                )
+            val coverKey = CoverAssetKey(
+                ref.storyId,
+                CoverRevisionV1.local(COVER_LOCATOR.logicalAssetId, COVER_LOCATOR.assetVersion),
+            )
+            return DiscoverCard(
+                ref = ref,
                 sectionKind = kind,
                 itemPosition = position,
                 title = title,
                 contentType = CatalogMediaType.MANGA,
                 sourceVersion = "fixture-v1",
-                coverLocator = null,
-                coverAssetKey = null,
+                coverLocator = COVER_LOCATOR,
+                coverAssetKey = coverKey,
                 rating = CatalogRating(8.5, 10.0),
                 publicationStatusSummary = "Ongoing",
                 latestUpdateEpochMs = 123L,
