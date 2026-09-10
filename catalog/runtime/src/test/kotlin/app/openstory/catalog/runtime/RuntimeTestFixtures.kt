@@ -22,6 +22,8 @@ import app.openstory.catalog.runtime.source.CatalogSourceBinding
 import app.openstory.common.id.StoryId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 
 internal val TEST_SOURCE_KEY = CatalogSourceKey("fixture.source")
 internal val TEST_BINDING = CatalogSourceBinding(TEST_SOURCE_KEY, "host-v7")
@@ -106,7 +108,9 @@ internal class RuntimeFakeStorage : CatalogRuntimeStore {
     var discoverPublishFailure: Throwable? = null
     var touchFailure: Throwable? = null
     var discoverObserveCount = 0
+    var activeDiscoverObservers = 0
     var storyObserveCount = 0
+    var activeStoryObservers = 0
     var closeCount = 0
 
     fun storyFlow(ref: StorySourceRef): MutableSharedFlow<StoryDetailProjection?> =
@@ -120,12 +124,16 @@ internal class RuntimeFakeStorage : CatalogRuntimeStore {
         discoverObserveCount += 1
         discoverReadFailure?.let { throw it }
         return discoverFlows.getValue(mediaType)
+            .onStart { activeDiscoverObservers += 1 }
+            .onCompletion { activeDiscoverObservers -= 1 }
     }
 
     override fun observe(ref: StorySourceRef): Flow<StoryDetailProjection?> {
         storyObserveCount += 1
         storyReadFailure?.let { throw it }
         return storyFlow(ref)
+            .onStart { activeStoryObservers += 1 }
+            .onCompletion { activeStoryObservers -= 1 }
     }
 
     override suspend fun publishDiscover(

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,10 @@ internal fun CoverArtwork(
         )
         val catalogImageLoader = LocalCatalogImageLoader.current
         if (assetKey != null && catalogImageLoader != null) {
+            DisposableEffect(catalogImageLoader, assetKey) {
+                catalogImageLoader.onDemandStarted()
+                onDispose(catalogImageLoader::onDemandStopped)
+            }
             val request = remember(assetKey, locator) { CoverRequest(assetKey, locator) }
             val context = androidx.compose.ui.platform.LocalContext.current
             val imageRequest = remember(request, context) { request.toImageRequest(context) }

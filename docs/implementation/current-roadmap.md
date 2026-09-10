@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-11; Task 12 is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-12; Task 13 is
 the active canonical boundary and has NOT RUN.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -151,8 +151,14 @@ seam, source-scoped initial/redirect host policy, exact 5-hop and 10s/20s timeou
  `VP8X` canvas bounds being accepted before later `VP8`/`VP8L` bitstream bounds; the parser now checks
  both layers and requires consistent static-image dimensions. The user reports `BUILD SUCCESSFUL` for
  the final filtered connected class and `:app:verifyFoundation verifyArchitecture detekt`; the fresh
- focused closure also passes. Task 11 is completed/accepted. Task 12 begins with RED runtime
- refresh/failure/cancellation tests and no Task 12 implementation has started.
+ focused closure also passes. Task 11 is completed/accepted. Task 12 now adds single-owner manual
+ refresh with durable failure retention, synchronous terminal work cleanup, runtime/feature
+ quiescence, Story pin release/reacquisition, lifecycle-aware collection and cover disposal, and
+ idempotent image-before-runtime terminal teardown. Fresh runtime/feature host suites pass 87 tests
+ with zero failures/errors, and the lifecycle instrumentation source compiles. The filtered
+ connected lifecycle class plus `:app:verifyFoundation verifyArchitecture detekt` are accepted from
+ the user's `BUILD SUCCESSFUL` results on 2026-09-10. Task 12 is completed/accepted. Task 13 is the
+ next canonical boundary and no Task 13 implementation has started.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

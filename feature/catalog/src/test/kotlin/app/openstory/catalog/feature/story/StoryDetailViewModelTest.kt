@@ -26,6 +26,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -224,28 +226,61 @@ class StoryDetailViewModelTest {
         assertNull(viewModel.state.value)
     }
 
+    @Test
+    fun reopenWaitsForStoryQuiescenceBeforeReplacingTheCollector() = runTest(dispatcher.scheduler) {
+        val quiesceEntered = CompletableDeferred<Unit>()
+        val finishQuiesce = CompletableDeferred<Unit>()
+        val runtime = FakeStoryDetailRuntime(
+            quiesceBlock = {
+                quiesceEntered.complete(Unit)
+                finishQuiesce.await()
+            },
+        )
+        val viewModel = StoryDetailViewModel(runtime)
+        viewModel.open(REF, COVER_KEY) {}
+        advanceUntilIdle()
+        assertEquals(1, runtime.activeCollectors)
+
+        viewModel.quiesce()
+        runCurrent()
+        quiesceEntered.await()
+        viewModel.open(REF, COVER_KEY) {}
+        runCurrent()
+
+        assertEquals(0, runtime.activeCollectors)
+        finishQuiesce.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(1, runtime.activeCollectors)
+        assertEquals(2, runtime.activations.size)
+    }
+
     private class FakeStoryDetailRuntime(
         private val onActivate: () -> Unit = {},
         private val activationFailure: Throwable? = null,
         private val releaseFailure: Throwable? = null,
         private val stateFailure: Throwable? = null,
         private val releaseBlock: suspend () -> Unit = {},
+        private val quiesceBlock: suspend () -> Unit = {},
     ) : StoryDetailRuntime {
         private val states = MutableSharedFlow<StoryDetailSessionState>(replay = 1)
         val activations = mutableListOf<StorySourceRef>()
         var retryCalls = 0
         var releaseCalls = 0
+        var activeCollectors = 0
 
         override suspend fun activate(ref: StorySourceRef): StoryDetailRuntimeActivation {
             activationFailure?.let { throw it }
             activations += ref
             onActivate()
             return StoryDetailRuntimeActivation.Available(
-                states = stateFailure?.let { failure -> flow { throw failure } } ?: states,
+                states = (stateFailure?.let { failure -> flow { throw failure } } ?: states)
+                    .onStart { activeCollectors += 1 }
+                    .onCompletion { activeCollectors -= 1 },
                 retry = {
                     retryCalls += 1
                     CatalogAcquisitionResult.Success
                 },
+                quiesce = quiesceBlock,
                 release = {
                     releaseCalls += 1
                     releaseBlock()

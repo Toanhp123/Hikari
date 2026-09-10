@@ -13,9 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.withContext
 
 sealed interface CatalogAcquisitionResult {
@@ -37,7 +35,7 @@ class CatalogAcquisitionExecutor(
     private val dispatchers: CatalogExecutionDispatchers,
     private val parentScope: CoroutineScope,
 ) {
-    private val activeMutex = Mutex()
+    private val activeLock = Any()
     private val active = mutableMapOf<WorkKey, Deferred<CatalogAcquisitionResult>>()
 
     suspend fun acquireDiscover(mediaType: CatalogMediaType): CatalogAcquisitionResult =
@@ -82,27 +80,38 @@ class CatalogAcquisitionExecutor(
             }
         }
 
-    suspend fun activeWorkCount(): Int = activeMutex.withLock { active.size }
+    fun activeWorkCount(): Int = synchronized(activeLock) { active.size }
+
+    suspend fun cancelDiscover(mediaType: CatalogMediaType) {
+        cancel(WorkKey.Discover(binding.catalogSourceKey.value, mediaType))
+    }
+
+    suspend fun cancelStory(ref: StorySourceRef) {
+        cancel(WorkKey.Story(ref))
+    }
 
     private suspend fun executeSingleFlight(
         key: WorkKey,
         operation: suspend () -> CatalogAcquisitionResult,
     ): CatalogAcquisitionResult {
-        val work = activeMutex.withLock {
+        val work = synchronized(activeLock) {
             active[key] ?: parentScope.async(start = CoroutineStart.LAZY) { operation() }
                 .also { created ->
                     active[key] = created
                     created.invokeOnCompletion {
-                        parentScope.launch {
-                            activeMutex.withLock {
-                                if (active[key] === created) active.remove(key)
-                            }
+                        synchronized(activeLock) {
+                            if (active[key] === created) active.remove(key)
                         }
                     }
                     created.start()
                 }
         }
         return work.await()
+    }
+
+    private suspend fun cancel(key: WorkKey) {
+        val work = synchronized(activeLock) { active[key] } ?: return
+        work.cancelAndJoin()
     }
 
     private suspend fun <T> acquireFromSource(

@@ -33,6 +33,7 @@ internal sealed interface StoryDetailRuntimeActivation {
     data class Available(
         val states: Flow<StoryDetailSessionState>,
         val retry: suspend () -> CatalogAcquisitionResult,
+        val quiesce: suspend () -> Unit = {},
         val release: suspend () -> Unit,
     ) : StoryDetailRuntimeActivation
 }
@@ -49,6 +50,7 @@ internal class CatalogStoryDetailRuntime(
                 StoryDetailRuntimeActivation.Available(
                     states = session.activate(),
                     retry = session::retry,
+                    quiesce = session::quiesce,
                     release = session::release,
                 )
             }
@@ -63,9 +65,11 @@ internal class StoryDetailViewModel(
 
     private var openJob: Job? = null
     private var releaseJob: Job? = null
+    private var quiesceJob: Job? = null
     private var activeRef: StorySourceRef? = null
     private var activeDemand: StoryDetailRuntimeActivation.Available? = null
     private var routeCoverAssetKey: CoverAssetKey? = null
+    private var quiescent = false
 
     fun open(
         ref: StorySourceRef,
@@ -73,6 +77,7 @@ internal class StoryDetailViewModel(
         onDestinationRejected: () -> Unit = {},
         onDestinationReady: () -> Unit,
     ) {
+        quiescent = false
         if (activeRef == ref && activeDemand != null) {
             onDestinationReady()
             return
@@ -80,24 +85,27 @@ internal class StoryDetailViewModel(
         if (openJob?.isActive == true) return
         openJob = viewModelScope.launch {
             awaitPendingRelease()
-            releaseActiveDemand()
+            awaitPendingQuiesce()
+            releaseActiveDemand(clearRoute = false)
             try {
                 when (val activation = runtime.activate(ref)) {
-                    is StoryDetailRuntimeActivation.Unavailable -> onDestinationRejected()
+                    is StoryDetailRuntimeActivation.Unavailable -> rejectDestination(onDestinationRejected)
                     is StoryDetailRuntimeActivation.Available -> {
                         activeRef = ref
                         activeDemand = activation
                         routeCoverAssetKey = coverAssetKey
-                        mutableState.value = StoryDetailUiState(
-                            ref = ref,
-                            summary = null,
-                            detail = null,
-                            detailLoading = true,
-                            issue = null,
-                            destinationActive = true,
-                            coverLocator = null,
-                            coverAssetKey = coverAssetKey,
-                        )
+                        if (mutableState.value?.ref != ref) {
+                            mutableState.value = StoryDetailUiState(
+                                ref = ref,
+                                summary = null,
+                                detail = null,
+                                detailLoading = true,
+                                issue = null,
+                                destinationActive = true,
+                                coverLocator = null,
+                                coverAssetKey = coverAssetKey,
+                            )
+                        }
                         onDestinationReady()
                         activation.states.collect(::reduce)
                     }
@@ -131,15 +139,29 @@ internal class StoryDetailViewModel(
     fun closeDestination() {
         openJob?.cancel()
         openJob = null
-        val demand = detachActiveDemand() ?: return
+        val demand = detachActiveDemand()
+        if (demand == null && quiesceJob == null) return
         releaseJob = viewModelScope.launch {
             try {
-                demand.release()
+                awaitPendingQuiesce()
+                demand?.release()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") _: Throwable) {
                 // The destination is already closed; bounded retention cleanup can retry on a later mutation.
             }
+        }
+    }
+
+    fun quiesce() {
+        if (quiescent) return
+        quiescent = true
+        openJob?.cancel()
+        openJob = null
+        val demand = activeDemand ?: return
+        activeDemand = null
+        quiesceJob = viewModelScope.launch {
+            demand.quiesce()
         }
     }
 
@@ -153,18 +175,29 @@ internal class StoryDetailViewModel(
         if (releaseJob === pendingRelease) releaseJob = null
     }
 
-    private suspend fun releaseActiveDemand() {
-        val demand = detachActiveDemand() ?: return
+    private suspend fun awaitPendingQuiesce() {
+        val pendingQuiesce = quiesceJob ?: return
+        pendingQuiesce.join()
+        if (quiesceJob === pendingQuiesce) quiesceJob = null
+    }
+
+    private suspend fun releaseActiveDemand(clearRoute: Boolean = true) {
+        val demand = detachActiveDemand(clearRoute) ?: return
+        awaitPendingQuiesce()
         demand.release()
     }
 
-    private fun detachActiveDemand(): StoryDetailRuntimeActivation.Available? {
-        val demand = activeDemand ?: return null
+    private fun detachActiveDemand(clearRoute: Boolean = true): StoryDetailRuntimeActivation.Available? {
+        val demand = activeDemand
         activeDemand = null
+        if (clearRoute) clearRouteState()
+        return demand
+    }
+
+    private fun clearRouteState() {
         activeRef = null
         routeCoverAssetKey = null
         mutableState.value = null
-        return demand
     }
 
     private suspend fun rejectDestination(onDestinationRejected: () -> Unit) {
@@ -175,6 +208,7 @@ internal class StoryDetailViewModel(
         } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") _: Throwable) {
             // Rejection must remain fail-closed even when bounded release cleanup also fails.
         } finally {
+            clearRouteState()
             onDestinationRejected()
         }
     }

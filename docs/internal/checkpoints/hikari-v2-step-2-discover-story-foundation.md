@@ -1,15 +1,15 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-10
-Status: **TASKS 0-10 COMPLETED/ACCEPTED; TASK 11 NOT RUN**
+Status: **TASKS 0-12 COMPLETED/ACCEPTED; TASK 13 NOT RUN**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.1.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-10.
-- Active canonical execution boundary: Task 11, `NOT RUN`.
+- Completed/accepted execution boundary: Tasks 0-12.
+- Active canonical execution boundary: Task 13, `NOT RUN`.
 
 Reviewed artifact SHA-256:
 
@@ -1127,18 +1127,94 @@ Status: **ACCEPTED**.
   binding/provider, and only `feature.assets` owns transport policy, preflight, cache sequencing,
   and Coil integration. App/discover/story packages gain no HTTP/image-policy authority.
 
+## Task 12 Delta
+
+- Added session-owned manual Discover refresh with one single-flight owner per source/media scope,
+  retained `Published(empty/content)` snapshots on typed refresh failure, caller-cancellation
+  propagation, and synchronous terminal work-entry removal.
+- Added runtime quiescence for Discover and Story demand. Quiescing cancels active acquisition,
+  stops observation demand, releases active Story pins, and leaves the capability-owned Room handle
+  open; terminal capability close remains idempotent and closes the owned store exactly once.
+- Added lifecycle-aware feature ownership: STOP quiesces active ViewModel demand and removes the
+  image loader from composition so composed cover requests dispose; START resumes only the current
+  route against persisted state and serializes restart after pending quiescence.
+- Manual retry remains runtime-owned and double taps join one active refresh. Lifecycle STOP does
+  not create a scheduler, retry owner, or automatic continuation, and terminal bootstrap
+  success/failure is not converted into a lifecycle retry.
+- Added debug-only lifecycle diagnostics for active Discover collectors, composed cover demand,
+  image-session lifetime, runtime-session lifetime, and close ordering. Release/main behavior uses
+  the existing no-op diagnostic implementation.
+- Added `CatalogLifecycleInstrumentedTest` with a test-only Activity/manifest. It exercises the real
+  debug Catalog composition, Room/runtime session, local source, and cover path across
+  `STARTED -> CREATED -> STARTED` plus terminal Activity destruction.
+
+## Task 12 Agent-Owned Evidence
+
+- TDD RED was observed for the missing `DiscoverSession.refresh()`/quiescence APIs, active
+  work/pin diagnostics, duplicate ViewModel retry ownership, Story acquisition surviving release,
+  STOP/START resubscription before quiescence completion, and terminal bootstrap restarting after a
+  lifecycle cycle.
+- Fresh focused host closure:
+  `.\gradlew.bat :catalog:runtime:testDebugUnitTest :feature:catalog:testDebugUnitTest --no-daemon`
+  - PASS; `BUILD SUCCESSFUL` in 6s, 87 tests, zero failures/errors.
+- Fresh Android behavior compile:
+  `.\gradlew.bat :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
+  - PASS; `BUILD SUCCESSFUL` in 6s with no warnings in the final-tree rerun. An earlier compile
+    emitted only the pre-existing deprecated Compose test
+    rule in `StoryRouteRestorationInstrumentedTest.kt`, outside the Task 12 changed test.
+- Required static owner scan found no `WorkManager`, `androidx.work`, or `GlobalScope` use in the
+  Catalog runtime/feature production cone. Its only match is the pre-existing app manifest
+  `androidx.startup.InitializationProvider` used to remove lifecycle/emoji initializers; Task 12
+  adds no initializer or background owner.
+- `git diff --check` reports no whitespace errors; Git emits only the repository's existing
+  LF-to-CRLF working-copy notices.
+
+## Task 12 Required User-Owned Gate
+
+Status: **ACCEPTED**.
+
+```powershell
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.lifecycle.CatalogLifecycleInstrumentedTest' `
+  --no-daemon
+.\gradlew.bat :app:verifyFoundation verifyArchitecture detekt --no-daemon
+```
+
+- User-reported filtered connected lifecycle gate:
+  `.\gradlew.bat :feature:catalog:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.lifecycle.CatalogLifecycleInstrumentedTest' --no-daemon`
+  - PASS; user reports `BUILD SUCCESSFUL` on 2026-09-10.
+- User-reported broad policy gate:
+  `.\gradlew.bat :app:verifyFoundation verifyArchitecture detekt --no-daemon`
+  - PASS; user reports `BUILD SUCCESSFUL` on 2026-09-10.
+- Both required returned results were reviewed and accepted. Task 12 is completed/accepted.
+
+## Task 12 Self-Review
+
+- Discover refresh failure cannot replace a durable empty/content snapshot with `Absent`; safe UI
+  issues remain scoped to the selected media and raw source/storage details do not escape.
+- Single-flight cleanup is synchronous at terminal completion, while cancellation remains
+  structured under the capability session and is never mapped into a user failure.
+- STOP/route transitions cancel the visible observer/acquisition/image demand without closing Room
+  or image caches. START waits for quiescence before reacquiring; terminal Activity destruction
+  closes image session before runtime/store, each once.
+- Story STOP releases its active pin and session; resume creates a fresh keyed demand against the
+  same persisted store. Back/rejection remains the only path that clears the saved route UI state.
+- No new module edge, app import, startup initializer, WorkManager owner, process scope, or remote
+  source/network surface is introduced.
+
 ## Later Task Status
 
-Tasks 0-11: **COMPLETED/ACCEPTED**. Task 12: **NOT RUN** and is the next canonical boundary. Tasks
-13 through 16: **NOT RUN**.
+Tasks 0-12: **COMPLETED/ACCEPTED**. Task 13 is the next canonical boundary and is **NOT RUN**.
+Tasks 14 through 16: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- API 26/API 37 repetition, later lifecycle/UI, performance, profile, and plugin-integration gates
+- API 26/API 37 repetition, later UI evidence, performance, profile, and plugin-integration gates
   remain owned by later tasks and are `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Resume Step 2 at Task 12, Step 1: write the RED runtime refresh/failure/cancellation tests in
-`DiscoverRefreshOwnershipTest.kt` and the smallest directly affected runtime/feature test cone. Task
-11 is completed/accepted. Do not reopen it or begin Task 13 while executing Task 12.
+Resume Step 2 at Task 13, Step 1: finish the API 26/API 37 Room matrix under
+`catalog/storage/src/androidTest/kotlin/app/openstory/catalog/storage/...`. Task 12 is
+completed/accepted. No Task 13 implementation has started; do not begin Task 14 while executing
+Task 13.

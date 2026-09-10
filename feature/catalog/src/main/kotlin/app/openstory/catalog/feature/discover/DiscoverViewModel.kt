@@ -35,6 +35,7 @@ internal sealed interface DiscoverRuntimeActivation {
     data class Available(
         val observe: (CatalogMediaType) -> Flow<DiscoverSessionState>,
         val refresh: suspend (CatalogMediaType) -> CatalogAcquisitionResult,
+        val quiesce: suspend (CatalogMediaType) -> Unit = {},
     ) : DiscoverRuntimeActivation
 }
 
@@ -47,6 +48,9 @@ internal class DiscoverViewModel(
     private var available: DiscoverRuntimeActivation.Available? = null
     private var activationIssue: CatalogIssueUi? = null
     private var observationJob: Job? = null
+    private var refreshJob: Job? = null
+    private var quiesceJob: Job? = null
+    private var quiescent = false
 
     init {
         viewModelScope.launch {
@@ -54,7 +58,7 @@ internal class DiscoverViewModel(
                 when (val activation = runtime.activate()) {
                     is DiscoverRuntimeActivation.Available -> {
                         available = activation
-                        observeSelectedMedia(activation, mutableState.value.selectedMediaType)
+                        if (!quiescent) observeSelectedMedia(activation, mutableState.value.selectedMediaType)
                     }
                     is DiscoverRuntimeActivation.Unavailable -> showFailure(activation.failure)
                 }
@@ -76,25 +80,48 @@ internal class DiscoverViewModel(
             content = activationIssue?.let(DiscoverContentState::NoContentFailure)
                 ?: DiscoverContentState.NoContentLoading,
         )
-        available?.let { activation -> observeSelectedMedia(activation, mediaType) }
+        available?.takeUnless { quiescent }?.let { activation -> observeSelectedMedia(activation, mediaType) }
     }
 
     fun retry() {
         val activation = available ?: return
+        if (refreshJob?.isActive == true) return
         val mediaType = mutableState.value.selectedMediaType
         mutableState.update { current -> current.copy(content = current.content.withRefreshRunning()) }
-        viewModelScope.launch {
-            when (val result = activation.refresh(mediaType)) {
-                CatalogAcquisitionResult.Success -> Unit
-                is CatalogAcquisitionResult.Failed -> {
-                    if (mutableState.value.selectedMediaType == mediaType) {
-                        mutableState.update { current ->
-                            current.copy(content = current.content.withIssue(result.failure.toCatalogIssueUi()))
+        refreshJob = viewModelScope.launch {
+            try {
+                when (val result = activation.refresh(mediaType)) {
+                    CatalogAcquisitionResult.Success -> Unit
+                    is CatalogAcquisitionResult.Failed -> {
+                        if (mutableState.value.selectedMediaType == mediaType) {
+                            mutableState.update { current ->
+                                current.copy(content = current.content.withIssue(result.failure.toCatalogIssueUi()))
+                            }
                         }
                     }
                 }
+            } finally {
+                refreshJob = null
             }
         }
+    }
+
+    fun quiesce() {
+        if (quiescent) return
+        quiescent = true
+        observationJob?.cancel()
+        observationJob = null
+        refreshJob?.cancel()
+        refreshJob = null
+        val activation = available ?: return
+        val mediaType = mutableState.value.selectedMediaType
+        quiesceJob = viewModelScope.launch { activation.quiesce(mediaType) }
+    }
+
+    fun resume() {
+        if (!quiescent) return
+        quiescent = false
+        available?.let { activation -> observeSelectedMedia(activation, mutableState.value.selectedMediaType) }
     }
 
     override fun onCleared() {
@@ -107,6 +134,10 @@ internal class DiscoverViewModel(
     ) {
         observationJob?.cancel()
         observationJob = viewModelScope.launch {
+            val pendingQuiesce = quiesceJob
+            pendingQuiesce?.join()
+            if (quiesceJob === pendingQuiesce) quiesceJob = null
+            if (quiescent || mutableState.value.selectedMediaType != mediaType) return@launch
             activation.observe(mediaType).collect { runtimeState ->
                 if (mutableState.value.selectedMediaType != mediaType) return@collect
                 mutableState.update { current ->

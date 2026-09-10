@@ -59,6 +59,10 @@ sealed interface CatalogCapabilityActivation {
         suspend fun acquireDiscover(mediaType: CatalogMediaType): CatalogAcquisitionResult =
             executor.acquireDiscover(mediaType)
 
+        internal fun activeWorkCount(): Int = executor.activeWorkCount()
+
+        internal suspend fun activeStoryPinCount(): Int = activeStoryPins.snapshot().size
+
         @Synchronized
         fun storyDetailSession(ref: StorySourceRef): StoryDetailSession =
             storySessions.getOrPut(ref) {

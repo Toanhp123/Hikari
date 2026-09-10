@@ -13,6 +13,20 @@ internal interface CatalogCompositionDiagnostics {
     fun activationStarted()
 
     fun storageReady()
+
+    fun discoverCollectorStarted() = Unit
+
+    fun discoverCollectorStopped() = Unit
+
+    fun coverDemandStarted() = Unit
+
+    fun coverDemandStopped() = Unit
+
+    fun imageSessionInitialized() = Unit
+
+    fun imageSessionClosed() = Unit
+
+    fun runtimeSessionClosed() = Unit
 }
 
 private object NoOpCatalogCompositionDiagnostics : CatalogCompositionDiagnostics {

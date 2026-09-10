@@ -82,6 +82,10 @@ internal class CatalogImageLoader(
                 .build(),
         )
     },
+    private val onSessionInitialized: () -> Unit = {},
+    private val onSessionClosed: () -> Unit = {},
+    private val onDemandStartedCallback: () -> Unit = {},
+    private val onDemandStoppedCallback: () -> Unit = {},
 ) : CatalogCoverLoader, AutoCloseable {
     private val closed = AtomicBoolean(false)
     private var initializedSession: CatalogImageSession? = null
@@ -95,10 +99,17 @@ internal class CatalogImageLoader(
 
     override fun imageLoader(): ImageLoader = session().imageLoader
 
+    override fun onDemandStarted() = onDemandStartedCallback()
+
+    override fun onDemandStopped() = onDemandStoppedCallback()
+
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         synchronized(this) {
-            initializedSession?.close()
+            initializedSession?.let { session ->
+                session.close()
+                onSessionClosed()
+            }
             initializedSession = null
         }
     }
@@ -139,7 +150,7 @@ internal class CatalogImageLoader(
             encodedDiskCache = encodedDiskCache,
             diskCache = diskCache,
             memoryPressureController = memoryPressureController,
-        )
+        ).also { onSessionInitialized() }
     }
 
     private companion object {
@@ -149,6 +160,10 @@ internal class CatalogImageLoader(
 
 internal fun interface CatalogCoverLoader {
     fun imageLoader(): ImageLoader
+
+    fun onDemandStarted() = Unit
+
+    fun onDemandStopped() = Unit
 }
 
 internal val LocalCatalogImageLoader = staticCompositionLocalOf<CatalogCoverLoader?> { null }

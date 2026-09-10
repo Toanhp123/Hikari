@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,6 +42,7 @@ class DiscoverSession internal constructor(
     private val bootstrapMutex = Mutex()
     private val acquisition = MutableStateFlow<CatalogAcquisitionStatus>(CatalogAcquisitionStatus.Idle)
     private var automaticBootstrapStarted = false
+    private var automaticBootstrapJob: Job? = null
 
     private val persistenceEvents = flow {
         emitAll(readPort.observe(binding.catalogSourceKey, mediaType))
@@ -62,6 +64,29 @@ class DiscoverSession internal constructor(
         if (state.persistence == DiscoverPersistenceState.Absent) startAutomaticBootstrap()
     }.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
 
+    suspend fun refresh(): CatalogAcquisitionResult {
+        acquisition.value = CatalogAcquisitionStatus.Running
+        return try {
+            executor.acquireDiscover(mediaType).also { result -> acquisition.value = result.toStatus() }
+        } catch (error: CancellationException) {
+            acquisition.value = CatalogAcquisitionStatus.Idle
+            throw error
+        }
+    }
+
+    suspend fun quiesce() {
+        val interruptedAutomaticBootstrap = automaticBootstrapJob?.isActive == true
+        executor.cancelDiscover(mediaType)
+        automaticBootstrapJob?.cancel()
+        automaticBootstrapJob = null
+        if (interruptedAutomaticBootstrap) {
+            bootstrapMutex.withLock { automaticBootstrapStarted = false }
+        }
+        if (acquisition.value == CatalogAcquisitionStatus.Running) {
+            acquisition.value = CatalogAcquisitionStatus.Idle
+        }
+    }
+
     private suspend fun startAutomaticBootstrap() {
         bootstrapMutex.withLock {
             if (automaticBootstrapStarted) return
@@ -70,9 +95,14 @@ class DiscoverSession internal constructor(
                 acquisition.value = CatalogAcquisitionStatus.Failed(CatalogFailure.SourceUnavailable)
                 return
             }
-            acquisition.value = CatalogAcquisitionStatus.Running
-            scope.launch {
-                acquisition.value = executor.acquireDiscover(mediaType).toStatus()
+            automaticBootstrapJob = scope.launch {
+                try {
+                    refresh()
+                } finally {
+                    bootstrapMutex.withLock {
+                        automaticBootstrapJob = null
+                    }
+                }
             }
         }
     }

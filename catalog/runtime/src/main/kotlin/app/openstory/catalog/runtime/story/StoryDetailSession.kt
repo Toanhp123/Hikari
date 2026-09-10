@@ -104,8 +104,23 @@ class StoryDetailSession internal constructor(
     suspend fun release() {
         activationMutex.withLock {
             if (!activated) return
+            executor.cancelStory(ref)
             activeStoryPins.release(ref, wallClockEpochMs())
             activated = false
+            onReleased(this)
+        }
+    }
+
+    suspend fun quiesce() {
+        activationMutex.withLock {
+            if (!activated) return
+            executor.cancelStory(ref)
+            activeStoryPins.release(ref, wallClockEpochMs())
+            activated = false
+            acquisitionMutex.withLock { automaticAcquisitionStarted = false }
+            if (acquisition.value == CatalogAcquisitionStatus.Running) {
+                acquisition.value = CatalogAcquisitionStatus.Idle
+            }
             onReleased(this)
         }
     }
