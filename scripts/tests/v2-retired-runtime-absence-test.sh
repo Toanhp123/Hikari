@@ -4,14 +4,12 @@ set -euo pipefail
 ROOT_DIR="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 for retired in \
-  core/designsystem \
   library \
   chapters \
   downloads \
   settings \
   storage \
   plugins/runtime \
-  feature \
   bundled-plugins \
   app/src/main/assets/plugins \
   app/src/main/keepRules; do
@@ -20,6 +18,12 @@ for retired in \
     exit 1
   fi
 done
+
+if find "$ROOT_DIR/feature" -mindepth 1 -maxdepth 1 ! -name catalog \
+  -print -quit 2>/dev/null | grep -q .; then
+  echo "Unadmitted V2 feature path exists outside feature/catalog." >&2
+  exit 1
+fi
 
 for retired in \
   catalog/build.gradle.kts \
@@ -36,8 +40,10 @@ done
 
 for retained in \
   core/common \
+  core/designsystem \
   catalog/model \
   catalog/engine \
+  feature/catalog \
   reader/engine \
   plugins/api; do
   [[ -d "$ROOT_DIR/$retained" ]] || {

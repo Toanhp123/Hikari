@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT_DIR="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 for removed in \
-  AndroidLibraryConventionPlugin.kt \
   HiltConventionPlugin.kt \
   RoomConventionPlugin.kt; do
   if find "$ROOT_DIR/build-logic/src/main/kotlin" -name "$removed" -print -quit | grep -q .; then
@@ -20,10 +19,8 @@ done
 
 for forbidden in \
   'hilt = ' \
-  'room = ' \
   'workManager = ' \
   'okhttp = ' \
-  'coil = ' \
   'navigation3 = ' \
   'javascriptEngine = ' \
   'backdrop = ' \

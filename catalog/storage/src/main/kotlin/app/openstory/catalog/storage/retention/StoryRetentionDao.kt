@@ -1,7 +1,10 @@
 package app.openstory.catalog.storage.retention
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 internal interface StoryRetentionDao {
@@ -23,18 +26,16 @@ internal interface StoryRetentionDao {
     @Query("SELECT EXISTS(SELECT 1 FROM story_detail WHERE story_id = :storyId)")
     suspend fun hasDetail(storyId: String): Boolean
 
-    @Query(
-        """
-        INSERT INTO story_orphan_retention(story_id, last_accessed_epoch_ms)
-        VALUES (:storyId, :lastAccessedEpochMs)
-        ON CONFLICT(story_id) DO UPDATE SET
-            last_accessed_epoch_ms = MAX(
-                story_orphan_retention.last_accessed_epoch_ms,
-                excluded.last_accessed_epoch_ms
-            )
-        """,
-    )
-    suspend fun touchOrphan(storyId: String, lastAccessedEpochMs: Long)
+    @Transaction
+    suspend fun touchOrphan(storyId: String, lastAccessedEpochMs: Long) {
+        val updated = touchExistingOrphan(storyId, lastAccessedEpochMs)
+        if (updated == 0) {
+            insertOrphan(StoryRetentionEntity(storyId, lastAccessedEpochMs))
+        }
+    }
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertOrphan(entity: StoryRetentionEntity)
 
     @Query(
         """

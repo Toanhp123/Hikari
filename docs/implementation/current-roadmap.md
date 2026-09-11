@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-14; Task 15 is
-NOT RUN and is the next execution boundary.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-15; Task 16 is
+READY TO START and is the next execution boundary.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -183,8 +183,13 @@ seam, source-scoped initial/redirect host policy, exact 5-hop and 10s/20s timeou
  structural extraction. Fresh focused compile, unit, and package checks pass. The user reports PASS
  for both final affected reruns after the repair: connected Catalog and broad architecture/Detekt.
  The user explicitly accepted every Task 14 visual-checklist item on 2026-09-11. Task 14 is
- completed/accepted. Task 15 is `NOT RUN` and is the exact next resume boundary; it was not started
- during the Task 14 acceptance turn.
+ completed/accepted. Task 15 adds the deterministic 15-PNG compact/wide Catalog screenshot evidence
+ harness and evolves both repository verification entrypoints to cover the admitted Step 2 modules.
+ Focused host tests and all three instrumentation-source compiles pass. The user confirms PASS for
+ the complete API 26/API 37 connected matrix and all required architecture/build-surface/full-
+ repository commands. The reviewed artifact inventory contains complete non-empty compact and
+ >=600dp wide 15-PNG matrices. Task 15 is completed/accepted. Task 16 is ready to start but was not
+ started in the Task 15 acceptance turn.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

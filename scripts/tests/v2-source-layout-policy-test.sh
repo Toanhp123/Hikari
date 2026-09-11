@@ -30,14 +30,31 @@ while IFS= read -r row || [[ -n "$row" ]]; do
 done < "$ALLOWLIST"
 
 ((active_rows == 0)) ||
-  fail "V2 Step 1 requires zero active source-layout allowances; found $active_rows."
+  fail "V2 source-layout policy requires zero active allowances; found $active_rows."
 
 FIXTURE="$(mktemp -d)"
 trap 'rm -rf "$FIXTURE"' EXIT
-mkdir -p "$FIXTURE/config" "$FIXTURE/core/sample/src/main/kotlin"
+mkdir -p \
+  "$FIXTURE/config" \
+  "$FIXTURE/core/sample/src/main/kotlin" \
+  "$FIXTURE/catalog/domain/src/main/kotlin/app/openstory/catalog/domain/asset" \
+  "$FIXTURE/catalog/domain/src/main/kotlin/app/openstory/catalog/domain/identity" \
+  "$FIXTURE/catalog/domain/src/test/kotlin/app/openstory/catalog/domain/identity"
 printf 'class Sample\n' > "$FIXTURE/core/sample/src/main/kotlin/Sample.kt"
+printf 'class RemoteHttpsUriV1\n' > \
+  "$FIXTURE/catalog/domain/src/main/kotlin/app/openstory/catalog/domain/asset/RemoteHttpsUriV1.kt"
+printf 'object SourceStoryIdV1\n' > \
+  "$FIXTURE/catalog/domain/src/main/kotlin/app/openstory/catalog/domain/identity/SourceStoryIdV1.kt"
+printf 'class SourceStoryIdV1Test\n' > \
+  "$FIXTURE/catalog/domain/src/test/kotlin/app/openstory/catalog/domain/identity/SourceStoryIdV1Test.kt"
 printf '# path|max_lines|reviewed reason\n' > "$FIXTURE/config/source-layout-allowlist.txt"
 REPO_ROOT="$FIXTURE" "$VERIFY_SCRIPT" >/dev/null
+
+printf 'class LegacySample\n' > "$FIXTURE/core/sample/src/main/kotlin/LegacySample.kt"
+if REPO_ROOT="$FIXTURE" "$VERIFY_SCRIPT" >/dev/null 2>&1; then
+  fail 'Source-layout verification accepted an unapproved generation-labelled filename.'
+fi
+rm "$FIXTURE/core/sample/src/main/kotlin/LegacySample.kt"
 
 printf '%s\n' \
   'core/sample/src/main/kotlin/Missing.kt|600|Reviewed extraction ceiling.' \

@@ -1,16 +1,16 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-11
-Status: **TASKS 0-14 COMPLETED/ACCEPTED; TASK 15 NOT RUN**
+Status: **TASKS 0-15 COMPLETED/ACCEPTED; TASK 16 READY TO START**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.8.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-14.
-- Next canonical execution boundary: Task 15, `NOT RUN`; it was not started during Task 14
-  acceptance.
+- Completed/accepted execution boundary: Tasks 0-15.
+- Next execution boundary: Task 16, `READY TO START`; Task 16 was not started in the Task 15
+  acceptance turn.
 - 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
@@ -1498,20 +1498,198 @@ broad architecture/Detekt. No correctness gate remains open for Task 14. On 2026
 explicitly accepted every item in the Direction 3 visual checklist. Task 14 is
 `COMPLETED/ACCEPTED`.
 
+## Task 15 Delta
+
+- Added `CatalogScreenshotEvidenceTest` with one deterministic 15-PNG Compose-owned surface matrix for
+  Discover loading, Manga and Light Novel Popular/Latest/Top Rated sections, durable empty,
+  retained refreshing content, retained content with a retryable refresh issue, Story metadata
+  loading, complete Story metadata, and Story metadata failure with the cover/summary retained.
+- Added `ScreenshotEvidence`, which captures the full Compose root with standard Compose/Android
+  APIs and writes non-empty PNG files with deterministic `compact-*` or `wide-*` names. It prefers
+  the test package external-media directory for reliable `adb pull`, then falls back to its
+  external-files or cache directory; no golden-diff framework or Roborazzi dependency is introduced.
+- Evolved `scripts/verify-fast.sh` and `scripts/verify.sh` so both cover the admitted Step 2 modules:
+  domain/runtime/feature host tests plus storage and Design System debug assemblies. Existing
+  retained/quarantine checks remain present.
+- Strengthened `scripts/tests/v2-verification-entrypoints-test.sh` first, observed its expected RED
+  against the missing Step 2 tasks, then updated both entrypoints to satisfy the contract.
+- Replaced the retention DAO's SQLite 3.24+ `ON CONFLICT ... DO UPDATE` statement after the
+  returned API 26 run proved that Android 8.0's SQLite 3.18 rejects it. `touchOrphan` now performs
+  the same monotonic `UPDATE MAX(...)` followed by an insert only when absent inside one Room
+  transaction. No dependency graph, schema, runtime ownership, public API, or feature scope changed.
+
+## Task 15 Agent-Owned Evidence
+
+- Verification-entrypoint RED: Git Bash test failed with
+  `scripts/verify.sh is missing V2 Gradle task: :core:designsystem:assembleDebug` before the script
+  changes.
+- Verification-entrypoint GREEN:
+  `C:\Program Files\Git\bin\bash.exe scripts/tests/v2-verification-entrypoints-test.sh` - PASS,
+  `V2 verification entrypoints verified.`
+- Screenshot harness RED: `:feature:catalog:compileDebugAndroidTestKotlin` failed only on the absent
+  `ScreenshotEvidence` symbol after test-source corrections; GREEN passed after the minimal helper
+  was added.
+- Focused host gate:
+  `.\gradlew.bat :catalog:domain:test :catalog:runtime:testDebugUnitTest :feature:catalog:testDebugUnitTest :app:testDebugUnitTest --no-daemon`
+  - `BUILD SUCCESSFUL` in 21s, 114 actionable tasks.
+- Focused instrumentation-source gate:
+  `.\gradlew.bat :catalog:storage:compileDebugAndroidTestKotlin :feature:catalog:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon`
+  - `BUILD SUCCESSFUL` in 21s, 98 actionable tasks.
+- Fresh final combined closure on the completed local tree: the four focused host test tasks plus
+  all three instrumentation-source compile tasks above - `BUILD SUCCESSFUL` in 9s,
+  129 actionable tasks (1 executed, 128 up-to-date).
+- Returned API 26 connected run on `emulator-5554`, Pixel AVD Android 8.0: feature 43/43 PASS and
+  app 10/10 PASS; storage FAILED 7/40. Every storage failure converged on
+  `StoryRetentionDao.touchOrphan` with `SQLiteException: near "ON": syntax error`, proving the
+  direct UPSERT statement was incompatible with the minimum-supported platform SQLite version.
+- Post-repair focused instrumentation-source gate:
+  `.\gradlew.bat :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` -
+  `BUILD SUCCESSFUL` in 41s, 24 actionable tasks (5 executed, 19 up-to-date).
+- Returned `scripts/verify-fast.sh` stopped in `scripts/tests/v2-build-surface-test.sh` because the
+  retained Step 1 gate still classified the now-required `AndroidLibraryConventionPlugin.kt`, Room
+  aliases, and Coil alias as inactive. The Task 0/Step 2 plan and current module build files prove
+  those surfaces are active and ownership-scoped. The base gate no longer rejects them, while the
+  dedicated Step 2 build-surface gate retains their configuration/artifact ownership checks; the
+  base gate continues to reject Hilt, WorkManager, OkHttp, Navigation 3, JavaScriptEngine, backdrop,
+  Roborazzi, and generic Room/Hilt convention plugins.
+- Post-repair focused shell checks:
+  `bash -n scripts/tests/v2-build-surface-test.sh`,
+  `bash scripts/tests/v2-build-surface-test.sh`, and
+  `bash scripts/tests/v2-verification-entrypoints-test.sh` - PASS.
+- The next returned `scripts/verify-fast.sh` run passed the prior gates, then stopped in
+  `scripts/tests/v2-retired-runtime-absence-test.sh` because its Step 1 path list still rejected
+  the Task 13-admitted `core/designsystem` module. Removing only that stale entry produced the
+  expected second RED on the Task 0-admitted `feature` root. The repaired gate now requires
+  `core/designsystem` and `feature/catalog`, permits no other direct child below `feature`, and
+  continues to reject all other retired V1 runtime/integration paths.
+- Retired-path gate RED/GREEN: after the first minimal correction it failed with
+  `Retired V1 runtime path still exists: feature`; after adding the exact `feature/catalog`
+  allowlist, `bash -n scripts/tests/v2-retired-runtime-absence-test.sh` and
+  `bash scripts/tests/v2-retired-runtime-absence-test.sh` both PASS.
+- The third returned `scripts/verify-fast.sh` run passed every preceding static/Step 2 gate, then
+  stopped in `scripts/verify-source-layout.sh` because its blanket generation-label rule rejected
+  the plan-frozen `RemoteHttpsUriV1.kt`. A bounded audit of all active source filenames found only
+  that contract, `SourceStoryIdV1.kt`, and its matching test. The verifier now permits exactly those
+  three reviewed semantic-version contract paths and continues to reject any other `V1`, `V2`,
+  `Legacy`, or `Compat` filename.
+- Source-layout gate RED/GREEN: the new fixture containing all three approved paths failed first on
+  `RemoteHttpsUriV1.kt`; after the exact-path exception it passes, while an injected
+  `LegacySample.kt` remains rejected. `bash scripts/verify-source-layout.sh` also PASSes with no
+  line-limit violation; its six `>300`-line messages are advisory structural-review candidates.
+- Full bounded static-gate audit through `run_repository_static_gates` reached
+  `Structural hard policies verified.` after all nine `scripts/tests/*.sh` checks, structural
+  suppression verification, source-layout verification, and the structural review. Its embedded
+  Step 2 Gradle surface gate was `BUILD SUCCESSFUL` in 11s with 3/3 tasks executed.
+- `git diff --check` reports no whitespace errors; output is limited to Windows LF-to-CRLF
+  working-copy warnings for changed files.
+- On 2026-09-11, the user reported that every Task 15 command had been run and pulled the
+  screenshot artifacts into `task15-evidence/`. Artifact inspection found 15 non-empty PNGs under
+  each of `api26/catalog-screenshot-evidence/` and `api37/catalog-screenshot-evidence/`; the two
+  matrices visually contain the expected Discover and Story evidence surfaces.
+- The pulled API 26 matrix is 1080 x 1731 and the API 37 matrix is 1080 x 2400, but every artifact
+  in both matrices is named `compact-*`. Device inspection shows `emulator-5556` is API 37 at
+  1080 x 2400 and density 420, which yields about 411dp available width. This is below the
+  screenshot helper's frozen 600dp `wide` threshold, so the API 37 run is a second compact run and
+  cannot satisfy the required wider-configuration evidence gate.
+- The currently retained API 37 connected XML reports show storage 40/40 PASS, app 10/10 PASS,
+  and the later filtered screenshot class 1/1 PASS, all with zero failures/errors and exit code 0.
+  The later runs overwrote the local full-feature and API 26 connected reports, and the user has
+  not yet supplied an explicit PASS summary for those results or the four broad commands.
+- The user then reran the screenshot class on a >=600dp configuration and pulled
+  `task15-evidence/wide/`. Review confirms exactly 15 non-empty `wide-*` PNGs at 1080 x 2400,
+  covering the complete deterministic Discover and Story matrix. Contact-sheet inspection found no
+  missing, blank, or incorrectly classified surface. The compact/wide screenshot artifact gate is
+  therefore complete; this is correctness/evidence review and does not reopen Task 14 visual design.
+- The user explicitly confirms PASS for both complete API 26/API 37 connected commands and all four
+  broad commands: architecture/foundation/Detekt, the Step 2 build-surface script,
+  `scripts/verify-fast.sh`, and `scripts/verify.sh`. Together with the reviewed compact/wide
+  artifacts and retained API 37 XML results, every required Task 15 user-owned gate is accepted.
+
+## Task 15 R2.8 Local Acceptance Map
+
+This map covers every R2.8 criterion without claiming the user-owned device/full gates,
+Task 16 performance/profile work, or Task 17 plugin work as complete.
+
+| R2.8 criteria | Current evidence / owner |
+|---|---|
+| 1-4 | Protected by the accepted Task 0/7 product, startup, and launch-handoff evidence plus `app/src/androidTest/.../startup/`; final cross-device rerun is part of the Task 15 API matrix. |
+| 5-8 | Protected by Task 2-6 Room/importer/variant evidence, `CatalogVariantFixtureTest`, and `v2-step2-build-surface-test.sh`; Task 15 entrypoints now retain these module checks. |
+| 9-15 | Protected by `module-boundaries.json`, build-logic architecture tests, the Task 13 Design System slice, accepted Task 14 visual evidence, and the accepted Task 15 broad gates. |
+| 16-19 | Covered by `DiscoverPersistenceInstrumentedTest`, `DiscoverPublicationRetentionInstrumentedTest`, runtime Discover tests, and Discover UI tests; the Task 15 API 26/API 37 matrix is accepted. |
+| 20-24 | Covered by domain identity tests, `CatalogRouteTest`, `StoryRouteRestorationInstrumentedTest`, and Story screen/ViewModel tests. |
+| 25-38 | Covered by the five storage connected classes plus importer, mutation-gate, pin, retention, rollback, and non-loop tests from Tasks 2-4; the Task 15 API 26/API 37 matrix is accepted. |
+| 39-48 | Covered by deterministic fixture assets, `LocalCoverContinuityInstrumentedTest`, `CoverImagePreflightInstrumentedTest`, remote-policy host tests, and the reviewed compact/wide Task 15 screenshot matrix. |
+| 49-55 | Covered by Discover refresh, runtime single-flight/quiescence, lifecycle, cache-hit, startup, foundation, and thread-ownership tests recorded under Tasks 5, 7, 10, 12, and 13. |
+| 56-60 | **OPEN - OWNED BY TASK 16** performance, profile regeneration, startup delta, and frame/jank evidence. |
+| 61 | Structural/lifecycle ownership is protected by Task 12 runtime/feature tests; quantitative aged/repeated-growth evidence remains **OPEN - OWNED BY TASK 16**. |
+| 62 | Task 15 local non-performance correctness is accepted; the performance portion remains **OPEN - OWNED BY TASK 16**. |
+| 63-66 | **OPEN - OWNED BY TASK 17** deterministic MangaUpdates plugin integration and optional live smoke scope. |
+| 67 | Local retention-on-failure is covered by storage/runtime/feature tests; the plugin-acquisition branch remains **OPEN - OWNED BY TASK 17**. |
+| 68 | Protected by the reviewed R2.8 plan and accepted Task 14 freeze; Task 15 introduces no placeholder, new ownership rule, or deferred design decision. |
+
+## Task 15 Required User-Owned Gates
+
+Use explicit serial selection; replace placeholders with real values. The API commands intentionally
+run the complete storage, feature, and app connected suites on each target.
+
+```powershell
+$env:ANDROID_SERIAL = '<api26-serial>'
+.\gradlew.bat :catalog:storage:connectedDebugAndroidTest :feature:catalog:connectedDebugAndroidTest :app:connectedDebugAndroidTest --no-daemon
+
+$env:ANDROID_SERIAL = '<api37-serial>'
+.\gradlew.bat :catalog:storage:connectedDebugAndroidTest :feature:catalog:connectedDebugAndroidTest :app:connectedDebugAndroidTest --no-daemon
+```
+
+Run the screenshot class once on an accepted compact target and once on a configuration with at
+least 600dp available width. Pull each device's evidence before reusing that target/package data.
+
+```powershell
+$env:ANDROID_SERIAL = '<compact-serial>'
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.evidence.CatalogScreenshotEvidenceTest' --no-daemon
+adb -s '<compact-serial>' pull /sdcard/Android/media/app.openstory.catalog.feature.test/catalog-screenshot-evidence '<host-output-dir>\compact'
+
+$env:ANDROID_SERIAL = '<wide-serial>'
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.evidence.CatalogScreenshotEvidenceTest' --no-daemon
+adb -s '<wide-serial>' pull /sdcard/Android/media/app.openstory.catalog.feature.test/catalog-screenshot-evidence '<host-output-dir>\wide'
+
+Remove-Item Env:ANDROID_SERIAL
+```
+
+Record device, API, resolution/available-width dp class, command result, and pulled artifact path.
+Then run the broad gates from this Windows workspace with Git Bash:
+
+```powershell
+.\gradlew.bat verifyArchitecture :app:verifyFoundation detekt --no-daemon
+& 'C:\Program Files\Git\bin\bash.exe' scripts/tests/v2-step2-build-surface-test.sh
+& 'C:\Program Files\Git\bin\bash.exe' scripts/verify-fast.sh
+& 'C:\Program Files\Git\bin\bash.exe' scripts/verify.sh
+```
+
+The user confirms every command above PASS, and the compact/wide screenshot artifacts are reviewed.
+The Task 15 user-owned gate is accepted.
+
 ## Later Task Status
 
-Tasks 0-14: **COMPLETED/ACCEPTED**.
-Tasks 15 through 18: **NOT RUN**.
+Tasks 0-15: **COMPLETED/ACCEPTED**.
+Task 16: **READY TO START**.
+Tasks 17 through 18: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- Task 14 correctness and user-owned visual gates are accepted as PASS. Task 15 API 26/API 37 and
-  screenshot/correctness evidence, Task 16 performance/profile evidence, Task 17 plugin
+- Task 14 correctness and user-owned visual gates are accepted as PASS. The first Task 15 API 26
+  run exposed and locally repaired one minimum-SQLite compatibility defect. The user confirms both
+  final API connected commands PASS, and the required compact and >=600dp wide screenshot matrices
+  are present and reviewed. The first returned `verify-fast.sh` result exposed and locally
+  repaired a stale Step 1 build-surface assertion; the second returned run exposed and locally
+  repaired stale retired-path assertions for `core/designsystem` and `feature/catalog`; the third
+  returned run exposed and locally repaired the blanket source-filename rule that rejected the
+  approved versioned domain contracts. The user confirms every repaired broad command PASS. No
+  Task 15 correctness gate remains open. Task 16 performance/profile evidence, Task 17 plugin
   integration, and Task 18 final acceptance remain `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Task 14 is complete. Stop at this boundary. On a new explicit continuation instruction, begin only
-Task 15, "Close storage connected verification and cross-module correctness acceptance before
-performance work," from the owning implementation plan. This Task 14 acceptance does not authorize
-starting Task 15 in the same turn.
+Task 15 is `COMPLETED/ACCEPTED`. Resume at Task 16 under the owning implementation plan only after a
+new explicit user instruction. Task 16 owns deterministic performance/aging benchmarks,
+evidence-driven optimization, profile regeneration, and startup comparison. Do not reconstruct or
+rerun Task 15 unless later evidence directly invalidates an accepted invariant.

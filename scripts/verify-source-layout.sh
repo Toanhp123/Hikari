@@ -9,6 +9,19 @@ fail() {
   exit 1
 }
 
+is_approved_versioned_contract() {
+  case "$1" in
+    catalog/domain/src/main/kotlin/app/openstory/catalog/domain/asset/RemoteHttpsUriV1.kt | \
+      catalog/domain/src/main/kotlin/app/openstory/catalog/domain/identity/SourceStoryIdV1.kt | \
+      catalog/domain/src/test/kotlin/app/openstory/catalog/domain/identity/SourceStoryIdV1Test.kt)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 if git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   TRACKED_IDE="$(git -C "$ROOT_DIR" ls-files '.idea')"
   [[ -z "$TRACKED_IDE" ]] || fail "Tracked IDE metadata is forbidden: $TRACKED_IDE"
@@ -41,8 +54,9 @@ while IFS= read -r -d '' source_file; do
   relative_path="${source_file#"$ROOT_DIR"/}"
   file_name="$(basename "$source_file")"
 
-  if [[ "$file_name" =~ ([Vv]1|[Vv]2|[Ll]egacy|[Cc]ompat) ]]; then
-    fail "Generation-labelled active source filename is forbidden: $relative_path"
+  if [[ "$file_name" =~ ([Vv]1|[Vv]2|[Ll]egacy|[Cc]ompat) ]] &&
+    ! is_approved_versioned_contract "$relative_path"; then
+    fail "Unapproved generation-labelled active source filename is forbidden: $relative_path"
   fi
 
   if [[ "$relative_path" =~ /src/(test|androidTest)/ ]] &&

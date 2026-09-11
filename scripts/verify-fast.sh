@@ -17,6 +17,11 @@ run_repository_static_gates
   verifyArchitecture \
   :build-logic:test \
   :core:common:test \
+  :core:designsystem:assembleDebug \
+  :catalog:domain:test \
+  :catalog:storage:assembleDebug \
+  :catalog:runtime:testDebugUnitTest \
+  :feature:catalog:testDebugUnitTest \
   :catalog:model:test \
   :catalog:engine:test \
   :reader:engine:test \
