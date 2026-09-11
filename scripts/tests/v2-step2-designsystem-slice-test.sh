@@ -11,8 +11,6 @@ fail() {
 
 EXPECTED_SOURCES=$(cat <<'EOF'
 core/designsystem/src/main/kotlin/app/openstory/designsystem/content/HikariSectionHeader.kt
-core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedControl.kt
-core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedOption.kt
 core/designsystem/src/main/kotlin/app/openstory/designsystem/feedback/HikariInlineFeedback.kt
 core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt
 core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariEmptyState.kt
@@ -63,11 +61,6 @@ if grep -E -n 'HikariPullToRefresh|PullToRefreshBox' "$STORY_SCREEN"; then
   fail "Story Detail is not pull-refreshable in Step 2"
 fi
 
-CONTROL='core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedControl.kt'
-if grep -E -n '\.(map|distinct|toSet|groupBy)\s*\(|buildList\s*\(' "$CONTROL"; then
-  fail "segmented validation allocates a temporary key collection"
-fi
-
 PULL='core/designsystem/src/main/kotlin/app/openstory/designsystem/refresh/HikariPullToRefresh.kt'
 grep -F -q 'if (!enabled)' "$PULL" || fail "pull refresh lacks an explicit disabled branch"
 grep -F -q 'Box(modifier = modifier, content = content)' "$PULL" || \
@@ -90,7 +83,7 @@ for forbidden_api in \
 done
 
 for symbol in \
-  HikariTheme hikariSpacing HikariSegmentedOption HikariSegmentedControl HikariSectionHeader \
+  HikariTheme hikariSpacing HikariSectionHeader \
   HikariSkeleton HikariEmptyState HikariErrorState HikariInlineFeedback HikariPullToRefresh; do
   if ! grep -R -q -F --include='*.kt' "$symbol" app/src/main feature/catalog/src/main; then
     fail "admitted public symbol has no production caller: $symbol"

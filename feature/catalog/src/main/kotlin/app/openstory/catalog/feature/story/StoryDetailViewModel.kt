@@ -13,6 +13,9 @@ import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.story.StoryDetailSessionState
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.Job
@@ -261,10 +264,19 @@ private fun StoryDetailSessionState.toUiState(
 private fun StoryDetailProjection.toSummaryUi(): StorySummaryUi =
     StorySummaryUi(
         title = summary.title,
+        contentType = summary.contentType,
         coverAssetKey = summary.coverAssetKey,
         ratingLabel = summary.rating?.let { rating ->
             String.format(Locale.ROOT, "%.1f / %.0f", rating.value, rating.scale)
         },
         publicationStatus = summary.publicationStatusSummary,
+        latestUpdateLabel = summary.latestUpdateEpochMs?.let(::formatLatestUpdate),
         coverLocator = summary.coverLocator,
     )
+
+private val STORY_UPDATE_DATE_FORMATTER = DateTimeFormatter
+    .ofPattern("MMM d, uuuu", Locale.ENGLISH)
+    .withZone(ZoneOffset.UTC)
+
+private fun formatLatestUpdate(epochMs: Long): String =
+    "Updated ${STORY_UPDATE_DATE_FORMATTER.format(Instant.ofEpochMilli(epochMs))}"

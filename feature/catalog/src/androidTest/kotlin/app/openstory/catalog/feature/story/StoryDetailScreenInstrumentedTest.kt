@@ -4,14 +4,18 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.SourceStoryIdV1
 import app.openstory.catalog.domain.identity.SourceStoryKey
 import app.openstory.catalog.domain.identity.StorySourceRef
+import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.feature.state.CatalogIssueKind
 import app.openstory.catalog.feature.state.CatalogIssueUi
 import app.openstory.designsystem.theme.HikariTheme
@@ -58,6 +62,66 @@ class StoryDetailScreenInstrumentedTest {
         composeRule.runOnIdle { assertEquals(1, retryCalls) }
     }
 
+    @Test
+    fun storyHeroSummaryNullReservesPortraitIdentityGeometryWithoutFakeTitle() {
+        setContent(
+            state = state(detailLoading = true, issue = null).copy(summary = null),
+        )
+
+        composeRule.onNodeWithTag("story-hero-cover")
+            .assertIsDisplayed()
+            .assertWidthIsAtLeast(112.dp)
+            .assertHeightIsAtLeast(168.dp)
+        composeRule.onNodeWithTag("story-hero-identity-skeleton").assertIsDisplayed()
+        composeRule.onNodeWithText("Story cover").assertDoesNotExist()
+        composeRule.onNodeWithText("H").assertDoesNotExist()
+    }
+
+    @Test
+    fun storyHeroKeepsPortraitCoverAndSummaryVisibleWhileDetailLoads() {
+        setContent(state(detailLoading = true, issue = null))
+
+        composeRule.onNodeWithTag("story-hero-cover")
+            .assertWidthIsAtLeast(112.dp)
+            .assertHeightIsAtLeast(168.dp)
+        composeRule.onNodeWithText("Story 17").assertIsDisplayed()
+        composeRule.onNodeWithTag("story-detail-skeleton").assertIsDisplayed()
+    }
+
+    @Test
+    fun storyMetadataGroupsAvailableFieldsWithoutInternalAuthority() {
+        setContent(
+            state(detailLoading = false, issue = null).copy(
+                detail = StoryDetailUi(
+                    description = "A bounded description",
+                    authors = listOf("Author One"),
+                    artists = listOf("Artist One"),
+                    genres = listOf("Drama", "Mystery"),
+                    publicationStatus = "Ongoing",
+                    language = "English",
+                ),
+            ),
+        )
+
+        listOf("About", "Authors", "Artists", "Genres", "Status", "Language").forEach { label ->
+            composeRule.onNodeWithText(label).assertIsDisplayed()
+        }
+        composeRule.onNodeWithText("fixture-v1").assertDoesNotExist()
+        composeRule.onNodeWithText(REF.storyId.value).assertDoesNotExist()
+    }
+
+    @Test
+    fun storyDetailHasNoRefreshChapterReaderLibraryOrBookmarkAction() {
+        setContent(state(detailLoading = false, issue = null))
+
+        composeRule.onAllNodes(
+            SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions),
+        ).assertCountEquals(0)
+        listOf("Refresh", "Read", "Library", "Chapters", "Bookmark").forEach { copy ->
+            composeRule.onNodeWithText(copy, substring = true).assertDoesNotExist()
+        }
+    }
+
     private fun setContent(
         state: StoryDetailUiState,
         onRetry: () -> Unit = {},
@@ -84,9 +148,11 @@ class StoryDetailScreenInstrumentedTest {
             ref = REF,
             summary = StorySummaryUi(
                 title = "Story 17",
+                contentType = CatalogMediaType.MANGA,
                 coverAssetKey = null,
                 ratingLabel = "8.5 / 10",
                 publicationStatus = "Ongoing",
+                latestUpdateLabel = "Updated Sep 11, 2026",
             ),
             detail = null,
             detailLoading = detailLoading,

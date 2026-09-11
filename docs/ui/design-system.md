@@ -1,6 +1,6 @@
 # Hikari V2 Design System
 
-Date: 2026-09-10
+Date: 2026-09-11
 Status: **CANONICAL V2 STEP 2 PRESENTATION POLICY**
 
 ## Ownership
@@ -23,10 +23,11 @@ and Material 3 shapes. Light `background` is exactly white and dark `background`
 to preserve the accepted Step 1 window-to-first-Compose-surface continuity. Theme construction does
 not read Context, settings, DataStore, resources, services, or runtime fonts and starts no work.
 
-The admitted visual baseline is:
+The R2.8 visual vocabulary is:
 
-- the reviewed Coral/Teal/warm-surface Material 3 palette;
-- Serif display and Sans body Material 3 typography;
+- the exact neutral artwork-first palette with accessible Coral/Teal roles recorded in the R2.8
+  Step 2 design;
+- the exact R2.8 editorial Serif display/headline and Sans body/label Material 3 roles;
 - Material 3 shape roles at `8 / 12 / 20 / 28 / 36.dp`;
 - one fixed `HikariSpacing` singleton at `4 / 8 / 12 / 16 / 20 / 24 / 32.dp`, exposed as
   `MaterialTheme.hikariSpacing` without a `CompositionLocal`.
@@ -43,7 +44,6 @@ semantic shape families, opacity/brush families, or motion policy.
 |---|---|---|
 | `HikariTheme` | `app/HikariStartupApp` | One root visual environment with no work ownership |
 | `HikariSpacing` / `MaterialTheme.hikariSpacing` | Discover/Story shared spacing roles | Fixed allocation-free spacing scale |
-| `HikariSegmentedOption` / `HikariSegmentedControl` | Discover media selector | Bounded 2..5 single-choice options, unique keys, >=48.dp targets |
 | `HikariSectionHeader` | Discover semantic sections | Shared heading semantics and title treatment |
 | `HikariSkeleton` | Discover and Story loading geometry | Static caller-sized fill; no shimmer/progress semantics |
 | `HikariEmptyState` | Discover durable successful-empty state | Caller-sized title/body only; no implicit action |
@@ -54,6 +54,10 @@ semantic shape families, opacity/brush families, or motion policy.
 Every public symbol requires a production caller and a stable semantic rule. Test-only,
 future-facing, wrapper-for-wrapper, or parameter-heavy generic surfaces are rejected. Small local
 Compose duplication is preferred when no shared rule exists.
+
+Manga and Light Novel are feature-local Catalog media destinations presented by the Discover
+floating navigation. Task 14 retired the migration-only shared segmented-control API and did not
+replace it with a generic Design System navigation primitive.
 
 ## Material Direct Rule
 
@@ -100,6 +104,10 @@ responsive layout policy, feature copy, Catalog models, failure mapping, refresh
 scheduling, Story/Chapter refresh, Chapters/Reader actions, navigation hosts, Robolectric,
 Roborazzi, screenshot infrastructure, or benchmark policy. Task 14 owns feature-local visual
 restoration and composition quality without broadening this module.
+
+Final visual acceptance for the R2.8 palette and typography remains user-owned and covers Ready,
+Loading, Error, Empty, Refresh, light/dark, and compact/wide surfaces. Root backgrounds remain
+exactly white/black; spacing and shapes remain unchanged.
 
 `scripts/tests/v2-step2-designsystem-slice-test.sh` fail-closes the exact source/API budget,
 dependency and hidden-work bans, app import authority, caller map, refresh ownership, and stale V1

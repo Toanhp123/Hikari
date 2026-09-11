@@ -24,7 +24,12 @@ fun HikariInlineFeedback(
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = message, modifier = Modifier.weight(1f))
+        Text(
+            text = message,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         if (actionLabel != null && onAction != null) {
             TextButton(onClick = onAction, enabled = actionEnabled) {
                 Text(actionLabel)

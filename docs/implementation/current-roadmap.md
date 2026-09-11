@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-13; Task 14 is
-the next canonical boundary and is NOT RUN.** The owning plan is
+**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-13; Task 14
+implementation and agent-owned focused verification are complete and READY FOR USER VERIFICATION.** The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
 Task 0 admits the exact four-module Catalog foundation, reviewed build surface, exact graph,
@@ -162,8 +162,16 @@ seam, source-scoped initial/redirect host policy, exact 5-hop and 10s/20s timeou
  gates. Initial user verification exposed invalid Compose test assumptions plus two blocking Detekt
  findings; the repaired connected classes, broad release/architecture/Detekt command, build-surface
  script, and Design System slice script are all accepted from the user's final PASS confirmation on
- 2026-09-10. Task 13 is completed/accepted. Task 14 remains `NOT RUN` and requires a new explicit user
- instruction before visual restoration begins.
+ 2026-09-10. Task 13 is completed/accepted. Task 14 now contains the exact R2.8 palette/typography
+ migration, shared-state visual treatment, feature-local floating Manga/Light Novel navigation,
+ artwork-first Discover composition, portrait Story Detail composition, existing content-type/update
+ projection mapping, and shrink-only segmented API retirement. The final focused compile/unit cone,
+ Design System slice script, and diff check pass. The user-returned Design System connected command
+ passes 7 tests on Redmi Note 9S / API 35. Returned Catalog connected and broad architecture/Detekt
+ failures were repaired; focused feature compile, route regression, and package-structure verification
+ pass. The user reported `BUILD SUCCESSFUL` for both repaired correctness reruns on 2026-09-11.
+ Task 14 is now `READY FOR USER VISUAL ACCEPTANCE`; it remains open until explicit human visual PASS.
+ Task 15 remains blocked.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

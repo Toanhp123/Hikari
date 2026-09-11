@@ -1,20 +1,21 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
-Date: 2026-09-10
-Status: **TASKS 0-13 COMPLETED/ACCEPTED; TASK 14 NOT RUN**
+Date: 2026-09-11
+Status: **TASKS 0-13 COMPLETED/ACCEPTED; TASK 14 READY FOR USER VERIFICATION**
 
 ## Authority
 
-- Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.4.md`
+- Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.8.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
 - Completed/accepted execution boundary: Tasks 0-13.
-- Next canonical execution boundary: Task 14, `NOT RUN`.
+- Current canonical execution boundary: Task 14, `READY FOR USER VERIFICATION`.
+- 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
 
-- design: `2f7ffe3ec7693c6f4b3219c795bcd08f0260f4804c8eff78d38626c6603cdb6f`
-- plan: `41f51a26bf860fc8e3ba89ce9d30e36010774520d05e27bc2aa1494f506506d2`
+- design: `db6e03856dbefe1ab2a3caed51b5b773e2b8a1ce0419a9f3f0b49c9fc30d82fa`
+- plan: `0019d077190e551dbbed3164913a2b5ab3ca0443b0cb84e77dd2191633987e6f`
 
 ## Task 0 Delta
 
@@ -1396,22 +1397,75 @@ profile regeneration and no Task 13 acceptance claim relies on those stale profi
   benchmark-threshold ownership are unchanged. Story Detail has no pull refresh or new acquisition.
 - Every admitted public Design System symbol has a production caller and a documented semantic
   reason; no generic layout/text/card/artwork/navigation wrapper or future-only API remains.
-- Task 14 remains `NOT RUN` and owns all visual restoration/polish.
+- At the Task 13 acceptance boundary, Task 14 remained `NOT RUN` and owned all visual restoration/polish.
+
+## Task 14 Delta
+
+- Migrated the root Material 3 palette and typography to the exact R2.8 values while preserving
+  white/black root backgrounds, the accepted spacing/shape scales, platform Serif/Sans ownership,
+  and the single root `HikariTheme` architecture.
+- Preserved shared state/action ownership while applying the reviewed restrained body treatment to
+  `HikariErrorState` and `HikariInlineFeedback`.
+- Replaced the migration-only segmented media selector with feature-local floating Manga/Light
+  Novel destination navigation, including selected-tab semantics, selected no-op behavior, explicit
+  media-switch scroll reset, safe system insets, and final-content bottom clearance.
+- Rebuilt Discover with one vertical owner and distinct bounded Popular hero, Latest poster-rail,
+  and Top Rated rank-list silhouettes plus final-geometry static loading reservations.
+- Rebuilt Story Detail around compact/wide portrait identity geometry and semantic About/Authors/
+  Artists/Genres/Status/Language groups; existing projection-owned media type and latest-update
+  timestamp now map to user-safe UI labels while source/provenance/route authority remains hidden.
+- Retired `HikariSegmentedControl` and `HikariSegmentedOption` atomically with their tests, caller
+  checks, source-budget entries, and active Design System policy.
+- Added `docs/internal/v2/step-2-visual-acceptance-2026-09-11.md` as the single Task 14 visual and
+  correctness ledger. Bundled reference hashes match; the written blueprint differs at raw-byte
+  level only because this Windows worktree uses CRLF, and its LF-normalized hash matches authority.
+- Repaired the returned user-gate failures without changing Task 14 behavior: media accessibility
+  assertions now use stable destination tags, Latest loading asserts the approved `92x138.dp`
+  geometry, the restoration fixture again has enough vertical content to preserve a non-zero list
+  position, shared media labels live in a leaf presentation package, and Detekt literals are named.
+
+## Task 14 Agent-Owned Evidence
+
+- Focused RED/GREEN Story mapping gate: the test first failed because media type/latest-update were
+  absent, then failed behaviorally with the wished-for API present but unmapped, and finally passed
+  after UTC/English mapping was implemented.
+- Final focused Gradle closure: `BUILD SUCCESSFUL` in 12s, 62 actionable tasks, covering Design
+  System production/androidTest compilation, feature production/androidTest compilation, focused
+  Discover refresh/ViewModel tests, Story Detail ViewModel tests, and cover-failure regression.
+- User-returned Design System connected contract: PASS on Redmi Note 9S / API 35, 7 tests,
+  `BUILD SUCCESSFUL` in 27s.
+- User-returned Catalog connected contract rerun: PASS; `BUILD SUCCESSFUL` reported on 2026-09-11.
+- User-returned `:app:verifyFoundation verifyArchitecture detekt` rerun: PASS;
+  `BUILD SUCCESSFUL` reported on 2026-09-11.
+- Returned-failure repair cone: `:feature:catalog` production/androidTest compile,
+  `CatalogRouteTest`, and `verifyProductionPackageStructure` passed in 22s, 61 actionable tasks.
+- `scripts/tests/v2-step2-designsystem-slice-test.sh`: PASS.
+- `git diff --check`: PASS.
+- Independent reviewer dispatch was attempted twice but unavailable because the configured provider
+  returned `404 No active credentials`; root self-review therefore remains the available review
+  evidence for this handoff.
+
+## Task 14 Open User-Owned Gate
+
+All three correctness commands are accepted as PASS. Task 14 remains open at
+`READY FOR USER VISUAL ACCEPTANCE` until the user explicitly accepts the Ready/Loading/Error/Empty/
+Refresh checklist in `docs/internal/v2/step-2-visual-acceptance-2026-09-11.md`.
 
 ## Later Task Status
 
 Tasks 0-13: **COMPLETED/ACCEPTED**.
-Tasks 14 through 18: **NOT RUN**.
+Task 14: **READY FOR USER VISUAL ACCEPTANCE**.
+Tasks 15 through 18: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- No Task 13 gate remains open. Task 14 visual restoration, Task 15 API 26/API 37 and
-  screenshot/correctness evidence, Task 16 performance/profile evidence, Task 17 plugin integration,
-  and Task 18 final acceptance remain `NOT RUN`.
+- No Task 13 or Task 14 correctness gate remains open. Task 14 visual acceptance remains `NOT RUN`.
+  Task 15 API 26/API 37 and screenshot/correctness evidence, Task 16 performance/profile evidence,
+  Task 17 plugin integration, and Task 18 final acceptance remain `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Task 13 is completed/accepted. Stop at this boundary. On a new explicit instruction to begin Task 14,
-resume from this checkpoint and read only the owning plan's Task 14 section plus its materially relevant
-global constraints and affected code. Do not begin Task 15 or reopen Task 13 ownership while executing
-Task 14 unless focused evidence proves a Task 13 regression.
+Task 14 correctness is complete. Resume on Task 14 only from the visual checklist in
+`docs/internal/v2/step-2-visual-acceptance-2026-09-11.md`. On explicit visual PASS, record acceptance,
+update the roadmap/checkpoint, and stop. On any visual rejection, repair only that Task 14 surface,
+rerun its smallest affected correctness gate, and return to visual judgment. Do not begin Task 15.
