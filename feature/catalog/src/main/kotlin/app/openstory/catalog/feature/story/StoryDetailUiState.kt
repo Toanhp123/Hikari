@@ -3,6 +3,7 @@ package app.openstory.catalog.feature.story
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.identity.StorySourceRef
+import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.feature.state.CatalogIssueUi
 
 internal data class StoryDetailUiState(
@@ -18,9 +19,11 @@ internal data class StoryDetailUiState(
 
 internal data class StorySummaryUi(
     val title: String,
+    val contentType: CatalogMediaType,
     val coverAssetKey: CoverAssetKey?,
     val ratingLabel: String?,
     val publicationStatus: String?,
+    val latestUpdateLabel: String?,
     val coverLocator: CoverLocator? = null,
 )
 

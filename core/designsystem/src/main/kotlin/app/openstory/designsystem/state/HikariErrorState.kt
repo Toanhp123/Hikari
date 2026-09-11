@@ -25,7 +25,11 @@ fun HikariErrorState(
     ) {
         Text(text = title, style = MaterialTheme.typography.titleMedium)
         if (body != null) {
-            Text(text = body, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         if (actionLabel != null && onAction != null) {
             TextButton(onClick = onAction, enabled = actionEnabled) {

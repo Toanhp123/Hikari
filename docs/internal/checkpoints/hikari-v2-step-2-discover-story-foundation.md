@@ -1,20 +1,22 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
-Date: 2026-09-10
-Status: **TASKS 0-13 COMPLETED/ACCEPTED; TASK 14 NOT RUN**
+Date: 2026-09-11
+Status: **TASKS 0-14 COMPLETED/ACCEPTED; TASK 15 NOT RUN**
 
 ## Authority
 
-- Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.4.md`
+- Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.8.md`
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-13.
-- Next canonical execution boundary: Task 14, `NOT RUN`.
+- Completed/accepted execution boundary: Tasks 0-14.
+- Next canonical execution boundary: Task 15, `NOT RUN`; it was not started during Task 14
+  acceptance.
+- 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
 
-- design: `2f7ffe3ec7693c6f4b3219c795bcd08f0260f4804c8eff78d38626c6603cdb6f`
-- plan: `41f51a26bf860fc8e3ba89ce9d30e36010774520d05e27bc2aa1494f506506d2`
+- design: `db6e03856dbefe1ab2a3caed51b5b773e2b8a1ce0419a9f3f0b49c9fc30d82fa`
+- plan: `0019d077190e551dbbed3164913a2b5ab3ca0443b0cb84e77dd2191633987e6f`
 
 ## Task 0 Delta
 
@@ -48,8 +50,8 @@ or UI implementation is introduced by Task 0.
   run twice - PASS; first run stored and second run reused configuration cache, 2026-09-09.
 - `bash -n scripts/tests/v2-step2-build-surface-test.sh` under Git Bash - PASS, 2026-09-09.
 - `./gradlew :app:verifyDebugMergedManifestStartup :app:verifyReleaseMergedManifestStartup
-  :app:verifyBenchmarkReleaseMergedManifestStartup
-  :app:verifyNonMinifiedReleaseMergedManifestStartup --no-daemon` - PASS for all four variants
+:app:verifyBenchmarkReleaseMergedManifestStartup
+:app:verifyNonMinifiedReleaseMergedManifestStartup --no-daemon` - PASS for all four variants
   after removing Room's unused `MultiInstanceInvalidationService`, 2026-09-09.
 
 ## Required User-Owned Gate
@@ -124,7 +126,7 @@ Result: **PASS; no unresolved in-scope defect found.**
 - TDD RED: `./gradlew :catalog:domain:test --no-daemon` failed at compile time on the missing Task 1
   domain symbols, as expected, before production implementation.
 - Focused final tree: `./gradlew :catalog:domain:test :catalog:storage:compileDebugKotlin
-  :catalog:runtime:compileDebugKotlin :feature:catalog:compileDebugKotlin --no-daemon` - PASS,
+:catalog:runtime:compileDebugKotlin :feature:catalog:compileDebugKotlin --no-daemon` - PASS,
   41 domain tests, 0 failures, 0 errors, 0 skipped after broad-gate remediation, 2026-09-09.
 - Post-`ReturnCount` remediation: `./gradlew :catalog:domain:test --no-daemon` - PASS,
   `BUILD SUCCESSFUL`, 6 actionable tasks, 2026-09-09.
@@ -215,10 +217,10 @@ Final result on 2026-09-09: **PASS; Task 1 accepted.**
 - Focused GREEN: `./gradlew :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS,
   `BUILD SUCCESSFUL`, 20 actionable tasks, 2026-09-09.
 - Focused final gate: `./gradlew :catalog:storage:assembleDebug
-  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL`,
+:catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL`,
   36 actionable tasks on the final source tree, 2026-09-09.
 - Post-Detekt remediation compile: `./gradlew :catalog:storage:assembleDebug
-  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL` in 23s,
+:catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL` in 23s,
   36 actionable tasks, 2026-09-09.
 - Generated schema review confirms version 1 contains only the four Task 2 product tables, both
   identity uniqueness authorities, both Discover uniqueness authorities, and the intended
@@ -303,7 +305,7 @@ behavior on API 26 and 37.
 - Focused GREEN compile: `./gradlew :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` -
   PASS (exit 0), 2026-09-09.
 - Focused final gate: `./gradlew :catalog:storage:assembleDebug
-  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL in 24s`,
+:catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS, `BUILD SUCCESSFUL in 24s`,
   36 actionable tasks (2 executed, 34 up-to-date), 2026-09-09.
 - User-run RED evidence: the selected connected suite ran 14 tests and failed only
   `oneStorySnapshotUsesFourQueriesRegardlessOfUnrelatedRows`, with `expected:<4> but was:<5>`.
@@ -318,7 +320,7 @@ behavior on API 26 and 37.
   `evictOneOverflow` helper's three returns. The helper now selects a nullable eviction and has one
   final return without changing the bounded overflow behavior.
 - Post-remediation focused gate: `./gradlew :catalog:storage:assembleDebug
-  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS (exit 0), 2026-09-09.
+:catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS (exit 0), 2026-09-09.
 - Generated schema review confirms the five Task 3 tables, detail route uniqueness, child primary
   keys/foreign keys, and `(last_accessed_epoch_ms, story_id)` retention index.
 - Post-remediation generated DAO review confirms each of the four Story SELECT methods executes its
@@ -396,14 +398,14 @@ accepted. Task 13 later repeats Room behavior on API 26 and API 37.
 ## Task 4 Agent-Owned Evidence
 
 - TDD RED: `./gradlew :catalog:runtime:testDebugUnitTest --tests '*CatalogImporter*' --tests
-  '*CatalogMutationGate*' --no-daemon` failed on the missing Task 4 runtime types and importer APIs,
+'*CatalogMutationGate*' --no-daemon` failed on the missing Task 4 runtime types and importer APIs,
   as expected, 2026-09-09.
 - Focused GREEN: `./gradlew :catalog:runtime:testDebugUnitTest --tests '*CatalogImporter*' --tests
-  '*CatalogMutationGate*' --tests '*ActiveStoryPins*' --no-daemon` - PASS (exit 0), 2026-09-09.
+'*CatalogMutationGate*' --tests '*ActiveStoryPins*' --no-daemon` - PASS (exit 0), 2026-09-09.
 - Storage build/connected-test compile: `./gradlew :catalog:storage:assembleDebug
-  :catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS (exit 0), 2026-09-09.
+:catalog:storage:compileDebugAndroidTestKotlin --no-daemon` - PASS (exit 0), 2026-09-09.
 - Post-user-failure remediation rerun of the same storage assemble/instrumentation compile command
-  - PASS (exit 0), 2026-09-09.
+    - PASS (exit 0), 2026-09-09.
 - Final closure gate: focused runtime importer/mutation/pin tests plus storage assemble and
   instrumentation compile in one Gradle invocation - PASS (exit 0), 2026-09-09.
 - One attempted verification invocation included a nonexistent
@@ -492,8 +494,8 @@ repetition remains owned by Task 13.
   retained released Story sessions, raw write-failure leakage, pin leakage after failed access
   touch, and acquisition incorrectly starting after a Story read failure.
 - Exact focused gate: `./gradlew :catalog:runtime:testDebugUnitTest --tests
-  '*CatalogCapabilitySession*' --tests '*DiscoverSession*' --tests '*StoryDetailSession*' --tests
-  '*CatalogAcquisitionExecutor*' --no-daemon` - PASS, 24 tests, exit 0, 2026-09-09.
+'*CatalogCapabilitySession*' --tests '*DiscoverSession*' --tests '*StoryDetailSession*' --tests
+'*CatalogAcquisitionExecutor*' --no-daemon` - PASS, 24 tests, exit 0, 2026-09-09.
 - Widened direct dependency-cone gate adding `CatalogImporter`, `ActiveStoryPins`, and
   `CatalogMutationGate` - PASS, 36 tests, exit 0, 2026-09-09.
 - Static changed-cone checks pass `git diff --check`, find no Kotlin line over 120 characters, and
@@ -545,7 +547,7 @@ completed/accepted.
   adding a `:feature:catalog -> :catalog:storage` edge.
 - Added public benchmark/profile-source-set-only `BenchmarkCatalogFixture.prepare(context)`. It
   imports both enabled media snapshots through `CatalogAcquisitionExecutor -> CatalogImporter ->
-  Room`, waits until matching provenance is durably observable, closes the short-lived session, and
+Room`, waits until matching provenance is durably observable, closes the short-lived session, and
   only then allows `BenchmarkLaunchStateActivity` to expose its ready marker.
 - Extended the Step 2 build-surface verifier and shell gate to enforce concrete variant bindings,
   exact benchmark source reuse, no duplicate `nonMinifiedRelease` fixture, compressed fixture
@@ -561,11 +563,11 @@ completed/accepted.
   not implement `CatalogVariantBinding` are rejected.
 - Fresh final focused cone:
   `./gradlew :build-logic:test :catalog:runtime:testDebugUnitTest
-  :feature:catalog:testDebugUnitTest :feature:catalog:testBenchmarkReleaseUnitTest
-  :feature:catalog:compileDebugKotlin :feature:catalog:compileReleaseKotlin
-  :feature:catalog:compileBenchmarkReleaseKotlin
-  :feature:catalog:compileNonMinifiedReleaseKotlin :app:compileBenchmarkReleaseKotlin
-  :app:compileNonMinifiedReleaseKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
+:feature:catalog:testDebugUnitTest :feature:catalog:testBenchmarkReleaseUnitTest
+:feature:catalog:compileDebugKotlin :feature:catalog:compileReleaseKotlin
+:feature:catalog:compileBenchmarkReleaseKotlin
+:feature:catalog:compileNonMinifiedReleaseKotlin :app:compileBenchmarkReleaseKotlin
+:app:compileNonMinifiedReleaseKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
 - The fresh test results contain 67 build-logic tests, 37 runtime tests, and one fixture test in each
   of debug and benchmarkRelease, all with zero failures/errors.
 - Static changed-cone checks pass `git diff --check`, find no Kotlin line over 120 characters, and
@@ -646,13 +648,13 @@ completed/accepted.
   on `destination-ready` not being gated by `firstFrameReached`; both regressions are remediated.
 - Fresh canonical focused gate:
   `./gradlew :app:testDebugUnitTest --tests '*AppShellContractTest*'
-  --tests '*StartupTraceContractTest*' :app:compileDebugAndroidTestKotlin
-  :feature:catalog:compileDebugKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
+--tests '*StartupTraceContractTest*' :app:compileDebugAndroidTestKotlin
+:feature:catalog:compileDebugKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
 - Fresh widened changed-cone gate:
   `./gradlew :feature:catalog:testDebugUnitTest :feature:catalog:compileReleaseKotlin
-  :feature:catalog:compileBenchmarkReleaseKotlin
-  :feature:catalog:compileNonMinifiedReleaseKotlin :benchmark:compileBenchmarkReleaseKotlin
-  :benchmark:compileNonMinifiedReleaseKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
+:feature:catalog:compileBenchmarkReleaseKotlin
+:feature:catalog:compileNonMinifiedReleaseKotlin :benchmark:compileBenchmarkReleaseKotlin
+:benchmark:compileNonMinifiedReleaseKotlin --no-daemon` - PASS, exit 0, 2026-09-09.
 - Static changed-cone checks pass `git diff --check`, find no Kotlin line over 120 characters, leave
   exactly one `:app` production Catalog import (`CatalogEntryPoint`), and find no remaining
   production/caller `HomeShell`, `startup-home`, or `HOME_TAG` Kotlin reference; the only
@@ -759,7 +761,7 @@ closure turn does not execute Task 8.
   contract-required unexpected-`Throwable` mapping boundary.
 - Fresh post-remediation focused compile:
   `./gradlew :feature:catalog:compileDebugKotlin :feature:catalog:compileBenchmarkReleaseKotlin --no-daemon`
-  - PASS, exit 0, 2026-09-10.
+    - PASS, exit 0, 2026-09-10.
 - Fresh post-remediation focused Detekt over the six affected production files - PASS, exit 0,
   2026-09-10. This is changed-cone evidence, not acceptance of the required full gate.
 - Fresh post-remediation ViewModel regression:
@@ -826,33 +828,33 @@ Task 8 is completed/accepted. The closure turn does not execute Task 9.
 
 - TDD RED was observed for missing route/ViewModel production types, then focused GREEN passes:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*StoryDetailViewModel*' --tests '*CatalogRoute*' --rerun-tasks --no-daemon`
-  - PASS, 11 tests total: 7 Story ViewModel tests and 4 route tests; zero failures/errors.
+    - PASS, 11 tests total: 7 Story ViewModel tests and 4 route tests; zero failures/errors.
 - `./gradlew :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS; the Story restoration/pin-order/Back continuity instrumentation source compiles.
+    - PASS; the Story restoration/pin-order/Back continuity instrumentation source compiles.
 - Post-device-failure focused compile:
   `.\gradlew.bat :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS after correcting the scroll-continuity instrumentation fixture; no production source was
-    changed by this remediation.
+    - PASS after correcting the scroll-continuity instrumentation fixture; no production source was
+      changed by this remediation.
 - Post-remediation focused host regression:
   `.\gradlew.bat :feature:catalog:testDebugUnitTest --tests '*StoryDetailViewModel*' --tests '*CatalogRoute*' --tests '*DiscoverViewModel*' --no-daemon`
-  - PASS; the route, Story Detail, and Discover state cone remains green.
+    - PASS; the route, Story Detail, and Discover state cone remains green.
 - Final self-review race regression:
   `.\gradlew.bat :feature:catalog:testDebugUnitTest --tests '*StoryDetailViewModelTest.immediateReopenAfterBackDoesNotReuseTheDemandBeingReleased' --no-daemon`
-  - RED before remediation: one assertion failure while the old demand remained active during a
-    blocked release.
-  - GREEN after remediation: PASS; immediate reopen waits for the captured release and creates a
-    fresh active demand.
+    - RED before remediation: one assertion failure while the old demand remained active during a
+      blocked release.
+    - GREEN after remediation: PASS; immediate reopen waits for the captured release and creates a
+      fresh active demand.
 - Fresh final agent-owned gate after the race remediation:
-  - focused Story/route/Discover host tests: PASS.
-  - `:feature:catalog:compileDebugAndroidTestKotlin`: PASS.
+    - focused Story/route/Discover host tests: PASS.
+    - `:feature:catalog:compileDebugAndroidTestKotlin`: PASS.
 - Fresh closure rerun after final user evidence:
-  - focused Story/route/Discover host tests: PASS.
-  - `:feature:catalog:compileDebugAndroidTestKotlin`: PASS.
+    - focused Story/route/Discover host tests: PASS.
+    - `:feature:catalog:compileDebugAndroidTestKotlin`: PASS.
 - Widened changed-cone checks:
-  - `./gradlew :feature:catalog:testDebugUnitTest --tests '*DiscoverViewModel*' --no-daemon`
-    - PASS, 9 tests; shared runtime ownership does not regress the bounded Discover reducer.
-  - `./gradlew :app:compileDebugKotlin --no-daemon`
-    - PASS; the direct app caller compiles against the evolved feature entry composition.
+    - `./gradlew :feature:catalog:testDebugUnitTest --tests '*DiscoverViewModel*' --no-daemon`
+        - PASS, 9 tests; shared runtime ownership does not regress the bounded Discover reducer.
+    - `./gradlew :app:compileDebugKotlin --no-daemon`
+        - PASS; the direct app caller compiles against the evolved feature entry composition.
 - `git diff --check` passes; only expected line-ending conversion warnings are reported by Git.
 
 ## Task 9 Required User-Owned Gate
@@ -874,7 +876,7 @@ Status: **PASS / ACCEPTED**.
   instrumentation. A local `gradlew help` probe confirms that quoting the whole project-property
   argument preserves it correctly. The corrected user run executed 4 tests on Redmi Note 9S/API 35:
   3 passed and `backReturnsToDiscoverWithTheSameScrollStateInstance` failed with `expected:<6> but
-  was:<0>`. Root-cause review found that the test began on Story and first measured an empty Discover
+was:<0>`. Root-cause review found that the test began on Story and first measured an empty Discover
   surface with an impossible top-level index 6, which Compose correctly clamped to 0. The test now
   first renders a real three-section Discover surface at valid index 2, transitions to Story, then
   verifies Back retains the same `LazyListState` instance and exact index/offset. The corrected
@@ -942,24 +944,24 @@ Task 9 is completed/accepted. This closure turn commits Task 9 and does not exec
   editor failure cleanup before each production change.
 - Final focused feature cone:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*CoverEncodedDiskCacheTest' --tests '*CoverJobLimiterTest' --tests '*CoverArtworkFailureTest' --tests '*DiscoverViewportLayoutTest' --tests '*DiscoverViewModelTest' --tests '*StoryDetailViewModelTest' --tests '*CatalogVariantFixtureTest' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS, 22 focused host tests, debug production compile, and instrumentation-source compile; zero
-    failures/errors/warnings.
+    - PASS, 22 focused host tests, debug production compile, and instrumentation-source compile; zero
+      failures/errors/warnings.
 - Direct app-shell regression:
   `./gradlew :app:testDebugUnitTest --tests '*AppShellContractTest*' --no-daemon`
-  - PASS with zero warnings.
+    - PASS with zero warnings.
 - Variant cone:
   `./gradlew :feature:catalog:compileReleaseKotlin :feature:catalog:compileBenchmarkReleaseKotlin :feature:catalog:compileNonMinifiedReleaseKotlin :feature:catalog:testBenchmarkReleaseUnitTest --tests '*CatalogVariantFixtureTest*' --no-daemon`
-  - PASS for release, benchmarkRelease, and nonMinifiedRelease compilation plus the real benchmark
-    logical-asset resolver fixture; zero warnings.
+    - PASS for release, benchmarkRelease, and nonMinifiedRelease compilation plus the real benchmark
+      logical-asset resolver fixture; zero warnings.
 - Post-user-failure focused remediation gate:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*CoverEncodedDiskCacheTest' --tests '*CoverArtworkFailureTest' --tests '*DiscoverViewportLayoutTest' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS after separating visible metadata from the cover placeholder fixture, preserving cache
-    cancellation/abort behavior while satisfying source shape, and moving public-in-file state/row
-    declarations to matching files.
+    - PASS after separating visible metadata from the cover placeholder fixture, preserving cache
+      cancellation/abort behavior while satisfying source shape, and moving public-in-file state/row
+      declarations to matching files.
 - Fresh closure gate after user-owned acceptance:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*CoverEncodedDiskCacheTest' --tests '*CoverJobLimiterTest' --tests '*CoverArtworkFailureTest' --tests '*DiscoverViewportLayoutTest' --tests '*DiscoverViewModelTest' --tests '*StoryDetailViewModelTest' --tests '*CatalogVariantFixtureTest' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS, 22/22 focused host tests with zero failures/errors/skips plus debug production and
-    instrumentation-source compilation.
+    - PASS, 22/22 focused host tests with zero failures/errors/skips plus debug production and
+      instrumentation-source compilation.
 - `git diff --check` passes; only expected working-copy line-ending notices are emitted by Git.
 
 ## Task 10 Required User-Owned Gate
@@ -1042,17 +1044,17 @@ Status: **ACCEPTED**.
   transient-file cleanup before each production change.
 - JVM remote policy/transport gate:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' --no-daemon`
-  - PASS, 11/11 tests with zero failures/errors/skips.
+    - PASS, 11/11 tests with zero failures/errors/skips.
 - Fresh focused closure cone:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' :catalog:domain:test --tests '*CoverAssetContractsTest*' :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS: 11 remote-policy tests, 12 domain cover/URI tests, 16 build-surface verifier tests, debug
-    production compile, and instrumentation-source compile. The only emitted warnings were two
-    pre-existing Compose-test API deprecations outside the Task 11 changed cone; the Task 11 WebP
-    fixture deprecation is locally scoped in test source.
+    - PASS: 11 remote-policy tests, 12 domain cover/URI tests, 16 build-surface verifier tests, debug
+      production compile, and instrumentation-source compile. The only emitted warnings were two
+      pre-existing Compose-test API deprecations outside the Task 11 changed cone; the Task 11 WebP
+      fixture deprecation is locally scoped in test source.
 - Release dependency proof:
   `./gradlew :feature:catalog:dependencies --configuration releaseRuntimeClasspath --no-daemon`
-  - PASS; dependency output contains Coil Compose/Core only and no `okhttp`,
-    `coil-network-okhttp`, or `coil-network-core` artifact.
+    - PASS; dependency output contains Coil Compose/Core only and no `okhttp`,
+      `coil-network-okhttp`, or `coil-network-core` artifact.
 - Direct source/manifest review finds no `android.permission.INTERNET` in app/feature manifests and
   no concrete production `RemoteCoverTransport`, OkHttp, Coil-network, `HttpURLConnection`, or
   `java.net.URL` source/import.
@@ -1070,12 +1072,12 @@ Status: **ACCEPTED**.
   platform decoder refuses their patched headers.
 - Fresh focused closure after the fixes:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' :catalog:domain:test --tests '*CoverAssetContractsTest*' :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS; 55 actionable tasks, with the affected test/compile outputs current.
+    - PASS; 55 actionable tasks, with the affected test/compile outputs current.
 - Final combined agent-owned rerun included focused Detekt source selection for
   `CoverImagePreflight.kt` and `RemoteCoverPolicy.kt`, the same closure tests/compiles, and
   `verifyStep2BuildSurface`.
-  - PASS; 57 actionable tasks, 6 executed and 51 up-to-date. The temporary Detekt init script was
-    removed after the run and is not part of the repository delta.
+    - PASS; 57 actionable tasks, 6 executed and 51 up-to-date. The temporary Detekt init script was
+      removed after the run and is not part of the repository delta.
 - Reviewed the 2026-09-10 user re-verification. The broad
   `:app:verifyFoundation verifyArchitecture detekt` gate passed (`BUILD SUCCESSFUL` in 21s; 47
   actionable tasks). The filtered connected class ran 8/8 tests but retained one failure in
@@ -1089,7 +1091,7 @@ Status: **ACCEPTED**.
   when the two dimensions disagree. The existing failing connected fixture is the regression RED.
 - Fresh affected closure after the WebP parser fix:
   `./gradlew :feature:catalog:testDebugUnitTest --tests '*RemoteCover*' :catalog:domain:test --tests '*CoverAssetContractsTest*' :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS; `BUILD SUCCESSFUL` in 12s, 51 actionable tasks (5 executed, 46 up-to-date).
+    - PASS; `BUILD SUCCESSFUL` in 12s, 51 actionable tasks (5 executed, 46 up-to-date).
 - User returned `BUILD SUCCESSFUL` for both required final reruns after the WebP fix: the filtered
   connected `CoverImagePreflightInstrumentedTest` and
   `:app:verifyFoundation verifyArchitecture detekt` gates.
@@ -1156,12 +1158,12 @@ Status: **ACCEPTED**.
   lifecycle cycle.
 - Fresh focused host closure:
   `.\gradlew.bat :catalog:runtime:testDebugUnitTest :feature:catalog:testDebugUnitTest --no-daemon`
-  - PASS; `BUILD SUCCESSFUL` in 6s, 87 tests, zero failures/errors.
+    - PASS; `BUILD SUCCESSFUL` in 6s, 87 tests, zero failures/errors.
 - Fresh Android behavior compile:
   `.\gradlew.bat :feature:catalog:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS; `BUILD SUCCESSFUL` in 6s with no warnings in the final-tree rerun. An earlier compile
-    emitted only the pre-existing deprecated Compose test
-    rule in `StoryRouteRestorationInstrumentedTest.kt`, outside the Task 12 changed test.
+    - PASS; `BUILD SUCCESSFUL` in 6s with no warnings in the final-tree rerun. An earlier compile
+      emitted only the pre-existing deprecated Compose test
+      rule in `StoryRouteRestorationInstrumentedTest.kt`, outside the Task 12 changed test.
 - Required static owner scan found no `WorkManager`, `androidx.work`, or `GlobalScope` use in the
   Catalog runtime/feature production cone. Its only match is the pre-existing app manifest
   `androidx.startup.InitializationProvider` used to remove lifecycle/emoji initializers; Task 12
@@ -1182,10 +1184,10 @@ Status: **ACCEPTED**.
 
 - User-reported filtered connected lifecycle gate:
   `.\gradlew.bat :feature:catalog:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.lifecycle.CatalogLifecycleInstrumentedTest' --no-daemon`
-  - PASS; user reports `BUILD SUCCESSFUL` on 2026-09-10.
+    - PASS; user reports `BUILD SUCCESSFUL` on 2026-09-10.
 - User-reported broad policy gate:
   `.\gradlew.bat :app:verifyFoundation verifyArchitecture detekt --no-daemon`
-  - PASS; user reports `BUILD SUCCESSFUL` on 2026-09-10.
+    - PASS; user reports `BUILD SUCCESSFUL` on 2026-09-10.
 - Both required returned results were reviewed and accepted. Task 12 is completed/accepted.
 
 ## Task 12 Self-Review
@@ -1245,65 +1247,65 @@ reference-only.
   recovery, and resume-after-cancel behavior.
 - Graph admission gate:
   `./gradlew :build-logic:test verifyArchitecture :core:designsystem:assembleDebug --no-daemon`
-  - PASS; `BUILD SUCCESSFUL` in 1m 5s after correcting the plan's nonexistent Foundation alias to
-    the repository's existing Material3-provided Foundation dependency pattern.
+    - PASS; `BUILD SUCCESSFUL` in 1m 5s after correcting the plan's nonexistent Foundation alias to
+      the repository's existing Material3-provided Foundation dependency pattern.
 - Fresh focused final-tree closure:
   `./gradlew :build-logic:test --tests '*Step2BuildSurfaceVerifierTest*' --tests '*ModuleGraphTest*' :core:designsystem:assembleDebug :feature:catalog:testDebugUnitTest :app:testDebugUnitTest :core:designsystem:compileDebugAndroidTestKotlin :feature:catalog:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon`
-  - PASS; fresh final-tree rerun after checkpoint/roadmap synchronization reports
-    `BUILD SUCCESSFUL` in 12s with 136 tasks up-to-date. Current reports contain 25 focused
-    build-logic tests, 43 feature unit tests, and 16 app unit tests with zero failures/errors; all
-    three instrumentation source sets compile.
+    - PASS; fresh final-tree rerun after checkpoint/roadmap synchronization reports
+      `BUILD SUCCESSFUL` in 12s with 136 tasks up-to-date. Current reports contain 25 focused
+      build-logic tests, 43 feature unit tests, and 16 app unit tests with zero failures/errors; all
+      three instrumentation source sets compile.
 - `bash scripts/tests/v2-step2-designsystem-slice-test.sh`
-  - PASS; exact source/API budget, caller map, app import authority, disabled refresh branch,
-    no hidden work/state/scroll/effects, and stale V1 policy exclusions are green.
+    - PASS; exact source/API budget, caller map, app import authority, disabled refresh branch,
+      no hidden work/state/scroll/effects, and stale V1 policy exclusions are green.
 - `git diff --check` reports no whitespace errors; Git emits only repository LF-to-CRLF notices.
 
 ## Task 13 Big Update Regression Matrix
 
-| Audit family | Status | Task 13 evidence / reason |
-|---|---|---|
-| A1 | PROTECTED | Pull refresh delegates to the existing bounded Task 12 acquisition path; no reconciliation index is added. |
-| A2 | N/A | No request/provider ingest-session fork or index rebuild is added. |
-| A3 | N/A | No Story-ID allocation or all-Story scan is added. |
-| A5 | PROTECTED | Shared UI performs no projection lookup/data read; keyed/bounded repositories remain authoritative. |
-| A6 | N/A | No redirect or identity resolution is added. |
-| A7 | PROTECTED | Design System has zero Story observers or reactive identity resolution. |
-| A8 | OWNED | Module/import/hidden-work gates reject repositories and Flow collectors; feature observations remain bounded. |
-| L1 | OWNED | Exact slice gate rejects coroutine/effect/CPU/I-O ownership in shared UI. |
-| L3 | PROTECTED | UI routes pull to `refresh()` and failures to `retry()`; focused tests prove both join one acquisition owner. |
-| L4 | N/A | No Search or canonical settlement path exists. |
-| L5 | N/A | No canonical fusion path exists. |
-| L6 | N/A | No canonical hydration/hash/currentness path exists. |
-| L7 | N/A | No DAO write loop or per-entry commit path is introduced. |
-| L8 | PROTECTED | Shared primitives create no subscription demand; feature retains selected-media/keyed observation scope. |
-| D1 | OWNED | Design System owns no persistence, history, cache, registry, or corpus-sized lifetime. |
-| X1 | PROTECTED | Root theme and controls add no storage observer or invalidation source. |
-| X2 | N/A | No application-scope progress/cache-policy history scan exists. |
-| X3 | OWNED | APIs accept narrow presentation values; static media options leave UiState and flattened viewport rows are removed. |
-| X4 | PROTECTED | No storage trigger, read-combine observation, or snapshot reconstruction is added. |
-| X5 | OWNED | Design System starts no foreground or durable work and cannot compete for an existing work item. |
-| X6 | N/A | No durable recovery backlog, outbox, or worker path exists. |
-| X7 | N/A | No reconciliation point/batch API is introduced. |
-| X8 | N/A | Reader automatic-cache ledger/planning is untouched. |
-| X9 | N/A | Reader eviction/detach paths are untouched. |
-| X10 | N/A | Reader state/publication lock ownership is untouched. |
-| X11 | PROTECTED | Design System receives no encoded image/page payload and owns no payload copies. |
-| X12 | PROTECTED | Design System owns no operational memoization or metadata-suppression cache. |
-| X13 | N/A | No Chapter aggregation path is added. |
-| X14 | N/A | No Chapter Room commit/notification path is added. |
-| X15 | N/A | No Chapter scheduling/pagination path is added. |
-| X16 | PROTECTED | Design System has no plugin manifest/package/executable discovery dependency. |
-| X17 | PROTECTED | Design System has no plugin provisioning/package outcome/state ownership. |
-| X18 | PROTECTED | Design System has no credential/session/Keystore access. |
-| RISK-A4 | N/A | No candidate lookup/search-index path is added. |
-| RISK-BIND | N/A | No Story-ID bounded-set data API is added. |
-| RISK-LIFECYCLE | OWNED | Root theme has zero collectors/effects/work; startup tests retain Unknown/FirstRun without Catalog composition. |
-| RISK-GLOBAL-RESOURCE | OWNED | Gates reject image/network/CPU arbiter, cache, service, registry, or process-resource ownership. |
-| RISK-PLUGIN-ISOLATE | N/A | No JavaScript isolate/runtime path is added. |
-| RISK-PLUGIN-AUTH-CACHE | N/A | No credential cache/session/auth path is added. |
-| RISK-STARTUP-CONTENTION | OWNED | Root theme has no initializer, I/O, DB/network/image access, runtime font load, job, or mutable registry. |
-| baseline L2 | OWNED via RISK-LIFECYCLE | Root theming has zero upstream semantic demand and introduces no hidden destination collection. |
-| baseline RISK-PROVIDER | PROTECTED | UI adds no provider launch/fan-out; both acquisition-capable intents use the existing guarded owner. |
+| Audit family            | Status                   | Task 13 evidence / reason                                                                                           |
+| ----------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| A1                      | PROTECTED                | Pull refresh delegates to the existing bounded Task 12 acquisition path; no reconciliation index is added.          |
+| A2                      | N/A                      | No request/provider ingest-session fork or index rebuild is added.                                                  |
+| A3                      | N/A                      | No Story-ID allocation or all-Story scan is added.                                                                  |
+| A5                      | PROTECTED                | Shared UI performs no projection lookup/data read; keyed/bounded repositories remain authoritative.                 |
+| A6                      | N/A                      | No redirect or identity resolution is added.                                                                        |
+| A7                      | PROTECTED                | Design System has zero Story observers or reactive identity resolution.                                             |
+| A8                      | OWNED                    | Module/import/hidden-work gates reject repositories and Flow collectors; feature observations remain bounded.       |
+| L1                      | OWNED                    | Exact slice gate rejects coroutine/effect/CPU/I-O ownership in shared UI.                                           |
+| L3                      | PROTECTED                | UI routes pull to `refresh()` and failures to `retry()`; focused tests prove both join one acquisition owner.       |
+| L4                      | N/A                      | No Search or canonical settlement path exists.                                                                      |
+| L5                      | N/A                      | No canonical fusion path exists.                                                                                    |
+| L6                      | N/A                      | No canonical hydration/hash/currentness path exists.                                                                |
+| L7                      | N/A                      | No DAO write loop or per-entry commit path is introduced.                                                           |
+| L8                      | PROTECTED                | Shared primitives create no subscription demand; feature retains selected-media/keyed observation scope.            |
+| D1                      | OWNED                    | Design System owns no persistence, history, cache, registry, or corpus-sized lifetime.                              |
+| X1                      | PROTECTED                | Root theme and controls add no storage observer or invalidation source.                                             |
+| X2                      | N/A                      | No application-scope progress/cache-policy history scan exists.                                                     |
+| X3                      | OWNED                    | APIs accept narrow presentation values; static media options leave UiState and flattened viewport rows are removed. |
+| X4                      | PROTECTED                | No storage trigger, read-combine observation, or snapshot reconstruction is added.                                  |
+| X5                      | OWNED                    | Design System starts no foreground or durable work and cannot compete for an existing work item.                    |
+| X6                      | N/A                      | No durable recovery backlog, outbox, or worker path exists.                                                         |
+| X7                      | N/A                      | No reconciliation point/batch API is introduced.                                                                    |
+| X8                      | N/A                      | Reader automatic-cache ledger/planning is untouched.                                                                |
+| X9                      | N/A                      | Reader eviction/detach paths are untouched.                                                                         |
+| X10                     | N/A                      | Reader state/publication lock ownership is untouched.                                                               |
+| X11                     | PROTECTED                | Design System receives no encoded image/page payload and owns no payload copies.                                    |
+| X12                     | PROTECTED                | Design System owns no operational memoization or metadata-suppression cache.                                        |
+| X13                     | N/A                      | No Chapter aggregation path is added.                                                                               |
+| X14                     | N/A                      | No Chapter Room commit/notification path is added.                                                                  |
+| X15                     | N/A                      | No Chapter scheduling/pagination path is added.                                                                     |
+| X16                     | PROTECTED                | Design System has no plugin manifest/package/executable discovery dependency.                                       |
+| X17                     | PROTECTED                | Design System has no plugin provisioning/package outcome/state ownership.                                           |
+| X18                     | PROTECTED                | Design System has no credential/session/Keystore access.                                                            |
+| RISK-A4                 | N/A                      | No candidate lookup/search-index path is added.                                                                     |
+| RISK-BIND               | N/A                      | No Story-ID bounded-set data API is added.                                                                          |
+| RISK-LIFECYCLE          | OWNED                    | Root theme has zero collectors/effects/work; startup tests retain Unknown/FirstRun without Catalog composition.     |
+| RISK-GLOBAL-RESOURCE    | OWNED                    | Gates reject image/network/CPU arbiter, cache, service, registry, or process-resource ownership.                    |
+| RISK-PLUGIN-ISOLATE     | N/A                      | No JavaScript isolate/runtime path is added.                                                                        |
+| RISK-PLUGIN-AUTH-CACHE  | N/A                      | No credential cache/session/auth path is added.                                                                     |
+| RISK-STARTUP-CONTENTION | OWNED                    | Root theme has no initializer, I/O, DB/network/image access, runtime font load, job, or mutable registry.           |
+| baseline L2             | OWNED via RISK-LIFECYCLE | Root theming has zero upstream semantic demand and introduces no hidden destination collection.                     |
+| baseline RISK-PROVIDER  | PROTECTED                | UI adds no provider launch/fan-out; both acquisition-capable intents use the existing guarded owner.                |
 
 Amplifier checks are also closed in the focused/static cone: one vertical scroll owner; stable lazy
 keys; bounded section/card counts; no hidden destination collector; no image/cache ownership move;
@@ -1396,22 +1398,120 @@ profile regeneration and no Task 13 acceptance claim relies on those stale profi
   benchmark-threshold ownership are unchanged. Story Detail has no pull refresh or new acquisition.
 - Every admitted public Design System symbol has a production caller and a documented semantic
   reason; no generic layout/text/card/artwork/navigation wrapper or future-only API remains.
-- Task 14 remains `NOT RUN` and owns all visual restoration/polish.
+- At the Task 13 acceptance boundary, Task 14 remained `NOT RUN` and owned all visual restoration/polish.
+
+## Task 14 Delta
+
+- Migrated the root Material 3 palette and typography to the exact R2.8 values while preserving
+  white/black root backgrounds, the accepted spacing/shape scales, platform Serif/Sans ownership,
+  and the single root `HikariTheme` architecture.
+- Preserved shared state/action ownership while applying the reviewed restrained body treatment to
+  `HikariErrorState` and `HikariInlineFeedback`.
+- Replaced the migration-only segmented media selector with feature-local floating Manga/Light
+  Novel destination navigation, including selected-tab semantics, selected no-op behavior, explicit
+  media-switch scroll reset, safe system insets, and final-content bottom clearance.
+- Rebuilt Discover with one vertical owner and distinct bounded Popular hero, Latest poster-rail,
+  and Top Rated rank-list silhouettes plus final-geometry static loading reservations.
+- Rebuilt Story Detail around compact/wide portrait identity geometry and semantic About/Authors/
+  Artists/Genres/Status/Language groups; existing projection-owned media type and latest-update
+  timestamp now map to user-safe UI labels while source/provenance/route authority remains hidden.
+- Retired `HikariSegmentedControl` and `HikariSegmentedOption` atomically with their tests, caller
+  checks, source-budget entries, and active Design System policy.
+- Added `docs/internal/v2/step-2-visual-acceptance-2026-09-11.md` as the single Task 14 visual and
+  correctness ledger. Bundled reference hashes match; the written blueprint differs at raw-byte
+  level only because this Windows worktree uses CRLF, and its LF-normalized hash matches authority.
+- Repaired the returned user-gate failures without changing Task 14 behavior: media accessibility
+  assertions now use stable destination tags, Latest loading asserts the approved `92x138.dp`
+  geometry, the restoration fixture again has enough vertical content to preserve a non-zero list
+  position, shared media labels live in a leaf presentation package, and Detekt literals are named.
+- Applied User Visual Direction 3 enhancements and feedback refinements (2026-09-11):
+    - `:core:designsystem`: Refined palette tokens to warm paper surfaces (`#FFF9F7`/`#F6F0EC`), deep charcoal dark (`#131318`/`#181820`), coral rose primary (`#F4515B`), and teal secondary (`#2A9D8F`).
+    - `:feature:catalog` Discover: Implemented Direction 3 "Magazine Style Grid" with full-width Editorial Hero banner ("Stories for a Brighter You") and page dots, "Trending Now" and "Recommended for You" horizontal poster rails with "See All" action stubs, Editorial Quote card ("A good story stays with you."), Top Rated list with clean single-digit ranks (fixed 2-digit wrapping bug), circular `SearchIcon` action in header, and removed placeholder bottom navigation bar.
+    - `:feature:catalog` Floating Nav: Refined floating pill navbar with 3 tabs: `Manga`, `Home` (centered), and `Light Novel` with elevated `CircleShape` styling, subtle border, primary active indicator, and smooth scroll-to-top on Home tap.
+    - `:feature:catalog` Story Detail: Implemented Direction 3 layout ("Whispers in the Rain" style) with 280dp cover artwork hero, vertical gradient scrim fade, star rating row (★ 9.5), circular `BackArrowIcon` and `HeartIcon` top bar buttons, primary CTA "Read from Chapter 1", OutlinedButton with `BookmarkIcon`, circular vector action buttons (`HeartIcon`, `ShareIcon`, `MoreIcon`), 2-column metadata grid, genre chips, tabs, expandable synopsis, and "You May Also Like" shelf.
+    - Explicit bypass policy: All non-Step-2 actions (Search, See All, Read from Chapter 1, Add to Library, Chapters/Similar tabs) are explicitly bypassed as disabled stubs (`enabled = false`) to honor Step 2 restrictions without side effects.
+- Refactored the rejected Direction 3 implementation without changing its intended appearance:
+  Discover navigation is stateless and Home can no longer replace the selected media destination;
+  editorial/header/quote composition is split from screen state routing; adaptive insets flow into
+  every section; section caps reuse `CatalogSectionCaps`; dead metric aliases and ineffective Story
+  cover-width plumbing are removed; future-only Story chrome is isolated from projection-backed
+  metadata; and the bespoke Canvas icon code is replaced by immutable feature-local vectors.
+
+## Task 14 Agent-Owned Evidence
+
+- Focused RED/GREEN Story mapping gate: the test first failed because media type/latest-update were
+  absent, then failed behaviorally with the wished-for API present but unmapped, and finally passed
+  after UTC/English mapping was implemented.
+- Final focused Gradle closure: `BUILD SUCCESSFUL` in 12s, 62 actionable tasks, covering Design
+  System production/androidTest compilation, feature production/androidTest compilation, focused
+  Discover refresh/ViewModel tests, Story Detail ViewModel tests, and cover-failure regression.
+- User Direction 3 and Feedback Refinements compilation and tests: `./gradlew :feature:catalog:compileDebugKotlin :feature:catalog:compileDebugAndroidTestKotlin :feature:catalog:testDebugUnitTest :catalog:domain:test` - PASS.
+- Architecture Package Check: `./gradlew verifyProductionPackageStructure` - PASS.
+- Static Analysis: `./gradlew detekt --no-daemon` - PASS (0 errors/warnings in modified code).
+- Design System Slice Script: `scripts/tests/v2-step2-designsystem-slice-test.sh` via Git Bash - PASS.
+- Whitespace Check: `git diff --check` - PASS (0 whitespace errors).
+- Follow-up refactor RED/GREEN: `CatalogMediaDestinationNavTest` first failed on the missing
+  stateless media-selection contract, then passed after Home/selected-media behavior was made pure.
+- Follow-up focused closure: Design System production/androidTest compile, Catalog production/
+  androidTest compile, focused Discover/Story/Nav unit tests, and
+  `verifyProductionPackageStructure` passed; final post-review `BUILD SUCCESSFUL` in 10s,
+  63 actionable tasks.
+- Follow-up Design System slice via Git Bash: PASS; `git diff --check`: PASS.
+- First user rerun after the cleanup: broad `:app:verifyFoundation verifyArchitecture detekt`
+  passed in 14s (51 tasks). Connected Catalog executed 23 tests with 3 failures: two Story assertions
+  queried lazy content before scrolling it into composition, and the route regression still targeted
+  the removed `Back` text instead of the icon control.
+- Returned-failure repair: Story now exposes a stable root tag and accessible Back description;
+  tests use a real detail fixture, scroll to projection-backed metadata/preview actions before
+  asserting, and the route regression clicks the real Back control. The three changed-cone Detekt
+  `LongMethod` warnings in `DiscoverEditorial.kt`, `DiscoverEditorialQuote.kt`, and
+  `DiscoverSections.kt` are addressed by extracting composition helpers rather than suppressing
+  findings; the user-owned broad rerun remains their final evidence.
+- Fresh repair cone: Catalog production/androidTest compile, focused Discover/Story/Nav unit tests,
+  and `verifyProductionPackageStructure` passed; final `BUILD SUCCESSFUL` in 9s,
+  63 actionable tasks.
+- User-returned Design System connected contract: PASS on Redmi Note 9S / API 35, 7 tests,
+  `BUILD SUCCESSFUL` in 27s.
+- Pre-follow-up user-returned Catalog connected contract: PASS; this evidence was superseded when
+  the Direction 3 cleanup changed Catalog production UI.
+- Pre-follow-up user-returned `:app:verifyFoundation verifyArchitecture detekt`: PASS; the affected
+  broad gate was rerun after cleanup and passed, then production changed again during failure repair.
+- Final user-returned Catalog connected rerun after the failure repair: PASS, reported on
+  2026-09-11.
+- Final user-returned `:app:verifyFoundation verifyArchitecture detekt` rerun after the failure
+  repair: PASS, reported on 2026-09-11.
+- Returned-failure repair cone: `:feature:catalog` production/androidTest compile,
+  `CatalogRouteTest`, and `verifyProductionPackageStructure` passed in 22s, 61 actionable tasks.
+- Final acceptance-tree focused gate: Design System production/androidTest compile, Catalog
+  production/androidTest compile and unit tests, Catalog domain tests, and
+  `verifyProductionPackageStructure` passed; `BUILD SUCCESSFUL` in 21s, 69 actionable tasks. The
+  Design System slice script and `git diff --check` also pass on the final acceptance tree.
+- Independent reviewer dispatch was attempted twice but unavailable because the configured provider
+  returned `404 No active credentials`; root self-review therefore remains the available review
+  evidence for this handoff.
+
+## Task 14 User-Owned Visual Acceptance
+
+The earlier Design System connected evidence remains applicable because this repair did not change
+`:core:designsystem`. The user reports PASS for both final affected reruns: connected Catalog and
+broad architecture/Detekt. No correctness gate remains open for Task 14. On 2026-09-11, the user
+explicitly accepted every item in the Direction 3 visual checklist. Task 14 is
+`COMPLETED/ACCEPTED`.
 
 ## Later Task Status
 
-Tasks 0-13: **COMPLETED/ACCEPTED**.
-Tasks 14 through 18: **NOT RUN**.
+Tasks 0-14: **COMPLETED/ACCEPTED**.
+Tasks 15 through 18: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- No Task 13 gate remains open. Task 14 visual restoration, Task 15 API 26/API 37 and
-  screenshot/correctness evidence, Task 16 performance/profile evidence, Task 17 plugin integration,
-  and Task 18 final acceptance remain `NOT RUN`.
+- Task 14 correctness and user-owned visual gates are accepted as PASS. Task 15 API 26/API 37 and
+  screenshot/correctness evidence, Task 16 performance/profile evidence, Task 17 plugin
+  integration, and Task 18 final acceptance remain `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Task 13 is completed/accepted. Stop at this boundary. On a new explicit instruction to begin Task 14,
-resume from this checkpoint and read only the owning plan's Task 14 section plus its materially relevant
-global constraints and affected code. Do not begin Task 15 or reopen Task 13 ownership while executing
-Task 14 unless focused evidence proves a Task 13 regression.
+Task 14 is complete. Stop at this boundary. On a new explicit continuation instruction, begin only
+Task 15, "Close storage connected verification and cross-module correctness acceptance before
+performance work," from the owning implementation plan. This Task 14 acceptance does not authorize
+starting Task 15 in the same turn.

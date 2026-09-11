@@ -88,6 +88,8 @@ class StoryDetailViewModelTest {
 
         val state = requireNotNull(viewModel.state.value)
         assertEquals("Story 17", state.summary?.title)
+        assertEquals(CatalogMediaType.MANGA, state.summary?.contentType)
+        assertEquals("Updated Jan 1, 1970", state.summary?.latestUpdateLabel)
         assertEquals(COVER_LOCATOR, state.summary?.coverLocator)
         assertEquals(COVER_KEY, state.summary?.coverAssetKey)
         assertNull(state.detail)

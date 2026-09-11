@@ -4,21 +4,21 @@
 
 **Goal:** Admit Hikari V2's first real product capability so a returning launch reaches a bounded, persistence-backed multi-section Discover surface for Manga and Light Novel, a Story opens a keyed metadata-only Story Detail surface, covers retain bounded visual continuity, and the Step 1 startup/ownership constitution remains mechanically enforced.
 
-**Architecture:** Keep `:app` as a thin launch-state/destination composition root and admit the four Catalog production modules plus one minimal presentation-only `:core:designsystem` module. Task 0 gives `:app` one product edge to `:feature:catalog`; Task 13 later adds one presentation-infrastructure edge to `:core:designsystem` and moves `HikariTheme` to the application root so Unknown, FirstRun, Discover, and Story share one visual environment without giving the Design System any runtime/data authority. Discover remains a bounded materialized read model with durable `Absent` versus `Published(empty)` semantics; Story Detail remains keyed/bounded; acquisition stays single-owner foreground work; image loading stays capability-private; deterministic sources and the final MangaUpdates harness remain non-release. The V1 design-system implementation is reference evidence only: Task 13 salvages a narrow work-free/domain-neutral slice with no app-owned semantic state/effects and explicitly excludes artwork/network/backdrop/Roborazzi/Robolectric debt. Task 14 then reuses the resulting theme/primitives while redesigning feature-local Discover/Story composition to a V1-quality-or-better visual floor; it does not broaden Design System/runtime ownership merely to mimic V1.
+**Architecture:** Keep `:app` as a thin launch-state/destination composition root and admit the four Catalog production modules plus one minimal presentation-only `:core:designsystem` module. Task 0 gives `:app` one product edge to `:feature:catalog`; Task 13 later adds one presentation-infrastructure edge to `:core:designsystem` and moves `HikariTheme` to the application root so Unknown, FirstRun, Discover, and Story share one visual environment without giving the Design System any runtime/data authority. Discover remains a bounded materialized read model with durable `Absent` versus `Published(empty)` semantics; Story Detail remains keyed/bounded; acquisition stays single-owner foreground work; image loading stays capability-private; deterministic sources and the final MangaUpdates harness remain non-release. The V1 design-system implementation is reference evidence only: Task 13 salvages a narrow work-free/domain-neutral slice with no app-owned semantic state/effects and explicitly excludes artwork/network/backdrop/Roborazzi/Robolectric debt. Task 14 then performs the explicitly bounded R2.8 visual-token migration (palette/typography plus visual-only shared feedback treatment) while preserving the Task 13 Design-System architecture, spacing/shapes/runtime boundaries, and redesigning feature-local Discover/Story composition to a V1-quality-or-better visual floor.
 
 **Tech Stack:** Existing Step 1 baseline: Kotlin 2.4.10, JDK 17, AGP 9.3.0, Android minSdk 26 / targetSdk 37, Compose BOM 2026.06.00, coroutines 1.11.0, AndroidX Macrobenchmark/Baseline Profile 1.5.0-beta01. Re-admit only the dependency versions required by the Step 2 production shape and already proven in the supplied V1 tree: KSP 2.3.9, Room 2.8.4, Coil 3.5.0, Lifecycle 2.11.0; JavaScriptEngine 1.1.0 is `androidTest`-only for the final plugin gate. The V1 tree's OkHttp 5.3.0 is reference evidence only and is **not** admitted to Step 2 production/test dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.4.md`
+**Spec:** `docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.8.md`
 
 **Baseline repository:** branch `v2/foundation-clean-boot`, accepted Step 1 runtime/source SHA `eb4d3bfd869a5b9df78a5802de31510b3984c3c3`.
 
-**2026-09-10 R2.4 amendment:** Task 13 is now deliberately limited to the root Design System, shared stateless primitives, Discover pull-to-refresh wiring, and structural/performance-debt closure. It is **not** the visual-restoration task. A new Task 14 follows only after Task 13 is accepted and owns the V1-quality-or-better Discover/Story visual restoration and UX polish. Former Tasks 14-17 are renumbered 15-18. Earlier completed Task 0-12 behavior is unchanged; Task 13 still evolves the exact app graph by adding `:core:designsystem`, while Task 14 must preserve that graph and all Task 13 ownership ratchets.
+**2026-09-11 R2.8 amendment:** Tasks 0-13 are accepted. Task 14 is blueprint-approved and now has two ordered responsibilities: (14A) migrate the root visual vocabulary to the exact R2.8 palette/typography contract without changing Design-System ownership, spacing, shapes, runtime-font policy, or Step 1 white/black root backgrounds; then (14B) build the feature-local Dantotsu-inspired Manga/Light Novel composition and floating media navigation. The underlying selected-media state, one-observer/one-acquisition-owner semantics, project graph, pull-refresh ownership, image ownership, and Big Update structural ratchets remain unchanged. R2.8 also retires `HikariSegmentedControl`/`HikariSegmentedOption` after its sole caller migrates.
 
 ---
 
 ## Repository audit basis
 
-This plan was derived by reading the R2.4 design and comparing it against both supplied repositories.
+This plan was derived by reading the R2.8 design (which preserves the accepted R2.4 runtime contract and adds the approved Task 14 visual/IA amendment) and comparing it against both supplied repositories.
 
 ### Step 1 facts that constrain implementation
 
@@ -99,11 +99,14 @@ no designsystem package imports app/catalog/runtime/storage/assets/plugin/networ
 catalog.feature (root composition/router)
     -> feature.discover, feature.story, feature.assets
 feature.discover/story
-    -> runtime/domain + feature.state + feature.assets where needed; never import feature root composition/router
+    -> runtime/domain + feature.state + feature.assets + feature.presentation where needed;
+       never import feature root composition/router
 feature.state
     -> domain failure types only; never import discover/story/assets/root composition
 feature.assets
     -> domain/runtime policy ports; never import discover/story/state/root UI packages
+feature.presentation
+    -> domain model types only; never import discover/story/assets/state/root composition
 ```
 
 In particular, shared runtime types such as `CatalogSourceBinding` and `CatalogExecutionDispatchers` live in leaf/shared packages (`runtime.source`, `runtime.execution`) rather than the runtime root, because putting them in the root would create `runtime <-> runtime.acquisition/discover/story` package cycles once the root facade imports those children.
@@ -132,7 +135,7 @@ In particular, shared runtime types such as `CatalogSourceBinding` and `CatalogE
 - `:catalog:model` and `:catalog:engine` stay quarantine/reference and gain no Step 2 production edge.
 - `:core:designsystem` has zero project dependencies. `:feature:catalog` consumes shared presentation primitives; `:app` consumes only `app.openstory.designsystem.theme.HikariTheme`. The app still has exactly one product/capability edge (`:feature:catalog`).
 - The admitted design-system slice has no Coil, `coil-network-okhttp`, OkHttp/raw HTTP, Room, WorkManager, JavaScriptEngine, backdrop/blur, Robolectric, Roborazzi, coroutine/Flow collector, lifecycle observer, app-owned/custom semantic mutable state, cache/registry, or work-owner surface. The only transient state tolerated is Material3's internal pull-gesture state while `HikariPullToRefresh(enabled = true)` is actually composed; the wrapper may not retain or promote that state into an app work owner.
-- The Step 2 design-system public slice is intentionally small: `HikariTheme`, `MaterialTheme.hikariSpacing`, `HikariSegmentedControl`/`HikariSegmentedOption`, `HikariSectionHeader`, `HikariSkeleton`, `HikariEmptyState`, `HikariErrorState`, `HikariInlineFeedback`, and `HikariPullToRefresh`. `MaterialTheme.colorScheme`, `typography`, and `shapes` are configured by `HikariTheme`; no extra public `HikariDimensions`/semantic-shape hierarchy or wrapper-for-wrapper controls are admitted without a proven caller.
+- Task 13 initially admits `HikariTheme`, `MaterialTheme.hikariSpacing`, `HikariSegmentedControl`/`HikariSegmentedOption`, `HikariSectionHeader`, `HikariSkeleton`, `HikariEmptyState`, `HikariErrorState`, `HikariInlineFeedback`, and `HikariPullToRefresh`. Task 14 **shrinks** that public slice by removing the two segmented-control symbols because Manga/Light Novel becomes feature-local media navigation. Every remaining admitted public symbol must still have a production caller. Task 14 may not replace the retired symbols with a generic Design System navigation primitive. R2.8 explicitly permits the reviewed `HikariPalette.kt` and `HikariTypography.kt` value migration, while spacing `4/8/12/16/20/24/32`, shapes `8/12/20/28/36`, platform Serif/Sans font ownership, and root White/Black backgrounds remain locked. No public `HikariDimensions`/semantic-shape hierarchy or wrapper-for-wrapper controls are admitted without a proven second caller.
 - Discover pull refresh is enabled only for durable `Published(empty/content)` presentation; initial `Absent` loading/no-content failure keep explicit loading/Retry. Story Detail does not gain pull refresh in Step 2.
 - `:plugins:api` is allowed only as `androidTestImplementation` of `:feature:catalog` for Task 17; it is not a Step 2 production dependency.
 - Preserve the existing exact test-edge authority while adding Step 2: `:app` keeps test dependency `:benchmark`; `:benchmark` keeps test dependency `:app`; new Step 2 modules start with zero project test dependencies, and only Task 17 changes `:feature:catalog` test dependencies to `[":plugins:api"]`.
@@ -146,10 +149,10 @@ In particular, shared runtime types such as `CatalogSourceBinding` and `CatalogE
 - Discover persistence is `Absent | Published(generation, provenance, cards)`; `Published(empty)` is durable data and never automatic-bootstrap authority.
 - Only `Absent + admitted source` may auto-bootstrap, with exactly one active foreground single-flight per `(CatalogSourceKey, mediaType)`.
 - Discover selected-media cardinality is at most 19 memberships (5/9/5); both current persisted scopes together at most 38 memberships under the initial policy.
-- Story identity is exactly `source-story:v1:<64 lowercase hex>` from the R2.4 domain-separated, length-prefixed exact UTF-8 SHA-256 derivation. Java/Kotlin malformed UTF-16 (for example an unpaired surrogate) is rejected before encoding; no replacement-character UTF-8 encoding is allowed. No metadata normalization, digest truncation, suffix repair, random fallback, or insertion-order resolver.
+- Story identity is exactly `source-story:v1:<64 lowercase hex>` from the R2.8-preserved domain-separated, length-prefixed exact UTF-8 SHA-256 derivation. Java/Kotlin malformed UTF-16 (for example an unpaired surrogate) is rejected before encoding; no replacement-character UTF-8 encoding is allowed. No metadata normalization, digest truncation, suffix repair, random fallback, or insertion-order resolver.
 - `StorySourceRef` is self-consistent: `storyId` must equal `SourceStoryIdV1.derive(SourceStoryKey(catalogSourceKey, sourceStoryId))` at construction/restore/import boundaries. A mismatched triple fails closed instead of choosing one field as authority.
 - Failure authority is typed and framework-free. `:catalog:domain` owns `CatalogFailure`; storage/runtime/image boundaries may transport it through `CatalogFailureException`, but Room/SQLite/Coil/JavaScript/HTTP exception classes never escape into feature state. **Caller/session cancellation** is always rethrown unchanged before any failure mapping. Operation-owned deadlines must not rely on catching `TimeoutCancellationException` as a generic `CancellationException`: implement them with `withTimeoutOrNull`/an equivalent dedicated deadline result so a controlled timeout maps to the typed operation failure while external cancellation still propagates. UI maps typed failures to a small `CatalogIssueUi` kind/retryability pair and never renders raw exception messages, raw URLs, host-policy internals, or plugin payload text as an error message.
-- Input ceilings include every exact R2.4 maximum: source key 128 UTF-8 bytes; sourceStoryId 512 UTF-8 bytes; title 1,024 Unicode scalar values; description 64 KiB UTF-8; authors 32 x 512 scalars; artists 32 x 512; genres 64 x 256; locator text 4,096 chars; section caps 5/9/5. The plan additionally freezes bounded scalar/control fields that R2.4 leaves implementation-shaped: sourceVersion <=256 UTF-8 bytes; publication-status summary/detail <=512 Unicode scalars each; language <=128 Unicode scalars; local logical asset ID <=512 UTF-8 bytes; local asset version <=128 UTF-8 bytes; reviewed stable artwork token <=512 UTF-8 bytes; acquisition sections <=3, one per semantic kind, and acquisition items are already bounded to the section's 5/9/5 cap before they cross the generic `CatalogAcquisitionSource` boundary.
+- Input ceilings include every exact R2.8-preserved maximum: source key 128 UTF-8 bytes; sourceStoryId 512 UTF-8 bytes; title 1,024 Unicode scalar values; description 64 KiB UTF-8; authors 32 x 512 scalars; artists 32 x 512; genres 64 x 256; locator text 4,096 chars; section caps 5/9/5. The plan additionally freezes bounded scalar/control fields that R2.4 leaves implementation-shaped: sourceVersion <=256 UTF-8 bytes; publication-status summary/detail <=512 Unicode scalars each; language <=128 Unicode scalars; local logical asset ID <=512 UTF-8 bytes; local asset version <=128 UTF-8 bytes; reviewed stable artwork token <=512 UTF-8 bytes; acquisition sections <=3, one per semantic kind, and acquisition items are already bounded to the section's 5/9/5 cap before they cross the generic `CatalogAcquisitionSource` boundary.
 - Discover publication and Story Detail enrichment are atomic Room transactions.
 - Retention foreground work is delta-driven and may scale only with bounded previous/current snapshot + removed bounded delta + bounded orphan overflow. `story_orphan_retention` is <=64 after every successful mutation.
 - Active Story pin transitions and publication/pruning share one short mutation gate; the gate is never held across source/network/image/UI/user wait. A Story removed while actively pinned is entered into the same <=64 bounded orphan-retention **candidate ledger** before publication commits and is protected from eviction while pinned; this makes process death crash-safe without a global sweep. A no-detail candidate is deleted on normal unpin, or may remain only as a bounded ledger entry until a later bounded mutation evicts it after an abnormal process death.
@@ -2080,10 +2083,10 @@ HikariInlineFeedback = compact caller-sized message + validated optional action 
 HikariPullToRefresh = Material3 PullToRefreshBox/default cheap indicator only when enabled; disabled branch is a plain caller-sized Box; no forced fillMaxSize, no scroll owner, no custom layer/blur/shadow
 ```
 
-Freeze the visual token baseline so execution does not invent a new palette while "polishing":
+Freeze the **Task 13 historical baseline** so Task 13 execution does not invent a palette while establishing the shared module. **Do not reapply these historical values during Task 14:** R2.8 Task 14 explicitly supersedes the palette/typography values while preserving the architecture, spacing, shapes, White/Black root backgrounds, and zero-I/O font policy.
 
 ```kotlin
-// HikariPalette.kt — exact R2.4 Step 2 base roles.
+// HikariPalette.kt — exact Task 13 historical baseline; superseded by Task 14 R2.8 visual values.
 private val Coral = Color(0xFFFF7461)
 private val CoralLight = Color(0xFFFFDAD4)
 private val Teal = Color(0xFF2E8B80)
@@ -2588,176 +2591,802 @@ git commit -m "feat: establish v2 root design system foundation"
 
 ---
 
-# Task 14: Restore V1-quality-or-better Discover and Story visuals without reopening V1 architecture
+# Task 14: Refresh the Hikari visual system, then build the approved Dantotsu-inspired Manga / Light Novel homes
 
-**Why this task exists:** Task 13 deliberately stops at presentation infrastructure. Task 14 is the first task allowed to redesign the Step 2 product surfaces. Its acceptance bar is not pixel parity with V1; it is **product-quality parity or improvement** while preserving every V2 ownership/performance constraint. A correct but obviously prototype/generic Material UI is not accepted merely because Compose tests pass.
+**Why this task exists:** Task 13 intentionally established architecture and a minimal visual baseline, not an immutable final skin. Task 14 R2.8 is the first task allowed to evolve the shared visual vocabulary and product composition together. It performs a controlled Design System token migration first, proves that Loading/Error/Empty/Refresh semantics survive, then applies the artwork-first Dantotsu-inspired composition to Discover and Story Detail. It also consumes Story Detail fields that already exist in the accepted projection instead of inventing new product state.
 
-**Visual authority:** use the reviewed V1 screenshots and visual-system reference as comparative evidence, not source code to transplant and not pixel-perfect goldens. At minimum review the V1 references equivalent to:
+**Visual authority — read in this order:**
 
 ```text
-feature/catalog/src/test/snapshots/discover/compact-light.png
-feature/catalog/src/test/snapshots/discover/compact-dark.png
-feature/catalog/src/test/snapshots/discover/medium-dark.png
-feature/catalog/src/test/snapshots/story/compact-overview.png
-feature/catalog/src/test/snapshots/story/large-phone.png
-feature/catalog/src/test/snapshots/story/medium-two-pane.png
-docs/ui/references/product-ui/approved-visual-system.png
+1. docs/superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.8.md
+2. docs/ui/references/product-ui/task14-dantotsu-inspired-blueprint-r1.md
+3. docs/ui/references/product-ui/task14-dantotsu-inspired-blueprint-r1.png
+4. reviewed V1 screenshots listed below, as quality-floor evidence only
+5. Dantotsu/ReDantotsu as external inspiration only
 ```
 
-Record the exact archive/commit/path and SHA-256 of every reference actually used in the Step 2 checkpoint/evidence file. The comparison is semantic/visual, not screenshot-diff based.
+The PNG is authoritative for layout mood, hierarchy, proportions, density, and silhouette. It is **not** a literal token sheet and is not permission to add unsupported capabilities. `Read`, `Add to Library`, `Chapters`, `See all`, `Year`, `R15+`, Search, bookmark, or unsupported data/actions remain concept-only. The only root-token changes allowed are the exact written R2.8 palette/typography values in the canonical spec. Story `contentType` and `latestUpdateEpochMs` remain valid presentation completion because the accepted projection already owns them.
 
-**Hard boundary:** Task 14 changes feature-local composition only unless a focused blocker proves a Task 13 primitive is insufficient. It must not broaden the public `:core:designsystem` API by default, add a new project edge, move artwork/network/cache/runtime ownership, reopen Catalog acquisition/storage contracts, or restore V1 backdrop/blur/glass/shimmer/global animation machinery. Small feature-local composables are preferred over new generic Design System wrappers.
+The old `tools/ui-target` pack remains historical V1-style product evidence and contains obsolete `Discover / Home / Library` IA plus future surfaces. **Do not use it as Task 14 semantic/navigation or token authority.**
+
+**Hard architecture boundary:** preserve the exact Task 13 project graph, `:core:designsystem` zero-production-project-dependency rule, root `HikariTheme` ownership, persistence/runtime/acquisition/image/cache ownership, selected-media owner, Story route identity, and one vertical Discover scroll owner. No new project edge, runtime/downloadable-font path, global navigation framework, backdrop/blur/glass/shimmer/infinite animation, eager full-feed prefetch, N+1 detail read, or new domain/runtime field is allowed.
+
+**R2.8 Design System migration boundary:**
+
+```text
+ALLOWED production edits
+- HikariPalette.kt                  exact R2.8 palette values
+- HikariTypography.kt               exact R2.8 Material3 role values
+- HikariErrorState.kt               bodyMedium/onSurfaceVariant visual treatment only
+- HikariInlineFeedback.kt           bodyMedium/onSurfaceVariant visual treatment only
+- HikariDesignSystemContractTest.kt exact token + preserved semantic contracts
+- HikariSegmentedControl/Option     shrink-only retirement after caller migration
+
+LOCKED
+- HikariSpacing values              4 / 8 / 12 / 16 / 20 / 24 / 32.dp
+- Material3 shape radii             8 / 12 / 20 / 28 / 36.dp
+- HikariTheme architecture          one root MaterialTheme; no token reconstruction in composition
+- root backgrounds                  Light = Color.White; Dark = Color.Black
+- font ownership                    FontFamily.Serif / SansSerif; zero runtime/resource/downloadable-font I/O
+- HikariSkeleton semantics          static; no progress semantics / shimmer
+- HikariPullToRefresh behavior      accessibility/dispatch ownership unchanged
+- HikariEmptyState behavior         no new action/state owner
+```
+
+The Design System migration is visual, not architectural. If a desired effect requires a new dependency, service, state owner, background job, custom rendering engine, or feature-specific global dimension, stop rather than widening Task 14.
+
+**Existing Story data utilization matrix:**
+
+| Existing source field | Task 14 treatment | Reason |
+|---|---|---|
+| `StorySummaryProjection.title` | render in hero | product identity |
+| `contentType` | map to `StorySummaryUi.contentType`; render `MANGA`/`LIGHT NOVEL` eyebrow | already authoritative; visually useful |
+| `coverLocator` / `coverAssetKey` | render through existing `CoverArtwork` path | existing image authority |
+| `rating` | existing `ratingLabel`; render in hero | product metadata |
+| `publicationStatusSummary` | existing summary status; render in hero | product metadata |
+| `latestUpdateEpochMs` | map to `latestUpdateLabel`; render a stable absolute update label when present | existing user-safe summary data; `Updated MMM d, uuuu` using UTC + `Locale.ENGLISH` |
+| `sourceVersion` | keep hidden | source/debug authority, not product UI |
+| `StoryDetailProjection.detailProvenance` | keep hidden | acquisition/provenance authority |
+| `StoryDetailUi.description/authors/artists/genres/publicationStatus/language` | render in semantic groups | already admitted rich metadata |
+| `StoryDetailUiState.ref` / `destinationActive` | routing/state only, not visible copy | internal presentation control |
 
 **Files:**
+
+- Create: `docs/internal/v2/step-2-visual-acceptance-2026-09-11.md`
+- Modify: `core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariPalette.kt`
+- Modify: `core/designsystem/src/main/kotlin/app/openstory/designsystem/theme/HikariTypography.kt`
+- Modify: `core/designsystem/src/main/kotlin/app/openstory/designsystem/state/HikariErrorState.kt`
+- Modify: `core/designsystem/src/main/kotlin/app/openstory/designsystem/feedback/HikariInlineFeedback.kt`
+- Modify: `core/designsystem/src/androidTest/kotlin/app/openstory/designsystem/HikariDesignSystemContractTest.kt`
+- Delete: `core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedControl.kt`
+- Delete: `core/designsystem/src/main/kotlin/app/openstory/designsystem/control/HikariSegmentedOption.kt`
+- Modify: `scripts/tests/v2-step2-designsystem-slice-test.sh`
+- Modify: `docs/ui/design-system.md`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/presentation/CatalogMediaTypePresentation.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverVisualMetrics.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/CatalogMediaDestinationNav.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverFeaturedStory.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverPosterTile.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverRankedStoryRow.kt`
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverScreen.kt`
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverSections.kt`
-- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverTestTags.kt` only when semantic targets genuinely change
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover/DiscoverTestTags.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryVisualMetrics.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryHero.kt`
+- Create: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryMetadataSections.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryDetailUiState.kt`
+- Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryDetailViewModel.kt`
 - Modify: `feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryDetailScreen.kt`
-- Modify/create focused feature-local presentation composables under the existing `feature.discover` / `feature.story` packages only when they own a clear visual role
+- Modify: `feature/catalog/src/test/kotlin/app/openstory/catalog/feature/story/StoryDetailViewModelTest.kt`
 - Modify: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/discover/DiscoverScreenInstrumentedTest.kt`
 - Modify: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/story/StoryDetailScreenInstrumentedTest.kt`
-- Create: `docs/internal/v2/step-2-visual-acceptance-2026-09-10.md`
+- Modify: `feature/catalog/src/androidTest/kotlin/app/openstory/catalog/feature/story/StoryRouteRestorationInstrumentedTest.kt`
 - Modify: `docs/internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`
-- Do **not** modify `core/designsystem` public API, Catalog runtime/storage/domain contracts, image transport/cache/security ownership, Story route identity, benchmark thresholds, or release/source wiring unless an explicit focused regression proves the existing contract cannot express the approved visual result.
+- Modify: `docs/implementation/current-roadmap.md`
 
-**Quality floor:** V2 may look different from V1, but the final Task 14 result must be judged **not worse than V1** on all of these dimensions unless an evidence-backed performance/product reason is recorded:
+**Interfaces produced by this task:**
 
-```text
-artwork prominence and correctness of portrait-cover presentation
-visual hierarchy / immediately obvious primary content
-content density and scan speed
-section differentiation
-headline/body typography hierarchy
-spacing rhythm and surface coherence
-metadata scanability
-loading/error/refresh visual continuity
-light/dark coherence
-compact/wider-screen reflow
-navigation continuity Discover -> Story -> Back
+The exact R2.8 palette contract is the spec §2.6.1. Implement it literally in `HikariPalette.kt`; do not sample the blueprint image at runtime or add a second semantic-color hierarchy.
+
+The exact R2.8 typography contract is the spec §2.6.2. Keep `FontFamily.Serif` and `FontFamily.SansSerif`; no font resource/download/network path is introduced.
+
+```kotlin
+internal val CatalogMediaType.productLabel: String
+    get() = when (this) {
+        CatalogMediaType.MANGA -> "Manga"
+        CatalogMediaType.LIGHT_NOVEL -> "Light Novel"
+    }
+
+internal val CatalogMediaType.productEyebrowLabel: String
+    get() = when (this) {
+        CatalogMediaType.MANGA -> "MANGA"
+        CatalogMediaType.LIGHT_NOVEL -> "LIGHT NOVEL"
+    }
 ```
 
-A regression in one dimension cannot be hidden by improvement in another without an explicit review note. A screenshot that merely records a weak UI is evidence of the weakness, not a PASS.
+```kotlin
+internal object DiscoverVisualMetrics {
+    val WideLayoutThreshold = 600.dp
+    val MediaNavHeight = 64.dp
+    val MediaNavSelectedHeight = 56.dp
+    val MediaNavMaxWidth = 400.dp
+    val PopularCardWidth = 296.dp
+    val PopularCardHeight = 184.dp
+    val PopularCoverWidth = 104.dp
+    val PopularCoverHeight = 156.dp
+    val LatestCoverWidth = 92.dp
+    val LatestCoverHeight = 138.dp
+    val TopRatedRowMinHeight = 88.dp
+    val TopRatedRankWidth = 36.dp
+    val TopRatedCoverWidth = 48.dp
+    val TopRatedCoverHeight = 72.dp
+}
 
-- [ ] **Step 1: Freeze RED visual/product contracts before changing layouts**
-
-Extend connected Compose tests around stable behavior, not private pixel implementation. At minimum prove:
-
-```text
-Discover:
-  - one vertical scroll owner remains
-  - section semantic order/caps and stable Story keys remain unchanged
-  - Manga/Light Novel selector remains accessible and both enabled
-  - Popular has an artwork-led featured hierarchy; it is not a row of visually equal generic boxes
-  - Latest remains compact enough to expose multiple covers per viewport on compact phones
-  - Top Rated exposes rank + artwork + title + rating/status/supporting information without N+1 detail reads
-  - portrait covers reserve stable portrait geometry and are not stretched into a full-width landscape crop
-  - no developer/architecture copy such as boundedness/implementation commentary appears in product UI
-  - Search is not faked; Step 2 still has no Search implementation
-Story Detail:
-  - portrait cover remains visually primary without full-width landscape crop
-  - title/content type/rating/status form one coherent hero/summary hierarchy
-  - description and available authors/artists/genres/status/language metadata are grouped for scanning rather than emitted as an undifferentiated debug-style list
-  - summary/cover stay visible while rich detail loads/fails
-  - no Chapter/Reader CTA and no pull refresh
-  - compact and wider configurations both remain usable without overlapping/clipped content
+internal object StoryVisualMetrics {
+    val WideLayoutThreshold = 600.dp
+    val CompactCoverWidth = 112.dp
+    val CompactCoverHeight = 168.dp
+    val WideCoverWidth = 144.dp
+    val WideCoverHeight = 216.dp
+}
 ```
 
-Do not assert exact dp positions that would turn these tests into brittle pixel clones. Geometry/aspect/accessibility assertions are allowed where they guard real product behavior.
-
-- [ ] **Step 2: Capture a V1 -> V2 visual-gap ledger before implementation**
-
-Create `step-2-visual-acceptance-2026-09-10.md` with one row per surface/configuration. Record `V1 reference`, `current V2 problem`, `Task 14 target`, and later `final result`. At minimum include Discover compact light/dark, Discover wider/dark, Story compact, and Story wider/two-pane reference evidence.
-
-Explicitly record the known pre-Task-14 gaps instead of silently normalizing them as V2 style: generic/equal-weight Popular cards, low-density Latest rows, shallow Top Rated hierarchy, prototype/developer copy, weak Story metadata grouping, and any portrait-cover crop/geometry regression found in the implementation being reviewed.
-
-- [ ] **Step 3: Redesign Discover as feature-local composition on top of Task 13 primitives**
-
-Preserve `HikariTheme`, `HikariSegmentedControl`, `HikariSectionHeader`, state/feedback primitives, and `HikariPullToRefresh`. Keep the existing data/card model and image ownership.
-
-The default compact direction is:
+Generic visual rhythm continues to consume the unchanged root tokens:
 
 ```text
-Discover header / product title
-Manga | Light Novel segmented control
-Popular       -> artwork-led featured composition, bounded by the existing <=5 cards
-Latest Updates-> compact poster-first composition showing multiple cards per viewport; <=9 total
-Top Rated     -> ranked full-width rows with clear artwork/title/rating/status hierarchy; <=5 total
+compact horizontal inset        MaterialTheme.hikariSpacing.space20
+wide horizontal inset           MaterialTheme.hikariSpacing.space32
+major section gap               MaterialTheme.hikariSpacing.space32
+section title -> content        MaterialTheme.hikariSpacing.space12
+horizontal shelf gap            MaterialTheme.hikariSpacing.space12
+nav outer padding               MaterialTheme.hikariSpacing.space4
+nav bottom product gap          MaterialTheme.hikariSpacing.space16
+nav content breathing room      MaterialTheme.hikariSpacing.space24
+Popular cover -> copy           MaterialTheme.hikariSpacing.space16
+Latest cover -> title           MaterialTheme.hikariSpacing.space8
+Top Rated copy gap              MaterialTheme.hikariSpacing.space12
+Story compact identity gap      MaterialTheme.hikariSpacing.space16
+Story wide identity gap         MaterialTheme.hikariSpacing.space24
+
+nav outer shape                 MaterialTheme.shapes.extraLarge   // 36.dp
+nav selected shape              MaterialTheme.shapes.large        // 28.dp
+Popular card shape              MaterialTheme.shapes.medium       // 20.dp
+portrait cover shape            MaterialTheme.shapes.small        // 12.dp
 ```
 
-For Latest, a bounded feature-local 3-column row composition on compact phones is allowed and preferred when it matches the V1 density target; because the list is already capped at 9, emit bounded `Row` groups directly inside the single outer `LazyColumn`. Do not add a nested vertical `LazyVerticalGrid` or a second vertical scroll owner merely to get a grid appearance.
+`StorySummaryUi` is amended only with already-existing projection values:
 
-Popular may use a bounded horizontal/featured composition but must prioritize the cover and primary Story identity instead of rendering every field with equal weight. Top Rated remains rank-led and scan-friendly. Omit empty semantic sections as before.
+```kotlin
+internal data class StorySummaryUi(
+    val title: String,
+    val contentType: CatalogMediaType,
+    val coverAssetKey: CoverAssetKey?,
+    val ratingLabel: String?,
+    val publicationStatus: String?,
+    val latestUpdateLabel: String?,
+    val coverLocator: CoverLocator? = null,
+)
+```
 
-Remove implementation-facing copy from the product surface. Do not add a fake Search box/action while Search remains out of scope.
+No `year`, age rating, chapter/library/reader state, `sourceVersion`, provenance, or new acquisition field is admitted.
 
-- [ ] **Step 4: Redesign Story Detail around portrait artwork and metadata hierarchy**
+- [ ] **Step 1: Perform mandatory image intake, baseline-token audit, and existing Story-data audit before production edits**
 
-Replace any full-width landscape-style cover crop with portrait-preserving artwork geometry. On compact screens, prefer a compact hero/summary composition where portrait cover and title/rating/status/content-type information are visually connected; on wider screens, reflow the same information with more horizontal room rather than merely scaling every compact dimension.
+Open the companion blueprint PNG visually. If the user supplied another design screenshot/image directly in the Codex thread, inspect that attachment too. Read the current `HikariPalette.kt`, `HikariTypography.kt`, `HikariSpacing.kt`, `HikariTheme.kt`, shared state/feedback primitives, `StoryDetailModels.kt`, `StoryDetailUiState.kt`, and `StoryDetailProjection.toSummaryUi()` before editing.
 
-Below the hero, group description and available bounded metadata into readable sections/chips/rows using direct Material3 + Task 13 theme primitives. Feature-specific geometry remains feature-local. Do not introduce backdrop/blur/glass/shimmer, another theme, another image owner, or a new data acquisition just to imitate V1.
+Create `docs/internal/v2/step-2-visual-acceptance-2026-09-11.md` with `Status: IN PROGRESS`. Verify the bundled references before any production edit:
 
-`CatalogSourceKey`, raw `sourceVersion`, host allowlists, and acquisition timestamps are **not user-facing copy**. Task 14 must not invent a friendly source name from those internal authority values. If a later product requirement wants a displayed source name, it requires an explicit user-safe presentation field/contract.
+```text
+task14-dantotsu-inspired-blueprint-r1.md  90d29a254c76632447d79b8053518e9e6567e52661ca00616897420dd8586c52
+task14-dantotsu-inspired-blueprint-r1.png 872ac472b05caa3de63b39c491360f4a386ac6fc58f0c541ed38258043f5fff1
+discover-compact-dark.png                  496d10de5c210cefa61d1481528a422b81356b880de6bab81db7c79251f39878
+discover-compact-light.png                 0bf0d449c2ad58a3aa271d1dba8323cad54e65654cdbd30ee57d0d7cd30deb2c
+discover-medium-dark.png                   ae5648f23f961afdb23d59ddbcd922fbd7181a39271ab31776cc27c030024e0f
+story-compact-overview.png                 aacffefac4b4306531747a21f96bfb98617d5b0144d05f4e8837d1638352fa04
+story-large-phone.png                      8c241ba9140d20a6dcef480a526bdc4f60179eb325309d307f0f7c9499610fb3
+story-medium-two-pane.png                  adef51e94d5e28f8ef05aa50abbd080cc8828f0344a25416ff5378994a47dfb1
+```
 
-- [ ] **Step 5: Preserve loading/refresh/failure continuity while changing hierarchy**
+A mismatch means reference evidence changed; stop and reconcile instead of silently designing against different bytes. Record:
 
-Re-shape static skeletons to the final Task 14 geometry so loading does not jump into the finished layout. Retained Discover content remains visible during pull refresh; Story summary/cover remains visible during rich-detail loading/failure; local artwork failure remains scoped. Do not reintroduce the removed full-width refresh progress bar or a second retry/refresh owner.
+```markdown
+## Image -> contract extraction
+| Visual area | Accepted cue | Required Hikari implementation | Rejected concept-only cue |
+|---|---|---|---|
+| Global visual mood | neutral charcoal/warm-paper surfaces + coral/teal accents | exact written R2.8 palette, not sampled image values | literal blueprint hex/token panel |
+| Typography | editorial identity + quiet metadata | exact written R2.8 Serif/Sans role hierarchy | runtime/custom/downloadable font |
+| Header | media name is page identity | Manga / Light Novel title | fake Search/action |
+| Popular | asymmetric portrait hero | 296x184 hero; 104x156 cover; 12dp next-card peek at 360dp | invented detail metadata |
+| Latest | dense poster shelf | horizontal 92x138 poster rail | full-width rows |
+| Top Rated | rank-led list | 36dp rank + 48x72 cover | generic third card rail |
+| Media nav | floating two-destination pill | Discover-only Manga/LN tabs | global nav framework |
+| Story hero | portrait + authoritative identity | 112x168 cover + contentType/title/rating/status | year/R15+/library/bookmark |
+| Story body | grouped metadata | About/Authors/Artists/Genres/Status/Language | Read/Library/Chapters |
+| Loading | final-geometry static skeletons | no layout jump/fake title | shimmer/infinite motion |
+```
 
-- [ ] **Step 6: Run focused behavior/architecture checks before judging appearance**
+Also record that spacing remains exactly `4/8/12/16/20/24/32.dp`, shapes remain `8/12/20/28/36.dp`, and root backgrounds remain White/Black. If a direct attachment has no filesystem path, record `ATTACHMENT_ONLY — HASH UNAVAILABLE`; never invent a hash.
 
-Agent-owned focused checks:
+- [ ] **Step 2: Write RED Design System migration contracts before changing visual tokens**
+
+Modify `HikariDesignSystemContractTest.kt` without removing the segmented tests yet. Strengthen the theme contract so it captures the intentional R2.8 migration rather than only checking White/Black backgrounds.
+
+Required assertions after implementation:
+
+```text
+root backgrounds
+- light background == Color.White
+- dark background == Color.Black
+
+stable shared spacing
+- exact singleton identity retained
+- space4/8/12/16/20/24/32 keep exact values
+
+R2.8 representative color roles
+- light primary == #C94C40
+- light surface == #FFF9F6
+- light onSurface == #211A18
+- dark primary == #FF8E80
+- dark surface == #121217
+- dark surfaceVariant == #24242E
+- dark onSurface == #F5F1F0
+
+R2.8 representative typography roles
+- headlineMedium == 30sp / 36sp, Serif SemiBold
+- headlineSmall == 20sp / 26sp, Serif SemiBold
+- titleLarge == 20sp / 26sp, Sans Bold
+- bodyMedium == 14sp / 20sp, Sans Normal
+- bodySmall == 12sp / 18sp, Sans Normal
+```
+
+Preserve all current state/action/accessibility tests. Agent-owned compile:
 
 ```bash
-./gradlew :feature:catalog:testDebugUnitTest \
-  :feature:catalog:compileDebugAndroidTestKotlin \
-  verifyArchitecture \
-  --no-daemon
+./gradlew :core:designsystem:compileDebugAndroidTestKotlin --no-daemon
+```
 
+Expected: test source compiles. Because connected/device execution is user-owned, do **not** claim observed RED evidence here; the assertions encode the pre-implementation expectation and are executed in the user verification gate after Step 3. Static/compile success alone is not a token-behavior PASS.
+
+- [ ] **Step 3: Implement the exact R2.8 palette/typography migration and visual-only shared feedback treatment**
+
+Modify `HikariPalette.kt` to the exact spec §2.6.1 values. Do not introduce a second palette class or dynamic image-derived colors. Keep `background = Color.White/Color.Black` exactly. The implementation values are repeated here so this task is executable without guessing:
+
+```text
+LIGHT  primary C94C40 / onPrimary FFFFFF / primaryContainer FFDAD5 / onPrimaryContainer 3B0905
+       secondary 2A786F / onSecondary FFFFFF / secondaryContainer C9E9E3 / onSecondaryContainer 08201D
+       tertiary 6B6658 / onTertiary FFFFFF
+       background FFFFFF / onBackground 211A18
+       surface FFF9F6 / onSurface 211A18 / surfaceVariant F0E7E3 / onSurfaceVariant 6A605D
+       surfaceBright FFF9F6 / surfaceDim E5DCD7
+       containers FFFFFF / FAF4F1 / F5EFEB / EFE8E4 / E9E1DD
+       outline 8D7F7B / outlineVariant D8CBC6 / error BA1A1A
+
+DARK   primary FF8E80 / onPrimary 4B0E08 / primaryContainer 653028 / onPrimaryContainer FFDAD5
+       secondary 8ED8CC / onSecondary 003832 / secondaryContainer 185149 / onSecondaryContainer ACEFE4
+       tertiary CFC7B1 / onTertiary 353025
+       background 000000 / onBackground F5F1F0
+       surface 121217 / onSurface F5F1F0 / surfaceVariant 24242E / onSurfaceVariant C9C2C0
+       surfaceBright 2B2B36 / surfaceDim 0B0B0F
+       containers 0B0B0F / 111116 / 17171D / 1D1D25 / 24242E
+       outline 9B9290 / outlineVariant 423B3D / error FFB4AB
+```
+
+Modify `HikariTypography.kt` to the exact spec §2.6.2 role sizes/line-heights/weights:
+
+```text
+displayLarge 48/54 Bold Serif (-0.40sp)   displayMedium 40/46 Bold Serif   displaySmall 34/40 Bold Serif
+headlineLarge 32/38 Bold Serif            headlineMedium 30/36 SemiBold Serif
+headlineSmall 20/26 SemiBold Serif        titleLarge 20/26 Bold Sans
+titleMedium 16/22 SemiBold Sans           titleSmall 14/20 SemiBold Sans
+bodyLarge 16/24 Normal Sans               bodyMedium 14/20 Normal Sans   bodySmall 12/18 Normal Sans
+labelLarge 14/18 Bold Sans                labelMedium 12/16 SemiBold Sans labelSmall 11/14 SemiBold Sans
+```
+
+Keep:
+
+```kotlin
+private val SerifDisplay = FontFamily.Serif
+private val SansBody = FontFamily.SansSerif
+```
+
+No `Font`, resource lookup, Context, downloadable font, async font loading, or new dependency is allowed.
+
+Visual-only shared-state changes:
+
+```kotlin
+// HikariErrorState body
+Text(
+    text = body,
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+)
+
+// HikariInlineFeedback message
+Text(
+    text = message,
+    modifier = Modifier.weight(1f),
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+)
+```
+
+Do not add state, icons, containers, coroutine effects, or new actions merely for polish. `HikariSkeleton`, `HikariEmptyState`, `HikariSectionHeader`, and `HikariPullToRefresh` inherit the new theme without behavior changes.
+
+Run:
+
+```bash
+./gradlew :core:designsystem:compileDebugKotlin :core:designsystem:compileDebugAndroidTestKotlin --no-daemon
+```
+
+Expected: production + androidTest sources compile. This does **not** yet prove the runtime assertions passed; exact token/state/action/accessibility execution evidence belongs to the connected Design-System command in Step 16.
+
+- [ ] **Step 4: Write RED feature contracts for media navigation, overlay safety, Story identity, and all shared presentation states**
+
+Extend the tests with named contracts equivalent to:
+
+```text
+DiscoverScreenInstrumentedTest
+- mediaDestinationNav_hasExactlyTwoEnabledTabsAndOneSelected
+- mediaDestinationNav_clickingOtherMediaDispatchesExactlyOnce
+- mediaDestinationNav_clickingSelectedMediaIsNoOp
+- mediaDestinationNav_remainsDisplayedAfterDiscoverScroll
+- finalTopRatedRow_isNotOccludedByFloatingMediaNav
+- header_usesSelectedMediaAsPageIdentity_andContainsNoDeveloperCopy
+- popular_reservesPortraitHeroGeometry
+- latest_exposesMultipleCompactPortraitTiles_withoutFullWidthRows
+- topRated_exposesRankArtworkTitleAndRatingHierarchy
+- loading_usesFinalHeroPosterRankGeometry
+- empty_keepsPullRefreshWithoutManualRefreshButton
+- retryableError_keepsRetryAndRefreshAsDistinctIntents
+- retainedRefreshFailure_keepsContentAndInlineFeedback
+- conceptOnlyActions_doNotExist
+
+StoryDetailScreenInstrumentedTest
+- storyHero_summaryNull_reservesPortraitIdentityGeometryWithoutFakeTitle
+- storyHero_keepsPortraitCoverAndSummaryVisibleWhileDetailLoads
+- storyMetadata_groupsAvailableFields_withoutSourceVersionOrProvenance
+- retryableFailure_keepsExistingSummaryAndInlineRetry
+- storyDetail_hasNoPullRefreshChapterReaderLibraryOrBookmarkAction
+```
+
+Add only stable semantic tag constants in `DiscoverTestTags` for media-nav container, destinations, page identity, and final Top Rated row. Migrate the Discover Compose test harness from bare `MaterialTheme` to `HikariTheme`; otherwise the R2.8 global-theme migration is not actually under connected coverage. Test final-row/nav relationship using root-position bounds after scrolling to the end; existence alone is insufficient.
+
+Agent-owned compile only:
+
+```bash
+./gradlew :feature:catalog:compileDebugAndroidTestKotlin --no-daemon
+```
+
+Expected: test sources compile; new composition behavior remains RED until later steps.
+
+- [ ] **Step 5: Prepare shrink-only segmented retirement without weakening Task 13's remaining contracts**
+
+Now remove only the two segmented imports/tests from `HikariDesignSystemContractTest.kt`:
+
+```text
+HikariSegmentedControl / HikariSegmentedOption imports
+segmentedControlSelectsOneOptionAndIgnoresDisabledOption
+segmentedControlRejectsInvalidBoundedChoiceContracts
+```
+
+All R2.8 theme/token/state/feedback/refresh tests stay. Amend `scripts/tests/v2-step2-designsystem-slice-test.sh`:
+
+```text
+- remove the two segmented source paths from EXPECTED_SOURCES
+- remove HikariSegmentedOption/HikariSegmentedControl from the production-caller symbol loop
+- delete the CONTROL=...HikariSegmentedControl.kt validation block entirely
+- preserve every unrelated dependency/work/state/theme/pull-refresh guard
+```
+
+Update `docs/ui/design-system.md` to record the exact R2.8 palette/typography migration, unchanged spacing/shapes/white-black root backgrounds, user-owned final visual acceptance, and final feature-local Manga/LN navigation.
+
+Run:
+
+```bash
+./gradlew :core:designsystem:compileDebugAndroidTestKotlin --no-daemon
 bash scripts/tests/v2-step2-designsystem-slice-test.sh
 ```
 
-Expected: Task 13 graph/API/debt ratchets remain GREEN; no new Design System public API or production dependency is required.
+Expected: androidTest compile GREEN; slice script RED only because obsolete segmented production files still exist. If token/state tests disappear or the slice script is already GREEN, the gate was weakened.
 
-- [ ] **Step 7: Capture final deterministic V2 screenshots and perform explicit human visual acceptance**
+- [ ] **Step 6: Add feature-local metrics and the floating media-navigation primitive**
 
-On the intended reference device/configurations, capture deterministic local-fixture screenshots using the existing connected Compose evidence path. Compare side-by-side with the recorded V1 references. The reviewer must fill PASS/FAIL for every quality-floor dimension; do not mark PASS solely because the screenshot test executed.
+Create `CatalogMediaTypePresentation.kt`, `DiscoverVisualMetrics.kt`, `StoryVisualMetrics.kt`, and `CatalogMediaDestinationNav.kt` exactly from the interfaces above. Do not add public/global dimensions.
 
-Required acceptance statement:
-
-```text
-V2 is visually at least comparable to V1 for hierarchy, artwork presentation,
-content density, typography/spacing coherence, metadata scanability, and adaptive layout,
-while preserving the stricter V2 architecture/performance ownership model.
-```
-
-If any dimension is visibly worse without a deliberate product/performance reason, keep Task 14 open and revise feature-local composition. Pixel equality is neither required nor desired.
-
-- [ ] **Step 8: Self-review for V1 architecture relapse and hidden performance debt**
-
-Verify all of the following before closing:
+Navigation visual contract:
 
 ```text
-no V1 Design System/module wholesale transplant
-no new core/designsystem public primitive solely for this screen
-no blur/backdrop/glass/shimmer/infinite animation/custom expensive layer
-no nested vertical scrolling
-no unbounded list/materialization introduced for visual layout
-no eager full-feed image prefetch
-no new detail acquisition/N+1 call to make Discover cards prettier
-no raw source/provenance/security values exposed as product copy
-no Search/Chapter/Reader scope leak
-no image/cache/network/route ownership moved into visual composables
-stable keys/caps and pull-refresh/retry semantics preserved
-compact/wide layouts use the same bounded data authority
+pill height = 64.dp
+selected visual height = 56.dp
+max width = 400.dp
+outer padding = space4
+outer shape = shapes.extraLarge (36.dp)
+selected shape = shapes.large (28.dp)
+container = colorScheme.surfaceContainerHigh
+selected container = colorScheme.primaryContainer
+selected content = colorScheme.onPrimaryContainer
+inactive content = colorScheme.onSurfaceVariant
+minimum target >=48.dp
+Row uses selectableGroup
+children use selectable(role = Role.Tab)
+clicking selected destination is a no-op
 ```
 
-Fix all in-scope findings, rerun their owning focused/connected gates, update the visual-gap ledger and Step 2 checkpoint, then commit, e.g.:
+Do not put `navigationBarsPadding()` inside the fixed 64.dp pill; system-safe padding belongs to the outer wrapper.
+
+Run:
+
+```bash
+./gradlew :feature:catalog:compileDebugKotlin --no-daemon
+```
+
+- [ ] **Step 7: Recompose Discover root with explicit rhythm, safe insets, and event-bound media scroll reset**
+
+`DiscoverScreen` becomes `Box(fillMaxSize())` with:
+
+```text
+1. HikariPullToRefresh -> one vertical LazyColumn
+2. safe-inset overlay wrapper -> CatalogMediaDestinationNav
+```
+
+Remove `Arrangement.spacedBy(space20)` and use:
+
+```text
+header -> first section       space32
+section title -> content      space12
+section content -> next       space32
+final content -> nav reserve  dynamic bottom content padding
+```
+
+Edge-to-edge contract:
+
+```text
+Discover top respects statusBars inset
+nav wrapper consumes navigationBarsPadding() outside fixed 64dp pill
+then space16 product bottom gap
+LazyColumn bottom reserve = nav height + space16 + space24 + navigation-bar inset
+```
+
+Header:
+
+```text
+headlineMedium: Manga / Light Novel
+bodyMedium/onSurfaceVariant: Discover extraordinary stories.
+space20 compact inset / space32 >=600dp
+no segmented control
+no generic Discover title / developer copy
+```
+
+Media switch scroll reset happens only inside an explicit different-destination click, never `LaunchedEffect(selectedMediaType)`. Story -> Back preserves surviving `LazyListState` and selected media.
+
+- [ ] **Step 8: Retire segmented production API and close the complete Design System migration gate**
+
+Delete `HikariSegmentedControl.kt` and `HikariSegmentedOption.kt` after Discover no longer imports them. Search active code/policy:
+
+```bash
+grep -RIn "HikariSegmentedControl\|HikariSegmentedOption" \
+  core/designsystem/src/main core/designsystem/src/androidTest feature/catalog/src/main \
+  app/src/main docs/ui scripts/tests || true
+```
+
+Only explicitly historical prose may remain.
+
+Run:
+
+```bash
+./gradlew :core:designsystem:compileDebugKotlin \
+  :core:designsystem:compileDebugAndroidTestKotlin \
+  :feature:catalog:compileDebugKotlin --no-daemon
+bash scripts/tests/v2-step2-designsystem-slice-test.sh
+```
+
+Expected: all PASS. This proves Task 13 architecture survived while its visual skin evolved intentionally.
+
+- [ ] **Step 9: Implement Popular as the asymmetric artwork-first hero rail**
+
+Create `DiscoverFeaturedStory.kt`:
+
+```text
+bounded horizontal LazyRow; cap <=5
+card 296x184.dp compact
+card container = surfaceContainer
+cover 104x156.dp portrait 2:3
+card shape = shapes.medium (20.dp)
+cover shape = shapes.small (12.dp)
+verticalAlignment = CenterVertically
+horizontal padding = space16
+cover/text gap = space16
+title = headlineSmall max 2 lines
+rating = titleSmall when present
+supportingLabel = bodySmall/onSurfaceVariant when present
+item gap = space12
+```
+
+At 360.dp content width is 320.dp, so 296.dp + 12.dp gap leaves a deliberate 12.dp next-card peek. Stable Story identity/test tags and selection contract remain unchanged.
+
+- [ ] **Step 10: Replace Latest full-width rows with the dense poster rail**
+
+Create `DiscoverPosterTile.kt`:
+
+```text
+bounded horizontal LazyRow; cap <=9
+cover/tile 92x138.dp portrait
+cover shape = shapes.small
+cover/title gap = space8
+title = titleSmall max 2 lines
+supportingLabel = bodySmall/onSurfaceVariant max 1 line
+horizontal gap = space12
+no filled/elevated Surface around every tile
+```
+
+At 360.dp show roughly three covers plus a next-item peek.
+
+- [ ] **Step 11: Strengthen Top Rated and prove nav non-occlusion**
+
+Create `DiscoverRankedStoryRow.kt`:
+
+```text
+outer LazyColumn rows; cap <=5
+min height 88.dp
+rank width 36.dp
+cover 48x72.dp portrait
+rank = headlineMedium
+story title = titleMedium max 2 lines
+rating = labelLarge when present
+supportingLabel = bodySmall/onSurfaceVariant when present
+copy gap = space12
+```
+
+Connected assertion later scrolls to final row and verifies row bottom is above nav top.
+
+- [ ] **Step 12: Restore existing Story content type and latest-update timestamp into UI state**
+
+Add focused RED assertions in `StoryDetailViewModelTest`, then map only existing projection values:
+
+```kotlin
+private fun StoryDetailProjection.toSummaryUi(): StorySummaryUi =
+    StorySummaryUi(
+        title = summary.title,
+        contentType = summary.contentType,
+        coverAssetKey = summary.coverAssetKey,
+        ratingLabel = /* existing formatting unchanged */,
+        publicationStatus = summary.publicationStatusSummary,
+        latestUpdateLabel = summary.latestUpdateEpochMs?.let(::formatLatestUpdate),
+        coverLocator = summary.coverLocator,
+    )
+```
+
+Formatter remains deterministic:
+
+```kotlin
+private val STORY_UPDATE_DATE_FORMATTER = DateTimeFormatter
+    .ofPattern("MMM d, uuuu", Locale.ENGLISH)
+    .withZone(ZoneOffset.UTC)
+
+private fun formatLatestUpdate(epochMs: Long): String =
+    "Updated ${STORY_UPDATE_DATE_FORMATTER.format(Instant.ofEpochMilli(epochMs))}"
+```
+
+Convert all known `StorySummaryUi(...)` construction sites to named arguments. Do not expose sourceVersion/provenance/ref.
+
+Run:
+
+```bash
+./gradlew :feature:catalog:testDebugUnitTest --tests '*StoryDetailViewModelTest' --no-daemon
+```
+
+- [ ] **Step 13: Rebuild Story Detail around portrait identity and semantic metadata**
+
+Create `StoryHero.kt`, `StoryMetadataSections.kt`, use `StoryVisualMetrics`.
+
+Compact:
+
+```text
+statusBars safe top
+Back target >=48.dp
+screen inset = space20
+cover 112x168.dp
+cover shape = shapes.small
+cover/text gap = space16
+content type = labelMedium / primary or onSurfaceVariant as contrast permits
+Story title = headlineMedium max 3 lines
+rating = titleSmall
+publication status = labelMedium restrained tonal treatment
+latest update = bodySmall/onSurfaceVariant
+```
+
+Wide >=600dp:
+
+```text
+screen inset = space32
+cover 144x216.dp
+identity gap = space24
+recompose width; no proportional token scaling
+```
+
+When `summary == null`, preserve the same geometry; route cover may paint, but absent identity fields are static skeleton reservations with no fake copy. When summary exists and detail is loading, keep real identity and skeletonize only missing metadata.
+
+Metadata order:
+
+```text
+About
+Authors
+Artists
+Genres
+Status + Language
+```
+
+Genres may use bounded `FlowRow`. Story has no floating Manga/LN nav, pull refresh, Reader/Library/Chapter/Search/bookmark/fake CTA.
+
+- [ ] **Step 14: Reshape Loading/Error/Empty/Refresh presentation to the final visual system without changing state ownership**
+
+This step exists because R2.8 changes root palette/typography globally; happy-path cards alone are not sufficient evidence.
+
+Discover Loading:
+
+```text
+Popular static skeleton = final 296x184 hero / 104x156 art reservation
+Latest static skeleton = final 92x138 poster reservations
+Top Rated static skeleton = final 88dp row / 48x72 art reservation
+```
+
+Discover Empty/Error/Refresh:
+
+```text
+Empty keeps HikariEmptyState + pull-refresh custom action, no manual Refresh button
+no-content retryable failure keeps HikariErrorState Retry ownership
+retained refresh failure keeps existing content + HikariInlineFeedback
+refreshing keeps retained content + existing HikariPullToRefresh state; no duplicate spinner/progress owner
+```
+
+Story:
+
+```text
+summary null -> portrait identity skeleton with route artwork when available
+detail loading -> real identity + metadata skeleton
+retryable metadata failure -> retained identity/detail when available + inline Retry
+no pull-to-refresh
+```
+
+Do not add shimmer/infinite animation, full-width 220.dp Story banner, fake metadata, or extra state owner.
+
+- [ ] **Step 15: Run agent-owned focused correctness and regression checks**
+
+Run only focused agent-owned checks:
+
+```bash
+./gradlew :core:designsystem:compileDebugKotlin \
+  :core:designsystem:compileDebugAndroidTestKotlin \
+  :feature:catalog:compileDebugKotlin \
+  :feature:catalog:compileDebugAndroidTestKotlin \
+  :feature:catalog:testDebugUnitTest \
+    --tests '*DiscoverViewModelTest' \
+    --tests '*DiscoverRefreshStateTest' \
+    --tests '*StoryDetailViewModelTest' \
+  --no-daemon
+
+bash scripts/tests/v2-step2-designsystem-slice-test.sh
+git diff --check
+```
+
+Expected:
+
+```text
+all focused commands PASS
+project graph/build dependencies unchanged
+R2.8 palette/type implementation matches the written values under static diff review; androidTest sources compile
+White/Black root backgrounds preserved by source + compile review
+spacing 4/8/12/16/20/24/32 unchanged
+shapes 8/12/20/28/36 unchanged
+state/action/accessibility test sources preserved; runtime PASS remains pending the Step 16 connected command
+segmented API fully retired with no dead gate
+no runtime/storage/domain/image ownership edit
+one vertical Discover scroll owner
+no concept-only action/data
+no stale global 20dp Discover spacing
+no Story landscape banner
+no duplicate feature-local root color/type/spacing system
+```
+
+Self-review the diff specifically for accidental Design-System expansion: no new project dependency, runtime font, `CompositionLocal` token tree, generic navigation primitive, feature dimension in `:core:designsystem`, effect/collector, or custom rendering engine.
+
+- [ ] **Step 16: Hand the user broad/device correctness commands; do not self-certify them**
+
+Status becomes `READY FOR USER VERIFICATION`.
+
+Ask the user to run:
+
+```bash
+./gradlew :core:designsystem:connectedDebugAndroidTest \
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.designsystem.HikariDesignSystemContractTest' \
+  --no-daemon
+
+./gradlew :feature:catalog:connectedDebugAndroidTest \
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.discover.DiscoverScreenInstrumentedTest,app.openstory.catalog.feature.story.StoryDetailScreenInstrumentedTest,app.openstory.catalog.feature.story.StoryRouteRestorationInstrumentedTest' \
+  --no-daemon
+
+./gradlew :app:verifyFoundation verifyArchitecture detekt --no-daemon
+```
+
+Correctness evidence is not optional just because the user owns appearance testing. Any failure returns to Task 14 for repair.
+
+- [ ] **Step 17: User-owned visual acceptance — inspect Ready plus Loading/Error/Empty/Refresh under the new global Design System**
+
+Codex/agent prepares real captures where practical and a checklist, then stops at `READY FOR USER VISUAL ACCEPTANCE`. It may not mark visual PASS.
+
+Minimum manual device checklist:
+
+```text
+[ ] 1 Discover Manga — Ready / compact dark
+[ ] 2 Discover Light Novel — Ready / compact dark; selected pill is obvious without color alone
+[ ] 3 Discover — representative light theme
+[ ] 4 Discover — Loading; skeleton hierarchy matches final geometry
+[ ] 5 Discover — Empty; copy hierarchy/readability is coherent
+[ ] 6 Discover — retryable Error and retained refresh failure; Retry/inline feedback feel subordinate to content
+[ ] 7 Discover — pull-to-refresh idle -> refreshing -> settled; indicator/accent fits new theme
+[ ] 8 Story — Ready; portrait hero, content type, title, rating/status/update scan correctly
+[ ] 9 Story — summary-null / rich-detail loading; no layout jump or fake copy
+[ ] 10 Story — retryable/retained failure plus representative light or >=600dp composition
+[ ] 11 FirstRun after clear-data when practical; root palette/type change must not make the clean-boot surface look broken
+```
+
+The user judges visual hierarchy, color balance, typography, artwork prominence, state coherence, and compact/wide feel. The user is **not** responsible for proving dispatch semantics, retry correctness, refresh ownership, bounds, architecture, or compilation; those must already be green from Steps 15-16.
+
+The ledger records only `PASS` after the user explicitly reports acceptance. If any item is visually rejected, fix within Task 14, rerun the owning focused tests, and return to this gate.
+
+- [ ] **Step 18: Adversarial self-review, update checkpoint/roadmap with actual evidence, and stop**
+
+Review:
+
+```text
+Task 13 preservation
+- module/project graph unchanged
+- HikariTheme still single root owner
+- root White/Black backgrounds preserved
+- spacing/shapes unchanged
+- zero runtime/downloadable-font I/O
+- segmented retirement is atomic and remaining DS contracts still pass
+
+R2.8 visual migration
+- only written palette/type values changed globally
+- Error/InlineFeedback edits are visual-only; actions/semantics unchanged
+- Skeleton/Empty/Refresh behavior unchanged
+- no parallel feature color/type token system
+
+Discover
+- exactly one vertical LazyColumn
+- explicit 12dp/32dp rhythm
+- safe top/bottom system insets
+- nav safe inset outside 64dp pill
+- media switch resets scroll only on explicit different-tab click
+- Story -> Back preserves media + LazyListState
+- final Top Rated row clears floating nav
+- three section silhouettes remain distinct with original caps/stable keys
+
+Story
+- contentType/latestUpdate use existing projection authority
+- sourceVersion/provenance/ref hidden
+- summary-null final geometry and no fake identity
+- route cover continuity preserved
+- no unsupported CTA/scope expansion
+
+Verification ownership
+- agent correctness gates are green before user visual gate
+- no agent-authored human PASS
+- Loading/Error/Empty/Refresh were included because theme migration is global
+- Task 15 remains permanent deterministic screenshot/cross-device freeze, not duplicated here
+```
+
+Fix all in-scope findings before handoff. If device correctness evidence is outstanding, status stays `READY FOR USER VERIFICATION`. If correctness is green but appearance is pending, status is `READY FOR USER VISUAL ACCEPTANCE`. Only after the user returns PASS may Task 14 be marked accepted.
+
+After explicit user acceptance:
 
 ```bash
 git add -A
-git commit -m "feat: restore v2 catalog visual quality"
+git commit -m "feat: refresh visual system and catalog homes"
 ```
 
-**Stop.** Task 15 owns cross-module correctness and final screenshot evidence after the visual result is accepted. Task 16 owns performance/profile measurement of this accepted visual surface.
+**Stop.** Do not continue into Task 15 without a new explicit user instruction.
 
 ---
 
@@ -2834,7 +3463,7 @@ Task 15 remains `READY FOR USER VERIFICATION` until API 26, API 37, architecture
 
 - [ ] **Step 6: Self-review local acceptance, checkpoint, commit, stop**
 
-Map every R2.4 criterion that can be proven without performance/profile/plugin execution to exact test/source/artifact evidence. Performance and plugin criteria stay explicitly `OPEN — OWNED BY TASK 15/16`, never silently “pass”. Only after the local gate is green, commit e.g. `test: close step2 local catalog correctness`. **Stop.**
+Map every R2.8 criterion that can be proven without performance/profile/plugin execution to exact test/source/artifact evidence. Performance and plugin criteria stay explicitly `OPEN — OWNED BY TASK 15/16`, never silently “pass”. Only after the local gate is green, commit e.g. `test: close step2 local catalog correctness`. **Stop.**
 
 ---
 
@@ -2927,7 +3556,7 @@ frameDurationCpuMs P99 > 25.00 ms
 frameOverrunMs     P95 > 16.67 ms
 ```
 
-This is intentionally looser than the supplied V1 2026-09-06 `discoverScroll` evidence (CPU P95 12.43 ms, P99 13.91 ms, Overrun P95 9.86 ms) while still flagging sustained work beyond a 60 Hz frame budget. For `openStoryMemoryHit`, `openStoryDiskHit`, and `storyBackToDiscover`, trigger review when `frameDurationCpuMs P95 > 33.33 ms` or `frameOverrunMs P95 > 33.33 ms`. Additionally, for any same-device journey, a >10% deterioration in a final P95/Overrun-P95 metric versus the first correctness-green Step 2 measurement from this task requires explanation/optimization rather than being hidden by a good TTID. These are **review triggers**, not permission to waive R2.4 hard ownership/query/cache gates.
+This is intentionally looser than the supplied V1 2026-09-06 `discoverScroll` evidence (CPU P95 12.43 ms, P99 13.91 ms, Overrun P95 9.86 ms) while still flagging sustained work beyond a 60 Hz frame budget. For `openStoryMemoryHit`, `openStoryDiskHit`, and `storyBackToDiscover`, trigger review when `frameDurationCpuMs P95 > 33.33 ms` or `frameOverrunMs P95 > 33.33 ms`. Additionally, for any same-device journey, a >10% deterioration in a final P95/Overrun-P95 metric versus the first correctness-green Step 2 measurement from this task requires explanation/optimization rather than being hidden by a good TTID. These are **review triggers**, not permission to waive R2.8-preserved hard ownership/query/cache gates.
 
 If the exact AndroidX version reports equivalent field names rather than these display labels, the checkpoint records the one-to-one metric mapping; it may not substitute an easier metric after seeing results.
 
@@ -2978,7 +3607,7 @@ ANDROID_SERIAL=<serial> ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTes
 
 - [ ] **Step 8: Perform evidence-driven optimization only where a gate fails/regresses**
 
-Allowed corrections are exactly the R2.4 optimization authority: lower card counts while retaining all three semantic sections, defer below-fold composition, reduce metadata/decode target/prefetch/concurrency/cache, improve index/projection/state width, remove redundant animation/effects. Do not move work to startup, introduce background ownership, bypass persistence/validation, or enlarge caches to mask latency.
+Allowed corrections are exactly the R2.8-preserved optimization authority: lower card counts while retaining all three semantic sections, defer below-fold composition, reduce metadata/decode target/prefetch/concurrency/cache, improve index/projection/state width, remove redundant animation/effects. Do not move work to startup, introduce background ownership, bypass persistence/validation, or enlarge caches to mask latency.
 
 After each correction, rerun the affected focused unit/connected evidence and then hand off only the affected benchmark journey. Keep an evidence table of “symptom -> root cause -> bounded change -> before/after”.
 
@@ -3177,7 +3806,7 @@ Review semantic mapping, unsupported-content handling, Step 2 stricter-bound enf
 
 **Interfaces:**
 - Produces the final acceptance/freeze record for **Step 2 as a production-shaped internal/product vertical slice, not a ship-ready production remote-catalog release**.
-- Every one of the 67 R2.4 acceptance criteria must have evidence or Step 2 remains open.
+- Every one of the 68 R2.8 acceptance criteria must have evidence or Step 2 remains open.
 - Final full/device/performance commands are user-owned by default. The agent reviews returned evidence; it does not mark acceptance from unexecuted command text.
 
 - [ ] **Step 1: Run focused agent-owned final static/document consistency review**
@@ -3205,7 +3834,7 @@ The acceptance record must include final profile hashes, source/runtime SHA, fiv
 
 - [ ] **Step 5: Build the explicit 68-row spec-to-implementation acceptance matrix**
 
-For each R2.4 acceptance criterion `1..68`, record:
+For each R2.8 acceptance criterion `1..68`, record:
 
 ```text
 criterion number + short text
@@ -3327,9 +3956,9 @@ Do not supervise long-running Gradle/device commands with repeated polling. One 
 
 ### 1. Spec coverage review
 
-The task mapping covers every normative R2.4 area:
+The task mapping covers every normative R2.8 area:
 
-| R2.4 area | Owning tasks |
+| R2.8 area | Owning tasks |
 | --- | --- |
 | Product authority / Light Novel enablement | 0 |
 | Exact modules/build surface/variant matrix/package SCC | 0, 13, 16, 17 |
@@ -3352,7 +3981,7 @@ The task mapping covers every normative R2.4 area:
 | Isolated deterministic MangaUpdates real-plugin proof | 17 |
 | All 68 acceptance criteria + structural/documentation freeze | 18 |
 
-No load-bearing R2.4 section is intentionally deferred beyond Step 2. In particular, Task 13 freezes the presentation foundation before Task 14 visual restoration, Task 15 screenshot/correctness evidence, and Task 16 performance/profile evidence, so benchmark evidence is not collected against a disposable UI scaffold.
+No load-bearing R2.8 section is intentionally deferred beyond Step 2. In particular, Task 13 freezes the presentation foundation before Task 14 visual restoration, Task 15 screenshot/correctness evidence, and Task 16 performance/profile evidence, so benchmark evidence is not collected against a disposable UI scaffold.
 
 ### 1.1 Acceptance criteria 1–68 pre-mapped to executable evidence
 
@@ -3373,8 +4002,8 @@ This table is part of the plan contract, not something Task 18 invents at the en
 | 11 | App has one product edge plus one root-theme infrastructure edge | 0,13 | exact graph + app scanner allows CatalogEntryPoint and HikariTheme only; no storage/runtime/image/network ownership |
 | 12 | Quarantine model/engine | 0 | module-boundary negative fixtures and final graph |
 | 13 | Zero production package SCC incl. Design System | 0,13,18 | ProductionPackageStructureVerifier + Task 13 Design System slice gate + final report |
-| 14 | Multi-section both media + shared visual vocabulary | 2,5,8,13,14 | Room/runtime/Compose behavior + Task 13 shared primitives + Task 14 visual-composition acceptance |
-| 15 | V1-quality-or-better visual acceptance | 14 | Task 14 V1-reference gap ledger + deterministic V2 screenshots + explicit human PASS/FAIL quality-floor review; no pixel-parity requirement |
+| 14 | Multi-section both media + shared visual vocabulary | 2,5,8,13,14 | Room/runtime/Compose behavior + Task 13 architecture + Task 14 exact R2.8 palette/type migration, shared-state contracts, and feature composition |
+| 15 | V1-quality-or-better visual acceptance | 14 | Task 14 blueprint/V1 gap ledger + user review of Ready/Loading/Error/Empty/Refresh plus representative compact/wide/light/dark captures; agent correctness gates precede human PASS/FAIL; Task 15 owns the permanent deterministic screenshot harness |
 | 16 | 5/9/5 bound and no N+1 | 1,2,8 | section-policy tests + one Discover SQL observation + ViewModel no-detail-call test |
 | 17 | Absent vs Published(empty) | 2 | DiscoverPersistenceInstrumentedTest including left-side state row |
 | 18 | Published(empty) survives reopen/no bootstrap | 2,5 | file-backed reopen test + runtime no-bootstrap test |
@@ -3433,7 +4062,7 @@ This table is part of the plan contract, not something Task 18 invents at the en
 **Conflict: Step 1 blanket rejects `implementation(project(...))`, but Step 2 requires one app project edge.**
 Resolution: Task 0 replaces blanket token rejection with exact graph verification while keeping app-shell import/startup/permission bans.
 
-**Conflict: Step 1 structural verifier scans only app source, while R2.4 requires zero package SCC across five newly admitted production modules.**
+**Conflict: Step 1 structural verifier scans only app source, while R2.8 preserves the requirement for zero package SCC across five newly admitted production modules.**
 Resolution: Task 0 adds a production-package verifier over all Step 2 modules and attaches it to root `verifyArchitecture`.
 
 **Conflict: V1 `:core:designsystem` correctly established app-wide theme ownership, but the historical module also accumulated Coil networking, backdrop and Roborazzi/Robolectric surface.**
@@ -3459,7 +4088,7 @@ Resolution: Task 17 scopes `:plugins:api`, JavaScriptEngine and copied/adapted e
 
 ### 3. Task sizing review
 
-The R2.4 A-O ownership sequence was split further at the highest-risk seams:
+The R2.8-preserved A-O ownership sequence was split further at the highest-risk seams:
 
 - coherent Discover storage separate from Story Detail/retention;
 - importer/mutation ordering separate from runtime single-flight;
@@ -3482,7 +4111,7 @@ Each Task N has an independently rejectable/committable result and a focused tes
 
 ### 5. Placeholder/deferred-decision review
 
-All load-bearing choices frozen by R2.4 are concretized here: module graph/test graph, source sets, identity and cover-revision algorithms, strict UTF-8 validation, self-consistent route identity, publication state, exact Discover/Story query caps, schema responsibilities, retention bound/work shape including unpin cleanup, mutation-gate ordering, cache/concurrency/image limits, lifecycle ownership, plugin reference/stricter V2 bounds, deterministic transport/disk-hit proof, and profile ordering. The frame/jank review triggers are now frozen in Task 16 **before execution** using the available `FrameTimingMetric` family and the supplied V1 Redmi evidence; Task 16 may record equivalent field-name mapping but may not choose an easier threshold after observing results.
+All load-bearing runtime choices frozen by R2.4 and preserved by R2.8 are concretized here: module graph/test graph, source sets, identity and cover-revision algorithms, strict UTF-8 validation, self-consistent route identity, publication state, exact Discover/Story query caps, schema responsibilities, retention bound/work shape including unpin cleanup, mutation-gate ordering, cache/concurrency/image limits, lifecycle ownership, plugin reference/stricter V2 bounds, deterministic transport/disk-hit proof, and profile ordering. The frame/jank review triggers are now frozen in Task 16 **before execution** using the available `FrameTimingMetric` family and the supplied V1 Redmi evidence; Task 16 may record equivalent field-name mapping but may not choose an easier threshold after observing results.
 
 ### 6. Red-team review against known V1 debt
 
@@ -3499,9 +4128,9 @@ The plan contains explicit negative gates for every Step 2-relevant V1 family:
 - X16-X18: production plugin control plane/runtime absent;
 - structural S6/S7/S12: no god-ish migration target, package SCC = 0, build ratchets fail closed.
 
-### 7. Final consistency pass — 2026-09-09 baseline + 2026-09-10 R2.4 amendment
+### 7. Final consistency pass — 2026-09-11 R2.8 Task 14 amendment
 
-The 2026-09-09 red-team baseline was preserved, then the 2026-09-10 pre-benchmark Design System amendment was reviewed again after Task 13 insertion. The combined pass specifically closed execution-level gaps that were still capable of producing a correct-looking but unsafe implementation:
+The 2026-09-09 red-team baseline and 2026-09-10 pre-benchmark Design System amendment were preserved, then the 2026-09-11 R2.8 Task 14 visual/IA amendment was reviewed on top of the accepted Task 13 state. The combined pass specifically closed execution-level gaps that were still capable of producing a correct-looking but unsafe implementation:
 
 - publication validation now fails closed at the cross-module command/storage boundary for **both** Discover cards and Story Detail projections; a rogue caller cannot bypass importer bounds;
 - operation-owned timeouts use a dedicated deadline result (`withTimeoutOrNull`/equivalent) so `TimeoutCancellationException` cannot be confused with external/session cancellation;
@@ -3514,11 +4143,19 @@ The 2026-09-09 red-team baseline was preserved, then the 2026-09-10 pre-benchmar
 - refresh semantics were checked for duplicate ownership: only durable Discover states expose pull refresh; pull calls `DiscoverViewModel.refresh()`, failure UI calls distinct `DiscoverViewModel.retry()`, and both converge on the same guarded source-acquisition owner whenever acquisition is needed; Story Detail remains retry-only;
 - empty/error presentation was checked for remaining feature-local forks: shared `HikariEmptyState`/`HikariErrorState`/`HikariSkeleton` primitives are admitted, while Discover/Story keep feature-owned geometry/copy so the Design System does not grow a generic loading/state model;
 - the V1 Design System structural shape was checked against the Structural Simplification audit: no fixed-token CompositionLocal tree, zero-caller/test-only public primitive, wrapper-for-wrapper base component, scroll owner, runtime font path, or transient validation collection is admitted;
-- Discover composition was checked for known pre-benchmark allocation debt: static media options leave `DiscoverUiState`, viewport-row flattening is removed, segmented validation uses bounded direct comparisons, and generic shape/spacing roles consume the root tokens without tokenizing feature-specific cover geometry;
+- Discover composition was checked for known pre-benchmark allocation debt: static media options leave `DiscoverUiState`, viewport-row flattening is removed, segmented validation uses bounded direct comparisons, and generic shape/spacing roles consume the root tokens without duplicating `HikariSpacing`/Material shape values inside feature metrics; feature-specific cover/card/nav/breakpoint geometry remains local;
 - visual restoration is explicitly Task 14, screenshot/correctness evidence Task 15, and performance/profile evidence Task 16; Task 13 is no longer mislabeled as the polished final surface.
+- Task 14's approved blueprint is treated as **visual geometry/hierarchy evidence, not a data/schema wish list**; concept-only `Read`, library, Chapters, See all, Year, age-rating, and search/bookmark cues are rejected. The Story media-type eyebrow and stable latest-update label are admitted only because `StorySummaryProjection.contentType` and `latestUpdateEpochMs` already exist in the accepted projection; no lower-layer field is added;
+- Manga/Light Novel migration no longer strands a zero-caller public Design-System primitive: Task 14 first proves the exact shrink in the slice gate, migrates the sole production caller, then deletes the segmented API without introducing a generic navigation wrapper;
+- segmented retirement is regression-safe against Task 13 itself: the two segmented imports/tests in `HikariDesignSystemContractTest` and the stale slice-script `CONTROL` block are removed with the API, while every unrelated Design System contract remains and is recompiled/re-run;
+- media switching resets Discover only from the explicit nav-click event; route re-entry does not use a selected-media `LaunchedEffect`, so Story -> Back preserves the accepted scroll continuity;
+- the floating nav is outside the pull-refresh/vertical scroller and final content padding accounts for nav height plus system inset, preventing gesture ownership overlap and obscured last content;
+- Popular and Latest use bounded horizontal rails only; the single vertical scroll-owner invariant remains intact;
+- actual Task 14 visual acceptance uses the connected Compose surface plus the approved PNG/text blueprint; historical `tools/ui-target` IA cannot silently override the R2.8 media-destination contract;
+- visual iconography is dependency-neutral: already-present vectors/assets may be used, but no dependency is added solely to mimic concept decoration.
 
 Machine consistency audit of this reviewed artifact: exactly **19 Task headings (0..18)**; exactly **68 unique acceptance rows (1..68)**; zero load-bearing `TBD`/`TODO`/deferred-decision markers; balanced Markdown code fences; no stale pre-amendment Task 13-17 ownership mapping; Task 0 now correctly admits four Catalog modules while Task 13 separately admits `:core:designsystem`; no stale `CatalogSectionPolicy`, old `validation/CatalogInputLimits`, fake collision-success wording, or unproven benchmark assemble task. Execution-time device/profile identifiers remain explicitly runtime evidence values rather than design placeholders. Existing baseline scripts referenced by the final gate (`scripts/verify-fast.sh`, `scripts/verify.sh`) were confirmed in the supplied Step 1 tree; `scripts/tests/v2-step2-build-surface-test.sh` is intentionally a Task 0 creation and `scripts/tests/v2-step2-designsystem-slice-test.sh` is intentionally a Task 13 creation.
 
 ### 8. Final assessment
 
-**READY FOR IMPLEMENTATION-PLAN REVIEW.** No remaining load-bearing contradiction or uncovered R2.4 acceptance criterion was found in the final pass. This is still not implementation authorization by itself: after plan approval, execution begins at Task 0 only and repository `AGENTS.md` requires stopping after each canonical Task N.
+**TASK 14 R2.8 PLAN READY.** Tasks 0-13 remain completed/accepted. Task 14 is the only next implementation boundary and now contains an explicit Design System visual-token migration before feature composition, automated correctness gates before any user visual judgment, and a user-owned Ready/Loading/Error/Empty/Refresh appearance gate. Task 15+ remain blocked until Task 14 is explicitly accepted.

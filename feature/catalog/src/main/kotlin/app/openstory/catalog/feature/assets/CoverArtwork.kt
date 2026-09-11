@@ -39,12 +39,14 @@ internal fun CoverArtwork(
         ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = title.firstOrNull()?.uppercase() ?: "H",
-            style = MaterialTheme.typography.displayMedium,
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f),
-        )
+        title.firstOrNull()?.uppercase()?.let { placeholder ->
+            Text(
+                text = placeholder,
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f),
+            )
+        }
         val catalogImageLoader = LocalCatalogImageLoader.current
         if (assetKey != null && catalogImageLoader != null) {
             DisposableEffect(catalogImageLoader, assetKey) {

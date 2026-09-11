@@ -1,6 +1,5 @@
 package app.openstory.catalog.feature.discover
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
@@ -8,17 +7,27 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.SourceStoryIdV1
@@ -28,6 +37,8 @@ import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.state.CatalogIssueKind
 import app.openstory.catalog.feature.state.CatalogIssueUi
+import app.openstory.designsystem.theme.HikariTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -78,14 +89,14 @@ class DiscoverScreenInstrumentedTest {
 
         composeRule.onNodeWithTag(DiscoverTestTags.POPULAR_SKELETON)
             .assertIsDisplayed()
-            .assertWidthIsAtLeast(220.dp)
+            .assertWidthIsAtLeast(100.dp)
             .assertHeightIsAtLeast(130.dp)
         composeRule.onNodeWithTag(DiscoverTestTags.ROOT)
             .performScrollToNode(hasTestTag(DiscoverTestTags.LATEST_SKELETON))
         composeRule.onNodeWithTag(DiscoverTestTags.LATEST_SKELETON)
             .assertIsDisplayed()
-            .assertWidthIsAtLeast(120.dp)
-            .assertHeightIsAtLeast(80.dp)
+            .assertWidthIsEqualTo(DiscoverVisualMetrics.RecommendedCoverWidth)
+            .assertHeightIsEqualTo(DiscoverVisualMetrics.RecommendedCoverHeight)
         composeRule.onNodeWithTag(DiscoverTestTags.ROOT)
             .performScrollToNode(hasTestTag(DiscoverTestTags.TOP_RATED_SKELETON))
         composeRule.onNodeWithTag(DiscoverTestTags.TOP_RATED_SKELETON)
@@ -99,13 +110,117 @@ class DiscoverScreenInstrumentedTest {
         val state = contentState()
         setContent(state)
 
-        composeRule.onNodeWithText("Manga").assertIsEnabled()
-        composeRule.onNodeWithText("Light Novel").assertIsEnabled()
+        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
+            .assertIsEnabled()
+        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.LIGHT_NOVEL))
+            .assertIsEnabled()
         val content = state.content as DiscoverContentState.Content
         val firstCard = content.sections.first().cards.first()
         composeRule.onNodeWithTag(DiscoverTestTags.card(CatalogSectionKind.POPULAR, firstCard.ref))
             .assertContentDescriptionEquals(firstCard.title)
         assertTrue(content.sections.sumOf { it.cards.size } <= 19)
+    }
+
+    @Test
+    fun mediaDestinationNavHasMangaHomeAndLightNovelTabsAndOneSelected() {
+        setContent(contentState())
+
+        composeRule.onAllNodesWithTag(DiscoverTestTags.MEDIA_NAV).assertCountEquals(1)
+        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
+            .assertIsEnabled()
+            .assertIsSelected()
+        composeRule.onNodeWithTag(DiscoverTestTags.NAV_HOME)
+            .assertIsEnabled()
+            .assertIsNotSelected()
+        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.LIGHT_NOVEL))
+            .assertIsEnabled()
+            .assertIsNotSelected()
+    }
+
+    @Test
+    fun mediaDestinationNavDispatchesOnlyForADifferentDestination() {
+        val selections = mutableListOf<CatalogMediaType>()
+        setContent(contentState(), onMediaSelected = selections::add)
+
+        composeRule.onNodeWithTag(DiscoverTestTags.NAV_HOME).performClick()
+        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
+            .assertIsSelected()
+        composeRule.onNodeWithTag(DiscoverTestTags.NAV_HOME).assertIsNotSelected()
+        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
+            .performClick()
+        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.LIGHT_NOVEL))
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(listOf(CatalogMediaType.LIGHT_NOVEL), selections)
+        }
+    }
+
+    @Test
+    fun mediaDestinationNavRemainsDisplayedAndClearsFinalTopRatedRow() {
+        setContent(contentState())
+
+        composeRule.onNodeWithTag(DiscoverTestTags.ROOT)
+            .performScrollToNode(hasTestTag(DiscoverTestTags.FINAL_TOP_RATED_ROW))
+        composeRule.onNodeWithTag(DiscoverTestTags.ROOT).performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+        val navBounds = composeRule.onNodeWithTag(DiscoverTestTags.MEDIA_NAV)
+            .assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot
+        val finalRowBounds = composeRule.onNodeWithTag(DiscoverTestTags.FINAL_TOP_RATED_ROW)
+            .assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot
+
+        assertTrue("Final row must clear the floating media navigation", finalRowBounds.bottom <= navBounds.top)
+    }
+
+    @Test
+    fun headerUsesSelectedMediaAsPageIdentityWithoutDeveloperCopy() {
+        setContent(contentState().copy(selectedMediaType = CatalogMediaType.LIGHT_NOVEL))
+
+        composeRule.onNodeWithTag(DiscoverTestTags.PAGE_IDENTITY)
+            .assertIsDisplayed()
+            .assertTextEquals("Discover")
+        composeRule.onNodeWithText("Amazing stories await you.").assertIsDisplayed()
+        composeRule.onNodeWithText("Three distinct signals. One deliberately bounded shelf.")
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun sectionsUseDistinctArtworkFirstSilhouettes() {
+        val state = contentState()
+        setContent(state)
+        val content = state.content as DiscoverContentState.Content
+        val popular = content.sections.first { it.kind == CatalogSectionKind.POPULAR }.cards.first()
+        val latest = content.sections.first { it.kind == CatalogSectionKind.LATEST_UPDATES }.cards.first()
+        val topRated = content.sections.first { it.kind == CatalogSectionKind.TOP_RATED }.cards.first()
+
+        composeRule.onNodeWithTag(
+            DiscoverTestTags.card(CatalogSectionKind.POPULAR, popular.ref),
+        ).assertWidthIsEqualTo(DiscoverVisualMetrics.TrendingCoverWidth)
+            .assertHeightIsAtLeast(DiscoverVisualMetrics.TrendingCoverHeight)
+
+        composeRule.onNodeWithTag(
+            DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, latest.ref),
+        ).assertWidthIsEqualTo(DiscoverVisualMetrics.RecommendedCoverWidth)
+            .assertHeightIsAtLeast(DiscoverVisualMetrics.RecommendedCoverHeight)
+
+        composeRule.onNodeWithTag(DiscoverTestTags.ROOT).performScrollToNode(
+            hasTestTag(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, topRated.ref)),
+        )
+        composeRule.onNodeWithText("1").assertIsDisplayed()
+        composeRule.onNodeWithText("8.0").assertIsDisplayed()
+    }
+
+    @Test
+    fun conceptOnlyActionsAreNonInteractiveChromeOrOmitted() {
+        setContent(contentState())
+
+        composeRule.onNodeWithContentDescription("Search").assertHasNoClickAction()
+        composeRule.onAllNodesWithText("See All")[0].assertHasNoClickAction()
+        listOf("Read", "Add to Library", "Chapters", "Bookmark", "Explore", "Library", "Profile").forEach { copy ->
+            composeRule.onNodeWithText(copy, substring = true).assertDoesNotExist()
+        }
     }
 
     @Test
@@ -153,15 +268,16 @@ class DiscoverScreenInstrumentedTest {
 
     private fun setContent(
         state: DiscoverUiState,
+        onMediaSelected: (CatalogMediaType) -> Unit = {},
         onRefresh: () -> Unit = {},
         onRetry: () -> Unit = {},
     ) {
         composeRule.setContent {
-            MaterialTheme {
+            HikariTheme(darkTheme = false) {
                 DiscoverScreen(
                     state = state,
                     listState = rememberLazyListState(),
-                    onMediaSelected = {},
+                    onMediaSelected = onMediaSelected,
                     onStorySelected = { _, _ -> },
                     onRefresh = onRefresh,
                     onRetry = onRetry,

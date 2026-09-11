@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
@@ -173,7 +174,7 @@ class StoryRouteRestorationInstrumentedTest {
         assertEquals(29, navigation.discoverListState.firstVisibleItemScrollOffset)
 
         composeRule.runOnIdle { navigation.showStory(REF, COVER_KEY) }
-        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithContentDescription("Back").performClick()
         composeRule.onNodeWithTag(DiscoverTestTags.ROOT).assertIsDisplayed()
         assertTrue(released)
         assertTrue(listState === navigation.discoverListState)
@@ -237,7 +238,14 @@ class StoryRouteRestorationInstrumentedTest {
         )
         val ACTIVE_STATE = StoryDetailUiState(
             ref = REF,
-            summary = StorySummaryUi("Story 17", COVER_KEY, null, "Ongoing"),
+            summary = StorySummaryUi(
+                title = "Story 17",
+                contentType = CatalogMediaType.MANGA,
+                coverAssetKey = COVER_KEY,
+                ratingLabel = null,
+                publicationStatus = "Ongoing",
+                latestUpdateLabel = null,
+            ),
             detail = StoryDetailUi("Metadata only", emptyList(), emptyList(), emptyList(), "Ongoing", "English"),
             detailLoading = false,
             issue = null,
@@ -249,7 +257,11 @@ class StoryRouteRestorationInstrumentedTest {
                     DiscoverSectionUi(
                         kind = kind,
                         cards = List(
-                            size = if (kind == CatalogSectionKind.LATEST_UPDATES) 9 else 1,
+                            size = when (kind) {
+                                CatalogSectionKind.POPULAR -> 1
+                                CatalogSectionKind.LATEST_UPDATES -> 9
+                                CatalogSectionKind.TOP_RATED -> 5
+                            },
                         ) { position ->
                             val sourceStoryId = "scroll-${kind.name.lowercase()}-$position"
                             val sourceKey = SourceStoryKey(SOURCE_KEY, sourceStoryId)
