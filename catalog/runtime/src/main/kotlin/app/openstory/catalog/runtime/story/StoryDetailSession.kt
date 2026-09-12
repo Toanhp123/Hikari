@@ -57,6 +57,7 @@ class StoryDetailSession internal constructor(
     private var activated = false
     private var automaticAcquisitionStarted = false
     private var latestProjection: StoryDetailProjection? = null
+    private val projectionReceivedTraced = AtomicBoolean(false)
     private val contentReadyTraced = AtomicBoolean(false)
 
     private val projectionEvents = flow {
@@ -70,6 +71,9 @@ class StoryDetailSession internal constructor(
     private val observedProjectionEvents = projectionEvents.onEach { event ->
         if (event is ProjectionEvent.Value) {
             latestProjection = event.value
+            if (event.value != null && projectionReceivedTraced.compareAndSet(false, true)) {
+                traceSink.mark(CatalogTrace.STORY_PROJECTION_RECEIVED)
+            }
             if (event.value?.detail != null && contentReadyTraced.compareAndSet(false, true)) {
                 traceSink.mark(CatalogTrace.STORY_DETAIL_CONTENT_READY)
             }

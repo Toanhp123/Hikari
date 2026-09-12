@@ -211,6 +211,19 @@ class Step2BuildSurfaceVerifierTest {
     }
 
     @Test
+    fun nonMinifiedReleaseRuntimeMustReuseBenchmarkSourceDirectories() = withFixture { fixture ->
+        fixture.write("catalog/runtime/build.gradle.kts", "plugins {}")
+
+        val violations = fixture.verify()
+
+        assertViolation(
+            violations,
+            "step2_surface.benchmark_source_mapping",
+            ":catalog:runtime",
+        )
+    }
+
+    @Test
     fun duplicateNonMinifiedFixtureImplementationIsRejected() = withFixture { fixture ->
         fixture.write(
             "feature/catalog/src/nonMinifiedRelease/kotlin/app/openstory/catalog/feature/" +
@@ -427,6 +440,21 @@ class Step2BuildSurfaceVerifierTest {
                                     kotlin.directories.add("src/benchmarkRelease/kotlin")
                                     res.srcDir("src/benchmarkRelease/res")
                                     manifest.srcFile("src/benchmarkRelease/AndroidManifest.xml")
+                                }
+                            }
+                        }
+                    }
+                """.trimIndent(),
+            )
+            write(
+                "catalog/runtime/build.gradle.kts",
+                """
+                    plugins {}
+                    androidComponents {
+                        finalizeDsl { extension ->
+                            listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
+                                extension.sourceSets.getByName(sourceSetName).apply {
+                                    kotlin.directories.add("src/benchmarkRelease/kotlin")
                                 }
                             }
                         }

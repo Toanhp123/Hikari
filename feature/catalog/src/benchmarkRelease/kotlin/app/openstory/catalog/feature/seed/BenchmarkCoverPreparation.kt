@@ -43,8 +43,8 @@ internal object BenchmarkCoverPreparation {
             check(imageLoader.imageLoader().execute(request) is SuccessResult) {
                 "Benchmark disk cache prime failed."
             }
-            check(BenchmarkCoverFixture.transportRequestCount() == 1) {
-                "Benchmark disk cache prime did not use exactly one transport request."
+            check(BenchmarkCoverFixture.transportRequestCount() in 0..1) {
+                "Benchmark disk cache prime used more than one transport request."
             }
         } finally {
             imageLoader.close()

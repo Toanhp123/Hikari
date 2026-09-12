@@ -9,7 +9,7 @@ internal object CatalogVariantSurfaceVerifier {
         addAll(fixtureAssetViolations(root))
         addAll(releaseFixtureReferenceViolations(root))
         releaseBindingViolation(root)?.let(::add)
-        benchmarkSourceMappingViolation(root)?.let(::add)
+        addAll(benchmarkSourceMappingViolations(root))
         duplicateNonMinifiedFixtureViolation(root)?.let(::add)
     }
 
@@ -52,15 +52,20 @@ internal object CatalogVariantSurfaceVerifier {
         }?.let { violation("step2_surface.release_fixture", it) }
     }
 
-    private fun benchmarkSourceMappingViolation(root: File): ArchitectureViolation? {
-        val buildFile = File(root, FEATURE_BUILD_FILE)
-        if (!buildFile.isFile) return null
-        val text = buildFile.readText()
-        val missing = REQUIRED_BENCHMARK_SOURCE_MAPPINGS.filterNot(text::contains)
-        return missing.takeIf { it.isNotEmpty() }?.let {
-            violation("step2_surface.benchmark_source_mapping", it.sorted().joinToString(","))
+    private fun benchmarkSourceMappingViolations(root: File): List<ArchitectureViolation> =
+        REQUIRED_BENCHMARK_SOURCE_MAPPINGS.mapNotNull { (module, requirement) ->
+            val buildFile = File(root, requirement.buildFile)
+            if (!buildFile.isFile) return@mapNotNull null
+            val text = buildFile.readText()
+            val missing = requirement.fragments.filterNot(text::contains)
+            missing.takeIf { it.isNotEmpty() }?.let {
+                violation(
+                    code = "step2_surface.benchmark_source_mapping",
+                    module = module,
+                    detail = it.sorted().joinToString(","),
+                )
+            }
         }
-    }
 
     private fun duplicateNonMinifiedFixtureViolation(root: File): ArchitectureViolation? {
         val duplicateRoot = File(root, NON_MINIFIED_SOURCE_ROOT)
@@ -77,13 +82,18 @@ internal object CatalogVariantSurfaceVerifier {
             header.copyOfRange(CHUNK_START, CHUNK_END).decodeToString() in WEBP_CHUNKS
     }
 
-    private fun violation(code: String, detail: String) = ArchitectureViolation(
+    private fun violation(
+        code: String,
+        detail: String,
+        module: String = ":feature:catalog",
+    ) = ArchitectureViolation(
         code = code,
-        module = ":feature:catalog",
+        module = module,
         detail = detail,
     )
 
     private const val FEATURE_BUILD_FILE = "feature/catalog/build.gradle.kts"
+    private const val RUNTIME_BUILD_FILE = "catalog/runtime/build.gradle.kts"
     private const val NON_MINIFIED_SOURCE_ROOT = "feature/catalog/src/nonMinifiedRelease"
     private const val RELEASE_SOURCE_ROOT = "feature/catalog/src/release"
     private const val RELEASE_BINDING =
@@ -127,11 +137,27 @@ internal object CatalogVariantSurfaceVerifier {
         "feature/catalog/src/benchmarkRelease/res/drawable-nodpi/catalog_benchmark_light_novel_a.webp",
         "feature/catalog/src/benchmarkRelease/res/drawable-nodpi/catalog_benchmark_light_novel_b.webp",
     )
-    private val REQUIRED_BENCHMARK_SOURCE_MAPPINGS = setOf(
-        "listOf(\"benchmarkRelease\", \"nonMinifiedRelease\")",
-        "kotlin.directories.add(\"src/benchmarkRelease/kotlin\")",
-        "res.srcDir(\"src/benchmarkRelease/res\")",
-        "manifest.srcFile(\"src/benchmarkRelease/AndroidManifest.xml\")",
+    private val REQUIRED_BENCHMARK_SOURCE_MAPPINGS = mapOf(
+        ":feature:catalog" to BenchmarkSourceMapping(
+            buildFile = FEATURE_BUILD_FILE,
+            fragments = setOf(
+                "listOf(\"benchmarkRelease\", \"nonMinifiedRelease\")",
+                "kotlin.directories.add(\"src/benchmarkRelease/kotlin\")",
+                "res.srcDir(\"src/benchmarkRelease/res\")",
+                "manifest.srcFile(\"src/benchmarkRelease/AndroidManifest.xml\")",
+            ),
+        ),
+        ":catalog:runtime" to BenchmarkSourceMapping(
+            buildFile = RUNTIME_BUILD_FILE,
+            fragments = setOf(
+                "listOf(\"benchmarkRelease\", \"nonMinifiedRelease\")",
+                "kotlin.directories.add(\"src/benchmarkRelease/kotlin\")",
+            ),
+        ),
+    )
+    private data class BenchmarkSourceMapping(
+        val buildFile: String,
+        val fragments: Set<String>,
     )
     private val RELEASE_NULL_BINDING = Regex("""\boverride\s+val\s+binding\s*=\s*null\b""")
     private val RELEASE_FIXTURE_REFERENCE = Regex(

@@ -40,6 +40,7 @@ import app.openstory.catalog.feature.state.CatalogIssueUi
 import app.openstory.catalog.feature.story.StoryDetailScreen
 import app.openstory.catalog.feature.story.StoryDetailUi
 import app.openstory.catalog.feature.story.StoryDetailUiState
+import app.openstory.catalog.feature.story.StoryArtworkUi
 import app.openstory.catalog.feature.story.StorySummaryUi
 import app.openstory.catalog.feature.story.StoryTestTags
 import app.openstory.designsystem.theme.HikariTheme
@@ -307,7 +308,6 @@ class CatalogScreenshotEvidenceTest {
             summary = StorySummaryUi(
                 title = STORY_TITLE,
                 contentType = CatalogMediaType.MANGA,
-                coverAssetKey = null,
                 ratingLabel = "8.9 / 10",
                 publicationStatus = "Ongoing",
                 latestUpdateLabel = "Updated Sep 11, 2026",

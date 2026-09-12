@@ -241,7 +241,6 @@ class StoryRouteRestorationInstrumentedTest {
             summary = StorySummaryUi(
                 title = "Story 17",
                 contentType = CatalogMediaType.MANGA,
-                coverAssetKey = COVER_KEY,
                 ratingLabel = null,
                 publicationStatus = "Ongoing",
                 latestUpdateLabel = null,
@@ -250,6 +249,7 @@ class StoryRouteRestorationInstrumentedTest {
             detailLoading = false,
             issue = null,
             destinationActive = true,
+            artwork = StoryArtworkUi(assetKey = COVER_KEY, locator = null),
         )
         val SCROLLABLE_DISCOVER_STATE = DiscoverUiState(
             content = DiscoverContentState.Content(

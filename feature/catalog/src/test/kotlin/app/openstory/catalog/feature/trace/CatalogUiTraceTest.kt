@@ -27,6 +27,29 @@ class CatalogUiTraceTest {
     }
 
     @Test
+    fun storyPublicationAndMaterializationMilestonesEmitOnceInBoundaryOrder() {
+        val traces = mutableListOf<String>()
+        val trace = CatalogUiTrace(CatalogTraceSink(traces::add))
+
+        trace.storyHeroMaterialized()
+        trace.storyUiPublished()
+        trace.storyUiPublished()
+        trace.storyHeroMaterialized()
+        trace.storyHeroMaterialized()
+        trace.storyBodyMaterialized()
+        trace.storyBodyMaterialized()
+
+        assertEquals(
+            listOf(
+                CatalogTrace.STORY_UI_PUBLISHED,
+                CatalogTrace.STORY_HERO_MATERIALIZATION,
+                CatalogTrace.STORY_BODY_MATERIALIZATION,
+            ),
+            traces,
+        )
+    }
+
+    @Test
     fun spanControllerMapsActivationAndStoryRequestToTheirLatencyMilestones() {
         val controller = CatalogTraceSpanController()
 

@@ -33,6 +33,16 @@ class HikariBenchmarkPreparationTest {
         }
     }
 
+    @Test
+    fun diskHitPreparationCanBeRepeatedWithoutClearingTheEncodedCache() {
+        try {
+            prepareReturningFixture(BenchmarkPreparation.DISK_HIT)
+            prepareReturningFixture(BenchmarkPreparation.DISK_HIT, clearPackageData = false)
+        } finally {
+            benchmarkDevice().executeShellCommand("am force-stop $HIKARI_PACKAGE")
+        }
+    }
+
     private fun inspectPreparation(preparation: BenchmarkPreparation, assertions: () -> Unit) {
         try {
             prepareReturningFixture(preparation)

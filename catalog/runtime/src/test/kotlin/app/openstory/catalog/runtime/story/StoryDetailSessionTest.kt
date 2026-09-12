@@ -34,6 +34,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -57,6 +58,7 @@ class StoryDetailSessionTest {
         assertEquals(
             listOf(
                 CatalogTrace.STORY_DETAIL_REQUESTED,
+                CatalogTrace.STORY_PROJECTION_RECEIVED,
                 CatalogTrace.STORY_DETAIL_CONTENT_READY,
             ),
             traces,
@@ -77,6 +79,7 @@ class StoryDetailSessionTest {
         val ref = testRef()
         val firstSession = activation.storyDetailSession(ref)
         val secondSession = activation.storyDetailSession(ref)
+        assertSame(firstSession, secondSession)
         firstSession.activate().launchIn(backgroundScope)
         secondSession.activate().launchIn(backgroundScope)
         runCurrent()

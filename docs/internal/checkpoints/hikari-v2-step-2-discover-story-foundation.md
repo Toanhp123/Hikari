@@ -1,22 +1,24 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
-Date: 2026-09-11
-Status: **TASKS 0-15 COMPLETED/ACCEPTED; TASK 16 IN PROGRESS AT STEP 8**
+Date: 2026-09-13
+Status: **TASKS 0-16 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; TASK 17 READY TO START**
 
 ## Authority
 
 - Design: `../../superpowers/specs/2026-09-08-hikari-v2-step-2-discover-story-foundation-design-R2.8.md`
+- Task 16 amendment: the user-supplied R2.10 amendment is integrated into the tracked owning plan
+  and this checkpoint; its standalone untracked file is intentionally excluded from the commit.
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-15.
-- Next execution boundary: Task 16 Step 8, diagnose and optimize the failed `openStoryMemoryHit`
-  frozen frame gate; Task 17 is not authorized.
+- Completed/accepted execution boundary: Tasks 0-16.
+- Next execution boundary: Task 17 is ready to start in a new turn. Do not begin it from this Task
+  16 closure turn.
 - 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
 
-- design: `db6e03856dbefe1ab2a3caed51b5b773e2b8a1ce0419a9f3f0b49c9fc30d82fa`
-- plan: `0019d077190e551dbbed3164913a2b5ab3ca0443b0cb84e77dd2191633987e6f`
+- design R2.8: `cdb6e6b7a2db65acd54685fd5a1d5f78c97976d1f5c0ae53e3d64e2894828552`
+- plan: `694ad52f03546208efbe1bb82debb957e33f3a23915470497e05c443f1c3248b`
 
 ## Task 0 Delta
 
@@ -1731,13 +1733,15 @@ No corrected returning-path Macrobenchmark evidence, remaining journey, device d
 regenerated profile, final startup comparison, broad architecture/Detekt/shell suite, or
 physical-device acceptance is claimed here.
 
-## Later Task Status
+## Task Status At Initial Task 16 Handoff
 
 Tasks 0-15: **COMPLETED/ACCEPTED**.
-Task 16: **IN PROGRESS**.
+Task 16: **IN PROGRESS at this historical handoff; superseded by the final closure below**.
 Tasks 17 through 18: **NOT RUN**.
 
-## Risks / Open Checks
+## Historical Risks / Open Checks
+
+This section records the execution history and is superseded by the final Task 16 closure below.
 
 - Task 15 remains accepted. Task 16 device Macrobenchmark/profile execution and review are open and
   user-owned. The preliminary `coldFreshInstall` result and incomplete first
@@ -1787,15 +1791,332 @@ Tasks 17 through 18: **NOT RUN**.
   outputs, so the preliminary numeric record remains but raw Task 16 device artifacts must be
   regenerated. Task 17 plugin integration and Task 18 final acceptance remain `NOT RUN`.
 
+## Task 16 R2.10 Stage 0 Delta
+
+```text
+Stage 0 - COMPLETE / CLOSED
+Hypothesis: stale/underrepresentative profile materially explains Story-open tail
+Result: REJECTED as material root contributor for the next correction
+Next: Stage A root characterization
+Stage B production correction remains BLOCKED
+```
+
+- The user-supplied R2.10 amendment, integrated into the tracked owning plan and checkpoint rather
+  than retained as a standalone repository file, confirms that Tasks 0-15 remain
+  completed/accepted and changes only the Task 16 Step 8 resume order. Compilation/profile
+  isolation now precedes Stage A architecture characterization or any fourth production correction.
+- `openStoryMemoryHitFullCompilationDiagnostic` reuses the accepted Story memory-hit fixture,
+  counters, trace metric, five iterations, and UI shape under `CompilationMode.Full`. The existing
+  `openStoryMemoryHit` acceptance journey remains `CompilationMode.Partial` with
+  `BaselineProfileMode.Require`.
+- TDD RED: `:benchmark:compileBenchmarkReleaseKotlin --no-daemon` failed only on the missing
+  `storyOpenFullCompilationMode` symbol.
+- Agent-owned GREEN: `:benchmark:assemble --no-daemon` completed `BUILD SUCCESSFUL in 17s`, with 66
+  actionable tasks. No production UI/runtime behavior changed.
+- The Stage 0 Redmi Note 9S diagnostic passed its hard counters and five iterations (`BUILD
+  SUCCESSFUL in 2m 37s`) but remained frame-red. Median-of-five per-iteration CPU P95 is
+  `47.354 ms`; overrun P95 is `47.799 ms`, respectively `+7.188 ms` and `+6.505 ms` versus the
+  retained Partial+Require baseline. Story content-ready median improved to `36.675 ms`, showing a
+  compilation contribution to data-ready latency but not to the unresolved frame tail.
+- Raw evidence is retained under
+  `benchmark/build/task16-retained/2026-09-12/openStoryMemoryHit-full-compilation/`; JSON SHA-256 is
+  `1d20d6985b629a6d96e21b8b721724f83bea52870ca17c9259786911b95d0395`.
+- The compilation/profile explanation for the frame failure is rejected. This does not identify
+  Full compilation as a regression cause; the Full result is used only to show that profile
+  omission is not a material explanation for the next correction.
+- The diagnostic-only Full benchmark entrypoint/configuration was removed after evidence closure.
+  The normal acceptance journey remains `CompilationMode.Partial(BaselineProfileMode.Require)`.
+- Presentation/composition topology remains the dominant unresolved root. Stage A follows below;
+  Stage B, later Task 16 journeys, profile regeneration, and Task 17 remain blocked.
+
+## Task 16 R2.10 Stage A Characterization
+
+Stage A is **COMPLETE / CHARACTERIZED / USER VERIFIED**. No Stage B production correction was
+implemented.
+
+### 1. Proven facts
+
+- Durable/runtime ownership remains unchanged. `CatalogCapabilityActivation.Available` still uses
+  one keyed `storySessions.getOrPut(ref)`, and two callers receive the same `StoryDetailSession`.
+  Multiple state collectors still share one `StoryDetailReadPort.observe(ref)` subscription. No
+  repository, observer, flow, query, selected-Story cache, retained DTO, or presentation owner was
+  added.
+- Process restoration remains exactly the validated `StorySourceRef` plus optional
+  `CoverAssetKey`; no Story summary/detail payload was added to saved route state.
+- The focused ViewModel characterization records the cache-hit publication shape as:
+
+```text
+StateFlow initial null
+-> route active: summary=null, detail=null, route cover key retained
+-> one coherent persisted projection received
+-> one UI publication with summary=full and detail=full
+```
+
+  The current memory-hit path therefore does jump from the empty Story route state to a broad
+  summary+detail publication rather than publishing a naturally progressive summary-only state.
+- `detail != null` is the single current gate for `StoryMetadataSections`. That subtree contains
+  persisted facts/body and also `StoryPreviewActions`, `StoryPreviewTabs`, and
+  `StoryRecommendationPreview`; the compiled UI characterization records that the Read/Library
+  shell, tabs, and recommendation shell appear with the rich-detail transition rather than owning
+  independent readiness.
+- `StoryHero` still accepts the broad `StoryDetailUiState`, although its reads are limited to
+  summary identity plus top-level cover locator/key. A detail-only state change leaves all fields
+  read by Hero equal while still changing the state object delivered through
+  `CatalogScreen -> StoryDetailScreen -> StoryHero`.
+- Artwork has duplicate presentation authority: `StorySummaryUi` contains `coverAssetKey` and
+  `coverLocator`, while `StoryDetailUiState` repeats both. Route continuity initially supplies only
+  the top-level `CoverAssetKey`; the persisted projection later supplies the locator and duplicates
+  both values at the two levels. With the same asset key, locator arrival changes `CoverRequest`
+  equality/model input while preserving the same stable memory/disk cache key.
+- `CatalogSessionContent` collects the full Story state before route rendering and passes it through
+  `CatalogScreen`. This collection scope is source-proven; no Stage A evidence proves that it is a
+  dominant invalidation amplifier.
+- Lightweight deterministic markers were added to the existing trace authority:
+  `story-projection-received`, `story-ui-published`, `story-hero-materialization`, and
+  `story-body-materialization`. They annotate existing boundaries only. The existing
+  `story-detail-content-ready` marker remains runtime/data-ready, not rendered-ready.
+
+### 2. Candidates
+
+- Root-level Story collection may amplify invalidation, but remains a structural smell until a
+  runtime trace attributes repeated or widened composition work to that collector.
+- Locator arrival for an unchanged asset key changes the request/model object. Actual painter
+  restart/request churn is not proven; stable cache-key continuity is proven, so no artwork change
+  is authorized from Stage A alone.
+- Hero participation after a broad destination-state publication is now traceable and structurally
+  expected, but its isolated share of the frame tail is not measured in Stage A.
+- Body/facts text measurement remains the strongest physical-work candidate from retained Perfetto
+  evidence. Stage A does not claim a one-to-one mapping from source `Text` calls to trace slices.
+
+### 3. Exact publication/materialization sequence
+
+```text
+Story route requested
+-> one keyed StoryDetailSession activated and pinned
+-> initial Story UI state published: summary=null, detail=null, route cover key only
+-> route becomes active
+-> Room/runtime coherent Story projection received
+-> HikariV2:story-projection-received
+-> HikariV2:story-detail-content-ready when rich detail is present (data-ready only)
+-> StoryDetailViewModel publishes one broad summary+detail StoryDetailUiState
+-> HikariV2:story-ui-published
+-> CatalogSessionContent root collector invalidates the Story destination path
+-> Story Hero item participates / HikariV2:story-hero-materialization
+-> detail-gated body plus action/tab/recommendation shells participate /
+   HikariV2:story-body-materialization
+-> Compose measure/layout tail (retained trace evidence; no new device run in Stage A)
+```
+
+### 4. Stage B recommendation
+
+If Stage B is explicitly authorized, keep Room/runtime unchanged and make one tightly bounded
+presentation ownership correction in this order: narrow Hero input to the identity/artwork subset;
+establish one artwork presentation owner while preserving route-cover continuity; move the static
+action/tab/recommendation blueprint shell out of rich-detail readiness; project rich detail into a
+bounded body/facts input. Do not add a stream, query, cache, retained DTO, preview, delay, yield,
+frame shift, route-order change, or reduced blueprint. Rerun only focused owning tests and then the
+single `openStoryMemoryHit` journey after an accepted Stage B correction.
+
+### 5. Stage A evidence and self-review
+
+- RED: the focused runtime/feature test command failed on the missing four trace boundaries and
+  missing ViewModel publication callback, as intended.
+- GREEN: `:catalog:runtime:testDebugUnitTest :feature:catalog:testDebugUnitTest` filtered to
+  `CatalogTraceTest`, `StoryDetailSessionTest`, `CatalogUiTraceTest`, and
+  `StoryDetailViewModelTest`: PASS (`BUILD SUCCESSFUL in 28s`, 55 actionable tasks).
+- Compile/contract gate: `:feature:catalog:compileDebugAndroidTestKotlin
+  :app:testDebugUnitTest --tests '*StartupTraceContractTest' :benchmark:assemble`: PASS
+  (`BUILD SUCCESSFUL in 54s`, 174 actionable tasks).
+- User-owned connected characterization on Redmi Note 9S / API 35:
+  `:feature:catalog:connectedDebugAndroidTest` filtered to
+  `StoryDetailScreenInstrumentedTest#richDetailCurrentlyUnlocksBodyAndUnrelatedBlueprintShellsTogether`:
+  PASS (`1 test`, `BUILD SUCCESSFUL in 43s`, 114 actionable tasks). This closes the Stage A device
+  characterization gate without running another Task 16 journey.
+- Final-tree verification split the filtered JVM tests from non-test tasks so Gradle applies
+  `--tests` only to test tasks: focused runtime/feature/app tests PASS (`BUILD SUCCESSFUL in 52s`,
+  112 actionable tasks), then Android-test compile plus benchmark assemble PASS
+  (`BUILD SUCCESSFUL in 34s`, 113 actionable tasks).
+- No owner/stream/query/schema/DAO was added; no production state shape, route timing, scheduling,
+  UI presence, benchmark threshold, or benchmark workload changed. The Full diagnostic-only
+  benchmark code was removed while its artifacts/checksum/docs were retained.
+- The Task 14/15 blueprint remains intact. No V1 multi-stream/dual-truth mechanism, benchmark
+  gaming, or Stage B refactor was introduced. `StoryHero` and `StoryMetadataSections` production
+  inputs remain unchanged; trace `SideEffect`s sit at their existing screen item boundaries.
+
+## Task 16 R2.10 Stage B1 Delta
+
+Stage B1 is **COMPLETE / B1-B — ARCHITECTURAL IMPROVEMENT, PERFORMANCE NEUTRAL**. Story-open
+remains frame-red, so no later Stage B correction is authorized in this turn.
+
+### 1. Ownership correction
+
+- Added one small immutable `StoryHeroUi` projection containing only Hero-owned identity fields
+  (`title`, media type, rating, publication/status summary, latest-update label) plus the artwork
+  locator/key required for route-cover continuity. `StoryDetailUiState.toHeroUi()` derives this
+  projection without adding stored state, a Flow, collector, query, repository, cache, or owner.
+- `StoryHero` no longer accepts `StoryDetailUiState`; its production signature accepts only
+  `StoryHeroUi`, layout spacing, modifier, and the existing lightweight materialization callback.
+  Rich detail/body, authors/artists/genres/description, detail loading, issue/retry state,
+  destination activity, tabs, recommendation state, and future capability state cannot enter the
+  Hero dependency contract.
+- The Hero materialization marker moved from the parent Lazy item into `StoryHero`, so it now marks
+  actual Hero participation rather than any parent item recomposition. Body tracing remains at the
+  existing detail item boundary.
+- Existing artwork duplication between `StorySummaryUi` and top-level `StoryDetailUiState` remains
+  intentionally unchanged; consolidating that ownership is the next separate Stage B hypothesis,
+  not part of B1. Room/runtime/session/acquisition/route timing and blueprint composition are
+  unchanged.
+
+### 2. RED -> GREEN evidence
+
+- RED: `:feature:catalog:testDebugUnitTest --tests '*StoryHeroUiTest' --no-daemon` failed at
+  `compileDebugUnitTestKotlin` only because `toHeroUi()` did not exist.
+- GREEN: the same focused command passed after the projection/signature correction (`2 tests`,
+  `BUILD SUCCESSFUL in 27s`, 50 actionable tasks).
+- Focused ViewModel/Hero unit tests plus androidTest compilation passed (`BUILD SUCCESSFUL in 34s`,
+  60 actionable tasks). The Stage A runtime/feature characterization set also passed
+  (`BUILD SUCCESSFUL in 28s`, 59 actionable tasks).
+- `StoryDetailScreenInstrumentedTest` passed all 7 tests on Redmi Note 9S/API 35. The first isolated
+  test attempt lost its Compose hierarchy only after the physical screen timed out and the host
+  Activity was destroyed; device log showed no production exception. A rerun with a temporary
+  guarded screen-timeout override passed, and the original device setting was restored.
+- `CatalogScreenshotEvidenceTest` passed on the same device and produced the existing 15-PNG
+  deterministic surface matrix. The Story blueprint/geometry/semantics remained intact.
+- Focused `Step2BuildSurfaceVerifierTest` and `ProductionPackageStructureVerifierTest` passed.
+  `git diff --check` passed.
+- Final-tree rerun after checkpoint reconciliation: focused `StoryHeroUiTest`,
+  `StoryDetailViewModelTest`, `CatalogUiTraceTest`, and Android-test compilation passed with
+  `--rerun-tasks` (`BUILD SUCCESSFUL in 1m 41s`, 60 actionable tasks). The two focused architecture
+  verifiers also passed with `--rerun-tasks` (`BUILD SUCCESSFUL in 28s`, 3 actionable tasks), and
+  `git diff --check` remained clean.
+
+### 3. `openStoryMemoryHit` result
+
+The only rerun journey was the normal frozen acceptance path:
+
+```text
+CompilationMode.Partial(
+    baselineProfileMode = BaselineProfileMode.Require
+)
+5 iterations, unchanged memory-hit fixture and hard counters
+Redmi Note 9S / API 35
+BUILD SUCCESSFUL in 3m 7s
+```
+
+Median-of-five per-iteration P95 values:
+
+| Metric | B1 runs (ms) | B1 median | Frozen baseline | Delta |
+|---|---|---:|---:|---:|
+| CPU P95 | `41.626, 41.782, 52.289, 36.114, 60.039` | `41.782 ms` | `40.166 ms` | `+1.616 ms` / `+4.02%` |
+| Overrun P95 | `33.808, 31.537, 44.659, 37.577, 55.564` | `37.577 ms` | `41.294 ms` | `-3.717 ms` / `-9.00%` |
+
+- Both medians remain above the frozen `33.33 ms` review trigger. Neither metric deteriorated by
+  more than the separate 10% material-regression rule, so this is B1-B rather than B1-C.
+- Story data-ready median was `57.276 ms`, approximately unchanged from the retained `57.776 ms`
+  baseline. B1 does not claim broad Hero state was the complete physical root.
+- Perfetto SQL inspection found the expected order in all five iterations:
+  `story-projection-received -> story-ui-published -> story-hero-materialization ->
+  story-body-materialization`.
+- Raw JSON, five Perfetto traces, benchmark message, and Gradle log are retained at
+  `benchmark/build/task16-retained/2026-09-12/openStoryMemoryHit-stage-b1-hero-boundary/`.
+  The benchmark JSON SHA-256 is
+  `7291fce5b5e9292d21f8adbcb4e7fab6557177a18c97af44099e383daf23a3b20`.
+
+### 4. B1 self-review and next hypothesis
+
+- No second truth, observer, Flow, collector, query, repository, coroutine owner, retained DTO,
+  presentation map, preview, delay/yield/frame deferral, route-order change, or benchmark branch
+  was added.
+- `StoryHeroUi` is a value projection of the existing publication, not a stored wrapper around the
+  broad state. Tests prove destination-wide detail/loading/issue/activity changes leave it equal,
+  while Hero identity and artwork changes alter it.
+- Route-cover continuity and the existing duplicate artwork representation are unchanged. The
+  latter remains explicit debt rather than being silently folded into B1.
+- Body/actions/tabs/recommendation gating and every Task 14/15 visual shell remain unchanged; no
+  work was removed, deferred, or shifted outside the measured window.
+- Tests were strengthened from the Stage A characterization: rich-detail publication still admits
+  the body and blueprint shell, but no longer rematerializes Hero when Hero-owned input is equal.
+- Next single evidence-driven correction, if explicitly authorized, is Stage B2: establish one
+  artwork presentation owner and remove the duplicate cover fallback/authority while preserving
+  the route cover key and first persisted locator transition. Do not begin shell/detail decoupling,
+  body/facts slicing, preview, or layout tuning in the same correction.
+
 ## Exact Resume Boundary
 
-Task 15 is `COMPLETED/ACCEPTED`. Task 16 is `IN PROGRESS` at Step 8. The corrected
-`multiSectionDiscoverScroll` frozen gate is green, while `openStoryMemoryHit` passes its hard
-transport/decode/query assertions but remains above the CPU P95 trigger after three rejected
-corrections; the latest one-frame metadata diagnostic passed overrun P95 but returned CPU P95
-`39.047 ms > 33.33 ms`. Resume by reviewing Story summary/detail publication and layout partition
-as an architectural performance decision, using the retained baseline and three diagnostic runs;
-write a new RED characterization before any fourth production correction, then rerun only
-`openStoryMemoryHit` on the unlocked Redmi Note 9S. Do not run later journeys until this gate is
-green or explicitly reviewed. Do not start Task 17 until all Task 16 device/profile evidence is
-reviewed and accepted.
+### Final-profile Story-open confirmation - 2026-09-13
+
+- The Stage B2 artwork-owner correction is present in the working tree: `StoryArtworkUi` is the
+  single route/persisted artwork presentation value, `StorySummaryUi` no longer duplicates the
+  cover key/locator, and Hero still consumes the bounded immutable projection introduced by B1.
+  This does not add a Flow, query, repository, cache, retained DTO, or runtime owner.
+- The user-reported final fixture regeneration produced `20,874` rules and differed by only nine
+  rules from the immediately preceding regeneration (`99.96%` retained). The checked-in generated
+  Baseline and Startup Profile files are byte-identical at `20,874` rules with SHA-256
+  `797b58730c732777698f3aba24dc6ea11302cd8bfa4b17e75c351568f4ac54eb`. The source/runtime base
+  commit is `1cdbee50c708e1407b8c2b9a8aa148d1a44c4f98` plus the uncommitted Task 16 delta.
+- Per the explicit resume boundary, only the normal `openStoryMemoryHit` journey was rerun on the
+  connected Redmi Note 9S / API 35 under
+  `CompilationMode.Partial(BaselineProfileMode.Require)`. The command completed one test and five
+  measured iterations with `BUILD SUCCESSFUL in 2m 11s`.
+- All frozen journey assertions passed: transport reads remained zero, successful decode count did
+  not increase, and Story observation queries remained within `1..4`. Story content-ready runs
+  were `20.588`, `30.518`, `34.198`, `31.124`, and `29.324 ms`; median `30.518 ms`.
+- The final-profile frame gate remains red. Per-iteration CPU P95 was `47.175`, `47.742`, `49.406`,
+  `37.434`, and `39.585 ms`; median `47.175 ms > 33.33 ms`. Per-iteration overrun P95 was `36.551`,
+  `41.649`, `53.266`, `40.432`, and `31.999 ms`; median `40.432 ms > 33.33 ms`.
+- Versus the first correctness-green frozen baseline `40.166 / 41.294 ms`, CPU P95 deteriorated by
+  `+7.009 ms / +17.45%`, crossing the separate `>10%` review rule; overrun P95 improved by
+  `-0.862 ms / -2.09%`. Profile regeneration therefore does not close or explain away the
+  Story-open frame failure.
+- Fresh raw evidence is retained under
+  `benchmark/build/task16-retained/2026-09-13/openStoryMemoryHit-final-profile-confirmation/`.
+  Benchmark JSON SHA-256 is
+  `724cee9919a54d20145a4d26fdb6080d878590d9d023edd8ebbf5d83692082e5`; the directory contains the
+  five Perfetto traces, benchmark message, and Gradle log.
+- No other journey was rerun: the fixture repair/profile regeneration did not change their
+  production, layout, query, or image shape, and the direct user boundary requested this single
+  final-profile Story-open authority run.
+
+### Accepted Story Detail performance debt
+
+- On 2026-09-13 the user explicitly accepted the remaining Story Detail frame tail as deferred
+  performance debt so Task 16 can proceed without weakening or relabeling the frozen thresholds.
+  The debt covers the final-profile Story transitions whose hard correctness/resource gates pass
+  but whose frame review triggers remain red:
+  - `openStoryMemoryHit`: CPU P95 `47.175 ms`, overrun P95 `40.432 ms`;
+  - `openStoryDiskHit`: CPU P95 `41.906 ms`, overrun P95 `41.678 ms`;
+  - `storyBackToDiscover`: CPU P95 `66.212 ms`, overrun P95 `59.902 ms`.
+- This is an explicit deferral, not a performance PASS, threshold change, baseline reset, benchmark
+  waiver, or permission to weaken the Story blueprint. Future performance hardening resumes from
+  the retained final-profile traces and must preserve the accepted Room/runtime/session, query,
+  transport/decode, cache, route-continuity, and Task 14/15 UI contracts.
+- Final agent-owned Task 16 checks remain green on the accepted tree: runtime/feature unit tests
+  plus benchmark assemble passed (`BUILD SUCCESSFUL in 46s`, 125 actionable tasks); the focused
+  Step 2 build-surface test, startup trace contract, and Catalog androidTest compilation passed
+  (`BUILD SUCCESSFUL in 33s`, 111 actionable tasks).
+
+### Accepted startup performance debt and Task 16 closure
+
+- On 2026-09-13 the user explicitly accepted the remaining startup review-trigger deviations as
+  deferred performance debt: fresh TTID median `507.138 ms > 433.632 ms` and returning TTID median
+  `467.346 ms > 453.803 ms`. Against the Step 1 reference medians, these are respectively
+  `+28.65%` and `+13.28%`.
+- The startup runs used the immediately preceding generated profile. The fixture-fixed final
+  regeneration kept `20,874` rules and differed by only nine rules (`99.96%` retained), while no
+  production/layout/query/image shape changed. The user explicitly accepts the no-rerun decision
+  as a profile-equivalence exception and deferred performance debt; this is not represented as
+  strict Step 10 ordering or a startup performance PASS.
+- Retained startup evidence remains under
+  `benchmark/build/task16-retained/2026-09-13/coldFreshInstall-final-profile/` and
+  `benchmark/build/task16-retained/2026-09-13/coldReturningDiscover-final-profile/`; benchmark JSON
+  SHA-256 values are respectively
+  `57fc7ea1e8e8531c722c98f07500c4b1455a2808c2a9334fa191bbda03735429` and
+  `66ca39c2d11c94c066e01ca78c1953a2bfb71605a25be31df9a1e9fcdd7764d0`.
+- All Task 16 correctness, query/work, transport/decode, cache/resource, terminal ownership,
+  profile-generation, and focused compile/test gates are accepted. The remaining Story Detail and
+  startup threshold deviations are documented debt rather than hidden PASS results.
+
+Task 16 is `COMPLETED/ACCEPTED WITH RECORDED PERFORMANCE DEBT`. Task 17 is `READY TO START` in a
+new turn; Task 18 remains `NOT RUN`. Exact next boundary: start only Task 17 from its owning-plan
+section and this checkpoint. Do not reopen Task 16 performance work unless explicitly authorized
+as a separate follow-up or required by a later production/layout/query/image-shape change.

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableStateOf
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.SourceStoryIdV1
 import app.openstory.catalog.domain.identity.SourceStoryKey
@@ -141,6 +142,54 @@ class StoryDetailScreenInstrumentedTest {
         }
     }
 
+    @Test
+    fun richDetailUnlocksBodyAndBlueprintShellsWithoutRematerializingHero() {
+        val current = mutableStateOf(state(detailLoading = true, issue = null))
+        val materialization = mutableListOf<String>()
+        val onHeroMaterialized = { materialization += "hero" }
+        val onBodyMaterialized = { materialization += "body" }
+        composeRule.setContent {
+            HikariTheme(darkTheme = false) {
+                StoryDetailScreen(
+                    state = current.value,
+                    onBack = {},
+                    onRetry = {},
+                    onHeroMaterialized = onHeroMaterialized,
+                    onBodyMaterialized = onBodyMaterialized,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Read from Chapter 1").assertDoesNotExist()
+        composeRule.onNodeWithText("Synopsis").assertDoesNotExist()
+        composeRule.onNodeWithText("You May Also Like").assertDoesNotExist()
+        var heroCountBeforeDetail = 0
+        composeRule.runOnIdle {
+            heroCountBeforeDetail = materialization.count { it == "hero" }
+            current.value = current.value.copy(
+                detail = StoryDetailUi(
+                    description = "A bounded description",
+                    authors = listOf("Author One"),
+                    artists = listOf("Artist One"),
+                    genres = listOf("Drama"),
+                    publicationStatus = "Ongoing",
+                    language = "English",
+                ),
+                detailLoading = false,
+            )
+        }
+
+        composeRule.onNodeWithTag(StoryTestTags.ROOT)
+            .performScrollToNode(hasText("Read from Chapter 1"))
+        composeRule.onNodeWithText("Read from Chapter 1").assertIsDisplayed()
+        composeRule.onNodeWithText("Synopsis").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("You May Also Like").performScrollTo().assertIsDisplayed()
+        composeRule.runOnIdle {
+            assertEquals(heroCountBeforeDetail, materialization.count { it == "hero" })
+            assertEquals(1, materialization.count { it == "body" })
+        }
+    }
+
     private fun setContent(
         state: StoryDetailUiState,
         onRetry: () -> Unit = {},
@@ -167,7 +216,6 @@ class StoryDetailScreenInstrumentedTest {
             summary = StorySummaryUi(
                 title = "Story 17",
                 contentType = CatalogMediaType.MANGA,
-                coverAssetKey = null,
                 ratingLabel = "8.5 / 10",
                 publicationStatus = "Ongoing",
                 latestUpdateLabel = "Updated Sep 11, 2026",

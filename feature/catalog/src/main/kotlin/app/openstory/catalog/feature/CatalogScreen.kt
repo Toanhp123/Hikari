@@ -24,6 +24,8 @@ internal fun CatalogScreen(
     storyState: StoryDetailUiState?,
     actions: CatalogScreenActions,
     onDiscoverCoverReady: () -> Unit = {},
+    onStoryHeroMaterialized: () -> Unit = {},
+    onStoryBodyMaterialized: () -> Unit = {},
 ) {
     when (route) {
         CatalogRoute.Discover -> discoverState?.let { state ->
@@ -40,7 +42,13 @@ internal fun CatalogScreen(
         is CatalogRoute.Story -> {
             BackHandler(onBack = actions.onBack)
             if (storyState?.destinationActive == true && storyState.ref == route.ref) {
-                StoryDetailScreen(storyState, actions.onBack, actions.onStoryRetry)
+                StoryDetailScreen(
+                    state = storyState,
+                    onBack = actions.onBack,
+                    onRetry = actions.onStoryRetry,
+                    onHeroMaterialized = onStoryHeroMaterialized,
+                    onBodyMaterialized = onStoryBodyMaterialized,
+                )
             } else {
                 CatalogRouteLoading()
             }

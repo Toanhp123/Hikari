@@ -92,7 +92,7 @@ private fun CatalogSessionContent(
     val navigation = remember(discoverListState, routeState) {
         CatalogNavigationState(discoverListState, routeState)
     }
-    val storyViewModel = rememberStoryDetailViewModel(runtimeHolder)
+    val storyViewModel = rememberStoryDetailViewModel(runtimeHolder, trace)
     val storyState by storyViewModel.state.collectAsStateWithLifecycle()
 
     val route = navigation.route
@@ -121,20 +121,28 @@ private fun CatalogSessionContent(
             storyState = storyState,
             actions = catalogScreenActions(navigation, discoverViewModel, storyViewModel),
             onDiscoverCoverReady = trace::discoverCoverReady,
+            onStoryHeroMaterialized = trace::storyHeroMaterialized,
+            onStoryBodyMaterialized = trace::storyBodyMaterialized,
         )
     }
 }
 
 @Composable
-private fun rememberStoryDetailViewModel(runtimeHolder: CatalogRuntimeHolder): StoryDetailViewModel {
-    val storyFactory = remember(runtimeHolder) {
-        StoryDetailViewModel.factory {
-            CatalogStoryDetailRuntime(
-                activateCatalog = runtimeHolder.runtime::activate,
-                onCollectorStarted = VariantCatalogBinding.diagnostics::storyCollectorStarted,
-                onCollectorStopped = VariantCatalogBinding.diagnostics::storyCollectorStopped,
-            )
-        }
+private fun rememberStoryDetailViewModel(
+    runtimeHolder: CatalogRuntimeHolder,
+    trace: CatalogUiTrace,
+): StoryDetailViewModel {
+    val storyFactory = remember(runtimeHolder, trace) {
+        StoryDetailViewModel.factory(
+            createRuntime = {
+                CatalogStoryDetailRuntime(
+                    activateCatalog = runtimeHolder.runtime::activate,
+                    onCollectorStarted = VariantCatalogBinding.diagnostics::storyCollectorStarted,
+                    onCollectorStopped = VariantCatalogBinding.diagnostics::storyCollectorStopped,
+                )
+            },
+            onUiPublished = trace::storyUiPublished,
+        )
     }
     return viewModel(factory = storyFactory)
 }

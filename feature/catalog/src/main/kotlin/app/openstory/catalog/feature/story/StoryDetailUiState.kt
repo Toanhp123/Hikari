@@ -1,5 +1,6 @@
 package app.openstory.catalog.feature.story
 
+import androidx.compose.runtime.Immutable
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.identity.StorySourceRef
@@ -13,18 +14,40 @@ internal data class StoryDetailUiState(
     val detailLoading: Boolean,
     val issue: CatalogIssueUi?,
     val destinationActive: Boolean,
-    val coverLocator: CoverLocator? = summary?.coverLocator,
-    val coverAssetKey: CoverAssetKey? = summary?.coverAssetKey,
+    val artwork: StoryArtworkUi = StoryArtworkUi(assetKey = null, locator = null),
+)
+
+@Immutable
+internal data class StoryArtworkUi(
+    val assetKey: CoverAssetKey?,
+    val locator: CoverLocator?,
+)
+
+@Immutable
+internal data class StoryHeroUi(
+    val title: String?,
+    val contentType: CatalogMediaType?,
+    val ratingLabel: String?,
+    val publicationStatus: String?,
+    val latestUpdateLabel: String?,
+    val artwork: StoryArtworkUi,
+)
+
+internal fun StoryDetailUiState.toHeroUi(): StoryHeroUi = StoryHeroUi(
+    title = summary?.title,
+    contentType = summary?.contentType,
+    ratingLabel = summary?.ratingLabel,
+    publicationStatus = summary?.publicationStatus,
+    latestUpdateLabel = summary?.latestUpdateLabel,
+    artwork = artwork,
 )
 
 internal data class StorySummaryUi(
     val title: String,
     val contentType: CatalogMediaType,
-    val coverAssetKey: CoverAssetKey?,
     val ratingLabel: String?,
     val publicationStatus: String?,
     val latestUpdateLabel: String?,
-    val coverLocator: CoverLocator? = null,
 )
 
 internal data class StoryDetailUi(

@@ -10,6 +10,11 @@ androidComponents {
     beforeVariants(selector().withBuildType("benchmarkRelease")) { variantBuilder ->
         variantBuilder.hostTests["UnitTest"]?.enable = true
     }
+    finalizeDsl { extension ->
+        listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
+            extension.sourceSets.getByName(sourceSetName).kotlin.directories.add("src/benchmarkRelease/kotlin")
+        }
+    }
 }
 
 dependencies {

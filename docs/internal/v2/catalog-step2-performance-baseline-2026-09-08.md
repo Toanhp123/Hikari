@@ -1,17 +1,17 @@
 # Catalog Step 2 Performance Baseline
 
-Date: 2026-09-12
+Date: 2026-09-13
 Task: 16
-Status: **READY FOR USER VERIFICATION**
+Status: **TASK 16 COMPLETED/ACCEPTED WITH RECORDED PERFORMANCE DEBT**
 Source/runtime base SHA before the uncommitted Task 16 delta: `0448157966b8fec15bec28f44b36ae57093a101e`
 
 ## Scope
 
 This record owns the deterministic Task 16 benchmark/profile evidence for the accepted Step 2
-Discover and Story Detail surface. The first preliminary device measurement has returned, but the
-full device matrix and regenerated profile are not accepted yet. The checked-in generated
-Baseline/Startup Profile files predate the current uncommitted Task 16 code and must not be used
-for the final comparison.
+Discover and Story Detail surface. The final profile has now been regenerated from the repaired
+fixture. Story Detail hard correctness/resource counters pass, while its remaining frame tails and
+the final startup review-trigger deviations are accepted as explicit deferred performance debt.
+Task 16 is closed without relabeling those measurements as performance PASS.
 
 ## Frozen Journeys
 
@@ -303,12 +303,127 @@ Step 2 baseline and is not numerically compared to those values.
   create a new RED characterization before any further production change. Later journeys remain
   paused.
 
-## Required User Evidence
+### `openStoryMemoryHit` R2.10 compilation isolation - 2026-09-12, COMPLETE / CLOSED
 
-Use one explicit serial and run one journey at a time. Keep the device awake and physically
-unlocked before invoking the command; a secure PIN keyguard cannot be dismissed by the benchmark
-harness. Prefer Redmi Note 9S/API 35; otherwise record the device/model/API as a new local baseline.
-Retain raw benchmark JSON and Perfetto paths.
+```text
+Stage 0 - COMPLETE / CLOSED
+Hypothesis: stale/underrepresentative profile materially explains Story-open tail
+Result: REJECTED as material root contributor for the next correction
+Next: Stage A root characterization
+Stage B production correction remains BLOCKED
+```
+
+- A dedicated diagnostic reused the unchanged memory-hit fixture, hard counters, Story trace,
+  blueprint UI, and five iterations under `CompilationMode.Full`; the normal acceptance journey
+  remains `CompilationMode.Partial(BaselineProfileMode.Require)`.
+- Command result: PASS (`BUILD SUCCESSFUL in 2m 37s`, 1 test, 5 measured iterations) on Redmi Note
+  9S/API 35. Transport/decode/query assertions remained green.
+- Median-of-five per-iteration CPU P95 is `47.354 ms`; runs are `75.764`, `45.430`, `47.354`,
+  `60.472`, and `36.844 ms`. Median overrun P95 is `47.799 ms`; runs are `65.186`, `52.687`,
+  `47.799`, `47.677`, and `31.619 ms`.
+- Full compilation therefore remains above the `33.33 ms` frame trigger and does not lower the
+  failed frame tail: CPU P95 is `+7.188 ms` and overrun P95 is `+6.505 ms` versus the retained
+  Partial+Require baseline `40.166 / 41.294 ms`. The checked-in profile omission is not supported
+  as a material explanation for the Story-open frame failure.
+- Story content-ready median improved from `57.776 ms` to `36.675 ms` (`-21.100 ms`), so compilation
+  can affect runtime/data-ready latency without solving Compose materialization/frame cost. This is
+  not final shipping evidence and does not make the Full-compilation run an acceptance pass.
+- Retained raw evidence:
+  `benchmark/build/task16-retained/2026-09-12/openStoryMemoryHit-full-compilation/`. JSON SHA-256 is
+  `1d20d6985b629a6d96e21b8b721724f83bea52870ca17c9259786911b95d0395`; the directory also contains
+  five Perfetto traces, benchmark message, and Gradle log.
+- Full compilation is not identified as the cause of a regression; the diagnostic only rejects
+  stale/underrepresentative profile state as a material explanation for the next correction.
+- The diagnostic-only Full benchmark entrypoint/configuration was removed after evidence closure.
+  The normal `openStoryMemoryHit` benchmark remains
+  `CompilationMode.Partial(BaselineProfileMode.Require)`.
+- Stage A subsequently completed characterization/tracing without another device run.
+  Presentation/composition topology remains the dominant unresolved frame root; Stage B
+  production correction remains blocked at the checkpoint resume boundary.
+
+### Final profile regeneration and `openStoryMemoryHit` confirmation - 2026-09-13
+
+- The user-reported fixture-fixed regeneration produced `20,874` rules, only nine rules different
+  from the immediately preceding regeneration (`99.96%` retained). The generated Baseline and
+  Startup Profile files are byte-identical, each with `20,874` rules and SHA-256
+  `797b58730c732777698f3aba24dc6ea11302cd8bfa4b17e75c351568f4ac54eb`.
+- Source/runtime base SHA is `1cdbee50c708e1407b8c2b9a8aa148d1a44c4f98` plus the uncommitted
+  Task 16 working-tree delta.
+- Per the explicit resume boundary, the only repeated journey was `openStoryMemoryHit` on Redmi
+  Note 9S / API 35 under `CompilationMode.Partial(BaselineProfileMode.Require)`: PASS at the
+  instrumentation/correctness level (`BUILD SUCCESSFUL in 2m 11s`, 1 test, 5 measured iterations).
+  Transport remained zero, successful decode count did not increase, and Story query count stayed
+  within `1..4`.
+- Story content-ready runs were `20.588`, `30.518`, `34.198`, `31.124`, and `29.324 ms`; median
+  `30.518 ms`.
+- Per-iteration CPU P95 was `47.175`, `47.742`, `49.406`, `37.434`, and `39.585 ms`; authoritative
+  median `47.175 ms`. Per-iteration overrun P95 was `36.551`, `41.649`, `53.266`, `40.432`, and
+  `31.999 ms`; authoritative median `40.432 ms`.
+- Both frame medians exceed the frozen `33.33 ms` trigger. Against the first correctness-green
+  baseline `40.166 / 41.294 ms`, CPU P95 is `+17.45%` and crosses the separate `>10%` regression
+  rule; overrun P95 is `-2.09%`. The regenerated profile therefore does not make Story-open an
+  accepted performance result.
+- Fresh retained evidence:
+  `benchmark/build/task16-retained/2026-09-13/openStoryMemoryHit-final-profile-confirmation/`.
+  Benchmark JSON SHA-256 is
+  `724cee9919a54d20145a4d26fdb6080d878590d9d023edd8ebbf5d83692082e5`; five Perfetto traces,
+  benchmark message, and Gradle log are retained beside it.
+- No other journey was rerun because the fixture repair/profile regeneration did not change their
+  production, layout, query, or image shape and the user explicitly limited this confirmation to
+  Story memory-hit.
+
+## Accepted Story Detail Performance Debt
+
+The 2026-09-13 user disposition accepts the following final-profile frame review-trigger failures
+as deferred debt while preserving the original thresholds and raw evidence:
+
+| Journey | CPU P95 median | Overrun P95 median | Disposition |
+|---|---:|---:|---|
+| `openStoryMemoryHit` | `47.175 ms` | `40.432 ms` | Correctness/query/transport/decode green; frame debt accepted |
+| `openStoryDiskHit` | `41.906 ms` | `41.678 ms` | Correctness/disk-hit/transport/decode green; frame debt accepted |
+| `storyBackToDiscover` | `66.212 ms` | `59.902 ms` | Navigation correctness green; frame debt accepted |
+
+This disposition is not a performance PASS, threshold relaxation, baseline replacement, or
+benchmark waiver. Follow-up performance work must start from the retained final-profile traces and
+preserve the complete Story blueprint plus existing ownership/query/cache/image contracts.
+
+Final agent-owned closure checks after the debt disposition:
+
+- `:catalog:runtime:testDebugUnitTest :feature:catalog:testDebugUnitTest :benchmark:assemble
+  --no-daemon`: PASS (`BUILD SUCCESSFUL in 46s`, 125 actionable tasks).
+- Focused `Step2BuildSurfaceVerifierTest`, `StartupTraceContractTest`, and
+  `:feature:catalog:compileDebugAndroidTestKotlin`: PASS (`BUILD SUCCESSFUL in 33s`, 111 actionable
+  tasks).
+
+## Accepted Startup Performance Debt
+
+The 2026-09-13 user disposition also accepts the two remaining startup review-trigger deviations
+as deferred debt:
+
+| Journey | TTID median | Frozen review trigger | Step 1 delta | Disposition |
+|---|---:|---:|---:|---|
+| `coldFreshInstall` | `507.138 ms` | `433.632 ms` | `+28.65%` | Startup debt accepted |
+| `coldReturningDiscover` | `467.346 ms` | `453.803 ms` | `+13.28%` | Startup debt accepted |
+
+These runs used the immediately preceding generated profile. The fixture-fixed final regeneration
+kept `20,874` rules with only nine rule differences (`99.96%` retained), and no
+production/layout/query/image shape changed. The user explicitly accepts not repeating the startup
+journeys as a profile-equivalence exception and performance debt. This is not a claim that strict
+Step 10 post-regeneration ordering passed, nor is it a startup performance PASS.
+
+Retained evidence:
+
+- `benchmark/build/task16-retained/2026-09-13/coldFreshInstall-final-profile/`; JSON SHA-256
+  `57fc7ea1e8e8531c722f98f07500c4b1455a2808c2a9334fa191bbda03735429`.
+- `benchmark/build/task16-retained/2026-09-13/coldReturningDiscover-final-profile/`; JSON SHA-256
+  `66ca39c2d11c94c066e01ca78c1953a2bfb71605a25be31df9a1e9fcdd7764d0`.
+
+## Completed User-Owned Evidence
+
+The final Redmi Note 9S/API 35 matrix was run one journey at a time with five measured iterations;
+raw benchmark JSON, Perfetto traces, benchmark messages, and Gradle logs are retained under
+`benchmark/build/task16-retained/2026-09-13/`. The commands below remain the reproduction recipe,
+not outstanding gates.
 
 ```powershell
 $env:ANDROID_SERIAL = '<serial>'
@@ -324,26 +439,20 @@ $env:ANDROID_SERIAL = '<serial>'
 Remove-Item Env:ANDROID_SERIAL
 ```
 
-After the journeys are correctness-green and the code/layout/query shape is frozen, regenerate the
-profiles from the final returning Discover -> Story -> Back journey:
+The profiles were regenerated from the final returning Discover -> Story -> Back journey:
 
 ```powershell
 .\gradlew.bat :app:generateBaselineProfile --no-daemon
 Get-FileHash -Algorithm SHA256 app/src/release/generated/baselineProfiles/baseline-prof.txt,app/src/release/generated/baselineProfiles/startup-prof.txt
 ```
 
-Record the final source/runtime SHA, both profile hashes, five-iteration results, raw artifact
-paths, trace values, equivalent AndroidX metric-name mapping if applicable, frozen-trigger review,
-transport/decode/query/work counters, and terminal ownership evidence here before Task 16 can be
-accepted.
+The final source/runtime base SHA, profile hashes, five-iteration artifacts, trigger review, hard
+counters, terminal ownership evidence, and explicit debt disposition are recorded above. No Task
+16 user-owned gate remains open.
 
 ## Resume Boundary
 
-Resume Task 16 at Step 8 by diagnosing and optimizing the failed `openStoryMemoryHit` frame gate
-from its retained traces. Make one evidence-backed bounded correction, run the focused owning
-checks, and rerun only `openStoryMemoryHit` on the same unlocked Redmi Note 9S. Retain the
-replacement JSON/Perfetto files before invoking another connected task. Do not run
-`openStoryDiskHit` or later journeys until the memory-hit Story-open gate is green or its frozen-gate
-review has an explicitly accepted explanation. Re-run/finally compare `coldFreshInstall` only after
-final shape is stable and the Task 16 profile is regenerated; do not start Task 17 until all Task
-16 device/profile evidence is reviewed and accepted.
+Task 16 is `COMPLETED/ACCEPTED WITH RECORDED PERFORMANCE DEBT`. Story Detail frame and startup TTID
+review-trigger deviations remain explicit debt, not PASS results. Resume from Task 17 in a new turn;
+do not reopen Task 16 performance work unless separately authorized or required by a later
+production/layout/query/image-shape change.

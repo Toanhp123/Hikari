@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,10 +33,12 @@ import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 internal fun StoryHero(
-    state: StoryDetailUiState,
+    hero: StoryHeroUi,
     identityGap: Dp,
     modifier: Modifier = Modifier,
+    onMaterialized: () -> Unit = {},
 ) {
+    SideEffect(onMaterialized)
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(identityGap),
@@ -47,9 +50,9 @@ internal fun StoryHero(
                 .clip(MaterialTheme.shapes.large),
         ) {
             CoverArtwork(
-                title = state.summary?.title.orEmpty(),
-                locator = state.coverLocator,
-                assetKey = state.coverAssetKey,
+                title = hero.title.orEmpty(),
+                locator = hero.artwork.locator,
+                assetKey = hero.artwork.assetKey,
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag("story-hero-cover"),
@@ -69,29 +72,29 @@ internal fun StoryHero(
                     ),
             )
         }
-        if (state.summary == null) {
+        if (hero.title == null || hero.contentType == null) {
             StoryIdentitySkeleton(Modifier.fillMaxWidth())
         } else {
-            StoryIdentity(summary = state.summary, modifier = Modifier.fillMaxWidth())
+            StoryIdentity(hero = hero, modifier = Modifier.fillMaxWidth())
         }
     }
 }
 
 @Composable
-private fun StoryIdentity(summary: StorySummaryUi, modifier: Modifier = Modifier) {
+private fun StoryIdentity(hero: StoryHeroUi, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         Text(
-            text = summary.title,
+            text = requireNotNull(hero.title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
         )
-        StoryIdentityTags(summary)
-        summary.latestUpdateLabel?.let { update ->
+        StoryIdentityTags(hero)
+        hero.latestUpdateLabel?.let { update ->
             Text(
                 text = update,
                 style = MaterialTheme.typography.bodySmall,
@@ -102,12 +105,12 @@ private fun StoryIdentity(summary: StorySummaryUi, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun StoryIdentityTags(summary: StorySummaryUi) {
+private fun StoryIdentityTags(hero: StoryHeroUi) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        summary.ratingLabel?.let { rating ->
+        hero.ratingLabel?.let { rating ->
             Text(
                 text = "★ $rating",
                 style = MaterialTheme.typography.titleMedium,
@@ -121,7 +124,7 @@ private fun StoryIdentityTags(summary: StorySummaryUi) {
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ) {
             Text(
-                text = summary.contentType.productEyebrowLabel,
+                text = requireNotNull(hero.contentType).productEyebrowLabel,
                 modifier = Modifier.padding(
                     horizontal = MaterialTheme.hikariSpacing.space12,
                     vertical = MaterialTheme.hikariSpacing.space4,
@@ -130,7 +133,7 @@ private fun StoryIdentityTags(summary: StorySummaryUi) {
                 fontWeight = FontWeight.Bold,
             )
         }
-        summary.publicationStatus?.let { status ->
+        hero.publicationStatus?.let { status ->
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.secondaryContainer,

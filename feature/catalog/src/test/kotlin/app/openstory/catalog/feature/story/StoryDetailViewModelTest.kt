@@ -23,12 +23,16 @@ import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -67,8 +71,8 @@ class StoryDetailViewModelTest {
 
         assertEquals(listOf("pin-active", "route-visible"), events)
         assertTrue(viewModel.state.value?.destinationActive == true)
-        assertEquals(COVER_KEY, viewModel.state.value?.coverAssetKey)
-        assertNull(viewModel.state.value?.coverLocator)
+        assertEquals(COVER_KEY, viewModel.state.value?.artwork?.assetKey)
+        assertNull(viewModel.state.value?.artwork?.locator)
     }
 
     @Test
@@ -90,13 +94,68 @@ class StoryDetailViewModelTest {
         assertEquals("Story 17", state.summary?.title)
         assertEquals(CatalogMediaType.MANGA, state.summary?.contentType)
         assertEquals("Updated Jan 1, 1970", state.summary?.latestUpdateLabel)
-        assertEquals(COVER_LOCATOR, state.summary?.coverLocator)
-        assertEquals(COVER_KEY, state.summary?.coverAssetKey)
+        assertEquals(COVER_LOCATOR, state.artwork.locator)
+        assertEquals(COVER_KEY, state.artwork.assetKey)
         assertNull(state.detail)
         assertTrue(state.detailLoading)
         assertNull(state.issue)
         assertEquals(listOf(REF), runtime.activations)
     }
+
+    @Test
+    fun memoryHitPublishesEmptyRouteStateThenSummaryAndDetailTogether() = runTest(dispatcher.scheduler) {
+        val events = mutableListOf<String>()
+        val runtime = FakeStoryDetailRuntime()
+        val viewModel = StoryDetailViewModel(runtime, onUiPublished = { events += "ui-published" })
+        val publications = mutableListOf<StoryDetailUiState?>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.state.toList(publications)
+        }
+
+        viewModel.open(REF, COVER_KEY) { events += "route-active" }
+        advanceUntilIdle()
+
+        val initial = requireNotNull(publications.last())
+        assertNull(initial.summary)
+        assertNull(initial.detail)
+        assertEquals(COVER_KEY, initial.artwork.assetKey)
+
+        events += "projection-received"
+        runtime.emit(StoryDetailSessionState(projection(DETAIL), CatalogAcquisitionStatus.Success))
+        advanceUntilIdle()
+
+        val published = requireNotNull(publications.last())
+        assertEquals("Story 17", published.summary?.title)
+        assertEquals("Cached description", published.detail?.description)
+        assertEquals(
+            listOf("route-active", "projection-received", "ui-published"),
+            events,
+        )
+        assertEquals(listOf(null, initial, published), publications)
+    }
+
+    @Test
+    fun routeArtworkOwnerIsReplacedWholeWhenPersistedLocatorArrives() =
+        runTest(dispatcher.scheduler) {
+            val runtime = FakeStoryDetailRuntime()
+            val viewModel = StoryDetailViewModel(runtime)
+            viewModel.open(REF, COVER_KEY) {}
+            advanceUntilIdle()
+
+            assertEquals(
+                StoryArtworkUi(assetKey = COVER_KEY, locator = null),
+                requireNotNull(viewModel.state.value).artwork,
+            )
+
+            runtime.emit(StoryDetailSessionState(projection(DETAIL), CatalogAcquisitionStatus.Success))
+            advanceUntilIdle()
+
+            val state = requireNotNull(viewModel.state.value)
+            assertEquals(
+                StoryArtworkUi(assetKey = COVER_KEY, locator = COVER_LOCATOR),
+                state.artwork,
+            )
+        }
 
     @Test
     fun detailFailurePreservesCachedMetadataAndOffersInlineRetry() = runTest(dispatcher.scheduler) {
@@ -122,7 +181,7 @@ class StoryDetailViewModelTest {
 
         val failed = requireNotNull(viewModel.state.value)
         assertEquals("Cached description", failed.detail?.description)
-        assertEquals(COVER_KEY, failed.summary?.coverAssetKey)
+        assertEquals(COVER_KEY, failed.artwork.assetKey)
         assertEquals(CatalogIssueKind.ACQUISITION_FAILED, failed.issue?.kind)
         assertTrue(failed.issue?.retryable == true)
 
@@ -151,7 +210,7 @@ class StoryDetailViewModelTest {
         advanceUntilIdle()
 
         val state = requireNotNull(viewModel.state.value)
-        assertEquals(COVER_KEY, state.summary?.coverAssetKey)
+        assertEquals(COVER_KEY, state.artwork.assetKey)
         assertEquals("Cached description", state.detail?.description)
         assertEquals(CatalogIssueKind.STORAGE_FAILED, state.issue?.kind)
     }
@@ -333,5 +392,6 @@ class StoryDetailViewModelTest {
             detail = detail,
             detailProvenance = detail?.let { AcquisitionProvenance(SOURCE_KEY, "fixture-v1", 18L) },
         )
+
     }
 }

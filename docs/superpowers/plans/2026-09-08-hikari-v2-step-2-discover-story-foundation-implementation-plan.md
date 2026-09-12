@@ -3490,6 +3490,44 @@ Map every R2.8 criterion that can be proven without performance/profile/plugin e
 - Final startup comparison happens only after the Step 2 baseline/startup profile is regenerated from the final deterministic journey.
 - Macrobenchmark/profile/device execution is user-owned by default under `AGENTS.md`; Task 16 remains open while awaiting those results.
 
+**R2.10 Step 8 stage state - 2026-09-12:**
+
+```text
+Stage 0 - COMPLETE / CLOSED
+Hypothesis: stale/underrepresentative profile materially explains Story-open tail
+Result: REJECTED as material root contributor for the next correction
+Next: Stage A root characterization
+Stage B production correction remains BLOCKED
+```
+
+The retained `Partial+Require` baseline is CPU P95 `40.166 ms` and overrun P95 `41.294 ms`.
+The isolated `CompilationMode.Full` diagnostic returned CPU P95 `47.354 ms` and overrun P95
+`47.799 ms`, deltas of `+7.188 ms` and `+6.505 ms`. Raw artifacts remain under
+`benchmark/build/task16-retained/2026-09-12/openStoryMemoryHit-full-compilation/`; JSON SHA-256 is
+`1d20d6985b629a6d96e21b8b721724f83bea52870ca17c9259786911b95d0395`. Full compilation is not
+identified as a regression cause; it is evidence only that the checked-in profile omission is not
+a material explanation for the unresolved frame tail. The diagnostic-only Full entrypoint and
+configuration are removed after evidence closure; the acceptance journey remains normal
+`CompilationMode.Partial(BaselineProfileMode.Require)`.
+
+Stage A execution is limited to RED/characterization and lightweight boundary tracing. It must
+preserve one Room truth, one keyed `StoryDetailSession`, route restore as `StorySourceRef` plus
+optional `CoverAssetKey`, and the complete Task 14/15 Story blueprint. It may not implement Stage
+B, rerun later Task 16 journeys, regenerate profiles, or start Task 17 in the same turn.
+
+**R2.10 Stage A closure - 2026-09-12:** `COMPLETE / CHARACTERIZED`. Focused host tests now record
+the memory-hit sequence from initial route state to one coherent projection and one broad UI
+publication. Existing runtime tests continue to prove one keyed `StoryDetailSession` and one shared
+persistence observer. Lightweight trace markers now distinguish projection receipt, UI
+publication, Hero participation, and body participation without adding scheduling, state, stream,
+query, or work ownership. Source plus the compiled UI characterization establishes that
+`detail != null` currently admits rich body content and the action/tab/recommendation blueprint
+shells together, while `StoryHero` still consumes the destination-wide `StoryDetailUiState`.
+Artwork remains duplicated between nested summary and top-level state; the same asset key with a
+later locator changes the request model while preserving the stable cache key, but painter/request
+churn is still only a runtime candidate. Root collection in `CatalogSessionContent` remains a
+structural smell, not a measured invalidation amplifier. Stage B remains `BLOCKED`; stop here.
+
 - [ ] **Step 1: Add and contract-test Catalog traces without renaming Step 1 traces**
 
 Freeze exactly:
@@ -3607,7 +3645,12 @@ ANDROID_SERIAL=<serial> ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTes
 
 - [ ] **Step 8: Perform evidence-driven optimization only where a gate fails/regresses**
 
-Allowed corrections are exactly the R2.8-preserved optimization authority: lower card counts while retaining all three semantic sections, defer below-fold composition, reduce metadata/decode target/prefetch/concurrency/cache, improve index/projection/state width, remove redundant animation/effects. Do not move work to startup, introduce background ownership, bypass persistence/validation, or enlarge caches to mask latency.
+R2.10 supersedes the immediate correction order for the failed `openStoryMemoryHit` gate. Stage 0
+is closed with the profile hypothesis rejected as a material root contributor. Stage A is now
+complete with the characterization recorded in the owning checkpoint. Stage B production
+correction remains blocked pending explicit continuation from this boundary. Do not move work to
+startup, introduce background ownership, bypass persistence/validation, enlarge caches to mask
+latency, or use scheduling/frame displacement to move the same work outside the measured tail.
 
 After each correction, rerun the affected focused unit/connected evidence and then hand off only the affected benchmark journey. Keep an evidence table of “symptom -> root cause -> bounded change -> before/after”.
 

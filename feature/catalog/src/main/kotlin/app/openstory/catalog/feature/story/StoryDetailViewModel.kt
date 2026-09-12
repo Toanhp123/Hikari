@@ -68,6 +68,7 @@ internal class CatalogStoryDetailRuntime(
 
 internal class StoryDetailViewModel(
     private val runtime: StoryDetailRuntime,
+    private val onUiPublished: () -> Unit = {},
 ) : ViewModel() {
     private val mutableState = MutableStateFlow<StoryDetailUiState?>(null)
     val state: StateFlow<StoryDetailUiState?> = mutableState.asStateFlow()
@@ -111,8 +112,7 @@ internal class StoryDetailViewModel(
                                 detailLoading = true,
                                 issue = null,
                                 destinationActive = true,
-                                coverLocator = null,
-                                coverAssetKey = coverAssetKey,
+                                artwork = StoryArtworkUi(assetKey = coverAssetKey, locator = null),
                             )
                         }
                         onDestinationReady()
@@ -176,6 +176,7 @@ internal class StoryDetailViewModel(
 
     private fun reduce(runtimeState: StoryDetailSessionState) {
         mutableState.update { previous -> runtimeState.toUiState(previous, routeCoverAssetKey) }
+        if (runtimeState.projection != null) onUiPublished()
     }
 
     private suspend fun awaitPendingRelease() {
@@ -223,12 +224,15 @@ internal class StoryDetailViewModel(
     }
 
     companion object {
-        fun factory(createRuntime: () -> StoryDetailRuntime): ViewModelProvider.Factory =
+        fun factory(
+            createRuntime: () -> StoryDetailRuntime,
+            onUiPublished: () -> Unit = {},
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     require(modelClass.isAssignableFrom(StoryDetailViewModel::class.java))
-                    return StoryDetailViewModel(createRuntime()) as T
+                    return StoryDetailViewModel(createRuntime(), onUiPublished) as T
                 }
             }
     }
@@ -251,6 +255,11 @@ private fun StoryDetailSessionState.toUiState(
         )
     } ?: previous?.detail
     val issue = (acquisition as? CatalogAcquisitionStatus.Failed)?.failure?.toCatalogIssueUi()
+    val artwork = currentProjection?.summary?.let { currentSummary ->
+        currentSummary.coverAssetKey?.let { assetKey ->
+            StoryArtworkUi(assetKey = assetKey, locator = currentSummary.coverLocator)
+        }
+    } ?: previous?.artwork ?: StoryArtworkUi(assetKey = routeCoverAssetKey, locator = null)
     return StoryDetailUiState(
         ref = currentProjection?.ref ?: requireNotNull(previous).ref,
         summary = summary,
@@ -258,12 +267,7 @@ private fun StoryDetailSessionState.toUiState(
         detailLoading = currentProjection?.detail == null && issue == null,
         issue = issue,
         destinationActive = true,
-        coverLocator = currentProjection?.summary?.coverLocator ?: previous?.coverLocator,
-        coverAssetKey = if (currentProjection != null) {
-            currentProjection.summary.coverAssetKey ?: previous?.coverAssetKey ?: routeCoverAssetKey
-        } else {
-            previous?.coverAssetKey ?: routeCoverAssetKey
-        },
+        artwork = artwork,
     )
 }
 
@@ -271,13 +275,11 @@ private fun StoryDetailProjection.toSummaryUi(): StorySummaryUi =
     StorySummaryUi(
         title = summary.title,
         contentType = summary.contentType,
-        coverAssetKey = summary.coverAssetKey,
         ratingLabel = summary.rating?.let { rating ->
             String.format(Locale.ROOT, "%.1f / %.0f", rating.value, rating.scale)
         },
         publicationStatus = summary.publicationStatusSummary,
         latestUpdateLabel = summary.latestUpdateEpochMs?.let(::formatLatestUpdate),
-        coverLocator = summary.coverLocator,
     )
 
 private val STORY_UPDATE_DATE_FORMATTER = DateTimeFormatter

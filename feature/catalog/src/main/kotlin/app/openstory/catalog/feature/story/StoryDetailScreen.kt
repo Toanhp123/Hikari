@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -36,6 +37,8 @@ internal fun StoryDetailScreen(
     state: StoryDetailUiState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onHeroMaterialized: () -> Unit = {},
+    onBodyMaterialized: () -> Unit = {},
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         StoryDetailContent(
@@ -43,6 +46,8 @@ internal fun StoryDetailScreen(
             layout = storyLayout(maxWidth >= StoryVisualMetrics.WideLayoutThreshold),
             onBack = onBack,
             onRetry = onRetry,
+            onHeroMaterialized = onHeroMaterialized,
+            onBodyMaterialized = onBodyMaterialized,
         )
     }
 }
@@ -53,6 +58,8 @@ private fun StoryDetailContent(
     layout: StoryLayoutMetrics,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onHeroMaterialized: () -> Unit,
+    onBodyMaterialized: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -69,9 +76,10 @@ private fun StoryDetailContent(
         item(key = "story-back") { StoryTopBar(onBack) }
         item(key = "story-hero") {
             StoryHero(
-                state = state,
+                hero = state.toHeroUi(),
                 identityGap = layout.identityGap,
                 modifier = Modifier.fillMaxWidth(),
+                onMaterialized = onHeroMaterialized,
             )
         }
         state.issue?.let { issue -> item(key = "story-issue") { StoryIssue(issue.retryable, onRetry) } }
@@ -79,6 +87,7 @@ private fun StoryDetailContent(
             item(key = "story-detail-loading") { StoryMetadataSkeleton() }
         }
         state.detail?.let { detail -> item(key = "story-detail") {
+            SideEffect(onBodyMaterialized)
             StoryMetadataSections(detail = detail, modifier = Modifier.fillMaxWidth())
         } }
     }
