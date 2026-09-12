@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
 internal interface StoryDetailRuntime {
@@ -43,6 +45,8 @@ internal sealed interface StoryDetailRuntimeActivation {
 
 internal class CatalogStoryDetailRuntime(
     private val activateCatalog: suspend () -> CatalogCapabilityActivation,
+    private val onCollectorStarted: () -> Unit = {},
+    private val onCollectorStopped: () -> Unit = {},
 ) : StoryDetailRuntime {
     override suspend fun activate(ref: StorySourceRef): StoryDetailRuntimeActivation =
         when (val activation = activateCatalog()) {
@@ -51,7 +55,9 @@ internal class CatalogStoryDetailRuntime(
             is CatalogCapabilityActivation.Available -> {
                 val session = activation.storyDetailSession(ref)
                 StoryDetailRuntimeActivation.Available(
-                    states = session.activate(),
+                    states = session.activate()
+                        .onStart { onCollectorStarted() }
+                        .onCompletion { onCollectorStopped() },
                     retry = session::retry,
                     quiesce = session::quiesce,
                     release = session::release,

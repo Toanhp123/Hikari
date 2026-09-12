@@ -7,7 +7,10 @@ import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.execution.CatalogExecutionDispatchers
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
+import app.openstory.catalog.runtime.trace.CatalogTrace
+import app.openstory.catalog.runtime.trace.CatalogTraceSink
 import java.util.concurrent.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -35,6 +38,36 @@ class CatalogCapabilitySessionTest {
 
         assertEquals(1, openCount)
         assertSame(first, second)
+    }
+
+    @Test
+    fun successfulActivationAndFirstDiscoverSnapshotEmitOrderedSessionTracesOnce() = runTest {
+        val storage = RuntimeFakeStorage()
+        val traces = mutableListOf<String>()
+        val session = testFactory(
+            binding = TEST_BINDING,
+            openStorage = { storage },
+            traceSink = CatalogTraceSink(traces::add),
+        ).createSession()
+
+        val first = session.activate() as CatalogCapabilityActivation.Available
+        val second = session.activate() as CatalogCapabilityActivation.Available
+        storage.discoverFlows.getValue(CatalogMediaType.MANGA)
+            .emit(app.openstory.catalog.domain.read.DiscoverPersistenceState.Absent)
+        storage.discoverFlows.getValue(CatalogMediaType.LIGHT_NOVEL)
+            .emit(app.openstory.catalog.domain.read.DiscoverPersistenceState.Absent)
+        first.discoverSession(CatalogMediaType.MANGA).states.first()
+        second.discoverSession(CatalogMediaType.MANGA).states.first()
+        first.discoverSession(CatalogMediaType.LIGHT_NOVEL).states.first()
+
+        assertEquals(
+            listOf(
+                CatalogTrace.ACTIVATION_START,
+                CatalogTrace.STORAGE_READY,
+                CatalogTrace.DISCOVER_FIRST_SNAPSHOT,
+            ),
+            traces,
+        )
     }
 
     @Test
@@ -117,9 +150,39 @@ class CatalogCapabilitySessionTest {
         assertEquals(CatalogMediaType.LIGHT_NOVEL, storage.discoverCommands.single().mediaType)
     }
 
+    @Test
+    fun runtimeDiagnosticsReportWorkAndPinOwnershipReturningToZero() = runTest {
+        val activeWorkCounts = mutableListOf<Int>()
+        val activePinCounts = mutableListOf<Int>()
+        val discoverTouchedCounts = mutableListOf<Int>()
+        val releaseTouchedCounts = mutableListOf<Int>()
+        val activation = testFactory(
+            binding = TEST_BINDING.copy(acquisitionSource = RecordingSource()),
+            openStorage = { RuntimeFakeStorage() },
+            ownershipCallbacks = CatalogRuntimeOwnershipCallbacks(
+                onActiveWorkChanged = activeWorkCounts::add,
+                onActiveStoryPinsChanged = activePinCounts::add,
+                onDiscoverMutationTouched = discoverTouchedCounts::add,
+                onStoryReleaseMutationTouched = releaseTouchedCounts::add,
+            ),
+        ).createSession().activate() as CatalogCapabilityActivation.Available
+
+        assertEquals(CatalogAcquisitionResult.Success, activation.acquireDiscover(CatalogMediaType.MANGA))
+        val storySession = activation.storyDetailSession(testRef())
+        storySession.activate()
+        storySession.release()
+
+        assertEquals(listOf(1, 0), activeWorkCounts)
+        assertEquals(listOf(1, 0), activePinCounts)
+        assertEquals(listOf(1), discoverTouchedCounts)
+        assertEquals(listOf(1), releaseTouchedCounts)
+    }
+
     private fun TestScope.testFactory(
         binding: CatalogSourceBinding?,
         openStorage: suspend () -> RuntimeFakeStorage,
+        traceSink: CatalogTraceSink = CatalogTraceSink {},
+        ownershipCallbacks: CatalogRuntimeOwnershipCallbacks = CatalogRuntimeOwnershipCallbacks(),
     ): CatalogRuntimeFactory {
         val dispatcher = StandardTestDispatcher(testScheduler)
         return CatalogRuntimeFactory(
@@ -127,6 +190,8 @@ class CatalogCapabilitySessionTest {
             openStorage = openStorage,
             wallClockEpochMs = { 44L },
             dispatchers = CatalogExecutionDispatchers(cpu = dispatcher, io = dispatcher),
+            traceSink = traceSink,
+            ownershipCallbacks = ownershipCallbacks,
         )
     }
 }

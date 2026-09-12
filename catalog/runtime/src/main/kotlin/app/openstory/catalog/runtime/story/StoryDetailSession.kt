@@ -13,7 +13,10 @@ import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.retention.ActiveStoryPins
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
+import app.openstory.catalog.runtime.trace.CatalogTrace
+import app.openstory.catalog.runtime.trace.CatalogTraceSink
 import java.util.concurrent.CancellationException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +48,7 @@ class StoryDetailSession internal constructor(
     private val executor: CatalogAcquisitionExecutor,
     private val wallClockEpochMs: () -> Long,
     private val scope: CoroutineScope,
+    private val traceSink: CatalogTraceSink,
     private val onReleased: (StoryDetailSession) -> Unit,
 ) {
     private val activationMutex = Mutex()
@@ -53,6 +57,7 @@ class StoryDetailSession internal constructor(
     private var activated = false
     private var automaticAcquisitionStarted = false
     private var latestProjection: StoryDetailProjection? = null
+    private val contentReadyTraced = AtomicBoolean(false)
 
     private val projectionEvents = flow {
         emitAll(readPort.observe(ref))
@@ -65,6 +70,9 @@ class StoryDetailSession internal constructor(
     private val observedProjectionEvents = projectionEvents.onEach { event ->
         if (event is ProjectionEvent.Value) {
             latestProjection = event.value
+            if (event.value?.detail != null && contentReadyTraced.compareAndSet(false, true)) {
+                traceSink.mark(CatalogTrace.STORY_DETAIL_CONTENT_READY)
+            }
             if (event.value?.detail == null) startAutomaticAcquisition()
         }
     }
@@ -83,6 +91,7 @@ class StoryDetailSession internal constructor(
         activationMutex.withLock {
             if (activated) return@withLock
             requireMatchingBinding()
+            traceSink.mark(CatalogTrace.STORY_DETAIL_REQUESTED)
             activeStoryPins.register(ref)
             val accessFailure = runCatching { touchAccess() }.exceptionOrNull()
             if (accessFailure != null) {

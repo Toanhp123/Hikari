@@ -38,6 +38,7 @@ class DiscoverSession internal constructor(
     readPort: DiscoverReadPort,
     private val executor: CatalogAcquisitionExecutor,
     private val scope: CoroutineScope,
+    private val onFirstSnapshot: () -> Unit,
 ) {
     private val bootstrapMutex = Mutex()
     private val acquisition = MutableStateFlow<CatalogAcquisitionStatus>(CatalogAcquisitionStatus.Idle)
@@ -47,6 +48,9 @@ class DiscoverSession internal constructor(
     private val persistenceEvents = flow {
         emitAll(readPort.observe(binding.catalogSourceKey, mediaType))
     }.map<DiscoverPersistenceState, PersistenceEvent> { PersistenceEvent.Value(it) }
+        .onEach { event ->
+            if (event is PersistenceEvent.Value) onFirstSnapshot()
+        }
         .catch { error ->
             if (error is CancellationException) throw error
             emit(PersistenceEvent.ReadFailure(error.toStorageFailure(CatalogStorageOperation.READ_DISCOVER)))

@@ -33,12 +33,13 @@ internal fun LazyListScope.discoverSections(
     sections: List<DiscoverSectionUi>,
     horizontalInset: Dp,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onCoverReady: () -> Unit,
 ) {
     sections.forEachIndexed { sectionIndex, section ->
         item(key = "section:${section.kind.name}") {
             Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 SectionHeader(section.kind, horizontalInset)
-                SectionContent(section, horizontalInset, onStorySelected)
+                SectionContent(section, horizontalInset, onStorySelected, onCoverReady)
             }
         }
         if (section.kind == CatalogSectionKind.LATEST_UPDATES) {
@@ -86,6 +87,7 @@ private fun SectionContent(
     section: DiscoverSectionUi,
     horizontalInset: Dp,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onCoverReady: () -> Unit,
 ) {
     when (section.kind) {
         CatalogSectionKind.POPULAR -> PosterRail(
@@ -96,6 +98,7 @@ private fun SectionContent(
             DiscoverFeaturedStory(
                 card = card,
                 onSelected = { onStorySelected(card.ref, card.coverAssetKey) },
+                onCoverReady = onCoverReady,
             )
         }
         CatalogSectionKind.LATEST_UPDATES -> PosterRail(
@@ -106,9 +109,15 @@ private fun SectionContent(
             DiscoverPosterTile(
                 card = card,
                 onSelected = { onStorySelected(card.ref, card.coverAssetKey) },
+                onCoverReady = onCoverReady,
             )
         }
-        CatalogSectionKind.TOP_RATED -> TopRatedList(section.cards, horizontalInset, onStorySelected)
+        CatalogSectionKind.TOP_RATED -> TopRatedList(
+            section.cards,
+            horizontalInset,
+            onStorySelected,
+            onCoverReady,
+        )
     }
 }
 
@@ -135,6 +144,7 @@ private fun TopRatedList(
     cards: List<DiscoverCardUi>,
     horizontalInset: Dp,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onCoverReady: () -> Unit,
 ) {
     val visibleCards = cards.take(CatalogSectionCaps.cap(CatalogSectionKind.TOP_RATED))
     Column(
@@ -147,6 +157,7 @@ private fun TopRatedList(
                 card = card,
                 isFinal = index == visibleCards.lastIndex,
                 onSelected = { onStorySelected(card.ref, card.coverAssetKey) },
+                onCoverReady = onCoverReady,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

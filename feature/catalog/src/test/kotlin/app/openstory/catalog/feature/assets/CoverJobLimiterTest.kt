@@ -13,7 +13,11 @@ import org.junit.Test
 class CoverJobLimiterTest {
     @Test
     fun ninthDemandWaitsAndCancellationPreventsItFromStarting() = runTest {
-        val limiter = CoverJobLimiter(maxActiveJobs = 8)
+        val observedActiveJobs = mutableListOf<Int>()
+        val limiter = CoverJobLimiter(
+            maxActiveJobs = 8,
+            onActiveJobsChanged = observedActiveJobs::add,
+        )
         val release = CompletableDeferred<Unit>()
         val entered = AtomicInteger()
         val active = AtomicInteger()
@@ -40,5 +44,7 @@ class CoverJobLimiterTest {
 
         assertEquals(8, entered.get())
         assertEquals(0, active.get())
+        assertEquals(8, observedActiveJobs.max())
+        assertEquals(0, observedActiveJobs.last())
     }
 }

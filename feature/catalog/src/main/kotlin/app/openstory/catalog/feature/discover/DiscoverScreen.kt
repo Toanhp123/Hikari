@@ -43,6 +43,7 @@ internal fun DiscoverScreen(
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
+    onCoverReady: () -> Unit = {},
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -67,6 +68,7 @@ internal fun DiscoverScreen(
                 onStorySelected = onStorySelected,
                 onRefresh = onRefresh,
                 onRetry = onRetry,
+                onCoverReady = onCoverReady,
             )
             DiscoverMediaNavOverlay(
                 selectedMediaType = state.selectedMediaType,
@@ -92,6 +94,7 @@ private fun DiscoverFeed(
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
+    onCoverReady: () -> Unit,
 ) {
     HikariPullToRefresh(
         refreshing = state.content.refreshing,
@@ -128,6 +131,7 @@ private fun DiscoverFeed(
                 horizontalInset = layout.horizontalInset,
                 onStorySelected = onStorySelected,
                 onRetry = onRetry,
+                onCoverReady = onCoverReady,
             )
         }
     }
@@ -138,6 +142,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.discoverContent(
     horizontalInset: Dp,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
     onRetry: () -> Unit,
+    onCoverReady: () -> Unit,
 ) {
     when (content) {
         DiscoverContentState.NoContentLoading -> loadingSections(horizontalInset)
@@ -158,7 +163,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.discoverContent(
                     DiscoverIssuePanel(issue, onRetry, horizontalInset)
                 }
             }
-            discoverSections(content.sections, horizontalInset, onStorySelected)
+            discoverSections(content.sections, horizontalInset, onStorySelected, onCoverReady)
         }
     }
 }

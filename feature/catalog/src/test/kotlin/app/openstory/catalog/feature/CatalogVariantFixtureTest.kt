@@ -19,6 +19,7 @@ class CatalogVariantFixtureTest {
         val variant: CatalogVariantBinding = VariantCatalogBinding
         val binding: CatalogSourceBinding = requireNotNull(variant.binding)
         val source = requireNotNull(binding.acquisitionSource)
+        val benchmarkBinding = binding.catalogSourceKey.value == "hikari.benchmark.local"
 
         CatalogMediaType.entries.forEach { mediaType ->
             val acquisition = source.acquireDiscover(mediaType)
@@ -38,8 +39,15 @@ class CatalogVariantFixtureTest {
             })
             acquisition.sections.flattenItems().forEach { item ->
                 assertEquals(mediaType, item.contentType)
-                val cover = item.cover as AcquisitionCoverInput.TrustedLocal
-                assertNotNull(VariantLocalCoverAssets.resolve(cover.logicalAssetId, cover.assetVersion))
+                when (val cover = item.cover) {
+                    is AcquisitionCoverInput.TrustedLocal -> assertNotNull(
+                        VariantLocalCoverAssets.resolve(cover.logicalAssetId, cover.assetVersion),
+                    )
+                    is AcquisitionCoverInput.RemoteHttps -> assertTrue(
+                        benchmarkBinding && cover.rawUri.startsWith("https://covers.hikari.invalid/"),
+                    )
+                    null -> throw AssertionError("Benchmark cover must be present")
+                }
             }
 
             val first = acquisition.sections.first().items.first()
@@ -61,6 +69,10 @@ class CatalogVariantFixtureTest {
         }
 
         assertEquals(binding.catalogSourceKey, binding.assetPolicy?.catalogSourceKey)
+        assertEquals(
+            if (benchmarkBinding) setOf("covers.hikari.invalid") else emptySet(),
+            binding.assetPolicy?.allowedHttpsHosts,
+        )
         assertEquals(null, VariantLocalCoverAssets.resolve("unknown", "1"))
     }
 

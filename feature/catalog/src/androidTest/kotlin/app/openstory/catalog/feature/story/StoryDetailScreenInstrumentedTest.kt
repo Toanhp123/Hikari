@@ -159,7 +159,6 @@ class StoryDetailScreenInstrumentedTest {
             catalogSourceKey = SOURCE_KEY,
             sourceStoryId = "story-17",
         )
-
         fun state(
             detailLoading: Boolean,
             issue: CatalogIssueUi?,

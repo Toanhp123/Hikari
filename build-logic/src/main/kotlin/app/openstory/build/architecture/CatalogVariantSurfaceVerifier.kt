@@ -97,6 +97,18 @@ internal object CatalogVariantSurfaceVerifier {
             "BenchmarkCatalogSource.kt",
         "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
             "BenchmarkCatalogFixture.kt",
+        "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+            "BenchmarkCatalogPreparation.kt",
+        "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+            "BenchmarkRetentionPreparation.kt",
+        "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+            "BenchmarkCoverPreparation.kt",
+        "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+            "BenchmarkPinPruneSource.kt",
+        "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/fixture/" +
+            "BenchmarkCoverFixture.kt",
+        "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/fixture/" +
+            "BenchmarkCatalogDiagnostics.kt",
         "feature/catalog/src/benchmarkRelease/AndroidManifest.xml",
         RELEASE_BINDING,
     )
@@ -123,7 +135,7 @@ internal object CatalogVariantSurfaceVerifier {
     )
     private val RELEASE_NULL_BINDING = Regex("""\boverride\s+val\s+binding\s*=\s*null\b""")
     private val RELEASE_FIXTURE_REFERENCE = Regex(
-        """(?i)(seed|benchmarkcatalogfixture|localseedcatalogsource|plugin.*harness)""",
+        """(?i)(seed|benchmark.*(?:fixture|diagnostic|preparation)|localseedcatalogsource|plugin.*harness)""",
     )
     private val VARIANT_BINDING_CONTRACT = Regex(
         """\bobject\s+VariantCatalogBinding\s*:\s*CatalogVariantBinding\b""",

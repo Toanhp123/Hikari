@@ -63,7 +63,10 @@ internal fun CoverArtwork(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 onLoading = { onStateChanged(CoverArtworkState.Loading) },
-                onSuccess = { onStateChanged(CoverArtworkState.Ready) },
+                onSuccess = {
+                    catalogImageLoader.onCoverReady()
+                    onStateChanged(CoverArtworkState.Ready)
+                },
                 onError = { state: AsyncImagePainter.State.Error ->
                     onStateChanged(CoverArtworkState.Failed(state.result.throwable.toCoverArtworkFailure()))
                 },

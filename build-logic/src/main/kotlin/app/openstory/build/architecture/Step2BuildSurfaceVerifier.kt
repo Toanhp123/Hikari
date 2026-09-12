@@ -269,7 +269,9 @@ object Step2BuildSurfaceVerifier {
             """javascriptengine|backdrop|blur|roborazzi|robolectric)""",
     )
     private val PRODUCTION_SOURCE_PATH = Regex("""/src/(main|release)/""")
-    private val RELEASE_FIXTURE_NAME = Regex("""(?i)(seed|plugin.*harness|harness.*plugin)""")
+    private val RELEASE_FIXTURE_NAME = Regex(
+        """(?i)(seed|benchmark.*(?:fixture|diagnostic|preparation)|plugin.*harness|harness.*plugin)""",
+    )
     private val REMOTE_TRANSPORT_IMPLEMENTATION = Regex(
         """(?ms)^\s*(?:(?:public|internal|private|protected|abstract|final|open|data|sealed|value)\s+)*""" +
             """(?:class\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*<[^>{}]*>)?(?:\s*\(.*?\))?""" +

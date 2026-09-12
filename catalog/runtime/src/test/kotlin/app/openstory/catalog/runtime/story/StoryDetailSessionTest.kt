@@ -21,6 +21,8 @@ import app.openstory.catalog.runtime.execution.CatalogExecutionDispatchers
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.testRef
 import app.openstory.catalog.runtime.testStoryAcquisition
+import app.openstory.catalog.runtime.trace.CatalogTrace
+import app.openstory.catalog.runtime.trace.CatalogTraceSink
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.launchIn
@@ -37,6 +39,30 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoryDetailSessionTest {
+    @Test
+    fun activeStoryDemandEmitsRequestedAndFirstContentReadyOnce() = runTest {
+        val storage = RuntimeFakeStorage()
+        val traces = mutableListOf<String>()
+        val ref = testRef()
+        val activation = available(storage, RecordingSource(), CatalogTraceSink(traces::add))
+        traces.clear()
+        val session = activation.storyDetailSession(ref)
+
+        session.activate().launchIn(backgroundScope)
+        runCurrent()
+        storage.storyFlow(ref).emit(cachedDetail(ref))
+        storage.storyFlow(ref).emit(cachedDetail(ref))
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                CatalogTrace.STORY_DETAIL_REQUESTED,
+                CatalogTrace.STORY_DETAIL_CONTENT_READY,
+            ),
+            traces,
+        )
+    }
+
     @Test
     fun twoMissingDetailDemandsJoinOneKeyedAcquisition() = runTest {
         val storage = RuntimeFakeStorage()
@@ -204,6 +230,7 @@ class StoryDetailSessionTest {
     private suspend fun TestScope.available(
         storage: RuntimeFakeStorage,
         source: RecordingSource,
+        traceSink: CatalogTraceSink = CatalogTraceSink {},
     ): CatalogCapabilityActivation.Available {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val activation = CatalogRuntimeFactory(
@@ -211,6 +238,7 @@ class StoryDetailSessionTest {
             openStorage = { storage },
             wallClockEpochMs = { 700L },
             dispatchers = CatalogExecutionDispatchers(dispatcher, dispatcher),
+            traceSink = traceSink,
         ).createSession().activate()
         return activation as CatalogCapabilityActivation.Available
     }

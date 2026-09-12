@@ -11,34 +11,52 @@ import app.openstory.common.id.StoryId
 class ActiveStoryPins(
     private val writePort: CatalogWritePort,
     private val mutationGate: CatalogMutationGate,
+    private val onActivePinsChanged: (Int) -> Unit = {},
+    private val onReleaseMutationTouched: (Int) -> Unit = {},
 ) {
     private val active = linkedSetOf<StorySourceRef>()
 
     suspend fun register(ref: StorySourceRef) {
-        mutationGate.withMutation {
+        val activeCount = mutationGate.withMutation {
             if (ref !in active && active.size == MAX_ACTIVE_STORY_PINS) {
                 throw CatalogFailureException(CatalogFailure.InternalInvariant(ACTIVE_PIN_LIMIT_CODE))
             }
             active += ref
+            active.size
         }
+        onActivePinsChanged(activeCount)
     }
 
     suspend fun release(
         ref: StorySourceRef,
         releasedAtEpochMs: Long,
-    ): CatalogMutationDiagnostics = mutationGate.withMutation {
-        active.remove(ref)
-        writePort.releaseStoryDemand(
-            ref = ref,
-            retentionProtectedStoryIds = snapshotWithinMutation(),
-            releasedAtEpochMs = releasedAtEpochMs,
-        )
+    ): CatalogMutationDiagnostics {
+        var activeCount: Int? = null
+        val diagnostics = try {
+            mutationGate.withMutation {
+                active.remove(ref)
+                activeCount = active.size
+                writePort.releaseStoryDemand(
+                    ref = ref,
+                    retentionProtectedStoryIds = snapshotWithinMutation(),
+                    releasedAtEpochMs = releasedAtEpochMs,
+                )
+            }
+        } finally {
+            activeCount?.let(onActivePinsChanged)
+        }
+        onReleaseMutationTouched(diagnostics.touchedStoryIds.size)
+        return diagnostics
     }
 
     suspend fun snapshot(): Set<StoryId> = mutationGate.withMutation(::snapshotWithinMutation)
 
     internal suspend fun unregisterFailedActivation(ref: StorySourceRef) {
-        mutationGate.withMutation { active.remove(ref) }
+        val activeCount = mutationGate.withMutation {
+            active.remove(ref)
+            active.size
+        }
+        onActivePinsChanged(activeCount)
     }
 
     internal suspend fun <T> withMutationSnapshot(

@@ -27,11 +27,11 @@ import app.openstory.catalog.feature.story.StoryDetailViewModel
 import app.openstory.catalog.feature.assets.CatalogImageLoader
 import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
 import app.openstory.catalog.feature.trace.AndroidCatalogTraceSink
+import app.openstory.catalog.feature.trace.CatalogUiTrace
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.CatalogCapabilitySession
 import app.openstory.catalog.runtime.CatalogRuntimeFactory
-import app.openstory.catalog.runtime.trace.CatalogTrace
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
@@ -41,21 +41,27 @@ import kotlinx.coroutines.sync.withLock
 @Composable
 internal fun CatalogComposition() {
     val applicationContext = LocalContext.current.applicationContext
-    CatalogSessionContent(rememberCatalogRuntimeHolder(applicationContext))
+    val trace = remember { CatalogUiTrace(AndroidCatalogTraceSink) }
+    CatalogSessionContent(rememberCatalogRuntimeHolder(applicationContext, trace), trace)
 }
 
 @Composable
-private fun rememberCatalogRuntimeHolder(applicationContext: Context): CatalogRuntimeHolder {
-    val runtimeFactory = remember(applicationContext) {
+private fun rememberCatalogRuntimeHolder(
+    applicationContext: Context,
+    trace: CatalogUiTrace,
+): CatalogRuntimeHolder {
+    val runtimeFactory = remember(applicationContext, trace) {
         CatalogRuntimeHolder.factory {
             val runtime = CatalogRuntimeHost(
                 session = CatalogRuntimeFactory(
                     context = applicationContext,
                     binding = VariantCatalogBinding.binding,
+                    traceSink = AndroidCatalogTraceSink,
+                    queryListener = VariantCatalogBinding.queryListener,
+                    ownershipCallbacks = VariantCatalogBinding.diagnostics.runtimeOwnershipCallbacks,
                 ).createSession(),
                 onActivationStarted = {
                     VariantCatalogBinding.diagnostics.activationStarted()
-                    AndroidCatalogTraceSink.mark(CatalogTrace.ACTIVATION_START)
                 },
                 onStorageReady = VariantCatalogBinding.diagnostics::storageReady,
                 onDiscoverCollectorStarted = VariantCatalogBinding.diagnostics::discoverCollectorStarted,
@@ -65,11 +71,9 @@ private fun rememberCatalogRuntimeHolder(applicationContext: Context): CatalogRu
             runtime to CatalogImageLoader(
                 context = applicationContext,
                 localResolver = VariantLocalCoverAssets,
+                remoteTransport = VariantCatalogBinding.remoteCoverTransport(applicationContext),
                 policyProvider = runtime::assetPolicyProvider,
-                onSessionInitialized = VariantCatalogBinding.diagnostics::imageSessionInitialized,
-                onSessionClosed = VariantCatalogBinding.diagnostics::imageSessionClosed,
-                onDemandStartedCallback = VariantCatalogBinding.diagnostics::coverDemandStarted,
-                onDemandStoppedCallback = VariantCatalogBinding.diagnostics::coverDemandStopped,
+                callbacks = VariantCatalogBinding.diagnostics.imageLoaderCallbacks,
             )
         }
     }
@@ -77,7 +81,10 @@ private fun rememberCatalogRuntimeHolder(applicationContext: Context): CatalogRu
 }
 
 @Composable
-private fun CatalogSessionContent(runtimeHolder: CatalogRuntimeHolder) {
+private fun CatalogSessionContent(
+    runtimeHolder: CatalogRuntimeHolder,
+    trace: CatalogUiTrace,
+) {
     val routeState = rememberSaveable(stateSaver = CatalogRouteSaver) {
         mutableStateOf<CatalogRoute>(CatalogRoute.Discover)
     }
@@ -99,6 +106,12 @@ private fun CatalogSessionContent(runtimeHolder: CatalogRuntimeHolder) {
     CatalogLifecycleEffects(route, discoverViewModel, storyViewModel, navigation)
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val imageLoader = runtimeHolder.images.takeIf { lifecycleState.isAtLeast(Lifecycle.State.STARTED) }
+    LaunchedEffect(route, discoverState?.content) {
+        val content = discoverState?.content as? app.openstory.catalog.feature.discover.DiscoverContentState.Content
+        if (route == CatalogRoute.Discover && content?.sections?.any { it.cards.isNotEmpty() } == true) {
+            trace.discoverContentReady()
+        }
+    }
 
     CompositionLocalProvider(LocalCatalogImageLoader provides imageLoader) {
         CatalogScreen(
@@ -107,6 +120,7 @@ private fun CatalogSessionContent(runtimeHolder: CatalogRuntimeHolder) {
             discoverState = discoverState,
             storyState = storyState,
             actions = catalogScreenActions(navigation, discoverViewModel, storyViewModel),
+            onDiscoverCoverReady = trace::discoverCoverReady,
         )
     }
 }
@@ -114,7 +128,13 @@ private fun CatalogSessionContent(runtimeHolder: CatalogRuntimeHolder) {
 @Composable
 private fun rememberStoryDetailViewModel(runtimeHolder: CatalogRuntimeHolder): StoryDetailViewModel {
     val storyFactory = remember(runtimeHolder) {
-        StoryDetailViewModel.factory { CatalogStoryDetailRuntime(runtimeHolder.runtime::activate) }
+        StoryDetailViewModel.factory {
+            CatalogStoryDetailRuntime(
+                activateCatalog = runtimeHolder.runtime::activate,
+                onCollectorStarted = VariantCatalogBinding.diagnostics::storyCollectorStarted,
+                onCollectorStopped = VariantCatalogBinding.diagnostics::storyCollectorStopped,
+            )
+        }
     }
     return viewModel(factory = storyFactory)
 }

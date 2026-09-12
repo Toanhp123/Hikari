@@ -3,7 +3,9 @@ package app.openstory.benchmark
 import android.os.Bundle
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import app.openstory.catalog.feature.fixture.BenchmarkCatalogDiagnostics
 import app.openstory.catalog.feature.seed.BenchmarkCatalogFixture
+import app.openstory.catalog.feature.seed.BenchmarkCatalogPreparation
 import app.openstory.startup.createAppLaunchStateStore
 import kotlinx.coroutines.runBlocking
 
@@ -12,10 +14,18 @@ class BenchmarkLaunchStateActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val persisted = runBlocking {
+            BenchmarkCatalogDiagnostics.reset()
             val launchStatePersisted = createAppLaunchStateStore(applicationContext)
                 .markInitialSetupCompleted()
             if (launchStatePersisted) {
-                BenchmarkCatalogFixture.prepare(applicationContext)
+                val preparationEvidence = BenchmarkCatalogFixture.prepare(
+                    context = applicationContext,
+                    preparation = BenchmarkCatalogPreparation.fromWireValue(
+                        intent.getStringExtra(EXTRA_PREPARATION) ?: BenchmarkCatalogPreparation.NORMAL.wireValue,
+                    ),
+                )
+                BenchmarkCatalogDiagnostics.reset()
+                BenchmarkPreparationEvidenceStore.write(applicationContext, preparationEvidence)
             }
             launchStatePersisted
         }
@@ -28,5 +38,9 @@ class BenchmarkLaunchStateActivity : ComponentActivity() {
                 text = "HIKARI_V2_BENCHMARK_READY"
             },
         )
+    }
+
+    private companion object {
+        const val EXTRA_PREPARATION = "catalog-preparation"
     }
 }

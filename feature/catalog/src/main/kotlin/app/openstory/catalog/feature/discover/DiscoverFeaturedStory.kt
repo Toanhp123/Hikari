@@ -16,12 +16,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.assets.CoverArtwork
+import app.openstory.catalog.feature.assets.CoverArtworkState
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 internal fun DiscoverFeaturedStory(
     card: DiscoverCardUi,
     onSelected: () -> Unit,
+    onCoverReady: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -40,6 +42,9 @@ internal fun DiscoverFeaturedStory(
                 .width(DiscoverVisualMetrics.TrendingCoverWidth)
                 .height(DiscoverVisualMetrics.TrendingCoverHeight)
                 .clip(MaterialTheme.shapes.medium),
+            onStateChanged = { state ->
+                if (state == CoverArtworkState.Ready) onCoverReady()
+            },
         )
         Text(
             text = card.title,

@@ -88,12 +88,18 @@ for variant in benchmark non-minified; do
     'app/openstory/catalog/feature/seed/BenchmarkCatalogSource.class'
   require_entry "$ARTIFACT_TMP/$variant/class-entries.txt" \
     'app/openstory/catalog/feature/seed/BenchmarkCatalogFixture.class'
+  require_entry "$ARTIFACT_TMP/$variant/class-entries.txt" \
+    'app/openstory/catalog/feature/seed/BenchmarkCatalogPreparation.class'
+  require_entry "$ARTIFACT_TMP/$variant/class-entries.txt" \
+    'app/openstory/catalog/feature/fixture/BenchmarkCoverFixture.class'
+  require_entry "$ARTIFACT_TMP/$variant/class-entries.txt" \
+    'app/openstory/catalog/feature/fixture/BenchmarkCatalogDiagnostics.class'
   require_drawable_entry "$ARTIFACT_TMP/$variant/aar-entries.txt" \
     'catalog_benchmark_manga_a.webp'
 done
 
 if grep -E -i -q \
-  '(seed|BenchmarkCatalogFixture|LocalSeedCatalogSource|BenchmarkCatalogSource|Plugin.*Harness)' \
+  '(seed|Benchmark.*(Fixture|Diagnostics|Preparation)|LocalSeedCatalogSource|BenchmarkCatalogSource|Plugin.*Harness)' \
   "$ARTIFACT_TMP/release/class-entries.txt" "$ARTIFACT_TMP/release/aar-entries.txt"; then
   echo "Release Catalog AAR contains non-release fixture or plugin-harness content." >&2
   exit 1

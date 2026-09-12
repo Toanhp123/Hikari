@@ -14,7 +14,7 @@ class BaselineProfileGenerator {
     val baselineProfileRule = BaselineProfileRule()
 
     @Test
-    fun startupReturning() {
+    fun returningDiscoverStoryBack() {
         prepareReturningLaunch()
         baselineProfileRule.collect(
             packageName = HIKARI_PACKAGE,
@@ -22,6 +22,8 @@ class BaselineProfileGenerator {
         ) {
             pressHome()
             startHikariAndWait(DISCOVER_TAG)
+            openFirstStory()
+            backToDiscover()
         }
     }
 }

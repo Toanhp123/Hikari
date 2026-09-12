@@ -1,13 +1,20 @@
 package app.openstory.catalog.feature.assets
 
 import android.content.Context
+import android.os.Looper
 import androidx.compose.runtime.staticCompositionLocalOf
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
+import coil3.EventListener
 import coil3.ImageLoader
+import coil3.decode.DecodeResult
+import coil3.decode.Decoder
 import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.intercept.Interceptor
 import coil3.memory.MemoryCache
+import coil3.request.ImageRequest
+import coil3.request.Options
+import coil3.size.Dimension
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
@@ -39,10 +46,21 @@ private class CoilDecodedCoverMemoryCache(
     }
 }
 
-internal class CoverJobLimiter(maxActiveJobs: Int) {
+internal class CoverJobLimiter(
+    maxActiveJobs: Int,
+    private val onActiveJobsChanged: (Int) -> Unit = {},
+) {
     private val semaphore = Semaphore(maxActiveJobs)
+    private val activeJobs = java.util.concurrent.atomic.AtomicInteger()
 
-    suspend fun <T> withPermit(block: suspend () -> T): T = semaphore.withPermit { block() }
+    suspend fun <T> withPermit(block: suspend () -> T): T = semaphore.withPermit {
+        onActiveJobsChanged(activeJobs.incrementAndGet())
+        try {
+            block()
+        } finally {
+            onActiveJobsChanged(activeJobs.decrementAndGet())
+        }
+    }
 }
 
 private class CoverJobLimiterInterceptor(
@@ -55,9 +73,14 @@ internal class CatalogImageSession(
     val imageLoader: ImageLoader,
     val encodedDiskCache: CoverEncodedDiskCache,
     private val diskCache: DiskCache,
+    private val decodedMemoryCache: DecodedCoverMemoryCache,
     private val memoryPressureController: CatalogImageMemoryPressureController,
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
+
+    fun decodedMemoryBytes(): Long = decodedMemoryCache.coilMemoryCache.size
+
+    fun encodedDiskBytes(): Long = diskCache.size
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
@@ -82,10 +105,7 @@ internal class CatalogImageLoader(
                 .build(),
         )
     },
-    private val onSessionInitialized: () -> Unit = {},
-    private val onSessionClosed: () -> Unit = {},
-    private val onDemandStartedCallback: () -> Unit = {},
-    private val onDemandStoppedCallback: () -> Unit = {},
+    private val callbacks: CatalogImageLoaderCallbacks = CatalogImageLoaderCallbacks(),
 ) : CatalogCoverLoader, AutoCloseable {
     private val closed = AtomicBoolean(false)
     private var initializedSession: CatalogImageSession? = null
@@ -99,16 +119,21 @@ internal class CatalogImageLoader(
 
     override fun imageLoader(): ImageLoader = session().imageLoader
 
-    override fun onDemandStarted() = onDemandStartedCallback()
+    override fun onDemandStarted() = callbacks.onDemandStarted()
 
-    override fun onDemandStopped() = onDemandStoppedCallback()
+    override fun onDemandStopped() = callbacks.onDemandStopped()
+
+    override fun onCoverReady() {
+        val active = session()
+        callbacks.onCoverReady(active.decodedMemoryBytes(), active.encodedDiskBytes())
+    }
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         synchronized(this) {
             initializedSession?.let { session ->
                 session.close()
-                onSessionClosed()
+                callbacks.onSessionClosed()
             }
             initializedSession = null
         }
@@ -122,13 +147,19 @@ internal class CatalogImageLoader(
             .maxSizeBytes(CatalogImageLimits.ENCODED_DISK_BYTES)
             .build()
         val encodedDiskCache = CoverEncodedDiskCache(diskCache)
-        val limiter = CoverJobLimiter(CatalogImageLimits.ACTIVE_COVER_JOBS)
+        val limiter = CoverJobLimiter(
+            maxActiveJobs = CatalogImageLimits.ACTIVE_COVER_JOBS,
+            onActiveJobsChanged = callbacks.onActiveJobsChanged,
+        )
         val imageDispatcher = Dispatchers.IO.limitedParallelism(CatalogImageLimits.ACTIVE_COVER_JOBS)
         val imageLoader = ImageLoader.Builder(context)
             .memoryCache(decodedMemoryCache.coilMemoryCache)
             .diskCache(diskCache)
             .fetcherCoroutineContext(imageDispatcher)
             .decoderCoroutineContext(imageDispatcher)
+            .eventListenerFactory {
+                CatalogImageEventListener(callbacks.onSuccessfulDecode)
+            }
             .components {
                 add(CoverJobLimiterInterceptor(limiter))
                 add(
@@ -149,12 +180,51 @@ internal class CatalogImageLoader(
             imageLoader = imageLoader,
             encodedDiskCache = encodedDiskCache,
             diskCache = diskCache,
+            decodedMemoryCache = decodedMemoryCache,
             memoryPressureController = memoryPressureController,
-        ).also { onSessionInitialized() }
+        ).also { callbacks.onSessionInitialized() }
     }
 
     private companion object {
         const val CACHE_DIRECTORY = "catalog-cover-cache"
+    }
+}
+
+internal class CatalogImageLoaderCallbacks(
+    val onSessionInitialized: () -> Unit = {},
+    val onSessionClosed: () -> Unit = {},
+    val onDemandStarted: () -> Unit = {},
+    val onDemandStopped: () -> Unit = {},
+    val onCoverReady: (Long, Long) -> Unit = { _, _ -> },
+    val onActiveJobsChanged: (Int) -> Unit = {},
+    val onSuccessfulDecode: (CatalogImageDecodeEvidence) -> Unit = {},
+)
+
+internal data class CatalogImageDecodeEvidence(
+    val targetWidth: Int?,
+    val targetHeight: Int?,
+    val originalSize: Boolean,
+    val mainThread: Boolean,
+)
+
+private class CatalogImageEventListener(
+    private val onSuccessfulDecode: (CatalogImageDecodeEvidence) -> Unit,
+) : EventListener() {
+    override fun decodeEnd(
+        request: ImageRequest,
+        decoder: Decoder,
+        options: Options,
+        result: DecodeResult?,
+    ) {
+        if (result == null) return
+        onSuccessfulDecode(
+            CatalogImageDecodeEvidence(
+                targetWidth = (options.size.width as? Dimension.Pixels)?.px,
+                targetHeight = (options.size.height as? Dimension.Pixels)?.px,
+                originalSize = options.size == coil3.size.Size.ORIGINAL,
+                mainThread = Looper.myLooper() == Looper.getMainLooper(),
+            ),
+        )
     }
 }
 
@@ -164,6 +234,8 @@ internal fun interface CatalogCoverLoader {
     fun onDemandStarted() = Unit
 
     fun onDemandStopped() = Unit
+
+    fun onCoverReady() = Unit
 }
 
 internal val LocalCatalogImageLoader = staticCompositionLocalOf<CatalogCoverLoader?> { null }

@@ -1,7 +1,7 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-11
-Status: **TASKS 0-15 COMPLETED/ACCEPTED; TASK 16 READY TO START**
+Status: **TASKS 0-15 COMPLETED/ACCEPTED; TASK 16 IN PROGRESS AT STEP 8**
 
 ## Authority
 
@@ -9,8 +9,8 @@ Status: **TASKS 0-15 COMPLETED/ACCEPTED; TASK 16 READY TO START**
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
 - Completed/accepted execution boundary: Tasks 0-15.
-- Next execution boundary: Task 16, `READY TO START`; Task 16 was not started in the Task 15
-  acceptance turn.
+- Next execution boundary: Task 16 Step 8, diagnose and optimize the failed `openStoryMemoryHit`
+  frozen frame gate; Task 17 is not authorized.
 - 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
@@ -1668,28 +1668,134 @@ Then run the broad gates from this Windows workspace with Git Bash:
 The user confirms every command above PASS, and the compact/wide screenshot artifacts are reviewed.
 The Task 15 user-owned gate is accepted.
 
+## Task 16 Implementation Delta
+
+Task 16 agent-owned implementation is present; device verification reached Step 8 after the first
+scroll performance gate failed:
+
+- Added the frozen Catalog runtime/UI trace milestones and async latency spans without renaming
+  the Task 7 trace authority or adding startup work.
+- Added deterministic normal, persisted-empty, repeated-refresh, disk-hit, aged-storage, and
+  oversized-detail preparation through the real importer/Room boundary, with direct SQLite setup
+  limited to 5,000 unrelated aged rows. The aged setup performs a real importer refresh after
+  direct seeding and persists its bounded preparation evidence across force-stop.
+- Added the nine required Macrobenchmark journeys and final returning Discover -> Story -> Back
+  Baseline Profile journey. `openStoryDiskHit` now waits for settled Discover decode work, trims
+  decoded memory before the measured Story click, and requires zero transport requests plus a new
+  bounded off-main decode.
+- Added benchmark-only live diagnostics for SQL observation counts, acquisition/transport,
+  collectors, cover demands/jobs, runtime work, Story pins, decoded/disk ownership, requested
+  decode dimensions/thread, and bounded mutation touched counts. Source and transport fixtures
+  assert non-main execution on Android.
+- Added build-surface ratchets for benchmark helpers and removed the obsolete diagnostics Activity
+  mode now that read-only diagnostics use the benchmark-only provider.
+- Remediated the final benchmark-source self-review finding without suppression: Catalog fixture
+  orchestration, retention/race preparation, cover preparation, and the pin/prune barrier source
+  now have separate benchmark-only owners. `BenchmarkCatalogFixture.kt` is 112 lines and
+  `BenchmarkCatalogSource.kt` is 192 lines; every split owner remains below the 200-line ratchet.
+- Performance evidence owner:
+  `docs/internal/v2/catalog-step2-performance-baseline-2026-09-08.md`.
+
+Agent-owned evidence on 2026-09-12:
+
+- `:catalog:runtime:testBenchmarkReleaseUnitTest :feature:catalog:testBenchmarkReleaseUnitTest
+  :app:compileBenchmarkReleaseKotlin --no-daemon`: PASS.
+- Fresh combined runtime/feature debug + benchmark-release tests and benchmark assemble with
+  `--rerun-tasks`: PASS (`BUILD SUCCESSFUL in 1m 26s`, 172/172 tasks executed).
+- `:build-logic:test --tests app.openstory.build.architecture.Step2BuildSurfaceVerifierTest
+  --no-daemon`: PASS.
+- Post-refactor `:feature:catalog:testBenchmarkReleaseUnitTest
+  :app:compileBenchmarkReleaseKotlin --no-daemon`: PASS (`BUILD SUCCESSFUL in 16s`, 56 actionable
+  tasks).
+- Post-refactor full `Step2BuildSurfaceVerifierTest`: PASS (`BUILD SUCCESSFUL in 16s`, 3 actionable
+  tasks); the accepted benchmark surface now requires the retention, cover, and barrier owners.
+- Focused runtime/feature diagnostics and benchmark compile/assemble checks: PASS.
+- Exact Step 6 gate PASS: `BUILD SUCCESSFUL in 12s`, 121 actionable tasks.
+
+The first user-owned Task 16 journey returned on 2026-09-12:
+
+- `coldFreshInstall`: PASS (`BUILD SUCCESSFUL in 1m 48s`, 1 test, 5 iterations) on Redmi Note 9S / API
+  35. All frozen fresh-path zero-work assertions passed.
+- TTID median: `484.353177 ms`. This preliminary stale-profile result is above the eventual fresh
+  review trigger, but is not a valid final Step 1 comparison until Task 16 regenerates the profile.
+  The retained JSON and five Perfetto paths plus trace-processor diagnostic are recorded in
+  `docs/internal/v2/catalog-step2-performance-baseline-2026-09-08.md`.
+- The first `coldReturningDiscover` command also passed at the instrumentation level and returned a
+  preliminary TTID median of `483.546927 ms`, storage-ready `146.249896 ms`, first-snapshot
+  `186.938281 ms`, content-ready `260.764011 ms`, and first-cover `263.222396 ms`. Review found the
+  journey proved one Discover query but omitted the separate frozen `acquisition == 0` assertion.
+  That assertion is now added; `:benchmark:assemble --no-daemon` passes (`BUILD SUCCESSFUL in 25s`,
+  70 actionable tasks), and `coldReturningDiscover` requires one corrected rerun before acceptance.
+
+No corrected returning-path Macrobenchmark evidence, remaining journey, device decode assertion,
+regenerated profile, final startup comparison, broad architecture/Detekt/shell suite, or
+physical-device acceptance is claimed here.
+
 ## Later Task Status
 
 Tasks 0-15: **COMPLETED/ACCEPTED**.
-Task 16: **READY TO START**.
+Task 16: **IN PROGRESS**.
 Tasks 17 through 18: **NOT RUN**.
 
 ## Risks / Open Checks
 
-- Task 14 correctness and user-owned visual gates are accepted as PASS. The first Task 15 API 26
-  run exposed and locally repaired one minimum-SQLite compatibility defect. The user confirms both
-  final API connected commands PASS, and the required compact and >=600dp wide screenshot matrices
-  are present and reviewed. The first returned `verify-fast.sh` result exposed and locally
-  repaired a stale Step 1 build-surface assertion; the second returned run exposed and locally
-  repaired stale retired-path assertions for `core/designsystem` and `feature/catalog`; the third
-  returned run exposed and locally repaired the blanket source-filename rule that rejected the
-  approved versioned domain contracts. The user confirms every repaired broad command PASS. No
-  Task 15 correctness gate remains open. Task 16 performance/profile evidence, Task 17 plugin
-  integration, and Task 18 final acceptance remain `NOT RUN`.
+- Task 15 remains accepted. Task 16 device Macrobenchmark/profile execution and review are open and
+  user-owned. The preliminary `coldFreshInstall` result and incomplete first
+  `coldReturningDiscover` result are retained. The corrected `coldReturningDiscover` rerun now
+  passes all five iterations with `discoverQueries == 1` and `acquisition == 0`; its JSON, five
+  Perfetto traces, benchmark message, and Gradle log are retained under
+  `benchmark/build/task16-retained/2026-09-12/coldReturningDiscover-corrected/`.
+  `multiSectionDiscoverScroll` then passed its journey assertions and completed five iterations
+  (`BUILD SUCCESSFUL in 2m 34s`) but failed every frozen frame trigger: CPU P95 `30.597154 ms`, CPU
+  P99 `88.974780 ms`, and overrun P95 `32.106 ms`. All five per-run P95 values also exceed the
+  16.67 ms CPU/overrun thresholds. Raw JSON, five Perfetto traces, benchmark message, and Gradle log
+  are retained under `benchmark/build/task16-retained/2026-09-12/multiSectionDiscoverScroll/`; the
+  JSON SHA-256 is `174cadd9ecd9f0ae91d7ab11268041766ed41176cd1155bf6f6f9b53bd8695dd`.
+  Trace diagnosis localizes the dominant cost to RenderThread/GPU command flush, shader
+  compilation/cache misses, buffer stuffing, and missed app deadlines; the trace also contains
+  EdgeEffect overscroll work. Step 8 corrected the benchmark driver to stop when selectors are
+  visible, use V1-compatible deterministic 20-step swipe geometry, and clear package data only for
+  the first frame-fixture preparation while later iterations force-stop and idempotently reseed.
+  The focused 3-test driver gate passes (`BUILD SUCCESSFUL in 46s`). The final corrected scroll run
+  passes (`BUILD SUCCESSFUL in 1m 55s`); median-of-five per-iteration percentiles are CPU P95
+  `13.637 ms`, CPU P99 `18.922 ms`, and overrun P95 `7.961 ms`, all below their frozen triggers.
+  Final raw evidence is retained under
+  `benchmark/build/task16-retained/2026-09-12/multiSectionDiscoverScroll-warm-cache-policy/`; JSON
+  SHA-256 is `fc165d33a795a0e20cce09aa2e178c7325679aa4b47bf0026a0f6547d110ef88`.
+  `openStoryMemoryHit` then passed its transport/decode/query assertions and completed five
+  iterations (`BUILD SUCCESSFUL in 2m 38s`) but failed the frozen Story-open frame gate: median
+  per-iteration CPU P95 `40.166 ms` and overrun P95 `41.294 ms`, both above `33.33 ms`. Story
+  content-ready median is `57.775625 ms`. Raw JSON, five Perfetto traces, benchmark message, and
+  Gradle log are retained under `benchmark/build/task16-retained/2026-09-12/openStoryMemoryHit/`;
+  JSON SHA-256 is `537462e8d393f82e1d72269caa234ab4ff07b6eeac34d818ab866a02bf3f4c03`.
+  Three evidence-driven Story-layout corrections were then measured and rejected: separate lazy
+  metadata items (`43.685 ms` CPU P95 / `38.222 ms` overrun P95), first runtime state before route
+  exposure (`51.303 ms` / `58.401 ms`), and a one-frame metadata deferral (`39.047 ms` /
+  `32.157 ms`). The latter two raw runs are retained under
+  `openStoryMemoryHit-first-state-before-route/` and `openStoryMemoryHit-deferred-metadata-frame/`
+  with JSON SHA-256 values `6e6bd5a1b1e6ac10885ad09587487a61f5c543a73382ba2a96e955e65dfd28f4`
+  and `bf22b499507e36925c53f0157ce79841d55b4bf6923741860b27f0a7e2df02c6`. All three experiments
+  were removed after measurement. Trace evidence now identifies the load-bearing problem as Story
+  summary/detail publication and text-heavy layout partitioning; a fourth tactical tweak is not
+  authorized without architectural review and a new RED characterization.
+  The five later Step 7 journeys and the post-regeneration final startup comparison remain open. The current generated
+  profile files are stale relative to the uncommitted Task 16 code and must not be used for final
+  comparison. The first corrected returning rerun attempt on 2026-09-12 was blocked before
+  measurement because the Redmi Note 9S secure PIN keyguard was showing; fixture reproduction
+  completed normally once isolated, so no code/performance failure is claimed and no replacement
+  JSON was produced. That failed connected task cleaned the earlier benchmarkRelease JSON/Perfetto
+  outputs, so the preliminary numeric record remains but raw Task 16 device artifacts must be
+  regenerated. Task 17 plugin integration and Task 18 final acceptance remain `NOT RUN`.
 
 ## Exact Resume Boundary
 
-Task 15 is `COMPLETED/ACCEPTED`. Resume at Task 16 under the owning implementation plan only after a
-new explicit user instruction. Task 16 owns deterministic performance/aging benchmarks,
-evidence-driven optimization, profile regeneration, and startup comparison. Do not reconstruct or
-rerun Task 15 unless later evidence directly invalidates an accepted invariant.
+Task 15 is `COMPLETED/ACCEPTED`. Task 16 is `IN PROGRESS` at Step 8. The corrected
+`multiSectionDiscoverScroll` frozen gate is green, while `openStoryMemoryHit` passes its hard
+transport/decode/query assertions but remains above the CPU P95 trigger after three rejected
+corrections; the latest one-frame metadata diagnostic passed overrun P95 but returned CPU P95
+`39.047 ms > 33.33 ms`. Resume by reviewing Story summary/detail publication and layout partition
+as an architectural performance decision, using the retained baseline and three diagnostic runs;
+write a new RED characterization before any fourth production correction, then rerun only
+`openStoryMemoryHit` on the unlocked Redmi Note 9S. Do not run later journeys until this gate is
+green or explicitly reviewed. Do not start Task 17 until all Task 16 device/profile evidence is
+reviewed and accepted.

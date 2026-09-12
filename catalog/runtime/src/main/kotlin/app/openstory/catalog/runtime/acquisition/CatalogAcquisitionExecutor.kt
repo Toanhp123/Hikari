@@ -34,6 +34,8 @@ class CatalogAcquisitionExecutor(
     private val wallClockEpochMs: () -> Long,
     private val dispatchers: CatalogExecutionDispatchers,
     private val parentScope: CoroutineScope,
+    private val onActiveWorkChanged: (Int) -> Unit = {},
+    private val onDiscoverMutationTouched: (Int) -> Unit = {},
 ) {
     private val activeLock = Any()
     private val active = mutableMapOf<WorkKey, Deferred<CatalogAcquisitionResult>>()
@@ -51,7 +53,8 @@ class CatalogAcquisitionExecutor(
                 }
             }
             persist(CatalogStorageOperation.PUBLISH_DISCOVER) {
-                importer.publishDiscover(binding, mediaType, acquisition, wallClockEpochMs())
+                val diagnostics = importer.publishDiscover(binding, mediaType, acquisition, wallClockEpochMs())
+                onDiscoverMutationTouched(diagnostics.touchedStoryIds.size)
             }
         }
 
@@ -94,17 +97,28 @@ class CatalogAcquisitionExecutor(
         key: WorkKey,
         operation: suspend () -> CatalogAcquisitionResult,
     ): CatalogAcquisitionResult {
+        var createdWork: Deferred<CatalogAcquisitionResult>? = null
         val work = synchronized(activeLock) {
             active[key] ?: parentScope.async(start = CoroutineStart.LAZY) { operation() }
                 .also { created ->
                     active[key] = created
+                    createdWork = created
                     created.invokeOnCompletion {
-                        synchronized(activeLock) {
-                            if (active[key] === created) active.remove(key)
+                        val remaining = synchronized(activeLock) {
+                            if (active[key] === created) {
+                                active.remove(key)
+                                active.size
+                            } else {
+                                null
+                            }
                         }
+                        remaining?.let(onActiveWorkChanged)
                     }
-                    created.start()
                 }
+        }
+        createdWork?.let {
+            onActiveWorkChanged(activeWorkCount())
+            it.start()
         }
         return work.await()
     }

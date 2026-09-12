@@ -23,6 +23,7 @@ internal fun CatalogScreen(
     discoverState: DiscoverUiState?,
     storyState: StoryDetailUiState?,
     actions: CatalogScreenActions,
+    onDiscoverCoverReady: () -> Unit = {},
 ) {
     when (route) {
         CatalogRoute.Discover -> discoverState?.let { state ->
@@ -33,6 +34,7 @@ internal fun CatalogScreen(
                 onStorySelected = actions.onStorySelected,
                 onRefresh = actions.onDiscoverRefresh,
                 onRetry = actions.onDiscoverRetry,
+                onCoverReady = onDiscoverCoverReady,
             )
         } ?: CatalogRouteLoading()
         is CatalogRoute.Story -> {

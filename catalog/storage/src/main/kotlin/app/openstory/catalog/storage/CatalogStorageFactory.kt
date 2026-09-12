@@ -6,21 +6,27 @@ import app.openstory.catalog.domain.failure.CatalogFailure
 import app.openstory.catalog.domain.failure.CatalogFailureException
 import app.openstory.catalog.domain.failure.CatalogStorageOperation
 import java.util.concurrent.CancellationException
+import java.util.concurrent.Executor
 
 class CatalogStorageFactory(
     context: Context,
     private val databaseName: String = CatalogDatabase.NAME,
+    private val onQuery: ((String) -> Unit)? = null,
 ) {
     private val applicationContext = context.applicationContext
 
     fun open(): RoomCatalogStore {
         var database: CatalogDatabase? = null
         return runCatching {
-            val openedDatabase = Room.databaseBuilder(
+            val builder = Room.databaseBuilder(
                 applicationContext,
                 CatalogDatabase::class.java,
                 databaseName,
-            ).build()
+            )
+            onQuery?.let { listener ->
+                builder.setQueryCallback({ sql, _ -> listener(sql) }, Executor(Runnable::run))
+            }
+            val openedDatabase = builder.build()
             database = openedDatabase
             openedDatabase.openHelper.writableDatabase
             RoomCatalogStore(openedDatabase)

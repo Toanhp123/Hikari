@@ -2,6 +2,7 @@ package app.openstory.catalog.feature
 
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.identity.CatalogSourceKey
+import app.openstory.catalog.feature.assets.CatalogImageLoaderCallbacks
 import app.openstory.catalog.feature.seed.LocalSeedCatalogSource
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 
@@ -34,24 +35,15 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
             CatalogDebugDiagnostics.recordDiscoverCollectorStopped()
         }
 
-        override fun coverDemandStarted() {
-            CatalogDebugDiagnostics.recordCoverDemandStarted()
-        }
-
-        override fun coverDemandStopped() {
-            CatalogDebugDiagnostics.recordCoverDemandStopped()
-        }
-
-        override fun imageSessionInitialized() {
-            CatalogDebugDiagnostics.recordImageSessionInitialized()
-        }
-
-        override fun imageSessionClosed() {
-            CatalogDebugDiagnostics.recordImageSessionClosed()
-        }
-
         override fun runtimeSessionClosed() {
             CatalogDebugDiagnostics.recordRuntimeSessionClosed()
         }
+
+        override val imageLoaderCallbacks = CatalogImageLoaderCallbacks(
+            onSessionInitialized = CatalogDebugDiagnostics::recordImageSessionInitialized,
+            onSessionClosed = CatalogDebugDiagnostics::recordImageSessionClosed,
+            onDemandStarted = CatalogDebugDiagnostics::recordCoverDemandStarted,
+            onDemandStopped = CatalogDebugDiagnostics::recordCoverDemandStopped,
+        )
     }
 }

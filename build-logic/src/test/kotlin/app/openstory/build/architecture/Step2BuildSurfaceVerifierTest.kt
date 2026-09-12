@@ -177,6 +177,27 @@ class Step2BuildSurfaceVerifierTest {
     }
 
     @Test
+    fun missingBenchmarkScenarioOwnerIsRejected() {
+        listOf(
+            "BenchmarkRetentionPreparation.kt",
+            "BenchmarkCoverPreparation.kt",
+            "BenchmarkPinPruneSource.kt",
+        ).forEach { fileName ->
+            withFixture { fixture ->
+                fixture.delete(
+                    "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/$fileName",
+                )
+
+                assertViolation(
+                    fixture.verify(),
+                    "step2_surface.variant_binding_missing",
+                    ":feature:catalog",
+                )
+            }
+        }
+    }
+
+    @Test
     fun nonMinifiedReleaseMustReuseBenchmarkSourceDirectories() = withFixture { fixture ->
         fixture.write("feature/catalog/build.gradle.kts", "plugins {}")
 
@@ -222,6 +243,28 @@ class Step2BuildSurfaceVerifierTest {
             "step2_surface.release_fixture",
             ":feature:catalog",
         )
+    }
+
+    @Test
+    fun benchmarkDiagnosticsUnderFeatureReleaseAreRejected() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/release/kotlin/app/openstory/catalog/feature/fixture/" +
+                "BenchmarkCatalogDiagnostics.kt",
+            "package app.openstory.catalog.feature.fixture\nobject BenchmarkCatalogDiagnostics",
+        )
+
+        assertViolation(fixture.verify(), "step2_surface.release_fixture", ":feature:catalog")
+    }
+
+    @Test
+    fun agedBenchmarkFixtureUnderRuntimeReleaseIsRejected() = withFixture { fixture ->
+        fixture.write(
+            "catalog/runtime/src/release/kotlin/app/openstory/catalog/runtime/fixture/" +
+                "BenchmarkAgedCatalogFixture.kt",
+            "package app.openstory.catalog.runtime.fixture\nobject BenchmarkAgedCatalogFixture",
+        )
+
+        assertViolation(fixture.verify(), "step2_surface.release_fixture", ":catalog:runtime")
     }
 
     @Test
@@ -427,6 +470,36 @@ class Step2BuildSurfaceVerifierTest {
                 "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
                     "BenchmarkCatalogFixture.kt",
                 "package app.openstory.catalog.feature.seed\npublic object BenchmarkCatalogFixture",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+                    "BenchmarkCatalogPreparation.kt",
+                "package app.openstory.catalog.feature.seed\npublic enum class BenchmarkCatalogPreparation",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+                    "BenchmarkRetentionPreparation.kt",
+                "package app.openstory.catalog.feature.seed\ninternal object BenchmarkRetentionPreparation",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+                    "BenchmarkCoverPreparation.kt",
+                "package app.openstory.catalog.feature.seed\ninternal object BenchmarkCoverPreparation",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/seed/" +
+                    "BenchmarkPinPruneSource.kt",
+                "package app.openstory.catalog.feature.seed\ninternal class BenchmarkPinPruneSource",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/fixture/" +
+                    "BenchmarkCoverFixture.kt",
+                "package app.openstory.catalog.feature.fixture\npublic object BenchmarkCoverFixture",
+            )
+            write(
+                "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/fixture/" +
+                    "BenchmarkCatalogDiagnostics.kt",
+                "package app.openstory.catalog.feature.fixture\npublic object BenchmarkCatalogDiagnostics",
             )
             listOf(
                 "catalog_benchmark_manga_a.webp",

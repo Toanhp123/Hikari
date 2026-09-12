@@ -15,6 +15,8 @@ import app.openstory.catalog.runtime.execution.CatalogExecutionDispatchers
 import app.openstory.catalog.runtime.retention.ActiveStoryPins
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 import app.openstory.catalog.runtime.story.StoryDetailSession
+import app.openstory.catalog.runtime.trace.CatalogTrace
+import app.openstory.catalog.runtime.trace.CatalogTraceSink
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
@@ -36,9 +38,11 @@ sealed interface CatalogCapabilityActivation {
         private val activeStoryPins: ActiveStoryPins,
         private val wallClockEpochMs: () -> Long,
         private val scope: CoroutineScope,
+        private val traceSink: CatalogTraceSink,
     ) : CatalogCapabilityActivation {
         private val discoverSessions = mutableMapOf<CatalogMediaType, DiscoverSession>()
         private val storySessions = mutableMapOf<StorySourceRef, StoryDetailSession>()
+        private val firstDiscoverSnapshotTraced = AtomicBoolean(false)
 
         val assetPolicyProvider = SourceAssetPolicyProvider { sourceKey ->
             binding.assetPolicy?.takeIf { sourceKey == binding.catalogSourceKey }
@@ -53,6 +57,11 @@ sealed interface CatalogCapabilityActivation {
                     readPort = store,
                     executor = executor,
                     scope = scope,
+                    onFirstSnapshot = {
+                        if (firstDiscoverSnapshotTraced.compareAndSet(false, true)) {
+                            traceSink.mark(CatalogTrace.DISCOVER_FIRST_SNAPSHOT)
+                        }
+                    },
                 )
             }
 
@@ -75,6 +84,7 @@ sealed interface CatalogCapabilityActivation {
                     executor = executor,
                     wallClockEpochMs = wallClockEpochMs,
                     scope = scope,
+                    traceSink = traceSink,
                     onReleased = { released ->
                         synchronized(this) {
                             if (storySessions[ref] === released) storySessions.remove(ref)
@@ -90,6 +100,8 @@ class CatalogCapabilitySession internal constructor(
     private val openStorage: suspend () -> CatalogRuntimeStore,
     private val wallClockEpochMs: () -> Long,
     private val dispatchers: CatalogExecutionDispatchers,
+    private val traceSink: CatalogTraceSink,
+    private val ownershipCallbacks: CatalogRuntimeOwnershipCallbacks,
 ) : AutoCloseable {
     private val activationMutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + dispatchers.io)
@@ -103,9 +115,16 @@ class CatalogCapabilitySession internal constructor(
         val sourceBinding = binding ?: return CatalogCapabilityActivation.Unavailable().also {
             activation = it
         }
+        traceSink.mark(CatalogTrace.ACTIVATION_START)
         val store = openMappedStorage()
+        traceSink.mark(CatalogTrace.STORAGE_READY)
         val mutationGate = CatalogMutationGate()
-        val activeStoryPins = ActiveStoryPins(store, mutationGate)
+        val activeStoryPins = ActiveStoryPins(
+            writePort = store,
+            mutationGate = mutationGate,
+            onActivePinsChanged = ownershipCallbacks.onActiveStoryPinsChanged,
+            onReleaseMutationTouched = ownershipCallbacks.onStoryReleaseMutationTouched,
+        )
         val importer = CatalogImporter(store, activeStoryPins, dispatchers)
         val executor = CatalogAcquisitionExecutor(
             binding = sourceBinding,
@@ -113,6 +132,8 @@ class CatalogCapabilitySession internal constructor(
             wallClockEpochMs = wallClockEpochMs,
             dispatchers = dispatchers,
             parentScope = scope,
+            onActiveWorkChanged = ownershipCallbacks.onActiveWorkChanged,
+            onDiscoverMutationTouched = ownershipCallbacks.onDiscoverMutationTouched,
         )
         CatalogCapabilityActivation.Available(
             binding = sourceBinding,
@@ -121,6 +142,7 @@ class CatalogCapabilitySession internal constructor(
             activeStoryPins = activeStoryPins,
             wallClockEpochMs = wallClockEpochMs,
             scope = scope,
+            traceSink = traceSink,
         ).also {
             openedStore = store
             activation = it
