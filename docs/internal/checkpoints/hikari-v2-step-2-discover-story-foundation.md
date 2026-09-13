@@ -1,7 +1,7 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-13
-Status: **TASKS 0-17 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; TASK 18 READY TO START**
+Status: **TASKS 0-18 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT**
 
 ## Authority
 
@@ -10,9 +10,9 @@ Status: **TASKS 0-17 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; 
   and this checkpoint; its standalone untracked file is intentionally excluded from the commit.
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-17.
-- Next execution boundary: Task 18 is ready to start in a new turn. Task 18 remains `NOT RUN` in
-  this turn.
+- Completed/accepted execution boundary: Tasks 0-18; Hikari V2 Step 2 is accepted.
+- Current execution boundary: stop after the Task 18 documentation-freeze commit. Any later
+  capability requires a separate design/admission turn; this checkpoint does not authorize it.
 - 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
@@ -2234,3 +2234,200 @@ evidence.
 
 Task 17 is completed/accepted. Stop after its checkpoint/roadmap update and commit. Task 18 remains
 `NOT RUN`; it is ready to start only in a new explicitly authorized turn.
+
+## Task 18 Agent-Owned Final Review
+
+Task 18 changes no production behavior. The runtime-bearing candidate is
+`13af96625a93b3e45f7d7db18e539286ce075c79`; the later Task 18 delta is confined to documentation,
+verification scripts, Android tests, and value-preserving benchmark harness cleanup until final
+acceptance. No app/runtime production, layout, query, image, or generated-profile source changed
+after Task 16. Task 17 changed only build-policy/test wiring, `androidTest`, its deterministic
+assets, and checkpoint/roadmap evidence, so the accepted Task 14 visual, Task 15 API 26/API 37
+correctness, and Task 16 performance/profile evidence remain applicable. Task 17's API 35 real-JS
+integration and release-cleanliness evidence is the final changed-surface device evidence.
+
+Authority and profile checks:
+
+- R2.8 design SHA-256 remains
+  `cdb6e6b7a2db65acd54685fd5a1d5f78c97976d1f5c0ae53e3d64e2894828552`.
+- Owning-plan SHA-256 remains
+  `694ad52f03546208efbe1bb82debb957e33f3a23915470497e05c443f1c3248b`.
+- Generated Baseline and Startup Profile files remain byte-identical at `20,874` rules each, with
+  SHA-256 `797b58730c732777698f3aba24dc6ea11302cd8bfa4b17e75c351568f4ac54eb`.
+- Task 16 retained JSON hashes remain `57fc7ea1e8e8531c722c98f07500c4b1455a2808c2a9334fa191bbda03735429`
+  for fresh startup, `66ca39c2d11c94c066e01ca78c1953a2bfb71605a25be31df9a1e9fcdd7764d0`
+  for returning startup, and `724cee9919a54d20145a4d26fdb6080d878590d9d023edd8ebbf5d83692082e5`
+  for the final-profile Story memory-hit confirmation.
+- The accepted performance disposition remains explicit debt, not hidden PASS: Story memory-hit
+  `47.175 / 40.432 ms`, disk-hit `41.906 / 41.678 ms`, Story-back `66.212 / 59.902 ms`, fresh TTID
+  `507.138 ms`, and returning TTID `467.346 ms`.
+
+Focused final evidence:
+
+- `./gradlew :catalog:domain:test :catalog:runtime:testDebugUnitTest
+  :feature:catalog:testDebugUnitTest :catalog:storage:compileDebugAndroidTestKotlin
+  :feature:catalog:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin
+  :build-logic:test --no-daemon` -> `BUILD SUCCESSFUL in 50s`; 123 actionable tasks, 47 executed,
+  16 from cache, and 60 up-to-date.
+- `./gradlew verifyProductionPackageStructure verifyStep2BuildSurface --no-daemon` ->
+  `BUILD SUCCESSFUL in 15s`; `Step 2 package structure verified for 5 modules.` and
+  `Step 2 build surface verified.`
+- Focused production scans found no TODO/FIXME/placeholder, WorkManager/GlobalScope, production
+  JavaScriptEngine/plugin-runtime, INTERNET permission, concrete OkHttp client, or
+  Search/Chapter/Reader/Library/Downloads scope leakage. The app Startup provider and the Room
+  multi-instance service removal manifest are the already-reviewed, verifier-covered boundaries.
+- Dependency inspection preserves the exact production graph and confines Room to storage, Coil to
+  the feature, and `:plugins:api` plus JavaScriptEngine to feature `androidTest`.
+- `git diff --check` reports no whitespace errors.
+
+Returned host-gate review and correction:
+
+- The user reported `verifyArchitecture :app:verifyFoundation :build-logic:test --no-daemon` and
+  `scripts/tests/v2-step2-build-surface-test.sh` PASS on the initial documentation candidate.
+- `scripts/verify-fast.sh` then failed at the source-layout hard gate because
+  `MangaUpdatesCatalogIntegrationTest.kt` had grown to `906` lines, above the zero-allowance test
+  ceiling of `750`. The reported production files above `300` lines were review candidates, not
+  the failing condition.
+- Task 18 corrected the concrete test-structure defect without an allowlist or production change:
+  the remote-cover boundary/preflight and executor limit/cancellation helpers moved to
+  their own `MangaUpdatesCatalogBoundaryIntegrationTest` JUnit class, while the test method names
+  and assertions remain unchanged.
+- Focused correction evidence: `scripts/verify-source-layout.sh` PASS; the two files are now `672`
+  and `296` lines; `scripts/tests/v2-source-layout-policy-test.sh` PASS; and
+  `:feature:catalog:compileDebugAndroidTestKotlin --no-daemon` -> `BUILD SUCCESSFUL in 16s` with 45
+  actionable tasks, 1 executed and 44 up-to-date.
+- On the next returned candidate, Gate 1 passed in `14s` with 53 actionable tasks and Gate 2 passed
+  in `14s` with 235 actionable tasks. Gate 3 then passed all shell, source-layout, structural, and
+  architecture stages before `:detekt` failed with 45 hard findings; Gate 4 consequently did not
+  run.
+- The generated Detekt XML classified all 45 hard findings as `MagicNumber` in seven Task 16
+  benchmark/benchmark-fixture files. The 12 complexity/size findings were warnings and did not own
+  the failure. Neither Task 18 Android-test file had a Detekt finding.
+- Task 18 replaced only the reported benchmark invariant literals with named constants: iteration
+  count, query bounds, aged-row/retention counts, cache ceilings, SQLite bind indices, diagnostic
+  samples, decode dimensions, mutation samples, and deterministic section sizes. It added no
+  suppression/baseline and changed no value, production source, app/runtime binary, query, layout,
+  or image behavior.
+- Focused Detekt-correction evidence:
+  `:catalog:runtime:testBenchmarkReleaseUnitTest
+  :feature:catalog:testBenchmarkReleaseUnitTest :benchmark:compileBenchmarkReleaseKotlin
+  --no-daemon` -> `BUILD SUCCESSFUL in 12s`; 61 actionable tasks, 2 executed and 59 up-to-date.
+- Fresh focused Detekt source selection over the seven affected files -> `BUILD SUCCESSFUL in 20s`;
+  5 actionable tasks, 1 executed and 4 up-to-date, with zero `MagicNumber` findings. The remaining
+  printed complexity findings are non-blocking warnings. The temporary init script was removed and
+  is not part of the repository delta.
+- Task 14-16 visual/correctness/performance artifacts remain applicable because the measured app
+  and all benchmark scenario values/conditions are unchanged. The two focused Task 17 real-JS
+  integration classes were rerun after their test bodies were structurally split; final PASS
+  evidence is recorded below.
+
+## Task 18 R2.8 Acceptance Matrix
+
+Every row below cites executable evidence already accepted in this checkpoint or freshly rerun by
+Task 18. Device/performance rows cite the concrete accepted Task 14-17 records; command text alone
+is not used as evidence. The matrix and all separate final Task 18 host/device gates are green.
+
+| # | Short criterion | Owner | Concrete evidence | Status |
+|---:|---|---:|---|---|
+| 1 | Launch handoff | 7 | `CatalogLaunchHandoffTest`; Task 7 connected handoff gate accepted | PASS |
+| 2 | First frame independent | 7,16 | `StartupTraceContractTest`, pre-demand counters, fresh-start Perfetto evidence in Task 16 | PASS |
+| 3 | Manga + Light Novel authority | 0,8 | approved-product amendment plus `CatalogMediaDestinationNavTest` and Discover reducer/UI tests | PASS |
+| 4 | Internal slice classification | 0,18 | owning design/plan and this checkpoint explicitly retain the non-ship-ready remote classification | PASS |
+| 5 | Real Room-backed Discover | 2,6 | `DiscoverPersistenceInstrumentedTest`, real importer/fixture path, accepted API 26/API 37 matrix | PASS |
+| 6 | Seed uses real write boundary | 6 | `CatalogVariantFixtureTest` proves source -> executor -> importer -> Room | PASS |
+| 7 | Exact variant wiring | 0,6 | `Step2BuildSurfaceVerifierTest`, variant compile/artifact evidence, fresh Task 18 verifier PASS | PASS |
+| 8 | Release seed/harness clean | 6,17 | Task 6 variant scans and Task 17 release AAR/dependency/manifest cleanliness gates | PASS |
+| 9 | Five Step 2 modules + ratchet | 0,13 | `ModuleGraphTest`, build-surface verifier, fresh five-module package report | PASS |
+| 10 | Android library + Room confinement | 0 | build-logic negative fixtures and dependency scan; Room only in `:catalog:storage` | PASS |
+| 11 | Narrow app edges/imports | 0,13 | exact graph plus app source allowlist for `CatalogEntryPoint` and `HikariTheme` | PASS |
+| 12 | Quarantined model/engine | 0 | module-boundary fixtures and fresh build-surface verification show no Step 2 production edge | PASS |
+| 13 | Zero production package SCC | 0,13,18 | fresh `verifyProductionPackageStructure`: five modules verified | PASS |
+| 14 | Multi-section media + vocabulary | 2,5,8,13,14 | Room/runtime/UI tests, shared Design System gates, accepted Direction 3 surfaces | PASS |
+| 15 | V1-quality-or-better visual result | 14 | user accepted every Direction 3 checklist item; compact/wide 15-PNG matrices reviewed | PASS |
+| 16 | 5/9/5 and no N+1 | 1,2,8 | semantic-policy tests, one-query Discover observation, no-detail-call ViewModel coverage | PASS |
+| 17 | Absent vs Published(empty) | 2 | `DiscoverPersistenceInstrumentedTest`; accepted API 26/API 37 Room matrix | PASS |
+| 18 | Empty survives reopen/no bootstrap | 2,5 | file-backed reopen plus `DiscoverSessionTest` no-bootstrap coverage | PASS |
+| 19 | Only Absent bootstraps | 5 | `DiscoverSessionTest` single-flight/source-unavailable cases | PASS |
+| 20 | Host-authoritative source key | 1,5 | domain source authority and immutable `CatalogSourceBinding` tests | PASS |
+| 21 | Frozen StoryId v1 | 1 | `SourceStoryIdV1Test` golden vectors, malformed UTF-16, metadata stability | PASS |
+| 22 | Collision fails closed | 2,4 | `CatalogIdentityIntegrityInstrumentedTest` and typed importer collision propagation | PASS |
+| 23 | Explicit StorySourceRef route | 1,9 | identity consistency, `CatalogRouteTest`, `StoryRouteRestorationInstrumentedTest` | PASS |
+| 24 | Metadata-only Story Detail | 9 | Story ViewModel/screen tests plus final scope-leak scan | PASS |
+| 25 | Keyed bounded Story read | 3,16 | `StoryDetailPersistenceInstrumentedTest`; Task 16 query count remains within `1..4` | PASS |
+| 26 | Acquisition input bounds | 1,17 | `CatalogAcquisitionValidatorTest` plus real-plugin over-bound rejection cases | PASS |
+| 27 | Host-stamped provenance | 1,5,17 | binding/clock tests and Task 17 plugin provenance assertions | PASS |
+| 28 | Provenance survives version change | 2,3 | Discover/detail connected provenance cases accepted on API 26/API 37 | PASS |
+| 29 | Coherent Discover publication | 2 | single-query/snapshot and atomic generation Room tests | PASS |
+| 30 | Duplicate/order invariants | 1,2 | publication validator and public-store uniqueness/order tests | PASS |
+| 31 | Zero-card atomic rollback | 4 | `DiscoverPublicationRetentionInstrumentedTest` transaction cases | PASS |
+| 32 | Bounded delta pruning | 4,16 | importer touched-ID tests and aged benchmark `<=57/<=2` mutation counts | PASS |
+| 33 | No history-wide retention work | 3,4,16 | bounded DAO/query tests, five storage classes, aged-state counters | PASS |
+| 34 | Atomic detail, Discover unchanged | 3,4 | Story transaction rollback/coherence and Discover-card invariance tests | PASS |
+| 35 | Failed detail retains coherent state | 3 | faulted `StoryDetailPersistenceInstrumentedTest` transaction evidence | PASS |
+| 36 | Pin/prune race closed | 4,9 | mutation barrier tests, `ActiveStoryPinsTest`, restored-route connected test | PASS |
+| 37 | Mutation gate stays short | 4,18 | `CatalogMutationGateTest`, importer/pin tests, final lock/owner scan | PASS |
+| 38 | No access-touch invalidation loop | 3,5 | one-touch-per-demand and repeated-emission zero-write tests | PASS |
+| 39 | Real local/plugin covers | 10,17 | `LocalCoverContinuityInstrumentedTest` and accepted MangaUpdates real-JS UI path | PASS |
+| 40 | Cover independent of rich detail | 9,10 | Story state tests keep image state independent from detail loading | PASS |
+| 41 | Discover/Story/Back continuity | 9,10,16 | stable key tests and Task 16 memory/disk-hit transport/decode counters | PASS |
+| 42 | Recreation route/policy recovery | 9,11 | route restoration and remote host-policy recreation connected tests | PASS |
+| 43 | Stable geometry/shared skeleton | 8,10,13,14 | geometry/image tests, Design System skeleton contract, accepted visual matrix | PASS |
+| 44 | Presentation owns no raw trust client | 0,11 | dependency/import verifier and typed `RemoteCoverTransport` policy tests | PASS |
+| 45 | Logical local asset IDs | 1,6,10 | asset contract, fixture, revision, and storage tests | PASS |
+| 46 | Remote locator security | 11,17 | `RemoteCoverPolicyTest`, preflight connected tests, controlled plugin transport | PASS |
+| 47 | Meaningful remote revision query | 1,11 | `CoverAssetContractsTest` and remote URI/revision golden cases | PASS |
+| 48 | Image/cache/decode ceilings | 10,11,16 | limiter/cache/preflight tests plus benchmark resource counters | PASS |
+| 49 | Pull refresh single owner | 12,13 | refresh ownership/state tests and Design System pull-refresh accessibility gate | PASS |
+| 50 | No startup/root hidden work | 0,7,12,13 | merged-manifest, pre-demand, lifecycle, and fresh Task 18 leakage scans | PASS |
+| 51 | No production INTERNET | 0,11,17 | all-variant manifest and Task 17 release artifact/shell checks | PASS |
+| 52 | Bounded aged/navigation state | 3,4,10,12,16 | retention/cache caps and accepted aged/20-cycle benchmark diagnostics | PASS |
+| 53 | Returning path skips acquisition | 5,16 | Published content/empty runtime tests and zero-acquisition benchmark counters | PASS |
+| 54 | Memory/disk hit skips lower fetch | 10,16 | image cache tests; both accepted journeys report zero transport | PASS |
+| 55 | No Main DB/source/decode/importer work | 4,11,16 | dispatcher tests, Room/config gates, decode-thread benchmark evidence | PASS |
+| 56 | Mandatory post-polish performance task | 16 | Task 16 executed after Task 14 acceptance; evidence retained in performance baseline | PASS |
+| 57 | Final profiles regenerated first | 16 | generated files both 20,874 rules with hash `797b5873...4ac54eb` | PASS |
+| 58 | Startup/content deltas recorded | 16 | five-iteration startup JSON/Perfetto records and meaningful-content spans retained | PASS |
+| 59 | TTID >10% reviewed | 16 | `507.138 ms` fresh and `467.346 ms` returning; explicit accepted debt | PASS |
+| 60 | Frame/jank thresholds reviewed | 16 | frozen triggers, scroll PASS, Story frame deviations retained as accepted debt | PASS |
+| 61 | No monotonic navigation growth | 12,16 | terminal-map/pin tests and 20-cycle long-browse counters return to zero/bounds | PASS |
+| 62 | Local/visual/correctness/perf precede plugin | 13-16 | checkpoint chronology and accepted gates precede Task 17 execution | PASS |
+| 63 | MangaUpdates semantic proof | 17 | real byte-guarded JS proves three Home kinds with explicit raw-kind eligibility | PASS |
+| 64 | Plugin feeds unchanged product path | 17 | real JS -> bridge -> importer -> Room -> unchanged Discover/Story UI | PASS |
+| 65 | Plugin provenance/release isolation | 17 | member hashes, API 35 integration, release dependency/AAR/manifest gates | PASS |
+| 66 | Live smoke remains optional | 17 | deterministic controlled transport owns accepted evidence; live smoke not claimed | PASS |
+| 67 | Failure preserves usable content | 4,12,17 | rollback, retained refresh, and real-plugin bounded-rejection tests | PASS |
+| 68 | No placeholder/owner gap | 0-18 | reviewed pre-map, fresh placeholder/scope/dependency scans, both final verifiers | PASS |
+
+## Task 18 Final User-Owned Acceptance Evidence
+
+The user returned PASS for every required broad host gate on the corrected Task 18 candidate:
+
+```bash
+./gradlew verifyArchitecture :app:verifyFoundation :build-logic:test --no-daemon
+bash scripts/tests/v2-step2-build-surface-test.sh
+bash scripts/verify-fast.sh
+bash scripts/verify.sh
+```
+
+The user also returned PASS for the required focused connected rerun of both structurally split
+Task 17 classes on the JavaScriptSandbox-supported device:
+
+```bash
+./gradlew :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.plugin.MangaUpdatesCatalogIntegrationTest,app.openstory.catalog.feature.plugin.MangaUpdatesCatalogBoundaryIntegrationTest \
+  --no-daemon
+```
+
+The Task 14 visual evidence, Task 15 API 26/API 37 correctness matrix, and Task 16
+profiles/performance artifacts remain applicable. The measured app/runtime is unchanged, and the
+benchmark-harness cleanup preserves every scenario value and assertion while only naming literals
+required by Detekt. No required Task 18 gate remains open.
+
+Final runtime/source SHA: `13af96625a93b3e45f7d7db18e539286ce075c79`.
+
+## Task 18 Exact Resume Boundary
+
+Task 18 and Hikari V2 Step 2 are `COMPLETED/ACCEPTED`, with the Task 16 Story Detail frame-tail and
+startup TTID deviations retained as explicit performance debt rather than PASS. Commit the Task 18
+documentation freeze and stop. Do not begin the next capability in the same turn; future work must
+start from a separately approved design/admission record.

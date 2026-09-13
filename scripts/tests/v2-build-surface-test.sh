@@ -22,7 +22,6 @@ for forbidden in \
   'workManager = ' \
   'okhttp = ' \
   'navigation3 = ' \
-  'javascriptEngine = ' \
   'backdrop = ' \
   'roborazzi = '; do
   if grep -Fq "$forbidden" "$ROOT_DIR/gradle/libs.versions.toml"; then

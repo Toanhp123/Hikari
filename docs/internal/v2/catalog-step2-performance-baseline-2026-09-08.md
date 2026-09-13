@@ -347,8 +347,9 @@ Stage B production correction remains BLOCKED
   from the immediately preceding regeneration (`99.96%` retained). The generated Baseline and
   Startup Profile files are byte-identical, each with `20,874` rules and SHA-256
   `797b58730c732777698f3aba24dc6ea11302cd8bfa4b17e75c351568f4ac54eb`.
-- Source/runtime base SHA is `1cdbee50c708e1407b8c2b9a8aa148d1a44c4f98` plus the uncommitted
-  Task 16 working-tree delta.
+- Final runtime/source SHA is `13af96625a93b3e45f7d7db18e539286ce075c79`. Task 17 and Task 18
+  changed only test/build-policy, verification, benchmark-harness, and documentation surfaces; no
+  measured app/runtime production, layout, query, image, or generated-profile source changed.
 - Per the explicit resume boundary, the only repeated journey was `openStoryMemoryHit` on Redmi
   Note 9S / API 35 under `CompilationMode.Partial(BaselineProfileMode.Require)`: PASS at the
   instrumentation/correctness level (`BUILD SUCCESSFUL in 2m 11s`, 1 test, 5 measured iterations).
@@ -446,13 +447,14 @@ The profiles were regenerated from the final returning Discover -> Story -> Back
 Get-FileHash -Algorithm SHA256 app/src/release/generated/baselineProfiles/baseline-prof.txt,app/src/release/generated/baselineProfiles/startup-prof.txt
 ```
 
-The final source/runtime base SHA, profile hashes, five-iteration artifacts, trigger review, hard
-counters, terminal ownership evidence, and explicit debt disposition are recorded above. No Task
-16 user-owned gate remains open.
+The final runtime/source SHA, profile hashes, five-iteration artifacts, trigger review, hard
+counters, terminal ownership evidence, and explicit debt disposition are recorded above. Task 18
+accepted this performance record unchanged after all final host and focused connected gates passed.
+No Task 16 or Task 18 performance/profile gate remains open.
 
 ## Resume Boundary
 
-Task 16 is `COMPLETED/ACCEPTED WITH RECORDED PERFORMANCE DEBT`. Story Detail frame and startup TTID
-review-trigger deviations remain explicit debt, not PASS results. Resume from Task 17 in a new turn;
-do not reopen Task 16 performance work unless separately authorized or required by a later
-production/layout/query/image-shape change.
+Task 16 remains `COMPLETED/ACCEPTED WITH RECORDED PERFORMANCE DEBT`, and Task 18 has accepted the
+final Step 2 evidence set. Story Detail frame and startup TTID review-trigger deviations remain
+explicit debt, not PASS results. Do not reopen Task 16 performance work unless separately authorized
+or required by a later production/layout/query/image-shape change.

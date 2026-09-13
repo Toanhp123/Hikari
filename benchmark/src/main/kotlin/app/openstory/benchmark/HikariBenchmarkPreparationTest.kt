@@ -11,7 +11,7 @@ class HikariBenchmarkPreparationTest {
     @Test
     fun boundedOrphanOverflowPreparationPrunesToTheFrozenLimit() {
         inspectPreparation(BenchmarkPreparation.ORPHAN_OVERFLOW) {
-            check(benchmarkDiagnostic("orphanRetentionRows") == 64)
+            check(benchmarkDiagnostic("orphanRetentionRows") == EXPECTED_ORPHAN_RETENTION_ROWS)
             check(benchmarkDiagnostic("maxDiscoverTouched") <= MAX_DISCOVER_TOUCHED_STORIES)
             check(benchmarkDiagnostic("maxReleaseTouched") <= MAX_RELEASE_TOUCHED_STORIES)
         }
@@ -50,5 +50,9 @@ class HikariBenchmarkPreparationTest {
         } finally {
             benchmarkDevice().executeShellCommand("am force-stop $HIKARI_PACKAGE")
         }
+    }
+
+    private companion object {
+        const val EXPECTED_ORPHAN_RETENTION_ROWS = 64
     }
 }

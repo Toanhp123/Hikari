@@ -20,9 +20,9 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-17; Task 18 is
-READY TO START in a new turn.** Task 16 closes with explicit user-accepted performance debt, never relabeled as
-PASS or hidden by relaxed thresholds. Story Detail CPU/overrun P95 debt is memory-hit
+**Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**
+Task 16 closes with explicit user-accepted performance debt, never relabeled as PASS or hidden by
+relaxed thresholds. Story Detail CPU/overrun P95 debt is memory-hit
 `47.175 / 40.432 ms`, disk-hit `41.906 / 41.678 ms`, and Story-back `66.212 / 59.902 ms`; startup
 TTID debt is fresh `507.138 ms` and returning `467.346 ms`. All hard correctness, query/work,
 transport/decode, cache/resource, terminal ownership, navigation, profile-generation, and focused
@@ -34,8 +34,21 @@ explicit acceptance. Task 17 has a test-only, byte-verified MangaUpdates real-JS
 explicit raw provider-kind eligibility guard. Its focused integration and full feature connected
 suites passed on `Redmi Note 9S`, API 35, serial
 `adb-91f68893-N7oZEX._adb-tls-connect._tcp`; its release/architecture/foundation and Step 2 shell
-gates also passed. Task 17 is completed/accepted. Task 18 remains `NOT RUN`; start it only in a new
-turn.
+gates also passed. Task 17 is completed/accepted. Task 18 agent-owned focused tests, compilation,
+authority/profile hashes, five-module package-DAG/build-surface verification, final structural
+red-team, and the explicit 68-row acceptance matrix are complete. The first returned host run found
+one concrete test-layout defect: the Task 17 integration test exceeded the zero-allowance 750-line
+ceiling. Task 18 split its boundary/executor helpers without changing production behavior, retained
+the accepted test method names across two focused JUnit classes, and passed the focused
+source-layout policy plus Android-test compile checks. The next returned run passed Gates 1-2 and
+all Gate 3 stages before Detekt exposed 45 Task 16 benchmark/fixture `MagicNumber` errors. Task 18
+named those frozen invariant values without suppression or production/runtime behavior changes;
+the affected benchmarkRelease unit tests and benchmark compile are green. The user returned PASS
+for all four final broad host gates and the focused connected rerun of both Task 17 classes. The
+68-row matrix is fully PASS, the final runtime/source SHA is
+`13af96625a93b3e45f7d7db18e539286ce075c79`, and no Step 2 acceptance gate remains open. Stop after
+the Task 18 documentation-freeze commit. No next capability is authorized; it requires a separate
+design/admission turn.
 The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.

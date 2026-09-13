@@ -189,7 +189,7 @@ internal fun backToDiscover() {
 }
 
 internal fun longBrowseCycle() {
-    repeat(20) {
+    repeat(LONG_BROWSE_CYCLES) {
         scrollDiscoverToEndAndBack()
         openFirstStory()
         backToDiscover()
@@ -245,3 +245,4 @@ internal fun benchmarkDevice(): UiDevice = UiDevice.getInstance(
 )
 
 private const val DIAGNOSTIC_RETRY_MILLIS = 50L
+private const val LONG_BROWSE_CYCLES = 20

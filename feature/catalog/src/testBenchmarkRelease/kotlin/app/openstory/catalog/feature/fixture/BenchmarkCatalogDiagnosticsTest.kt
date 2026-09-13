@@ -59,21 +59,21 @@ class BenchmarkCatalogDiagnosticsTest {
         BenchmarkQueryCounters.recordSqlQuery("PRAGMA foreign_keys")
 
         assertEquals(1, BenchmarkCatalogDiagnostics.snapshot().discoverObservationQueries)
-        assertEquals(4, BenchmarkCatalogDiagnostics.snapshot().storyObservationQueries)
+        assertEquals(EXPECTED_STORY_OBSERVATION_QUERIES, BenchmarkCatalogDiagnostics.snapshot().storyObservationQueries)
     }
 
     @Test
     fun imageOwnershipSamplesTrackCurrentAndPeakBytes() {
         BenchmarkCatalogDiagnostics.reset()
 
-        BenchmarkImageCounters.recordImageOwnership(10, 20)
-        BenchmarkImageCounters.recordImageOwnership(7, 25)
+        BenchmarkImageCounters.recordImageOwnership(PEAK_DECODED_BYTES, INITIAL_ENCODED_BYTES)
+        BenchmarkImageCounters.recordImageOwnership(CURRENT_DECODED_BYTES, FINAL_ENCODED_BYTES)
 
         val snapshot = BenchmarkCatalogDiagnostics.snapshot()
-        assertEquals(7L, snapshot.decodedMemoryBytes)
-        assertEquals(10L, snapshot.peakDecodedMemoryBytes)
-        assertEquals(25L, snapshot.encodedDiskBytes)
-        assertEquals(25L, snapshot.peakEncodedDiskBytes)
+        assertEquals(CURRENT_DECODED_BYTES, snapshot.decodedMemoryBytes)
+        assertEquals(PEAK_DECODED_BYTES, snapshot.peakDecodedMemoryBytes)
+        assertEquals(FINAL_ENCODED_BYTES, snapshot.encodedDiskBytes)
+        assertEquals(FINAL_ENCODED_BYTES, snapshot.peakEncodedDiskBytes)
     }
 
     @Test
@@ -81,22 +81,22 @@ class BenchmarkCatalogDiagnosticsTest {
         BenchmarkCatalogDiagnostics.reset()
 
         BenchmarkImageCounters.recordSuccessfulDecode(
-            targetWidth = 360,
-            targetHeight = 540,
+            targetWidth = FIRST_TARGET_WIDTH,
+            targetHeight = FIRST_TARGET_HEIGHT,
             originalSize = false,
             mainThread = false,
         )
         BenchmarkImageCounters.recordSuccessfulDecode(
-            targetWidth = 720,
-            targetHeight = 1080,
+            targetWidth = MAX_TARGET_WIDTH,
+            targetHeight = MAX_TARGET_HEIGHT,
             originalSize = false,
             mainThread = false,
         )
 
         val snapshot = BenchmarkCatalogDiagnostics.snapshot()
         assertEquals(2, snapshot.successfulDecodes)
-        assertEquals(720, snapshot.maxDecodeTargetWidth)
-        assertEquals(1080, snapshot.maxDecodeTargetHeight)
+        assertEquals(MAX_TARGET_WIDTH, snapshot.maxDecodeTargetWidth)
+        assertEquals(MAX_TARGET_HEIGHT, snapshot.maxDecodeTargetHeight)
         assertEquals(0, snapshot.originalSizeDecodes)
         assertEquals(0, snapshot.mainThreadDecodes)
     }
@@ -105,13 +105,27 @@ class BenchmarkCatalogDiagnosticsTest {
     fun mutationSamplesTrackMaximumBoundedWork() {
         BenchmarkCatalogDiagnostics.reset()
 
-        BenchmarkWorkCounters.recordDiscoverMutationTouched(41)
-        BenchmarkWorkCounters.recordDiscoverMutationTouched(19)
+        BenchmarkWorkCounters.recordDiscoverMutationTouched(MAX_DISCOVER_MUTATION_TOUCHED)
+        BenchmarkWorkCounters.recordDiscoverMutationTouched(SMALLER_DISCOVER_MUTATION_TOUCHED)
         BenchmarkWorkCounters.recordStoryReleaseMutationTouched(2)
         BenchmarkWorkCounters.recordStoryReleaseMutationTouched(1)
 
         val snapshot = BenchmarkCatalogDiagnostics.snapshot()
-        assertEquals(41, snapshot.maxDiscoverTouchedStoryIds)
+        assertEquals(MAX_DISCOVER_MUTATION_TOUCHED, snapshot.maxDiscoverTouchedStoryIds)
         assertEquals(2, snapshot.maxReleaseTouchedStoryIds)
+    }
+
+    private companion object {
+        const val EXPECTED_STORY_OBSERVATION_QUERIES = 4
+        const val PEAK_DECODED_BYTES = 10L
+        const val INITIAL_ENCODED_BYTES = 20L
+        const val CURRENT_DECODED_BYTES = 7L
+        const val FINAL_ENCODED_BYTES = 25L
+        const val FIRST_TARGET_WIDTH = 360
+        const val FIRST_TARGET_HEIGHT = 540
+        const val MAX_TARGET_WIDTH = 720
+        const val MAX_TARGET_HEIGHT = 1_080
+        const val MAX_DISCOVER_MUTATION_TOUCHED = 41
+        const val SMALLER_DISCOVER_MUTATION_TOUCHED = 19
     }
 }

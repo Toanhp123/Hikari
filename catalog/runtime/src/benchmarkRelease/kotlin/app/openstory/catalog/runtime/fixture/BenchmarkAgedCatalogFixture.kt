@@ -19,16 +19,16 @@ public object BenchmarkAgedCatalogFixture {
                             identity.clearBindings()
                             identity.bindString(1, row.storyId)
                             identity.bindString(2, row.sourceKey)
-                            identity.bindString(3, row.sourceStoryId)
+                            identity.bindString(IDENTITY_SOURCE_STORY_ID_INDEX, row.sourceStoryId)
                             identity.executeInsert()
 
                             summary.clearBindings()
                             summary.bindString(1, row.storyId)
                             summary.bindString(2, row.sourceKey)
-                            summary.bindString(3, SOURCE_VERSION)
-                            summary.bindString(4, "Aged unrelated story $index")
-                            summary.bindString(5, "MANGA")
-                            summary.bindLong(6, index.toLong())
+                            summary.bindString(SUMMARY_SOURCE_VERSION_INDEX, SOURCE_VERSION)
+                            summary.bindString(SUMMARY_TITLE_INDEX, "Aged unrelated story $index")
+                            summary.bindString(SUMMARY_CONTENT_TYPE_INDEX, "MANGA")
+                            summary.bindLong(SUMMARY_LAST_SEEN_INDEX, index.toLong())
                             summary.executeInsert()
                         }
                     }
@@ -60,6 +60,11 @@ public object BenchmarkAgedCatalogFixture {
     private const val MAX_ROW_COUNT = 5_000
     private const val DATABASE_NAME = "hikari-v2-catalog.db"
     private const val SOURCE_VERSION = "aged-fixture-v1"
+    private const val IDENTITY_SOURCE_STORY_ID_INDEX = 3
+    private const val SUMMARY_SOURCE_VERSION_INDEX = 3
+    private const val SUMMARY_TITLE_INDEX = 4
+    private const val SUMMARY_CONTENT_TYPE_INDEX = 5
+    private const val SUMMARY_LAST_SEEN_INDEX = 6
     private const val IDENTITY_INSERT =
         "INSERT INTO story_source_identity(story_id, source_key, source_story_id) VALUES (?, ?, ?)"
     private const val SUMMARY_INSERT =

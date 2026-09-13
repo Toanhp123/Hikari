@@ -82,7 +82,7 @@ class HikariMacrobenchmark {
             openFirstStory()
             check(benchmarkDiagnostic("transport") == 0)
             check(benchmarkDiagnostic("successfulDecodes") == discoverDecodeCount)
-            check(benchmarkDiagnostic("storyQueries") in 1..4)
+            check(benchmarkDiagnostic("storyQueries") in MIN_STORY_QUERIES..MAX_STORY_QUERIES)
         }
     }
 
@@ -104,7 +104,7 @@ class HikariMacrobenchmark {
             openFirstStory()
             check(benchmarkDiagnostic("transport") == 0)
             check(benchmarkDiagnostic("successfulDecodes") > discoverDecodeCount)
-            check(benchmarkDiagnostic("storyQueries") in 1..4)
+            check(benchmarkDiagnostic("storyQueries") in MIN_STORY_QUERIES..MAX_STORY_QUERIES)
             assertDecodeEvidence()
         }
     }
@@ -162,7 +162,7 @@ class HikariMacrobenchmark {
                 startHikariAndWait(DISCOVER_TAG)
                 check(benchmarkDiagnostic("acquisition") == 0)
                 check(benchmarkDiagnostic("discoverQueries") == 1)
-                check(benchmarkDiagnostic("agedRows") == 5_000)
+                check(benchmarkDiagnostic("agedRows") == EXPECTED_AGED_ROWS)
                 check(benchmarkDiagnostic("maxDiscoverTouched") <= MAX_DISCOVER_TOUCHED_STORIES)
                 check(benchmarkDiagnostic("maxReleaseTouched") <= MAX_RELEASE_TOUCHED_STORIES)
             },
@@ -179,12 +179,20 @@ class HikariMacrobenchmark {
         waitForBenchmarkDiagnostic("storyPins", 0)
         waitForBenchmarkDiagnostic("storyCollectors", 0)
         waitForBenchmarkDiagnostic("discoverCollectors", 0)
-        check(benchmarkDiagnostic("peakCoverJobs") <= 8)
-        check(benchmarkDiagnostic("peakDecodedBytes") <= 32 * 1024 * 1024)
-        check(benchmarkDiagnostic("peakEncodedBytes") <= 128 * 1024 * 1024)
+        check(benchmarkDiagnostic("peakCoverJobs") <= MAX_PEAK_COVER_JOBS)
+        check(benchmarkDiagnostic("peakDecodedBytes") <= MAX_PEAK_DECODED_BYTES)
+        check(benchmarkDiagnostic("peakEncodedBytes") <= MAX_PEAK_ENCODED_BYTES)
         check(benchmarkDiagnostic("maxDiscoverTouched") <= MAX_DISCOVER_TOUCHED_STORIES)
         check(benchmarkDiagnostic("maxReleaseTouched") <= MAX_RELEASE_TOUCHED_STORIES)
         assertDecodeEvidence()
     }
 
+    private companion object {
+        const val MIN_STORY_QUERIES = 1
+        const val MAX_STORY_QUERIES = 4
+        const val EXPECTED_AGED_ROWS = 5_000
+        const val MAX_PEAK_COVER_JOBS = 8
+        const val MAX_PEAK_DECODED_BYTES = 32 * 1_024 * 1_024
+        const val MAX_PEAK_ENCODED_BYTES = 128 * 1_024 * 1_024
+    }
 }

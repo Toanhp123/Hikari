@@ -27,7 +27,7 @@ class BenchmarkCatalogSourceTest {
         CatalogMediaType.entries.forEach { mediaType ->
             val acquisition = source.acquireDiscover(mediaType)
             assertEquals(
-                listOf(5, 9, 5),
+                expectedSectionSizes,
                 acquisition.sections.map { it.items.size },
             )
             assertTrue(acquisition.sections.first().items.first().cover is AcquisitionCoverInput.RemoteHttps)
@@ -69,7 +69,7 @@ class BenchmarkCatalogSourceTest {
             sourceStoryId = first.sourceStoryId,
         )
 
-        assertTrue(requireNotNull(source.acquireStoryDetail(ref).description).length > 64 * 1024)
+        assertTrue(requireNotNull(source.acquireStoryDetail(ref).description).length > MAX_DESCRIPTION_BYTES)
     }
 
     @Test
@@ -93,7 +93,7 @@ class BenchmarkCatalogSourceTest {
         )
 
         assertNotEquals(firstItem.sourceStoryId, secondItem.sourceStoryId)
-        assertEquals(listOf(5, 9, 5), second.sections.map { it.items.size })
+        assertEquals(expectedSectionSizes, second.sections.map { it.items.size })
         assertEquals(firstItem.title, source.acquireStoryDetail(firstRef).title)
     }
 
@@ -111,7 +111,7 @@ class BenchmarkCatalogSourceTest {
         source.releasePrune()
         assertTrue(refresh.await().sections.isEmpty())
         assertEquals(
-            listOf(5, 9, 5),
+            expectedSectionSizes,
             source.acquireDiscover(CatalogMediaType.LIGHT_NOVEL).sections.map { it.items.size },
         )
     }
@@ -141,5 +141,17 @@ class BenchmarkCatalogSourceTest {
         assertThrows(IllegalArgumentException::class.java) {
             BenchmarkCatalogPreparation.fromWireValue("unknown")
         }
+    }
+
+    private companion object {
+        const val POPULAR_SECTION_SIZE = 5
+        const val LATEST_SECTION_SIZE = 9
+        const val TOP_RATED_SECTION_SIZE = 5
+        const val MAX_DESCRIPTION_BYTES = 64 * 1_024
+        val expectedSectionSizes = listOf(
+            POPULAR_SECTION_SIZE,
+            LATEST_SECTION_SIZE,
+            TOP_RATED_SECTION_SIZE,
+        )
     }
 }
