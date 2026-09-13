@@ -27,9 +27,18 @@ object ProductionPackageStructureVerifier {
                 imports = PROJECT_IMPORT.findAll(text)
                     .map { match -> match.groupValues[1] }
                     .toList(),
+                declaredTypeNames = TYPE_DECLARATION.findAll(text)
+                    .map { match -> match.groupValues[1] }
+                    .toSet(),
             )
         }
         val packages = parsed.mapNotNull(ParsedSource::packageName).toSortedSet()
+        val declaredTypesByPackage = parsed
+            .filter { source -> source.packageName != null }
+            .groupBy { source -> checkNotNull(source.packageName) }
+            .mapValues { (_, packageSources) ->
+                packageSources.flatMapTo(linkedSetOf(), ParsedSource::declaredTypeNames)
+            }
         val graph = packages.associateWith { linkedSetOf<String>() }
 
         parsed.forEach { source ->
@@ -37,8 +46,11 @@ object ProductionPackageStructureVerifier {
             source.imports.forEach { importedName ->
                 packages
                     .filter { candidate ->
-                        importedName == candidate ||
-                            importedName.startsWith("$candidate.")
+                        importedNameTargetsPackage(
+                            importedName = importedName,
+                            candidate = candidate,
+                            declaredTypeNames = declaredTypesByPackage.getValue(candidate),
+                        )
                     }
                     .maxByOrNull(String::length)
                     ?.takeIf { target -> target != sourcePackage }
@@ -50,6 +62,20 @@ object ProductionPackageStructureVerifier {
             .filter { component -> component.size > 1 }
             .map(Set<String>::sorted)
             .sortedBy { component -> component.joinToString("\u0000") }
+    }
+
+    private fun importedNameTargetsPackage(
+        importedName: String,
+        candidate: String,
+        declaredTypeNames: Set<String>,
+    ): Boolean {
+        val importedTarget = importedName.removeSuffix(".*")
+        if (importedTarget == candidate) return true
+        if (!importedTarget.startsWith("$candidate.")) return false
+
+        val relativeTarget = importedTarget.removePrefix("$candidate.")
+        val directOwner = importedTarget.substringBeforeLast('.')
+        return directOwner == candidate || relativeTarget.substringBefore('.') in declaredTypeNames
     }
 
     private fun stronglyConnectedComponents(
@@ -91,6 +117,7 @@ object ProductionPackageStructureVerifier {
     private data class ParsedSource(
         val packageName: String?,
         val imports: List<String>,
+        val declaredTypeNames: Set<String>,
     )
 
     private val PACKAGE_DECLARATION = Regex(
@@ -98,5 +125,14 @@ object ProductionPackageStructureVerifier {
     )
     private val PROJECT_IMPORT = Regex(
         """(?m)^\s*import\s+(app\.openstory\.[A-Za-z_][A-Za-z0-9_.*]*)""",
+    )
+    private val TYPE_DECLARATION = Regex(
+        pattern =
+            """(?m)^\s*""" +
+                """(?:@[A-Za-z_][A-Za-z0-9_.]*(?:\([^\r\n]*\))?\s+)*""" +
+                """(?:(?:public|protected|private|internal|expect|actual|final|open|""" +
+                """abstract|sealed|non-sealed|external|inner|enum|annotation|data|""" +
+                """value|inline|fun|companion|static|strictfp|native)\s+)*""" +
+                """(?:class|object|interface)\s+([A-Za-z_][A-Za-z0-9_]*)\b""",
     )
 }

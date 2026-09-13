@@ -12,17 +12,6 @@ fail() {
 required_tasks=(
   'verifyArchitecture'
   ':build-logic:test'
-  ':core:common:test'
-  ':core:designsystem:assembleDebug'
-  ':catalog:domain:test'
-  ':catalog:storage:assembleDebug'
-  ':catalog:runtime:testDebugUnitTest'
-  ':feature:catalog:testDebugUnitTest'
-  ':catalog:model:test'
-  ':catalog:engine:test'
-  ':reader:engine:test'
-  ':plugins:api:test'
-  ':app:testDebugUnitTest'
   'detekt'
 )
 
@@ -43,13 +32,10 @@ for entry in scripts/verify.sh scripts/verify-fast.sh; do
   fi
 done
 
-grep -Fq ':app:lintDebug' "$ROOT_DIR/scripts/verify.sh" ||
-  fail 'scripts/verify.sh is missing app lint.'
-grep -Fq ':app:assembleDebug' "$ROOT_DIR/scripts/verify.sh" ||
-  fail 'scripts/verify.sh is missing debug assembly.'
-if grep -Eq ':app:(lintDebug|assembleDebug)' "$ROOT_DIR/scripts/verify-fast.sh"; then
-  fail 'scripts/verify-fast.sh must leave lint and assembly to the full gate.'
-fi
+grep -Fq 'verifyStep3FastModules' "$ROOT_DIR/scripts/verify-fast.sh" ||
+  fail 'scripts/verify-fast.sh is missing the live Step 3 fast module aggregate.'
+grep -Fq 'verifyStep3FullModules' "$ROOT_DIR/scripts/verify.sh" ||
+  fail 'scripts/verify.sh is missing the live Step 3 full module aggregate.'
 
 [[ -f "$COMMON" ]] || fail 'Missing scripts/verification-common.sh.'
 for gate in \

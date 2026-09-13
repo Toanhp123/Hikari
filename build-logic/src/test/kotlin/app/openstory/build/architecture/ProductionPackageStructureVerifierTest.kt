@@ -27,6 +27,26 @@ class ProductionPackageStructureVerifierTest {
     }
 
     @Test
+    fun externalModuleImportBelowAnOwnedPackagePrefixDoesNotCreateACycle() {
+        val violations = ProductionPackageStructureVerifier.verify(
+            mapOf(
+                ":app" to mapOf(
+                    "MainActivity.kt" to """
+                        package app.openstory
+                        import app.openstory.startup.ui.HikariStartupApp
+                    """.trimIndent(),
+                    "StartupGate.kt" to """
+                        package app.openstory.startup.ui
+                        import app.openstory.designsystem.theme.HikariTheme
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertEquals(emptyList(), violations)
+    }
+
+    @Test
     fun packageCycleIsRejected() {
         val violations = ProductionPackageStructureVerifier.verify(
             mapOf(

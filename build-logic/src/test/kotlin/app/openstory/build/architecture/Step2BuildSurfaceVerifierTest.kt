@@ -8,6 +8,15 @@ import kotlin.test.assertTrue
 
 class Step2BuildSurfaceVerifierTest {
     @Test
+    fun archivedStepTwoPolicyStillMatchesTheExactHistoricalGraph() {
+        val policy = ModuleBoundaryPolicyLoader.load(
+            File("../config/architecture/history/step2-module-boundaries.json"),
+        )
+
+        assertTrue(Step2BuildSurfaceVerifier.verifyGraph(policy).isEmpty())
+    }
+
+    @Test
     fun exactStep2SurfaceIsAccepted() = withFixture { fixture ->
         assertEquals(emptyList(), fixture.verify())
     }

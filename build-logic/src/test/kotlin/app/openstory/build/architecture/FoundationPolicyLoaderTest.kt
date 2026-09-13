@@ -7,12 +7,18 @@ import kotlin.test.assertTrue
 
 class FoundationPolicyLoaderTest {
     @Test
-    fun loadsVersionOnePolicy() {
+    fun loadsVersionTwoPolicyWithPrefixBudgets() {
         val policy = FoundationPolicyLoader.parse(
             """
             {
-              "schemaVersion": 1,
-              "maxProductionKotlinLines": 300,
+              "schemaVersion": 2,
+              "maxProductionKotlinLines": 1800,
+              "productionKotlinLineBudgets": {
+                "app/openstory/startup/": 320,
+                "app/openstory/navigation/": 800,
+                "app/openstory/composition/": 500,
+                "*": 300
+              },
               "forbiddenSourceTokens": ["androidx.room."],
               "forbiddenBuildTokens": ["implementation(project("],
               "forbiddenBroadTypeSuffixes": ["Manager"],
@@ -22,8 +28,10 @@ class FoundationPolicyLoaderTest {
             """.trimIndent(),
         )
 
-        assertEquals(1, policy.schemaVersion)
-        assertEquals(300, policy.maxProductionKotlinLines)
+        assertEquals(2, policy.schemaVersion)
+        assertEquals(1800, policy.maxProductionKotlinLines)
+        assertEquals(320, policy.productionKotlinLineBudgets["app/openstory/startup/"])
+        assertEquals(300, policy.productionKotlinLineBudgets["*"])
         assertEquals(setOf("androidx.room."), policy.forbiddenSourceTokens)
     }
 
@@ -52,10 +60,10 @@ class FoundationPolicyLoaderTest {
     @Test
     fun rejectsUnsupportedSchemaVersion() {
         val error = assertFailsWith<IllegalArgumentException> {
-            FoundationPolicyLoader.parse(validPolicyJson(schemaVersion = 2))
+            FoundationPolicyLoader.parse(validPolicyJson(schemaVersion = 3))
         }
 
-        assertTrue("v2_foundation.schema:2" in error.message.orEmpty())
+        assertTrue("v2_foundation.schema:3" in error.message.orEmpty())
     }
 
     @Test
@@ -153,7 +161,7 @@ class FoundationPolicyLoaderTest {
     }
 
     private fun validPolicyJson(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = 2,
         maxProductionKotlinLines: Int = 300,
         forbiddenSourceTokens: List<String> = emptyList(),
         allowedStartupInitializers: List<String> = listOf(
@@ -164,6 +172,7 @@ class FoundationPolicyLoaderTest {
         {
           "schemaVersion": $schemaVersion,
           "maxProductionKotlinLines": $maxProductionKotlinLines,
+          "productionKotlinLineBudgets": {"*": 300},
           "forbiddenSourceTokens": ${forbiddenSourceTokens.toJsonArray()},
           "forbiddenBuildTokens": [],
           "forbiddenBroadTypeSuffixes": [],

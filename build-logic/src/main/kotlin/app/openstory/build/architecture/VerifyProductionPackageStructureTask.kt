@@ -43,13 +43,13 @@ abstract class VerifyProductionPackageStructureTask : DefaultTask() {
         if (violations.isNotEmpty()) {
             throw GradleException(
                 buildString {
-                    appendLine("Step 2 production package structure verification failed:")
+                    appendLine("Production package structure verification failed:")
                     violations.forEach { violation ->
                         appendLine("- ${violation.code} [${violation.module}]: ${violation.detail}")
                     }
                 }.trimEnd(),
             )
         }
-        logger.lifecycle("Step 2 package structure verified for ${sourcesByModule.size} modules.")
+        logger.lifecycle("Production package structure verified for ${sourcesByModule.size} modules.")
     }
 }

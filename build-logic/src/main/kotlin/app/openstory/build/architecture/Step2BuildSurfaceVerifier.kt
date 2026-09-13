@@ -7,14 +7,14 @@ object Step2BuildSurfaceVerifier {
         rootDirectory: File,
         policy: ModuleBoundaryPolicy,
     ): List<ArchitectureViolation> = buildList {
-        addAll(graphViolations(policy))
+        addAll(verifyGraph(policy))
         addAll(buildDependencyViolations(rootDirectory, policy))
         addAll(sourceViolations(rootDirectory, policy))
         addAll(androidLibraryVariantViolations(rootDirectory))
         addAll(CatalogVariantSurfaceVerifier.verify(rootDirectory))
     }.distinct().sorted()
 
-    private fun graphViolations(
+    internal fun verifyGraph(
         policy: ModuleBoundaryPolicy,
     ): List<ArchitectureViolation> = buildList {
         val actualModules = policy.modules.keys

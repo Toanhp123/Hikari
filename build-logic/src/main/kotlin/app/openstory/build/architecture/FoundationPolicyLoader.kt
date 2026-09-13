@@ -9,7 +9,7 @@ import kotlinx.serialization.json.int
 
 internal object FoundationPolicyLoader {
     private val json = Json { ignoreUnknownKeys = false }
-    private val expectedKeys = setOf(
+    private val versionOneKeys = setOf(
         "schemaVersion",
         "maxProductionKotlinLines",
         "forbiddenSourceTokens",
@@ -18,12 +18,16 @@ internal object FoundationPolicyLoader {
         "forbiddenManifestPermissions",
         "allowedStartupInitializers",
     )
+    private val versionTwoKeys = versionOneKeys + "productionKotlinLineBudgets"
     private val qualifiedClassName = Regex(
         """^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$""",
     )
 
     fun parse(text: String): FoundationPolicy {
         val root = json.parseToJsonElement(text).jsonObject
+        val schemaVersion = root.getValue("schemaVersion").jsonPrimitive.int
+        require(schemaVersion in 1..2) { "v2_foundation.schema:$schemaVersion" }
+        val expectedKeys = if (schemaVersion == 1) versionOneKeys else versionTwoKeys
         require(root.keys == expectedKeys) {
             "v2_foundation.policy_keys: expected=$expectedKeys actual=${root.keys}"
         }
@@ -45,11 +49,29 @@ internal object FoundationPolicyLoader {
             return values.toCollection(linkedSetOf())
         }
 
-        val schemaVersion = root.getValue("schemaVersion").jsonPrimitive.int
-        require(schemaVersion == 1) { "v2_foundation.schema:$schemaVersion" }
-
         val maxLines = root.getValue("maxProductionKotlinLines").jsonPrimitive.int
         require(maxLines > 0) { "v2_foundation.max_lines:$maxLines" }
+
+        val lineBudgets = if (schemaVersion == 1) {
+            mapOf("*" to maxLines)
+        } else {
+            root.getValue("productionKotlinLineBudgets").jsonObject
+                .mapValues { (prefix, value) ->
+                    require(prefix == "*" || PREFIX_PATH.matches(prefix)) {
+                        "v2_foundation.line_budget_prefix:$prefix"
+                    }
+                    value.jsonPrimitive.int.also { budget ->
+                        require(budget > 0) {
+                            "v2_foundation.line_budget:$prefix=$budget"
+                        }
+                    }
+                }
+                .also { budgets ->
+                    require("*" in budgets) {
+                        "v2_foundation.line_budget_catch_all"
+                    }
+                }
+        }
 
         val initializers = stringSet("allowedStartupInitializers")
         require(initializers.all(qualifiedClassName::matches)) {
@@ -59,6 +81,7 @@ internal object FoundationPolicyLoader {
         return FoundationPolicy(
             schemaVersion = schemaVersion,
             maxProductionKotlinLines = maxLines,
+            productionKotlinLineBudgets = lineBudgets,
             forbiddenSourceTokens = stringSet("forbiddenSourceTokens"),
             forbiddenBuildTokens = stringSet("forbiddenBuildTokens"),
             forbiddenBroadTypeSuffixes = stringSet("forbiddenBroadTypeSuffixes"),
@@ -66,4 +89,8 @@ internal object FoundationPolicyLoader {
             allowedStartupInitializers = initializers,
         )
     }
+
+    private val PREFIX_PATH = Regex(
+        """^[A-Za-z_][A-Za-z0-9_-]*(/[A-Za-z_][A-Za-z0-9_-]*)*/$""",
+    )
 }

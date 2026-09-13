@@ -19,6 +19,32 @@ object AppStructuralVerifier {
             )
         }
 
+        val explicitBudgets = policy.productionKotlinLineBudgets
+            .filterKeys { prefix -> prefix != "*" }
+        val linesByBudget = linkedMapOf<String, Int>()
+        sources.entries
+            .filter { (path, _) -> path.endsWith(".kt", ignoreCase = true) }
+            .forEach { (path, text) ->
+                val sourcePath = path.productionPackagePath()
+                val prefix = explicitBudgets.keys
+                    .filter(sourcePath::startsWith)
+                    .maxByOrNull(String::length)
+                    ?: "*"
+                linesByBudget[prefix] = linesByBudget.getOrDefault(prefix, 0) +
+                    text.sourceLineCount()
+            }
+        policy.productionKotlinLineBudgets.forEach { (prefix, maxLines) ->
+            val actualLines = linesByBudget.getOrDefault(prefix, 0)
+            if (actualLines > maxLines) {
+                add(
+                    FoundationViolation(
+                        code = "v2_structure.prefix_line_budget_exceeded",
+                        detail = "prefix=$prefix actual=$actualLines max=$maxLines",
+                    ),
+                )
+            }
+        }
+
         sources.toSortedMap().forEach { (path, text) ->
             TYPE_DECLARATION.findAll(text)
                 .map { match -> match.groupValues[1] }
@@ -162,6 +188,12 @@ object AppStructuralVerifier {
 
     private fun String.sourceLineCount(): Int =
         if (isEmpty()) 0 else count { character -> character == '\n' } + 1
+
+    private fun String.productionPackagePath(): String = when {
+        "/kotlin/" in this -> substringAfter("/kotlin/")
+        "/java/" in this -> substringAfter("/java/")
+        else -> this
+    }
 
     private data class ParsedSource(
         val packageName: String?,

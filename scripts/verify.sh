@@ -16,18 +16,6 @@ run_repository_static_gates
   --dependency-verification strict \
   verifyArchitecture \
   :build-logic:test \
-  :core:common:test \
-  :core:designsystem:assembleDebug \
-  :catalog:domain:test \
-  :catalog:storage:assembleDebug \
-  :catalog:runtime:testDebugUnitTest \
-  :feature:catalog:testDebugUnitTest \
-  :catalog:model:test \
-  :catalog:engine:test \
-  :reader:engine:test \
-  :plugins:api:test \
-  :app:testDebugUnitTest \
-  :app:lintDebug \
+  verifyStep3FullModules \
   detekt \
-  :app:assembleDebug \
-  --stacktrace
+  --no-daemon

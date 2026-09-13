@@ -4,19 +4,24 @@ import app.openstory.build.architecture.ModuleBoundaryPolicyLoader
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ModuleGraphTest {
     private val root = File("..").canonicalFile
     private val policy = ModuleBoundaryPolicyLoader.load(
         File(root, "config/architecture/module-boundaries.json"),
     )
+    private val archivedStepTwoPolicy = ModuleBoundaryPolicyLoader.load(
+        File(root, "config/architecture/history/step2-module-boundaries.json"),
+    )
 
     @Test
-    fun activePolicyContainsExactlyTheStepTwoFoundationGraph() {
-        assertEquals(expectedModules.keys, policy.modules.keys)
+    fun archivedPolicyContainsExactlyTheAcceptedStepTwoFoundationGraph() {
+        assertEquals(expectedModules.keys, archivedStepTwoPolicy.modules.keys)
 
         expectedModules.forEach { (module, expected) ->
-            val actual = policy.modules.getValue(module)
+            val actual = archivedStepTwoPolicy.modules.getValue(module)
 
             assertEquals(expected.path, actual.path, "$module path")
             assertEquals(expected.platform, actual.platform.policyValue, "$module platform")
@@ -39,68 +44,26 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun settingsDeclaresExactlyTheStepTwoFoundationGraph() {
+    fun settingsAndLivePolicyDeclareTheSameCurrentGraph() {
         val settings = File(root, "settings.gradle.kts").readText()
         val declaredModules = Regex("""include\("([^"]+)"\)""")
             .findAll(settings)
             .map { it.groupValues[1] }
             .toSet()
 
-        assertEquals(expectedModules.keys, declaredModules)
+        assertEquals(policy.modules.keys, declaredModules)
     }
 
     @Test
-    fun appKeepsOneProductEdgeBesidePresentationInfrastructure() {
-        val appDependencies = policy.modules.getValue(":app").productionDependencies
+    fun appPolicyDelegatesScopedImportsWithoutWeakeningStorageBans() {
+        val forbidden = policy.modules.getValue(":app").forbiddenProductionImports
 
-        assertEquals(setOf(":core:designsystem"), appDependencies intersect presentationInfrastructure)
-        assertEquals(setOf(":feature:catalog"), appDependencies - presentationInfrastructure)
-    }
-
-    @Test
-    fun designSystemParticipatesInProductionPackageStructureVerification() {
-        val pluginSource = File(
-            root,
-            "build-logic/src/main/kotlin/app/openstory/build/ArchitectureConventionPlugin.kt",
-        ).readText()
-
-        assertEquals(
-            "core/designsystem",
-            Regex("\"(:core:designsystem)\"\\s+to\\s+\"([^\"]+)\"")
-                .find(pluginSource)
-                ?.groupValues
-                ?.get(2),
-        )
-    }
-
-    @Test
-    fun appPolicyRejectsAllFoundationForbiddenImports() {
-        assertEquals(
-            setOf(
-                "androidx.room.",
-                "androidx.work.",
-                "androidx.navigation",
-                "androidx.lifecycle.viewmodel",
-                "androidx.startup.",
-                "okhttp3.",
-                "coil.",
-                "dagger.hilt.",
-                "javax.inject.",
-                "app.openstory.catalog.domain.",
-                "app.openstory.catalog.runtime.",
-                "app.openstory.catalog.storage.",
-                "app.openstory.catalog.model.",
-                "app.openstory.catalog.engine.",
-                "app.openstory.library.",
-                "app.openstory.chapters.",
-                "app.openstory.reader.",
-                "app.openstory.downloads.",
-                "app.openstory.settings.",
-                "app.openstory.storage.",
-                "app.openstory.plugins.",
-            ),
-            policy.modules.getValue(":app").forbiddenProductionImports,
-        )
+        assertTrue("app.openstory.catalog.storage." in forbidden)
+        assertTrue("app.openstory.library.storage." in forbidden)
+        assertTrue("app.openstory.reading.storage." in forbidden)
+        assertTrue("okhttp3." in forbidden)
+        assertFalse("androidx.navigation" in forbidden)
+        assertFalse("app.openstory.catalog.runtime." in forbidden)
     }
 
     private data class ExpectedModule(
@@ -189,6 +152,5 @@ class ModuleGraphTest {
                 testDependencies = setOf(":plugins:api"),
             ),
         )
-        val presentationInfrastructure = setOf(":core:designsystem")
     }
 }

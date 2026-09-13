@@ -208,6 +208,58 @@ class AppStructuralVerifierTest {
     }
 
     @Test
+    fun rejectsPackagePrefixLinesAboveBudgetWhileTotalRemainsBelowCap() {
+        val violations = AppStructuralVerifier.verify(
+            sources = mapOf(
+                "src/main/kotlin/app/openstory/startup/Startup.kt" to
+                    "line1\nline2\nline3",
+                "src/main/kotlin/app/openstory/navigation/Nav.kt" to "line1",
+            ),
+            policy = foundationTestPolicy(
+                maxProductionKotlinLines = 10,
+                productionKotlinLineBudgets = linkedMapOf(
+                    "app/openstory/startup/" to 2,
+                    "app/openstory/navigation/" to 5,
+                    "*" to 5,
+                ),
+            ),
+        )
+
+        assertEquals(
+            FoundationViolation(
+                code = "v2_structure.prefix_line_budget_exceeded",
+                detail = "prefix=app/openstory/startup/ actual=3 max=2",
+            ),
+            violations.single(),
+        )
+    }
+
+    @Test
+    fun remainingAppSourcesUseTheCatchAllBudget() {
+        val violations = AppStructuralVerifier.verify(
+            sources = mapOf(
+                "src/main/kotlin/app/openstory/MainActivity.kt" to "line1\nline2",
+                "src/main/kotlin/app/openstory/ui/Home.kt" to "line1\nline2",
+            ),
+            policy = foundationTestPolicy(
+                maxProductionKotlinLines = 10,
+                productionKotlinLineBudgets = linkedMapOf(
+                    "app/openstory/startup/" to 5,
+                    "*" to 3,
+                ),
+            ),
+        )
+
+        assertEquals(
+            FoundationViolation(
+                code = "v2_structure.prefix_line_budget_exceeded",
+                detail = "prefix=* actual=4 max=3",
+            ),
+            violations.single(),
+        )
+    }
+
+    @Test
     fun ignoresBroadTypeWordsThatAreNotDeclarations() {
         val violations = AppStructuralVerifier.verify(
             sources = mapOf(
@@ -234,8 +286,9 @@ class AppStructuralVerifierTest {
             policyFile.writeText(
                 """
                 {
-                  "schemaVersion": 1,
+                  "schemaVersion": 2,
                   "maxProductionKotlinLines": 2,
+                  "productionKotlinLineBudgets": {"*": 2},
                   "forbiddenSourceTokens": [],
                   "forbiddenBuildTokens": [],
                   "forbiddenBroadTypeSuffixes": ["Manager"],
@@ -315,8 +368,9 @@ class AppStructuralVerifierTest {
                 writeText(
                     """
                     {
-                      "schemaVersion": 1,
+                      "schemaVersion": 2,
                       "maxProductionKotlinLines": 10,
+                      "productionKotlinLineBudgets": {"*": 10},
                       "forbiddenSourceTokens": [],
                       "forbiddenBuildTokens": [],
                       "forbiddenBroadTypeSuffixes": [],

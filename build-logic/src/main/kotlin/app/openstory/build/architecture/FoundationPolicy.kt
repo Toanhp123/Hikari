@@ -3,6 +3,7 @@ package app.openstory.build.architecture
 data class FoundationPolicy(
     val schemaVersion: Int,
     val maxProductionKotlinLines: Int,
+    val productionKotlinLineBudgets: Map<String, Int>,
     val forbiddenSourceTokens: Set<String>,
     val forbiddenBuildTokens: Set<String>,
     val forbiddenBroadTypeSuffixes: Set<String>,

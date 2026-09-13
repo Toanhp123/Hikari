@@ -1,10 +1,10 @@
 package app.openstory.build
 
 import app.openstory.build.architecture.VerifyApplicationIdentityTask
+import app.openstory.build.architecture.ModulePlatform
 import app.openstory.build.architecture.VerifyModuleBoundariesTask
 import app.openstory.build.architecture.VerifyProductionPackageStructureTask
-import app.openstory.build.architecture.VerifyStep2BuildSurfaceTask
-import app.openstory.build.architecture.ModulePlatform
+import app.openstory.build.architecture.VerifyStep3BuildSurfaceTask
 import com.android.build.api.dsl.ApplicationExtension
 import java.io.File
 import org.gradle.api.Plugin
@@ -23,7 +23,15 @@ class ArchitectureConventionPlugin : Plugin<Project> {
         val boundaryTask = registerBoundaryTask()
         val identityTask = registerIdentityTask()
         val packageStructureTask = registerPackageStructureTask()
-        val step2BuildSurfaceTask = registerStep2BuildSurfaceTask()
+        val step3BuildSurfaceTask = registerStep3BuildSurfaceTask()
+        val step3FastModules = tasks.register("verifyStep3FastModules") {
+            group = "verification"
+            description = "Runs focused host gates for every live Step 3 production module."
+        }
+        val step3FullModules = tasks.register("verifyStep3FullModules") {
+            group = "verification"
+            description = "Runs full host gates for every live Step 3 production module."
+        }
 
         tasks.register("verifyArchitecture") {
             group = "verification"
@@ -34,13 +42,15 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 identityTask,
                 ":app:verifyFoundation",
                 packageStructureTask,
-                step2BuildSurfaceTask,
+                step3BuildSurfaceTask,
             )
         }
 
         gradle.projectsEvaluated {
             configureBoundaryInputs(boundaryTask)
             configureIdentityInputs(identityTask)
+            configurePackageStructureInputs(packageStructureTask)
+            configureStep3ModuleAggregates(step3FastModules, step3FullModules)
         }
     }
 
@@ -50,26 +60,24 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             "verifyProductionPackageStructure",
         ) {
             group = "verification"
-            description = "Rejects package cycles in Step 2 production modules."
-            moduleDirectories.set(STEP2_MODULE_DIRECTORIES)
+            description = "Rejects package cycles in live Step 3 production modules."
             rootDirectory.set(layout.projectDirectory)
             productionSources.from(
-                STEP2_MODULE_DIRECTORIES.values.map { moduleDirectory ->
-                    fileTree("$moduleDirectory/src/main") {
-                        include("**/*.kt")
-                        include("**/*.java")
-                    }
+                fileTree(rootDir) {
+                    include("**/src/main/**/*.kt")
+                    include("**/src/main/**/*.java")
+                    exclude("**/build/**")
                 },
             )
         }
 
-    private fun Project.registerStep2BuildSurfaceTask():
-        TaskProvider<VerifyStep2BuildSurfaceTask> =
-        tasks.register<VerifyStep2BuildSurfaceTask>(
-            "verifyStep2BuildSurface",
+    private fun Project.registerStep3BuildSurfaceTask():
+        TaskProvider<VerifyStep3BuildSurfaceTask> =
+        tasks.register<VerifyStep3BuildSurfaceTask>(
+            "verifyStep3BuildSurface",
         ) {
             group = "verification"
-            description = "Verifies exact Step 2 framework, source-set, and app ownership."
+            description = "Verifies live Step 3 framework, source-set, and app ownership."
             policyFile.set(
                 layout.projectDirectory.file(
                     "config/architecture/module-boundaries.json",
@@ -81,10 +89,20 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 file("gradle/libs.versions.toml"),
                 fileTree(rootDir) {
                     include("app/build.gradle.kts")
+                    include("core/*/build.gradle.kts")
                     include("catalog/*/build.gradle.kts")
+                    include("library/*/build.gradle.kts")
+                    include("reading/*/build.gradle.kts")
+                    include("settings/*/build.gradle.kts")
+                    include("sources/*/build.gradle.kts")
                     include("feature/*/build.gradle.kts")
                     include("app/src/main/**")
+                    include("core/*/src/main/**")
                     include("catalog/*/src/main/**")
+                    include("library/*/src/main/**")
+                    include("reading/*/src/main/**")
+                    include("settings/*/src/main/**")
+                    include("sources/*/src/main/**")
                     include("feature/*/src/main/**")
                     include("feature/*/src/debug/**")
                     include("feature/*/src/benchmarkRelease/**")
@@ -157,13 +175,13 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 snapshots.associate { it.module to it.platform.policyValue },
             )
             productionDependencies.set(
-                snapshots.associate { it.module to it.production },
+                snapshots.associate { it.module to it.production.encodeSet() },
             )
             testDependencies.set(
-                snapshots.associate { it.module to it.test },
+                snapshots.associate { it.module to it.test.encodeSet() },
             )
             unknownProjectDependencyConfigurations.set(
-                snapshots.associate { it.module to it.unknown },
+                snapshots.associate { it.module to it.unknown.encodeUnknown() },
             )
         }
     }
@@ -182,6 +200,58 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             actualNamespace.set(android.namespace.orEmpty())
             actualApplicationId.set(
                 android.defaultConfig.applicationId.orEmpty(),
+            )
+        }
+    }
+
+    private fun Project.configurePackageStructureInputs(
+        task: TaskProvider<VerifyProductionPackageStructureTask>,
+    ) {
+        val snapshots = rootProject.subprojects
+            .filter { project -> project.buildFile.isFile }
+            .sortedBy(Project::getPath)
+            .map { project -> project.snapshotArchitecture() }
+        val productionModules = productionReachableModules(
+            snapshots.associate { snapshot -> snapshot.module to snapshot.production },
+        )
+        val moduleDirectories = snapshots
+            .filter { snapshot -> snapshot.module in productionModules }
+            .filterNot { snapshot -> snapshot.platform == ModulePlatform.ANDROID_TEST }
+            .associate { snapshot ->
+                snapshot.module to snapshot.directory
+            }
+        task.configure {
+            this.moduleDirectories.set(moduleDirectories)
+        }
+    }
+
+    private fun Project.configureStep3ModuleAggregates(
+        fastTask: TaskProvider<*>,
+        fullTask: TaskProvider<*>,
+    ) {
+        val modules = rootProject.subprojects
+            .filter { project -> project.buildFile.isFile }
+            .sortedBy(Project::getPath)
+        fastTask.configure {
+            dependsOn(
+                modules.flatMap { project ->
+                    step3ModuleVerificationTasks(
+                        project.path,
+                        project.appliedPlatform(),
+                        full = false,
+                    )
+                },
+            )
+        }
+        fullTask.configure {
+            dependsOn(
+                modules.flatMap { project ->
+                    step3ModuleVerificationTasks(
+                        project.path,
+                        project.appliedPlatform(),
+                        full = true,
+                    )
+                },
             )
         }
     }
@@ -225,9 +295,9 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 .toString()
                 .replace(File.separatorChar, '/'),
             platform = platform,
-            production = productionDependencies.encodeSet(),
-            test = testDependencies.encodeSet(),
-            unknown = unknownDependencies.encodeUnknown(),
+            production = productionDependencies,
+            test = testDependencies,
+            unknown = unknownDependencies,
         )
     }
 
@@ -275,9 +345,9 @@ class ArchitectureConventionPlugin : Plugin<Project> {
         val module: String,
         val directory: String,
         val platform: ModulePlatform,
-        val production: String,
-        val test: String,
-        val unknown: String,
+        val production: Set<String>,
+        val test: Set<String>,
+        val unknown: Map<String, Set<String>>,
     )
 
     private enum class DependencyConfigurationKind {
@@ -287,13 +357,6 @@ class ArchitectureConventionPlugin : Plugin<Project> {
     }
 
     private companion object {
-        val STEP2_MODULE_DIRECTORIES = linkedMapOf(
-            ":core:designsystem" to "core/designsystem",
-            ":catalog:domain" to "catalog/domain",
-            ":catalog:storage" to "catalog/storage",
-            ":catalog:runtime" to "catalog/runtime",
-            ":feature:catalog" to "feature/catalog",
-        )
         val productionConfigurationSuffixes: Set<String> = setOf(
             "api",
             "implementation",
@@ -301,6 +364,40 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             "runtimeonly",
         )
     }
+}
+
+internal fun step3ModuleVerificationTasks(
+    module: String,
+    platform: ModulePlatform,
+    full: Boolean,
+): Set<String> = when (platform) {
+    ModulePlatform.JVM -> setOf("$module:test")
+    ModulePlatform.ANDROID_APPLICATION,
+    ModulePlatform.ANDROID_LIBRARY,
+    -> buildSet {
+        add("$module:testDebugUnitTest")
+        add("$module:assembleDebug")
+        if (full) {
+            add("$module:assembleRelease")
+            add("$module:lint")
+        }
+    }
+    ModulePlatform.ANDROID_TEST -> emptySet()
+}
+
+internal fun productionReachableModules(
+    productionDependencies: Map<String, Set<String>>,
+    rootModule: String = ":app",
+): Set<String> {
+    val reachable = linkedSetOf<String>()
+
+    fun visit(module: String) {
+        if (!reachable.add(module)) return
+        productionDependencies[module].orEmpty().sorted().forEach(::visit)
+    }
+
+    visit(rootModule)
+    return reachable
 }
 
 
