@@ -81,12 +81,12 @@ class StoryRouteRestorationInstrumentedTest {
         composeRule.setContent {
             MaterialTheme {
                 CatalogScreen(
+                    mediaType = CatalogMediaType.MANGA,
                     route = restored,
                     discoverListState = remember { LazyListState() },
                     discoverState = DiscoverUiState(content = DiscoverContentState.Empty()),
                     storyState = null,
                     actions = CatalogScreenActions(
-                        onMediaSelected = {},
                         onStorySelected = { _, _ -> storyAcquisitionStarted = true },
                         onDiscoverRefresh = {},
                         onDiscoverRetry = {},
@@ -116,12 +116,12 @@ class StoryRouteRestorationInstrumentedTest {
             }
             MaterialTheme {
                 CatalogScreen(
+                    mediaType = CatalogMediaType.MANGA,
                     route = CatalogRoute.Story(REF, COVER_KEY),
                     discoverListState = remember { LazyListState() },
                     discoverState = null,
                     storyState = state,
                     actions = CatalogScreenActions(
-                        onMediaSelected = {},
                         onStorySelected = { _, _ -> },
                         onDiscoverRefresh = {},
                         onDiscoverRetry = {},
@@ -150,12 +150,12 @@ class StoryRouteRestorationInstrumentedTest {
         composeRule.setContent {
             MaterialTheme {
                 CatalogScreen(
+                    mediaType = CatalogMediaType.MANGA,
                     route = navigation.route,
                     discoverListState = navigation.discoverListState,
                     discoverState = SCROLLABLE_DISCOVER_STATE,
                     storyState = ACTIVE_STATE,
                     actions = CatalogScreenActions(
-                        onMediaSelected = {},
                         onStorySelected = { _, _ -> },
                         onDiscoverRefresh = {},
                         onDiscoverRetry = {},

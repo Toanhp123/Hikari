@@ -170,7 +170,8 @@ class DiscoverRefreshStateTest {
             this,
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T = DiscoverViewModel(runtime) as T
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    DiscoverViewModel(runtime, CatalogMediaType.MANGA) as T
             },
         )[DiscoverViewModel::class.java]
 

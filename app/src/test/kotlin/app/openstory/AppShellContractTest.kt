@@ -64,17 +64,17 @@ class AppShellContractTest {
     }
 
     @Test
-    fun readyDestinationUsesOnlyTheNarrowCatalogEntryPoint() {
+    fun readyDestinationUsesOnlyTheAppNavigationBoundary() {
         val source = rootFile(
             "app/src/main/kotlin/app/openstory/startup/ui/StartupGate.kt",
         ).readText()
 
-        assertTrue("import app.openstory.catalog.feature.CatalogEntryPoint" in source)
-        assertTrue("AppLaunchState.Ready ->" in source)
+        assertTrue("import app.openstory.navigation.AppNavHost" in source)
         assertTrue("firstFrameReached" in source)
-        assertTrue("CatalogEntryPoint()" in source)
+        assertTrue("StartupDestination.APP_SHELL_HOME -> AppNavHost()" in source)
         assertTrue("launchState == AppLaunchState.Ready && firstFrameReached" in source)
         listOf(
+            "CatalogRootEntryPoint",
             "CatalogCapabilitySession",
             "CatalogRuntimeFactory",
             "CatalogSourceBinding",
@@ -109,15 +109,16 @@ class AppShellContractTest {
     }
 
     @Test
-    fun catalogEntryPointIsAFeatureOwnedNoArgumentComposableBoundary() {
+    fun catalogRootEntryPointRequiresImmutableMedia() {
         val entryPoint = repositoryFile(
             "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt",
         )
 
         assertTrue("Catalog entry point is missing", entryPoint.isFile)
         val source = entryPoint.readText()
-        assertTrue("@Composable\nfun CatalogEntryPoint()" in source)
-        assertFalse("Context" in source.substringBefore("fun CatalogEntryPoint"))
+        assertTrue("fun CatalogRootEntryPoint(mediaType: CatalogMediaType)" in source)
+        assertTrue("CatalogComposition(mediaType)" in source)
+        assertFalse("Context" in source.substringBefore("fun CatalogRootEntryPoint"))
     }
 
     @Test

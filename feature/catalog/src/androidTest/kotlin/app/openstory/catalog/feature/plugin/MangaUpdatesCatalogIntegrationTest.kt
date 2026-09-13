@@ -138,9 +138,9 @@ class MangaUpdatesCatalogIntegrationTest {
             composeRule.setContent {
                 HikariTheme(darkTheme = false) {
                     DiscoverScreen(
+                        mediaType = CatalogMediaType.MANGA,
                         state = manga.toDiscoverUiState(),
                         listState = rememberLazyListState(),
-                        onMediaSelected = {},
                         onStorySelected = { _, _ -> },
                         onRefresh = {},
                         onRetry = {},
@@ -395,8 +395,8 @@ class MangaUpdatesCatalogIntegrationTest {
                             )
                         } else {
                             DiscoverScreen(
+                                mediaType = CatalogMediaType.MANGA,
                                 state = DiscoverUiState(
-                                    selectedMediaType = CatalogMediaType.MANGA,
                                     content = DiscoverContentState.Content(
                                         sections = listOf(
                                             DiscoverSectionUi(
@@ -418,7 +418,6 @@ class MangaUpdatesCatalogIntegrationTest {
                                     ),
                                 ),
                                 listState = rememberLazyListState(),
-                                onMediaSelected = {},
                                 onStorySelected = { _, _ -> },
                                 onRefresh = {},
                                 onRetry = {},
@@ -457,7 +456,6 @@ class MangaUpdatesCatalogIntegrationTest {
         .persistence as DiscoverPersistenceState.Published
 
     private fun DiscoverPersistenceState.Published.toDiscoverUiState() = DiscoverUiState(
-        selectedMediaType = CatalogMediaType.MANGA,
         content = DiscoverContentState.Content(
             sections = CatalogSectionKind.entries.map { kind ->
                 DiscoverSectionUi(

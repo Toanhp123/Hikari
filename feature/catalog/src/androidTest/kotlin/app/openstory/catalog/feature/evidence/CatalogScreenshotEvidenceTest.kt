@@ -55,7 +55,7 @@ class CatalogScreenshotEvidenceTest {
     val composeRule = createComposeRule()
 
     private var surface by mutableStateOf<EvidenceSurface>(
-        EvidenceSurface.Discover("discover-loading", loadingDiscoverState()),
+        EvidenceSurface.Discover("discover-loading", CatalogMediaType.MANGA, loadingDiscoverState()),
     )
     private val capturedFiles = mutableListOf<File>()
 
@@ -107,8 +107,7 @@ class CatalogScreenshotEvidenceTest {
     }
 
     private fun capturePublishedMedia(mediaType: CatalogMediaType, mediaName: String) {
-        showDiscover("discover-$mediaName", publishedDiscoverState(mediaType = mediaType))
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(mediaType)).assertIsSelected()
+        showDiscover("discover-$mediaName", publishedDiscoverState(mediaType = mediaType), mediaType)
         listOf(
             CatalogSectionKind.POPULAR to "popular",
             CatalogSectionKind.LATEST_UPDATES to "latest",
@@ -151,8 +150,12 @@ class CatalogScreenshotEvidenceTest {
         capture("story-metadata-issue-retry")
     }
 
-    private fun showDiscover(name: String, state: DiscoverUiState) {
-        show(EvidenceSurface.Discover(name, state))
+    private fun showDiscover(
+        name: String,
+        state: DiscoverUiState,
+        mediaType: CatalogMediaType = CatalogMediaType.MANGA,
+    ) {
+        show(EvidenceSurface.Discover(name, mediaType, state))
     }
 
     private fun showStory(name: String, state: StoryDetailUiState) {
@@ -200,9 +203,9 @@ class CatalogScreenshotEvidenceTest {
                 key(current.name) {
                     when (current) {
                         is EvidenceSurface.Discover -> DiscoverScreen(
+                            mediaType = current.mediaType,
                             state = current.state,
                             listState = rememberLazyListState(),
-                            onMediaSelected = {},
                             onStorySelected = { _, _ -> },
                             onRefresh = {},
                             onRetry = {},
@@ -223,6 +226,7 @@ class CatalogScreenshotEvidenceTest {
 
         data class Discover(
             override val name: String,
+            val mediaType: CatalogMediaType,
             val state: DiscoverUiState,
         ) : EvidenceSurface
 
@@ -243,7 +247,6 @@ class CatalogScreenshotEvidenceTest {
         val STORY_REF = storyRef(CatalogMediaType.MANGA, CatalogSectionKind.POPULAR, 99)
 
         fun loadingDiscoverState() = DiscoverUiState(
-            selectedMediaType = CatalogMediaType.MANGA,
             content = DiscoverContentState.NoContentLoading,
         )
 
@@ -252,7 +255,6 @@ class CatalogScreenshotEvidenceTest {
             refreshing: Boolean = false,
             issue: CatalogIssueUi? = null,
         ) = DiscoverUiState(
-            selectedMediaType = mediaType,
             content = DiscoverContentState.Content(
                 sections = listOf(
                     section(mediaType, CatalogSectionKind.POPULAR, 5),

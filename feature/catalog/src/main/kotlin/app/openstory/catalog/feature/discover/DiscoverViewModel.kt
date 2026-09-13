@@ -42,6 +42,7 @@ internal sealed interface DiscoverRuntimeActivation {
 
 internal class DiscoverViewModel(
     private val runtime: DiscoverRuntime,
+    private val mediaType: CatalogMediaType,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(DiscoverUiState())
     val state: StateFlow<DiscoverUiState> = mutableState.asStateFlow()
@@ -69,7 +70,7 @@ internal class DiscoverViewModel(
             issue == null || !issue.retryable -> Unit
             activation == null -> activateIfNeeded()
             issue.kind == CatalogIssueKind.STORAGE_FAILED -> {
-                observeSelectedMedia(activation, mutableState.value.selectedMediaType)
+                observeFixedMedia(activation)
             }
             else -> requestRefresh()
         }
@@ -83,7 +84,7 @@ internal class DiscoverViewModel(
                     is DiscoverRuntimeActivation.Available -> {
                         available = activation
                         activationIssue = null
-                        if (!quiescent) observeSelectedMedia(activation, mutableState.value.selectedMediaType)
+                        if (!quiescent) observeFixedMedia(activation)
                     }
                     is DiscoverRuntimeActivation.Unavailable -> showFailure(activation.failure)
                 }
@@ -99,31 +100,17 @@ internal class DiscoverViewModel(
         }
     }
 
-    fun selectMedia(mediaType: CatalogMediaType) {
-        val current = mutableState.value
-        if (current.selectedMediaType == mediaType) return
-        mutableState.value = current.copy(
-            selectedMediaType = mediaType,
-            content = activationIssue?.let(DiscoverContentState::NoContentFailure)
-                ?: DiscoverContentState.NoContentLoading,
-        )
-        available?.takeUnless { quiescent }?.let { activation -> observeSelectedMedia(activation, mediaType) }
-    }
-
     private fun requestRefresh() {
         val activation = available ?: return
         if (refreshJob?.isActive == true) return
-        val mediaType = mutableState.value.selectedMediaType
         mutableState.update { current -> current.copy(content = current.content.withRefreshRunning()) }
         refreshJob = viewModelScope.launch {
             try {
                 when (val result = activation.refresh(mediaType)) {
                     CatalogAcquisitionResult.Success -> Unit
                     is CatalogAcquisitionResult.Failed -> {
-                        if (mutableState.value.selectedMediaType == mediaType) {
-                            mutableState.update { current ->
-                                current.copy(content = current.content.withIssue(result.failure.toCatalogIssueUi()))
-                            }
+                        mutableState.update { current ->
+                            current.copy(content = current.content.withIssue(result.failure.toCatalogIssueUi()))
                         }
                     }
                 }
@@ -143,7 +130,6 @@ internal class DiscoverViewModel(
         refreshJob?.cancel()
         refreshJob = null
         val activation = available ?: return
-        val mediaType = mutableState.value.selectedMediaType
         quiesceJob = viewModelScope.launch { activation.quiesce(mediaType) }
     }
 
@@ -152,7 +138,7 @@ internal class DiscoverViewModel(
         quiescent = false
         val activation = available
         if (activation != null) {
-            observeSelectedMedia(activation, mutableState.value.selectedMediaType)
+            observeFixedMedia(activation)
         } else if (activationIssue?.retryable != false) {
             activateIfNeeded()
         }
@@ -162,18 +148,16 @@ internal class DiscoverViewModel(
         runtime.close()
     }
 
-    private fun observeSelectedMedia(
+    private fun observeFixedMedia(
         activation: DiscoverRuntimeActivation.Available,
-        mediaType: CatalogMediaType,
     ) {
         observationJob?.cancel()
         observationJob = viewModelScope.launch {
             val pendingQuiesce = quiesceJob
             pendingQuiesce?.join()
             if (quiesceJob === pendingQuiesce) quiesceJob = null
-            if (quiescent || mutableState.value.selectedMediaType != mediaType) return@launch
+            if (quiescent) return@launch
             activation.observe(mediaType).collect { runtimeState ->
-                if (mutableState.value.selectedMediaType != mediaType) return@collect
                 mutableState.update { current ->
                     current.copy(content = runtimeState.toContentState(current.content, mediaType))
                 }
@@ -193,12 +177,17 @@ internal class DiscoverViewModel(
     }
 
     companion object {
-        fun factory(createRuntime: () -> DiscoverRuntime): ViewModelProvider.Factory =
+        fun key(mediaType: CatalogMediaType): String = "discover-${mediaType.name.lowercase()}"
+
+        fun factory(
+            mediaType: CatalogMediaType,
+            createRuntime: () -> DiscoverRuntime,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     require(modelClass.isAssignableFrom(DiscoverViewModel::class.java))
-                    return DiscoverViewModel(createRuntime()) as T
+                    return DiscoverViewModel(createRuntime(), mediaType) as T
                 }
             }
     }
@@ -206,7 +195,7 @@ internal class DiscoverViewModel(
 
 private fun DiscoverSessionState.toContentState(
     previous: DiscoverContentState,
-    selectedMediaType: CatalogMediaType,
+    mediaType: CatalogMediaType,
 ): DiscoverContentState {
     val failure = (acquisition as? CatalogAcquisitionStatus.Failed)?.failure?.toCatalogIssueUi()
     return when (val snapshot = persistence) {
@@ -216,7 +205,7 @@ private fun DiscoverSessionState.toContentState(
             DiscoverContentState.NoContentFailure(failure)
         }
         is DiscoverPersistenceState.Published -> {
-            val sections = snapshot.cards.toUiSections(selectedMediaType)
+            val sections = snapshot.cards.toUiSections(mediaType)
             if (sections.isEmpty()) {
                 DiscoverContentState.Empty(
                     refreshing = acquisition == CatalogAcquisitionStatus.Running,

@@ -106,14 +106,10 @@ class DiscoverScreenInstrumentedTest {
     }
 
     @Test
-    fun mediaControlsAreEnabledAndCardsExposeAccessibleLabelsWithinPolicyBound() {
+    fun cardsExposeAccessibleLabelsWithinPolicyBound() {
         val state = contentState()
         setContent(state)
 
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
-            .assertIsEnabled()
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.LIGHT_NOVEL))
-            .assertIsEnabled()
         val content = state.content as DiscoverContentState.Content
         val firstCard = content.sections.first().cards.first()
         composeRule.onNodeWithTag(DiscoverTestTags.card(CatalogSectionKind.POPULAR, firstCard.ref))
@@ -122,61 +118,8 @@ class DiscoverScreenInstrumentedTest {
     }
 
     @Test
-    fun mediaDestinationNavHasMangaHomeAndLightNovelTabsAndOneSelected() {
-        setContent(contentState())
-
-        composeRule.onAllNodesWithTag(DiscoverTestTags.MEDIA_NAV).assertCountEquals(1)
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
-            .assertIsEnabled()
-            .assertIsSelected()
-        composeRule.onNodeWithTag(DiscoverTestTags.NAV_HOME)
-            .assertIsEnabled()
-            .assertIsNotSelected()
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.LIGHT_NOVEL))
-            .assertIsEnabled()
-            .assertIsNotSelected()
-    }
-
-    @Test
-    fun mediaDestinationNavDispatchesOnlyForADifferentDestination() {
-        val selections = mutableListOf<CatalogMediaType>()
-        setContent(contentState(), onMediaSelected = selections::add)
-
-        composeRule.onNodeWithTag(DiscoverTestTags.NAV_HOME).performClick()
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
-            .assertIsSelected()
-        composeRule.onNodeWithTag(DiscoverTestTags.NAV_HOME).assertIsNotSelected()
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.MANGA))
-            .performClick()
-        composeRule.onNodeWithTag(DiscoverTestTags.mediaDestination(CatalogMediaType.LIGHT_NOVEL))
-            .performClick()
-
-        composeRule.runOnIdle {
-            assertEquals(listOf(CatalogMediaType.LIGHT_NOVEL), selections)
-        }
-    }
-
-    @Test
-    fun mediaDestinationNavRemainsDisplayedAndClearsFinalTopRatedRow() {
-        setContent(contentState())
-
-        composeRule.onNodeWithTag(DiscoverTestTags.ROOT)
-            .performScrollToNode(hasTestTag(DiscoverTestTags.FINAL_TOP_RATED_ROW))
-        composeRule.onNodeWithTag(DiscoverTestTags.ROOT).performTouchInput { swipeUp() }
-        composeRule.waitForIdle()
-        val navBounds = composeRule.onNodeWithTag(DiscoverTestTags.MEDIA_NAV)
-            .assertIsDisplayed()
-            .fetchSemanticsNode().boundsInRoot
-        val finalRowBounds = composeRule.onNodeWithTag(DiscoverTestTags.FINAL_TOP_RATED_ROW)
-            .assertIsDisplayed()
-            .fetchSemanticsNode().boundsInRoot
-
-        assertTrue("Final row must clear the floating media navigation", finalRowBounds.bottom <= navBounds.top)
-    }
-
-    @Test
-    fun headerUsesSelectedMediaAsPageIdentityWithoutDeveloperCopy() {
-        setContent(contentState().copy(selectedMediaType = CatalogMediaType.LIGHT_NOVEL))
+    fun headerUsesFixedMediaAsPageIdentityWithoutDeveloperCopy() {
+        setContent(contentState(), mediaType = CatalogMediaType.LIGHT_NOVEL)
 
         composeRule.onNodeWithTag(DiscoverTestTags.PAGE_IDENTITY)
             .assertIsDisplayed()
@@ -268,16 +211,16 @@ class DiscoverScreenInstrumentedTest {
 
     private fun setContent(
         state: DiscoverUiState,
-        onMediaSelected: (CatalogMediaType) -> Unit = {},
+        mediaType: CatalogMediaType = CatalogMediaType.MANGA,
         onRefresh: () -> Unit = {},
         onRetry: () -> Unit = {},
     ) {
         composeRule.setContent {
             HikariTheme(darkTheme = false) {
                 DiscoverScreen(
+                    mediaType = mediaType,
                     state = state,
                     listState = rememberLazyListState(),
-                    onMediaSelected = onMediaSelected,
                     onStorySelected = { _, _ -> },
                     onRefresh = onRefresh,
                     onRetry = onRetry,
@@ -298,7 +241,6 @@ class DiscoverScreenInstrumentedTest {
         val SOURCE_KEY = CatalogSourceKey("discover-screen-test")
 
         fun contentState() = DiscoverUiState(
-            selectedMediaType = CatalogMediaType.MANGA,
             content = DiscoverContentState.Content(
                 sections = listOf(
                     section(CatalogSectionKind.POPULAR, 5),

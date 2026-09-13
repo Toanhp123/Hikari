@@ -20,15 +20,16 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion Task 0 is completed/accepted; Task 1 is next.**
+**Hikari V2 Step 3 - Base App UX/UI Completion Tasks 0-1 are completed/accepted; Task 2 is next.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit are now canonical.
 The live architecture gate is migrated from the exact Step 2 graph to `verifyStep3BuildSurface`;
 the accepted Step 2 module policy is archived immutably, package-cycle input and fast/full module
-aggregates are dynamic, and the app structural ratchet now has total plus prefix budgets. Focused
-agent-owned evidence and all four required user-owned architecture/build-surface/fast/full gates
-pass. Resume at Task 1 from
-`../internal/checkpoints/hikari-v2-step-3-base-app-ux-ui-completion.md`; Task 2 is not authorized in
-that turn. The owning plan is
+aggregates are dynamic, and the app structural ratchet now has total plus prefix budgets. Task 1
+adds App Shell-owned lazy serializable Manga/Home/Light Novel roots, makes Home the cold Ready
+destination, and gives Discover immutable media ownership. Focused evidence and all required
+architecture/build-surface/fast/full gates pass after removing the stale static assertion that
+misclassified the admitted Navigation3 catalog surface. Resume at Task 2 from
+`../internal/checkpoints/hikari-v2-step-3-base-app-ux-ui-completion.md`. The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

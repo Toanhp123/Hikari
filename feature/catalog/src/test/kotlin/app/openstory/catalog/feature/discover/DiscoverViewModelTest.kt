@@ -44,7 +44,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertSame
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -64,43 +64,53 @@ class DiscoverViewModelTest {
     }
 
     @Test
-    fun newViewModelDefaultsToMangaWithoutStaticPresentationOptionsInState() = runTest(dispatcher.scheduler) {
+    fun mangaOwnerObservesOnlyItsFixedMedia() = runTest(dispatcher.scheduler) {
         val runtime = FakeDiscoverRuntime()
-        val owner = TestViewModelOwner(runtime)
+        val owner = TestViewModelOwner(runtime, CatalogMediaType.MANGA)
 
         advanceUntilIdle()
 
-        assertEquals(CatalogMediaType.MANGA, owner.viewModel.state.value.selectedMediaType)
         assertEquals(listOf(CatalogMediaType.MANGA), runtime.observedMedia)
         owner.clear()
     }
 
     @Test
-    fun selectionLivesOnlyForTheExistingViewModelAndReplacesTheObservedScope() = runTest(dispatcher.scheduler) {
+    fun lightNovelOwnerObservesAndRefreshesOnlyItsFixedMedia() = runTest(dispatcher.scheduler) {
         val runtime = FakeDiscoverRuntime()
-        val retainedStore = ViewModelStore()
-        val owner = TestViewModelOwner(runtime, retainedStore)
+        val owner = TestViewModelOwner(runtime, CatalogMediaType.LIGHT_NOVEL)
         advanceUntilIdle()
 
-        owner.viewModel.selectMedia(CatalogMediaType.LIGHT_NOVEL)
+        owner.viewModel.refresh()
         advanceUntilIdle()
 
-        assertEquals(CatalogMediaType.LIGHT_NOVEL, owner.viewModel.state.value.selectedMediaType)
-        assertEquals(0, runtime.activeCollectors.getValue(CatalogMediaType.MANGA))
         assertEquals(1, runtime.activeCollectors.getValue(CatalogMediaType.LIGHT_NOVEL))
-        assertEquals(
-            listOf(CatalogMediaType.MANGA, CatalogMediaType.LIGHT_NOVEL),
-            runtime.observedMedia,
-        )
-        val recreatedConfiguration = TestViewModelOwner(FakeDiscoverRuntime(), retainedStore)
-        assertSame(owner.viewModel, recreatedConfiguration.viewModel)
-        assertEquals(CatalogMediaType.LIGHT_NOVEL, recreatedConfiguration.viewModel.state.value.selectedMediaType)
-        recreatedConfiguration.clear()
+        assertEquals(listOf(CatalogMediaType.LIGHT_NOVEL), runtime.observedMedia)
+        assertEquals(listOf(CatalogMediaType.LIGHT_NOVEL), runtime.refreshCalls)
+        owner.clear()
+    }
 
-        val recreatedAfterProcessDeath = TestViewModelOwner(FakeDiscoverRuntime())
+    @Test
+    fun mediaOwnersSharingAViewModelStoreRemainIndependent() = runTest(dispatcher.scheduler) {
+        val storeOwner = object : ViewModelStoreOwner {
+            override val viewModelStore = ViewModelStore()
+        }
+        val mangaRuntime = FakeDiscoverRuntime()
+        val lightNovelRuntime = FakeDiscoverRuntime()
+        val manga = ViewModelProvider(
+            storeOwner,
+            DiscoverViewModel.factory(CatalogMediaType.MANGA) { mangaRuntime },
+        )[DiscoverViewModel.key(CatalogMediaType.MANGA), DiscoverViewModel::class.java]
+        val lightNovel = ViewModelProvider(
+            storeOwner,
+            DiscoverViewModel.factory(CatalogMediaType.LIGHT_NOVEL) { lightNovelRuntime },
+        )[DiscoverViewModel.key(CatalogMediaType.LIGHT_NOVEL), DiscoverViewModel::class.java]
+
         advanceUntilIdle()
-        assertEquals(CatalogMediaType.MANGA, recreatedAfterProcessDeath.viewModel.state.value.selectedMediaType)
-        recreatedAfterProcessDeath.clear()
+
+        assertNotSame(manga, lightNovel)
+        assertEquals(listOf(CatalogMediaType.MANGA), mangaRuntime.observedMedia)
+        assertEquals(listOf(CatalogMediaType.LIGHT_NOVEL), lightNovelRuntime.observedMedia)
+        storeOwner.viewModelStore.clear()
     }
 
     @Test
@@ -268,20 +278,18 @@ class DiscoverViewModelTest {
         }
 
     @Test
-    fun unavailableActivationRemainsVisibleWhenMediaSelectionChanges() = runTest(dispatcher.scheduler) {
+    fun unavailableActivationRemainsVisibleForTheFixedMediaOwner() = runTest(dispatcher.scheduler) {
         val owner = TestViewModelOwner(
-            object : DiscoverRuntime {
+            runtime = object : DiscoverRuntime {
                 override suspend fun activate(): DiscoverRuntimeActivation =
                     DiscoverRuntimeActivation.Unavailable(CatalogFailure.SourceUnavailable)
 
                 override fun close() = Unit
             },
+            mediaType = CatalogMediaType.LIGHT_NOVEL,
         )
         advanceUntilIdle()
 
-        owner.viewModel.selectMedia(CatalogMediaType.LIGHT_NOVEL)
-
-        assertEquals(CatalogMediaType.LIGHT_NOVEL, owner.viewModel.state.value.selectedMediaType)
         assertEquals(
             DiscoverContentState.NoContentFailure(
                 CatalogIssueUi(CatalogIssueKind.SOURCE_UNAVAILABLE, retryable = false),
@@ -367,6 +375,7 @@ class DiscoverViewModelTest {
 
     private class TestViewModelOwner(
         runtime: DiscoverRuntime,
+        mediaType: CatalogMediaType = CatalogMediaType.MANGA,
         override val viewModelStore: ViewModelStore = ViewModelStore(),
     ) : ViewModelStoreOwner {
         val viewModel: DiscoverViewModel = ViewModelProvider(
@@ -374,7 +383,7 @@ class DiscoverViewModelTest {
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    DiscoverViewModel(runtime) as T
+                    DiscoverViewModel(runtime, mediaType) as T
             },
         )[DiscoverViewModel::class.java]
 

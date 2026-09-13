@@ -4,13 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,8 +14,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
@@ -33,20 +27,17 @@ import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariErrorState
 import app.openstory.designsystem.theme.hikariSpacing
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun DiscoverScreen(
+    mediaType: CatalogMediaType,
     state: DiscoverUiState,
     listState: LazyListState,
-    onMediaSelected: (CatalogMediaType) -> Unit,
     onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onCoverReady: () -> Unit = {},
 ) {
-    val coroutineScope = rememberCoroutineScope()
-
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalInset = if (maxWidth >= DiscoverVisualMetrics.WideLayoutThreshold) {
             MaterialTheme.hikariSpacing.space32
@@ -55,13 +46,12 @@ internal fun DiscoverScreen(
         }
         val layout = DiscoverLayoutMetrics(
             horizontalInset = horizontalInset,
-            bottomReserve = DiscoverVisualMetrics.MediaNavHeight +
-                MaterialTheme.hikariSpacing.space32 +
-                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+            bottomReserve = MaterialTheme.hikariSpacing.space32,
         )
 
         Box(modifier = Modifier.fillMaxSize()) {
             DiscoverFeed(
+                mediaType = mediaType,
                 state = state,
                 listState = listState,
                 layout = layout,
@@ -70,24 +60,13 @@ internal fun DiscoverScreen(
                 onRetry = onRetry,
                 onCoverReady = onCoverReady,
             )
-            DiscoverMediaNavOverlay(
-                selectedMediaType = state.selectedMediaType,
-                onMediaSelected = { mediaType ->
-                    coroutineScope.launch {
-                        listState.scrollToItem(0)
-                        onMediaSelected(mediaType)
-                    }
-                },
-                onHomeSelected = {
-                    coroutineScope.launch { listState.animateScrollToItem(0) }
-                },
-            )
         }
     }
 }
 
 @Composable
 private fun DiscoverFeed(
+    mediaType: CatalogMediaType,
     state: DiscoverUiState,
     listState: LazyListState,
     layout: DiscoverLayoutMetrics,
@@ -111,7 +90,7 @@ private fun DiscoverFeed(
             contentPadding = PaddingValues(bottom = layout.bottomReserve),
         ) {
             item(key = "discover-header") {
-                DiscoverHeader(state.selectedMediaType, layout.horizontalInset)
+                DiscoverHeader(mediaType, layout.horizontalInset)
             }
             item(key = "discover-editorial-banner") {
                 EditorialHeroBanner(
@@ -165,28 +144,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.discoverContent(
             }
             discoverSections(content.sections, horizontalInset, onStorySelected, onCoverReady)
         }
-    }
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.BoxScope.DiscoverMediaNavOverlay(
-    selectedMediaType: CatalogMediaType,
-    onMediaSelected: (CatalogMediaType) -> Unit,
-    onHomeSelected: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(bottom = MaterialTheme.hikariSpacing.space16),
-        contentAlignment = Alignment.Center,
-    ) {
-        CatalogMediaDestinationNav(
-            selectedMediaType = selectedMediaType,
-            onMediaSelected = onMediaSelected,
-            onHomeSelected = onHomeSelected,
-        )
     }
 }
 

@@ -18,6 +18,7 @@ import app.openstory.catalog.feature.story.StoryDetailUiState
 
 @Composable
 internal fun CatalogScreen(
+    mediaType: CatalogMediaType,
     route: CatalogRoute,
     discoverListState: LazyListState,
     discoverState: DiscoverUiState?,
@@ -30,9 +31,9 @@ internal fun CatalogScreen(
     when (route) {
         CatalogRoute.Discover -> discoverState?.let { state ->
             DiscoverScreen(
+                mediaType = mediaType,
                 state = state,
                 listState = discoverListState,
-                onMediaSelected = actions.onMediaSelected,
                 onStorySelected = actions.onStorySelected,
                 onRefresh = actions.onDiscoverRefresh,
                 onRetry = actions.onDiscoverRetry,
@@ -57,7 +58,6 @@ internal fun CatalogScreen(
 }
 
 internal data class CatalogScreenActions(
-    val onMediaSelected: (CatalogMediaType) -> Unit,
     val onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
     val onDiscoverRefresh: () -> Unit,
     val onDiscoverRetry: () -> Unit,

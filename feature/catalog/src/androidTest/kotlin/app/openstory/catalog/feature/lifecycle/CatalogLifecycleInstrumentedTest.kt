@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
+import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.feature.CatalogComposition
 import app.openstory.catalog.feature.CatalogDebugDiagnostics
 import org.junit.Assert.assertEquals
@@ -93,7 +94,7 @@ class CatalogLifecycleTestActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                CatalogComposition()
+                CatalogComposition(CatalogMediaType.MANGA)
             }
         }
     }

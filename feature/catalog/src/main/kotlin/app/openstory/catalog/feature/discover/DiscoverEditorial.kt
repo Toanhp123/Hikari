@@ -38,7 +38,7 @@ import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 internal fun DiscoverHeader(
-    selectedMediaType: CatalogMediaType,
+    mediaType: CatalogMediaType,
     horizontalInset: Dp,
 ) {
     Row(
@@ -52,13 +52,13 @@ internal fun DiscoverHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DiscoverIdentity(selectedMediaType)
+        DiscoverIdentity(mediaType)
         DiscoverSearchPreview()
     }
 }
 
 @Composable
-private fun DiscoverIdentity(selectedMediaType: CatalogMediaType) {
+private fun DiscoverIdentity(mediaType: CatalogMediaType) {
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
@@ -72,7 +72,7 @@ private fun DiscoverIdentity(selectedMediaType: CatalogMediaType) {
                     .semantics { heading() },
             )
             Text(
-                text = "\u2022 ${selectedMediaType.productLabel}",
+                text = "\u2022 ${mediaType.productLabel}",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )

@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 0 COMPLETED/ACCEPTED**
+Status: **TASK 1 COMPLETED/ACCEPTED**
 
 ## Authority
 
@@ -9,9 +9,9 @@ Status: **TASK 0 COMPLETED/ACCEPTED**
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Task 0.
-- Current execution boundary: Task 1 is the next authorized task. This Task 0 acceptance turn stops
-  before any Task 1 implementation.
+- Completed/accepted execution boundary: Tasks 0-1.
+- Current execution boundary: Task 2 is next. Task 2 was not authorized or started in the Task 1
+  closure turn.
 
 Reviewed artifact SHA-256:
 
@@ -96,7 +96,86 @@ No production dependency, manifest permission, application source, or runtime be
 - No Step 3 product capability, provider, network permission, database, navigation runtime, or UI
   behavior was implemented by Task 0.
 
-## User-Owned Evidence
+## Task 1 Delta
+
+- App Shell now owns Manga/Home/Light Novel top-level navigation through three serializable
+  Navigation3 back stacks while composing only the selected root `NavDisplay`.
+- Home is the cold default after the unchanged `Unknown -> FirstRun -> Ready` and first-frame gate.
+  Its temporary local shell exposes only real Explore Manga / Explore Light Novels actions and
+  constructs no Catalog root while Home is selected.
+- Route wires contain only `entryId` plus app-owned media enum values. `RouteEntryId` validates
+  decoded wire values, and route history enforces the `32` process / `12` per-root policy.
+- Catalog root ownership is immutable-media. Manga and Light Novel use distinct keyed
+  `DiscoverViewModel` owners even when they share one Activity `ViewModelStore`.
+- `DiscoverUiState.selectedMediaType`, `selectMedia`, the Catalog-owned top-level nav, its tests,
+  tags, and obsolete layout metrics are removed. Discover receives media as an immutable boundary
+  value instead.
+- App build/runtime governance admits Kotlin serialization, Navigation3 runtime/ui `1.1.4`, and
+  the direct app-to-`:catalog:domain` codec boundary approved by Task 0.
+
+## Task 1 Agent-Owned Evidence
+
+- Navigation RED: focused app test compilation failed on the absent app route/state types; the
+  initial test harness defect (`Assert.assertFailsWith`) was corrected to JUnit 4 `assertThrows`.
+- Startup/fixed-media RED: focused tests failed on the absent startup destination resolver,
+  fixed-media constructor, and media-specific ViewModel key.
+- State-bound regression RED: restored child stacks were rejected and a root-only policy threw
+  `IndexOutOfBoundsException`; both focused regressions now pass.
+- Fresh final focused command:
+  `./gradlew :app:testDebugUnitTest --tests app.openstory.AppShellContractTest --tests
+  app.openstory.navigation.AppRouteTest --tests app.openstory.navigation.AppNavigationStateTest
+  --tests app.openstory.startup.StartupDestinationTest :feature:catalog:testDebugUnitTest --tests
+  app.openstory.catalog.feature.discover.DiscoverViewModelTest --tests
+  app.openstory.catalog.feature.discover.DiscoverRefreshStateTest
+  :feature:catalog:compileDebugAndroidTestKotlin :app:assembleDebug :app:verifyFoundation
+  verifyStep3BuildSurface --no-daemon` - PASS in 18s, 177 tasks.
+- Focused unit result: 33 tests, 0 failures/errors. Four merged-manifest startup checks and the Step
+  3 build-surface verifier also passed.
+
+## Task 1 Self-Review
+
+- Production search finds no `PersistentTopLevelNavDisplay`, `selectedMediaType`, `selectMedia`,
+  `CatalogMediaDestinationNav`, or Navigation3 ViewModel-store decorator.
+- Navigation3 `1.1.4` bytecode confirms the selected `NavDisplay` overload supplies only its
+  default saveable-state holder decorator. App Shell adds root-keyed `SaveableStateHolder` state,
+  preserving lightweight root UI context without retaining inactive root compositions.
+- Root Back never traverses tab history; reselect affects only the selected root stack and does not
+  issue a refresh intent.
+- App route serialization contains no Catalog domain object. Media conversion occurs only at the
+  Catalog composition boundary.
+- Fixed-media owners cannot cross-observe or cross-refresh Manga/Light Novel state, including when
+  both keys live in one shared `ViewModelStore`.
+- `git diff --check` reports no whitespace errors. Existing generated baseline/startup profile
+  outputs were intentionally not edited.
+
+## Task 1 User-Owned Evidence
+
+Status: **PASS**
+
+Required broad gates:
+
+```bash
+./gradlew :build-logic:test verifyArchitecture :app:verifyFoundation verifyStep3BuildSurface --no-daemon
+bash scripts/tests/v2-step3-build-surface-test.sh
+bash scripts/verify-fast.sh
+bash scripts/verify.sh
+```
+
+User-reported verification reviewed on 2026-09-14:
+
+- The architecture/foundation/Step 3 aggregate command passed in 25s with 57 actionable tasks.
+- `scripts/tests/v2-step3-build-surface-test.sh` passed in 21s with 7 actionable tasks.
+- The initial fast/full sequence then exposed a stale Step 1 static assertion that still classified
+  the Task 1-required `navigation3 =` catalog entry as inactive. Because the repository entrypoints
+  use `set -e`, `verify-fast.sh` stopped at that assertion and `verify.sh` was not reached.
+- A focused fixture regression reproduced the contradiction. The legacy gate now permits the
+  explicitly admitted Navigation3 surface while retaining every other inactive-dependency check.
+- Fresh delegated reruns of `bash scripts/verify-fast.sh` and `bash scripts/verify.sh` both completed
+  with `BUILD SUCCESSFUL`; the new fixture regression also passes.
+
+All required Task 1 broad evidence is reviewed and accepted. Task 1 is completed/accepted.
+
+## Task 0 User-Owned Evidence
 
 Status: **PASS**
 
@@ -114,6 +193,6 @@ evidence under `AGENTS.md`; no historical `NOT RUN` result was inferred.
 
 ## Exact Resume Boundary
 
-Task 0 is completed/accepted. Resume at Task 1 of the owning R1.1 implementation plan: App Shell
-top-level roots, serializable route wires, and fixed-media Discover. Re-read only the Task 1 slice
-and its immediate affected cone before the first RED/edit. Do not infer authorization for Task 2.
+Tasks 0-1 are completed/accepted. Resume at Task 2 from the owning plan and this checkpoint. The
+Task 1 closure turn updated routing and created the planned Task 1 commit but did not authorize or
+start Task 2.

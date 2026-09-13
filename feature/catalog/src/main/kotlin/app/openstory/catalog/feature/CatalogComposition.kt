@@ -29,6 +29,7 @@ import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
 import app.openstory.catalog.feature.trace.AndroidCatalogTraceSink
 import app.openstory.catalog.feature.trace.CatalogUiTrace
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
+import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.CatalogCapabilitySession
 import app.openstory.catalog.runtime.CatalogRuntimeFactory
@@ -39,10 +40,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 @Composable
-internal fun CatalogComposition() {
+internal fun CatalogComposition(mediaType: CatalogMediaType) {
     val applicationContext = LocalContext.current.applicationContext
     val trace = remember { CatalogUiTrace(AndroidCatalogTraceSink) }
-    CatalogSessionContent(rememberCatalogRuntimeHolder(applicationContext, trace), trace)
+    CatalogSessionContent(rememberCatalogRuntimeHolder(applicationContext, trace), trace, mediaType)
 }
 
 @Composable
@@ -84,6 +85,7 @@ private fun rememberCatalogRuntimeHolder(
 private fun CatalogSessionContent(
     runtimeHolder: CatalogRuntimeHolder,
     trace: CatalogUiTrace,
+    mediaType: CatalogMediaType,
 ) {
     val routeState = rememberSaveable(stateSaver = CatalogRouteSaver) {
         mutableStateOf<CatalogRoute>(CatalogRoute.Discover)
@@ -97,7 +99,7 @@ private fun CatalogSessionContent(
 
     val route = navigation.route
     RestoreStoryRoute(route, storyViewModel, navigation)
-    val discoverViewModel = rememberDiscoverViewModel(runtimeHolder)
+    val discoverViewModel = rememberDiscoverViewModel(runtimeHolder, mediaType)
     val discoverState = if (route == CatalogRoute.Discover) {
         discoverViewModel.state.collectAsStateWithLifecycle().value
     } else {
@@ -115,6 +117,7 @@ private fun CatalogSessionContent(
 
     CompositionLocalProvider(LocalCatalogImageLoader provides imageLoader) {
         CatalogScreen(
+            mediaType = mediaType,
             route = route,
             discoverListState = navigation.discoverListState,
             discoverState = discoverState,
@@ -168,11 +171,15 @@ private fun RestoreStoryRoute(
 @Composable
 private fun rememberDiscoverViewModel(
     runtimeHolder: CatalogRuntimeHolder,
+    mediaType: CatalogMediaType,
 ): DiscoverViewModel {
-    val discoverFactory = remember(runtimeHolder) {
-        DiscoverViewModel.factory(runtimeHolder.runtime::discoverRuntime)
+    val discoverFactory = remember(runtimeHolder, mediaType) {
+        DiscoverViewModel.factory(mediaType, runtimeHolder.runtime::discoverRuntime)
     }
-    return viewModel(factory = discoverFactory)
+    return viewModel(
+        key = DiscoverViewModel.key(mediaType),
+        factory = discoverFactory,
+    )
 }
 
 @Composable
@@ -223,7 +230,6 @@ private fun catalogScreenActions(
     discoverViewModel: DiscoverViewModel,
     storyViewModel: StoryDetailViewModel,
 ) = CatalogScreenActions(
-    onMediaSelected = discoverViewModel::selectMedia,
     onStorySelected = { ref, coverAssetKey ->
         storyViewModel.open(
             ref = ref,

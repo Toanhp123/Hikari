@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.androidx.baselineprofile)
+    alias(libs.plugins.kotlin.serialization)
     id("openstory.android.application")
     id("openstory.compose")
     id("openstory.foundation")
@@ -66,6 +67,7 @@ dependencies {
     "baselineProfile"(project(":benchmark"))
 
     implementation(project(":core:designsystem"))
+    implementation(project(":catalog:domain"))
     implementation(project(":feature:catalog"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -74,10 +76,13 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.profileinstaller)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotlinx.serialization.json)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

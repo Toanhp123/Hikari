@@ -3,12 +3,10 @@ package app.openstory.catalog.feature.discover
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.identity.StorySourceRef
-import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.state.CatalogIssueUi
 
 internal data class DiscoverUiState(
-    val selectedMediaType: CatalogMediaType = CatalogMediaType.MANGA,
     val content: DiscoverContentState = DiscoverContentState.NoContentLoading,
 )
 

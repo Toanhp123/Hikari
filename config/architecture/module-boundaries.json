@@ -5,7 +5,7 @@
       "path": "app",
       "platform": "android-application",
       "dependencyMode": "exact",
-      "productionDependencies": [":core:designsystem", ":feature:catalog"],
+      "productionDependencies": [":catalog:domain", ":core:designsystem", ":feature:catalog"],
       "testDependencies": [":benchmark"],
       "forbiddenProductionImports": [
         "androidx.room.",

@@ -10,8 +10,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
-import app.openstory.catalog.feature.CatalogEntryPoint
 import app.openstory.designsystem.theme.HikariTheme
+import app.openstory.navigation.AppNavHost
 import app.openstory.startup.AppLaunchState
 import app.openstory.startup.AppLaunchStateStore
 import app.openstory.startup.TRACE_DESTINATION_READY
@@ -19,6 +19,8 @@ import app.openstory.startup.TRACE_FIRST_FRAME
 import app.openstory.startup.TRACE_LAUNCH_STATE_RESOLVED
 import app.openstory.startup.createAppLaunchStateStore
 import app.openstory.startup.startupTraceMark
+import app.openstory.startup.startupDestination
+import app.openstory.startup.StartupDestination
 import app.openstory.ui.HikariBootSurface
 import kotlinx.coroutines.launch
 
@@ -84,13 +86,13 @@ internal fun StartupGate(
         }
     }
 
-    when (launchState) {
-        AppLaunchState.Unknown -> UnknownScreen()
-        AppLaunchState.FirstRun -> FirstRunScreen(
+    when (startupDestination(launchState, firstFrameReached)) {
+        StartupDestination.UNKNOWN -> UnknownScreen()
+        StartupDestination.FIRST_RUN -> FirstRunScreen(
             isSaving = saveInFlight,
             saveFailed = saveFailed,
             onComplete = ::completeInitialSetup,
         )
-        AppLaunchState.Ready -> if (firstFrameReached) CatalogEntryPoint() else UnknownScreen()
+        StartupDestination.APP_SHELL_HOME -> AppNavHost()
     }
 }
