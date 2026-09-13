@@ -171,7 +171,7 @@
       "platform": "android-library",
       "dependencyMode": "exact",
       "productionDependencies": [":catalog:domain", ":catalog:runtime", ":core:designsystem"],
-      "testDependencies": [],
+      "testDependencies": [":plugins:api"],
       "forbiddenProductionImports": [
         "androidx.room.",
         "androidx.work.",

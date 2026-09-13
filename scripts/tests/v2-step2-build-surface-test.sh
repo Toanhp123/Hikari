@@ -29,6 +29,30 @@ if find feature/catalog/src/main feature/catalog/src/release \
   exit 1
 fi
 
+for required in \
+  'androidTestImplementation(project(":plugins:api"))' \
+  'androidTestImplementation(libs.androidx.javascriptengine)' \
+  'androidTestImplementation(libs.kotlinx.serialization.json)' \
+  'androidTestImplementation(libs.kotlinx.coroutines.core)'; do
+  grep -F -q "$required" feature/catalog/build.gradle.kts || {
+    echo "Missing Task 17 androidTest dependency: $required" >&2
+    exit 1
+  }
+done
+
+if grep -E -q \
+  '^[[:space:]]*(api|implementation|compileOnly|runtimeOnly|releaseImplementation|debugImplementation)[[:space:]]*\([^)]*(plugins:api|javascriptengine)' \
+  feature/catalog/build.gradle.kts; then
+  echo "Task 17 plugin harness dependency leaked outside androidTest." >&2
+  exit 1
+fi
+
+if grep -R -F -q --include='AndroidManifest.xml' \
+  'android.permission.INTERNET' feature/catalog/src/main feature/catalog/src/release 2>/dev/null; then
+  echo "Task 17 added a production INTERNET permission." >&2
+  exit 1
+fi
+
 AAR_DIR="$ROOT_DIR/feature/catalog/build/outputs/aar"
 DEBUG_AAR="$AAR_DIR/catalog-debug.aar"
 RELEASE_AAR="$AAR_DIR/catalog-release.aar"
@@ -99,7 +123,7 @@ for variant in benchmark non-minified; do
 done
 
 if grep -E -i -q \
-  '(seed|Benchmark.*(Fixture|Diagnostics|Preparation)|LocalSeedCatalogSource|BenchmarkCatalogSource|Plugin.*Harness)' \
+  '(seed|Benchmark.*(Fixture|Diagnostics|Preparation)|LocalSeedCatalogSource|BenchmarkCatalogSource|ReferencePlugin|ControlledPlugin|MangaUpdatesCatalog|androidx/javascriptengine|app/openstory/plugins)' \
   "$ARTIFACT_TMP/release/class-entries.txt" "$ARTIFACT_TMP/release/aar-entries.txt"; then
   echo "Release Catalog AAR contains non-release fixture or plugin-harness content." >&2
   exit 1

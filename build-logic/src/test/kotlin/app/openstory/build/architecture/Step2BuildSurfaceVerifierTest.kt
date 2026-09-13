@@ -13,6 +13,40 @@ class Step2BuildSurfaceVerifierTest {
     }
 
     @Test
+    fun pluginHarnessDependenciesMustStayInFeatureAndroidTest() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/build.gradle.kts",
+            """
+                plugins {}
+                implementation(project(":plugins:api"))
+                implementation(libs.androidx.javascriptengine)
+            """.trimIndent(),
+        )
+
+        val violations = fixture.verify()
+
+        assertViolation(violations, "step2_surface.plugin_api_scope", ":feature:catalog")
+        assertViolation(violations, "step2_surface.javascriptengine_scope", ":feature:catalog")
+    }
+
+    @Test
+    fun pluginHarnessRequiresTheExactAndroidTestDependencies() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/build.gradle.kts",
+            """
+                plugins {}
+                androidTestImplementation(project(":plugins:api"))
+            """.trimIndent(),
+        )
+
+        assertViolation(
+            fixture.verify(),
+            "step2_surface.plugin_harness_dependency_missing",
+            ":feature:catalog",
+        )
+    }
+
+    @Test
     fun unapprovedProjectEdgesAreRejected() = withFixture { fixture ->
         fixture.policy = fixture.policy.copy(
             modules = fixture.policy.modules + mapOf(
@@ -433,6 +467,12 @@ class Step2BuildSurfaceVerifierTest {
                 "feature/catalog/build.gradle.kts",
                 """
                     plugins {}
+                    dependencies {
+                        androidTestImplementation(project(":plugins:api"))
+                        androidTestImplementation(libs.androidx.javascriptengine)
+                        androidTestImplementation(libs.kotlinx.serialization.json)
+                        androidTestImplementation(libs.kotlinx.coroutines.core)
+                    }
                     androidComponents {
                         finalizeDsl { extension ->
                             listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
@@ -656,6 +696,7 @@ class Step2BuildSurfaceVerifierTest {
                                 ":catalog:runtime",
                                 ":core:designsystem",
                             ),
+                            test = setOf(":plugins:api"),
                         ),
                     ),
                 )

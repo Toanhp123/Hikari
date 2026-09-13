@@ -1,7 +1,7 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-13
-Status: **TASKS 0-16 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; TASK 17 READY TO START**
+Status: **TASKS 0-16 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; TASK 17 READY FOR USER VERIFICATION**
 
 ## Authority
 
@@ -11,8 +11,8 @@ Status: **TASKS 0-16 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; 
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
 - Completed/accepted execution boundary: Tasks 0-16.
-- Next execution boundary: Task 17 is ready to start in a new turn. Do not begin it from this Task
-  16 closure turn.
+- Next execution boundary: Task 17 is ready for user verification. Resume only its focused
+  connected, full feature connected, and release/architecture evidence review.
 - 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
@@ -2116,7 +2116,111 @@ Median-of-five per-iteration P95 values:
   profile-generation, and focused compile/test gates are accepted. The remaining Story Detail and
   startup threshold deviations are documented debt rather than hidden PASS results.
 
-Task 16 is `COMPLETED/ACCEPTED WITH RECORDED PERFORMANCE DEBT`. Task 17 is `READY TO START` in a
-new turn; Task 18 remains `NOT RUN`. Exact next boundary: start only Task 17 from its owning-plan
-section and this checkpoint. Do not reopen Task 16 performance work unless explicitly authorized
-as a separate follow-up or required by a later production/layout/query/image-shape change.
+At Task 16 closure, Task 17 became `READY TO START` in a new turn while Task 18 remained `NOT RUN`.
+Task 17 execution is recorded below. Do not reopen Task 16 performance work unless explicitly
+authorized as a separate follow-up or required by a later production/layout/query/image-shape
+change.
+
+## Task 17 Implementation Delta
+
+- The deterministic MangaUpdates reference harness is confined to
+  `feature/catalog/src/androidTest`. Production/main/release code and manifests are unchanged.
+- The reference `manifest.json` and actual `main.js` were copied byte-for-byte from remote branch
+  `perf/whole-app-big-update-v3` commit `685a1f8c674efb09eb07c9b2e6c9797ee5298f64`. Their SHA-256
+  values match the owning-plan anchors exactly:
+  - manifest: `777d257590ca8d1b1791956bed135c5029c62e244807f155a63911db627a2cd5`;
+  - main script: `b144ef4fd6ab3c0c319c6f9c92c787bb7796f07559ebaf06ce85d6e11f0e3202`.
+  The original archive container was not present locally, so its expected
+  `c4107742c1c06848aa48fc4e494192d4b9166fe5d364b4cb131c2b3dca2b5b5c` hash was not
+  independently recomputed; the copied member bytes are runtime hash-guarded by the harness.
+- `:feature:catalog.testDependencies` is now exactly `[":plugins:api"]`. The four Task 17
+  dependencies are exact `androidTestImplementation` entries: `:plugins:api`, AndroidX
+  JavaScriptEngine `1.1.0`, serialization JSON, and coroutines core. The Step 2 verifier rejects
+  moving plugin API or JavaScriptEngine to another module/configuration and requires the complete
+  harness dependency set.
+- `ReferencePluginExecutor` is test-only and preserves the bounded V1 execution shape without a
+  `:plugins:runtime` edge: owned 15,000 ms `withTimeoutOrNull` deadline, optional 16 MiB isolate
+  heap, 256 KiB request/response bridge messages, 2 MiB final output, cancellation propagation,
+  message-port closure, isolate closure, and sandbox discard when cancellation cannot terminate an
+  isolate.
+- `ReferencePluginBridge` loads the real asset, validates the real manifest/protocol, owns only the
+  `host.http` bridge, enforces HTTPS + manifest-host policy, and maps unchanged protocol DTOs to
+  Step 2 acquisitions. Host binding remains authoritative for source key, source version,
+  acquisition clock, and asset policy. Explicit `WEB_NOVEL`/`ANIME` and unknown raw provider kinds
+  are ineligible rather than coerced; the raw-type guard admits only the reviewed MangaUpdates
+  Manga-like vocabulary so the reference script's broad fallback cannot silently rename an
+  unsupported provider kind to Manga.
+- The canonical focused instrumentation class covers hard JavaScriptSandbox support, three
+  semantic Home kinds, Manga/Light-Novel filtering, unsupported-kind rejection, exact detail route
+  identity, host-owned provenance, stricter Step 2 source/title/cover/authors/genres/description
+  bounds, failure retention, unchanged Room reads, real Discover/Story composables, disabled reader
+  action, executor deadline/byte ceilings/cancellation, and real-locator artwork policy,
+  redirect/count, media-type, streaming-size, dimension-preflight, identity, and disk-hit behavior.
+- The Step 2 shell gate now explicitly requires the four androidTest dependencies and rejects
+  production plugin/JavaScriptEngine dependency scope, production INTERNET permission, and plugin
+  harness/reference content in the release AAR.
+
+## Task 17 Agent-Owned Evidence
+
+- RED: focused build-logic tests failed because the accepted fixture carried the new test edge while
+  the verifier still expected an empty edge, and because production-scoped plugin/JavaScriptEngine
+  dependencies were not yet rejected.
+- GREEN build surface: `./gradlew :build-logic:test --tests
+  app.openstory.build.architecture.Step2BuildSurfaceVerifierTest --tests
+  app.openstory.build.ModuleGraphTest verifyStep2BuildSurface --no-daemon` ->
+  `BUILD SUCCESSFUL in 15s` (8 actionable tasks); the actual verifier prints
+  `Step 2 build surface verified.`
+- GREEN feature cone: `./gradlew :feature:catalog:compileDebugAndroidTestKotlin
+  :feature:catalog:testDebugUnitTest --no-daemon` -> `BUILD SUCCESSFUL in 16s` (62 actionable
+  tasks).
+- AndroidTest dependency inspection confirms `project :plugins:api`,
+  `androidx.javascriptengine:javascriptengine:1.1.0`, serialization JSON, and coroutines core on
+  `debugAndroidTestCompileClasspath`.
+- Release dependency inspection confirms `releaseRuntimeClasspath` contains neither
+  `:plugins:api` nor `androidx.javascriptengine`.
+- `bash -n scripts/tests/v2-step2-build-surface-test.sh` through Git Bash -> syntax PASS.
+- Fresh copied-asset SHA-256 checks match the two reviewed member hashes above.
+- Content-type guard TDD: the pre-fix bytecode probe mapped raw `Audio Drama` to `MANGA`, and the
+  first fail-closed classifier pass exposed that an unrecognized raw type was still treated as
+  missing evidence and accepted. The final guard records declared unknown types as ineligible,
+  admits the reviewed Manga/Manhwa/Manhua/OEL, Novel/Light Novel, Web Novel, and Anime vocabulary,
+  and rejects both broad Manga fallback (`Audio Drama`) and broad Novel substring (`Visual Novel`).
+  The final classifier/eligibility probe reports `UNKNOWN_RAW_ACCEPTED=false` and
+  `CONTENT_TYPE_GUARD=PASS`; the affected feature cone rerun completed with `BUILD SUCCESSFUL in
+  9s` (58 actionable tasks; 1 executed, 57 up-to-date).
+
+## Task 17 Required User-Owned Gates
+
+Task 17 is `READY FOR USER VERIFICATION`, not completed or accepted. On one explicitly selected
+device/emulator where `JavaScriptSandbox.isSupported()` passes, record serial/model/API and run:
+
+```bash
+ANDROID_SERIAL=<javascript-sandbox-supported-serial> \
+./gradlew :feature:catalog:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.plugin.MangaUpdatesCatalogIntegrationTest \
+  --no-daemon
+```
+
+If the hard support assertion fails, Task 17 remains open; do not treat it as skipped/pass. After
+the focused class is green, run the full feature connected suite once on the same device:
+
+```bash
+ANDROID_SERIAL=<javascript-sandbox-supported-serial> \
+./gradlew :feature:catalog:connectedDebugAndroidTest --no-daemon
+```
+
+Then run the release-cleanliness/architecture gate:
+
+```bash
+./gradlew :build-logic:test :feature:catalog:assembleRelease :app:assembleRelease \
+  verifyArchitecture :app:verifyFoundation --no-daemon
+bash scripts/tests/v2-step2-build-surface-test.sh
+```
+
+## Task 17 Exact Resume Boundary
+
+Resume only Task 17 by reviewing the first useful result from the focused connected class. If it
+passes, review the same-device full feature connected result and the release/architecture/shell
+results. Fix only Task 17 failures and rerun the smallest affected gate. After all required evidence
+is accepted, update this checkpoint and roadmap, commit Task 17, and stop. Task 18 remains `NOT RUN`
+and is not authorized by this pointer.

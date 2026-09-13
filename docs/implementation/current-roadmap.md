@@ -21,7 +21,7 @@ acceptance remain separate states.
 ## Current position
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation completed/accepted Tasks 0-16; Task 17 is
-READY TO START.** Task 16 closes with explicit user-accepted performance debt, never relabeled as
+READY FOR USER VERIFICATION.** Task 16 closes with explicit user-accepted performance debt, never relabeled as
 PASS or hidden by relaxed thresholds. Story Detail CPU/overrun P95 debt is memory-hit
 `47.175 / 40.432 ms`, disk-hit `41.906 / 41.678 ms`, and Story-back `66.212 / 59.902 ms`; startup
 TTID debt is fresh `507.138 ms` and returning `467.346 ms`. All hard correctness, query/work,
@@ -30,7 +30,11 @@ compile/test gates are accepted. The fixture-fixed Baseline/Startup Profile cont
 byte-identical rules per file (SHA-256
 `797b58730c732777698f3aba24dc6ea11302cd8bfa4b17e75c351568f4ac54eb`). The final startup runs used
 the immediately preceding `99.96%`-equivalent profile and were not repeated after fixture repair by
-explicit acceptance. Start only Task 17 in the next turn; Task 18 remains not run.
+explicit acceptance. Task 17 now has a test-only, byte-verified MangaUpdates real-JS harness with
+an explicit raw provider-kind eligibility guard; focused build-logic/unit/androidTest compilation
+and dependency-scope checks pass. Required
+supported-device integration plus full feature connected and release/architecture/shell gates
+remain user-owned and not run. Resume only Task 17 evidence review; Task 18 remains not run.
 The owning plan is
 `../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`;
 the active checkpoint is `../internal/checkpoints/hikari-v2-step-2-discover-story-foundation.md`.
@@ -200,7 +204,7 @@ seam, source-scoped initial/redirect host policy, exact 5-hop and 10s/20s timeou
  repository commands. The reviewed artifact inventory contains complete non-empty compact and
  >=600dp wide 15-PNG matrices. Task 15 is completed/accepted. Task 16 is completed/accepted with
  explicit Story Detail frame and startup TTID performance debt recorded in its checkpoint and
- performance evidence owner. Task 17 is ready to start; Task 18 remains not run.
+ performance evidence owner. Task 17 is ready for user verification; Task 18 remains not run.
 
 Hikari V2 Step 1 - Foundation + Clean Boot remains completed and accepted on branch
 `v2/foundation-clean-boot`. Its accepted checkpoint is

@@ -87,8 +87,38 @@ object Step2BuildSurfaceVerifier {
             ) {
                 add(violation("step2_surface.designsystem_dependency", module, buildFile))
             }
+            addAll(pluginHarnessDependencyViolations(module, buildFile, text))
         }
     }
+
+    private fun pluginHarnessDependencyViolations(
+        module: String,
+        buildFile: File,
+        text: String,
+    ): List<ArchitectureViolation> = buildList {
+        PLUGIN_API_DEPENDENCY.findAll(text)
+            .filterNot { match -> match.isAllowedAndroidTestDependency(module) }
+            .forEach { add(violation("step2_surface.plugin_api_scope", module, buildFile)) }
+        JAVASCRIPT_ENGINE_DEPENDENCY.findAll(text)
+            .filterNot { match -> match.isAllowedAndroidTestDependency(module) }
+            .forEach { add(violation("step2_surface.javascriptengine_scope", module, buildFile)) }
+        if (module == ":feature:catalog" &&
+            REQUIRED_PLUGIN_HARNESS_DEPENDENCIES.any { dependency ->
+                dependency.findAll(text).count() != 1
+            }
+        ) {
+            add(
+                violation(
+                    "step2_surface.plugin_harness_dependency_missing",
+                    module,
+                    buildFile,
+                ),
+            )
+        }
+    }
+
+    private fun MatchResult.isAllowedAndroidTestDependency(module: String): Boolean =
+        module == ":feature:catalog" && groupValues[1] == ANDROID_TEST_IMPLEMENTATION
 
     private fun sourceViolations(
         root: File,
@@ -239,6 +269,7 @@ object Step2BuildSurfaceVerifier {
         ":catalog:runtime" to ExpectedEdges(setOf(":catalog:domain", ":catalog:storage")),
         ":feature:catalog" to ExpectedEdges(
             setOf(":catalog:domain", ":catalog:runtime", ":core:designsystem"),
+            setOf(":plugins:api"),
         ),
     )
     private val STEP2_MODULES = setOf(
@@ -259,6 +290,7 @@ object Step2BuildSurfaceVerifier {
         "app.openstory.catalog.feature.CatalogEntryPoint"
     private const val ALLOWED_APP_DESIGN_SYSTEM_IMPORT =
         "app.openstory.designsystem.theme.HikariTheme"
+    private const val ANDROID_TEST_IMPLEMENTATION = "androidTestImplementation"
     private val ROOM_TOKEN = Regex("""(?i)(androidx[.-]room|libs\.androidx\.room|libs\.room)""")
     private val COIL_TOKEN = Regex("""(?i)(libs\.coil|io\.coil-kt)""")
     private val COIL_NETWORK_TOKEN = Regex("""(?i)(coil[-.]network|coil\.network)""")
@@ -267,6 +299,28 @@ object Step2BuildSurfaceVerifier {
     private val DESIGN_SYSTEM_FORBIDDEN_DEPENDENCY_TOKEN = Regex(
         """(?i)(project\s*\(|room|coil|okhttp|java\.net|workmanager|androidx\.work|""" +
             """javascriptengine|backdrop|blur|roborazzi|robolectric)""",
+    )
+    private val PLUGIN_API_DEPENDENCY = Regex(
+        """(?m)^\s*([A-Za-z][A-Za-z0-9]*)\s*\(\s*project\s*\(""" +
+            """\s*\":plugins:api\"\s*\)\s*\)""",
+    )
+    private val JAVASCRIPT_ENGINE_DEPENDENCY = Regex(
+        """(?m)^\s*([A-Za-z][A-Za-z0-9]*)\s*\(\s*libs\.androidx\.javascriptengine\s*\)""",
+    )
+    private val REQUIRED_PLUGIN_HARNESS_DEPENDENCIES = listOf(
+        Regex(
+            """(?m)^\s*androidTestImplementation\s*\(\s*project\s*\(""" +
+                """\s*\":plugins:api\"\s*\)\s*\)""",
+        ),
+        Regex(
+            """(?m)^\s*androidTestImplementation\s*\(\s*libs\.androidx\.javascriptengine\s*\)""",
+        ),
+        Regex(
+            """(?m)^\s*androidTestImplementation\s*\(\s*libs\.kotlinx\.serialization\.json\s*\)""",
+        ),
+        Regex(
+            """(?m)^\s*androidTestImplementation\s*\(\s*libs\.kotlinx\.coroutines\.core\s*\)""",
+        ),
     )
     private val PRODUCTION_SOURCE_PATH = Regex("""/src/(main|release)/""")
     private val RELEASE_FIXTURE_NAME = Regex(

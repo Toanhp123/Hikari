@@ -186,6 +186,7 @@ class ModuleGraphTest {
                     ":catalog:runtime",
                     ":core:designsystem",
                 ),
+                testDependencies = setOf(":plugins:api"),
             ),
         )
         val presentationInfrastructure = setOf(":core:designsystem")

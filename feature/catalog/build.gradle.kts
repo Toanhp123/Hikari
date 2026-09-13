@@ -54,6 +54,10 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(project(":plugins:api"))
+    androidTestImplementation(libs.androidx.javascriptengine)
+    androidTestImplementation(libs.kotlinx.serialization.json)
+    androidTestImplementation(libs.kotlinx.coroutines.core)
     androidTestUtil(libs.androidx.test.orchestrator)
 
     debugImplementation(libs.androidx.compose.ui.test.manifest)
