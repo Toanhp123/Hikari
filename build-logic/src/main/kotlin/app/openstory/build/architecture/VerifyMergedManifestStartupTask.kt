@@ -3,6 +3,8 @@ package app.openstory.build.architecture
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.SetProperty
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -17,6 +19,9 @@ abstract class VerifyMergedManifestStartupTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val mergedManifest: RegularFileProperty
 
+    @get:Input
+    abstract val allowedProviders: SetProperty<String>
+
     @TaskAction
     fun verifyManifest() {
         val policy = FoundationPolicyLoader.parse(
@@ -25,6 +30,7 @@ abstract class VerifyMergedManifestStartupTask : DefaultTask() {
         val violations = MergedManifestStartupVerifier.verify(
             xml = mergedManifest.get().asFile.readText(),
             policy = policy,
+            allowedProviders = allowedProviders.getOrElse(emptySet()),
         )
 
         if (violations.isNotEmpty()) {

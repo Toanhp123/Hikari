@@ -70,6 +70,9 @@ class FoundationConventionPlugin : Plugin<Project> {
                     mergedManifest.set(
                         variant.artifacts.get(SingleArtifact.MERGED_MANIFEST),
                     )
+                    allowedProviders.set(
+                        foundationAllowedManifestProviders(variant.name),
+                    )
                 }
             verifyFoundation.configure {
                 dependsOn(manifestVerification)
@@ -83,6 +86,13 @@ internal fun foundationManifestVerificationTaskNames(
     variantNames: Set<String>,
 ): Set<String> = variantNames.mapTo(linkedSetOf(), ::foundationManifestVerificationTaskName)
 
+internal fun foundationAllowedManifestProviders(variantName: String): Set<String> =
+    if (variantName in BENCHMARK_DIAGNOSTIC_VARIANTS) {
+        setOf(BENCHMARK_DIAGNOSTICS_PROVIDER)
+    } else {
+        emptySet()
+    }
+
 private fun foundationManifestVerificationTaskName(variantName: String): String =
     "verify${variantName.taskSegment()}MergedManifestStartup"
 
@@ -90,3 +100,11 @@ private fun String.taskSegment(): String =
     replaceFirstChar { character ->
         if (character.isLowerCase()) character.titlecase() else character.toString()
     }
+
+private val BENCHMARK_DIAGNOSTIC_VARIANTS = setOf(
+    "benchmarkRelease",
+    "nonMinifiedRelease",
+)
+
+private const val BENCHMARK_DIAGNOSTICS_PROVIDER =
+    "app.openstory.benchmark.BenchmarkDiagnosticsProvider"

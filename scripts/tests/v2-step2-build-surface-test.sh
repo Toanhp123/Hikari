@@ -5,8 +5,9 @@ ROOT_DIR="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 cd "$ROOT_DIR"
 
-./gradlew verifyStep2BuildSurface verifyProductionPackageStructure \
-  verifyModuleBoundaries --no-daemon
+./gradlew :feature:catalog:assembleDebug :feature:catalog:assembleRelease \
+  :feature:catalog:assembleBenchmarkRelease :feature:catalog:assembleNonMinifiedRelease \
+  verifyStep2BuildSurface verifyProductionPackageStructure verifyModuleBoundaries --no-daemon
 
 for forbidden in \
   okhttp3 \

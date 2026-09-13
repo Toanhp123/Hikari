@@ -7,9 +7,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -46,6 +49,7 @@ import app.openstory.catalog.feature.assets.RemoteCoverPolicy
 import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverScreen
+import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
 import app.openstory.catalog.feature.discover.DiscoverUiState
 import app.openstory.catalog.feature.story.StoryArtworkUi
@@ -163,8 +167,14 @@ class MangaUpdatesCatalogIntegrationTest {
                     )
                 }
             }
-            listOf("Trending Now", "Recommended for You", "Top Rated").forEach { title ->
-                composeRule.onNodeWithText(title).performScrollTo().assertIsDisplayed()
+            listOf(
+                CatalogSectionKind.POPULAR to "Trending Now",
+                CatalogSectionKind.LATEST_UPDATES to "Recommended for You",
+                CatalogSectionKind.TOP_RATED to "Top Rated",
+            ).forEach { (kind, title) ->
+                composeRule.onNodeWithTag(DiscoverTestTags.ROOT)
+                    .performScrollToNode(hasTestTag(DiscoverTestTags.section(kind)))
+                composeRule.onNodeWithText(title).assertIsDisplayed()
             }
         } finally {
             session.close()
@@ -247,12 +257,17 @@ class MangaUpdatesCatalogIntegrationTest {
             }
 
             val ref = storyRef(MANGA_ID)
+            val previouslyPublishedCard = initial.cards.first {
+                it.sectionKind == CatalogSectionKind.POPULAR && it.ref == ref
+            }
             response = { ControlledPluginResponse(200, detailsBody(authors = List(33) { "Author $it" })) }
             val storySession = activation.storyDetailSession(ref)
             val storyStates = storySession.activate()
             assertValidationFailure(storySession.retry())
             val retainedSummary = storyStates.first { it.projection != null }.projection!!
-            assertEquals("Manga Alpha", retainedSummary.summary.title)
+            assertEquals(previouslyPublishedCard.title, retainedSummary.summary.title)
+            assertEquals(previouslyPublishedCard.coverAssetKey, retainedSummary.summary.coverAssetKey)
+            assertEquals(previouslyPublishedCard.coverLocator, retainedSummary.summary.coverLocator)
             assertEquals(null, retainedSummary.detail)
             storySession.release()
         } finally {
@@ -830,7 +845,7 @@ private fun detailsBody(
       "title":"Manga Alpha",
       "type":"Manga",
       "url":"https://www.mangaupdates.com/series/manga-alpha",
-      "image":{"url":{"thumb":"https://cdn.mangaupdates.com/cover-alpha.png"}},
+      "image":{"url":{"thumb":"https://cdn.mangaupdates.com/cover-${MangaUpdatesCatalogIntegrationTest.MANGA_ID}.png"}},
       "authors":${stringObjects(authors)},
       "genres":${stringObjects(genres, "genre")},
       "description":${jsonString(description)},

@@ -1,7 +1,7 @@
 # Hikari V2 Step 2 - Discover + Story Detail Foundation
 
 Date: 2026-09-13
-Status: **TASKS 0-16 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; TASK 17 READY FOR USER VERIFICATION**
+Status: **TASKS 0-17 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; TASK 18 READY TO START**
 
 ## Authority
 
@@ -10,9 +10,9 @@ Status: **TASKS 0-16 COMPLETED/ACCEPTED WITH RECORDED TASK 16 PERFORMANCE DEBT; 
   and this checkpoint; its standalone untracked file is intentionally excluded from the commit.
 - Implementation plan: `../../superpowers/plans/2026-09-08-hikari-v2-step-2-discover-story-foundation-implementation-plan.md`
 - Accepted predecessor: `hikari-v2-step-1-foundation-clean-boot.md`
-- Completed/accepted execution boundary: Tasks 0-16.
-- Next execution boundary: Task 17 is ready for user verification. Resume only its focused
-  connected, full feature connected, and release/architecture evidence review.
+- Completed/accepted execution boundary: Tasks 0-17.
+- Next execution boundary: Task 18 is ready to start in a new turn. Task 18 remains `NOT RUN` in
+  this turn.
 - 2026-09-11 authority correction: R2.8 supersedes only the Task 14 visual/IA/token plan on top of accepted Tasks 0-13; no Task 14 production work is recorded by this docs patch.
 
 Reviewed artifact SHA-256:
@@ -2189,27 +2189,33 @@ change.
   `CONTENT_TYPE_GUARD=PASS`; the affected feature cone rerun completed with `BUILD SUCCESSFUL in
   9s` (58 actionable tasks; 1 executed, 57 up-to-date).
 
-## Task 17 Required User-Owned Gates
+## Task 17 Accepted User-Owned Evidence
 
-Task 17 is `READY FOR USER VERIFICATION`, not completed or accepted. On one explicitly selected
-device/emulator where `JavaScriptSandbox.isSupported()` passes, record serial/model/API and run:
+The user reported the final Task 17 matrix PASS on 2026-09-13 on the same explicitly selected
+JavaScriptSandbox-supported device:
+
+- serial: `adb-91f68893-N7oZEX._adb-tls-connect._tcp`;
+- model: `Redmi Note 9S`;
+- API: 35 (Android 15).
+
+The focused real-JS integration class completed successfully, including its hard
+`JavaScriptSandbox.isSupported()` assertion:
 
 ```bash
-ANDROID_SERIAL=<javascript-sandbox-supported-serial> \
+ANDROID_SERIAL=adb-91f68893-N7oZEX._adb-tls-connect._tcp \
 ./gradlew :feature:catalog:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.plugin.MangaUpdatesCatalogIntegrationTest \
   --no-daemon
 ```
 
-If the hard support assertion fails, Task 17 remains open; do not treat it as skipped/pass. After
-the focused class is green, run the full feature connected suite once on the same device:
+The full feature connected suite then completed successfully on the same device:
 
 ```bash
-ANDROID_SERIAL=<javascript-sandbox-supported-serial> \
+ANDROID_SERIAL=adb-91f68893-N7oZEX._adb-tls-connect._tcp \
 ./gradlew :feature:catalog:connectedDebugAndroidTest --no-daemon
 ```
 
-Then run the release-cleanliness/architecture gate:
+The release-cleanliness/architecture Gradle gate and Step 2 shell gate also completed successfully:
 
 ```bash
 ./gradlew :build-logic:test :feature:catalog:assembleRelease :app:assembleRelease \
@@ -2217,10 +2223,14 @@ Then run the release-cleanliness/architecture gate:
 bash scripts/tests/v2-step2-build-surface-test.sh
 ```
 
+The final verified tree retains the fixes exposed during user verification: the real Discover UI
+assertions scroll to stable semantic section tags, merged-manifest startup verification admits only
+`BenchmarkDiagnosticsProvider` and only for `benchmarkRelease`/`nonMinifiedRelease`, and the shell
+gate covers all release-like app variants without weakening production provider policy. Task 17 is
+completed/accepted; the optional live MangaUpdates smoke was not requested and is not acceptance
+evidence.
+
 ## Task 17 Exact Resume Boundary
 
-Resume only Task 17 by reviewing the first useful result from the focused connected class. If it
-passes, review the same-device full feature connected result and the release/architecture/shell
-results. Fix only Task 17 failures and rerun the smallest affected gate. After all required evidence
-is accepted, update this checkpoint and roadmap, commit Task 17, and stop. Task 18 remains `NOT RUN`
-and is not authorized by this pointer.
+Task 17 is completed/accepted. Stop after its checkpoint/roadmap update and commit. Task 18 remains
+`NOT RUN`; it is ready to start only in a new explicitly authorized turn.

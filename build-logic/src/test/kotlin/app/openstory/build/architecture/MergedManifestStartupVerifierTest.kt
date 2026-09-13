@@ -108,6 +108,27 @@ class MergedManifestStartupVerifierTest {
     }
 
     @Test
+    fun acceptsExplicitVariantScopedProvider() {
+        val xml = """
+            <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application>
+                <provider android:name="app.openstory.benchmark.BenchmarkDiagnosticsProvider" />
+              </application>
+            </manifest>
+        """.trimIndent()
+
+        assertTrue(
+            MergedManifestStartupVerifier.verify(
+                xml = xml,
+                policy = foundationTestPolicy(),
+                allowedProviders = setOf(
+                    "app.openstory.benchmark.BenchmarkDiagnosticsProvider",
+                ),
+            ).isEmpty(),
+        )
+    }
+
+    @Test
     fun rejectsProviderOutsideAndroidxStartup() {
         val xml = """
             <manifest xmlns:android="http://schemas.android.com/apk/res/android">

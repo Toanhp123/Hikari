@@ -10,6 +10,7 @@ object MergedManifestStartupVerifier {
     fun verify(
         xml: String,
         policy: FoundationPolicy,
+        allowedProviders: Set<String> = emptySet(),
     ): List<FoundationViolation> {
         val document = manifestDocument(xml)
 
@@ -39,6 +40,9 @@ object MergedManifestStartupVerifier {
 
             document.getElementsByTagName("provider").elements().forEach { provider ->
                 val providerName = provider.androidName()
+                if (providerName in allowedProviders) {
+                    return@forEach
+                }
                 if (providerName != ANDROIDX_STARTUP_PROVIDER) {
                     add(
                         FoundationViolation(
