@@ -2,16 +2,17 @@ package app.openstory.catalog.feature.seed
 
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
-import app.openstory.catalog.domain.source.CatalogAcquisitionSource
+import app.openstory.catalog.domain.source.CatalogDiscoverCapability
+import app.openstory.catalog.domain.source.CatalogStoryCapability
 import app.openstory.catalog.domain.source.DiscoverAcquisition
 import app.openstory.catalog.domain.source.StoryDetailAcquisition
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 
 internal class BenchmarkPinPruneSource(
-    private val delegate: CatalogAcquisitionSource,
+    private val delegate: BenchmarkCatalogSource,
     private val assertWorkerThread: () -> Unit = ::assertNotMainThread,
-) : CatalogAcquisitionSource {
+) : CatalogDiscoverCapability, CatalogStoryCapability {
     private val pruneArmed = AtomicBoolean(false)
     private val continuePrune = CompletableDeferred<Unit>()
     val pruneEntered = CompletableDeferred<Unit>()

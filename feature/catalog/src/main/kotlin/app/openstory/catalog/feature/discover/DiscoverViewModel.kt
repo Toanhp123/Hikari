@@ -227,7 +227,9 @@ private fun List<DiscoverCard>.toUiSections(mediaType: CatalogMediaType): List<D
             .take(CatalogSectionCaps.cap(kind))
             .map(DiscoverCard::toUi)
             .toList()
-        cards.takeIf(List<DiscoverCardUi>::isNotEmpty)?.let { DiscoverSectionUi(kind, it) }
+        cards.takeIf(List<DiscoverCardUi>::isNotEmpty)?.let {
+            DiscoverSectionUi(kind.previewDescriptor(), it)
+        }
     }
 
 private fun DiscoverCard.toUi() = DiscoverCardUi(

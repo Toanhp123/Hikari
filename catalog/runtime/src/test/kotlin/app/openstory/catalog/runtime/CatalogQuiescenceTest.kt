@@ -160,7 +160,7 @@ class CatalogQuiescenceTest {
         })
         val dispatcher = StandardTestDispatcher(testScheduler)
         val session = CatalogRuntimeFactory(
-            binding = TEST_BINDING.copy(acquisitionSource = source),
+            binding = TEST_BINDING.copy(discoverCapability = source, storyCapability = source),
             openStorage = { storage },
             wallClockEpochMs = { 10L },
             dispatchers = CatalogExecutionDispatchers(dispatcher, dispatcher),
@@ -184,7 +184,7 @@ class CatalogQuiescenceTest {
     ): CatalogCapabilityActivation.Available {
         val dispatcher = StandardTestDispatcher(testScheduler)
         return CatalogRuntimeFactory(
-            binding = TEST_BINDING.copy(acquisitionSource = source),
+            binding = TEST_BINDING.copy(discoverCapability = source, storyCapability = source),
             openStorage = { storage },
             wallClockEpochMs = { 9L },
             dispatchers = CatalogExecutionDispatchers(dispatcher, dispatcher),

@@ -18,11 +18,12 @@ class CatalogVariantFixtureTest {
     fun nonReleaseBindingProvidesBoundedTypedFixturesForBothMedia() = runTest {
         val variant: CatalogVariantBinding = VariantCatalogBinding
         val binding: CatalogSourceBinding = variant.bindings.single()
-        val source = requireNotNull(binding.acquisitionSource)
+        val discover = requireNotNull(binding.discoverCapability)
+        val story = requireNotNull(binding.storyCapability)
         val benchmarkBinding = binding.catalogSourceKey.value == "hikari.benchmark.local"
 
         CatalogMediaType.entries.forEach { mediaType ->
-            val acquisition = source.acquireDiscover(mediaType)
+            val acquisition = discover.acquireDiscover(mediaType)
 
             assertEquals(
                 listOf(
@@ -58,7 +59,7 @@ class CatalogVariantFixtureTest {
                 catalogSourceKey = binding.catalogSourceKey,
                 sourceStoryId = first.sourceStoryId,
             )
-            val detail = source.acquireStoryDetail(ref)
+            val detail = story.acquireStoryDetail(ref)
 
             assertEquals(first.sourceStoryId, detail.sourceStoryId)
             assertEquals(mediaType, detail.contentType)

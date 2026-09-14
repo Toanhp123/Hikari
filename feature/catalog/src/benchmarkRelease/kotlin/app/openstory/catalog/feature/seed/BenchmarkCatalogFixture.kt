@@ -21,7 +21,8 @@ public object BenchmarkCatalogFixture {
             preparation == BenchmarkCatalogPreparation.PIN_PRUNE_RACE
         }?.let(::BenchmarkPinPruneSource)
         val binding = baseBinding.copy(
-            acquisitionSource = pinPruneSource ?: benchmarkSource,
+            discoverCapability = pinPruneSource ?: benchmarkSource,
+            storyCapability = pinPruneSource ?: benchmarkSource,
         )
         val runtimeFactory = CatalogRuntimeFactory(
             context = context.applicationContext,

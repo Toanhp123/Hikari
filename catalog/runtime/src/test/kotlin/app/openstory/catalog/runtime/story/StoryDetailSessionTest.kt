@@ -237,7 +237,7 @@ class StoryDetailSessionTest {
     ): CatalogCapabilityActivation.Available {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val activation = CatalogRuntimeFactory(
-            binding = TEST_BINDING.copy(acquisitionSource = source),
+            binding = TEST_BINDING.copy(storyCapability = source),
             openStorage = { storage },
             wallClockEpochMs = { 700L },
             dispatchers = CatalogExecutionDispatchers(dispatcher, dispatcher),

@@ -142,7 +142,7 @@ class StoryDetailSession internal constructor(
         acquisitionMutex.withLock {
             if (automaticAcquisitionStarted) return
             automaticAcquisitionStarted = true
-            if (binding.acquisitionSource == null) {
+            if (binding.storyCapability == null) {
                 acquisition.value = CatalogAcquisitionStatus.Failed(CatalogFailure.SourceUnavailable)
                 return
             }

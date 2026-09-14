@@ -18,4 +18,6 @@ data class StoryDetailAcquisition(
     val genres: List<String>,
     val publicationStatus: String?,
     val language: String?,
+    val alternateTitles: List<String> = emptyList(),
+    val catalogLanguageTags: List<String> = emptyList(),
 )

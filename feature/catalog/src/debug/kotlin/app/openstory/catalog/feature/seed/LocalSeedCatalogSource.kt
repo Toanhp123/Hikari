@@ -7,7 +7,8 @@ import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogRating
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
-import app.openstory.catalog.domain.source.CatalogAcquisitionSource
+import app.openstory.catalog.domain.source.CatalogDiscoverCapability
+import app.openstory.catalog.domain.source.CatalogStoryCapability
 import app.openstory.catalog.domain.source.DiscoverAcquisition
 import app.openstory.catalog.domain.source.DiscoverAcquisitionItem
 import app.openstory.catalog.domain.source.DiscoverAcquisitionSection
@@ -16,7 +17,7 @@ import app.openstory.catalog.domain.source.StoryDetailAcquisition
 internal class LocalSeedCatalogSource(
     private val catalogSourceKey: CatalogSourceKey,
     private val onAcquisitionStarted: () -> Unit = {},
-) : CatalogAcquisitionSource {
+) : CatalogDiscoverCapability, CatalogStoryCapability {
     override suspend fun acquireDiscover(mediaType: CatalogMediaType): DiscoverAcquisition {
         onAcquisitionStarted()
         return debugStories.getValue(mediaType).toDiscoverAcquisition()
@@ -80,6 +81,8 @@ private fun DebugStory.toStoryDetail() = StoryDetailAcquisition(
     genres = listOf("Adventure", "Drama"),
     publicationStatus = "Ongoing",
     language = if (contentType == CatalogMediaType.MANGA) "Japanese" else "English",
+    alternateTitles = listOf("$title (Local Seed)"),
+    catalogLanguageTags = listOf(if (contentType == CatalogMediaType.MANGA) "ja" else "en"),
 )
 
 private val debugStories = mapOf(

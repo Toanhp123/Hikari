@@ -32,6 +32,7 @@ import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverScreen
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
+import app.openstory.catalog.feature.discover.previewDescriptor
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverUiState
 import app.openstory.catalog.feature.state.CatalogIssueKind
@@ -211,7 +212,7 @@ class CatalogScreenshotEvidenceTest {
             kind: CatalogSectionKind,
             size: Int,
         ) = DiscoverSectionUi(
-            kind = kind,
+            descriptor = kind.previewDescriptor(),
             cards = List(size) { position -> card(mediaType, kind, position) },
         )
 

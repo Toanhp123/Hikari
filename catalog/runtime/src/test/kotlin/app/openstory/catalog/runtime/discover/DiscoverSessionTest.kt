@@ -40,7 +40,7 @@ class DiscoverSessionTest {
             release.await()
             testDiscoverAcquisition(mediaType)
         })
-        val session = available(storage, TEST_BINDING.copy(acquisitionSource = source))
+        val session = available(storage, TEST_BINDING.copy(discoverCapability = source))
             .discoverSession(CatalogMediaType.MANGA)
         val states = mutableListOf<DiscoverSessionState>()
         session.states.onEach(states::add).launchIn(backgroundScope)
@@ -74,7 +74,7 @@ class DiscoverSessionTest {
     fun publishedEmptyAndPublishedContentNeverBootstrap() = runTest {
         val storage = RuntimeFakeStorage()
         val source = RecordingSource()
-        val activation = available(storage, TEST_BINDING.copy(acquisitionSource = source))
+        val activation = available(storage, TEST_BINDING.copy(discoverCapability = source))
         activation.discoverSession(CatalogMediaType.MANGA).states.launchIn(backgroundScope)
         activation.discoverSession(CatalogMediaType.LIGHT_NOVEL).states.launchIn(backgroundScope)
         runCurrent()
@@ -122,7 +122,7 @@ class DiscoverSessionTest {
     fun switchingMediaBootstrapsOnlyTheExactAbsentScope() = runTest {
         val storage = RuntimeFakeStorage()
         val source = RecordingSource()
-        val activation = available(storage, TEST_BINDING.copy(acquisitionSource = source))
+        val activation = available(storage, TEST_BINDING.copy(discoverCapability = source))
         activation.discoverSession(CatalogMediaType.MANGA).states.launchIn(backgroundScope)
         activation.discoverSession(CatalogMediaType.LIGHT_NOVEL).states.launchIn(backgroundScope)
         runCurrent()

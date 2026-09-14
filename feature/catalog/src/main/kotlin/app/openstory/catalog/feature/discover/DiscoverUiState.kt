@@ -4,6 +4,8 @@ import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogSectionKind
+import app.openstory.catalog.domain.source.CatalogSectionDescriptor
+import app.openstory.catalog.domain.source.SectionExpansion
 import app.openstory.catalog.feature.state.CatalogIssueUi
 
 internal data class DiscoverUiState(
@@ -30,8 +32,23 @@ internal sealed interface DiscoverContentState {
 }
 
 internal data class DiscoverSectionUi(
-    val kind: CatalogSectionKind,
+    val descriptor: CatalogSectionDescriptor,
     val cards: List<DiscoverCardUi>,
+) {
+    val kind: CatalogSectionKind
+        get() = descriptor.kind
+}
+
+internal fun CatalogSectionKind.previewDescriptor() = CatalogSectionDescriptor(
+    key = when (this) {
+        CatalogSectionKind.POPULAR -> "popular"
+        CatalogSectionKind.LATEST_UPDATES -> "latest_updates"
+        CatalogSectionKind.TOP_RATED -> "top_rated"
+    },
+    kind = this,
+    displayLabel = null,
+    expansion = SectionExpansion.NONE,
+    globallyOrdered = false,
 )
 
 internal data class DiscoverCardUi(

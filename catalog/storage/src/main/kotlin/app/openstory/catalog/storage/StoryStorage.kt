@@ -13,10 +13,12 @@ import app.openstory.catalog.domain.write.CatalogMutationDiagnostics
 import app.openstory.catalog.domain.write.CatalogMutationBounds
 import app.openstory.catalog.domain.write.StoryDetailPublicationCommand
 import app.openstory.catalog.storage.story.StoryArtistEntity
+import app.openstory.catalog.storage.story.StoryAliasEntity
 import app.openstory.catalog.storage.story.StoryAuthorEntity
 import app.openstory.catalog.storage.story.StoryDetailEntity
 import app.openstory.catalog.storage.story.StoryDetailRecord
 import app.openstory.catalog.storage.story.StoryGenreEntity
+import app.openstory.catalog.storage.story.StoryLanguageEntity
 import app.openstory.catalog.storage.story.matches
 import app.openstory.catalog.storage.story.toIdentityEntity
 import app.openstory.catalog.storage.retention.StoryRetentionStorage
@@ -50,6 +52,8 @@ internal class StoryStorage(
                 authors = storyDao.authors(storyId),
                 artists = storyDao.artists(storyId),
                 genres = storyDao.genres(storyId),
+                aliases = storyDao.aliases(storyId),
+                languages = storyDao.languages(storyId),
             )
         }
     }
@@ -161,6 +165,8 @@ internal class StoryStorage(
         storyDao.deleteAuthors(storyId)
         storyDao.deleteArtists(storyId)
         storyDao.deleteGenres(storyId)
+        storyDao.deleteAliases(storyId)
+        storyDao.deleteLanguages(storyId)
         storyDao.insertAuthors(detail.authors.mapIndexed { position, value ->
             StoryAuthorEntity(storyId, position, value)
         })
@@ -169,6 +175,12 @@ internal class StoryStorage(
         })
         storyDao.insertGenres(detail.genres.mapIndexed { position, value ->
             StoryGenreEntity(storyId, position, value)
+        })
+        storyDao.insertAliases(detail.alternateTitles.mapIndexed { position, value ->
+            StoryAliasEntity(storyId, position, value)
+        })
+        storyDao.insertLanguages(detail.catalogLanguageTags.mapIndexed { position, value ->
+            StoryLanguageEntity(storyId, position, value)
         })
     }
 
@@ -180,6 +192,8 @@ internal class StoryStorage(
             "story_author",
             "story_artist",
             "story_genre",
+            "story_alias",
+            "story_language",
         )
     }
 }
@@ -188,6 +202,8 @@ private fun StoryRichDetailProjection.snapshot() = copy(
     authors = authors.toList(),
     artists = artists.toList(),
     genres = genres.toList(),
+    alternateTitles = alternateTitles.toList(),
+    catalogLanguageTags = catalogLanguageTags.toList(),
 )
 
 private fun validateDetailPublication(

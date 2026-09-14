@@ -45,6 +45,7 @@ import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverScreen
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
+import app.openstory.catalog.feature.discover.previewDescriptor
 import app.openstory.catalog.feature.discover.DiscoverUiState
 import app.openstory.designsystem.theme.HikariTheme
 import java.io.ByteArrayOutputStream
@@ -146,7 +147,7 @@ class MangaUpdatesCatalogIntegrationTest {
             }
             listOf(
                 CatalogSectionKind.POPULAR to "Trending Now",
-                CatalogSectionKind.LATEST_UPDATES to "Recommended for You",
+                CatalogSectionKind.LATEST_UPDATES to "Latest Updates",
                 CatalogSectionKind.TOP_RATED to "Top Rated",
             ).forEach { (kind, title) ->
                 composeRule.onNodeWithTag(DiscoverTestTags.ROOT)
@@ -309,7 +310,8 @@ class MangaUpdatesCatalogIntegrationTest {
             binding = CatalogSourceBinding(
                 catalogSourceKey = SOURCE_KEY,
                 sourceVersion = SOURCE_VERSION,
-                acquisitionSource = source,
+                discoverCapability = source,
+                storyCapability = source,
                 assetPolicy = policy,
             ),
             wallClockEpochMs = { ACQUIRED_AT },
@@ -354,7 +356,7 @@ class MangaUpdatesCatalogIntegrationTest {
                                 content = DiscoverContentState.Content(
                                     sections = listOf(
                                         DiscoverSectionUi(
-                                            CatalogSectionKind.POPULAR,
+                                            CatalogSectionKind.POPULAR.previewDescriptor(),
                                             listOf(
                                                 DiscoverCardUi(
                                                     ref = card.ref,
@@ -393,7 +395,8 @@ class MangaUpdatesCatalogIntegrationTest {
     private fun binding(source: ReferencePluginBridge) = CatalogSourceBinding(
         catalogSourceKey = SOURCE_KEY,
         sourceVersion = SOURCE_VERSION,
-        acquisitionSource = source,
+        discoverCapability = source,
+        storyCapability = source,
         assetPolicy = SourceAssetPolicy(SOURCE_KEY, ALLOWED_HOSTS),
     )
 
@@ -407,7 +410,7 @@ class MangaUpdatesCatalogIntegrationTest {
         content = DiscoverContentState.Content(
             sections = CatalogSectionKind.entries.map { kind ->
                 DiscoverSectionUi(
-                    kind = kind,
+                    descriptor = kind.previewDescriptor(),
                     cards = cards.filter { it.sectionKind == kind }.map { card ->
                         DiscoverCardUi(
                             ref = card.ref,

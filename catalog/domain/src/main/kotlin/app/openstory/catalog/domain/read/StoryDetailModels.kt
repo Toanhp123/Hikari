@@ -26,6 +26,8 @@ data class StoryRichDetailProjection(
     val genres: List<String>,
     val publicationStatus: String?,
     val language: String?,
+    val alternateTitles: List<String> = emptyList(),
+    val catalogLanguageTags: List<String> = emptyList(),
 )
 
 data class StoryDetailProjection(

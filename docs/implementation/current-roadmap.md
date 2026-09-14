@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 5; Task 6 is the
-next resume point and has not started.**
+**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 5; Task 6 is
+implemented and ready for user verification.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
@@ -41,8 +41,12 @@ in `:core:artwork`, descriptor-only Catalog policy lookup, app-owned process adm
 wiring, and migrated Catalog/Story consumers. Fresh focused tests and debug/release/benchmark plus
 Android-test compilation pass. On 2026-09-14, the user returned PASS for the complete Task 5 broad
 module/host/architecture and Detekt gate plus both focused connected-device commands, so Task 5 is
-completed/accepted. Task 6 - Step 3 Catalog contracts and Catalog schema v2 - is the next resume
-point and requires a new explicit user instruction. The owning plan is
+completed/accepted. Task 6 now adds narrow Discover/Story/Search/Section/Similar ports, bounded
+transient Catalog contracts, Story aliases/language tags, Room schema 2 with non-destructive v1->v2
+migration, and truthful resource-backed Discover headers without fake `See All`. Agent-owned focused
+tests and debug/release/benchmark plus Android-test compilation pass; the required broad and focused
+connected-device gates remain user-owned and `NOT RUN`. Resume at Task 6 evidence review/remediation;
+Task 7 is not authorized. The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

@@ -3,6 +3,7 @@ package app.openstory.catalog.domain.source
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.catalog.domain.validation.CatalogAcquisitionValidator
 
 data class CatalogAuthorityDescriptor(
     val sourceKey: CatalogSourceKey,
@@ -15,5 +16,6 @@ data class CatalogAuthorityDescriptor(
         require(displayName.isNotBlank())
         require(mediaTypes.isNotEmpty())
         require(artworkPolicy == null || artworkPolicy.catalogSourceKey == sourceKey)
+        CatalogAcquisitionValidator.requireValidSectionDescriptors(capabilities.sectionDescriptors)
     }
 }

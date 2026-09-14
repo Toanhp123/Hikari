@@ -23,6 +23,7 @@ class CatalogStorageFactory(
                 CatalogDatabase::class.java,
                 databaseName,
             )
+                .addMigrations(CatalogDatabase.MIGRATION_1_2)
             onQuery?.let { listener ->
                 builder.setQueryCallback({ sql, _ -> listener(sql) }, Executor(Runnable::run))
             }

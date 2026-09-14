@@ -95,7 +95,7 @@ class DiscoverSession internal constructor(
         bootstrapMutex.withLock {
             if (automaticBootstrapStarted) return
             automaticBootstrapStarted = true
-            if (binding.acquisitionSource == null) {
+            if (binding.discoverCapability == null) {
                 acquisition.value = CatalogAcquisitionStatus.Failed(CatalogFailure.SourceUnavailable)
                 return
             }

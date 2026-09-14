@@ -139,7 +139,7 @@ class DiscoverRefreshOwnershipTest {
     ): CatalogCapabilityActivation.Available {
         val dispatcher = StandardTestDispatcher(testScheduler)
         return CatalogRuntimeFactory(
-            binding = TEST_BINDING.copy(acquisitionSource = source),
+            binding = TEST_BINDING.copy(discoverCapability = source),
             openStorage = { storage },
             wallClockEpochMs = { 77L },
             dispatchers = CatalogExecutionDispatchers(dispatcher, dispatcher),

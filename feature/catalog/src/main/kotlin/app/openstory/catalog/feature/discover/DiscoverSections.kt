@@ -3,7 +3,6 @@ package app.openstory.catalog.feature.discover
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,16 +12,17 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.Dp
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
+import app.openstory.catalog.feature.R
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.hikariSpacing
@@ -62,22 +62,14 @@ internal fun LazyListScope.discoverSections(
 
 @Composable
 private fun SectionHeader(kind: CatalogSectionKind, horizontalInset: Dp) {
-    Row(
+    HikariSectionHeader(
+        title = stringResource(kind.titleResource),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = horizontalInset)
             .testTag(DiscoverTestTags.section(kind))
             .semantics { traversalIndex = kind.traversalIndex },
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        HikariSectionHeader(title = kind.title)
-        Text(
-            text = "See All",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DISABLED_LABEL_ALPHA),
-        )
-    }
+    )
 }
 
 @Composable
@@ -172,7 +164,7 @@ internal fun LazyListScope.loadingSections(horizontalInset: Dp) {
 
 private fun LazyListScope.popularLoadingSection(horizontalInset: Dp) {
     item(key = "popular-skeleton") {
-        SkeletonSection("Trending Now", horizontalInset) {
+        SkeletonSection(stringResource(R.string.discover_section_trending_now), horizontalInset) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(CatalogSectionCaps.cap(CatalogSectionKind.POPULAR)) { index ->
                     HikariSkeleton(
@@ -196,7 +188,7 @@ private fun LazyListScope.popularLoadingSection(horizontalInset: Dp) {
 
 private fun LazyListScope.latestLoadingSection(horizontalInset: Dp) {
     item(key = "latest-skeleton") {
-        SkeletonSection("Recommended for You", horizontalInset) {
+        SkeletonSection(stringResource(R.string.discover_section_latest_updates), horizontalInset) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(LATEST_SKELETON_COUNT) { index ->
                     HikariSkeleton(
@@ -220,7 +212,7 @@ private fun LazyListScope.latestLoadingSection(horizontalInset: Dp) {
 
 private fun LazyListScope.topRatedLoadingSection(horizontalInset: Dp) {
     item(key = "top-rated-skeleton") {
-        SkeletonSection("Top Rated", horizontalInset) {
+        SkeletonSection(stringResource(R.string.discover_section_top_rated), horizontalInset) {
             HikariSkeleton(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -253,11 +245,11 @@ private fun SkeletonSection(
     }
 }
 
-private val CatalogSectionKind.title: String
+internal val CatalogSectionKind.titleResource: Int
     get() = when (this) {
-        CatalogSectionKind.POPULAR -> "Trending Now"
-        CatalogSectionKind.LATEST_UPDATES -> "Recommended for You"
-        CatalogSectionKind.TOP_RATED -> "Top Rated"
+        CatalogSectionKind.POPULAR -> R.string.discover_section_trending_now
+        CatalogSectionKind.LATEST_UPDATES -> R.string.discover_section_latest_updates
+        CatalogSectionKind.TOP_RATED -> R.string.discover_section_top_rated
     }
 
 private val CatalogSectionKind.traversalIndex: Float
@@ -268,4 +260,3 @@ private val CatalogSectionKind.traversalIndex: Float
     }
 
 private const val LATEST_SKELETON_COUNT = 3
-private const val DISABLED_LABEL_ALPHA = 0.65f

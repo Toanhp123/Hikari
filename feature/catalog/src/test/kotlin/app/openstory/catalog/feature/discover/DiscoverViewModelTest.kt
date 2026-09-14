@@ -23,6 +23,7 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
 import app.openstory.catalog.domain.source.AcquisitionProvenance
+import app.openstory.catalog.domain.source.SectionExpansion
 import app.openstory.catalog.feature.state.CatalogIssueKind
 import app.openstory.catalog.feature.state.CatalogIssueUi
 import app.openstory.catalog.feature.state.toCatalogIssueUi
@@ -343,6 +344,8 @@ class DiscoverViewModelTest {
             content.sections.map { it.kind },
         )
         assertEquals(listOf(5, 9, 5), content.sections.map { it.cards.size })
+        assertEquals(listOf("popular", "latest_updates", "top_rated"), content.sections.map { it.descriptor.key })
+        assertTrue(content.sections.all { it.descriptor.expansion == SectionExpansion.NONE })
         assertEquals(19, content.sections.sumOf { it.cards.size })
         assertEquals(listOf(CatalogMediaType.MANGA), runtime.observedMedia)
         assertTrue(runtime.refreshCalls.isEmpty())

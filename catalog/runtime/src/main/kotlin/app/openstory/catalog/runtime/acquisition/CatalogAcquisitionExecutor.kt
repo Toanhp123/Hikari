@@ -42,7 +42,7 @@ class CatalogAcquisitionExecutor(
 
     suspend fun acquireDiscover(mediaType: CatalogMediaType): CatalogAcquisitionResult =
         executeSingleFlight(WorkKey.Discover(binding.catalogSourceKey.value, mediaType)) {
-            val source = binding.acquisitionSource
+            val source = binding.discoverCapability
                 ?: return@executeSingleFlight CatalogAcquisitionResult.Failed(CatalogFailure.SourceUnavailable)
             val acquisition = when (val result = acquireFromSource(CatalogOperation.DISCOVER) {
                 source.acquireDiscover(mediaType)
@@ -68,7 +68,7 @@ class CatalogAcquisitionExecutor(
                     ),
                 )
             }
-            val source = binding.acquisitionSource
+            val source = binding.storyCapability
                 ?: return@executeSingleFlight CatalogAcquisitionResult.Failed(CatalogFailure.SourceUnavailable)
             val acquisition = when (val result = acquireFromSource(CatalogOperation.STORY_DETAIL) {
                 source.acquireStoryDetail(ref)

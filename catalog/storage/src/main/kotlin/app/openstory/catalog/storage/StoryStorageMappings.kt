@@ -13,10 +13,12 @@ import app.openstory.catalog.domain.read.StoryRichDetailProjection
 import app.openstory.catalog.domain.read.StorySummaryProjection
 import app.openstory.catalog.domain.source.AcquisitionProvenance
 import app.openstory.catalog.storage.story.StoryArtistEntity
+import app.openstory.catalog.storage.story.StoryAliasEntity
 import app.openstory.catalog.storage.story.StoryAuthorEntity
 import app.openstory.catalog.storage.story.StoryDetailRecord
 import app.openstory.catalog.storage.story.StoryDetailObservationRow
 import app.openstory.catalog.storage.story.StoryGenreEntity
+import app.openstory.catalog.storage.story.StoryLanguageEntity
 import app.openstory.catalog.storage.story.StorySourceSummaryEntity
 import app.openstory.common.id.StoryId
 
@@ -72,6 +74,8 @@ internal fun StoryDetailRecord.toDomainProjection(): StoryDetailProjection {
             genres = genres.sortedBy(StoryGenreEntity::position).map(StoryGenreEntity::value),
             publicationStatus = row.detailPublicationStatus,
             language = row.detailLanguage,
+            alternateTitles = aliases.sortedBy(StoryAliasEntity::position).map(StoryAliasEntity::value),
+            catalogLanguageTags = languages.sortedBy(StoryLanguageEntity::position).map(StoryLanguageEntity::value),
         )
     }
     return StoryDetailProjection(

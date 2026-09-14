@@ -17,14 +17,16 @@ import app.openstory.catalog.runtime.source.CatalogSourceBinding
 
 internal object VariantCatalogBinding : CatalogVariantBinding {
     private val sourceKey = CatalogSourceKey("hikari.benchmark.local")
+    private val source = BenchmarkCatalogSource(
+        sourceKey,
+        onAcquisitionStarted = BenchmarkLifecycleCounters::recordAcquisitionStarted,
+    )
 
     override val bindings = listOf(CatalogSourceBinding(
         catalogSourceKey = sourceKey,
         sourceVersion = "benchmark-seed-v1",
-        acquisitionSource = BenchmarkCatalogSource(
-            sourceKey,
-            onAcquisitionStarted = BenchmarkLifecycleCounters::recordAcquisitionStarted,
-        ),
+        discoverCapability = source,
+        storyCapability = source,
         assetPolicy = SourceAssetPolicy(sourceKey, setOf("covers.hikari.invalid")),
     ))
 

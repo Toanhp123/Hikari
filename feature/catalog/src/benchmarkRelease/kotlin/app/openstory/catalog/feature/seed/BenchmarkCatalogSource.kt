@@ -8,7 +8,8 @@ import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogRating
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
-import app.openstory.catalog.domain.source.CatalogAcquisitionSource
+import app.openstory.catalog.domain.source.CatalogDiscoverCapability
+import app.openstory.catalog.domain.source.CatalogStoryCapability
 import app.openstory.catalog.domain.source.DiscoverAcquisition
 import app.openstory.catalog.domain.source.DiscoverAcquisitionItem
 import app.openstory.catalog.domain.source.DiscoverAcquisitionSection
@@ -21,7 +22,7 @@ internal class BenchmarkCatalogSource(
     private val scenario: BenchmarkCatalogScenario = BenchmarkCatalogScenario.NORMAL,
     private val onAcquisitionStarted: () -> Unit = {},
     private val assertWorkerThread: () -> Unit = ::assertNotMainThread,
-) : CatalogAcquisitionSource {
+) : CatalogDiscoverCapability, CatalogStoryCapability {
     private val generations = ConcurrentHashMap<CatalogMediaType, AtomicInteger>()
     private val detailStories = ConcurrentHashMap<String, BenchmarkStory>().apply {
         benchmarkStories.values.flatten().forEach { story -> put(story.sourceStoryId, story) }
@@ -124,6 +125,8 @@ private fun BenchmarkStory.toStoryDetail(oversized: Boolean) = StoryDetailAcquis
     genres = listOf("Adventure", "Mystery"),
     publicationStatus = "Ongoing",
     language = if (contentType == CatalogMediaType.MANGA) "Japanese" else "English",
+    alternateTitles = listOf("$title Benchmark Alias"),
+    catalogLanguageTags = listOf(if (contentType == CatalogMediaType.MANGA) "ja" else "en"),
 )
 
 private fun BenchmarkStory.coverInput(): AcquisitionCoverInput = if (remoteCover) {

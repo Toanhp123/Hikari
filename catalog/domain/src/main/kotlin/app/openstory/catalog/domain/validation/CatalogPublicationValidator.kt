@@ -71,6 +71,7 @@ object CatalogPublicationValidator {
         detail.language?.let {
             validateScalars("language", it, CatalogInputLimits.LANGUAGE_UNICODE_SCALARS)
         }
+        validateStoryMetadata(detail.alternateTitles, detail.catalogLanguageTags)
     }
 
     private fun validateSummary(card: DiscoverCard) {
@@ -154,4 +155,5 @@ object CatalogPublicationValidator {
             validateScalars("$field[$index]", value, maximumScalars)
         }
     }
+
 }

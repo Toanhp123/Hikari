@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 5 COMPLETED/ACCEPTED; TASK 6 IS THE NEXT RESUME POINT AND HAS NOT STARTED**
+Status: **TASK 5 COMPLETED/ACCEPTED; TASK 6 IMPLEMENTED - READY FOR USER VERIFICATION**
 
 ## Authority
 
@@ -596,7 +596,92 @@ both focused connected-device commands succeeded. This concise PASS summary is a
 required user-owned Task 5 evidence under `AGENTS.md`; it is not relabeled as an agent-owned run.
 Task 5 is completed/accepted.
 
+## Task 6 Delta
+
+- Replaced the two-operation `CatalogAcquisitionSource` with independent Discover and Story ports,
+  added narrow Search, Section, and Similar capability contracts, and added bounded transient
+  `CatalogPage`, `CatalogTransientStory`, and `CatalogSectionDescriptor` models. Runtime binding now
+  exposes only the capability port each consumer needs and rejects descriptor/port disagreement.
+- Added fail-closed bounds for submitted query, opaque continuation, page size, stable section key,
+  section label, transient result authority/media/metadata, exact source-local duplicates, Story
+  aliases, and normalized Catalog language tags. Expanded-section descriptors must be unique and
+  explicitly `PAGED`; Similar remains independently bounded and non-paginated by default.
+- Extended Story acquisition/projection with bounded `alternateTitles` and normalized
+  `catalogLanguageTags`, preserving the existing display-language field without treating it as a
+  normalized tag or identity evidence. Debug/benchmark fixtures and the Android-test-only reference
+  bridge now populate the new metadata through the narrow ports.
+- Advanced Catalog Room from schema 1 to schema 2 with `story_alias` and `story_language` child
+  tables, deterministic ordered round-trip mapping, `MIGRATION_1_2`, factory registration, and
+  committed `2.json`. The migration creates empty metadata children while preserving all v1 durable
+  Discover/Story/retention rows; no transient Search/Listing/Similar table exists.
+- Discover UI now carries a stable non-expandable preview descriptor, removes fake `See All`, and
+  renders resource-backed `Latest Updates` copy for both content and skeleton states.
+
+## Task 6 Agent-Owned Evidence
+
+- RED observed the planned missing contracts/bounds, independent runtime-port binding, missing Room
+  migration, missing descriptor-bearing UI model, and truthful Discover copy. Follow-up mutation
+  REDs independently proved acquisition metadata validation plus malformed section key, empty alias,
+  and non-`PAGED` admitted-descriptor rejection before their GREEN implementations were restored.
+- Final fresh `--rerun-tasks` verification passed 135 selected domain/runtime/feature/Story tests
+  with zero failures, errors, or skips. The same command passed Catalog storage debug assembly and
+  Android-test compilation, Catalog runtime release compilation, and Catalog feature debug
+  Android-test/non-minified release/benchmark compilation with `BUILD SUCCESSFUL in 1m 46s`.
+- Room exported schema 2 with exactly the nine preserved v1 tables plus `story_alias` and
+  `story_language`. Source audit finds no production `CatalogAcquisitionSource`, transient Catalog
+  persistence entity, provider-config bag, fake Discover `See All`, or `Recommended for You` copy.
+- `git diff --check` exits zero; only the repository's existing Windows LF-to-CRLF notices are emitted.
+  No independent reviewer was dispatched because repository `AGENTS.md` explicitly disallows
+  delegation for ordinary self-review in a single sequential dependency cone.
+
+## Task 6 Self-Review
+
+- Search, Listing, and Similar outputs remain route/session contracts only; Room owns only durable
+  Discover/Story material and the two new Story metadata child collections.
+- Alias/title/language metadata never participates in Story identity, merge, fan-out, or automatic
+  Search. Exact duplicates fail closed without introducing canonicalization behavior.
+- Capability registration is truthful and immutable at descriptor lookup: absent ports cannot be
+  advertised, expanded descriptors are bounded/unique/`PAGED`, and descriptor reads still perform
+  no storage or network activation.
+- Story publication snapshots all mutable child lists before validation and atomic replacement.
+  Reads add two fixed point queries, independent of unrelated Catalog age; no collection-scale work
+  is moved to Main.
+- The compatibility plugin bridge remains Android-test-only. No V1 runtime, provider implementation,
+  network transport, Library/Reading/Chapter/Reader behavior, or Task 7 surface is admitted.
+
+## Task 6 Required User-Owned Gates
+
+Status: **NOT RUN - READY FOR USER VERIFICATION**
+
+Broad module/host/architecture and Detekt gate:
+
+```powershell
+.\gradlew.bat :catalog:domain:test :catalog:storage:assembleDebug `
+  :catalog:runtime:testDebugUnitTest :feature:catalog:testDebugUnitTest `
+  :feature:catalog:testBenchmarkReleaseUnitTest :feature:story:testDebugUnitTest `
+  :app:testDebugUnitTest :build-logic:test verifyArchitecture :app:verifyFoundation `
+  verifyStep3BuildSurface verifyProductionPackageStructure verifyModuleBoundaries detekt --no-daemon
+```
+
+Focused Catalog schema/metadata connected gate:
+
+```powershell
+.\gradlew.bat :catalog:storage:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.storage.CatalogMigrationInstrumentedTest,app.openstory.catalog.storage.StoryDetailPersistenceInstrumentedTest' `
+  --no-daemon
+```
+
+Focused Discover/reference-bridge connected gate:
+
+```powershell
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.discover.DiscoverScreenInstrumentedTest,app.openstory.catalog.feature.plugin.MangaUpdatesCatalogIntegrationTest,app.openstory.catalog.feature.plugin.MangaUpdatesCatalogBoundaryIntegrationTest' `
+  --no-daemon
+```
+
 ## Exact Resume Boundary
 
-Tasks 0-5 are completed/accepted. Task 6 - Step 3 Catalog contracts and Catalog schema v2 - is the
-next resume point and has not started. Do not begin Task 6 without a new explicit user instruction.
+Tasks 0-5 are completed/accepted. Task 6 - Step 3 Catalog contracts and Catalog schema v2 - is
+implemented and is `READY FOR USER VERIFICATION`; its required broad and connected-device gates
+remain `NOT RUN` by the agent. Resume only at Task 6 evidence review/remediation. Do not begin Task 7
+unless Task 6 is completed/accepted and a new explicit user instruction authorizes it.

@@ -17,9 +17,12 @@ class CatalogRuntimeHostTest {
     @Test
     fun hostSnapshotsMutableRegistrationMetadata() = runTest {
         val mediaTypes = linkedSetOf(CatalogMediaType.MANGA)
+        val source = RecordingSource()
         val binding = CatalogSourceBinding(
             catalogSourceKey = CatalogSourceKey("authority.mutable"),
             sourceVersion = "v1",
+            discoverCapability = source,
+            storyCapability = source,
             displayName = "Mutable authority",
             mediaTypes = mediaTypes,
         )
@@ -36,6 +39,26 @@ class CatalogRuntimeHostTest {
         assertEquals(setOf(CatalogMediaType.MANGA), host.descriptor(binding.catalogSourceKey)?.mediaTypes)
         assertEquals(binding.catalogSourceKey, host.authorityResolver().authorityFor(CatalogMediaType.MANGA))
         host.close()
+    }
+
+    @Test
+    fun descriptorCapabilitiesMustMatchRegisteredExecutionPorts() {
+        val source = RecordingSource()
+        val binding = CatalogSourceBinding(
+            catalogSourceKey = CatalogSourceKey("authority.truthful"),
+            sourceVersion = "v1",
+            discoverCapability = source,
+            storyCapability = source,
+        )
+
+        assertEquals(CatalogCapabilitySet(discover = true, storyDetail = true), binding.capabilities)
+        assertThrows(IllegalArgumentException::class.java) {
+            CatalogSourceBinding(
+                catalogSourceKey = CatalogSourceKey("authority.liar"),
+                sourceVersion = "v1",
+                capabilities = CatalogCapabilitySet(search = true),
+            )
+        }
     }
 
     @Test
@@ -177,8 +200,9 @@ class CatalogRuntimeHostTest {
     private fun binding(id: String, mediaType: CatalogMediaType) = CatalogSourceBinding(
         catalogSourceKey = CatalogSourceKey(id),
         sourceVersion = "v1",
+        discoverCapability = RecordingSource(),
+        storyCapability = RecordingSource(),
         displayName = id,
         mediaTypes = setOf(mediaType),
-        capabilities = CatalogCapabilitySet(discover = true, storyDetail = true),
     )
 }

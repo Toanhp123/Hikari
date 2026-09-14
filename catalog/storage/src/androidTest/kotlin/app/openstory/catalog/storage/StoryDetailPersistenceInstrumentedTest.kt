@@ -74,6 +74,8 @@ class StoryDetailPersistenceInstrumentedTest {
                 genres = listOf("Drama", "Action"),
                 publicationStatus = "Ongoing",
                 language = "English",
+                alternateTitles = listOf("Alias B", "Alias A"),
+                catalogLanguageTags = listOf("en", "ja"),
             ),
         )
 
@@ -83,7 +85,7 @@ class StoryDetailPersistenceInstrumentedTest {
     }
 
     @Test
-    fun oneStorySnapshotUsesFourQueriesRegardlessOfUnrelatedRows() = runBlocking {
+    fun oneStorySnapshotUsesSixQueriesRegardlessOfUnrelatedRows() = runBlocking {
         store.close()
         val storyQueries = AtomicInteger(0)
         val queryExecutor = Executor(Runnable::run)
@@ -106,7 +108,7 @@ class StoryDetailPersistenceInstrumentedTest {
         storyQueries.set(0)
 
         assertEquals(expectedProjection(command), store.observe(command.ref).first())
-        assertEquals(4, storyQueries.get())
+        assertEquals(6, storyQueries.get())
     }
 
     @Test

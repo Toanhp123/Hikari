@@ -4,6 +4,7 @@ import app.openstory.catalog.domain.failure.CatalogFailure
 import app.openstory.catalog.domain.failure.CatalogFailureException
 import app.openstory.catalog.domain.failure.CatalogValidationReason
 import app.openstory.catalog.domain.limits.strictUtf8
+import app.openstory.catalog.domain.limits.CatalogInputLimits
 
 internal fun validationFailure(
     field: String,
@@ -70,3 +71,52 @@ internal fun requireValidation(
 ) {
     if (!condition) validationFailure(field, reason)
 }
+
+internal fun validateStoryMetadata(
+    alternateTitles: List<String>,
+    catalogLanguageTags: List<String>,
+) {
+    requireValidation(
+        alternateTitles.size <= CatalogInputLimits.ALTERNATE_TITLES,
+        "alternateTitles",
+        CatalogValidationReason.OVER_LIMIT,
+    )
+    alternateTitles.forEachIndexed { index, value ->
+        validateScalars(
+            "alternateTitles[$index]",
+            value,
+            CatalogInputLimits.TITLE_UNICODE_SCALARS,
+            true,
+        )
+    }
+    requireValidation(
+        alternateTitles.distinct().size == alternateTitles.size,
+        "alternateTitles",
+        CatalogValidationReason.INVARIANT_VIOLATION,
+    )
+    requireValidation(
+        catalogLanguageTags.size <= CatalogInputLimits.CATALOG_LANGUAGE_TAGS,
+        "catalogLanguageTags",
+        CatalogValidationReason.OVER_LIMIT,
+    )
+    catalogLanguageTags.forEachIndexed { index, value ->
+        validateUtf8(
+            "catalogLanguageTags[$index]",
+            value,
+            CatalogInputLimits.LANGUAGE_TAG_UTF8_BYTES,
+            true,
+        )
+        requireValidation(
+            NORMALIZED_LANGUAGE_TAG.matches(value),
+            "catalogLanguageTags[$index]",
+            CatalogValidationReason.MALFORMED,
+        )
+    }
+    requireValidation(
+        catalogLanguageTags.distinct().size == catalogLanguageTags.size,
+        "catalogLanguageTags",
+        CatalogValidationReason.INVARIANT_VIOLATION,
+    )
+}
+
+private val NORMALIZED_LANGUAGE_TAG = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")

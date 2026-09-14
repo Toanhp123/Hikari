@@ -10,7 +10,8 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
 import app.openstory.catalog.domain.read.StoryDetailProjection
-import app.openstory.catalog.domain.source.CatalogAcquisitionSource
+import app.openstory.catalog.domain.source.CatalogDiscoverCapability
+import app.openstory.catalog.domain.source.CatalogStoryCapability
 import app.openstory.catalog.domain.source.DiscoverAcquisition
 import app.openstory.catalog.domain.source.DiscoverAcquisitionItem
 import app.openstory.catalog.domain.source.DiscoverAcquisitionSection
@@ -26,7 +27,12 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 
 internal val TEST_SOURCE_KEY = CatalogSourceKey("fixture.source")
-internal val TEST_BINDING = CatalogSourceBinding(TEST_SOURCE_KEY, "host-v7")
+internal val TEST_BINDING = CatalogSourceBinding(
+    catalogSourceKey = TEST_SOURCE_KEY,
+    sourceVersion = "host-v7",
+    discoverCapability = CatalogDiscoverCapability { mediaType -> testDiscoverAcquisition(mediaType) },
+    storyCapability = CatalogStoryCapability { ref -> testStoryAcquisition(ref.sourceStoryId) },
+)
 
 internal fun testRef(
     sourceStoryId: String = "story-one",
@@ -180,7 +186,7 @@ internal class RuntimeFakeStorage : CatalogRuntimeStore {
 internal class RecordingSource(
     private val discover: suspend (CatalogMediaType) -> DiscoverAcquisition = { testDiscoverAcquisition(it) },
     private val story: suspend (StorySourceRef) -> StoryDetailAcquisition = { testStoryAcquisition(it.sourceStoryId) },
-) : CatalogAcquisitionSource {
+) : CatalogDiscoverCapability, CatalogStoryCapability {
     val discoverCalls = mutableListOf<CatalogMediaType>()
     val storyCalls = mutableListOf<StorySourceRef>()
 

@@ -9,7 +9,8 @@ import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogRating
 import app.openstory.catalog.domain.model.CatalogSectionKind
-import app.openstory.catalog.domain.source.CatalogAcquisitionSource
+import app.openstory.catalog.domain.source.CatalogDiscoverCapability
+import app.openstory.catalog.domain.source.CatalogStoryCapability
 import app.openstory.catalog.domain.source.DiscoverAcquisition
 import app.openstory.catalog.domain.source.DiscoverAcquisitionItem
 import app.openstory.catalog.domain.source.DiscoverAcquisitionSection
@@ -44,7 +45,7 @@ internal class ReferencePluginBridge private constructor(
     private val source: String,
     private val executor: ReferencePluginExecutor,
     private val transport: ControlledPluginTransport,
-) : CatalogAcquisitionSource, AutoCloseable {
+) : CatalogDiscoverCapability, CatalogStoryCapability, AutoCloseable {
     private val allowedHosts = manifest.capabilities.network?.hosts.orEmpty()
     private val rawContentTypes = mutableMapOf<String, WireContentType>()
     private val conflictingRawContentTypes = mutableSetOf<String>()
@@ -100,6 +101,8 @@ internal class ReferencePluginBridge private constructor(
             genres = output.genres.toList(),
             publicationStatus = output.publicationStatus?.name,
             language = output.languageTags.sorted().firstOrNull(),
+            alternateTitles = output.aliases.sorted(),
+            catalogLanguageTags = output.languageTags.sorted(),
         )
     }
 

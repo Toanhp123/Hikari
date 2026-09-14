@@ -3,7 +3,7 @@ package app.openstory.catalog.domain.failure
 import java.util.concurrent.CancellationException
 
 enum class CatalogValidationReason { MALFORMED, OVER_LIMIT, AUTHORITY_MISMATCH, INVARIANT_VIOLATION }
-enum class CatalogOperation { DISCOVER, STORY_DETAIL }
+enum class CatalogOperation { DISCOVER, STORY_DETAIL, SEARCH, SECTION, SIMILAR }
 enum class CatalogStorageOperation {
     OPEN,
     READ_DISCOVER,

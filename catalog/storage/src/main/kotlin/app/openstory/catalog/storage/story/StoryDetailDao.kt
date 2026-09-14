@@ -54,6 +54,12 @@ internal interface StoryDetailDao {
     @Query("SELECT * FROM story_genre WHERE story_id = :storyId ORDER BY position")
     suspend fun genres(storyId: String): List<StoryGenreEntity>
 
+    @Query("SELECT * FROM story_alias WHERE story_id = :storyId ORDER BY position")
+    suspend fun aliases(storyId: String): List<StoryAliasEntity>
+
+    @Query("SELECT * FROM story_language WHERE story_id = :storyId ORDER BY position")
+    suspend fun languages(storyId: String): List<StoryLanguageEntity>
+
     @Upsert
     suspend fun upsertSummary(entity: StorySourceSummaryEntity)
 
@@ -75,6 +81,12 @@ internal interface StoryDetailDao {
     @Query("DELETE FROM story_genre WHERE story_id = :storyId")
     suspend fun deleteGenres(storyId: String)
 
+    @Query("DELETE FROM story_alias WHERE story_id = :storyId")
+    suspend fun deleteAliases(storyId: String)
+
+    @Query("DELETE FROM story_language WHERE story_id = :storyId")
+    suspend fun deleteLanguages(storyId: String)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAuthors(entities: List<StoryAuthorEntity>)
 
@@ -83,6 +95,12 @@ internal interface StoryDetailDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertGenres(entities: List<StoryGenreEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAliases(entities: List<StoryAliasEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertLanguages(entities: List<StoryLanguageEntity>)
 
     @Query(
         """
@@ -99,6 +117,8 @@ internal data class StoryDetailRecord(
     val authors: List<StoryAuthorEntity>,
     val artists: List<StoryArtistEntity>,
     val genres: List<StoryGenreEntity>,
+    val aliases: List<StoryAliasEntity>,
+    val languages: List<StoryLanguageEntity>,
 )
 
 internal data class StoryDetailObservationRow(

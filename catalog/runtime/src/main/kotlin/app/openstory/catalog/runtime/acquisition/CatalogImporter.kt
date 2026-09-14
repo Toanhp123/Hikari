@@ -132,6 +132,8 @@ class CatalogImporter(
                 genres = acquisition.genres,
                 publicationStatus = acquisition.publicationStatus,
                 language = acquisition.language,
+                alternateTitles = acquisition.alternateTitles,
+                catalogLanguageTags = acquisition.catalogLanguageTags,
             ),
         )
     }
@@ -221,6 +223,8 @@ private fun StoryDetailAcquisition.snapshot() = copy(
     authors = authors.toList(),
     artists = artists.toList(),
     genres = genres.toList(),
+    alternateTitles = alternateTitles.toList(),
+    catalogLanguageTags = catalogLanguageTags.toList(),
 )
 
 private val SECTION_ORDER = mapOf(

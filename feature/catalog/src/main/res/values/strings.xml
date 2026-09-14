@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="discover_section_trending_now">Trending Now</string>
+    <string name="discover_section_latest_updates">Latest Updates</string>
+    <string name="discover_section_top_rated">Top Rated</string>
+</resources>

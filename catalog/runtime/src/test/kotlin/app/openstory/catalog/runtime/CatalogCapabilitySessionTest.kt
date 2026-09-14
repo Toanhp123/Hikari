@@ -139,7 +139,7 @@ class CatalogCapabilitySessionTest {
         val source = RecordingSource()
         val storage = RuntimeFakeStorage()
         val activation = testFactory(
-            binding = TEST_BINDING.copy(acquisitionSource = source),
+            binding = TEST_BINDING.copy(discoverCapability = source, storyCapability = source),
             openStorage = { storage },
         ).createSession().activate() as CatalogCapabilityActivation.Available
 
@@ -157,7 +157,10 @@ class CatalogCapabilitySessionTest {
         val discoverTouchedCounts = mutableListOf<Int>()
         val releaseTouchedCounts = mutableListOf<Int>()
         val activation = testFactory(
-            binding = TEST_BINDING.copy(acquisitionSource = RecordingSource()),
+            binding = TEST_BINDING.copy(
+                discoverCapability = RecordingSource(),
+                storyCapability = RecordingSource(),
+            ),
             openStorage = { RuntimeFakeStorage() },
             ownershipCallbacks = CatalogRuntimeOwnershipCallbacks(
                 onActiveWorkChanged = activeWorkCounts::add,

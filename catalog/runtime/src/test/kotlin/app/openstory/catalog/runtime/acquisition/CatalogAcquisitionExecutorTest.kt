@@ -4,6 +4,9 @@ import app.openstory.catalog.domain.failure.CatalogFailure
 import app.openstory.catalog.domain.failure.CatalogOperation
 import app.openstory.catalog.domain.failure.CatalogStorageOperation
 import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.catalog.domain.source.CatalogDiscoverCapability
+import app.openstory.catalog.domain.source.CatalogStoryCapability
+import app.openstory.catalog.domain.source.CatalogCapabilitySet
 import app.openstory.catalog.runtime.RecordingSource
 import app.openstory.catalog.runtime.RuntimeFakeStorage
 import app.openstory.catalog.runtime.TEST_BINDING
@@ -107,9 +110,43 @@ class CatalogAcquisitionExecutorTest {
         )
     }
 
+    @Test
+    fun discoverAndStoryCapabilitiesAreBoundIndependently() = runTest {
+        val source = RecordingSource()
+        val discoverOnly = executor(
+            storage = RuntimeFakeStorage(),
+            discoverCapability = source,
+            storyCapability = null,
+        )
+
+        assertEquals(CatalogAcquisitionResult.Success, discoverOnly.acquireDiscover(CatalogMediaType.MANGA))
+        assertEquals(
+            CatalogAcquisitionResult.Failed(CatalogFailure.SourceUnavailable),
+            discoverOnly.acquireStoryDetail(testRef()),
+        )
+
+        val storyOnly = executor(
+            storage = RuntimeFakeStorage(),
+            discoverCapability = null,
+            storyCapability = source,
+        )
+        assertEquals(
+            CatalogAcquisitionResult.Failed(CatalogFailure.SourceUnavailable),
+            storyOnly.acquireDiscover(CatalogMediaType.MANGA),
+        )
+        assertEquals(CatalogAcquisitionResult.Success, storyOnly.acquireStoryDetail(testRef()))
+    }
+
     private fun TestScope.executor(
         storage: RuntimeFakeStorage,
         source: RecordingSource,
+        wallClock: () -> Long = { 1L },
+    ): CatalogAcquisitionExecutor = executor(storage, source, source, wallClock)
+
+    private fun TestScope.executor(
+        storage: RuntimeFakeStorage,
+        discoverCapability: CatalogDiscoverCapability?,
+        storyCapability: CatalogStoryCapability?,
         wallClock: () -> Long = { 1L },
     ): CatalogAcquisitionExecutor {
         val dispatcher = StandardTestDispatcher(testScheduler)
@@ -120,7 +157,14 @@ class CatalogAcquisitionExecutorTest {
             dispatchers = dispatchers,
         )
         return CatalogAcquisitionExecutor(
-            binding = TEST_BINDING.copy(acquisitionSource = source),
+            binding = TEST_BINDING.copy(
+                discoverCapability = discoverCapability,
+                storyCapability = storyCapability,
+                capabilities = CatalogCapabilitySet(
+                    discover = discoverCapability != null,
+                    storyDetail = storyCapability != null,
+                ),
+            ),
             importer = importer,
             wallClockEpochMs = wallClock,
             dispatchers = dispatchers,

@@ -154,7 +154,8 @@ class DiscoverScreenInstrumentedTest {
         setContent(contentState())
 
         composeRule.onNodeWithContentDescription("Search").assertHasNoClickAction()
-        composeRule.onAllNodesWithText("See All")[0].assertHasNoClickAction()
+        composeRule.onAllNodesWithText("See All").assertCountEquals(0)
+        composeRule.onNodeWithText("Latest Updates").assertIsDisplayed()
         listOf("Read", "Add to Library", "Chapters", "Bookmark", "Explore", "Library", "Profile").forEach { copy ->
             composeRule.onNodeWithText(copy, substring = true).assertDoesNotExist()
         }
@@ -247,7 +248,7 @@ class DiscoverScreenInstrumentedTest {
         )
 
         fun section(kind: CatalogSectionKind, size: Int) = DiscoverSectionUi(
-            kind = kind,
+            descriptor = kind.previewDescriptor(),
             cards = List(size) { position -> card(kind, position) },
         )
 
