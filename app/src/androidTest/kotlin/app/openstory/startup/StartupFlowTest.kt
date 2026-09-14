@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import app.openstory.MainActivity
+import app.openstory.composition.AppShellTestTags
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -20,38 +21,42 @@ class StartupFlowTest {
     @Test
     fun freshPackageReachesFirstRun() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            assertDisplayedEventually("startup-first-run")
+            assertDisplayedEventually(FIRST_RUN_TAG)
         }
     }
 
     @Test
-    fun completingSetupReachesCatalog() {
+    fun completingSetupReachesHomeWithoutComposingDiscover() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            assertDisplayedEventually("startup-first-run")
-            composeRule.onNodeWithTag("startup-complete").performClick()
-            assertDisplayedEventually("catalog-discover")
+            assertDisplayedEventually(FIRST_RUN_TAG)
+            composeRule.onNodeWithTag(COMPLETE_SETUP_TAG).performClick()
+            assertDisplayedEventually(AppShellTestTags.HOME_ROOT)
+            composeRule.onNodeWithTag(DISCOVER_TAG).assertDoesNotExist()
         }
     }
 
     @Test
-    fun completedSetupLaunchesCatalog() {
+    fun completedSetupLaunchesHomeWithoutComposingDiscover() {
         markInitialSetupCompleted()
 
         ActivityScenario.launch(MainActivity::class.java).use {
-            assertDisplayedEventually("catalog-discover")
+            assertDisplayedEventually(AppShellTestTags.HOME_ROOT)
+            composeRule.onNodeWithTag(DISCOVER_TAG).assertDoesNotExist()
         }
     }
 
     @Test
-    fun completedSetupSurvivesActivityRecreation() {
+    fun completedSetupSurvivesActivityRecreationAtHome() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            assertDisplayedEventually("startup-first-run")
-            composeRule.onNodeWithTag("startup-complete").performClick()
-            assertDisplayedEventually("catalog-discover")
+            assertDisplayedEventually(FIRST_RUN_TAG)
+            composeRule.onNodeWithTag(COMPLETE_SETUP_TAG).performClick()
+            assertDisplayedEventually(AppShellTestTags.HOME_ROOT)
+            composeRule.onNodeWithTag(DISCOVER_TAG).assertDoesNotExist()
 
             scenario.recreate()
 
-            assertDisplayedEventually("catalog-discover")
+            assertDisplayedEventually(AppShellTestTags.HOME_ROOT)
+            composeRule.onNodeWithTag(DISCOVER_TAG).assertDoesNotExist()
         }
     }
 
@@ -70,5 +75,11 @@ class StartupFlowTest {
         runBlocking {
             check(createAppLaunchStateStore(context).markInitialSetupCompleted())
         }
+    }
+
+    private companion object {
+        const val FIRST_RUN_TAG = "startup-first-run"
+        const val COMPLETE_SETUP_TAG = "startup-complete"
+        const val DISCOVER_TAG = "catalog-discover"
     }
 }

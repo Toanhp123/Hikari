@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.model.CatalogMediaType
@@ -43,6 +44,7 @@ internal fun HomeDestination(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .testTag(AppShellTestTags.HOME_ROOT)
             .background(
                 Brush.verticalGradient(
                     listOf(
@@ -70,13 +72,13 @@ internal fun HomeDestination(
         Column(verticalArrangement = Arrangement.spacedBy(HOME_ACTION_SPACING)) {
             Button(
                 onClick = onExploreManga,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(AppShellTestTags.EXPLORE_MANGA),
             ) {
                 Text("Explore Manga")
             }
             Button(
                 onClick = onExploreLightNovels,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(AppShellTestTags.EXPLORE_LIGHT_NOVELS),
             ) {
                 Text("Explore Light Novels")
             }

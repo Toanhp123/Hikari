@@ -20,15 +20,20 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion Tasks 0-2 are completed/accepted; Task 3 is next.**
+**Hikari V2 Step 3 - Base App UX/UI Completion Tasks 0-2 are completed/accepted; a focused
+Task 1 connected-contract closure is patched and awaiting device verification before Task 3.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
 ACTIVE/RETAINED/RELEASED ownership independently of route Compose retention. Deterministic child
 history remains bounded to 32 process entries and 12 per root while preserving the immediate Back
 parent. The user-reported focused, architecture/build-surface, fast, and full verification commands
-all pass and were reviewed on 2026-09-14, so Task 2 is accepted. Resume at Task 3 from
-`../internal/checkpoints/hikari-v2-step-3-base-app-ux-ui-completion.md`. The owning plan is
+all pass and were reviewed on 2026-09-14, so Task 2 remains accepted. A later self-review found two
+`:app` connected startup classes still asserting the superseded Step 2 `Ready -> Discover` contract;
+the narrow closure patch now asserts `Ready -> Home`, zero Catalog work on Home, and explicit Explore
+as the activation boundary. Run the focused connected command recorded in
+`../internal/checkpoints/hikari-v2-step-3-base-app-ux-ui-completion.md` and record PASS before
+resuming Task 3. The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

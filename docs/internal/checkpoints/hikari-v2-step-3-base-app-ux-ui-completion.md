@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 2 COMPLETED/ACCEPTED**
+Status: **TASK 2 COMPLETED/ACCEPTED; TASK 1 CONNECTED CONTRACT CLOSURE READY FOR USER VERIFICATION**
 
 ## Authority
 
@@ -10,8 +10,8 @@ Status: **TASK 2 COMPLETED/ACCEPTED**
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
 - Completed/accepted execution boundary: Tasks 0-2.
-- Current execution boundary: Task 3 is next. Task 3 was not authorized or started in the Task 2
-  closure turn.
+- Current execution boundary: the supplemental Task 1 connected-contract closure must return PASS;
+  Task 3 remains next afterward and has not been authorized or started.
 
 Reviewed artifact SHA-256:
 
@@ -175,6 +175,47 @@ User-reported verification reviewed on 2026-09-14:
 
 All required Task 1 broad evidence is reviewed and accepted. Task 1 is completed/accepted.
 
+## Task 1 Post-Acceptance Connected-Contract Closure
+
+Status: **READY FOR USER VERIFICATION**
+
+A later Task 1/2 self-review found that two `:app` connected startup classes still encoded the
+Step 2 startup destination (`Ready -> Discover`) even though Task 1 production and focused host
+contracts had already moved the product boundary to `Ready -> AppShell(Home)`. Those connected
+classes were not part of the accepted broad host gate, so the stale contract could remain green in
+source while contradicting the accepted Step 3 behavior.
+
+The closure patch is intentionally narrow:
+
+- transitional Home now exposes stable app-owned semantics for the root and its Explore actions;
+- `StartupFlowTest` now proves FirstRun completion, returning Ready launch, and Activity recreation
+  all settle on Home while Discover is not simultaneously composed;
+- `CatalogLaunchHandoffTest` now proves Home records zero Catalog activation/storage/acquisition/
+  image-loader work, then proves explicit `Explore Manga` is the boundary that may compose Discover
+  and start Catalog activation;
+- no navigation/runtime ownership, Catalog activation policy, Story lifecycle, or Task 2 production
+  behavior changes in this closure patch;
+- Step 2/Task 16 benchmark journeys and generated profiles remain intentionally untouched. Task 23
+  still owns benchmark-journey/profile regeneration, and the existing benchmark source contract is
+  therefore not rewritten early.
+
+Agent-side review confirms the old connected test names/direct startup-to-Discover assertions are
+removed from the affected startup classes, and production remains free of the Task 1/2 forbidden
+symbols. Android/Compose Gradle execution is not available in this sandbox because the Gradle 9.5.0
+wrapper distribution is not cached and network retrieval is unavailable. Do not infer connected PASS
+from the previously accepted host gates.
+
+Required user-owned closure command before starting Task 3:
+
+```bash
+./gradlew :app:connectedDebugAndroidTest \
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.startup.StartupFlowTest,app.openstory.startup.CatalogLaunchHandoffTest' \
+  --no-daemon
+```
+
+Task 1/2 architecture acceptance remains unchanged, but Task 3 should not start until this
+supplemental connected contract correction is returned green and recorded here.
+
 ## Task 0 User-Owned Evidence
 
 Status: **PASS**
@@ -290,5 +331,7 @@ accepted. Task 2 is completed/accepted.
 
 ## Exact Resume Boundary
 
-Tasks 0-2 are completed/accepted. Resume at Task 3 from the owning plan and this checkpoint. The
-Task 2 closure turn updated acceptance and routing but did not authorize or start Task 3.
+Tasks 0-2 architecture implementation and their originally required acceptance gates remain
+completed/accepted. Before Task 3, run and return the focused `:app` connected closure command in
+`Task 1 Post-Acceptance Connected-Contract Closure`; record its PASS here. Task 3 remains the next
+implementation task and was not authorized or started by this closure patch.
