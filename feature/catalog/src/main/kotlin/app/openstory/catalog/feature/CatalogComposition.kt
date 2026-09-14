@@ -17,14 +17,18 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
+import app.openstory.artwork.ArtworkAuthorityKey
+import app.openstory.artwork.ArtworkLoader
+import app.openstory.artwork.ArtworkPolicy
+import app.openstory.artwork.ArtworkPolicyResolver
+import app.openstory.artwork.ArtworkRuntime
+import app.openstory.common.execution.ProcessWorkAdmission
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.read.StoryRouteArgs
 import app.openstory.catalog.domain.read.StoryRoutePreview
 import app.openstory.catalog.domain.source.CatalogAuthorityResolver
-import app.openstory.catalog.feature.assets.CatalogImageLoader
-import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
+import app.openstory.catalog.feature.assets.LocalArtworkLoader
 import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverRuntime
 import app.openstory.catalog.feature.discover.DiscoverRuntimeActivation
@@ -41,12 +45,14 @@ import kotlinx.coroutines.sync.withLock
 
 @Composable
 internal fun CatalogComposition(
+    runtimeAccess: CatalogRuntimeAccess,
+    artworkLoader: ArtworkLoader,
     mediaType: CatalogMediaType,
     onStorySelected: (StoryRouteArgs) -> Unit,
 ) {
-    val runtimeAccess = rememberCatalogRuntimeAccess()
     CatalogSessionContent(
         runtimeHolder = runtimeAccess.holder,
+        artworkLoader = artworkLoader,
         trace = runtimeAccess.trace,
         mediaType = mediaType,
         onStorySelected = onStorySelected,
@@ -88,30 +94,43 @@ private fun rememberCatalogRuntimeHolder(
         CatalogRuntimeHolder.factory(
             diagnostics = VariantCatalogBinding.diagnostics,
         ) {
-            val runtime = CatalogRuntimeFactory(
+            CatalogRuntimeFactory(
                 context = applicationContext,
                 bindings = VariantCatalogBinding.bindings,
                 traceSink = AndroidCatalogTraceSink,
                 queryListener = VariantCatalogBinding.queryListener,
                 ownershipCallbacks = VariantCatalogBinding.diagnostics.runtimeOwnershipCallbacks,
             ).createHost()
-            runtime to CatalogImageLoader(
-                context = applicationContext,
-                localResolver = VariantLocalCoverAssets,
-                remoteTransport = VariantCatalogBinding.remoteCoverTransport(applicationContext),
-                policyProvider = {
-                    SourceAssetPolicyProvider { sourceKey -> runtime.descriptor(sourceKey)?.artworkPolicy }
-                },
-                callbacks = VariantCatalogBinding.diagnostics.imageLoaderCallbacks,
-            )
         }
     }
     return viewModel(factory = runtimeFactory)
 }
 
 @Composable
+fun rememberCatalogArtworkLoader(
+    runtimeAccess: CatalogRuntimeAccess,
+    admission: ProcessWorkAdmission,
+): ArtworkLoader {
+    val applicationContext = LocalContext.current.applicationContext
+    val factory = remember(applicationContext, runtimeAccess) {
+        CatalogArtworkRuntimeHolder.factory {
+            ArtworkRuntime(
+                context = applicationContext,
+                localResolver = VariantLocalCoverAssets,
+                policyResolver = catalogArtworkPolicyResolver(runtimeAccess.holder.runtime),
+                admission = admission,
+                remoteTransport = VariantCatalogBinding.artworkTransport(applicationContext),
+                callbacks = VariantCatalogBinding.diagnostics.artworkRuntimeCallbacks,
+            )
+        }
+    }
+    return viewModel<CatalogArtworkRuntimeHolder>(factory = factory).runtime
+}
+
+@Composable
 private fun CatalogSessionContent(
     runtimeHolder: CatalogRuntimeHolder,
+    artworkLoader: ArtworkLoader,
     trace: CatalogUiTrace,
     mediaType: CatalogMediaType,
     onStorySelected: (StoryRouteArgs) -> Unit,
@@ -140,7 +159,7 @@ private fun CatalogSessionContent(
     }
 
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val imageLoader = runtimeHolder.images.takeIf { lifecycleState.isAtLeast(Lifecycle.State.STARTED) }
+    val activeArtworkLoader = artworkLoader.takeIf { lifecycleState.isAtLeast(Lifecycle.State.STARTED) }
     LaunchedEffect(discoverState.content) {
         val content = discoverState.content as? DiscoverContentState.Content
         if (content?.sections?.any { it.cards.isNotEmpty() } == true) {
@@ -168,7 +187,7 @@ private fun CatalogSessionContent(
         )
     }
 
-    CompositionLocalProvider(LocalCatalogImageLoader provides imageLoader) {
+    CompositionLocalProvider(LocalArtworkLoader provides activeArtworkLoader) {
         CatalogScreen(
             mediaType = mediaType,
             discoverListState = discoverListState,
@@ -195,7 +214,6 @@ private fun rememberDiscoverViewModel(
 
 internal class CatalogRuntimeHolder(
     val runtime: CatalogRuntimeHost,
-    val images: CatalogImageLoader,
     private val diagnostics: CatalogCompositionDiagnostics,
 ) : ViewModel() {
     private val activationMutex = Mutex()
@@ -224,7 +242,6 @@ internal class CatalogRuntimeHolder(
     }
 
     override fun onCleared() {
-        images.close()
         runtime.close()
         diagnostics.runtimeSessionClosed()
     }
@@ -232,16 +249,45 @@ internal class CatalogRuntimeHolder(
     companion object {
         fun factory(
             diagnostics: CatalogCompositionDiagnostics,
-            createRuntime: () -> Pair<CatalogRuntimeHost, CatalogImageLoader>,
+            createRuntime: () -> CatalogRuntimeHost,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     require(modelClass.isAssignableFrom(CatalogRuntimeHolder::class.java))
-                    val (runtime, images) = createRuntime()
-                    return CatalogRuntimeHolder(runtime, images, diagnostics) as T
+                    return CatalogRuntimeHolder(createRuntime(), diagnostics) as T
                 }
             }
+    }
+}
+
+internal class CatalogArtworkRuntimeHolder(
+    val runtime: ArtworkRuntime,
+) : ViewModel() {
+    override fun onCleared() = runtime.close()
+
+    companion object {
+        fun factory(createRuntime: () -> ArtworkRuntime): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    require(modelClass.isAssignableFrom(CatalogArtworkRuntimeHolder::class.java))
+                    return CatalogArtworkRuntimeHolder(createRuntime()) as T
+                }
+            }
+    }
+}
+
+internal fun catalogArtworkPolicyResolver(
+    runtime: CatalogRuntimeHost,
+): ArtworkPolicyResolver = ArtworkPolicyResolver { authority ->
+    val sourceKey = runCatching { CatalogSourceKey(authority.value) }.getOrNull()
+        ?: return@ArtworkPolicyResolver null
+    runtime.descriptor(sourceKey)?.artworkPolicy?.let { policy ->
+        ArtworkPolicy(
+            authority = ArtworkAuthorityKey(policy.catalogSourceKey.value),
+            allowedHttpsHosts = policy.allowedHttpsHosts,
+        )
     }
 }
 

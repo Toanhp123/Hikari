@@ -1,8 +1,8 @@
 package app.openstory.catalog.feature.plugin
 
-import app.openstory.catalog.feature.assets.RemoteCoverTransport
-import app.openstory.catalog.feature.assets.RemoteCoverTransportRequest
-import app.openstory.catalog.feature.assets.RemoteCoverTransportResponse
+import app.openstory.artwork.ArtworkTransport
+import app.openstory.artwork.ArtworkTransportRequest
+import app.openstory.artwork.ArtworkTransportResponse
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,10 +29,10 @@ internal data class ControlledCoverResponse(
 
 internal class ControlledPluginTransport(
     private val handler: suspend (ControlledPluginRequest) -> ControlledPluginResponse,
-    private val coverHandler: suspend (RemoteCoverTransportRequest) -> ControlledCoverResponse = {
-        error("Unexpected cover request: ${it.uri.value}")
+    private val coverHandler: suspend (ArtworkTransportRequest) -> ControlledCoverResponse = {
+        error("Unexpected cover request: ${it.uri}")
     },
-) : RemoteCoverTransport {
+) : ArtworkTransport {
     val pluginRequests = mutableListOf<ControlledPluginRequest>()
     val coverRequestCount = AtomicInteger()
 
@@ -41,10 +41,10 @@ internal class ControlledPluginTransport(
         return handler(request)
     }
 
-    override suspend fun execute(request: RemoteCoverTransportRequest): RemoteCoverTransportResponse {
+    override suspend fun execute(request: ArtworkTransportRequest): ArtworkTransportResponse {
         coverRequestCount.incrementAndGet()
         val response = coverHandler(request)
-        return object : RemoteCoverTransportResponse {
+        return object : ArtworkTransportResponse {
             override val statusCode = response.statusCode
             override val redirectLocation = response.redirectLocation
             override val contentType = response.contentType

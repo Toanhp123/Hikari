@@ -494,8 +494,107 @@ On 2026-09-14, the user reported that the complete command succeeded. This conci
 accepted as user-owned broad module/host/architecture evidence under `AGENTS.md`; it is not
 relabeled as an agent-owned run. Task 4 is completed/accepted.
 
+## Task 5 Delta
+
+- Added `:core:artwork` with the exact eight planned production files. It owns lazy decoded-memory
+  and encoded-disk caches, image loading, in-flight coalescing, process admission, remote artwork
+  policy/transport contracts, memory-pressure handling, and generic image container/dimension
+  preflight.
+- Cache seeds are frozen at 32 MiB decoded and 128 MiB encoded; encoded responses remain bounded to
+  8 MiB and manual offscreen prefetch remains zero. Container/media/dimension validation is now a
+  default core-artwork behavior rather than a Catalog-injected implementation.
+- Added deterministic domain-separated SHA-256 cache keys. Encoded identity includes authority,
+  stable asset key, locator, and vary scope; decoded identity additionally includes transform.
+  Policy host sets are defensively snapshotted before they participate in in-flight key equality.
+- Added runtime-owned coalescing before visible DECODE admission. Equivalent consumers share one
+  pipeline; one consumer cancellation leaves shared work alive, while final cancellation releases
+  it. Benchmark diagnostics continue to observe admitted active decode jobs after removal of the
+  feature-local limiter.
+- Preserved the Step 3 artwork security envelope: HTTPS only, canonical allowlisted DNS hosts, no IP
+  literals/user info/fragments/non-443 ports, locator length bound, at most three revalidated
+  redirects, 5/10/15 second transport bounds, admitted media types, bounded streaming bodies,
+  caller cancellation, owned timeout mapping, and temporary-payload cleanup.
+- App Shell now creates one shared Catalog descriptor/runtime access owner, one shared lazy artwork
+  runtime, and one application-owned `BoundedProcessWorkAdmission`. Discover and Story receive
+  those shared objects; Home construction does not activate Catalog storage or initialize artwork
+  caches/session.
+- Catalog artwork policy lookup reads immutable `CatalogRuntimeHost.descriptor()` data and never
+  calls `activate()`. Catalog cover presentation maps only Catalog locator/failure semantics at the
+  feature boundary.
+- Deleted the six planned feature-local artwork production implementations and their duplicate unit
+  suites. Existing Step 2 Android fixtures compile through one Android-test-only compatibility
+  adapter; no legacy implementation or adapter ships in production.
+- Added `:core:artwork` and its exact project edges to Gradle/module-boundary policy. Dependency
+  verification adds only the required `androidx.collection:collection-jvm:1.4.2` artifact checksum.
+
+## Task 5 Agent-Owned Evidence
+
+- RED/GREEN covered missing shared coalescing/cancellation APIs, descriptor-only policy lookup,
+  decode admission, encoded cache atomicity, cache-key separation, locator/canonical-host bounds,
+  immutable policy snapshots, and admitted active-decode diagnostics.
+- Final fresh focused test command on 2026-09-14 passed with zero failures/errors/skips:
+  `:core:artwork:testDebugUnitTest` 18 tests, selected `:feature:catalog:testDebugUnitTest` contracts
+  25 tests, selected benchmarkRelease fixture tests 39 tests, and `AppShellContractTest` 8 tests;
+  `BUILD SUCCESSFUL in 25s`.
+- Final fresh compile cone passed `:app:compileDebugKotlin`, Catalog release and benchmarkRelease
+  production compilation, benchmarkRelease unit-test compilation, and the complete Catalog debug
+  Android-test source set; `BUILD SUCCESSFUL in 21s`.
+- `git diff --check` exits zero. The core production audit finds exactly eight Kotlin files and no
+  Catalog/Library/Reading/Story/plugin/Compose/Room/WorkManager/OkHttp imports. The production symbol
+  audit finds none of the six deleted feature-local artwork implementations or their old composition
+  local.
+- The independent reviewer requested by the review workflow could not start because the child-agent
+  provider returned 404/no active credentials. No reviewer result is inferred; the changed cone was
+  instead checked against the repository self-review contract before the fresh verification above.
+
+## Task 5 Self-Review
+
+- Core artwork owns generic image acquisition mechanics only. It contains no Catalog, Story,
+  Library, Reading, plugin, UI, source, or provider business truth; production HTTP remains absent
+  until Task 13.
+- Descriptor/policy lookup is synchronous and storage/network-free. Creating App Shell on Home
+  constructs lightweight holders only; Catalog storage and artwork cache/session initialization
+  remain demand-lazy.
+- Cache and in-flight identities cannot alias across authority, locator, vary, transform, decode
+  size, or policy differences. Caller-owned mutable host sets cannot corrupt in-flight map keys.
+- Remote responses and temporary files close on success, redirect, body failure, cancellation,
+  response-close failure, timeout, and size rejection. Every remote hop uses NETWORK admission at
+  `VISIBLE_ARTWORK`; every shared pipeline uses DECODE admission at `VISIBLE_ARTWORK`.
+- Memory pressure clears decoded memory only. Runtime/session close is idempotent and cancels
+  in-flight work before shutting down the image loader and disk cache.
+- The remaining Android-test compatibility adapter is source-set isolated. Low-level core types it
+  bridges are transport/runtime primitives, not a restored feature-local production implementation.
+
+## Task 5 Required User-Owned Gates
+
+Status: **READY FOR USER VERIFICATION**
+
+Broad module/host/architecture and Detekt gate:
+
+```powershell
+.\gradlew.bat :core:artwork:testDebugUnitTest :core:common:test :catalog:domain:test `
+  :catalog:runtime:testDebugUnitTest :feature:catalog:testDebugUnitTest `
+  :feature:story:testDebugUnitTest :app:testDebugUnitTest :build-logic:test `
+  verifyArchitecture :app:verifyFoundation verifyStep3BuildSurface `
+  verifyProductionPackageStructure verifyModuleBoundaries detekt --no-daemon
+```
+
+Focused device lifecycle/security/continuity gate:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.startup.StartupFlowTest,app.openstory.startup.CatalogLaunchHandoffTest' `
+  --no-daemon
+
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.assets.LocalCoverContinuityInstrumentedTest,app.openstory.catalog.feature.assets.CoverImagePreflightInstrumentedTest,app.openstory.catalog.feature.lifecycle.CatalogLifecycleInstrumentedTest,app.openstory.catalog.feature.plugin.MangaUpdatesCatalogIntegrationTest,app.openstory.catalog.feature.plugin.MangaUpdatesCatalogBoundaryIntegrationTest' `
+  --no-daemon
+```
+
 ## Exact Resume Boundary
 
-Tasks 0-4 are completed/accepted, including the Task 4 broad gate returned by the user on
-2026-09-14. The next resume point is Task 5, `Shared artwork runtime without Catalog activation`.
-Do not begin Task 5 without a new explicit user instruction.
+Tasks 0-4 remain completed/accepted. Task 5 implementation, focused tests, variant compilation, and
+Android-test compilation are complete, but Task 5 is not accepted until the user-owned broad and
+device gates above are returned and reviewed. Resume only by reviewing that evidence and fixing any
+Task 5 failure. On PASS, mark Task 5 completed/accepted and persist Task 6 as the next pointer; do not
+begin Task 6 without a new explicit user instruction.

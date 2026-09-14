@@ -15,6 +15,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import app.openstory.artwork.ArtworkFailureException
+import app.openstory.artwork.ArtworkFailureReason
 import app.openstory.catalog.domain.failure.CatalogArtworkFailureReason
 import app.openstory.catalog.domain.failure.CatalogFailure
 import app.openstory.catalog.domain.failure.CatalogFailureException
@@ -47,24 +49,23 @@ internal fun CoverArtwork(
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f),
             )
         }
-        val catalogImageLoader = LocalCatalogImageLoader.current
-        if (assetKey != null && catalogImageLoader != null) {
-            DisposableEffect(catalogImageLoader, assetKey) {
-                catalogImageLoader.onDemandStarted()
-                onDispose(catalogImageLoader::onDemandStopped)
+        val artworkLoader = LocalArtworkLoader.current
+        if (assetKey != null && artworkLoader != null) {
+            DisposableEffect(artworkLoader, assetKey) {
+                artworkLoader.onDemandStarted()
+                onDispose(artworkLoader::onDemandStopped)
             }
-            val request = remember(assetKey, locator) { CoverRequest(assetKey, locator) }
             val context = androidx.compose.ui.platform.LocalContext.current
-            val imageRequest = remember(request, context) { request.toImageRequest(context) }
+            val imageRequest = remember(assetKey, locator, context) { assetKey.toImageRequest(context, locator) }
             AsyncImage(
                 model = imageRequest,
                 contentDescription = null,
-                imageLoader = catalogImageLoader.imageLoader(),
+                imageLoader = artworkLoader.imageLoader(),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 onLoading = { onStateChanged(CoverArtworkState.Loading) },
                 onSuccess = {
-                    catalogImageLoader.onCoverReady()
+                    artworkLoader.onArtworkReady()
                     onStateChanged(CoverArtworkState.Ready)
                 },
                 onError = { state: AsyncImagePainter.State.Error ->
@@ -78,10 +79,27 @@ internal fun CoverArtwork(
 internal fun Throwable.toCoverArtworkFailure(): CatalogFailure {
     var current: Throwable? = this
     while (current != null) {
+        if (current is ArtworkFailureException) {
+            return CatalogFailure.Artwork(current.reason.toCatalogReason())
+        }
         if (current is CatalogFailureException && current.failure is CatalogFailure.Artwork) {
             return current.failure
         }
         current = current.cause
     }
     return CatalogFailure.Artwork(CatalogArtworkFailureReason.DECODE_FAILED)
+}
+
+private fun ArtworkFailureReason.toCatalogReason(): CatalogArtworkFailureReason = when (this) {
+    ArtworkFailureReason.INVALID_LOCATOR -> CatalogArtworkFailureReason.INVALID_LOCATOR
+    ArtworkFailureReason.POLICY_REJECTED -> CatalogArtworkFailureReason.POLICY_REJECTED
+    ArtworkFailureReason.REDIRECT_REJECTED -> CatalogArtworkFailureReason.REDIRECT_REJECTED
+    ArtworkFailureReason.MEDIA_TYPE_REJECTED -> CatalogArtworkFailureReason.MEDIA_TYPE_REJECTED
+    ArtworkFailureReason.ENCODED_TOO_LARGE -> CatalogArtworkFailureReason.ENCODED_TOO_LARGE
+    ArtworkFailureReason.DIMENSIONS_TOO_LARGE -> CatalogArtworkFailureReason.DIMENSIONS_TOO_LARGE
+    ArtworkFailureReason.DECODE_FAILED -> CatalogArtworkFailureReason.DECODE_FAILED
+    ArtworkFailureReason.TIMEOUT -> CatalogArtworkFailureReason.TIMEOUT
+    ArtworkFailureReason.SATURATED,
+    ArtworkFailureReason.IO_FAILED,
+    -> CatalogArtworkFailureReason.IO_FAILED
 }

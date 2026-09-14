@@ -30,10 +30,16 @@ import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.CatalogRuntimeFactory
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
-import app.openstory.catalog.feature.assets.CatalogImageLoader
-import app.openstory.catalog.feature.assets.CatalogImageLoaderCallbacks
-import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
+import app.openstory.artwork.ArtworkAuthorityKey
+import app.openstory.artwork.ArtworkPolicy
+import app.openstory.artwork.ArtworkPolicyResolver
+import app.openstory.artwork.ArtworkPreflight
+import app.openstory.artwork.ArtworkRuntime
+import app.openstory.artwork.ArtworkRuntimeCallbacks
+import app.openstory.catalog.feature.assets.CoverImagePreflight
+import app.openstory.catalog.feature.assets.LocalArtworkLoader
 import app.openstory.catalog.feature.assets.LocalCoverAssetResolver
+import app.openstory.common.execution.BoundedProcessWorkAdmission
 import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverScreen
@@ -309,16 +315,19 @@ class MangaUpdatesCatalogIntegrationTest {
             wallClockEpochMs = { ACQUIRED_AT },
         ).createSession()
         val decodeCount = AtomicInteger()
-        val loader = CatalogImageLoader(
+        val loader = ArtworkRuntime(
             context = appContext,
             localResolver = LocalCoverAssetResolver { _, _ -> null },
             remoteTransport = transport,
-            policyProvider = {
-                SourceAssetPolicyProvider { requested ->
-                    policy.takeIf { requested == policy.catalogSourceKey }
-                }
+            policyResolver = ArtworkPolicyResolver { authority ->
+                ArtworkPolicy(authority, policy.allowedHttpsHosts)
+                    .takeIf { authority.value == policy.catalogSourceKey.value }
             },
-            callbacks = CatalogImageLoaderCallbacks(
+            admission = BoundedProcessWorkAdmission(),
+            preflight = ArtworkPreflight { file, mediaType, size ->
+                CoverImagePreflight().inspect(file, mediaType, size)
+            },
+            callbacks = ArtworkRuntimeCallbacks(
                 onSuccessfulDecode = { decodeCount.incrementAndGet() },
             ),
         )
@@ -338,7 +347,7 @@ class MangaUpdatesCatalogIntegrationTest {
             val coverReady = AtomicInteger()
             composeRule.setContent {
                 HikariTheme(darkTheme = false) {
-                    CompositionLocalProvider(LocalCatalogImageLoader provides loader) {
+                    CompositionLocalProvider(LocalArtworkLoader provides loader) {
                         DiscoverScreen(
                             mediaType = CatalogMediaType.MANGA,
                             state = DiscoverUiState(

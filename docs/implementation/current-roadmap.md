@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 4; Task 5 is the
-next resume point and has not started.**
+**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 4; Task 5 is
+`READY FOR USER VERIFICATION`.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
@@ -36,7 +36,12 @@ which accepts `Ready -> Home`, zero Catalog work on Home, and explicit Explore a
 boundary. Task 4 now adds bounded process NETWORK/DECODE admission plus deterministic retained-
 payload accounting; its focused suite passes 8 tests with zero failures/errors. On 2026-09-14, the
 user returned PASS for the complete Task 4 broad module/host/architecture gate, so Task 4 is
-completed/accepted. Resume at Task 5 only after a new explicit user instruction. The owning plan is
+completed/accepted. Task 5 now adds process-shared lazy artwork/cache/coalescing/security ownership
+in `:core:artwork`, descriptor-only Catalog policy lookup, app-owned process admission/runtime
+wiring, and migrated Catalog/Story consumers. Fresh focused tests and debug/release/benchmark plus
+Android-test compilation pass; broad architecture/Detekt and focused device evidence remain
+user-owned. Resume by reviewing the Task 5 commands/evidence in the checkpoint. Do not begin Task 6
+until Task 5 is accepted and a new explicit user instruction is given. The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.openstory.artwork.ArtworkRequest
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.asset.CoverRevisionV1
@@ -72,18 +73,19 @@ class LocalCoverContinuityInstrumentedTest {
     @Test
     fun stableRevisionUsesTheExactSameMemoryAndDiskKeyWhileRevisionChangeInvalidatesBoth() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val first = CoverRequest(assetKey("story-1", "1"), localLocator("1")).toImageRequest(context)
-        val same = CoverRequest(assetKey("story-1", "1"), localLocator("1")).toImageRequest(context)
-        val changed = CoverRequest(assetKey("story-1", "2"), localLocator("2")).toImageRequest(context)
-        val requestData = first.data as CoverRequest
+        val firstKey = assetKey("story-1", "1")
+        val first = firstKey.toImageRequest(context, localLocator("1"))
+        val same = assetKey("story-1", "1").toImageRequest(context, localLocator("1"))
+        val changed = assetKey("story-1", "2").toImageRequest(context, localLocator("2"))
+        val requestData = first.data as ArtworkRequest
 
         assertEquals(first.memoryCacheKey, same.memoryCacheKey)
         assertEquals(first.diskCacheKey, same.diskCacheKey)
-        assertEquals(requestData.assetKey.stableCacheKey, first.memoryCacheKey)
-        assertEquals(requestData.assetKey.stableCacheKey, first.diskCacheKey)
+        assertEquals(requestData.identity.stableAssetKey, first.memoryCacheKey)
+        assertEquals(requestData.identity.stableAssetKey, first.diskCacheKey)
         assertNotEquals(first.memoryCacheKey, changed.memoryCacheKey)
         assertNotEquals(first.diskCacheKey, changed.diskCacheKey)
-        assertEquals(localLocator("1"), requestData.locator)
+        assertEquals("local:debug:manga:cover-a:1", requestData.locator?.identity)
     }
 
     @Test
@@ -97,12 +99,11 @@ class LocalCoverContinuityInstrumentedTest {
                 LocalCoverAsset(R.drawable.catalog_debug_manga_a)
             },
         )
-        val request = CoverRequest(assetKey("story-memory", "1"), localLocator("1"))
-            .toImageRequest(harness.context)
+        val requestKey = assetKey("story-memory", "1")
+        val request = requestKey.toImageRequest(harness.context, localLocator("1"))
 
         assertTrue(harness.imageLoader.execute(request) is SuccessResult)
-        val transitionRequest = CoverRequest(request.data.let { (it as CoverRequest).assetKey }, locator = null)
-            .toImageRequest(harness.context)
+        val transitionRequest = requestKey.toImageRequest(harness.context, locator = null)
         assertTrue(harness.imageLoader.execute(transitionRequest) is SuccessResult)
 
         assertEquals(1, resolverCalls.get())
@@ -120,47 +121,13 @@ class LocalCoverContinuityInstrumentedTest {
 
         repeat(64) { index ->
             val result = harness.imageLoader.execute(
-                CoverRequest(assetKey("bounded-$index", "1"), localLocator("1"))
-                    .toImageRequest(harness.context),
+                assetKey("bounded-$index", "1").toImageRequest(harness.context, localLocator("1")),
             )
             assertTrue(result is SuccessResult)
         }
 
         assertEquals(CatalogImageLimits.DECODED_MEMORY_BYTES, harness.memoryCache.maxSize)
         assertTrue(harness.memoryCache.size <= CatalogImageLimits.DECODED_MEMORY_BYTES)
-    }
-
-    @Test
-    fun coverJobsAreCappedAtEightAndCancelledWaitingDemandNeverStarts() = runBlocking {
-        val limiter = CoverJobLimiter(CatalogImageLimits.ACTIVE_COVER_JOBS)
-        val release = CompletableDeferred<Unit>()
-        val entered = AtomicInteger()
-        val active = AtomicInteger()
-        val peak = AtomicInteger()
-
-        val jobs = List(9) {
-            async {
-                limiter.withPermit {
-                    entered.incrementAndGet()
-                    val now = active.incrementAndGet()
-                    peak.updateAndGet { previous -> maxOf(previous, now) }
-                    release.await()
-                    active.decrementAndGet()
-                }
-            }
-        }
-
-        while (entered.get() < CatalogImageLimits.ACTIVE_COVER_JOBS) kotlinx.coroutines.yield()
-        assertEquals(CatalogImageLimits.ACTIVE_COVER_JOBS, peak.get())
-        assertEquals(CatalogImageLimits.ACTIVE_COVER_JOBS, entered.get())
-
-        jobs.last().cancelAndJoin()
-        release.complete(Unit)
-        jobs.dropLast(1).awaitAll()
-
-        assertEquals(CatalogImageLimits.ACTIVE_COVER_JOBS, entered.get())
-        assertEquals(0, active.get())
-        assertEquals(0, CatalogImageLimits.MANUAL_OFFSCREEN_PREFETCH)
     }
 
     @Test
@@ -229,7 +196,7 @@ class LocalCoverContinuityInstrumentedTest {
         composeRule.setContent {
             var tick by remember { mutableIntStateOf(0) }
             recompose = { tick++ }
-            CompositionLocalProvider(LocalCatalogImageLoader provides loader) {
+            CompositionLocalProvider(LocalArtworkLoader provides loader) {
                 MaterialTheme {
                     Column {
                         Text("Visible metadata $tick")
@@ -266,7 +233,7 @@ class LocalCoverContinuityInstrumentedTest {
             .diskCache(null)
             .components {
                 add(
-                    Fetcher.Factory<CoverRequest> { _, _, _ ->
+                    Fetcher.Factory<ArtworkRequest> { _, _, _ ->
                         Fetcher {
                             started.incrementAndGet()
                             try {
@@ -286,7 +253,7 @@ class LocalCoverContinuityInstrumentedTest {
             var visible by remember { mutableStateOf(true) }
             hideCover = { visible = false }
             CompositionLocalProvider(
-                LocalCatalogImageLoader provides CatalogCoverLoader { imageLoader },
+                LocalArtworkLoader provides CatalogCoverLoader { imageLoader },
             ) {
                 MaterialTheme {
                     if (visible) {
@@ -313,8 +280,7 @@ class LocalCoverContinuityInstrumentedTest {
     fun localResolverFailureMapsToTypedArtworkFailure() = runBlocking {
         val harness = imageHarness(resolver = LocalCoverAssetResolver { _, _ -> null })
         val result = harness.imageLoader.execute(
-            CoverRequest(assetKey("missing-cover", "1"), localLocator("1"))
-                .toImageRequest(harness.context),
+            assetKey("missing-cover", "1").toImageRequest(harness.context, localLocator("1")),
         ) as ErrorResult
 
         val failure = result.throwable.findCatalogFailure()

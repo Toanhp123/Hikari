@@ -2,7 +2,7 @@ package app.openstory.catalog.feature
 
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.identity.CatalogSourceKey
-import app.openstory.catalog.feature.assets.CatalogImageLoaderCallbacks
+import app.openstory.artwork.ArtworkRuntimeCallbacks
 import app.openstory.catalog.feature.seed.LocalSeedCatalogSource
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 
@@ -39,7 +39,7 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
             CatalogDebugDiagnostics.recordRuntimeSessionClosed()
         }
 
-        override val imageLoaderCallbacks = CatalogImageLoaderCallbacks(
+        override val artworkRuntimeCallbacks = ArtworkRuntimeCallbacks(
             onSessionInitialized = CatalogDebugDiagnostics::recordImageSessionInitialized,
             onSessionClosed = CatalogDebugDiagnostics::recordImageSessionClosed,
             onDemandStarted = CatalogDebugDiagnostics::recordCoverDemandStarted,

@@ -1,12 +1,10 @@
 package app.openstory.catalog.feature.fixture
 
-import app.openstory.catalog.domain.asset.RemoteHttpsUriV1
-import app.openstory.catalog.domain.failure.CatalogArtworkFailureReason
-import app.openstory.catalog.domain.failure.CatalogFailure
-import app.openstory.catalog.domain.failure.CatalogFailureException
-import app.openstory.catalog.feature.assets.CatalogImageLimits
-import app.openstory.catalog.feature.assets.CoverImagePreflight
-import app.openstory.catalog.feature.assets.RemoteCoverTransportRequest
+import app.openstory.artwork.ArtworkFailureException
+import app.openstory.artwork.ArtworkFailureReason
+import app.openstory.artwork.ArtworkLimits
+import app.openstory.artwork.ArtworkTransportRequest
+import app.openstory.artwork.ArtworkImagePreflight
 import coil3.size.Size
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
@@ -26,11 +24,11 @@ class BenchmarkCoverFixtureTest {
             requestCounter = counter,
             assertWorkerThread = { workerThreadAssertions += 1 },
         )
-        val request = RemoteCoverTransportRequest(
-            uri = RemoteHttpsUriV1.parseAndNormalize("https://covers.hikari.invalid/cover.webp"),
-            connectTimeoutMillis = 10_000,
-            readTimeoutMillis = 20_000,
-            callTimeoutMillis = 20_000,
+        val request = ArtworkTransportRequest(
+            uri = "https://covers.hikari.invalid/cover.webp",
+            connectTimeoutMillis = 5_000,
+            readTimeoutMillis = 10_000,
+            callTimeoutMillis = 15_000,
         )
 
         val first = transport.execute(request)
@@ -47,7 +45,7 @@ class BenchmarkCoverFixtureTest {
         val transport = DeterministicBenchmarkCoverTransport(
             encodedBytes = byteArrayOf(1),
             contentType = "image/png",
-            declaredContentLength = CatalogImageLimits.MAX_ENCODED_BYTES + 1,
+            declaredContentLength = ArtworkLimits.MAX_ENCODED_BYTES + 1,
             requestCounter = AtomicInteger(),
             assertWorkerThread = {},
         )
@@ -55,7 +53,7 @@ class BenchmarkCoverFixtureTest {
         val response = transport.execute(request())
 
         assertEquals("image/png", response.contentType)
-        assertEquals(CatalogImageLimits.MAX_ENCODED_BYTES + 1, response.contentLength)
+        assertEquals(ArtworkLimits.MAX_ENCODED_BYTES + 1, response.contentLength)
     }
 
     @Test
@@ -64,23 +62,23 @@ class BenchmarkCoverFixtureTest {
         try {
             file.writeBytes(pathologicalPng(width = 8_193, height = 1))
 
-            val thrown = org.junit.Assert.assertThrows(CatalogFailureException::class.java) {
-                CoverImagePreflight().inspect(file, "image/png", Size(360, 540))
+            val thrown = org.junit.Assert.assertThrows(ArtworkFailureException::class.java) {
+                ArtworkImagePreflight().inspect(file, "image/png", Size(360, 540))
             }
 
             assertEquals(
-                CatalogArtworkFailureReason.DIMENSIONS_TOO_LARGE,
-                (thrown.failure as CatalogFailure.Artwork).reason,
+                ArtworkFailureReason.DIMENSIONS_TOO_LARGE,
+                thrown.reason,
             )
         } finally {
             file.delete()
         }
     }
 
-    private fun request() = RemoteCoverTransportRequest(
-        uri = RemoteHttpsUriV1.parseAndNormalize("https://covers.hikari.invalid/cover.webp"),
-        connectTimeoutMillis = 10_000,
-        readTimeoutMillis = 20_000,
-        callTimeoutMillis = 20_000,
+    private fun request() = ArtworkTransportRequest(
+        uri = "https://covers.hikari.invalid/cover.webp",
+        connectTimeoutMillis = 5_000,
+        readTimeoutMillis = 10_000,
+        callTimeoutMillis = 15_000,
     )
 }

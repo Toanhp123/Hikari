@@ -1,11 +1,11 @@
 package app.openstory.catalog.feature
 
 import android.content.Context
+import app.openstory.artwork.ArtworkDecodeEvidence
+import app.openstory.artwork.ArtworkRuntimeCallbacks
+import app.openstory.artwork.ArtworkTransport
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.identity.CatalogSourceKey
-import app.openstory.catalog.feature.assets.CatalogImageDecodeEvidence
-import app.openstory.catalog.feature.assets.CatalogImageLoaderCallbacks
-import app.openstory.catalog.feature.assets.RemoteCoverTransport
 import app.openstory.catalog.feature.fixture.BenchmarkCoverFixture
 import app.openstory.catalog.feature.fixture.BenchmarkImageCounters
 import app.openstory.catalog.feature.fixture.BenchmarkLifecycleCounters
@@ -28,7 +28,7 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
         assetPolicy = SourceAssetPolicy(sourceKey, setOf("covers.hikari.invalid")),
     ))
 
-    override fun remoteCoverTransport(context: Context): RemoteCoverTransport =
+    override fun artworkTransport(context: Context): ArtworkTransport =
         BenchmarkCoverFixture.transport(context)
 
     override val queryListener: (String) -> Unit = BenchmarkQueryCounters::recordSqlQuery
@@ -49,14 +49,14 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
             onStoryReleaseMutationTouched = BenchmarkWorkCounters::recordStoryReleaseMutationTouched,
         )
 
-        override val imageLoaderCallbacks = CatalogImageLoaderCallbacks(
+        override val artworkRuntimeCallbacks = ArtworkRuntimeCallbacks(
             onSessionInitialized = BenchmarkLifecycleCounters::recordImageSessionInitialized,
             onSessionClosed = BenchmarkLifecycleCounters::recordImageSessionClosed,
             onDemandStarted = BenchmarkWorkCounters::recordCoverDemandStarted,
             onDemandStopped = BenchmarkWorkCounters::recordCoverDemandStopped,
-            onCoverReady = BenchmarkImageCounters::recordImageOwnership,
-            onActiveJobsChanged = BenchmarkWorkCounters::recordCoverJobCount,
-            onSuccessfulDecode = { evidence: CatalogImageDecodeEvidence ->
+            onActiveDecodeJobsChanged = BenchmarkWorkCounters::recordCoverJobCount,
+            onArtworkReady = BenchmarkImageCounters::recordImageOwnership,
+            onSuccessfulDecode = { evidence: ArtworkDecodeEvidence ->
                 BenchmarkImageCounters.recordSuccessfulDecode(
                     targetWidth = evidence.targetWidth,
                     targetHeight = evidence.targetHeight,

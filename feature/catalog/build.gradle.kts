@@ -33,6 +33,8 @@ androidComponents {
 dependencies {
     implementation(project(":catalog:domain"))
     implementation(project(":catalog:runtime"))
+    implementation(project(":core:artwork"))
+    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

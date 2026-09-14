@@ -1,8 +1,8 @@
 package app.openstory.catalog.feature
 
 import android.content.Context
-import app.openstory.catalog.feature.assets.CatalogImageLoaderCallbacks
-import app.openstory.catalog.feature.assets.RemoteCoverTransport
+import app.openstory.artwork.ArtworkRuntimeCallbacks
+import app.openstory.artwork.ArtworkTransport
 import app.openstory.catalog.runtime.CatalogRuntimeOwnershipCallbacks
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 
@@ -11,7 +11,7 @@ internal interface CatalogVariantBinding {
     val diagnostics: CatalogCompositionDiagnostics
         get() = NoOpCatalogCompositionDiagnostics
 
-    fun remoteCoverTransport(context: Context): RemoteCoverTransport? = null
+    fun artworkTransport(context: Context): ArtworkTransport? = null
 
     val queryListener: ((String) -> Unit)?
         get() = null
@@ -36,8 +36,8 @@ internal interface CatalogCompositionDiagnostics {
     val runtimeOwnershipCallbacks: CatalogRuntimeOwnershipCallbacks
         get() = CatalogRuntimeOwnershipCallbacks()
 
-    val imageLoaderCallbacks: CatalogImageLoaderCallbacks
-        get() = CatalogImageLoaderCallbacks()
+    val artworkRuntimeCallbacks: ArtworkRuntimeCallbacks
+        get() = ArtworkRuntimeCallbacks()
 }
 
 internal object NoOpCatalogCompositionDiagnostics : CatalogCompositionDiagnostics {

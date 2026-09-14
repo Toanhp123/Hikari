@@ -1,18 +1,21 @@
 package app.openstory.catalog.feature.seed
 
 import android.content.Context
+import app.openstory.artwork.ArtworkAuthorityKey
+import app.openstory.artwork.ArtworkPolicy
+import app.openstory.artwork.ArtworkPolicyResolver
+import app.openstory.artwork.ArtworkRuntime
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.asset.CoverRevisionV1
 import app.openstory.catalog.domain.asset.RemoteHttpsUriV1
+import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.feature.VariantLocalCoverAssets
-import app.openstory.catalog.feature.assets.CatalogImageLoader
-import app.openstory.catalog.feature.assets.CoverRequest
+import app.openstory.catalog.feature.assets.toImageRequest
 import app.openstory.catalog.feature.fixture.BenchmarkCoverFixture
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
-import coil3.request.CachePolicy
+import app.openstory.common.execution.BoundedProcessWorkAdmission
 import coil3.request.ErrorResult
-import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 
 internal object BenchmarkCoverPreparation {
@@ -21,24 +24,19 @@ internal object BenchmarkCoverPreparation {
         activation: CatalogCapabilityActivation.Available,
     ) {
         val card = BenchmarkCatalogStatePreparation.firstMangaCard(activation)
-        val imageLoader = CatalogImageLoader(
+        val imageLoader = ArtworkRuntime(
             context = context.applicationContext,
             localResolver = VariantLocalCoverAssets,
             remoteTransport = BenchmarkCoverFixture.transport(context.applicationContext),
-            policyProvider = { activation.assetPolicyProvider },
+            policyResolver = activation.artworkPolicyResolver(),
+            admission = BoundedProcessWorkAdmission(),
         )
         BenchmarkCoverFixture.resetTransportRequests()
         try {
-            val coverRequest = CoverRequest(
-                assetKey = requireNotNull(card.coverAssetKey),
-                locator = requireNotNull(card.coverLocator),
-            )
-            val request = ImageRequest.Builder(context.applicationContext)
-                .data(coverRequest)
+            val assetKey = requireNotNull(card.coverAssetKey)
+            val locator = requireNotNull(card.coverLocator)
+            val request = assetKey.toImageRequest(context.applicationContext, locator).newBuilder()
                 .size(COVER_WIDTH_PX, COVER_HEIGHT_PX)
-                .memoryCacheKey(coverRequest.assetKey.stableCacheKey)
-                .diskCacheKey(coverRequest.assetKey.stableCacheKey)
-                .diskCachePolicy(CachePolicy.DISABLED)
                 .build()
             check(imageLoader.imageLoader().execute(request) is SuccessResult) {
                 "Benchmark disk cache prime failed."
@@ -63,22 +61,18 @@ internal object BenchmarkCoverPreparation {
                 "https://covers.hikari.invalid/pathological-$index.png",
             )
             val revision = CoverRevisionV1.remoteUri(uri)
-            val imageLoader = CatalogImageLoader(
+            val imageLoader = ArtworkRuntime(
                 context = context.applicationContext,
                 localResolver = VariantLocalCoverAssets,
                 remoteTransport = transport,
-                policyProvider = { activation.assetPolicyProvider },
+                policyResolver = activation.artworkPolicyResolver(),
+                admission = BoundedProcessWorkAdmission(),
             )
             try {
-                val coverRequest = CoverRequest(
-                    assetKey = CoverAssetKey(card.ref.storyId, revision),
-                    locator = CoverLocator.RemoteHttps(card.ref.catalogSourceKey, uri, revision),
-                )
-                val request = ImageRequest.Builder(context.applicationContext)
-                    .data(coverRequest)
+                val assetKey = CoverAssetKey(card.ref.storyId, revision)
+                val locator = CoverLocator.RemoteHttps(card.ref.catalogSourceKey, uri, revision)
+                val request = assetKey.toImageRequest(context.applicationContext, locator).newBuilder()
                     .size(COVER_WIDTH_PX, COVER_HEIGHT_PX)
-                    .memoryCacheKey(coverRequest.assetKey.stableCacheKey)
-                    .diskCacheKey(coverRequest.assetKey.stableCacheKey)
                     .build()
                 check(imageLoader.imageLoader().execute(request) is ErrorResult) {
                     "Pathological image fixture $index was unexpectedly decoded."
@@ -97,4 +91,12 @@ internal object BenchmarkCoverPreparation {
     private const val PATHOLOGICAL_IMAGE_REJECTIONS = 2
     private const val COVER_WIDTH_PX = 360
     private const val COVER_HEIGHT_PX = 540
+}
+
+private fun CatalogCapabilityActivation.Available.artworkPolicyResolver() = ArtworkPolicyResolver { authority ->
+    runCatching { CatalogSourceKey(authority.value) }.getOrNull()?.let { sourceKey ->
+        assetPolicyProvider.policyFor(sourceKey)?.let { policy ->
+            ArtworkPolicy(ArtworkAuthorityKey(policy.catalogSourceKey.value), policy.allowedHttpsHosts)
+        }
+    }
 }

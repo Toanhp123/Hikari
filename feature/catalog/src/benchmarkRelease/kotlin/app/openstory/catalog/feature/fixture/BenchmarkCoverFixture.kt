@@ -2,12 +2,11 @@ package app.openstory.catalog.feature.fixture
 
 import android.content.Context
 import android.os.Looper
+import app.openstory.artwork.ArtworkLimits
+import app.openstory.artwork.ArtworkTransport
+import app.openstory.artwork.ArtworkTransportRequest
+import app.openstory.artwork.ArtworkTransportResponse
 import app.openstory.catalog.feature.R
-import app.openstory.catalog.feature.assets.CatalogImageLimits
-import app.openstory.catalog.feature.assets.RemoteCoverTransport
-import app.openstory.catalog.feature.assets.RemoteCoverTransportRequest
-import app.openstory.catalog.feature.assets.RemoteCoverTransportResponse
-import app.openstory.catalog.feature.assets.RemoteCoverLimits
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
@@ -24,22 +23,22 @@ public object BenchmarkCoverFixture {
     @JvmStatic
     public fun transportRequestCount(): Int = requestCounter.get()
 
-    internal fun transport(context: Context): RemoteCoverTransport = DeterministicBenchmarkCoverTransport(
+    internal fun transport(context: Context): ArtworkTransport = DeterministicBenchmarkCoverTransport(
         encodedBytes = context.resources.openRawResource(R.drawable.catalog_benchmark_manga_a).use { it.readBytes() },
         requestCounter = requestCounter,
         assertWorkerThread = ::assertNotMainThread,
     )
 
-    internal fun pathologicalTransports(): List<RemoteCoverTransport> = listOf(
+    internal fun pathologicalTransports(): List<ArtworkTransport> = listOf(
         DeterministicBenchmarkCoverTransport(
             encodedBytes = byteArrayOf(0),
             contentType = "image/png",
-            declaredContentLength = CatalogImageLimits.MAX_ENCODED_BYTES + 1,
+            declaredContentLength = ArtworkLimits.MAX_ENCODED_BYTES + 1,
             requestCounter = requestCounter,
             assertWorkerThread = ::assertNotMainThread,
         ),
         DeterministicBenchmarkCoverTransport(
-            encodedBytes = pathologicalPng(RemoteCoverLimits.MAX_SOURCE_DIMENSION + 1, 1),
+            encodedBytes = pathologicalPng(ArtworkLimits.MAX_SOURCE_DIMENSION + 1, 1),
             contentType = "image/png",
             requestCounter = requestCounter,
             assertWorkerThread = ::assertNotMainThread,
@@ -53,8 +52,8 @@ internal class DeterministicBenchmarkCoverTransport(
     private val declaredContentLength: Long = encodedBytes.size.toLong(),
     private val requestCounter: AtomicInteger,
     private val assertWorkerThread: () -> Unit,
-) : RemoteCoverTransport {
-    override suspend fun execute(request: RemoteCoverTransportRequest): RemoteCoverTransportResponse {
+) : ArtworkTransport {
+    override suspend fun execute(request: ArtworkTransportRequest): ArtworkTransportResponse {
         assertWorkerThread()
         requestCounter.incrementAndGet()
         return BenchmarkCoverResponse(encodedBytes, contentType, declaredContentLength)
@@ -83,7 +82,7 @@ private class BenchmarkCoverResponse(
     private val encodedBytes: ByteArray,
     override val contentType: String,
     override val contentLength: Long,
-) : RemoteCoverTransportResponse {
+) : ArtworkTransportResponse {
     override val statusCode: Int = 200
     override val redirectLocation: String? = null
     override val body: InputStream = ByteArrayInputStream(encodedBytes)

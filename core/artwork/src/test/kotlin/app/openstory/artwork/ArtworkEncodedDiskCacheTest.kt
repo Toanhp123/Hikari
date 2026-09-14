@@ -1,4 +1,4 @@
-package app.openstory.catalog.feature.assets
+package app.openstory.artwork
 
 import coil3.disk.DiskCache
 import java.util.concurrent.CancellationException
@@ -14,18 +14,19 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class CoverEncodedDiskCacheTest {
+class ArtworkEncodedDiskCacheTest {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 
     @Test
-    fun failedReplacementAlwaysAbortsEditorAndCallerCancellationPropagates() {
+    fun replacementIsAtomicAndCancellationLeavesCacheWritable() {
         val diskCache = DiskCache.Builder()
             .directory(temporaryFolder.newFolder("encoded-cache").toOkioPath())
-            .maxSizeBytes(CatalogImageLimits.ENCODED_DISK_BYTES)
+            .maxSizeBytes(ArtworkLimits.ENCODED_DISK_BYTES)
             .build()
         try {
-            val cache = CoverEncodedDiskCache(diskCache)
+            val cache = ArtworkEncodedDiskCache(diskCache)
+            assertEquals(ArtworkLimits.ENCODED_DISK_BYTES, cache.maxSizeBytes)
             assertFalse(cache.commit(KEY, Buffer(), declaredLength = 0))
             assertTrue(cache.commit(KEY, Buffer().writeUtf8("first"), declaredLength = 5))
 
@@ -49,6 +50,6 @@ class CoverEncodedDiskCacheTest {
     }
 
     private companion object {
-        const val KEY = "hikari:v2:cover-asset:v1:test"
+        const val KEY = "hikari:v2:artwork:v1:test"
     }
 }

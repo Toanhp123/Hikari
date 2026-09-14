@@ -3,8 +3,9 @@ package app.openstory.composition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import app.openstory.artwork.ArtworkLoader
 import app.openstory.catalog.feature.CatalogCoverArtwork
-import app.openstory.catalog.feature.rememberCatalogRuntimeAccess
+import app.openstory.catalog.feature.CatalogRuntimeAccess
 import app.openstory.common.navigation.RouteEntryId
 import app.openstory.common.navigation.RouteLifecycleSource
 import app.openstory.composition.navigation.StoryRouteCodec
@@ -16,6 +17,8 @@ import app.openstory.story.feature.rememberStoryPresentationStore
 
 internal class StoryDestinationHost(
     private val presentationStore: StoryPresentationStore,
+    private val runtimeAccess: CatalogRuntimeAccess,
+    private val artworkLoader: ArtworkLoader,
 ) {
     @Composable
     fun Content(
@@ -25,6 +28,8 @@ internal class StoryDestinationHost(
         StoryDestination(
             route = route,
             presentationStore = presentationStore,
+            runtimeAccess = runtimeAccess,
+            artworkLoader = artworkLoader,
             onBack = onBack,
         )
     }
@@ -33,15 +38,21 @@ internal class StoryDestinationHost(
 @Composable
 internal fun rememberStoryDestinationHost(
     lifecycleSource: RouteLifecycleSource,
+    runtimeAccess: CatalogRuntimeAccess,
+    artworkLoader: ArtworkLoader,
 ): StoryDestinationHost {
     val presentationStore = rememberStoryPresentationStore(lifecycleSource)
-    return remember(presentationStore) { StoryDestinationHost(presentationStore) }
+    return remember(presentationStore, runtimeAccess, artworkLoader) {
+        StoryDestinationHost(presentationStore, runtimeAccess, artworkLoader)
+    }
 }
 
 @Composable
 private fun StoryDestination(
     route: AppRoute.Story,
     presentationStore: StoryPresentationStore,
+    runtimeAccess: CatalogRuntimeAccess,
+    artworkLoader: ArtworkLoader,
     onBack: () -> Unit,
 ) {
     val storyArgs = StoryRouteCodec.decodeOrNull(route.wire)
@@ -50,7 +61,6 @@ private fun StoryDestination(
         return
     }
 
-    val runtimeAccess = rememberCatalogRuntimeAccess()
     val catalogFacet = remember(runtimeAccess) {
         CatalogStoryFacet(
             activateCatalog = runtimeAccess::activate,
@@ -65,7 +75,7 @@ private fun StoryDestination(
         catalogFacet = catalogFacet,
         artworkContent = { title, locator, assetKey, modifier ->
             CatalogCoverArtwork(
-                runtimeAccess = runtimeAccess,
+                artworkLoader = artworkLoader,
                 title = title,
                 locator = locator,
                 assetKey = assetKey,

@@ -67,6 +67,7 @@ dependencies {
     "baselineProfile"(project(":benchmark"))
 
     implementation(project(":core:common"))
+    implementation(project(":core:artwork"))
     implementation(project(":core:designsystem"))
     implementation(project(":catalog:domain"))
     implementation(project(":catalog:runtime"))

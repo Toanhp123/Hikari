@@ -35,6 +35,7 @@ import app.openstory.catalog.feature.discover.DiscoverSectionUi
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverUiState
 import app.openstory.catalog.feature.state.CatalogIssueKind
+import app.openstory.catalog.feature.state.CatalogIssueUi
 import app.openstory.designsystem.theme.HikariTheme
 import java.io.File
 import org.junit.Assert.assertEquals

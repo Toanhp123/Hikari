@@ -96,7 +96,7 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
         val redirectTransport = ControlledPluginTransport(
             handler = ::standardResponse,
             coverHandler = { request ->
-                if (request.uri == locator.normalizedUri) {
+                if (request.uri == locator.normalizedUri.value) {
                     ControlledCoverResponse(
                         statusCode = 302,
                         redirectLocation = "https://www.mangaupdates.com/cover-final.png",
@@ -113,7 +113,7 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
             CatalogArtworkFailureReason.REDIRECT_REJECTED to ControlledPluginTransport(
                 handler = ::standardResponse,
                 coverHandler = { request ->
-                    val hop = request.uri.value.substringAfterLast('/').substringBefore('.').toIntOrNull() ?: 0
+                    val hop = request.uri.substringAfterLast('/').substringBefore('.').toIntOrNull() ?: 0
                     ControlledCoverResponse(
                         statusCode = 302,
                         redirectLocation = "https://cdn.mangaupdates.com/${hop + 1}.png",

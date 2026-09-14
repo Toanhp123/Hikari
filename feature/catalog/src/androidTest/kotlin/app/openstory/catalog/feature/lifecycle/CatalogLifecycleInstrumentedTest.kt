@@ -4,12 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import app.openstory.catalog.domain.model.CatalogMediaType
-import app.openstory.catalog.feature.CatalogComposition
 import app.openstory.catalog.feature.CatalogDebugDiagnostics
+import app.openstory.catalog.feature.CatalogRootEntryPoint
+import app.openstory.catalog.feature.rememberCatalogArtworkLoader
+import app.openstory.catalog.feature.rememberCatalogRuntimeAccess
+import app.openstory.common.execution.BoundedProcessWorkAdmission
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -94,7 +98,14 @@ class CatalogLifecycleTestActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                CatalogComposition(CatalogMediaType.MANGA)
+                val runtimeAccess = rememberCatalogRuntimeAccess()
+                val admission = remember { BoundedProcessWorkAdmission() }
+                val artworkLoader = rememberCatalogArtworkLoader(runtimeAccess, admission)
+                CatalogRootEntryPoint(
+                    runtimeAccess = runtimeAccess,
+                    artworkLoader = artworkLoader,
+                    mediaType = CatalogMediaType.MANGA,
+                )
             }
         }
     }
