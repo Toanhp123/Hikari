@@ -14,7 +14,6 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -36,13 +35,6 @@ import app.openstory.catalog.feature.discover.DiscoverSectionUi
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverUiState
 import app.openstory.catalog.feature.state.CatalogIssueKind
-import app.openstory.catalog.feature.state.CatalogIssueUi
-import app.openstory.catalog.feature.story.StoryDetailScreen
-import app.openstory.catalog.feature.story.StoryDetailUi
-import app.openstory.catalog.feature.story.StoryDetailUiState
-import app.openstory.catalog.feature.story.StoryArtworkUi
-import app.openstory.catalog.feature.story.StorySummaryUi
-import app.openstory.catalog.feature.story.StoryTestTags
 import app.openstory.designsystem.theme.HikariTheme
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -64,7 +56,6 @@ class CatalogScreenshotEvidenceTest {
         composeRule.setContent { EvidenceContent(surface) }
 
         captureDiscoverMatrix()
-        captureStoryMatrix()
 
         assertEquals(EXPECTED_SCREENSHOT_COUNT, capturedFiles.size)
         assertTrue(capturedFiles.all(File::isFile))
@@ -120,46 +111,12 @@ class CatalogScreenshotEvidenceTest {
         }
     }
 
-    private fun captureStoryMatrix() {
-        showStory("story-loading", storyState(detailLoading = true))
-        composeRule.onNodeWithText(STORY_TITLE).assertIsDisplayed()
-        composeRule.onNodeWithTag(STORY_HERO_COVER_TAG).assertIsDisplayed()
-        capture("story-loading-cover")
-
-        scrollStoryTo(hasTestTag(STORY_DETAIL_SKELETON_TAG))
-        composeRule.onNodeWithTag(STORY_DETAIL_SKELETON_TAG).assertIsDisplayed()
-        capture("story-loading-metadata")
-
-        showStory("story-complete", storyState(detail = completeStoryDetail()))
-        scrollStoryTo(hasText("About"))
-        composeRule.onNodeWithText("About").assertIsDisplayed()
-        capture("story-complete")
-
-        showStory(
-            "story-metadata-issue-cover",
-            storyState(
-                issue = CatalogIssueUi(CatalogIssueKind.ACQUISITION_FAILED, retryable = true),
-            ),
-        )
-        composeRule.onNodeWithText(STORY_TITLE).assertIsDisplayed()
-        composeRule.onNodeWithTag(STORY_HERO_COVER_TAG).assertIsDisplayed()
-        capture("story-metadata-issue-cover")
-
-        scrollStoryTo(hasText("Try again"))
-        composeRule.onNodeWithText("Try again").assertIsDisplayed()
-        capture("story-metadata-issue-retry")
-    }
-
     private fun showDiscover(
         name: String,
         state: DiscoverUiState,
         mediaType: CatalogMediaType = CatalogMediaType.MANGA,
     ) {
         show(EvidenceSurface.Discover(name, mediaType, state))
-    }
-
-    private fun showStory(name: String, state: StoryDetailUiState) {
-        show(EvidenceSurface.Story(name, state))
     }
 
     private fun show(next: EvidenceSurface) {
@@ -169,10 +126,6 @@ class CatalogScreenshotEvidenceTest {
 
     private fun scrollDiscoverTo(matcher: SemanticsMatcher) {
         composeRule.onNodeWithTag(DiscoverTestTags.ROOT).performScrollToNode(matcher)
-    }
-
-    private fun scrollStoryTo(matcher: SemanticsMatcher) {
-        composeRule.onNodeWithTag(StoryTestTags.ROOT).performScrollToNode(matcher)
     }
 
     private fun capture(scenarioName: String) {
@@ -206,13 +159,8 @@ class CatalogScreenshotEvidenceTest {
                             mediaType = current.mediaType,
                             state = current.state,
                             listState = rememberLazyListState(),
-                            onStorySelected = { _, _ -> },
+                            onStorySelected = { _ -> },
                             onRefresh = {},
-                            onRetry = {},
-                        )
-                        is EvidenceSurface.Story -> StoryDetailScreen(
-                            state = current.state,
-                            onBack = {},
                             onRetry = {},
                         )
                     }
@@ -229,22 +177,13 @@ class CatalogScreenshotEvidenceTest {
             val mediaType: CatalogMediaType,
             val state: DiscoverUiState,
         ) : EvidenceSurface
-
-        data class Story(
-            override val name: String,
-            val state: StoryDetailUiState,
-        ) : EvidenceSurface
     }
 
     private companion object {
-        const val EXPECTED_SCREENSHOT_COUNT = 15
+        const val EXPECTED_SCREENSHOT_COUNT = 10
         const val WIDE_WIDTH_DP = 600
         const val EVIDENCE_DIRECTORY_NAME = "catalog-screenshot-evidence"
-        const val STORY_DETAIL_SKELETON_TAG = "story-detail-skeleton"
-        const val STORY_HERO_COVER_TAG = "story-hero-cover"
-        const val STORY_TITLE = "The Lantern Archive"
         val SOURCE_KEY = CatalogSourceKey("screenshot-evidence")
-        val STORY_REF = storyRef(CatalogMediaType.MANGA, CatalogSectionKind.POPULAR, 99)
 
         fun loadingDiscoverState() = DiscoverUiState(
             content = DiscoverContentState.NoContentLoading,
@@ -300,34 +239,6 @@ class CatalogScreenshotEvidenceTest {
                 sourceStoryId = sourceStoryId,
             )
         }
-
-        fun storyState(
-            detailLoading: Boolean = false,
-            detail: StoryDetailUi? = null,
-            issue: CatalogIssueUi? = null,
-        ) = StoryDetailUiState(
-            ref = STORY_REF,
-            summary = StorySummaryUi(
-                title = STORY_TITLE,
-                contentType = CatalogMediaType.MANGA,
-                ratingLabel = "8.9 / 10",
-                publicationStatus = "Ongoing",
-                latestUpdateLabel = "Updated Sep 11, 2026",
-            ),
-            detail = detail,
-            detailLoading = detailLoading,
-            issue = issue,
-            destinationActive = true,
-        )
-
-        fun completeStoryDetail() = StoryDetailUi(
-            description = "A quiet archivist follows a trail of lanterns through a city that forgets its stories.",
-            authors = listOf("Aiko Mori"),
-            artists = listOf("Ren Ito"),
-            genres = listOf("Mystery", "Drama", "Fantasy"),
-            publicationStatus = "Ongoing",
-            language = "English",
-        )
 
         val CatalogMediaType.evidenceLabel: String
             get() = when (this) {

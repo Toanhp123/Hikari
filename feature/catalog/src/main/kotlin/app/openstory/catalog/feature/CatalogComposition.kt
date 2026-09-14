@@ -1,15 +1,13 @@
 package app.openstory.catalog.feature
 
+import android.content.Context
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -19,17 +17,18 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
+import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.catalog.domain.read.StoryRouteArgs
+import app.openstory.catalog.domain.read.StoryRoutePreview
+import app.openstory.catalog.feature.assets.CatalogImageLoader
+import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
+import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverRuntime
 import app.openstory.catalog.feature.discover.DiscoverRuntimeActivation
 import app.openstory.catalog.feature.discover.DiscoverViewModel
-import app.openstory.catalog.feature.story.CatalogStoryDetailRuntime
-import app.openstory.catalog.feature.story.StoryDetailViewModel
-import app.openstory.catalog.feature.assets.CatalogImageLoader
-import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
 import app.openstory.catalog.feature.trace.AndroidCatalogTraceSink
 import app.openstory.catalog.feature.trace.CatalogUiTrace
-import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
-import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.CatalogCapabilitySession
 import app.openstory.catalog.runtime.CatalogRuntimeFactory
@@ -40,10 +39,42 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 @Composable
-internal fun CatalogComposition(mediaType: CatalogMediaType) {
+internal fun CatalogComposition(
+    mediaType: CatalogMediaType,
+    onStorySelected: (StoryRouteArgs) -> Unit,
+) {
+    val runtimeAccess = rememberCatalogRuntimeAccess()
+    CatalogSessionContent(
+        runtimeHolder = runtimeAccess.holder,
+        trace = runtimeAccess.trace,
+        mediaType = mediaType,
+        onStorySelected = onStorySelected,
+    )
+}
+
+class CatalogRuntimeAccess internal constructor(
+    internal val holder: CatalogRuntimeHolder,
+    internal val trace: CatalogUiTrace,
+) {
+    suspend fun activate(): CatalogCapabilityActivation = holder.runtime.activate()
+
+    fun storyCollectorStarted() = VariantCatalogBinding.diagnostics.storyCollectorStarted()
+
+    fun storyCollectorStopped() = VariantCatalogBinding.diagnostics.storyCollectorStopped()
+
+    fun storyUiPublished() = trace.storyUiPublished()
+
+    fun storyHeroMaterialized() = trace.storyHeroMaterialized()
+
+    fun storyBodyMaterialized() = trace.storyBodyMaterialized()
+}
+
+@Composable
+fun rememberCatalogRuntimeAccess(): CatalogRuntimeAccess {
     val applicationContext = LocalContext.current.applicationContext
     val trace = remember { CatalogUiTrace(AndroidCatalogTraceSink) }
-    CatalogSessionContent(rememberCatalogRuntimeHolder(applicationContext, trace), trace, mediaType)
+    val holder = rememberCatalogRuntimeHolder(applicationContext, trace)
+    return remember(holder, trace) { CatalogRuntimeAccess(holder, trace) }
 }
 
 @Composable
@@ -86,85 +117,68 @@ private fun CatalogSessionContent(
     runtimeHolder: CatalogRuntimeHolder,
     trace: CatalogUiTrace,
     mediaType: CatalogMediaType,
+    onStorySelected: (StoryRouteArgs) -> Unit,
 ) {
-    val routeState = rememberSaveable(stateSaver = CatalogRouteSaver) {
-        mutableStateOf<CatalogRoute>(CatalogRoute.Discover)
-    }
     val discoverListState = rememberLazyListState()
-    val navigation = remember(discoverListState, routeState) {
-        CatalogNavigationState(discoverListState, routeState)
-    }
-    val storyViewModel = rememberStoryDetailViewModel(runtimeHolder, trace)
-    val storyState by storyViewModel.state.collectAsStateWithLifecycle()
-
-    val route = navigation.route
-    RestoreStoryRoute(route, storyViewModel, navigation)
     val discoverViewModel = rememberDiscoverViewModel(runtimeHolder, mediaType)
-    val discoverState = if (route == CatalogRoute.Discover) {
-        discoverViewModel.state.collectAsStateWithLifecycle().value
-    } else {
-        null
+    val discoverState by discoverViewModel.state.collectAsStateWithLifecycle()
+
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, discoverViewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> discoverViewModel.resume()
+                Lifecycle.Event.ON_STOP -> discoverViewModel.quiesce()
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            discoverViewModel.resume()
+        }
+        onDispose {
+            lifecycle.removeObserver(observer)
+            discoverViewModel.quiesce()
+        }
     }
-    CatalogLifecycleEffects(route, discoverViewModel, storyViewModel, navigation)
+
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val imageLoader = runtimeHolder.images.takeIf { lifecycleState.isAtLeast(Lifecycle.State.STARTED) }
-    LaunchedEffect(route, discoverState?.content) {
-        val content = discoverState?.content as? app.openstory.catalog.feature.discover.DiscoverContentState.Content
-        if (route == CatalogRoute.Discover && content?.sections?.any { it.cards.isNotEmpty() } == true) {
+    LaunchedEffect(discoverState.content) {
+        val content = discoverState.content as? DiscoverContentState.Content
+        if (content?.sections?.any { it.cards.isNotEmpty() } == true) {
             trace.discoverContentReady()
         }
+    }
+
+    val actions = remember(discoverViewModel, mediaType, onStorySelected) {
+        CatalogScreenActions(
+            onStorySelected = { card ->
+                onStorySelected(
+                    StoryRouteArgs(
+                        ref = card.ref,
+                        originMediaContext = mediaType,
+                        preview = StoryRoutePreview(
+                            title = card.title,
+                            coverLocator = card.coverLocator,
+                            coverAssetKey = card.coverAssetKey,
+                        ),
+                    ),
+                )
+            },
+            onDiscoverRefresh = discoverViewModel::refresh,
+            onDiscoverRetry = discoverViewModel::retry,
+        )
     }
 
     CompositionLocalProvider(LocalCatalogImageLoader provides imageLoader) {
         CatalogScreen(
             mediaType = mediaType,
-            route = route,
-            discoverListState = navigation.discoverListState,
+            discoverListState = discoverListState,
             discoverState = discoverState,
-            storyState = storyState,
-            actions = catalogScreenActions(navigation, discoverViewModel, storyViewModel),
+            actions = actions,
             onDiscoverCoverReady = trace::discoverCoverReady,
-            onStoryHeroMaterialized = trace::storyHeroMaterialized,
-            onStoryBodyMaterialized = trace::storyBodyMaterialized,
         )
-    }
-}
-
-@Composable
-private fun rememberStoryDetailViewModel(
-    runtimeHolder: CatalogRuntimeHolder,
-    trace: CatalogUiTrace,
-): StoryDetailViewModel {
-    val storyFactory = remember(runtimeHolder, trace) {
-        StoryDetailViewModel.factory(
-            createRuntime = {
-                CatalogStoryDetailRuntime(
-                    activateCatalog = runtimeHolder.runtime::activate,
-                    onCollectorStarted = VariantCatalogBinding.diagnostics::storyCollectorStarted,
-                    onCollectorStopped = VariantCatalogBinding.diagnostics::storyCollectorStopped,
-                )
-            },
-            onUiPublished = trace::storyUiPublished,
-        )
-    }
-    return viewModel(factory = storyFactory)
-}
-
-@Composable
-private fun RestoreStoryRoute(
-    route: CatalogRoute,
-    storyViewModel: StoryDetailViewModel,
-    navigation: CatalogNavigationState,
-) {
-    LaunchedEffect(route) {
-        if (route is CatalogRoute.Story) {
-            storyViewModel.open(
-                ref = route.ref,
-                coverAssetKey = route.coverAssetKey,
-                onDestinationReady = {},
-                onDestinationRejected = navigation::showDiscover,
-            )
-        }
     }
 }
 
@@ -181,70 +195,6 @@ private fun rememberDiscoverViewModel(
         factory = discoverFactory,
     )
 }
-
-@Composable
-private fun CatalogLifecycleEffects(
-    route: CatalogRoute,
-    discoverViewModel: DiscoverViewModel,
-    storyViewModel: StoryDetailViewModel,
-    navigation: CatalogNavigationState,
-) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle, route, discoverViewModel, storyViewModel) {
-        fun resumeVisibleDemand() {
-            when (route) {
-                CatalogRoute.Discover -> discoverViewModel.resume()
-                is CatalogRoute.Story -> storyViewModel.open(
-                    ref = route.ref,
-                    coverAssetKey = route.coverAssetKey,
-                    onDestinationReady = {},
-                    onDestinationRejected = navigation::showDiscover,
-                )
-            }
-        }
-
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> resumeVisibleDemand()
-                Lifecycle.Event.ON_STOP -> {
-                    discoverViewModel.quiesce()
-                    storyViewModel.quiesce()
-                }
-                else -> Unit
-            }
-        }
-        lifecycle.addObserver(observer)
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) resumeVisibleDemand()
-        onDispose {
-            lifecycle.removeObserver(observer)
-            when (route) {
-                CatalogRoute.Discover -> discoverViewModel.quiesce()
-                is CatalogRoute.Story -> storyViewModel.quiesce()
-            }
-        }
-    }
-}
-
-private fun catalogScreenActions(
-    navigation: CatalogNavigationState,
-    discoverViewModel: DiscoverViewModel,
-    storyViewModel: StoryDetailViewModel,
-) = CatalogScreenActions(
-    onStorySelected = { ref, coverAssetKey ->
-        storyViewModel.open(
-            ref = ref,
-            coverAssetKey = coverAssetKey,
-            onDestinationReady = { navigation.showStory(ref, coverAssetKey) },
-        )
-    },
-    onDiscoverRefresh = discoverViewModel::refresh,
-    onDiscoverRetry = discoverViewModel::retry,
-    onStoryRetry = storyViewModel::retry,
-    onBack = {
-        navigation.showDiscover()
-        storyViewModel.closeDestination()
-    },
-)
 
 internal class CatalogRuntimeHost(
     private val session: CatalogCapabilitySession,

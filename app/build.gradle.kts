@@ -66,9 +66,12 @@ baselineProfile {
 dependencies {
     "baselineProfile"(project(":benchmark"))
 
+    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":catalog:domain"))
+    implementation(project(":catalog:runtime"))
     implementation(project(":feature:catalog"))
+    implementation(project(":feature:story"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -89,6 +92,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.kotlinx.serialization.json)
     androidTestUtil(libs.androidx.test.orchestrator)
 
     debugImplementation(libs.androidx.compose.ui.test.manifest)

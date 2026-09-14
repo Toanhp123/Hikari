@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 1 COMPLETED/ACCEPTED**
+Status: **TASK 2 COMPLETED/ACCEPTED**
 
 ## Authority
 
@@ -9,8 +9,8 @@ Status: **TASK 1 COMPLETED/ACCEPTED**
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Tasks 0-1.
-- Current execution boundary: Task 2 is next. Task 2 was not authorized or started in the Task 1
+- Completed/accepted execution boundary: Tasks 0-2.
+- Current execution boundary: Task 3 is next. Task 3 was not authorized or started in the Task 2
   closure turn.
 
 Reviewed artifact SHA-256:
@@ -191,8 +191,104 @@ bash scripts/verify.sh
 All four commands were reported successful. This concise PASS summary is accepted user-owned gate
 evidence under `AGENTS.md`; no historical `NOT RUN` result was inferred.
 
+## Task 2 Delta
+
+- Removed `CatalogRoute`, the Catalog-owned Story navigation state, and Story presentation sources
+  from `:feature:catalog`; Catalog now emits immutable `StoryRouteArgs` only.
+- Added `:feature:story` for Story Detail presentation, with a route-entry keyed
+  `StoryPresentationStore` and `StoryPresentationOwner` rather than Activity/Nav ViewModel-store
+  ownership. Story arguments are immutable and there is no mutable `open(ref)` API.
+- Added bounded `RouteEntryId`, `RouteLifecycle`, `RouteLifecycleChange`, and
+  `RouteLifecycleSource` primitives to `:core:common`.
+- Added `StoryRoutePreview` / `StoryRouteArgs` to `:catalog:domain`, including Unicode-scalar title
+  bounds and aligned cover locator/key validation.
+- Added app-owned serializable `StoryRouteWire` / `ArtworkRoutePreviewWire` and a validated
+  `StoryRouteCodec` under `app/openstory/composition/navigation/**`. Malformed restored wire fails
+  closed instead of fabricating Story identity.
+- `AppNavigationState` now emits ACTIVE/RETAINED/RELEASED transitions, rejects roots as child
+  entries, enforces globally unique route-entry IDs, sanitizes invalid/duplicate restored child IDs
+  fail-closed, and trims deterministic reconstructible ancestors while preserving every root,
+  current top, and immediate Back parent. Every explicit pop/reselect/trim emits terminal RELEASED
+  for the removed entry; lifecycle publication fails fast rather than silently dropping an event.
+- Story lifecycle ownership now survives root switching without retaining inactive route Compose
+  trees. RETAINED cancels active acquisition/retry work and quiesces its demand; RELEASED performs
+  terminal cleanup exactly once; reactivation waits for quiescence and reacquires a fresh demand.
+  Lifecycle epochs reject late non-cooperative activation/retry completion from an obsolete ACTIVE
+  generation so stale work cannot overwrite a reactivated Story route.
+- Production Story rendering is wired through the existing Catalog runtime and image loader via a
+  composition-only bridge, so Task 2 does not create the Task 5 `:core:artwork` boundary early and
+  does not regress accepted cover behavior.
+- Story connected/screenshot coverage moved to `:feature:story`; route restoration coverage moved
+  to `:app`. Catalog integration coverage now verifies Discover artwork plus Story projection
+  identity without retaining a cross-feature Story UI dependency.
+- Runtime/source composition wiring is confined to `app/openstory/composition/**`; Navigation3
+  imports remain confined to `app/openstory/navigation/**`.
+
+## Task 2 Self-Review And Evidence
+
+- `git diff --check` passes with no whitespace errors.
+- `scripts/structural-review-report.sh` exits successfully with `Structural hard policies verified`.
+  Task 2 no longer leaves the new App navigation destination graph above the structural function
+  threshold; remaining review notices are non-blocking pre-existing/general source-shape notices.
+- Static scope scan finds zero app runtime/source imports outside `app/openstory/composition/**` and
+  zero Navigation3 imports outside `app/openstory/navigation/**`.
+- Static production scan finds no live `CatalogRoute`, old
+  `app.openstory.catalog.feature.story` reference, or `StoryDetailViewModel` reference in Task 2
+  source surfaces (generated profile fixtures excluded).
+- Live boundary policy and Gradle declarations agree for the new `:feature:story` production cone;
+  `:app` declares the Task 2 direct edges required by codec/composition wiring.
+- Focused tests were expanded for route ID/lifecycle behavior, child-stack trimming, malformed
+  and duplicate restored child IDs, malformed codec input, Unicode-scalar preview bounds, pending
+  activation, RETAINED/RELEASED cleanup, reactivation sequencing, stale activation epochs, retry
+  cancellation/failure, and retained-owner lookup.
+- Narrow standalone Kotlin diagnostics compile the changed pure-Kotlin `:core:common` and
+  `:catalog:domain` production cones, plus the app navigation/codec cone against minimal Android/
+  Navigation stubs. These diagnostics are syntax/type-surface evidence only and do not replace the
+  required Android/Compose Gradle gate.
+- Required Gradle evidence is **NOT RUN in this sandbox**. The checkout has no cached Gradle 9.5.0
+  wrapper distribution and no system Gradle executable; network download of the wrapper
+  distribution is unavailable. A standalone Kotlin compiler is present and was used only for the
+  narrow diagnostics above. No historical or inferred PASS is recorded for Task 2.
+
+Required Task 2 verification before acceptance:
+
+```bash
+./gradlew :core:common:test :catalog:domain:test \
+  :feature:catalog:testDebugUnitTest :feature:story:testDebugUnitTest \
+  :app:testDebugUnitTest :build-logic:test verifyArchitecture \
+  :app:verifyFoundation verifyStep3BuildSurface verifyProductionPackageStructure \
+  verifyModuleBoundaries --no-daemon
+bash scripts/tests/v2-step3-build-surface-test.sh
+bash scripts/verify-fast.sh
+bash scripts/verify.sh
+```
+
+Device/connected suites remain user-owned under the existing repository execution policy unless
+explicitly delegated.
+
+## Task 2 User-Owned Evidence
+
+Status: **PASS**
+
+User-reported verification reviewed on 2026-09-14:
+
+```bash
+./gradlew :core:common:test :catalog:domain:test \
+  :feature:catalog:testDebugUnitTest :feature:story:testDebugUnitTest \
+  :app:testDebugUnitTest :build-logic:test verifyArchitecture \
+  :app:verifyFoundation verifyStep3BuildSurface verifyProductionPackageStructure \
+  verifyModuleBoundaries --no-daemon
+bash scripts/tests/v2-step3-build-surface-test.sh
+bash scripts/verify-fast.sh
+bash scripts/verify.sh
+```
+
+All four commands were reported successful. This concise PASS summary is accepted user-owned gate
+evidence under `AGENTS.md`; the earlier sandbox-local `NOT RUN` remains an accurate record of agent
+execution and is not relabeled as agent-owned PASS. All required Task 2 evidence is reviewed and
+accepted. Task 2 is completed/accepted.
+
 ## Exact Resume Boundary
 
-Tasks 0-1 are completed/accepted. Resume at Task 2 from the owning plan and this checkpoint. The
-Task 1 closure turn updated routing and created the planned Task 1 commit but did not authorize or
-start Task 2.
+Tasks 0-2 are completed/accepted. Resume at Task 3 from the owning plan and this checkpoint. The
+Task 2 closure turn updated acceptance and routing but did not authorize or start Task 3.

@@ -53,7 +53,7 @@ if grep -E -n 'HikariTheme|MaterialTheme' "$ENTRY_POINT"; then
 fi
 
 DISCOVER_DIR='feature/catalog/src/main/kotlin/app/openstory/catalog/feature/discover'
-STORY_SCREEN='feature/catalog/src/main/kotlin/app/openstory/catalog/feature/story/StoryDetailScreen.kt'
+STORY_SCREEN='feature/story/src/main/kotlin/app/openstory/story/feature/StoryDetailScreen.kt'
 if grep -R -E -n --include='*.kt' 'PullToRefreshBox|LinearProgressIndicator|DiscoverMediaOption|mediaOptions|DiscoverViewportRow|viewportRows|flatMap\s*\(' "$DISCOVER_DIR"; then
   fail "Discover bypassed the admitted shared surface or rebuilt flattened rows"
 fi
@@ -85,7 +85,7 @@ done
 for symbol in \
   HikariTheme hikariSpacing HikariSectionHeader \
   HikariSkeleton HikariEmptyState HikariErrorState HikariInlineFeedback HikariPullToRefresh; do
-  if ! grep -R -q -F --include='*.kt' "$symbol" app/src/main feature/catalog/src/main; then
+  if ! grep -R -q -F --include='*.kt' "$symbol" app/src/main feature/catalog/src/main feature/story/src/main; then
     fail "admitted public symbol has no production caller: $symbol"
   fi
 done

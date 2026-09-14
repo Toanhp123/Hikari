@@ -1,7 +1,30 @@
 package app.openstory.navigation
 
 import androidx.navigation3.runtime.NavKey
+import app.openstory.common.navigation.RouteEntryId
+import java.util.UUID
 import kotlinx.serialization.Serializable
+
+@Serializable
+data class ArtworkRoutePreviewWire(
+    val authorityKey: String,
+    val stableAssetKey: String,
+    val locatorKind: String,
+    val locatorValue: String,
+    val locatorAux: String?,
+    val revision: String,
+)
+
+@Serializable
+data class StoryRouteWire(
+    val entryId: String,
+    val storyId: String,
+    val catalogSourceKey: String,
+    val sourceStoryId: String,
+    val originMedia: AppMediaRoute,
+    val previewTitle: String?,
+    val previewArtwork: ArtworkRoutePreviewWire?,
+)
 
 @Serializable
 sealed interface AppRoute : NavKey {
@@ -17,19 +40,14 @@ sealed interface AppRoute : NavKey {
     data class Home(
         override val entryId: String,
     ) : AppRoute
-}
 
-@JvmInline
-value class RouteEntryId private constructor(val value: String) {
-    companion object {
-        private const val MAX_LENGTH = 128
-        private val SAFE_VALUE = Regex("[A-Za-z0-9_-]+")
-
-        fun from(wireValue: String): RouteEntryId {
-            require(wireValue.isNotBlank()) { "Route entry id must not be blank" }
-            require(wireValue.length <= MAX_LENGTH) { "Route entry id is too long" }
-            require(SAFE_VALUE.matches(wireValue)) { "Route entry id contains unsafe characters" }
-            return RouteEntryId(wireValue)
-        }
+    @Serializable
+    data class Story(
+        val wire: StoryRouteWire,
+    ) : AppRoute {
+        override val entryId: String get() = wire.entryId
     }
 }
+
+internal fun newStoryRouteEntryId(): RouteEntryId =
+    RouteEntryId.from("story-${UUID.randomUUID()}")

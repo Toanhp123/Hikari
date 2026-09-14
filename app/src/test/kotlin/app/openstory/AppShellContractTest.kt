@@ -64,14 +64,14 @@ class AppShellContractTest {
     }
 
     @Test
-    fun readyDestinationUsesOnlyTheAppNavigationBoundary() {
+    fun readyDestinationUsesOnlyTheAppShellCompositionBoundary() {
         val source = rootFile(
             "app/src/main/kotlin/app/openstory/startup/ui/StartupGate.kt",
         ).readText()
 
-        assertTrue("import app.openstory.navigation.AppNavHost" in source)
+        assertTrue("import app.openstory.composition.AppShell" in source)
         assertTrue("firstFrameReached" in source)
-        assertTrue("StartupDestination.APP_SHELL_HOME -> AppNavHost()" in source)
+        assertTrue("StartupDestination.APP_SHELL_HOME -> AppShell()" in source)
         assertTrue("launchState == AppLaunchState.Ready && firstFrameReached" in source)
         listOf(
             "CatalogRootEntryPoint",
@@ -85,6 +85,19 @@ class AppShellContractTest {
         ).forEach { forbidden ->
             assertFalse("App shell owns Catalog implementation detail: $forbidden", forbidden in source)
         }
+    }
+
+    @Test
+    fun navigationPackageDoesNotDependOnComposition() {
+        val navigationDirectory = repositoryFile(
+            "app/src/main/kotlin/app/openstory/navigation",
+        )
+        val navigationSources = navigationDirectory
+            .walkTopDown()
+            .filter { file -> file.isFile && file.extension == "kt" }
+            .joinToString(separator = "\n") { file -> file.readText() }
+
+        assertFalse("import app.openstory.composition." in navigationSources)
     }
 
     @Test
@@ -109,15 +122,18 @@ class AppShellContractTest {
     }
 
     @Test
-    fun catalogRootEntryPointRequiresImmutableMedia() {
+    fun catalogRootEntryPointKeepsImmutableMediaAndEmitsStorySelection() {
         val entryPoint = repositoryFile(
             "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt",
         )
 
         assertTrue("Catalog entry point is missing", entryPoint.isFile)
         val source = entryPoint.readText()
-        assertTrue("fun CatalogRootEntryPoint(mediaType: CatalogMediaType)" in source)
-        assertTrue("CatalogComposition(mediaType)" in source)
+        assertTrue("fun CatalogRootEntryPoint(" in source)
+        assertTrue("mediaType: CatalogMediaType," in source)
+        assertTrue("onStorySelected: (StoryRouteArgs) -> Unit" in source)
+        assertTrue("mediaType = mediaType" in source)
+        assertTrue("onStorySelected = onStorySelected" in source)
         assertFalse("Context" in source.substringBefore("fun CatalogRootEntryPoint"))
     }
 

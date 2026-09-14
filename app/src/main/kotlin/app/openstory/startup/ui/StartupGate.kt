@@ -11,7 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
 import app.openstory.designsystem.theme.HikariTheme
-import app.openstory.navigation.AppNavHost
+import app.openstory.composition.AppShell
 import app.openstory.startup.AppLaunchState
 import app.openstory.startup.AppLaunchStateStore
 import app.openstory.startup.TRACE_DESTINATION_READY
@@ -93,6 +93,6 @@ internal fun StartupGate(
             saveFailed = saveFailed,
             onComplete = ::completeInitialSetup,
         )
-        StartupDestination.APP_SHELL_HOME -> AppNavHost()
+        StartupDestination.APP_SHELL_HOME -> AppShell()
     }
 }

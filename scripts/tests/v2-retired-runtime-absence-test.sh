@@ -19,9 +19,11 @@ for retired in \
   fi
 done
 
-if find "$ROOT_DIR/feature" -mindepth 1 -maxdepth 1 ! -name catalog \
+if find "$ROOT_DIR/feature" -mindepth 1 -maxdepth 1 \
+  ! -name catalog \
+  ! -name story \
   -print -quit 2>/dev/null | grep -q .; then
-  echo "Unadmitted V2 feature path exists outside feature/catalog." >&2
+  echo "Unadmitted V2 feature path exists outside feature/catalog and feature/story." >&2
   exit 1
 fi
 
@@ -44,6 +46,7 @@ for retained in \
   catalog/model \
   catalog/engine \
   feature/catalog \
+  feature/story \
   reader/engine \
   plugins/api; do
   [[ -d "$ROOT_DIR/$retained" ]] || {

@@ -17,8 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
-import app.openstory.catalog.domain.asset.CoverAssetKey
-import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.feature.state.CatalogIssueKind
 import app.openstory.catalog.feature.state.CatalogIssueUi
@@ -33,7 +31,7 @@ internal fun DiscoverScreen(
     mediaType: CatalogMediaType,
     state: DiscoverUiState,
     listState: LazyListState,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onStorySelected: (DiscoverCardUi) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onCoverReady: () -> Unit = {},
@@ -70,7 +68,7 @@ private fun DiscoverFeed(
     state: DiscoverUiState,
     listState: LazyListState,
     layout: DiscoverLayoutMetrics,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onStorySelected: (DiscoverCardUi) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onCoverReady: () -> Unit,
@@ -119,7 +117,7 @@ private fun DiscoverFeed(
 private fun androidx.compose.foundation.lazy.LazyListScope.discoverContent(
     content: DiscoverContentState,
     horizontalInset: Dp,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onStorySelected: (DiscoverCardUi) -> Unit,
     onRetry: () -> Unit,
     onCoverReady: () -> Unit,
 ) {

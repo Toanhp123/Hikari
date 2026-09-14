@@ -11,9 +11,6 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.assertTextEquals
@@ -26,8 +23,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.SourceStoryIdV1
@@ -38,7 +33,6 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.state.CatalogIssueKind
 import app.openstory.catalog.feature.state.CatalogIssueUi
 import app.openstory.designsystem.theme.HikariTheme
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -221,7 +215,7 @@ class DiscoverScreenInstrumentedTest {
                     mediaType = mediaType,
                     state = state,
                     listState = rememberLazyListState(),
-                    onStorySelected = { _, _ -> },
+                    onStorySelected = { _ -> },
                     onRefresh = onRefresh,
                     onRetry = onRetry,
                 )

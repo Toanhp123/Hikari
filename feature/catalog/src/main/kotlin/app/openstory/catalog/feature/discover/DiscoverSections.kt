@@ -21,8 +21,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.Dp
-import app.openstory.catalog.domain.asset.CoverAssetKey
-import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.designsystem.content.HikariSectionHeader
@@ -32,7 +30,7 @@ import app.openstory.designsystem.theme.hikariSpacing
 internal fun LazyListScope.discoverSections(
     sections: List<DiscoverSectionUi>,
     horizontalInset: Dp,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onStorySelected: (DiscoverCardUi) -> Unit,
     onCoverReady: () -> Unit,
 ) {
     sections.forEachIndexed { sectionIndex, section ->
@@ -86,7 +84,7 @@ private fun SectionHeader(kind: CatalogSectionKind, horizontalInset: Dp) {
 private fun SectionContent(
     section: DiscoverSectionUi,
     horizontalInset: Dp,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onStorySelected: (DiscoverCardUi) -> Unit,
     onCoverReady: () -> Unit,
 ) {
     when (section.kind) {
@@ -97,7 +95,7 @@ private fun SectionContent(
         ) { card ->
             DiscoverFeaturedStory(
                 card = card,
-                onSelected = { onStorySelected(card.ref, card.coverAssetKey) },
+                onSelected = { onStorySelected(card) },
                 onCoverReady = onCoverReady,
             )
         }
@@ -108,7 +106,7 @@ private fun SectionContent(
         ) { card ->
             DiscoverPosterTile(
                 card = card,
-                onSelected = { onStorySelected(card.ref, card.coverAssetKey) },
+                onSelected = { onStorySelected(card) },
                 onCoverReady = onCoverReady,
             )
         }
@@ -143,7 +141,7 @@ private fun PosterRail(
 private fun TopRatedList(
     cards: List<DiscoverCardUi>,
     horizontalInset: Dp,
-    onStorySelected: (StorySourceRef, CoverAssetKey?) -> Unit,
+    onStorySelected: (DiscoverCardUi) -> Unit,
     onCoverReady: () -> Unit,
 ) {
     val visibleCards = cards.take(CatalogSectionCaps.cap(CatalogSectionKind.TOP_RATED))
@@ -156,7 +154,7 @@ private fun TopRatedList(
                 index = index,
                 card = card,
                 isFinal = index == visibleCards.lastIndex,
-                onSelected = { onStorySelected(card.ref, card.coverAssetKey) },
+                onSelected = { onStorySelected(card) },
                 onCoverReady = onCoverReady,
                 modifier = Modifier.fillMaxWidth(),
             )

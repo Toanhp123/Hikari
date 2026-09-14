@@ -4,20 +4,16 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.openstory.catalog.domain.asset.CoverLocator
-import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
 import app.openstory.catalog.domain.failure.CatalogFailure
@@ -44,11 +40,6 @@ import app.openstory.catalog.feature.discover.DiscoverScreen
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
 import app.openstory.catalog.feature.discover.DiscoverUiState
-import app.openstory.catalog.feature.story.StoryArtworkUi
-import app.openstory.catalog.feature.story.StoryDetailScreen
-import app.openstory.catalog.feature.story.StoryDetailUi
-import app.openstory.catalog.feature.story.StoryDetailUiState
-import app.openstory.catalog.feature.story.StorySummaryUi
 import app.openstory.designsystem.theme.HikariTheme
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -141,7 +132,7 @@ class MangaUpdatesCatalogIntegrationTest {
                         mediaType = CatalogMediaType.MANGA,
                         state = manga.toDiscoverUiState(),
                         listState = rememberLazyListState(),
-                        onStorySelected = { _, _ -> },
+                        onStorySelected = { _ -> },
                         onRefresh = {},
                         onRetry = {},
                     )
@@ -186,18 +177,6 @@ class MangaUpdatesCatalogIntegrationTest {
             assertEquals("A stable description", projection.detail!!.description)
             assertTrue(transport.pluginRequests.any { it.url.endsWith("/v1/series/$MANGA_ID") })
 
-            composeRule.setContent {
-                HikariTheme(darkTheme = false) {
-                    StoryDetailScreen(
-                        state = projection.toStoryUiState(),
-                        onBack = {},
-                        onRetry = {},
-                    )
-                }
-            }
-            composeRule.onNodeWithText("Author One").performScrollTo().assertIsDisplayed()
-            composeRule.onNodeWithText("Action").performScrollTo().assertIsDisplayed()
-            composeRule.onNodeWithText("Read from Chapter 1").performScrollTo().assertIsNotEnabled()
             storySession.release()
         } finally {
             session.close()
@@ -305,7 +284,7 @@ class MangaUpdatesCatalogIntegrationTest {
     }
 
     @Test
-    fun realPluginCoverRendersInDiscoverThenReusesTheSameArtworkInStory() = runBlocking {
+    fun realPluginCoverRendersInDiscoverAndStoryProjectionKeepsArtworkIdentity() = runBlocking {
         val encodedCover = png(width = 48, height = 72)
         val transport = ControlledPluginTransport(
             handler = ::standardResponse,
@@ -330,7 +309,6 @@ class MangaUpdatesCatalogIntegrationTest {
             wallClockEpochMs = { ACQUIRED_AT },
         ).createSession()
         val decodeCount = AtomicInteger()
-        val demandCount = AtomicInteger()
         val loader = CatalogImageLoader(
             context = appContext,
             localResolver = LocalCoverAssetResolver { _, _ -> null },
@@ -341,7 +319,6 @@ class MangaUpdatesCatalogIntegrationTest {
                 }
             },
             callbacks = CatalogImageLoaderCallbacks(
-                onDemandStarted = { demandCount.incrementAndGet() },
                 onSuccessfulDecode = { decodeCount.incrementAndGet() },
             ),
         )
@@ -359,80 +336,42 @@ class MangaUpdatesCatalogIntegrationTest {
             assertEquals(card.coverLocator, story.summary.coverLocator)
 
             val coverReady = AtomicInteger()
-            val showStory = mutableStateOf(false)
             composeRule.setContent {
                 HikariTheme(darkTheme = false) {
                     CompositionLocalProvider(LocalCatalogImageLoader provides loader) {
-                        if (showStory.value) {
-                            StoryDetailScreen(
-                                state = StoryDetailUiState(
-                                    ref = story.ref,
-                                    summary = StorySummaryUi(
-                                        title = story.summary.title,
-                                        contentType = story.summary.contentType,
-                                        ratingLabel = null,
-                                        publicationStatus = story.summary.publicationStatusSummary,
-                                        latestUpdateLabel = null,
-                                    ),
-                                    detail = StoryDetailUi(
-                                        description = story.detail!!.description,
-                                        authors = story.detail!!.authors,
-                                        artists = story.detail!!.artists,
-                                        genres = story.detail!!.genres,
-                                        publicationStatus = story.detail!!.publicationStatus,
-                                        language = story.detail!!.language,
-                                    ),
-                                    detailLoading = false,
-                                    issue = null,
-                                    destinationActive = true,
-                                    artwork = StoryArtworkUi(
-                                        assetKey = story.summary.coverAssetKey,
-                                        locator = story.summary.coverLocator,
-                                    ),
-                                ),
-                                onBack = {},
-                                onRetry = {},
-                            )
-                        } else {
-                            DiscoverScreen(
-                                mediaType = CatalogMediaType.MANGA,
-                                state = DiscoverUiState(
-                                    content = DiscoverContentState.Content(
-                                        sections = listOf(
-                                            DiscoverSectionUi(
-                                                CatalogSectionKind.POPULAR,
-                                                listOf(
-                                                    DiscoverCardUi(
-                                                        ref = card.ref,
-                                                        title = card.title,
-                                                        coverAssetKey = card.coverAssetKey,
-                                                        ratingLabel = null,
-                                                        supportingLabel = null,
-                                                        coverLocator = card.coverLocator,
-                                                    ),
+                        DiscoverScreen(
+                            mediaType = CatalogMediaType.MANGA,
+                            state = DiscoverUiState(
+                                content = DiscoverContentState.Content(
+                                    sections = listOf(
+                                        DiscoverSectionUi(
+                                            CatalogSectionKind.POPULAR,
+                                            listOf(
+                                                DiscoverCardUi(
+                                                    ref = card.ref,
+                                                    title = card.title,
+                                                    coverAssetKey = card.coverAssetKey,
+                                                    ratingLabel = null,
+                                                    supportingLabel = null,
+                                                    coverLocator = card.coverLocator,
                                                 ),
                                             ),
                                         ),
-                                        refreshing = false,
-                                        issue = null,
                                     ),
+                                    refreshing = false,
+                                    issue = null,
                                 ),
-                                listState = rememberLazyListState(),
-                                onStorySelected = { _, _ -> },
-                                onRefresh = {},
-                                onRetry = {},
-                                onCoverReady = { coverReady.incrementAndGet() },
-                            )
-                        }
+                            ),
+                            listState = rememberLazyListState(),
+                            onStorySelected = { _ -> },
+                            onRefresh = {},
+                            onRetry = {},
+                            onCoverReady = { coverReady.incrementAndGet() },
+                        )
                     }
                 }
             }
             composeRule.waitUntil(10_000) { coverReady.get() == 1 && decodeCount.get() == 1 }
-            assertEquals(1, transport.coverRequestCount.get())
-
-            composeRule.runOnIdle { showStory.value = true }
-            composeRule.onNodeWithText("Manga Alpha").assertIsDisplayed()
-            composeRule.waitUntil(10_000) { demandCount.get() >= 2 }
             assertEquals(1, transport.coverRequestCount.get())
             storySession.release()
         } finally {
@@ -476,32 +415,6 @@ class MangaUpdatesCatalogIntegrationTest {
             issue = null,
         ),
     )
-
-    private fun app.openstory.catalog.domain.read.StoryDetailProjection.toStoryUiState() =
-        StoryDetailUiState(
-            ref = ref,
-            summary = StorySummaryUi(
-                title = summary.title,
-                contentType = summary.contentType,
-                ratingLabel = null,
-                publicationStatus = summary.publicationStatusSummary,
-                latestUpdateLabel = null,
-            ),
-            detail = detail?.let { rich ->
-                StoryDetailUi(
-                    description = rich.description,
-                    authors = rich.authors,
-                    artists = rich.artists,
-                    genres = rich.genres,
-                    publicationStatus = rich.publicationStatus,
-                    language = rich.language,
-                )
-            },
-            detailLoading = detail == null,
-            issue = null,
-            destinationActive = true,
-            artwork = StoryArtworkUi(summary.coverAssetKey, summary.coverLocator),
-        )
 
     private fun assertAcquisitionFailure(result: CatalogAcquisitionResult) {
         assertTrue(result is CatalogAcquisitionResult.Failed)

@@ -1,7 +1,5 @@
 package app.openstory.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,27 +20,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
-import app.openstory.catalog.domain.model.CatalogMediaType
-import app.openstory.catalog.feature.CatalogRootEntryPoint
 
 @Composable
-internal fun AppNavHost() {
+internal fun rememberAppNavigationState(): AppNavigationState {
     val mangaBackStack = rememberNavBackStack(MANGA_ROOT)
     val homeBackStack = rememberNavBackStack(HOME_ROOT)
     val lightNovelBackStack = rememberNavBackStack(LIGHT_NOVEL_ROOT)
     val focusedDestinationState = rememberSaveable {
         mutableStateOf(AppFocusedDestination.HOME)
     }
-    val rootStateHolder = rememberSaveableStateHolder()
-    val navigationState = remember(
+    return remember(
         mangaBackStack,
         homeBackStack,
         lightNovelBackStack,
@@ -56,11 +47,22 @@ internal fun AppNavHost() {
             focusedDestinationState = focusedDestinationState,
         )
     }
+}
+
+@Composable
+internal fun AppNavHost(
+    navigationState: AppNavigationState,
+    routeContent: @Composable (AppRoute) -> Unit,
+) {
+    val rootStateHolder = rememberSaveableStateHolder()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.weight(1f)) {
             rootStateHolder.SaveableStateProvider(navigationState.focusedDestination.name) {
-                AppRootDisplay(navigationState)
+                AppRootDisplay(
+                    navigationState = navigationState,
+                    routeContent = routeContent,
+                )
             }
         }
         AppDestinationBar(
@@ -73,78 +75,6 @@ internal fun AppNavHost() {
                     vertical = APP_NAV_VERTICAL_MARGIN,
                 ),
         )
-    }
-}
-
-@Composable
-private fun AppRootDisplay(navigationState: AppNavigationState) {
-    NavDisplay(
-        backStack = navigationState.focusedBackStack,
-        onBack = { navigationState.popFocusedRoute() },
-        entryProvider = entryProvider<AppRoute> {
-            entry<AppRoute.Home> {
-                HomeRoot(
-                    onExploreManga = { navigationState.select(AppFocusedDestination.MANGA) },
-                    onExploreLightNovels = {
-                        navigationState.select(AppFocusedDestination.LIGHT_NOVEL)
-                    },
-                )
-            }
-            entry<AppRoute.Discover> { route ->
-                RouteEntryId.from(route.entryId)
-                CatalogRootEntryPoint(route.media.toCatalogMediaType())
-            }
-        },
-        modifier = Modifier.fillMaxSize(),
-    )
-}
-
-@Composable
-private fun HomeRoot(
-    onExploreManga: () -> Unit,
-    onExploreLightNovels: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = HOME_GRADIENT_ALPHA),
-                    ),
-                ),
-            )
-            .padding(
-                horizontal = HOME_HORIZONTAL_PADDING,
-                vertical = HOME_VERTICAL_PADDING,
-            ),
-        verticalArrangement = Arrangement.spacedBy(HOME_CONTENT_SPACING),
-    ) {
-        Text(
-            text = "Your library starts here",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = "Build a quiet shelf from stories you choose. Explore a catalog to begin.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(HOME_ACTION_SPACING)) {
-            Button(
-                onClick = onExploreManga,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Explore Manga")
-            }
-            Button(
-                onClick = onExploreLightNovels,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Explore Light Novels")
-            }
-        }
     }
 }
 
@@ -224,17 +154,11 @@ private val AppFocusedDestination.label: String
         AppFocusedDestination.LIGHT_NOVEL -> "Light Novel"
     }
 
-private fun AppMediaRoute.toCatalogMediaType(): CatalogMediaType = when (this) {
-    AppMediaRoute.MANGA -> CatalogMediaType.MANGA
-    AppMediaRoute.LIGHT_NOVEL -> CatalogMediaType.LIGHT_NOVEL
-}
-
 private val MANGA_ROOT: NavKey = AppRoute.Discover("manga-root", AppMediaRoute.MANGA)
 private val HOME_ROOT: NavKey = AppRoute.Home("home-root")
 private val LIGHT_NOVEL_ROOT: NavKey =
     AppRoute.Discover("light-novel-root", AppMediaRoute.LIGHT_NOVEL)
 
-private const val HOME_GRADIENT_ALPHA = 0.5f
 private val APP_NAV_HORIZONTAL_MARGIN = 20.dp
 private val APP_NAV_VERTICAL_MARGIN = 16.dp
 private val APP_NAV_MAX_WIDTH = 520.dp
@@ -243,7 +167,3 @@ private val APP_NAV_TONAL_ELEVATION = 3.dp
 private val APP_NAV_INNER_PADDING = 6.dp
 private val APP_NAV_ITEM_HORIZONTAL_PADDING = 12.dp
 private val APP_NAV_ITEM_VERTICAL_PADDING = 14.dp
-private val HOME_HORIZONTAL_PADDING = 28.dp
-private val HOME_VERTICAL_PADDING = 72.dp
-private val HOME_CONTENT_SPACING = 20.dp
-private val HOME_ACTION_SPACING = 12.dp
