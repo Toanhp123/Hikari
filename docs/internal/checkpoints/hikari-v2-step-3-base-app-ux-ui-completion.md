@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 3 COMPLETED/ACCEPTED; TASK 4 IS THE NEXT RESUME POINT AND HAS NOT STARTED**
+Status: **TASK 4 IMPLEMENTED; READY FOR USER VERIFICATION**
 
 ## Authority
 
@@ -9,10 +9,9 @@ Status: **TASK 3 COMPLETED/ACCEPTED; TASK 4 IS THE NEXT RESUME POINT AND HAS NOT
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Tasks 0-2.
-- Current execution boundary: Task 3 is explicitly authorized and started by the user on
-  2026-09-14. The supplemental Task 1 connected-contract closure remains an open user-owned gate;
-  no PASS is inferred from authorization to proceed.
+- Completed/accepted execution boundary: Tasks 0-3.
+- Current execution boundary: Task 4 was explicitly authorized by the user on 2026-09-14. Its
+  implementation and focused evidence are present; the required broad user-owned gate remains open.
 
 Reviewed artifact SHA-256:
 
@@ -431,9 +430,71 @@ This accepts the domain/runtime/feature/app regressions plus architecture, found
 surface, production package structure, and module-boundary verification. The supplemental Task 1
 connected-contract command is independently recorded as PASS above. Task 3 is completed/accepted.
 
+## Task 4 Delta
+
+- Added process-wide bounded work admission primitives in `:core:common` with independent NETWORK
+  and DECODE active/pending ceilings, priority ordering, and foreground capacity reserved from
+  NONCRITICAL work.
+- Queue overflow returns `Rejected(SATURATED)` without running the submitted block. Block failures
+  and cancellation retain their original coroutine semantics rather than being mapped to provider
+  or offline failures.
+- Queued cancellation removes accounting synchronously; admitted cancellation/failure releases its
+  active slot and admits the next eligible waiter without resuming coroutine code under the
+  scheduler lock.
+- Added process-wide retained-payload accounting with the 240-unit seed ceiling. Only inactive
+  RETAINED owners are compacted, oldest recency first with `RouteEntryId` as the deterministic
+  tie-break; ACTIVE route identity/payload is not selected for compaction.
+- Compaction returns route entry IDs only and zeroes their accounted payload. Release removes the
+  owner. The budget retains no feature callback, session, query, source, or presentation reference.
+- Added `/app/release/` to `.gitignore` for the user-confirmed local APK/baseline-profile install
+  output; no generated release artifact is tracked.
+
+## Task 4 Agent-Owned Evidence
+
+- RED: the focused Task 4 test command failed compilation on the missing admission/result/resource,
+  scheduler, retained-owner, decision, and budget types.
+- GREEN: active+pending saturation, foreground reserve, queued priority, queued/active cancellation,
+  block-failure propagation, deterministic multi-owner compaction, release, compacted accounting,
+  and negative-unit validation pass under `kotlinx-coroutines-test`.
+- Fresh final focused command on 2026-09-14:
+
+```bash
+./gradlew :core:common:test --tests '*ProcessWorkAdmissionTest*' \
+  --tests '*RetainedPayloadBudgetTest*' --no-daemon
+```
+
+Result: 8 tests, 0 failures/errors, `BUILD SUCCESSFUL in 9s`; no compiler warning was emitted.
+
+## Task 4 Self-Review
+
+- Scheduler state is isolated per resource. Pending work is finite and admitted by priority, then
+  FIFO within the same priority; callers execute outside the accounting lock.
+- Foreground reserve constrains only NONCRITICAL occupancy. Generic Catalog/runtime work is not
+  classified as NETWORK; Task 13 remains the owner of concrete HTTP admission.
+- Cancellation cannot strand an active slot or queued entry. Exceptions thrown by the submitted
+  block propagate unchanged after accounting is released.
+- Retained accounting uses `Long` aggregation to avoid integer overflow, selects only RETAINED
+  owners, and deterministically compacts enough reconstructible payload to reach the process bound
+  when inactive payload is available.
+- No Catalog/Reading query, provider, source, session, lifecycle callback, dispatcher owner, or
+  feature dependency was introduced into either primitive.
+
+## Task 4 Required User-Owned Gate
+
+Status: **READY FOR USER VERIFICATION**
+
+```bash
+./gradlew :core:common:test :catalog:domain:test :catalog:runtime:testDebugUnitTest \
+  :feature:catalog:testDebugUnitTest :feature:story:testDebugUnitTest \
+  :app:testDebugUnitTest :build-logic:test verifyArchitecture :app:verifyFoundation \
+  verifyStep3BuildSurface verifyProductionPackageStructure verifyModuleBoundaries --no-daemon
+```
+
+This broad module/host/architecture gate remains user-owned under `AGENTS.md`. Task 4 is not
+completed/accepted and Task 5 is not authorized until the returned evidence is reviewed.
+
 ## Exact Resume Boundary
 
-Tasks 0-3 are completed/accepted, including the supplemental Task 1 connected-contract closure and
-the Task 3 broad host gate returned by the user on 2026-09-14. The next resume point is Task 4,
-`Process work admission and retained-payload accounting`. Do not begin Task 4 without a new explicit
-user instruction.
+Tasks 0-3 are completed/accepted. Task 4 implementation and focused evidence are present. Resume by
+reviewing the returned Task 4 broad user-owned gate above; on PASS, mark Task 4 completed/accepted
+and persist Task 5 as the next boundary. Do not begin Task 5 without a new explicit user instruction.

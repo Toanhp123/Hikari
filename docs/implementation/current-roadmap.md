@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 3; Task 4 is the
-next resume point and has not started.**
+**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 3; Task 4 is
+implemented and ready for user verification.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
@@ -33,7 +33,9 @@ Discover authority, and lifecycle-driven activation. Its focused gate passed 98 
 failures plus debug/release/benchmark compilation. On 2026-09-14, the user returned PASS for both
 the complete Task 3 broad host gate and the supplemental focused connected startup contract gate,
 which accepts `Ready -> Home`, zero Catalog work on Home, and explicit Explore as the activation
-boundary. Resume at Task 4 only after a new explicit user instruction. The owning plan is
+boundary. Task 4 now adds bounded process NETWORK/DECODE admission plus deterministic retained-
+payload accounting; its focused suite passes 8 tests with zero failures/errors. Resume by reviewing
+the required Task 4 broad user-owned gate. Task 5 is not authorized. The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**
