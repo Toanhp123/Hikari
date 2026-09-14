@@ -1,23 +1,14 @@
 package app.openstory.catalog.feature.discover
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.assets.CoverArtwork
 import app.openstory.catalog.feature.assets.CoverArtworkState
-import app.openstory.designsystem.theme.hikariSpacing
+import app.openstory.designsystem.content.HikariPosterCard
 
 @Composable
 internal fun DiscoverPosterTile(
@@ -26,40 +17,23 @@ internal fun DiscoverPosterTile(
     onCoverReady: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    HikariPosterCard(
+        title = card.title,
+        supportingText = card.supportingLabel ?: card.ratingLabel,
+        onClick = onSelected,
         modifier = modifier
             .width(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
-            .testTag(DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, card.ref))
-            .semantics { contentDescription = card.title }
-            .clickable(onClick = onSelected),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+            .testTag(DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, card.ref)),
+        artworkModifier = Modifier.height(DiscoverVisualMetrics.LatestUpdatesCoverHeight),
     ) {
         CoverArtwork(
             title = card.title,
             locator = card.coverLocator,
             assetKey = card.coverAssetKey,
-            modifier = Modifier
-                .width(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
-                .height(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
-                .clip(MaterialTheme.shapes.medium),
+            modifier = Modifier.matchParentSize(),
             onStateChanged = { state ->
                 if (state == CoverArtworkState.Ready) onCoverReady()
             },
         )
-        Text(
-            text = card.title,
-            style = MaterialTheme.typography.titleSmall,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        (card.supportingLabel ?: card.ratingLabel)?.let { label ->
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
     }
 }

@@ -72,6 +72,7 @@ dependencies {
     implementation(project(":catalog:domain"))
     implementation(project(":catalog:runtime"))
     implementation(project(":feature:catalog"))
+    implementation(project(":feature:library"))
     implementation(project(":feature:story"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

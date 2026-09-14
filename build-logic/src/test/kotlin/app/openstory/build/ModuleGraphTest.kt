@@ -55,8 +55,8 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun livePolicyContainsTheTaskSevenLibraryGraph() {
-        expectedTaskSevenLibraryModules.forEach { (module, expected) ->
+    fun livePolicyContainsTheTaskEightLibraryGraph() {
+        expectedTaskEightLibraryModules.forEach { (module, expected) ->
             val actual = policy.modules.getValue(module)
 
             assertEquals(expected.path, actual.path, "$module path")
@@ -65,6 +65,19 @@ class ModuleGraphTest {
             assertEquals(expected.productionDependencies, actual.productionDependencies, "$module dependencies")
             assertEquals(expected.testDependencies, actual.testDependencies, "$module test dependencies")
         }
+        assertEquals(
+            setOf(
+                ":catalog:domain",
+                ":catalog:runtime",
+                ":core:artwork",
+                ":core:common",
+                ":core:designsystem",
+                ":feature:catalog",
+                ":feature:library",
+                ":feature:story",
+            ),
+            policy.modules.getValue(":app").productionDependencies,
+        )
     }
 
     @Test
@@ -165,7 +178,7 @@ class ModuleGraphTest {
                 testDependencies = setOf(":plugins:api"),
             ),
         )
-        val expectedTaskSevenLibraryModules = linkedMapOf(
+        val expectedTaskEightLibraryModules = linkedMapOf(
             ":library:domain" to ExpectedModule(
                 path = "library/domain",
                 platform = "jvm",
@@ -183,6 +196,16 @@ class ModuleGraphTest {
                 platform = "android-library",
                 dependencyMode = "exact",
                 productionDependencies = setOf(":core:common", ":library:domain", ":library:storage"),
+            ),
+            ":feature:library" to ExpectedModule(
+                path = "feature/library",
+                platform = "android-library",
+                dependencyMode = "exact",
+                productionDependencies = setOf(
+                    ":core:designsystem",
+                    ":library:domain",
+                    ":library:runtime",
+                ),
             ),
         )
     }

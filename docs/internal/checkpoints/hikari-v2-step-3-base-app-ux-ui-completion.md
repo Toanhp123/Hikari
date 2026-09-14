@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-15
-Status: **TASK 6 COMPLETED/ACCEPTED; TASK 7 READY FOR USER VERIFICATION**
+Status: **TASK 8 COMPLETED/ACCEPTED; TASK 9 READY FOR A NEW AUTHORIZED TURN**
 
 ## Authority
 
@@ -9,10 +9,9 @@ Status: **TASK 6 COMPLETED/ACCEPTED; TASK 7 READY FOR USER VERIFICATION**
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Tasks 0-6.
-- Current execution boundary: Task 7 implementation and agent-owned focused evidence are complete.
-  The broad architecture/Detekt gate and focused connected Library storage gate remain user-owned
-  and `NOT RUN`; Task 8 is not authorized.
+- Completed/accepted execution boundary: Tasks 0-8.
+- Current execution boundary: Task 8 implementation, remediation, and required user-owned evidence
+  are accepted. Task 9 is ready only for a new explicitly authorized turn and is not started here.
 
 Reviewed artifact SHA-256:
 
@@ -759,7 +758,13 @@ Focused Discover/reference-bridge connected gate:
 
 ## Task 7 Required User-Owned Gates
 
-Status: **NOT RUN**
+Status: **ALL REQUIRED TASK 7 GATES PASS**
+
+User-reported verification reviewed on 2026-09-15:
+
+- The complete broad Library/module/host/architecture and Detekt command below succeeded.
+- The focused `RoomLibraryStoreInstrumentedTest` connected command below succeeded, accepting the
+  Room mutation, bounded window, statement-count, and query-plan assertions on the user's target.
 
 Broad Library/module/host/architecture and Detekt gate:
 
@@ -779,8 +784,122 @@ Focused Library Room/query-plan connected gate:
   --no-daemon
 ```
 
+## Task 8 Delta
+
+- Added `:feature:library` with the exact Home entry point, ViewModel/state, screen, poster model,
+  and stable test tags. Home observes only bounded `LibraryQuery` windows, keeps default
+  `savedAt DESC` storage order, reacts locally to typing/filter changes, and distinguishes true
+  Library Empty, filtered/no-match Empty, local query Failure, and content.
+- Home owns only route presentation/query lifetime. ACTIVE composition starts the local observer;
+  RETAINED/disposal cancels the main and conditional presence collectors. Query/filter survive
+  retained navigation and process recreation through sanitized `SavedStateHandle`; grid position
+  remains route-saveable Compose state.
+- The default `All`/blank query uses one bounded window. A second `limit=1` all-Library presence
+  query is admitted only when an empty filtered/search result must be classified, so default Home
+  Ready does not add an unconditional second observer or user-space corpus scan/sort.
+- Added domain-neutral `HikariArtworkFrame`, `HikariPosterCard`, `HikariPosterGrid`, and
+  `HikariPosterSkeleton` primitives. Discover Popular/Latest cards, ranked artwork, and poster
+  skeletons now consume those primitives while Catalog and Library retain separate semantic UI
+  models.
+- App Shell replaces the transitional Home with `HomeEntryPoint`, preserves the existing real
+  Manga/Light Novel exploration routes, maps a selected saved Story to the existing validated Story
+  wire, and injects visible artwork rendering through the process-shared lazy artwork loader.
+  `:feature:library` imports no Catalog runtime/storage/feature implementation and owns no Coil,
+  Room, network, Reading, Chapter, Reader, or progress behavior.
+
+## Task 8 Agent-Owned Evidence
+
+- Graph RED failed because `:feature:library` was absent. Home RED failed on the missing state,
+  lifecycle/session, UI, and poster contracts. Additional focused REDs reproduced unsafe restored
+  query input, local query failure being unrepresented, and active input after failure not
+  restarting observation.
+- Fresh focused verification passed 7 `HomeViewModelTest`, 14 selected Discover unit tests,
+  9 `AppShellContractTest`, and the focused Task 8 module-graph test with zero failures/errors/skips.
+- Home, Design System, Discover, and App Android-test sources compile. `:feature:library` debug and
+  release assembly plus benchmark/non-minified compilation pass; affected Catalog and App debug,
+  release, benchmark, and non-minified production compilation also pass. The final focused command
+  completed with `BUILD SUCCESSFUL in 40s`.
+- `git diff --check` reports no whitespace errors; only existing Windows LF-to-CRLF notices remain.
+  Production import scans find no forbidden Catalog runtime/storage/feature, Library storage, Room,
+  Coil, OkHttp, or `java.net` ownership in the new Library feature or Design System primitives.
+- User-returned verification reproduced three bounded failures: Detekt rejected one Home loading
+  literal plus two intentional exception-to-Failure boundaries; the controlled Home screen test did
+  not round-trip text/filter state; and the Design System geometry test queried a child tag through
+  the poster card's merged semantics tree. The Catalog connected gate passed 11 tests.
+- Remediation names the loading placeholder count, locally suppresses only the intentional
+  `SwallowedException` findings while preserving cancellation rethrow, makes the Home screen test
+  host controlled state, and queries poster artwork geometry through the unmerged semantics tree.
+  Fresh focused verification passed `:feature:library:testDebugUnitTest` plus Library and Design
+  System Android-test Kotlin compilation (`BUILD SUCCESSFUL in 22s`; 68 actionable tasks).
+- The returned Design System rerun passed all 9 tests on Redmi Note 9S / Android 15. The returned
+  Home rerun passed 4/5 tests and exposed a second test-only selector defect: the global
+  `onAllNodesWithText("Manga")` assertion matched both the `Manga` FilterChip and the legitimately
+  merged poster supporting text. The test now scopes filter interaction and cardinality assertions
+  to selectable nodes, preserving the realistic poster fixture and production semantics. Fresh
+  `:feature:library:compileDebugAndroidTestKotlin --no-daemon` passes with `BUILD SUCCESSFUL in 8s`.
+
+## Task 8 Self-Review
+
+- Home never calls Catalog activation, remote Search, Reading Source, Chapter/Reader/progress, or
+  per-card Story acquisition. Local Room publication determines Ready; artwork demand is injected
+  separately and cannot delay the first Library state.
+- Query/filter execution remains storage-scoped and bounded to 60 rows. Empty classification adds
+  at most one bounded `limit=1` observer and cancels it when content returns, input changes, the
+  route retains, or the owner closes.
+- Cancellation does not publish Failure. Genuine local query exceptions stay distinct from Empty
+  and expose retry while durable Library truth remains untouched. Invalid restored input is
+  sanitized before constructing the bounded domain query.
+- Shared poster primitives contain visual policy/content slots only; they import no Catalog,
+  Library, artwork runtime, Room, network, lifecycle, or coroutine ownership. Discover geometry
+  remains caller-specified for screenshot comparison rather than prematurely freezing one ratio.
+
+## Task 8 Required User-Owned Gates
+
+Status: **ALL REQUIRED TASK 8 GATES PASS**
+
+- Broad gate: `PASS` on the final user rerun after the three bounded Detekt remediations.
+- Home connected gate: `PASS` on the final user rerun after the controlled-state and selectable-node
+  selector remediations.
+- Design System connected gate: `PASS`, 9 tests with zero failures/skips on the user rerun; no
+  further rerun is required.
+- Catalog connected gate: `PASS`, 11 tests with zero failures/skips; no rerun is required because
+  remediation changes no Catalog source or shared-poster production behavior.
+
+User-reported verification reviewed on 2026-09-15: the remaining broad affected-module/App/
+architecture/Detekt command and focused Home UI/screenshot connected command both succeeded. This
+concise PASS summary is accepted as user-owned evidence under `AGENTS.md`. All required Task 8
+evidence is reviewed and accepted; Task 8 is completed/accepted.
+
+Broad affected module/App/architecture and Detekt gate:
+
+```powershell
+.\gradlew.bat :core:designsystem:assembleDebug :core:designsystem:assembleRelease `
+  :feature:library:testDebugUnitTest :feature:library:assembleDebug `
+  :feature:library:assembleRelease :feature:catalog:testDebugUnitTest `
+  :feature:catalog:assembleDebug :feature:catalog:assembleRelease `
+  :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :build-logic:test `
+  verifyArchitecture :app:verifyFoundation verifyStep3BuildSurface `
+  verifyProductionPackageStructure verifyModuleBoundaries detekt --no-daemon
+```
+
+Focused Home UI and screenshot connected gate:
+
+```powershell
+.\gradlew.bat :feature:library:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.library.feature.HomeScreenInstrumentedTest,app.openstory.library.feature.evidence.HomeScreenshotEvidenceTest' `
+  --no-daemon
+```
+
+Focused shared-poster connected rerun:
+
+```powershell
+.\gradlew.bat :core:designsystem:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.designsystem.HikariDesignSystemContractTest' `
+  --no-daemon
+```
+
 ## Exact Resume Boundary
 
-Tasks 0-6 are completed/accepted. Task 7 - Library domain, dedicated Room truth, and indexed window
-queries - is implemented and `READY FOR USER VERIFICATION`. Resume at Task 7 evidence review and
-remediation after the user returns both gate results. Task 8 is not authorized.
+Tasks 0-8 are completed/accepted. Task 8 - Home Library root and shared poster primitives - has no
+open implementation or verification gate. Stop here. Resume at Task 9 only in a new explicitly
+authorized turn; this Task 8 acceptance does not authorize starting Task 9 in the current turn.

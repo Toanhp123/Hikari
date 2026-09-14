@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.assets.CoverArtwork
 import app.openstory.catalog.feature.assets.CoverArtworkState
+import app.openstory.designsystem.content.HikariArtworkFrame
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -71,18 +72,24 @@ private fun RankedNumber(index: Int) {
 
 @Composable
 private fun RankedCover(card: DiscoverCardUi, onCoverReady: () -> Unit) {
-    CoverArtwork(
+    HikariArtworkFrame(
         title = card.title,
-        locator = card.coverLocator,
-        assetKey = card.coverAssetKey,
         modifier = Modifier
             .width(DiscoverVisualMetrics.TopRatedCoverWidth)
             .height(DiscoverVisualMetrics.TopRatedCoverHeight)
             .clip(MaterialTheme.shapes.small),
-        onStateChanged = { state ->
-            if (state == CoverArtworkState.Ready) onCoverReady()
-        },
-    )
+        shape = MaterialTheme.shapes.small,
+    ) {
+        CoverArtwork(
+            title = card.title,
+            locator = card.coverLocator,
+            assetKey = card.coverAssetKey,
+            modifier = Modifier.matchParentSize(),
+            onStateChanged = { state ->
+                if (state == CoverArtworkState.Ready) onCoverReady()
+            },
+        )
+    }
 }
 
 @Composable

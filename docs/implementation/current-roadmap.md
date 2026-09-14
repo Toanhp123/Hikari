@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 6; Task 7 is
-implemented and ready for user verification.**
+**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 8; Task 9 is
+ready to start in a new authorized turn.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
@@ -44,12 +44,21 @@ module/host/architecture and Detekt gate plus both focused connected-device comm
 completed/accepted. Task 6 adds narrow Discover/Story/Search/Section/Similar ports, bounded transient
 Catalog contracts, Story aliases/language tags, Room schema 2 with non-destructive v1->v2 migration,
 and truthful resource-backed Discover headers without fake `See All`; its broad and both focused
-connected gates passed on 2026-09-14, so Task 6 is completed/accepted. Task 7 now adds the independent
+connected gates passed on 2026-09-14, so Task 6 is completed/accepted. Task 7 adds the independent
 Library domain, dedicated Room v1 truth, point membership observation, bounded indexed keyset/FTS
 windows, idempotent serialized mutations, and latest-query-wins sessions. Agent-owned focused tests
-and debug/release/benchmark/non-minified plus Android-test compilation pass; the required broad
-architecture/Detekt and focused connected Library storage gates remain user-owned and `NOT RUN`.
-Resume at Task 7 evidence review/remediation; Task 8 is not authorized. The owning plan is
+and debug/release/benchmark/non-minified plus Android-test compilation pass. On 2026-09-15, the user
+returned PASS for the complete broad Library/module/host/architecture and Detekt gate plus the
+focused connected Library Room/query-plan gate, so Task 7 is completed/accepted. For Task 8, the
+user-returned broad gate failed only on three Detekt findings, the initial Home and Design System
+connected gates each had one test-contract failure, and the Catalog connected gate passed all 11
+tests. The Design System rerun now passes all 9 tests. The Home rerun passed 4/5 and exposed a
+test-only global text-selector collision between the Manga filter and poster supporting text; the
+selector is now scoped to selectable filter nodes and Android-test compilation passes. On
+2026-09-15, the user returned PASS for both remaining reruns: the broad affected-module/App/
+architecture/Detekt gate and the focused Home UI/screenshot connected gate. All Catalog, Design
+System, Home, and broad evidence is accepted, so Task 8 is completed/accepted. Task 9 is ready only
+for a new authorized turn and is not started here. The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

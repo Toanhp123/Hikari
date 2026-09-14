@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariPosterSkeleton
 import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -170,9 +171,9 @@ private fun LazyListScope.popularLoadingSection(horizontalInset: Dp, title: Stri
         SkeletonSection(title, horizontalInset) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(CatalogSectionCaps.cap(CatalogSectionKind.POPULAR)) { index ->
-                    HikariSkeleton(
-                        modifier = Modifier
-                            .width(DiscoverVisualMetrics.TrendingCoverWidth)
+                    HikariPosterSkeleton(
+                        modifier = Modifier.width(DiscoverVisualMetrics.TrendingCoverWidth),
+                        artworkModifier = Modifier
                             .height(DiscoverVisualMetrics.TrendingCoverHeight)
                             .then(
                                 if (index == 0) {
@@ -181,7 +182,6 @@ private fun LazyListScope.popularLoadingSection(horizontalInset: Dp, title: Stri
                                     Modifier
                                 },
                             ),
-                        shape = MaterialTheme.shapes.medium,
                     )
                 }
             }
@@ -194,9 +194,9 @@ private fun LazyListScope.latestLoadingSection(horizontalInset: Dp, title: Strin
         SkeletonSection(title, horizontalInset) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(LATEST_SKELETON_COUNT) { index ->
-                    HikariSkeleton(
-                        modifier = Modifier
-                            .width(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
+                    HikariPosterSkeleton(
+                        modifier = Modifier.width(DiscoverVisualMetrics.LatestUpdatesCoverWidth),
+                        artworkModifier = Modifier
                             .height(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
                             .then(
                                 if (index == 0) {
@@ -205,7 +205,6 @@ private fun LazyListScope.latestLoadingSection(horizontalInset: Dp, title: Strin
                                     Modifier
                                 },
                             ),
-                        shape = MaterialTheme.shapes.medium,
                     )
                 }
             }

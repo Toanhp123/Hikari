@@ -1,7 +1,11 @@
 package app.openstory.designsystem
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -14,6 +18,9 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -23,6 +30,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariPosterCard
+import app.openstory.designsystem.content.HikariPosterGrid
+import app.openstory.designsystem.content.HikariPosterSkeleton
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariEmptyState
@@ -115,6 +125,61 @@ class HikariDesignSystemContractTest {
             SemanticsMatcher.keyNotDefined(SemanticsProperties.ProgressBarRangeInfo),
         )
         composeRule.onNodeWithText("Nothing here").assertHasNoClickAction()
+    }
+
+    @Test
+    fun posterCardAndSkeletonShareArtworkGeometryWithoutDomainTypes() {
+        var selections = 0
+        composeRule.setContent {
+            HikariTheme(darkTheme = false) {
+                HikariPosterCard(
+                    title = "Poster title",
+                    supportingText = "Supporting copy",
+                    onClick = { selections += 1 },
+                    modifier = Modifier.width(120.dp).testTag("poster"),
+                    artworkModifier = Modifier.height(174.dp).testTag("poster-artwork"),
+                ) { Box(Modifier.size(20.dp).testTag("artwork-slot")) }
+                HikariPosterSkeleton(
+                    modifier = Modifier.width(120.dp).testTag("poster-skeleton"),
+                    artworkModifier = Modifier.height(174.dp).testTag("skeleton-artwork"),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("poster-artwork", useUnmergedTree = true)
+            .assertWidthIsEqualTo(120.dp)
+            .assertHeightIsEqualTo(174.dp)
+        composeRule.onNodeWithTag("skeleton-artwork", useUnmergedTree = true)
+            .assertWidthIsEqualTo(120.dp)
+            .assertHeightIsEqualTo(174.dp)
+        composeRule.onNodeWithTag("artwork-slot", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("poster").performClick()
+        composeRule.runOnIdle { assertEquals(1, selections) }
+    }
+
+    @Test
+    fun posterGridMaterializesFeatureOwnedCardsThroughItsContentSlot() {
+        composeRule.setContent {
+            HikariTheme(darkTheme = false) {
+                HikariPosterGrid(
+                    state = rememberLazyGridState(),
+                    modifier = Modifier.size(280.dp),
+                ) {
+                    items(listOf("First", "Second")) { title ->
+                        HikariPosterCard(
+                            title = title,
+                            supportingText = null,
+                            onClick = {},
+                            modifier = Modifier.testTag("grid-$title"),
+                            artworkModifier = Modifier.height(120.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag("grid-First").assertIsDisplayed()
+        composeRule.onNodeWithTag("grid-Second").assertIsDisplayed()
     }
 
     @Test

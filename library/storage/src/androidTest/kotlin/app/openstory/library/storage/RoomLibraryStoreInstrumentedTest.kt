@@ -52,7 +52,7 @@ class RoomLibraryStoreInstrumentedTest {
         assertEquals(LibraryMutationResult.CHANGED, store.add(first))
         observedSql.clear()
         assertEquals(LibraryMutationResult.NO_OP, store.add(first.copy(savedAtEpochMs = 20)))
-        assertEquals(10, store.observeMembership(first.ref).first()?.savedAtEpochMs)
+        assertEquals(10L, store.observeMembership(first.ref).first()?.savedAtEpochMs)
         assertTrue(observedSql.none { it.startsWith("update library_entry") })
 
         observedSql.clear()
@@ -62,7 +62,7 @@ class RoomLibraryStoreInstrumentedTest {
         assertEquals(LibraryMutationResult.CHANGED, store.remove(first.ref))
         assertNull(store.observeMembership(first.ref).first())
         assertEquals(LibraryMutationResult.CHANGED, store.add(first.copy(savedAtEpochMs = 30)))
-        assertEquals(30, store.observeMembership(first.ref).first()?.savedAtEpochMs)
+        assertEquals(30L, store.observeMembership(first.ref).first()?.savedAtEpochMs)
     }
 
     @Test
