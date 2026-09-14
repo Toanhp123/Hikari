@@ -184,6 +184,58 @@
         "app.openstory.catalog.feature."
       ]
     },
+    ":library:domain": {
+      "path": "library/domain",
+      "platform": "jvm",
+      "dependencyMode": "exact",
+      "productionDependencies": [":catalog:domain", ":core:common"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "android.",
+        "androidx.",
+        "coil.",
+        "okhttp3.",
+        "java.net.",
+        "app.openstory.catalog.storage.",
+        "app.openstory.catalog.runtime.",
+        "app.openstory.catalog.feature.",
+        "app.openstory.library.storage.",
+        "app.openstory.library.runtime."
+      ]
+    },
+    ":library:storage": {
+      "path": "library/storage",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":library:domain"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "androidx.compose.",
+        "coil.",
+        "okhttp3.",
+        "java.net.",
+        "app.openstory.catalog.storage.",
+        "app.openstory.catalog.runtime.",
+        "app.openstory.catalog.feature.",
+        "app.openstory.library.runtime."
+      ]
+    },
+    ":library:runtime": {
+      "path": "library/runtime",
+      "platform": "android-library",
+      "dependencyMode": "exact",
+      "productionDependencies": [":core:common", ":library:domain", ":library:storage"],
+      "testDependencies": [],
+      "forbiddenProductionImports": [
+        "androidx.compose.",
+        "coil.",
+        "okhttp3.",
+        "java.net.",
+        "app.openstory.catalog.storage.",
+        "app.openstory.catalog.runtime.",
+        "app.openstory.catalog.feature."
+      ]
+    },
     ":feature:catalog": {
       "path": "feature/catalog",
       "platform": "android-library",

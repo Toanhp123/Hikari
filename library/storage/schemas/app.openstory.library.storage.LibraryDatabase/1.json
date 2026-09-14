@@ -1,0 +1,155 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "2e48645683bded732b7cafe096c9854b",
+    "entities": [
+      {
+        "tableName": "library_entry",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`story_id` TEXT NOT NULL, `source_key` TEXT NOT NULL, `source_story_id` TEXT NOT NULL, `origin_media_context` TEXT NOT NULL, `saved_at_epoch_ms` INTEGER NOT NULL, `title` TEXT NOT NULL, `supporting_text` TEXT, `cover_locator_type` TEXT, `cover_locator_value` TEXT, `cover_locator_aux` TEXT, `cover_revision` TEXT, PRIMARY KEY(`story_id`))",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceKey",
+            "columnName": "source_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStoryId",
+            "columnName": "source_story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originMediaContext",
+            "columnName": "origin_media_context",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "savedAtEpochMs",
+            "columnName": "saved_at_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supportingText",
+            "columnName": "supporting_text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverLocatorType",
+            "columnName": "cover_locator_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverLocatorValue",
+            "columnName": "cover_locator_value",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverLocatorAux",
+            "columnName": "cover_locator_aux",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverRevision",
+            "columnName": "cover_revision",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "story_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_library_entry_saved_story",
+            "unique": false,
+            "columnNames": [
+              "saved_at_epoch_ms",
+              "story_id"
+            ],
+            "orders": [
+              "DESC",
+              "ASC"
+            ],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_library_entry_saved_story` ON `${TABLE_NAME}` (`saved_at_epoch_ms` DESC, `story_id` ASC)"
+          },
+          {
+            "name": "index_library_entry_media_saved_story",
+            "unique": false,
+            "columnNames": [
+              "origin_media_context",
+              "saved_at_epoch_ms",
+              "story_id"
+            ],
+            "orders": [
+              "ASC",
+              "DESC",
+              "ASC"
+            ],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_library_entry_media_saved_story` ON `${TABLE_NAME}` (`origin_media_context` ASC, `saved_at_epoch_ms` DESC, `story_id` ASC)"
+          }
+        ]
+      },
+      {
+        "tableName": "library_search_fts",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`story_id` TEXT NOT NULL, `title` TEXT NOT NULL, `supporting_text` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "story_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supportingText",
+            "columnName": "supporting_text",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": []
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": []
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2e48645683bded732b7cafe096c9854b')"
+    ]
+  }
+}

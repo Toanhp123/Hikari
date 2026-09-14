@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
-Date: 2026-09-14
-Status: **TASK 6 COMPLETED/ACCEPTED; TASK 7 NOT STARTED**
+Date: 2026-09-15
+Status: **TASK 6 COMPLETED/ACCEPTED; TASK 7 READY FOR USER VERIFICATION**
 
 ## Authority
 
@@ -10,9 +10,9 @@ Status: **TASK 6 COMPLETED/ACCEPTED; TASK 7 NOT STARTED**
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
 - Completed/accepted execution boundary: Tasks 0-6.
-- Current execution boundary: Task 7 is not started. Task 6 is completed/accepted after the broad
-  verification gate plus both focused connected gates passed on the user-owned Redmi Note 9S /
-  Android 15 device. Task 7 still requires a new explicit user instruction.
+- Current execution boundary: Task 7 implementation and agent-owned focused evidence are complete.
+  The broad architecture/Detekt gate and focused connected Library storage gate remain user-owned
+  and `NOT RUN`; Task 8 is not authorized.
 
 Reviewed artifact SHA-256:
 
@@ -717,9 +717,70 @@ Focused Discover/reference-bridge connected gate:
   --no-daemon
 ```
 
+## Task 7 Delta
+
+- Added `:library:domain`, `:library:storage`, and `:library:runtime` with exact live graph policy;
+  the immutable Step 2 policy remains unchanged. Library domain owns durable entry/snapshot/filter/
+  cursor/query/window/mutation contracts and caps every requested/returned window at 60 entries.
+- Added the dedicated `hikari-v2-library.db` Room v1 schema with one independent Library entry table,
+  two physical keyset indexes, and a Library-only FTS4 table. There is no Catalog FK/cascade or
+  Catalog runtime/storage dependency. Blank and filtered windows use `savedAt DESC, storyId ASC`
+  keyset SQL; nonblank windows use FTS plus the same bounded keyset order.
+- `RoomLibraryStore` implements point membership observation and atomic entry/FTS synchronization.
+  Repeated Add uses `INSERT IGNORE` and preserves the original `savedAt`; identical enrichment emits
+  `NO_OP` without UPDATE; remove touches only Library truth; a later Add accepts the new clock time.
+- `LibraryMutationOwner` serializes mutations and uses the existing `Clock` seam. `LibraryQuerySession`
+  uses latest-query-wins cancellation so stale storage work cannot publish over newer input.
+
+## Task 7 Agent-Owned Evidence
+
+- Domain RED failed on the absent Task 7 contracts; runtime RED failed on the absent mutation owner
+  and query session; storage Android-test compilation RED failed on the absent Room database/store.
+- A mutation RED temporarily removed owner serialization and reproduced overlapping Add/Remove entry;
+  restoring the mutex made the focused regression pass.
+- Fresh focused verification passed 2 domain tests, 3 runtime tests, and 4 live/archive module-graph
+  tests. Library storage/runtime debug and release assembly, benchmark/non-minified compilation, and
+  Library storage Android-test compilation all passed with `BUILD SUCCESSFUL` in 42.2s.
+- Room exported schema 1 with only `library_entry` and `library_search_fts`; the entry table has the
+  expected default and media-filter keyset indexes. `git diff --check` exits zero apart from existing
+  Windows LF-to-CRLF notices.
+
+## Task 7 Self-Review
+
+- There is no `observeAll` API or user-space corpus filter/sort. Every collection DAO query has a
+  SQL `LIMIT`; point observation is keyed by `story_id`; filters, FTS matching, ordering, and cursor
+  predicates remain in SQL.
+- Library snapshot durability is independent of Catalog cache lifetime while preserving source-local
+  `StorySourceRef` identity and validating artwork key/locator alignment. No identity fusion or Step 4
+  Reading/Chapter/Reader behavior is admitted.
+- Mutation transactions keep the entry and FTS index atomic. No repeated Add or identical enrichment
+  rewrites `savedAt`; owner-level serialization prevents concurrent timestamp/state races.
+- Android connected query-plan and statement-count assertions compile but are not claimed as executed.
+
+## Task 7 Required User-Owned Gates
+
+Status: **NOT RUN**
+
+Broad Library/module/host/architecture and Detekt gate:
+
+```powershell
+.\gradlew.bat :library:domain:test :library:storage:assembleDebug `
+  :library:storage:assembleRelease :library:runtime:testDebugUnitTest `
+  :library:runtime:assembleDebug :library:runtime:assembleRelease :build-logic:test `
+  verifyArchitecture :app:verifyFoundation verifyStep3BuildSurface `
+  verifyProductionPackageStructure verifyModuleBoundaries detekt --no-daemon
+```
+
+Focused Library Room/query-plan connected gate:
+
+```powershell
+.\gradlew.bat :library:storage:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.library.storage.RoomLibraryStoreInstrumentedTest' `
+  --no-daemon
+```
+
 ## Exact Resume Boundary
 
-Tasks 0-6 are completed/accepted. Task 6 - Step 3 Catalog contracts and Catalog schema v2 - is
-closed with user-verified evidence from the broad gate, the focused Catalog storage connected gate,
-and the focused Discover/reference-bridge connected gate. Resume at Task 7 only after a new explicit
-user instruction authorizes it.
+Tasks 0-6 are completed/accepted. Task 7 - Library domain, dedicated Room truth, and indexed window
+queries - is implemented and `READY FOR USER VERIFICATION`. Resume at Task 7 evidence review and
+remediation after the user returns both gate results. Task 8 is not authorized.

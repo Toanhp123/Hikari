@@ -18,9 +18,9 @@ class ModuleGraphTest {
 
     @Test
     fun archivedPolicyContainsExactlyTheAcceptedStepTwoFoundationGraph() {
-        assertEquals(expectedModules.keys, archivedStepTwoPolicy.modules.keys)
+        assertEquals(expectedStepTwoModules.keys, archivedStepTwoPolicy.modules.keys)
 
-        expectedModules.forEach { (module, expected) ->
+        expectedStepTwoModules.forEach { (module, expected) ->
             val actual = archivedStepTwoPolicy.modules.getValue(module)
 
             assertEquals(expected.path, actual.path, "$module path")
@@ -55,6 +55,19 @@ class ModuleGraphTest {
     }
 
     @Test
+    fun livePolicyContainsTheTaskSevenLibraryGraph() {
+        expectedTaskSevenLibraryModules.forEach { (module, expected) ->
+            val actual = policy.modules.getValue(module)
+
+            assertEquals(expected.path, actual.path, "$module path")
+            assertEquals(expected.platform, actual.platform.policyValue, "$module platform")
+            assertEquals(expected.dependencyMode, actual.dependencyMode.policyValue, "$module dependency mode")
+            assertEquals(expected.productionDependencies, actual.productionDependencies, "$module dependencies")
+            assertEquals(expected.testDependencies, actual.testDependencies, "$module test dependencies")
+        }
+    }
+
+    @Test
     fun appPolicyDelegatesScopedImportsWithoutWeakeningStorageBans() {
         val forbidden = policy.modules.getValue(":app").forbiddenProductionImports
 
@@ -75,7 +88,7 @@ class ModuleGraphTest {
     )
 
     private companion object {
-        val expectedModules = linkedMapOf(
+        val expectedStepTwoModules = linkedMapOf(
             ":app" to ExpectedModule(
                 path = "app",
                 platform = "android-application",
@@ -150,6 +163,26 @@ class ModuleGraphTest {
                     ":core:designsystem",
                 ),
                 testDependencies = setOf(":plugins:api"),
+            ),
+        )
+        val expectedTaskSevenLibraryModules = linkedMapOf(
+            ":library:domain" to ExpectedModule(
+                path = "library/domain",
+                platform = "jvm",
+                dependencyMode = "exact",
+                productionDependencies = setOf(":catalog:domain", ":core:common"),
+            ),
+            ":library:storage" to ExpectedModule(
+                path = "library/storage",
+                platform = "android-library",
+                dependencyMode = "exact",
+                productionDependencies = setOf(":library:domain"),
+            ),
+            ":library:runtime" to ExpectedModule(
+                path = "library/runtime",
+                platform = "android-library",
+                dependencyMode = "exact",
+                productionDependencies = setOf(":core:common", ":library:domain", ":library:storage"),
             ),
         )
     }
