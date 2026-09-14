@@ -9,7 +9,7 @@ import app.openstory.catalog.runtime.source.CatalogSourceBinding
 internal object VariantCatalogBinding : CatalogVariantBinding {
     private val sourceKey = CatalogSourceKey("hikari.debug.local")
 
-    override val binding = CatalogSourceBinding(
+    override val bindings = listOf(CatalogSourceBinding(
         catalogSourceKey = sourceKey,
         sourceVersion = "debug-seed-v1",
         acquisitionSource = LocalSeedCatalogSource(
@@ -17,7 +17,7 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
             onAcquisitionStarted = CatalogDebugDiagnostics::recordAcquisitionStarted,
         ),
         assetPolicy = SourceAssetPolicy(sourceKey, emptySet()),
-    )
+    ))
     override val diagnostics = object : CatalogCompositionDiagnostics {
         override fun activationStarted() {
             CatalogDebugDiagnostics.recordActivationStarted()

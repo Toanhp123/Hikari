@@ -7,7 +7,7 @@ import app.openstory.catalog.runtime.CatalogRuntimeOwnershipCallbacks
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 
 internal interface CatalogVariantBinding {
-    val binding: CatalogSourceBinding?
+    val bindings: List<CatalogSourceBinding>
     val diagnostics: CatalogCompositionDiagnostics
         get() = NoOpCatalogCompositionDiagnostics
 
@@ -40,7 +40,7 @@ internal interface CatalogCompositionDiagnostics {
         get() = CatalogImageLoaderCallbacks()
 }
 
-private object NoOpCatalogCompositionDiagnostics : CatalogCompositionDiagnostics {
+internal object NoOpCatalogCompositionDiagnostics : CatalogCompositionDiagnostics {
     override fun activationStarted() = Unit
 
     override fun storageReady() = Unit

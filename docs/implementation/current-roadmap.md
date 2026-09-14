@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion Tasks 0-2 are completed/accepted; a focused
-Task 1 connected-contract closure is patched and awaiting device verification before Task 3.**
+**Hikari V2 Step 3 - Base App UX/UI Completion Task 3 is implemented and ready for user
+verification; a focused Task 1 connected-contract closure also remains open.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
@@ -32,8 +32,13 @@ all pass and were reviewed on 2026-09-14, so Task 2 remains accepted. A later se
 `:app` connected startup classes still asserting the superseded Step 2 `Ready -> Discover` contract;
 the narrow closure patch now asserts `Ready -> Home`, zero Catalog work on Home, and explicit Explore
 as the activation boundary. Run the focused connected command recorded in
-`../internal/checkpoints/hikari-v2-step-3-base-app-ux-ui-completion.md` and record PASS before
-resuming Task 3. The owning plan is
+`../internal/checkpoints/hikari-v2-step-3-base-app-ux-ui-completion.md`; no PASS is inferred from the
+user's explicit 2026-09-14 authorization to begin Task 3 while that gate remains open. Task 3 now
+adds immutable multi-authority descriptors/resolution, a runtime-owned host with one lazy shared
+Catalog store and cross-authority retention pins, source-keyed Story activation, frozen Discover
+authority, and lifecycle-driven activation. Its fresh focused gate passed 98 tests with zero
+failures plus debug/release/benchmark compilation. Return the checkpoint's Task 3 broad host gate
+and the still-open focused connected command before acceptance or advancing to Task 4. The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

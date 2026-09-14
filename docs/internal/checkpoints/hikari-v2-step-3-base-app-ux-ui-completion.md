@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 2 COMPLETED/ACCEPTED; TASK 1 CONNECTED CONTRACT CLOSURE READY FOR USER VERIFICATION**
+Status: **TASK 3 IMPLEMENTED; READY FOR USER VERIFICATION**
 
 ## Authority
 
@@ -10,8 +10,9 @@ Status: **TASK 2 COMPLETED/ACCEPTED; TASK 1 CONNECTED CONTRACT CLOSURE READY FOR
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
 - Completed/accepted execution boundary: Tasks 0-2.
-- Current execution boundary: the supplemental Task 1 connected-contract closure must return PASS;
-  Task 3 remains next afterward and has not been authorized or started.
+- Current execution boundary: Task 3 is explicitly authorized and started by the user on
+  2026-09-14. The supplemental Task 1 connected-contract closure remains an open user-owned gate;
+  no PASS is inferred from authorization to proceed.
 
 Reviewed artifact SHA-256:
 
@@ -213,8 +214,9 @@ Required user-owned closure command before starting Task 3:
   --no-daemon
 ```
 
-Task 1/2 architecture acceptance remains unchanged, but Task 3 should not start until this
-supplemental connected contract correction is returned green and recorded here.
+Task 1/2 architecture acceptance remains unchanged. The user explicitly authorized Task 3 to start
+on 2026-09-14 while this supplemental connected contract correction remains open; record its actual
+result here when returned.
 
 ## Task 0 User-Owned Evidence
 
@@ -329,9 +331,83 @@ evidence under `AGENTS.md`; the earlier sandbox-local `NOT RUN` remains an accur
 execution and is not relabeled as agent-owned PASS. All required Task 2 evidence is reviewed and
 accepted. Task 2 is completed/accepted.
 
+## Task 3 Delta
+
+- Added immutable Catalog authority descriptors, explicit capability sets, and a synchronous
+  media-to-authority resolver in `:catalog:domain`; descriptor lookup does not activate provider,
+  storage, or network work.
+- Added runtime-owned `CatalogRuntimeHost` and lazy `CatalogStoreOwner`. Multiple authority sessions
+  share one Catalog store and one active-Story retention domain; authority session close/quiescence
+  does not close the store, while host close closes it exactly once.
+- Moved cross-authority active Story pins into the shared retention domain so releasing one Story
+  protects active Stories belonging to other authorities during bounded retention mutation.
+- Extended `CatalogRuntimeFactory` and variant composition to register zero or more authorities.
+  Legacy direct `createSession()` remains available only for zero/one authority and fails fast for a
+  multi-authority registration.
+- Deleted the feature-local `CatalogRuntimeHost`. Catalog feature composition now consumes the
+  runtime-owned host, reads artwork policy from local descriptors, and freezes the resolved Discover
+  authority when a route runtime is created.
+- Story activation now selects the authority from `StorySourceRef.catalogSourceKey` rather than an
+  implicit singleton binding.
+- `DiscoverViewModel` no longer activates from construction. Lifecycle `resume()` is the explicit
+  ACTIVE demand boundary; `quiesce()` continues to cancel observation/refresh and route work.
+
+## Task 3 Agent-Owned Evidence
+
+- RED lifetime/control plane: focused runtime test compilation failed because the Task 3
+  capability/host/descriptor APIs did not exist.
+- RED activation: inactive `DiscoverViewModel` construction failed with one unexpected activation
+  (`expected 0, was 1`).
+- RED frozen authority: focused feature test compilation failed because the frozen Discover runtime
+  boundary did not exist.
+- RED hardening: mutable registration metadata changed host descriptors/resolution, and direct
+  session creation accepted two authorities; both focused tests failed before implementation.
+- GREEN runtime/feature iterations passed host lifetime, cross-authority pin, construction-driven
+  activation, frozen-authority, and hardening tests.
+- Debug, release, and benchmarkRelease production source compilation passed for `:catalog:runtime`
+  and `:feature:catalog`; immediate `:feature:story` and `:app` debug callers also compiled.
+- Fresh final focused gate on 2026-09-14: 98 tests, 0 failures, `BUILD SUCCESSFUL in 22s`. It covered
+  runtime host/session/quiescence/pins/Discover/Story, feature authority and Discover lifecycle/
+  reducer tests, Story presentation, app shell/route contracts, and release/benchmark compilation.
+
+## Task 3 Self-Review
+
+- Host owns only authority registration, shared Catalog-store lifetime, and shared retention/pin
+  coordination. No Search, Library, Reading, Settings, reconciliation, or historical-scan
+  orchestration was added.
+- Descriptor/resolver reads are immutable local snapshots and remain storage/network free. Default
+  resolution considers only authorities that declare Discover for the media.
+- Store opening remains lazy on first durable activation. One authority session cannot close the
+  shared store; host close is idempotent and closes an opened store once.
+- Discover owner construction is inert. ACTIVE lifecycle demand activates; RETAINED/STOP quiesces
+  work without changing the route's frozen authority.
+- No feature-local runtime host, stale single-variant binding access, new dependency edge, manifest
+  permission, or Task 4 functionality remains in the changed cone.
+- A broader `:feature:catalog:compileDebugAndroidTestKotlin` diagnostic is not Task 3 evidence and
+  remains failing on two pre-existing test-source defects outside this changed cone: missing
+  `CatalogIssueUi` import in `CatalogScreenshotEvidenceTest` and missing `onStorySelected` argument
+  in `CatalogLifecycleInstrumentedTest`. They were not modified or relabeled as Task 3 regressions.
+
+## Task 3 Required User-Owned Gates
+
+Task 3 implementation is ready for user verification. Return concise PASS/FAIL summaries for:
+
+```bash
+./gradlew :catalog:domain:test :catalog:runtime:testDebugUnitTest \
+  :feature:catalog:testDebugUnitTest :feature:story:testDebugUnitTest \
+  :app:testDebugUnitTest verifyArchitecture :app:verifyFoundation \
+  verifyStep3BuildSurface verifyProductionPackageStructure verifyModuleBoundaries --no-daemon
+```
+
+The supplemental Task 1 connected-contract command under
+`Task 1 Post-Acceptance Connected-Contract Closure` also remains open. Do not infer its PASS from
+Task 3 host evidence.
+
 ## Exact Resume Boundary
 
 Tasks 0-2 architecture implementation and their originally required acceptance gates remain
-completed/accepted. Before Task 3, run and return the focused `:app` connected closure command in
-`Task 1 Post-Acceptance Connected-Contract Closure`; record its PASS here. Task 3 remains the next
-implementation task and was not authorized or started by this closure patch.
+completed/accepted. Task 3 implementation and focused agent-owned evidence are present. Do not
+start Task 4. Run and return the Task 3 broad host gate above plus the focused `:app` connected
+closure command in `Task 1 Post-Acceptance Connected-Contract Closure`. On PASS, record the returned
+evidence here, mark Task 3 completed/accepted, update the roadmap pointer to Task 4, and stop. On
+failure, inspect only the first useful diagnostic slice and resume inside Task 3.

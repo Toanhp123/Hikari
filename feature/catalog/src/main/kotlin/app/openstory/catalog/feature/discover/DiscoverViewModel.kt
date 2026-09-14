@@ -53,11 +53,7 @@ internal class DiscoverViewModel(
     private var observationJob: Job? = null
     private var refreshJob: Job? = null
     private var quiesceJob: Job? = null
-    private var quiescent = false
-
-    init {
-        activateIfNeeded()
-    }
+    private var quiescent = true
 
     fun refresh() {
         requestRefresh()

@@ -51,6 +51,21 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModelTest {
+    @Test
+    fun inactiveOwnerDoesNotActivateUntilResumed() = runTest(dispatcher.scheduler) {
+        val runtime = FakeDiscoverRuntime()
+        val owner = TestViewModelOwner(runtime, resumeImmediately = false)
+
+        advanceUntilIdle()
+        assertEquals(0, runtime.activationCalls)
+
+        owner.viewModel.resume()
+        advanceUntilIdle()
+
+        assertEquals(1, runtime.activationCalls)
+        owner.clear()
+    }
+
     private val dispatcher = StandardTestDispatcher()
 
     @Before
@@ -105,6 +120,8 @@ class DiscoverViewModelTest {
             DiscoverViewModel.factory(CatalogMediaType.LIGHT_NOVEL) { lightNovelRuntime },
         )[DiscoverViewModel.key(CatalogMediaType.LIGHT_NOVEL), DiscoverViewModel::class.java]
 
+        manga.resume()
+        lightNovel.resume()
         advanceUntilIdle()
 
         assertNotSame(manga, lightNovel)
@@ -376,6 +393,7 @@ class DiscoverViewModelTest {
     private class TestViewModelOwner(
         runtime: DiscoverRuntime,
         mediaType: CatalogMediaType = CatalogMediaType.MANGA,
+        resumeImmediately: Boolean = true,
         override val viewModelStore: ViewModelStore = ViewModelStore(),
     ) : ViewModelStoreOwner {
         val viewModel: DiscoverViewModel = ViewModelProvider(
@@ -387,6 +405,10 @@ class DiscoverViewModelTest {
             },
         )[DiscoverViewModel::class.java]
 
+        init {
+            if (resumeImmediately) viewModel.resume()
+        }
+
         fun clear() = viewModelStore.clear()
     }
 
@@ -397,23 +419,27 @@ class DiscoverViewModelTest {
         val observedMedia = mutableListOf<CatalogMediaType>()
         val refreshCalls = mutableListOf<CatalogMediaType>()
         val activeCollectors = CatalogMediaType.entries.associateWith { 0 }.toMutableMap()
+        var activationCalls = 0
 
-        override suspend fun activate(): DiscoverRuntimeActivation = DiscoverRuntimeActivation.Available(
-            observe = { mediaType ->
-                flows.getValue(mediaType)
-                    .onStart {
-                        observedMedia += mediaType
-                        activeCollectors[mediaType] = activeCollectors.getValue(mediaType) + 1
-                    }
-                    .onCompletion {
-                        activeCollectors[mediaType] = activeCollectors.getValue(mediaType) - 1
-                    }
-            },
-            refresh = { mediaType ->
-                refreshCalls += mediaType
-                CatalogAcquisitionResult.Success
-            },
-        )
+        override suspend fun activate(): DiscoverRuntimeActivation {
+            activationCalls += 1
+            return DiscoverRuntimeActivation.Available(
+                observe = { mediaType ->
+                    flows.getValue(mediaType)
+                        .onStart {
+                            observedMedia += mediaType
+                            activeCollectors[mediaType] = activeCollectors.getValue(mediaType) + 1
+                        }
+                        .onCompletion {
+                            activeCollectors[mediaType] = activeCollectors.getValue(mediaType) - 1
+                        }
+                },
+                refresh = { mediaType ->
+                    refreshCalls += mediaType
+                    CatalogAcquisitionResult.Success
+                },
+            )
+        }
 
         suspend fun emit(mediaType: CatalogMediaType, state: DiscoverSessionState) {
             flows.getValue(mediaType).emit(state)

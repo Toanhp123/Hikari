@@ -1,6 +1,7 @@
 package app.openstory.story.feature
 
 import app.openstory.catalog.domain.failure.CatalogFailure
+import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
@@ -25,12 +26,12 @@ sealed interface StoryCatalogFacetActivation {
 }
 
 class CatalogStoryFacet(
-    private val activateCatalog: suspend () -> CatalogCapabilityActivation,
+    private val activateCatalog: suspend (CatalogSourceKey) -> CatalogCapabilityActivation,
     private val onCollectorStarted: () -> Unit = {},
     private val onCollectorStopped: () -> Unit = {},
 ) : StoryCatalogFacet {
     override suspend fun activate(ref: StorySourceRef): StoryCatalogFacetActivation =
-        when (val activation = activateCatalog()) {
+        when (val activation = activateCatalog(ref.catalogSourceKey)) {
             is CatalogCapabilityActivation.Unavailable ->
                 StoryCatalogFacetActivation.Unavailable(activation.failure)
             is CatalogCapabilityActivation.Available -> {

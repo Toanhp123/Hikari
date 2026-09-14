@@ -103,6 +103,7 @@ internal class RuntimeFakeStorage : CatalogRuntimeStore {
     val storyCommands = mutableListOf<StoryDetailPublicationCommand>()
     val touches = mutableListOf<Pair<StorySourceRef, Long>>()
     val releases = mutableListOf<StorySourceRef>()
+    val releaseProtectedSets = mutableListOf<Set<StoryId>>()
     var discoverReadFailure: Throwable? = null
     var storyReadFailure: Throwable? = null
     var discoverPublishFailure: Throwable? = null
@@ -167,6 +168,7 @@ internal class RuntimeFakeStorage : CatalogRuntimeStore {
         releasedAtEpochMs: Long,
     ): CatalogMutationDiagnostics {
         releases += ref
+        releaseProtectedSets += retentionProtectedStoryIds
         return CatalogMutationDiagnostics(setOf(ref.storyId))
     }
 

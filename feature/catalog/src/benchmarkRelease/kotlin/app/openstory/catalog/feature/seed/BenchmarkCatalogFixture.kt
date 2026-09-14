@@ -15,7 +15,7 @@ public object BenchmarkCatalogFixture {
         preparation: BenchmarkCatalogPreparation = BenchmarkCatalogPreparation.NORMAL,
     ): BenchmarkCatalogPreparationEvidence {
         val mutationPeaks = BenchmarkMutationPeaks()
-        val baseBinding = requireNotNull(VariantCatalogBinding.binding)
+        val baseBinding = VariantCatalogBinding.bindings.single()
         val benchmarkSource = BenchmarkCatalogSource(baseBinding.catalogSourceKey, preparation.sourceScenario)
         val pinPruneSource = benchmarkSource.takeIf {
             preparation == BenchmarkCatalogPreparation.PIN_PRUNE_RACE
@@ -25,7 +25,7 @@ public object BenchmarkCatalogFixture {
         )
         val runtimeFactory = CatalogRuntimeFactory(
             context = context.applicationContext,
-            binding = binding,
+            bindings = listOf(binding),
             ownershipCallbacks = mutationPeaks.callbacks,
         )
         var orphanRetentionRows = 0

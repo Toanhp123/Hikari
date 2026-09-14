@@ -175,6 +175,10 @@ class DiscoverRefreshStateTest {
             },
         )[DiscoverViewModel::class.java]
 
+        init {
+            viewModel.resume()
+        }
+
         fun clear() = viewModelStore.clear()
     }
 

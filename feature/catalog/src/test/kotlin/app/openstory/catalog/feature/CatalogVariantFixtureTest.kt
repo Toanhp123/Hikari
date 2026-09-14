@@ -17,7 +17,7 @@ class CatalogVariantFixtureTest {
     @Test
     fun nonReleaseBindingProvidesBoundedTypedFixturesForBothMedia() = runTest {
         val variant: CatalogVariantBinding = VariantCatalogBinding
-        val binding: CatalogSourceBinding = requireNotNull(variant.binding)
+        val binding: CatalogSourceBinding = variant.bindings.single()
         val source = requireNotNull(binding.acquisitionSource)
         val benchmarkBinding = binding.catalogSourceKey.value == "hikari.benchmark.local"
 

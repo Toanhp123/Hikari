@@ -2,14 +2,11 @@ package app.openstory.catalog.runtime
 
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
 import app.openstory.catalog.domain.failure.CatalogFailure
-import app.openstory.catalog.domain.failure.CatalogFailureException
-import app.openstory.catalog.domain.failure.CatalogStorageOperation
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionExecutor
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogImporter
-import app.openstory.catalog.runtime.concurrency.CatalogMutationGate
 import app.openstory.catalog.runtime.discover.DiscoverSession
 import app.openstory.catalog.runtime.execution.CatalogExecutionDispatchers
 import app.openstory.catalog.runtime.retention.ActiveStoryPins
@@ -17,14 +14,12 @@ import app.openstory.catalog.runtime.source.CatalogSourceBinding
 import app.openstory.catalog.runtime.story.StoryDetailSession
 import app.openstory.catalog.runtime.trace.CatalogTrace
 import app.openstory.catalog.runtime.trace.CatalogTraceSink
-import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 sealed interface CatalogCapabilityActivation {
     data class Unavailable(
@@ -97,17 +92,17 @@ sealed interface CatalogCapabilityActivation {
 
 class CatalogCapabilitySession internal constructor(
     private val binding: CatalogSourceBinding?,
-    private val openStorage: suspend () -> CatalogRuntimeStore,
+    private val storeOwner: CatalogStoreOwner,
     private val wallClockEpochMs: () -> Long,
     private val dispatchers: CatalogExecutionDispatchers,
     private val traceSink: CatalogTraceSink,
     private val ownershipCallbacks: CatalogRuntimeOwnershipCallbacks,
+    private val closeStoreOwner: AutoCloseable? = null,
 ) : AutoCloseable {
     private val activationMutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + dispatchers.io)
     private val closed = AtomicBoolean(false)
     private var activation: CatalogCapabilityActivation? = null
-    private var openedStore: CatalogRuntimeStore? = null
 
     suspend fun activate(): CatalogCapabilityActivation = activationMutex.withLock {
         activation?.let { return it }
@@ -116,15 +111,10 @@ class CatalogCapabilitySession internal constructor(
             activation = it
         }
         traceSink.mark(CatalogTrace.ACTIVATION_START)
-        val store = openMappedStorage()
+        val retentionDomain = storeOwner.retentionDomain()
+        val store = retentionDomain.store
         traceSink.mark(CatalogTrace.STORAGE_READY)
-        val mutationGate = CatalogMutationGate()
-        val activeStoryPins = ActiveStoryPins(
-            writePort = store,
-            mutationGate = mutationGate,
-            onActivePinsChanged = ownershipCallbacks.onActiveStoryPinsChanged,
-            onReleaseMutationTouched = ownershipCallbacks.onStoryReleaseMutationTouched,
-        )
+        val activeStoryPins = retentionDomain.activeStoryPins
         val importer = CatalogImporter(store, activeStoryPins, dispatchers)
         val executor = CatalogAcquisitionExecutor(
             binding = sourceBinding,
@@ -144,7 +134,6 @@ class CatalogCapabilitySession internal constructor(
             scope = scope,
             traceSink = traceSink,
         ).also {
-            openedStore = store
             activation = it
         }
     }
@@ -152,17 +141,7 @@ class CatalogCapabilitySession internal constructor(
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         scope.cancel()
-        openedStore?.close()
+        activation = null
+        closeStoreOwner?.close()
     }
-
-    private suspend fun openMappedStorage(): CatalogRuntimeStore =
-        runCatching { withContext(dispatchers.io) { openStorage() } }
-            .getOrElse { error ->
-                throw error.toStorageException(CatalogStorageOperation.OPEN)
-            }
-}
-
-private fun Throwable.toStorageException(operation: CatalogStorageOperation): Throwable = when (this) {
-    is CancellationException, is CatalogFailureException -> this
-    else -> CatalogFailureException(CatalogFailure.Storage(operation), this)
 }

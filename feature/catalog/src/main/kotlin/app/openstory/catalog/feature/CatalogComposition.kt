@@ -18,9 +18,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
+import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.read.StoryRouteArgs
 import app.openstory.catalog.domain.read.StoryRoutePreview
+import app.openstory.catalog.domain.source.CatalogAuthorityResolver
 import app.openstory.catalog.feature.assets.CatalogImageLoader
 import app.openstory.catalog.feature.assets.LocalCatalogImageLoader
 import app.openstory.catalog.feature.discover.DiscoverContentState
@@ -30,9 +32,8 @@ import app.openstory.catalog.feature.discover.DiscoverViewModel
 import app.openstory.catalog.feature.trace.AndroidCatalogTraceSink
 import app.openstory.catalog.feature.trace.CatalogUiTrace
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
-import app.openstory.catalog.runtime.CatalogCapabilitySession
 import app.openstory.catalog.runtime.CatalogRuntimeFactory
-import java.util.concurrent.atomic.AtomicBoolean
+import app.openstory.catalog.runtime.CatalogRuntimeHost
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Mutex
@@ -56,7 +57,8 @@ class CatalogRuntimeAccess internal constructor(
     internal val holder: CatalogRuntimeHolder,
     internal val trace: CatalogUiTrace,
 ) {
-    suspend fun activate(): CatalogCapabilityActivation = holder.runtime.activate()
+    suspend fun activate(sourceKey: CatalogSourceKey): CatalogCapabilityActivation =
+        holder.activate(sourceKey)
 
     fun storyCollectorStarted() = VariantCatalogBinding.diagnostics.storyCollectorStarted()
 
@@ -83,28 +85,23 @@ private fun rememberCatalogRuntimeHolder(
     trace: CatalogUiTrace,
 ): CatalogRuntimeHolder {
     val runtimeFactory = remember(applicationContext, trace) {
-        CatalogRuntimeHolder.factory {
-            val runtime = CatalogRuntimeHost(
-                session = CatalogRuntimeFactory(
-                    context = applicationContext,
-                    binding = VariantCatalogBinding.binding,
-                    traceSink = AndroidCatalogTraceSink,
-                    queryListener = VariantCatalogBinding.queryListener,
-                    ownershipCallbacks = VariantCatalogBinding.diagnostics.runtimeOwnershipCallbacks,
-                ).createSession(),
-                onActivationStarted = {
-                    VariantCatalogBinding.diagnostics.activationStarted()
-                },
-                onStorageReady = VariantCatalogBinding.diagnostics::storageReady,
-                onDiscoverCollectorStarted = VariantCatalogBinding.diagnostics::discoverCollectorStarted,
-                onDiscoverCollectorStopped = VariantCatalogBinding.diagnostics::discoverCollectorStopped,
-                onClosed = VariantCatalogBinding.diagnostics::runtimeSessionClosed,
-            )
+        CatalogRuntimeHolder.factory(
+            diagnostics = VariantCatalogBinding.diagnostics,
+        ) {
+            val runtime = CatalogRuntimeFactory(
+                context = applicationContext,
+                bindings = VariantCatalogBinding.bindings,
+                traceSink = AndroidCatalogTraceSink,
+                queryListener = VariantCatalogBinding.queryListener,
+                ownershipCallbacks = VariantCatalogBinding.diagnostics.runtimeOwnershipCallbacks,
+            ).createHost()
             runtime to CatalogImageLoader(
                 context = applicationContext,
                 localResolver = VariantLocalCoverAssets,
                 remoteTransport = VariantCatalogBinding.remoteCoverTransport(applicationContext),
-                policyProvider = runtime::assetPolicyProvider,
+                policyProvider = {
+                    SourceAssetPolicyProvider { sourceKey -> runtime.descriptor(sourceKey)?.artworkPolicy }
+                },
                 callbacks = VariantCatalogBinding.diagnostics.imageLoaderCallbacks,
             )
         }
@@ -188,7 +185,7 @@ private fun rememberDiscoverViewModel(
     mediaType: CatalogMediaType,
 ): DiscoverViewModel {
     val discoverFactory = remember(runtimeHolder, mediaType) {
-        DiscoverViewModel.factory(mediaType, runtimeHolder.runtime::discoverRuntime)
+        DiscoverViewModel.factory(mediaType) { runtimeHolder.discoverRuntime(mediaType) }
     }
     return viewModel(
         key = DiscoverViewModel.key(mediaType),
@@ -196,77 +193,90 @@ private fun rememberDiscoverViewModel(
     )
 }
 
-internal class CatalogRuntimeHost(
-    private val session: CatalogCapabilitySession,
-    private val onActivationStarted: () -> Unit,
-    private val onStorageReady: () -> Unit,
-    private val onDiscoverCollectorStarted: () -> Unit,
-    private val onDiscoverCollectorStopped: () -> Unit,
-    private val onClosed: () -> Unit,
-) : AutoCloseable {
-    private val activationMutex = Mutex()
-    private val closed = AtomicBoolean(false)
-    private var cachedActivation: CatalogCapabilityActivation? = null
-
-    suspend fun activate(): CatalogCapabilityActivation = activationMutex.withLock {
-        cachedActivation?.let { return it }
-        onActivationStarted()
-        session.activate().also { activation ->
-            if (activation is CatalogCapabilityActivation.Available) onStorageReady()
-            cachedActivation = activation
-        }
-    }
-
-    fun discoverRuntime(): DiscoverRuntime = object : DiscoverRuntime {
-        override suspend fun activate(): DiscoverRuntimeActivation =
-            when (val activation = this@CatalogRuntimeHost.activate()) {
-                is CatalogCapabilityActivation.Unavailable ->
-                    DiscoverRuntimeActivation.Unavailable(activation.failure)
-                is CatalogCapabilityActivation.Available -> DiscoverRuntimeActivation.Available(
-                    observe = { mediaType ->
-                        activation.discoverSession(mediaType).states
-                            .onStart { onDiscoverCollectorStarted() }
-                            .onCompletion { onDiscoverCollectorStopped() }
-                    },
-                    refresh = { mediaType -> activation.discoverSession(mediaType).refresh() },
-                    quiesce = { mediaType -> activation.discoverSession(mediaType).quiesce() },
-                )
-            }
-
-        override fun close() = Unit
-    }
-
-    suspend fun assetPolicyProvider(): SourceAssetPolicyProvider? =
-        when (val activation = activate()) {
-            is CatalogCapabilityActivation.Unavailable -> null
-            is CatalogCapabilityActivation.Available -> activation.assetPolicyProvider
-        }
-
-    override fun close() {
-        if (!closed.compareAndSet(false, true)) return
-        session.close()
-        onClosed()
-    }
-}
-
 internal class CatalogRuntimeHolder(
     val runtime: CatalogRuntimeHost,
     val images: CatalogImageLoader,
+    private val diagnostics: CatalogCompositionDiagnostics,
 ) : ViewModel() {
+    private val activationMutex = Mutex()
+    private val activatedSources = mutableSetOf<CatalogSourceKey>()
+    private var storageReadyReported = false
+
+    suspend fun activate(sourceKey: CatalogSourceKey): CatalogCapabilityActivation =
+        activationMutex.withLock {
+            if (sourceKey !in activatedSources) diagnostics.activationStarted()
+            runtime.activate(sourceKey).also { activation ->
+                if (activation is CatalogCapabilityActivation.Available && !storageReadyReported) {
+                    storageReadyReported = true
+                    diagnostics.storageReady()
+                }
+                activatedSources += sourceKey
+            }
+        }
+
+    fun discoverRuntime(mediaType: CatalogMediaType): DiscoverRuntime {
+        return createFrozenDiscoverRuntime(
+            mediaType = mediaType,
+            authorityResolver = runtime.authorityResolver(),
+            activateCatalog = ::activate,
+            diagnostics = diagnostics,
+        )
+    }
+
     override fun onCleared() {
         images.close()
         runtime.close()
+        diagnostics.runtimeSessionClosed()
     }
 
     companion object {
-        fun factory(createRuntime: () -> Pair<CatalogRuntimeHost, CatalogImageLoader>): ViewModelProvider.Factory =
+        fun factory(
+            diagnostics: CatalogCompositionDiagnostics,
+            createRuntime: () -> Pair<CatalogRuntimeHost, CatalogImageLoader>,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     require(modelClass.isAssignableFrom(CatalogRuntimeHolder::class.java))
                     val (runtime, images) = createRuntime()
-                    return CatalogRuntimeHolder(runtime, images) as T
+                    return CatalogRuntimeHolder(runtime, images, diagnostics) as T
                 }
             }
+    }
+}
+
+internal fun createFrozenDiscoverRuntime(
+    mediaType: CatalogMediaType,
+    authorityResolver: CatalogAuthorityResolver,
+    activateCatalog: suspend (CatalogSourceKey) -> CatalogCapabilityActivation,
+    diagnostics: CatalogCompositionDiagnostics = NoOpCatalogCompositionDiagnostics,
+): DiscoverRuntime {
+    val frozenSourceKey = authorityResolver.authorityFor(mediaType)
+    return object : DiscoverRuntime {
+        override suspend fun activate(): DiscoverRuntimeActivation =
+            when (val sourceKey = frozenSourceKey) {
+                null -> DiscoverRuntimeActivation.Unavailable(
+                    app.openstory.catalog.domain.failure.CatalogFailure.SourceUnavailable,
+                )
+                else -> when (val activation = activateCatalog(sourceKey)) {
+                    is CatalogCapabilityActivation.Unavailable ->
+                        DiscoverRuntimeActivation.Unavailable(activation.failure)
+                    is CatalogCapabilityActivation.Available -> DiscoverRuntimeActivation.Available(
+                        observe = { requestedMediaType ->
+                            activation.discoverSession(requestedMediaType).states
+                                .onStart { diagnostics.discoverCollectorStarted() }
+                                .onCompletion { diagnostics.discoverCollectorStopped() }
+                        },
+                        refresh = { requestedMediaType ->
+                            activation.discoverSession(requestedMediaType).refresh()
+                        },
+                        quiesce = { requestedMediaType ->
+                            activation.discoverSession(requestedMediaType).quiesce()
+                        },
+                    )
+                }
+            }
+
+        override fun close() = Unit
     }
 }

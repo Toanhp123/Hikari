@@ -18,7 +18,7 @@ import app.openstory.catalog.runtime.source.CatalogSourceBinding
 internal object VariantCatalogBinding : CatalogVariantBinding {
     private val sourceKey = CatalogSourceKey("hikari.benchmark.local")
 
-    override val binding = CatalogSourceBinding(
+    override val bindings = listOf(CatalogSourceBinding(
         catalogSourceKey = sourceKey,
         sourceVersion = "benchmark-seed-v1",
         acquisitionSource = BenchmarkCatalogSource(
@@ -26,7 +26,7 @@ internal object VariantCatalogBinding : CatalogVariantBinding {
             onAcquisitionStarted = BenchmarkLifecycleCounters::recordAcquisitionStarted,
         ),
         assetPolicy = SourceAssetPolicy(sourceKey, setOf("covers.hikari.invalid")),
-    )
+    ))
 
     override fun remoteCoverTransport(context: Context): RemoteCoverTransport =
         BenchmarkCoverFixture.transport(context)
