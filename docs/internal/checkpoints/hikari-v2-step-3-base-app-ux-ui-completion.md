@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 3 IMPLEMENTED; READY FOR USER VERIFICATION**
+Status: **TASK 3 COMPLETED/ACCEPTED; TASK 4 IS THE NEXT RESUME POINT AND HAS NOT STARTED**
 
 ## Authority
 
@@ -178,7 +178,7 @@ All required Task 1 broad evidence is reviewed and accepted. Task 1 is completed
 
 ## Task 1 Post-Acceptance Connected-Contract Closure
 
-Status: **READY FOR USER VERIFICATION**
+Status: **PASS**
 
 A later Task 1/2 self-review found that two `:app` connected startup classes still encoded the
 Step 2 startup destination (`Ready -> Discover`) even though Task 1 production and focused host
@@ -215,8 +215,10 @@ Required user-owned closure command before starting Task 3:
 ```
 
 Task 1/2 architecture acceptance remains unchanged. The user explicitly authorized Task 3 to start
-on 2026-09-14 while this supplemental connected contract correction remains open; record its actual
-result here when returned.
+on 2026-09-14 while this supplemental connected contract correction remained open. On 2026-09-14,
+the user returned PASS for the focused `:app:connectedDebugAndroidTest` command covering
+`StartupFlowTest` and `CatalogLaunchHandoffTest`; the corrected `Ready -> Home` and explicit Explore
+activation boundary are accepted.
 
 ## Task 0 User-Owned Evidence
 
@@ -369,6 +371,21 @@ accepted. Task 2 is completed/accepted.
 - Fresh final focused gate on 2026-09-14: 98 tests, 0 failures, `BUILD SUCCESSFUL in 22s`. It covered
   runtime host/session/quiescence/pins/Discover/Story, feature authority and Discover lifecycle/
   reducer tests, Story presentation, app shell/route contracts, and release/benchmark compilation.
+- The returned broad host gate then failed only at `verifyStep3BuildSurface`: live Step 3 delegated
+  Catalog variants to the historical Step 2 verifier, whose frozen release contract requires the
+  superseded literal `override val binding = null`. The current Task 3 release correctly exposes
+  `bindings` and registers an empty authority list, so the failure was verifier ownership drift,
+  not production-provider or fixture leakage.
+- RED verifier regression: a Step 3 integration fixture containing the current source-free
+  multi-authority release shape failed through real `:feature:catalog` delegation. A separate
+  hardening RED proved that an `emptyList() + registeredBindings` prefix could not count as an
+  empty release authority set.
+- GREEN verifier remediation on 2026-09-14: Step 2 keeps the historical default Catalog release
+  policy and its literal-null regression; Step 3 delegates through a live Catalog variant entry
+  point that requires an auditable empty `bindings` initializer, rejects release authority/source
+  registration, and retains seed/benchmark/plugin-harness isolation across `src/main` and
+  `src/release`. Fresh `./gradlew :build-logic:test verifyStep3BuildSurface --no-daemon` passed 98
+  tests with zero failures/errors and `BUILD SUCCESSFUL in 32s`.
 
 ## Task 3 Self-Review
 
@@ -383,6 +400,15 @@ accepted. Task 2 is completed/accepted.
   work without changing the route's frozen authority.
 - No feature-local runtime host, stale single-variant binding access, new dependency edge, manifest
   permission, or Task 4 functionality remains in the changed cone.
+- Historical Step 2 acceptance was not loosened: its default verifier path still requires
+  `override val binding = null`, while only the Step 3 entry point selects the multi-authority
+  release policy. No compatibility property/wrapper or dead Step 2 production API was restored.
+- Step 3 release verification now models the current contract as zero registered production
+  authorities and source-free production variants. Debug/benchmark required files, compressed
+  fixture assets, benchmark source mapping, and non-minified fixture de-duplication remain under
+  the shared isolation checks; production seed/benchmark/plugin-harness references remain rejected.
+- The verifier-only remediation does not change Catalog runtime host, shared store lifetime,
+  authority-session, descriptor/resolver, activation, or cross-authority retention behavior.
 - A broader `:feature:catalog:compileDebugAndroidTestKotlin` diagnostic is not Task 3 evidence and
   remains failing on two pre-existing test-source defects outside this changed cone: missing
   `CatalogIssueUi` import in `CatalogScreenshotEvidenceTest` and missing `onStorySelected` argument
@@ -390,7 +416,9 @@ accepted. Task 2 is completed/accepted.
 
 ## Task 3 Required User-Owned Gates
 
-Task 3 implementation is ready for user verification. Return concise PASS/FAIL summaries for:
+Status: **PASS**
+
+On 2026-09-14, the user returned PASS for the complete Task 3 broad host gate:
 
 ```bash
 ./gradlew :catalog:domain:test :catalog:runtime:testDebugUnitTest \
@@ -399,15 +427,13 @@ Task 3 implementation is ready for user verification. Return concise PASS/FAIL s
   verifyStep3BuildSurface verifyProductionPackageStructure verifyModuleBoundaries --no-daemon
 ```
 
-The supplemental Task 1 connected-contract command under
-`Task 1 Post-Acceptance Connected-Contract Closure` also remains open. Do not infer its PASS from
-Task 3 host evidence.
+This accepts the domain/runtime/feature/app regressions plus architecture, foundation, Step 3 build
+surface, production package structure, and module-boundary verification. The supplemental Task 1
+connected-contract command is independently recorded as PASS above. Task 3 is completed/accepted.
 
 ## Exact Resume Boundary
 
-Tasks 0-2 architecture implementation and their originally required acceptance gates remain
-completed/accepted. Task 3 implementation and focused agent-owned evidence are present. Do not
-start Task 4. Run and return the Task 3 broad host gate above plus the focused `:app` connected
-closure command in `Task 1 Post-Acceptance Connected-Contract Closure`. On PASS, record the returned
-evidence here, mark Task 3 completed/accepted, update the roadmap pointer to Task 4, and stop. On
-failure, inspect only the first useful diagnostic slice and resume inside Task 3.
+Tasks 0-3 are completed/accepted, including the supplemental Task 1 connected-contract closure and
+the Task 3 broad host gate returned by the user on 2026-09-14. The next resume point is Task 4,
+`Process work admission and retained-payload accounting`. Do not begin Task 4 without a new explicit
+user instruction.

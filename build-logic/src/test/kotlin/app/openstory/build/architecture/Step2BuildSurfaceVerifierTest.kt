@@ -22,6 +22,22 @@ class Step2BuildSurfaceVerifierTest {
     }
 
     @Test
+    fun historicalStepTwoNullReleaseBindingRemainsAccepted() = withFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/release/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+            """
+                package app.openstory.catalog.feature
+
+                internal object VariantCatalogBinding : CatalogVariantBinding {
+                    override val binding = null
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(emptyList(), fixture.verify())
+    }
+
+    @Test
     fun pluginHarnessDependenciesMustStayInFeatureAndroidTest() = withFixture { fixture ->
         fixture.write(
             "feature/catalog/build.gradle.kts",

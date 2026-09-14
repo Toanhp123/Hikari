@@ -3,12 +3,18 @@ package app.openstory.build.architecture
 import java.io.File
 
 internal object CatalogVariantSurfaceVerifier {
-    fun verify(root: File): List<ArchitectureViolation> = buildList {
+    fun verify(root: File): List<ArchitectureViolation> =
+        verify(root, CatalogReleaseSurfacePolicy.HISTORICAL_STEP_TWO)
+
+    internal fun verify(
+        root: File,
+        releasePolicy: CatalogReleaseSurfacePolicy,
+    ): List<ArchitectureViolation> = buildList {
         addAll(requiredFileViolations(root))
         addAll(bindingContractViolations(root))
         addAll(fixtureAssetViolations(root))
-        addAll(releaseFixtureReferenceViolations(root))
-        releaseBindingViolation(root)?.let(::add)
+        addAll(productionFixtureReferenceViolations(root, releasePolicy))
+        addAll(releaseBindingViolations(root, releasePolicy))
         addAll(benchmarkSourceMappingViolations(root))
         duplicateNonMinifiedFixtureViolation(root)?.let(::add)
     }
@@ -34,22 +40,62 @@ internal object CatalogVariantSurfaceVerifier {
         }
     }
 
-    private fun releaseFixtureReferenceViolations(root: File): List<ArchitectureViolation> {
-        val releaseRoot = File(root, RELEASE_SOURCE_ROOT)
-        if (!releaseRoot.isDirectory) return emptyList()
-        return releaseRoot.walkTopDown()
-            .filter(File::isFile)
-            .filter { it.extension.lowercase() in SOURCE_EXTENSIONS }
-            .filter { RELEASE_FIXTURE_REFERENCE.containsMatchIn(it.readText()) }
-            .map { violation("step2_surface.release_fixture", it.relativeTo(root).invariantSeparatorsPath) }
-            .toList()
+    private fun productionFixtureReferenceViolations(
+        root: File,
+        releasePolicy: CatalogReleaseSurfacePolicy,
+    ): List<ArchitectureViolation> = releasePolicy.fixtureReferenceRoots
+        .asSequence()
+        .map { File(root, it) }
+        .filter(File::isDirectory)
+        .flatMap(File::walkTopDown)
+        .filter(File::isFile)
+        .filter { it.extension.lowercase() in SOURCE_EXTENSIONS }
+        .filter { RELEASE_FIXTURE_REFERENCE.containsMatchIn(it.readText()) }
+        .map {
+            violation(
+                releasePolicy.fixtureViolationCode,
+                it.relativeTo(root).invariantSeparatorsPath,
+            )
+        }
+        .toList()
+
+    private fun releaseBindingViolations(
+        root: File,
+        releasePolicy: CatalogReleaseSurfacePolicy,
+    ): List<ArchitectureViolation> = when (releasePolicy) {
+        CatalogReleaseSurfacePolicy.HISTORICAL_STEP_TWO -> listOfNotNull(
+            historicalReleaseBindingViolation(root),
+        )
+        CatalogReleaseSurfacePolicy.LIVE_STEP_THREE -> liveReleaseAuthorityViolations(root)
     }
 
-    private fun releaseBindingViolation(root: File): ArchitectureViolation? {
+    private fun historicalReleaseBindingViolation(root: File): ArchitectureViolation? {
         val file = File(root, RELEASE_BINDING)
         return RELEASE_BINDING.takeIf {
             file.isFile && !RELEASE_NULL_BINDING.containsMatchIn(file.readText())
         }?.let { violation("step2_surface.release_fixture", it) }
+    }
+
+    private fun liveReleaseAuthorityViolations(root: File): List<ArchitectureViolation> = buildList {
+        val bindingFile = File(root, RELEASE_BINDING)
+        if (bindingFile.isFile && !RELEASE_EMPTY_BINDINGS.containsMatchIn(bindingFile.readText())) {
+            add(violation("step3_surface.release_authority", RELEASE_BINDING))
+        }
+
+        val releaseRoot = File(root, RELEASE_SOURCE_ROOT)
+        if (!releaseRoot.isDirectory) return@buildList
+        releaseRoot.walkTopDown()
+            .filter(File::isFile)
+            .filter { it.extension.lowercase() in SOURCE_EXTENSIONS }
+            .filter { RELEASE_AUTHORITY_REFERENCE.containsMatchIn(it.readText()) }
+            .forEach { file ->
+                add(
+                    violation(
+                        "step3_surface.release_authority",
+                        file.relativeTo(root).invariantSeparatorsPath,
+                    ),
+                )
+            }
     }
 
     private fun benchmarkSourceMappingViolations(root: File): List<ArchitectureViolation> =
@@ -160,6 +206,14 @@ internal object CatalogVariantSurfaceVerifier {
         val fragments: Set<String>,
     )
     private val RELEASE_NULL_BINDING = Regex("""\boverride\s+val\s+binding\s*=\s*null\b""")
+    private val RELEASE_EMPTY_BINDINGS = Regex(
+        """(?m)^\s*override\s+val\s+bindings(?:\s*:\s*[^=\r\n]+)?\s*=\s*""" +
+            """(?:emptyList|listOf)(?:\s*<[^>{}]+>)?\s*\(\s*\)\s*(?://[^\r\n]*)?$""",
+    )
+    private val RELEASE_AUTHORITY_REFERENCE = Regex(
+        """(?m)(\bCatalogSourceBinding\s*\(|\bacquisitionSource\s*=|""" +
+            """\bCatalogAcquisitionSource\b|^\s*import\s+app\.openstory\.sources\.)""",
+    )
     private val RELEASE_FIXTURE_REFERENCE = Regex(
         """(?i)(seed|benchmark.*(?:fixture|diagnostic|preparation)|localseedcatalogsource|plugin.*harness)""",
     )
@@ -175,4 +229,21 @@ internal object CatalogVariantSurfaceVerifier {
     private const val WEBP_END = 12
     private const val CHUNK_START = 12
     private const val CHUNK_END = 16
+}
+
+internal enum class CatalogReleaseSurfacePolicy(
+    val fixtureViolationCode: String,
+    val fixtureReferenceRoots: Set<String>,
+) {
+    HISTORICAL_STEP_TWO(
+        fixtureViolationCode = "step2_surface.release_fixture",
+        fixtureReferenceRoots = setOf("feature/catalog/src/release"),
+    ),
+    LIVE_STEP_THREE(
+        fixtureViolationCode = "step3_surface.release_fixture",
+        fixtureReferenceRoots = setOf(
+            "feature/catalog/src/main",
+            "feature/catalog/src/release",
+        ),
+    ),
 }

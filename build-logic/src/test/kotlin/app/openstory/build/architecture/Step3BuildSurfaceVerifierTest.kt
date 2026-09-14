@@ -8,6 +8,73 @@ import kotlin.test.assertTrue
 
 class Step3BuildSurfaceVerifierTest {
     @Test
+    fun currentSourceFreeMultiAuthorityReleaseIsAcceptedThroughStepThreeDelegation() =
+        withCatalogFixture { fixture ->
+            assertTrue(fixture.verify().isEmpty())
+        }
+
+    @Test
+    fun nonEmptyReleaseAuthorityRegistrationIsRejected() = withCatalogFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/release/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+            """
+                package app.openstory.catalog.feature
+
+                internal object VariantCatalogBinding : CatalogVariantBinding {
+                    override val bindings = listOf(CatalogSourceBinding())
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            setOf("step3_surface.release_authority"),
+            fixture.verify().map { it.code }.toSet(),
+        )
+    }
+
+    @Test
+    fun emptyListPrefixCannotHideAdditionalReleaseAuthorities() = withCatalogFixture { fixture ->
+        fixture.write(
+            "feature/catalog/src/release/kotlin/app/openstory/catalog/feature/VariantCatalogBinding.kt",
+            """
+                package app.openstory.catalog.feature
+
+                internal object VariantCatalogBinding : CatalogVariantBinding {
+                    override val bindings = emptyList<CatalogSourceBinding>() + registeredBindings
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            setOf("step3_surface.release_authority"),
+            fixture.verify().map { it.code }.toSet(),
+        )
+    }
+
+    @Test
+    fun productionFixtureAndHarnessReferencesRemainRejected() = withCatalogFixture { fixture ->
+        listOf("main", "release").forEach { sourceSet ->
+            mapOf(
+                "seed" to "internal val leaked = LocalSeedCatalogSource",
+                "benchmark" to "internal val leaked = BenchmarkCatalogFixture",
+                "plugin" to "internal val leaked = ReferencePluginHarness",
+            ).forEach { (fixtureKind, declaration) ->
+                val path =
+                    "feature/catalog/src/$sourceSet/kotlin/app/openstory/catalog/feature/Leak.kt"
+                fixture.write(path, "package app.openstory.catalog.feature\n$declaration")
+
+                assertEquals(
+                    setOf("step3_surface.release_fixture"),
+                    fixture.verify().map { it.code }.toSet(),
+                    "$sourceSet/$fixtureKind",
+                )
+
+                fixture.delete(path)
+            }
+        }
+    }
+
+    @Test
     fun liveGraphCanGrowWithoutChangingTheArchivedStepTwoGraph() = withFixture { fixture ->
         val archived = stepTwoPolicy()
         val live = archived.copy(
@@ -151,7 +218,19 @@ class Step3BuildSurfaceVerifierTest {
         }
     }
 
-    private class Fixture(val root: File) {
+    private fun withCatalogFixture(block: (Fixture) -> Unit) {
+        val root = createTempDirectory("step3-catalog-build-surface").toFile()
+        try {
+            block(Fixture(root, includeCatalog = true))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    private class Fixture(
+        val root: File,
+        includeCatalog: Boolean = false,
+    ) {
         private val policy = ModuleBoundaryPolicy(
             schemaVersion = 2,
             modules = linkedMapOf(
@@ -173,13 +252,21 @@ class Step3BuildSurfaceVerifierTest {
                     "feature/story",
                     ModulePlatform.ANDROID_LIBRARY,
                 ),
-            ),
+            ).apply {
+                if (includeCatalog) {
+                    put(
+                        ":feature:catalog",
+                        rule("feature/catalog", ModulePlatform.ANDROID_LIBRARY),
+                    )
+                }
+            },
         )
 
         init {
             policy.modules.values.forEach { module ->
                 write("${module.path}/build.gradle.kts", "plugins {}")
             }
+            if (includeCatalog) createAcceptedCatalogSurface()
         }
 
         fun write(relativePath: String, text: String) {
@@ -189,11 +276,124 @@ class Step3BuildSurfaceVerifierTest {
             }
         }
 
+        fun delete(relativePath: String) {
+            File(root, relativePath).delete()
+        }
+
         fun verify(): List<ArchitectureViolation> =
             Step3BuildSurfaceVerifier.verify(root, policy)
+
+        private fun createAcceptedCatalogSurface() {
+            write(
+                "feature/catalog/build.gradle.kts",
+                """
+                    plugins {}
+                    androidComponents {
+                        finalizeDsl { extension ->
+                            listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
+                                extension.sourceSets.getByName(sourceSetName).apply {
+                                    kotlin.directories.add("src/benchmarkRelease/kotlin")
+                                    res.srcDir("src/benchmarkRelease/res")
+                                    manifest.srcFile("src/benchmarkRelease/AndroidManifest.xml")
+                                }
+                            }
+                        }
+                    }
+                """.trimIndent(),
+            )
+            write(
+                "catalog/runtime/build.gradle.kts",
+                """
+                    plugins {}
+                    androidComponents {
+                        finalizeDsl { extension ->
+                            listOf("benchmarkRelease", "nonMinifiedRelease").forEach { sourceSetName ->
+                                extension.sourceSets.getByName(sourceSetName).apply {
+                                    kotlin.directories.add("src/benchmarkRelease/kotlin")
+                                }
+                            }
+                        }
+                    }
+                """.trimIndent(),
+            )
+            write(
+                "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogVariantBinding.kt",
+                "package app.openstory.catalog.feature\ninternal interface CatalogVariantBinding",
+            )
+            writeVariantBinding("debug", "internal object VariantCatalogBinding : CatalogVariantBinding")
+            write(
+                "feature/catalog/src/debug/kotlin/app/openstory/catalog/feature/seed/" +
+                    "LocalSeedCatalogSource.kt",
+                "package app.openstory.catalog.feature.seed\ninternal class LocalSeedCatalogSource",
+            )
+            DEBUG_COVERS.forEach { name ->
+                writeWebp("feature/catalog/src/debug/res/drawable-nodpi/$name")
+            }
+            writeVariantBinding(
+                "benchmarkRelease",
+                "internal object VariantCatalogBinding : CatalogVariantBinding",
+            )
+            BENCHMARK_SOURCES.forEach { (relativePath, declaration) ->
+                write(
+                    "feature/catalog/src/benchmarkRelease/kotlin/app/openstory/catalog/feature/" +
+                        relativePath,
+                    "package app.openstory.catalog.feature\n$declaration",
+                )
+            }
+            BENCHMARK_COVERS.forEach { name ->
+                writeWebp("feature/catalog/src/benchmarkRelease/res/drawable-nodpi/$name")
+            }
+            write("feature/catalog/src/benchmarkRelease/AndroidManifest.xml", "<manifest />")
+            writeVariantBinding(
+                "release",
+                """
+                    internal object VariantCatalogBinding : CatalogVariantBinding {
+                        override val bindings = emptyList<CatalogSourceBinding>()
+                    }
+                """.trimIndent(),
+            )
+        }
+
+        private fun writeVariantBinding(sourceSet: String, declaration: String) {
+            write(
+                "feature/catalog/src/$sourceSet/kotlin/app/openstory/catalog/feature/" +
+                    "VariantCatalogBinding.kt",
+                "package app.openstory.catalog.feature\n$declaration",
+            )
+        }
+
+        private fun writeWebp(relativePath: String) {
+            File(root, relativePath).apply {
+                parentFile.mkdirs()
+                writeBytes("RIFF0000WEBPVP8 ".encodeToByteArray())
+            }
+        }
     }
 
     private companion object {
+        val DEBUG_COVERS = listOf(
+            "catalog_debug_manga_a.webp",
+            "catalog_debug_manga_b.webp",
+            "catalog_debug_light_novel_a.webp",
+            "catalog_debug_light_novel_b.webp",
+        )
+        val BENCHMARK_COVERS = listOf(
+            "catalog_benchmark_manga_a.webp",
+            "catalog_benchmark_manga_b.webp",
+            "catalog_benchmark_light_novel_a.webp",
+            "catalog_benchmark_light_novel_b.webp",
+        )
+        val BENCHMARK_SOURCES = mapOf(
+            "seed/BenchmarkCatalogSource.kt" to "internal class BenchmarkCatalogSource",
+            "seed/BenchmarkCatalogFixture.kt" to "public object BenchmarkCatalogFixture",
+            "seed/BenchmarkCatalogPreparation.kt" to "public enum class BenchmarkCatalogPreparation",
+            "seed/BenchmarkRetentionPreparation.kt" to "internal object BenchmarkRetentionPreparation",
+            "seed/BenchmarkCoverPreparation.kt" to "internal object BenchmarkCoverPreparation",
+            "seed/BenchmarkPinPruneSource.kt" to "internal class BenchmarkPinPruneSource",
+            "fixture/BenchmarkCoverFixture.kt" to "public object BenchmarkCoverFixture",
+            "fixture/BenchmarkCatalogDiagnostics.kt" to "public object BenchmarkCatalogDiagnostics",
+        )
+
         fun rule(
             path: String,
             platform: ModulePlatform,

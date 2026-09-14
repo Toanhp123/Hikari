@@ -12,7 +12,7 @@ object Step3BuildSurfaceVerifier {
         addAll(androidLibraryVariantViolations(rootDirectory))
         val catalogFeature = policy.modules[":feature:catalog"]
         if (catalogFeature != null && File(rootDirectory, catalogFeature.path).isDirectory) {
-            addAll(CatalogVariantSurfaceVerifier.verify(rootDirectory))
+            addAll(Step3CatalogVariantSurfaceVerifier.verify(rootDirectory))
         }
     }.distinct().sorted()
 
