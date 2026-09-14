@@ -7,8 +7,8 @@ internal object DiscoverVisualMetrics {
     val HeroBannerHeight = 190.dp
     val TrendingCoverWidth = 136.dp
     val TrendingCoverHeight = 192.dp
-    val RecommendedCoverWidth = 104.dp
-    val RecommendedCoverHeight = 150.dp
+    val LatestUpdatesCoverWidth = 104.dp
+    val LatestUpdatesCoverHeight = 150.dp
     val TopRatedRowMinHeight = 84.dp
     val TopRatedRankWidth = 24.dp
     val TopRatedCoverWidth = 52.dp

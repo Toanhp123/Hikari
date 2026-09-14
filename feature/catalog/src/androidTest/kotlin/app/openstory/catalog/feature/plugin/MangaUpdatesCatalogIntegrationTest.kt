@@ -43,6 +43,7 @@ import app.openstory.common.execution.BoundedProcessWorkAdmission
 import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverScreen
+import app.openstory.catalog.feature.discover.TEST_DISCOVER_SECTION_LABELS
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
 import app.openstory.catalog.feature.discover.previewDescriptor
@@ -139,6 +140,7 @@ class MangaUpdatesCatalogIntegrationTest {
                         mediaType = CatalogMediaType.MANGA,
                         state = manga.toDiscoverUiState(),
                         listState = rememberLazyListState(),
+                        sectionLabels = TEST_DISCOVER_SECTION_LABELS,
                         onStorySelected = { _ -> },
                         onRefresh = {},
                         onRetry = {},
@@ -374,6 +376,7 @@ class MangaUpdatesCatalogIntegrationTest {
                                 ),
                             ),
                             listState = rememberLazyListState(),
+                            sectionLabels = TEST_DISCOVER_SECTION_LABELS,
                             onStorySelected = { _ -> },
                             onRefresh = {},
                             onRetry = {},

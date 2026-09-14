@@ -28,7 +28,7 @@ internal fun DiscoverPosterTile(
 ) {
     Column(
         modifier = modifier
-            .width(DiscoverVisualMetrics.RecommendedCoverWidth)
+            .width(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
             .testTag(DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, card.ref))
             .semantics { contentDescription = card.title }
             .clickable(onClick = onSelected),
@@ -39,8 +39,8 @@ internal fun DiscoverPosterTile(
             locator = card.coverLocator,
             assetKey = card.coverAssetKey,
             modifier = Modifier
-                .width(DiscoverVisualMetrics.RecommendedCoverWidth)
-                .height(DiscoverVisualMetrics.RecommendedCoverHeight)
+                .width(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
+                .height(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
                 .clip(MaterialTheme.shapes.medium),
             onStateChanged = { state ->
                 if (state == CoverArtworkState.Ready) onCoverReady()

@@ -101,7 +101,11 @@ class DiscoverSessionTest {
     @Test
     fun absentKnownBindingWithoutSourceExposesUnavailableWithoutExecution() = runTest {
         val storage = RuntimeFakeStorage()
-        val session = available(storage, TEST_BINDING).discoverSession(CatalogMediaType.MANGA)
+        val bindingWithoutDiscover = TEST_BINDING.copy(
+            discoverCapability = null,
+            capabilities = TEST_BINDING.capabilities.copy(discover = false),
+        )
+        val session = available(storage, bindingWithoutDiscover).discoverSession(CatalogMediaType.MANGA)
         val states = mutableListOf<DiscoverSessionState>()
         session.states.onEach(states::add).launchIn(backgroundScope)
         runCurrent()

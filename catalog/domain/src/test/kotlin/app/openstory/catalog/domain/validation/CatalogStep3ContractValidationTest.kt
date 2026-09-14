@@ -89,6 +89,7 @@ class CatalogStep3ContractValidationTest {
             "items[0].ref.catalogSourceKey" to CatalogPage(listOf(transient(CatalogSourceKey("other"), "one")), null),
             "items[0].contentType" to CatalogPage(listOf(valid.copy(contentType = CatalogMediaType.LIGHT_NOVEL)), null),
             "items.sourceStoryId" to CatalogPage(listOf(valid, valid.copy(title = "Duplicate")), null),
+            "items[0].title" to CatalogPage(listOf(valid.copy(title = "")), null),
             "items[0].title" to CatalogPage(
                 listOf(valid.copy(title = "x".repeat(CatalogInputLimits.TITLE_UNICODE_SCALARS + 1))),
                 null,

@@ -1,7 +1,6 @@
-package app.openstory.catalog.feature.discover
+package app.openstory.catalog.feature
 
 import app.openstory.catalog.domain.model.CatalogSectionKind
-import app.openstory.catalog.feature.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

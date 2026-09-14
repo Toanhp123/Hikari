@@ -11,6 +11,7 @@ import app.openstory.catalog.domain.source.CatalogSearchCapability
 import app.openstory.catalog.domain.source.CatalogSectionCapability
 import app.openstory.catalog.domain.source.CatalogSimilarCapability
 import app.openstory.catalog.domain.source.CatalogStoryCapability
+import app.openstory.catalog.domain.validation.CatalogAcquisitionValidator
 
 data class CatalogSourceBinding(
     val catalogSourceKey: CatalogSourceKey,
@@ -43,6 +44,7 @@ data class CatalogSourceBinding(
             ),
         )
         require((sectionCapability != null) == capabilities.sectionDescriptors.isNotEmpty())
+        CatalogAcquisitionValidator.requireValidSectionDescriptors(capabilities.sectionDescriptors)
         CatalogAuthorityDescriptor(
             sourceKey = catalogSourceKey,
             displayName = displayName,

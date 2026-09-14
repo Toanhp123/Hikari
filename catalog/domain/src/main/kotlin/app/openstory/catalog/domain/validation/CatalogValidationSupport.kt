@@ -5,6 +5,7 @@ import app.openstory.catalog.domain.failure.CatalogFailureException
 import app.openstory.catalog.domain.failure.CatalogValidationReason
 import app.openstory.catalog.domain.limits.strictUtf8
 import app.openstory.catalog.domain.limits.CatalogInputLimits
+import app.openstory.catalog.domain.model.CatalogRating
 
 internal fun validationFailure(
     field: String,
@@ -70,6 +71,15 @@ internal fun requireValidation(
     reason: CatalogValidationReason,
 ) {
     if (!condition) validationFailure(field, reason)
+}
+
+internal fun validateCatalogRating(rating: CatalogRating) {
+    requireValidation(
+        rating.value.isFinite() && rating.scale.isFinite() &&
+            rating.scale > 0.0 && rating.value >= 0.0 && rating.value <= rating.scale,
+        "rating",
+        CatalogValidationReason.MALFORMED,
+    )
 }
 
 internal fun validateStoryMetadata(

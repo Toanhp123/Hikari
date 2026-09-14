@@ -89,8 +89,8 @@ class DiscoverScreenInstrumentedTest {
             .performScrollToNode(hasTestTag(DiscoverTestTags.LATEST_SKELETON))
         composeRule.onNodeWithTag(DiscoverTestTags.LATEST_SKELETON)
             .assertIsDisplayed()
-            .assertWidthIsEqualTo(DiscoverVisualMetrics.RecommendedCoverWidth)
-            .assertHeightIsEqualTo(DiscoverVisualMetrics.RecommendedCoverHeight)
+            .assertWidthIsEqualTo(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
+            .assertHeightIsEqualTo(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
         composeRule.onNodeWithTag(DiscoverTestTags.ROOT)
             .performScrollToNode(hasTestTag(DiscoverTestTags.TOP_RATED_SKELETON))
         composeRule.onNodeWithTag(DiscoverTestTags.TOP_RATED_SKELETON)
@@ -139,8 +139,8 @@ class DiscoverScreenInstrumentedTest {
 
         composeRule.onNodeWithTag(
             DiscoverTestTags.card(CatalogSectionKind.LATEST_UPDATES, latest.ref),
-        ).assertWidthIsEqualTo(DiscoverVisualMetrics.RecommendedCoverWidth)
-            .assertHeightIsAtLeast(DiscoverVisualMetrics.RecommendedCoverHeight)
+        ).assertWidthIsEqualTo(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
+            .assertHeightIsAtLeast(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
 
         composeRule.onNodeWithTag(DiscoverTestTags.ROOT).performScrollToNode(
             hasTestTag(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, topRated.ref)),
@@ -216,6 +216,7 @@ class DiscoverScreenInstrumentedTest {
                     mediaType = mediaType,
                     state = state,
                     listState = rememberLazyListState(),
+                    sectionLabels = TEST_DISCOVER_SECTION_LABELS,
                     onStorySelected = { _ -> },
                     onRefresh = onRefresh,
                     onRetry = onRetry,

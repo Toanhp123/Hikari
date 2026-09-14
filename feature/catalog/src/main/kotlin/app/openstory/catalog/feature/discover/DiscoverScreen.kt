@@ -31,6 +31,7 @@ internal fun DiscoverScreen(
     mediaType: CatalogMediaType,
     state: DiscoverUiState,
     listState: LazyListState,
+    sectionLabels: DiscoverSectionLabels,
     onStorySelected: (DiscoverCardUi) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
@@ -53,6 +54,7 @@ internal fun DiscoverScreen(
                 state = state,
                 listState = listState,
                 layout = layout,
+                sectionLabels = sectionLabels,
                 onStorySelected = onStorySelected,
                 onRefresh = onRefresh,
                 onRetry = onRetry,
@@ -68,6 +70,7 @@ private fun DiscoverFeed(
     state: DiscoverUiState,
     listState: LazyListState,
     layout: DiscoverLayoutMetrics,
+    sectionLabels: DiscoverSectionLabels,
     onStorySelected: (DiscoverCardUi) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
@@ -106,6 +109,7 @@ private fun DiscoverFeed(
             discoverContent(
                 content = state.content,
                 horizontalInset = layout.horizontalInset,
+                sectionLabels = sectionLabels,
                 onStorySelected = onStorySelected,
                 onRetry = onRetry,
                 onCoverReady = onCoverReady,
@@ -117,12 +121,13 @@ private fun DiscoverFeed(
 private fun androidx.compose.foundation.lazy.LazyListScope.discoverContent(
     content: DiscoverContentState,
     horizontalInset: Dp,
+    sectionLabels: DiscoverSectionLabels,
     onStorySelected: (DiscoverCardUi) -> Unit,
     onRetry: () -> Unit,
     onCoverReady: () -> Unit,
 ) {
     when (content) {
-        DiscoverContentState.NoContentLoading -> loadingSections(horizontalInset)
+        DiscoverContentState.NoContentLoading -> loadingSections(horizontalInset, sectionLabels)
         is DiscoverContentState.NoContentFailure -> item(key = "discover-failure") {
             DiscoverFailureState(content.issue, onRetry, horizontalInset)
         }
@@ -140,7 +145,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.discoverContent(
                     DiscoverIssuePanel(issue, onRetry, horizontalInset)
                 }
             }
-            discoverSections(content.sections, horizontalInset, onStorySelected, onCoverReady)
+            discoverSections(content.sections, horizontalInset, sectionLabels, onStorySelected, onCoverReady)
         }
     }
 }

@@ -7,9 +7,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverScreen
+import app.openstory.catalog.feature.discover.DiscoverSectionLabels
 import app.openstory.catalog.feature.discover.DiscoverUiState
 
 @Composable
@@ -25,6 +28,11 @@ internal fun CatalogScreen(
             mediaType = mediaType,
             state = state,
             listState = discoverListState,
+            sectionLabels = DiscoverSectionLabels(
+                popular = stringResource(CatalogSectionKind.POPULAR.titleResource),
+                latestUpdates = stringResource(CatalogSectionKind.LATEST_UPDATES.titleResource),
+                topRated = stringResource(CatalogSectionKind.TOP_RATED.titleResource),
+            ),
             onStorySelected = actions.onStorySelected,
             onRefresh = actions.onDiscoverRefresh,
             onRetry = actions.onDiscoverRetry,

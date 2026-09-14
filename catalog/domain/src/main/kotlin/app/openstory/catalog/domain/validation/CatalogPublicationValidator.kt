@@ -5,7 +5,6 @@ import app.openstory.catalog.domain.asset.CoverRevisionV1
 import app.openstory.catalog.domain.asset.requireAlignedCover
 import app.openstory.catalog.domain.failure.CatalogValidationReason
 import app.openstory.catalog.domain.limits.CatalogInputLimits
-import app.openstory.catalog.domain.model.CatalogRating
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.StoryRichDetailProjection
@@ -104,20 +103,11 @@ object CatalogPublicationValidator {
         summary.latestUpdateEpochMs?.let {
             requireValidation(it >= 0, "latestUpdateEpochMs", CatalogValidationReason.MALFORMED)
         }
-        summary.rating?.let(::validateRating)
+        summary.rating?.let(::validateCatalogRating)
         validateLocator(summary.coverLocator)
         validate("coverAssetKey", CatalogValidationReason.INVARIANT_VIOLATION) {
             requireAlignedCover(summary.ref, summary.coverLocator, summary.coverAssetKey)
         }
-    }
-
-    private fun validateRating(rating: CatalogRating) {
-        requireValidation(
-            rating.value.isFinite() && rating.scale.isFinite() &&
-                rating.scale > 0.0 && rating.value >= 0.0 && rating.value <= rating.scale,
-            "rating",
-            CatalogValidationReason.MALFORMED,
-        )
     }
 
     private fun validateLocator(locator: CoverLocator?) {

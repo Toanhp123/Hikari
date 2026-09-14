@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 5 COMPLETED/ACCEPTED; TASK 6 IMPLEMENTED - READY FOR USER VERIFICATION**
+Status: **TASK 6 COMPLETED/ACCEPTED; TASK 7 NOT STARTED**
 
 ## Authority
 
@@ -9,9 +9,10 @@ Status: **TASK 5 COMPLETED/ACCEPTED; TASK 6 IMPLEMENTED - READY FOR USER VERIFIC
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Tasks 0-5.
-- Current execution boundary: Task 5 implementation, focused evidence, and all required user-owned
-  broad/device gates are accepted. Task 6 requires a new explicit user instruction.
+- Completed/accepted execution boundary: Tasks 0-6.
+- Current execution boundary: Task 7 is not started. Task 6 is completed/accepted after the broad
+  verification gate plus both focused connected gates passed on the user-owned Redmi Note 9S /
+  Android 15 device. Task 7 still requires a new explicit user instruction.
 
 Reviewed artifact SHA-256:
 
@@ -649,9 +650,46 @@ Task 5 is completed/accepted.
 - The compatibility plugin bridge remains Android-test-only. No V1 runtime, provider implementation,
   network transport, Library/Reading/Chapter/Reader behavior, or Task 7 surface is admitted.
 
+## Task 6 Verification Remediation
+
+The first user-owned broad gate on 2026-09-14 failed in two places:
+
+- `DiscoverSessionTest.absentKnownBindingWithoutSourceExposesUnavailableWithoutExecution` reused
+  `TEST_BINDING` after Task 6 made that fixture truthfully advertise a Discover port. The regression
+  now constructs an explicit no-Discover binding and clears the matching capability bit.
+- `verifyProductionPackageStructure` found `catalog:domain` cycle
+  `read -> source -> validation -> read`. Descriptor validation now runs at the runtime source
+  registration boundary; domain `source` no longer imports `validation`.
+- The same gate found `feature:catalog` cycle `feature -> discover -> feature` because Discover UI
+  imported the root module `R`. Resource resolution now remains in the feature root and immutable
+  section labels are passed down to Discover.
+
+Remediation self-review also removed stale `RecommendedCover*` naming from the Latest Updates
+metrics, rejects blank transient result titles as malformed metadata, and split Task-6 transient
+contract validation out of the already-large acquisition validator without changing its public
+entry points. Static package-import analysis over production Kotlin sources reports no cycle in
+`:catalog:domain` or `:feature:catalog`, and source scans still find no transient Search/Listing/Similar
+Room persistence. Fresh Gradle verification is intentionally left to the user-owned gates below; the
+artifact environment used to prepare this patch could not download the Gradle 9.5.0 wrapper.
+
+User-reported verification reviewed on 2026-09-14:
+
+- The complete Task 6 broad module/host/architecture/Detekt gate passed with `BUILD SUCCESSFUL in
+  49s`, including `verifyProductionPackageStructure` over 9 modules and
+  `verifyModuleBoundaries` over 14 modules. Detekt emitted only existing warning-level debt.
+- The first focused storage connected run exposed a stale query-counter harness in
+  `oneStorySnapshotUsesSixQueriesRegardlessOfUnrelatedRows`: production `StoryStorage.readStory()`
+  still performed six fixed point reads, but the test counted only four table signatures. The harness
+  was corrected to include `story_alias` and `story_language`; production storage code was unchanged.
+- The rerun of the focused storage connected gate passed all 9/9 tests on Redmi Note 9S / Android 15
+  with `BUILD SUCCESSFUL in 43s`.
+- The focused Discover/reference-bridge connected gate passed all 19/19 tests on Redmi Note 9S /
+  Android 15 with `BUILD SUCCESSFUL in 1m 45s`. The Compose `createComposeRule` deprecation emitted
+  during test compilation is warning-only migration debt and is not a Task 6 acceptance blocker.
+
 ## Task 6 Required User-Owned Gates
 
-Status: **NOT RUN - READY FOR USER VERIFICATION**
+Status: **ALL REQUIRED TASK 6 GATES PASS**
 
 Broad module/host/architecture and Detekt gate:
 
@@ -681,7 +719,7 @@ Focused Discover/reference-bridge connected gate:
 
 ## Exact Resume Boundary
 
-Tasks 0-5 are completed/accepted. Task 6 - Step 3 Catalog contracts and Catalog schema v2 - is
-implemented and is `READY FOR USER VERIFICATION`; its required broad and connected-device gates
-remain `NOT RUN` by the agent. Resume only at Task 6 evidence review/remediation. Do not begin Task 7
-unless Task 6 is completed/accepted and a new explicit user instruction authorizes it.
+Tasks 0-6 are completed/accepted. Task 6 - Step 3 Catalog contracts and Catalog schema v2 - is
+closed with user-verified evidence from the broad gate, the focused Catalog storage connected gate,
+and the focused Discover/reference-bridge connected gate. Resume at Task 7 only after a new explicit
+user instruction authorizes it.

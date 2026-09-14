@@ -31,6 +31,7 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverContentState
 import app.openstory.catalog.feature.discover.DiscoverScreen
+import app.openstory.catalog.feature.discover.TEST_DISCOVER_SECTION_LABELS
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
 import app.openstory.catalog.feature.discover.previewDescriptor
 import app.openstory.catalog.feature.discover.DiscoverTestTags
@@ -161,6 +162,7 @@ class CatalogScreenshotEvidenceTest {
                             mediaType = current.mediaType,
                             state = current.state,
                             listState = rememberLazyListState(),
+                            sectionLabels = TEST_DISCOVER_SECTION_LABELS,
                             onStorySelected = { _ -> },
                             onRefresh = {},
                             onRetry = {},

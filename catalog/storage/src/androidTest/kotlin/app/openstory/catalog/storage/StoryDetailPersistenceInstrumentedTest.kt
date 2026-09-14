@@ -377,6 +377,8 @@ class StoryDetailPersistenceInstrumentedTest {
             "story_author",
             "story_artist",
             "story_genre",
+            "story_alias",
+            "story_language",
         )
     }
 }

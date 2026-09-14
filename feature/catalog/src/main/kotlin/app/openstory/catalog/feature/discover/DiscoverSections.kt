@@ -16,13 +16,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.Dp
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
-import app.openstory.catalog.feature.R
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.hikariSpacing
@@ -30,13 +28,14 @@ import app.openstory.designsystem.theme.hikariSpacing
 internal fun LazyListScope.discoverSections(
     sections: List<DiscoverSectionUi>,
     horizontalInset: Dp,
+    sectionLabels: DiscoverSectionLabels,
     onStorySelected: (DiscoverCardUi) -> Unit,
     onCoverReady: () -> Unit,
 ) {
     sections.forEachIndexed { sectionIndex, section ->
         item(key = "section:${section.kind.name}") {
             Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
-                SectionHeader(section.kind, horizontalInset)
+                SectionHeader(section.kind, horizontalInset, sectionLabels)
                 SectionContent(section, horizontalInset, onStorySelected, onCoverReady)
             }
         }
@@ -61,9 +60,13 @@ internal fun LazyListScope.discoverSections(
 }
 
 @Composable
-private fun SectionHeader(kind: CatalogSectionKind, horizontalInset: Dp) {
+private fun SectionHeader(
+    kind: CatalogSectionKind,
+    horizontalInset: Dp,
+    sectionLabels: DiscoverSectionLabels,
+) {
     HikariSectionHeader(
-        title = stringResource(kind.titleResource),
+        title = sectionLabels.title(kind),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = horizontalInset)
@@ -154,17 +157,17 @@ private fun TopRatedList(
     }
 }
 
-internal fun LazyListScope.loadingSections(horizontalInset: Dp) {
-    popularLoadingSection(horizontalInset)
+internal fun LazyListScope.loadingSections(horizontalInset: Dp, sectionLabels: DiscoverSectionLabels) {
+    popularLoadingSection(horizontalInset, sectionLabels.popular)
     loadingSectionGap("loading-major-gap-1")
-    latestLoadingSection(horizontalInset)
+    latestLoadingSection(horizontalInset, sectionLabels.latestUpdates)
     loadingSectionGap("loading-major-gap-2")
-    topRatedLoadingSection(horizontalInset)
+    topRatedLoadingSection(horizontalInset, sectionLabels.topRated)
 }
 
-private fun LazyListScope.popularLoadingSection(horizontalInset: Dp) {
+private fun LazyListScope.popularLoadingSection(horizontalInset: Dp, title: String) {
     item(key = "popular-skeleton") {
-        SkeletonSection(stringResource(R.string.discover_section_trending_now), horizontalInset) {
+        SkeletonSection(title, horizontalInset) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(CatalogSectionCaps.cap(CatalogSectionKind.POPULAR)) { index ->
                     HikariSkeleton(
@@ -186,15 +189,15 @@ private fun LazyListScope.popularLoadingSection(horizontalInset: Dp) {
     }
 }
 
-private fun LazyListScope.latestLoadingSection(horizontalInset: Dp) {
+private fun LazyListScope.latestLoadingSection(horizontalInset: Dp, title: String) {
     item(key = "latest-skeleton") {
-        SkeletonSection(stringResource(R.string.discover_section_latest_updates), horizontalInset) {
+        SkeletonSection(title, horizontalInset) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
                 items(LATEST_SKELETON_COUNT) { index ->
                     HikariSkeleton(
                         modifier = Modifier
-                            .width(DiscoverVisualMetrics.RecommendedCoverWidth)
-                            .height(DiscoverVisualMetrics.RecommendedCoverHeight)
+                            .width(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
+                            .height(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
                             .then(
                                 if (index == 0) {
                                     Modifier.testTag(DiscoverTestTags.LATEST_SKELETON)
@@ -210,9 +213,9 @@ private fun LazyListScope.latestLoadingSection(horizontalInset: Dp) {
     }
 }
 
-private fun LazyListScope.topRatedLoadingSection(horizontalInset: Dp) {
+private fun LazyListScope.topRatedLoadingSection(horizontalInset: Dp, title: String) {
     item(key = "top-rated-skeleton") {
-        SkeletonSection(stringResource(R.string.discover_section_top_rated), horizontalInset) {
+        SkeletonSection(title, horizontalInset) {
             HikariSkeleton(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -245,12 +248,6 @@ private fun SkeletonSection(
     }
 }
 
-internal val CatalogSectionKind.titleResource: Int
-    get() = when (this) {
-        CatalogSectionKind.POPULAR -> R.string.discover_section_trending_now
-        CatalogSectionKind.LATEST_UPDATES -> R.string.discover_section_latest_updates
-        CatalogSectionKind.TOP_RATED -> R.string.discover_section_top_rated
-    }
 
 private val CatalogSectionKind.traversalIndex: Float
     get() = when (this) {

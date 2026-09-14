@@ -1,7 +1,12 @@
 package app.openstory.catalog.runtime
 
+import app.openstory.catalog.domain.failure.CatalogFailureException
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.catalog.domain.model.CatalogSectionKind
+import app.openstory.catalog.domain.source.CatalogSectionDescriptor
+import app.openstory.catalog.domain.source.CatalogSectionCapability
+import app.openstory.catalog.domain.source.SectionExpansion
 import app.openstory.catalog.domain.source.CatalogCapabilitySet
 import app.openstory.catalog.runtime.execution.CatalogExecutionDispatchers
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
@@ -57,6 +62,26 @@ class CatalogRuntimeHostTest {
                 catalogSourceKey = CatalogSourceKey("authority.liar"),
                 sourceVersion = "v1",
                 capabilities = CatalogCapabilitySet(search = true),
+            )
+        }
+    }
+
+    @Test
+    fun sourceRegistrationRejectsInvalidSectionDescriptors() {
+        val descriptor = CatalogSectionDescriptor(
+            key = "latest",
+            kind = CatalogSectionKind.LATEST_UPDATES,
+            displayLabel = null,
+            expansion = SectionExpansion.NONE,
+            globallyOrdered = false,
+        )
+
+        assertThrows(CatalogFailureException::class.java) {
+            CatalogSourceBinding(
+                catalogSourceKey = CatalogSourceKey("authority.invalid-section"),
+                sourceVersion = "v1",
+                sectionCapability = CatalogSectionCapability { _, _, _, _ -> error("not executed") },
+                capabilities = CatalogCapabilitySet(sectionDescriptors = listOf(descriptor)),
             )
         }
     }
