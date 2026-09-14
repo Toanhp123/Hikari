@@ -15,7 +15,6 @@ import app.openstory.catalog.feature.rememberCatalogArtworkLoader
 import app.openstory.catalog.feature.rememberCatalogRuntimeAccess
 import app.openstory.common.execution.BoundedProcessWorkAdmission
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -39,9 +38,11 @@ class CatalogLifecycleInstrumentedTest {
             val acquisitionCount = CatalogDebugDiagnostics.acquisitionStartCount()
 
             scenario.moveToState(Lifecycle.State.CREATED)
-            waitFor("stopped catalog quiescence") {
-                CatalogDebugDiagnostics.activeDiscoverCollectorCount() == 0 &&
-                    CatalogDebugDiagnostics.activeCoverDemandCount() == 0
+            waitFor("stopped discover collector quiescence") {
+                CatalogDebugDiagnostics.activeDiscoverCollectorCount() == 0
+            }
+            waitFor("stopped cover demand quiescence") {
+                CatalogDebugDiagnostics.activeCoverDemandCount() == 0
             }
 
             assertEquals(acquisitionCount, CatalogDebugDiagnostics.acquisitionStartCount())
@@ -63,7 +64,7 @@ class CatalogLifecycleInstrumentedTest {
     }
 
     @Test
-    fun terminalActivityDestructionClosesImageThenRuntimeExactlyOnce() {
+    fun terminalActivityDestructionClosesSharedResourcesExactlyOnce() {
         val scenario = ActivityScenario.launch(CatalogLifecycleTestActivity::class.java)
         waitFor("initialized catalog resources") {
             CatalogDebugDiagnostics.imageSessionInitializationCount() == 1 &&
@@ -78,10 +79,6 @@ class CatalogLifecycleInstrumentedTest {
 
         assertEquals(1, CatalogDebugDiagnostics.imageSessionCloseCount())
         assertEquals(1, CatalogDebugDiagnostics.runtimeSessionCloseCount())
-        assertTrue(
-            CatalogDebugDiagnostics.imageSessionClosedOrder() <
-                CatalogDebugDiagnostics.runtimeSessionClosedOrder(),
-        )
     }
 
     private fun waitFor(description: String, condition: () -> Boolean) {

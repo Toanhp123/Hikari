@@ -32,6 +32,7 @@ import app.openstory.catalog.domain.failure.CatalogFailureException
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.common.execution.BoundedProcessWorkAdmission
 import coil3.ImageLoader
+import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.request.ImageRequest
 import coil3.request.Options
@@ -39,7 +40,6 @@ import java.io.File
 import kotlinx.coroutines.runBlocking
 
 internal typealias CatalogImageLimits = ArtworkLimits
-internal typealias CoverImagePreflight = ArtworkImagePreflight
 internal typealias CoverImagePreflightResult = ArtworkImagePreflightResult
 internal typealias CoverEncodedCache = ArtworkEncodedCache
 internal typealias CoverEncodedDiskCache = ArtworkEncodedDiskCache
@@ -128,32 +128,68 @@ internal class CatalogImageLoader(
 
 internal val LocalCatalogImageLoader = LocalArtworkLoader
 
-internal class CoverFetcher(
-    request: CoverRequest,
+internal class CoverImagePreflight(
+    private val delegate: ArtworkImagePreflight = ArtworkImagePreflight(),
+) {
+    fun inspect(
+        file: File,
+        declaredMediaType: String,
+        targetSize: coil3.size.Size,
+    ): CoverImagePreflightResult = mapFailure {
+        delegate.inspect(file, declaredMediaType, targetSize)
+    }
+
+    fun asArtworkPreflight(): ArtworkPreflight = ArtworkPreflight(delegate::inspect)
+}
+
+internal class CoverFetcher private constructor(
+    artworkRequest: ArtworkRequest,
     options: Options,
     localResolver: LocalCoverAssetResolver,
     encodedCache: CoverEncodedCache,
     remoteTransport: RemoteCoverTransport?,
     policyProvider: suspend () -> SourceAssetPolicyProvider?,
     preflight: CoverImagePreflight,
-) : Fetcher by ArtworkFetcher(
-    request = request.toArtworkRequest(options.context),
-    options = options,
-    localResolver = localResolver,
-    encodedCache = encodedCache,
-    policyResolver = policyResolver(policyProvider),
-    admission = BoundedProcessWorkAdmission(),
-    remoteTransport = remoteTransport,
-    preflight = ArtworkPreflight(preflight::inspect),
-) {
+) : Fetcher {
+    private val delegate = ArtworkFetcher(
+        request = artworkRequest,
+        options = options,
+        localResolver = localResolver,
+        encodedCache = encodedCache,
+        policyResolver = policyResolver(policyProvider),
+        admission = BoundedProcessWorkAdmission(),
+        remoteTransport = remoteTransport,
+        preflight = preflight.asArtworkPreflight(),
+    )
+
+    constructor(
+        request: CoverRequest,
+        options: Options,
+        localResolver: LocalCoverAssetResolver,
+        encodedCache: CoverEncodedCache,
+        remoteTransport: RemoteCoverTransport?,
+        policyProvider: suspend () -> SourceAssetPolicyProvider?,
+        preflight: CoverImagePreflight,
+    ) : this(
+        artworkRequest = request.toArtworkRequest(options.context),
+        options = options,
+        localResolver = localResolver,
+        encodedCache = encodedCache,
+        remoteTransport = remoteTransport,
+        policyProvider = policyProvider,
+        preflight = preflight,
+    )
+
+    override suspend fun fetch(): FetchResult = mapFailure { delegate.fetch() }
+
     class Factory(
         private val localResolver: LocalCoverAssetResolver,
         private val encodedCache: CoverEncodedCache,
         private val remoteTransport: RemoteCoverTransport? = null,
         private val policyProvider: suspend () -> SourceAssetPolicyProvider? = { null },
         private val preflight: CoverImagePreflight = CoverImagePreflight(),
-    ) : Fetcher.Factory<CoverRequest> {
-        override fun create(data: CoverRequest, options: Options, imageLoader: ImageLoader): Fetcher =
+    ) : Fetcher.Factory<ArtworkRequest> {
+        override fun create(data: ArtworkRequest, options: Options, imageLoader: ImageLoader): Fetcher =
             CoverFetcher(data, options, localResolver, encodedCache, remoteTransport, policyProvider, preflight)
     }
 }

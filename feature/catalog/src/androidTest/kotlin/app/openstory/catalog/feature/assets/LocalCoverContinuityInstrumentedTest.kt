@@ -81,8 +81,10 @@ class LocalCoverContinuityInstrumentedTest {
 
         assertEquals(first.memoryCacheKey, same.memoryCacheKey)
         assertEquals(first.diskCacheKey, same.diskCacheKey)
-        assertEquals(requestData.identity.stableAssetKey, first.memoryCacheKey)
-        assertEquals(requestData.identity.stableAssetKey, first.diskCacheKey)
+        assertEquals(firstKey.stableCacheKey, requestData.identity.stableAssetKey)
+        assertEquals(requestData.identity.decodedCacheKey, first.memoryCacheKey)
+        assertEquals(requestData.identity.encodedCacheKey, first.diskCacheKey)
+        assertNotEquals(first.memoryCacheKey, first.diskCacheKey)
         assertNotEquals(first.memoryCacheKey, changed.memoryCacheKey)
         assertNotEquals(first.diskCacheKey, changed.diskCacheKey)
         assertEquals("local:debug:manga:cover-a:1", requestData.locator?.identity)
@@ -103,8 +105,8 @@ class LocalCoverContinuityInstrumentedTest {
         val request = requestKey.toImageRequest(harness.context, localLocator("1"))
 
         assertTrue(harness.imageLoader.execute(request) is SuccessResult)
-        val transitionRequest = requestKey.toImageRequest(harness.context, locator = null)
-        assertTrue(harness.imageLoader.execute(transitionRequest) is SuccessResult)
+        val repeatedRequest = requestKey.toImageRequest(harness.context, localLocator("1"))
+        assertTrue(harness.imageLoader.execute(repeatedRequest) is SuccessResult)
 
         assertEquals(1, resolverCalls.get())
         assertEquals(0, encodedCache.reads.get())

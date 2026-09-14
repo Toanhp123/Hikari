@@ -49,10 +49,16 @@ data class ArtworkRequestIdentity(
 
     private fun MessageDigest.updateLengthPrefixed(value: String) {
         val bytes = value.toByteArray(StandardCharsets.UTF_8)
-        update((bytes.size ushr 24).toByte())
-        update((bytes.size ushr 16).toByte())
-        update((bytes.size ushr 8).toByte())
+        update((bytes.size ushr HIGH_BYTE_SHIFT).toByte())
+        update((bytes.size ushr MID_HIGH_BYTE_SHIFT).toByte())
+        update((bytes.size ushr MID_LOW_BYTE_SHIFT).toByte())
         update(bytes.size.toByte())
         update(bytes)
+    }
+
+    private companion object {
+        const val HIGH_BYTE_SHIFT = 24
+        const val MID_HIGH_BYTE_SHIFT = 16
+        const val MID_LOW_BYTE_SHIFT = 8
     }
 }

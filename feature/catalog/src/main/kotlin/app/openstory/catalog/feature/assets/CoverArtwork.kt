@@ -6,13 +6,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.LifecycleStartEffect
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import app.openstory.artwork.ArtworkFailureException
@@ -51,9 +51,9 @@ internal fun CoverArtwork(
         }
         val artworkLoader = LocalArtworkLoader.current
         if (assetKey != null && artworkLoader != null) {
-            DisposableEffect(artworkLoader, assetKey) {
+            LifecycleStartEffect(artworkLoader, assetKey) {
                 artworkLoader.onDemandStarted()
-                onDispose(artworkLoader::onDemandStopped)
+                onStopOrDispose { artworkLoader.onDemandStopped() }
             }
             val context = androidx.compose.ui.platform.LocalContext.current
             val imageRequest = remember(assetKey, locator, context) { assetKey.toImageRequest(context, locator) }
@@ -78,16 +78,17 @@ internal fun CoverArtwork(
 
 internal fun Throwable.toCoverArtworkFailure(): CatalogFailure {
     var current: Throwable? = this
-    while (current != null) {
-        if (current is ArtworkFailureException) {
-            return CatalogFailure.Artwork(current.reason.toCatalogReason())
+    var mappedFailure: CatalogFailure? = null
+    while (current != null && mappedFailure == null) {
+        val candidate = current
+        mappedFailure = when (candidate) {
+            is ArtworkFailureException -> CatalogFailure.Artwork(candidate.reason.toCatalogReason())
+            is CatalogFailureException -> candidate.failure.takeIf { it is CatalogFailure.Artwork }
+            else -> null
         }
-        if (current is CatalogFailureException && current.failure is CatalogFailure.Artwork) {
-            return current.failure
-        }
-        current = current.cause
+        current = candidate.cause
     }
-    return CatalogFailure.Artwork(CatalogArtworkFailureReason.DECODE_FAILED)
+    return mappedFailure ?: CatalogFailure.Artwork(CatalogArtworkFailureReason.DECODE_FAILED)
 }
 
 private fun ArtworkFailureReason.toCatalogReason(): CatalogArtworkFailureReason = when (this) {

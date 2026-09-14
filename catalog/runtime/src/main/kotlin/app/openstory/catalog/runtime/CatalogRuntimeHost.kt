@@ -40,22 +40,24 @@ internal class DefaultCatalogRuntimeHost(
     override fun authorityResolver(): CatalogAuthorityResolver = resolver
 
     override suspend fun activate(sourceKey: CatalogSourceKey): CatalogCapabilityActivation {
-        if (closed.get()) return CatalogCapabilityActivation.Unavailable()
-        val binding = bindingsByKey[sourceKey] ?: return CatalogCapabilityActivation.Unavailable()
+        val binding = bindingsByKey[sourceKey]
         val session = synchronized(sessions) {
-            if (closed.get()) return CatalogCapabilityActivation.Unavailable()
-            sessions.getOrPut(sourceKey) {
-                CatalogCapabilitySession(
-                    binding = binding,
-                    storeOwner = storeOwner,
-                    wallClockEpochMs = wallClockEpochMs,
-                    dispatchers = dispatchers,
-                    traceSink = traceSink,
-                    ownershipCallbacks = ownershipCallbacks,
-                )
+            if (closed.get() || binding == null) {
+                null
+            } else {
+                sessions.getOrPut(sourceKey) {
+                    CatalogCapabilitySession(
+                        binding = binding,
+                        storeOwner = storeOwner,
+                        wallClockEpochMs = wallClockEpochMs,
+                        dispatchers = dispatchers,
+                        traceSink = traceSink,
+                        ownershipCallbacks = ownershipCallbacks,
+                    )
+                }
             }
         }
-        return session.activate()
+        return session?.activate() ?: CatalogCapabilityActivation.Unavailable()
     }
 
     override fun close() {

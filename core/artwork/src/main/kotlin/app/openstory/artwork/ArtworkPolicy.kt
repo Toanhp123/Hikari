@@ -145,17 +145,16 @@ class ArtworkRemotePolicy(
                 }
             }
         } catch (preserved: PreservedCallerCancellation) {
-            pendingPayload?.close()
-            throw preserved.cancellation
+            failHop(pendingPayload, preserved.cancellation)
         } catch (cancellation: CancellationException) {
-            pendingPayload?.close()
-            throw cancellation
+            failHop(pendingPayload, cancellation)
         } catch (failure: ArtworkFailureException) {
-            pendingPayload?.close()
-            throw failure
+            failHop(pendingPayload, failure)
         } catch (@Suppress("TooGenericExceptionCaught") error: Exception) {
-            pendingPayload?.close()
-            throw ArtworkFailureException(ArtworkFailureReason.IO_FAILED, error)
+            failHop(
+                pendingPayload,
+                ArtworkFailureException(ArtworkFailureReason.IO_FAILED, error),
+            )
         }
         if (result == null) {
             pendingPayload?.close()
@@ -189,14 +188,14 @@ class ArtworkRemotePolicy(
             }
             return RemoteHopResult.Payload(ArtworkRemotePayload(file, mediaType, copied))
         } catch (cancellation: CancellationException) {
-            file.delete()
-            throw cancellation
+            failPayloadFile(file, cancellation)
         } catch (failure: ArtworkFailureException) {
-            file.delete()
-            throw failure
+            failPayloadFile(file, failure)
         } catch (@Suppress("TooGenericExceptionCaught") error: Exception) {
-            file.delete()
-            throw ArtworkFailureException(ArtworkFailureReason.IO_FAILED, error)
+            failPayloadFile(
+                file,
+                ArtworkFailureException(ArtworkFailureReason.IO_FAILED, error),
+            )
         }
     }
 
@@ -241,6 +240,16 @@ private sealed interface RemoteHopResult {
 private class PreservedCallerCancellation(
     val cancellation: CancellationException,
 ) : RuntimeException(cancellation)
+
+private fun failHop(payload: ArtworkRemotePayload?, failure: Throwable): Nothing {
+    payload?.close()
+    throw failure
+}
+
+private fun failPayloadFile(file: File, failure: Throwable): Nothing {
+    file.delete()
+    throw failure
+}
 
 data class ArtworkImagePreflightResult(
     val sourceWidth: Int,

@@ -190,7 +190,7 @@ class CoverImagePreflightInstrumentedTest {
 
             assertEquals(1, transport.requestCount.get())
             assertEquals(1, transport.closeCount.get())
-            encodedCache.read(request.assetKey.stableCacheKey)!!.use { cached ->
+            encodedCache.read(request.toArtworkRequest(context).identity.encodedCacheKey)!!.use { cached ->
                 assertTrue(cached.source().readByteArray().contentEquals(encoded))
             }
         } finally {
@@ -231,7 +231,7 @@ class CoverImagePreflightInstrumentedTest {
 
             assertEquals(CatalogArtworkFailureReason.DIMENSIONS_TOO_LARGE, failure.reason)
             assertEquals(1, transport.closeCount.get())
-            assertEquals(null, encodedCache.read(request.assetKey.stableCacheKey))
+            assertEquals(null, encodedCache.read(request.toArtworkRequest(context).identity.encodedCacheKey))
         } finally {
             diskCache.shutdown()
             cacheDirectory.deleteRecursively()
@@ -250,7 +250,11 @@ class CoverImagePreflightInstrumentedTest {
         val locator = remoteLocator()
         val request = CoverRequest(remoteAssetKey(locator), locator)
         val encoded = encodedBitmap(Bitmap.CompressFormat.PNG, 32, 32)
-        check(encodedCache.commit(request.assetKey.stableCacheKey, okio.Buffer().write(encoded), encoded.size.toLong()))
+        check(encodedCache.commit(
+            request.toArtworkRequest(context).identity.encodedCacheKey,
+            okio.Buffer().write(encoded),
+            encoded.size.toLong(),
+        ))
         try {
             val failure = assertArtworkFailureSuspend {
                 CoverFetcher(

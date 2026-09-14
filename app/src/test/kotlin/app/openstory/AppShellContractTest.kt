@@ -29,6 +29,22 @@ class AppShellContractTest {
     }
 
     @Test
+    fun appShellUsesNarrowProcessAdmissionOwnerInsteadOfRootApplicationType() {
+        val shell = rootFile(
+            "app/src/main/kotlin/app/openstory/composition/AppShell.kt",
+        ).readText()
+        val application = rootFile(
+            "app/src/main/kotlin/app/openstory/HikariApplication.kt",
+        ).readText()
+
+        assertTrue("import app.openstory.execution.ProcessWorkAdmissionOwner" in shell)
+        assertTrue("as ProcessWorkAdmissionOwner" in shell)
+        assertFalse("import app.openstory.HikariApplication" in shell)
+        assertTrue("ProcessWorkAdmissionOwner" in application)
+        assertTrue("override val processWorkAdmission" in application)
+    }
+
+    @Test
     fun mainActivityHasNoDomainOrSchedulerOwnership() {
         val source = rootFile(
             "app/src/main/kotlin/app/openstory/MainActivity.kt",

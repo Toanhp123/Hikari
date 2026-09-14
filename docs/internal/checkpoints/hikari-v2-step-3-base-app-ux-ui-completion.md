@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-14
-Status: **TASK 4 COMPLETED/ACCEPTED; TASK 5 IS THE NEXT RESUME POINT AND HAS NOT STARTED**
+Status: **TASK 5 COMPLETED/ACCEPTED; TASK 6 IS THE NEXT RESUME POINT AND HAS NOT STARTED**
 
 ## Authority
 
@@ -9,9 +9,9 @@ Status: **TASK 4 COMPLETED/ACCEPTED; TASK 5 IS THE NEXT RESUME POINT AND HAS NOT
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Tasks 0-4.
-- Current execution boundary: Task 4 implementation, focused evidence, and the required broad
-  user-owned gate are accepted. Task 5 requires a new explicit user instruction.
+- Completed/accepted execution boundary: Tasks 0-5.
+- Current execution boundary: Task 5 implementation, focused evidence, and all required user-owned
+  broad/device gates are accepted. Task 6 requires a new explicit user instruction.
 
 Reviewed artifact SHA-256:
 
@@ -567,7 +567,7 @@ relabeled as an agent-owned run. Task 4 is completed/accepted.
 
 ## Task 5 Required User-Owned Gates
 
-Status: **READY FOR USER VERIFICATION**
+Status: **PASS**
 
 Broad module/host/architecture and Detekt gate:
 
@@ -591,10 +591,12 @@ Focused device lifecycle/security/continuity gate:
   --no-daemon
 ```
 
+On 2026-09-14, the user reported that the broad module/host/architecture and Detekt command plus
+both focused connected-device commands succeeded. This concise PASS summary is accepted as the
+required user-owned Task 5 evidence under `AGENTS.md`; it is not relabeled as an agent-owned run.
+Task 5 is completed/accepted.
+
 ## Exact Resume Boundary
 
-Tasks 0-4 remain completed/accepted. Task 5 implementation, focused tests, variant compilation, and
-Android-test compilation are complete, but Task 5 is not accepted until the user-owned broad and
-device gates above are returned and reviewed. Resume only by reviewing that evidence and fixing any
-Task 5 failure. On PASS, mark Task 5 completed/accepted and persist Task 6 as the next pointer; do not
-begin Task 6 without a new explicit user instruction.
+Tasks 0-5 are completed/accepted. Task 6 - Step 3 Catalog contracts and Catalog schema v2 - is the
+next resume point and has not started. Do not begin Task 6 without a new explicit user instruction.

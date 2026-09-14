@@ -147,7 +147,9 @@ class ArtworkMemoryPressureController(
     override fun onLowMemory() = decodedMemoryCache.clear()
 
     override fun onTrimMemory(level: Int) {
-        if (level != ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN && level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+        val shouldClear = level != ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN &&
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+        if (shouldClear) {
             decodedMemoryCache.clear()
         }
     }

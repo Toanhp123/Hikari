@@ -88,11 +88,12 @@ class BoundedProcessWorkAdmission(
         var activeCount = 0
         var noncriticalActiveCount = 0
 
-        fun canStart(priority: WorkPriority): Boolean {
-            if (activeCount >= limits.maxActive) return false
-            if (priority != WorkPriority.NONCRITICAL) return true
-            return noncriticalActiveCount < limits.maxActive - limits.reservedForegroundActive
-        }
+        fun canStart(priority: WorkPriority): Boolean =
+            activeCount < limits.maxActive &&
+                (
+                    priority != WorkPriority.NONCRITICAL ||
+                        noncriticalActiveCount < limits.maxActive - limits.reservedForegroundActive
+                )
 
         fun admit(request: PendingRequest) {
             check(!request.isActive)
