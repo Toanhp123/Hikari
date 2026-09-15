@@ -82,10 +82,9 @@ private fun StoryDestination(
         presentationStore = presentationStore,
         catalogFacet = catalogFacet,
         libraryFacet = libraryFacet,
-        artworkContent = { title, locator, assetKey, modifier ->
+        artworkContent = { locator, assetKey, modifier ->
             CatalogCoverArtwork(
                 artworkLoader = artworkLoader,
-                title = title,
                 locator = locator,
                 assetKey = assetKey,
                 modifier = modifier,

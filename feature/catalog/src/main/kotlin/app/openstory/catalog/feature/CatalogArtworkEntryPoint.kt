@@ -16,7 +16,6 @@ import app.openstory.catalog.feature.assets.LocalArtworkLoader
 @Composable
 fun CatalogCoverArtwork(
     artworkLoader: ArtworkLoader,
-    title: String,
     locator: CoverLocator?,
     assetKey: CoverAssetKey?,
     modifier: Modifier,
@@ -27,7 +26,6 @@ fun CatalogCoverArtwork(
     }
     CompositionLocalProvider(LocalArtworkLoader provides activeLoader) {
         CoverArtwork(
-            title = title,
             locator = locator,
             assetKey = assetKey,
             modifier = modifier,

@@ -16,12 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.catalog.domain.model.CatalogSectionKind
-import app.openstory.catalog.feature.assets.CoverArtwork
-import app.openstory.catalog.feature.assets.CoverArtworkState
 import app.openstory.designsystem.content.HikariArtworkFrame
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -44,7 +40,6 @@ internal fun DiscoverRankedStoryRow(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = DiscoverVisualMetrics.TopRatedRowMinHeight)
                 .testTag(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, card.ref))
-                .semantics { contentDescription = card.title }
                 .clip(MaterialTheme.shapes.medium)
                 .clickable(onClick = onSelected),
             verticalAlignment = Alignment.CenterVertically,
@@ -76,18 +71,13 @@ private fun RankedCover(card: DiscoverCardUi, onCoverReady: () -> Unit) {
         title = card.title,
         modifier = Modifier
             .width(DiscoverVisualMetrics.TopRatedCoverWidth)
-            .height(DiscoverVisualMetrics.TopRatedCoverHeight)
-            .clip(MaterialTheme.shapes.small),
+            .height(DiscoverVisualMetrics.TopRatedCoverHeight),
         shape = MaterialTheme.shapes.small,
     ) {
-        CoverArtwork(
-            title = card.title,
-            locator = card.coverLocator,
-            assetKey = card.coverAssetKey,
+        DiscoverCoverImage(
+            card = card,
+            onCoverReady = onCoverReady,
             modifier = Modifier.matchParentSize(),
-            onStateChanged = { state ->
-                if (state == CoverArtworkState.Ready) onCoverReady()
-            },
         )
     }
 }

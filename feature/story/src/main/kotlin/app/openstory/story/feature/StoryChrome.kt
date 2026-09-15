@@ -8,15 +8,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,7 +26,10 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.control.HikariIconAction
+import app.openstory.designsystem.control.HikariIconActionStyle
 import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.theme.HikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.story.feature.presentation.BookmarkIcon
 import app.openstory.story.feature.presentation.MoreIcon
@@ -67,31 +69,29 @@ internal fun StoryActions(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(
-                onClick = onLibraryToggle,
-                enabled = libraryMembership.isStable,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(SECONDARY_ACTION_HEIGHT),
-                shape = CircleShape,
-            ) {
-                BookmarkIcon(
-                    size = BOOKMARK_ICON_SIZE,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(MaterialTheme.hikariSpacing.space8))
-                Text(libraryMembership.actionLabel, style = MaterialTheme.typography.labelMedium)
-            }
-            ActionIcon { ShareIcon(size = ACTION_ICON_SIZE, tint = iconTint) }
-            ActionIcon { MoreIcon(size = ACTION_ICON_SIZE, tint = iconTint) }
-        }
-        if (libraryMutationFailed) {
-            HikariInlineFeedback(
-                message = "Library could not be updated.",
-                actionLabel = null,
-                onAction = null,
+            StoryLibraryButton(
+                libraryMembership = libraryMembership,
+                onLibraryToggle = onLibraryToggle,
+                modifier = Modifier.weight(1f),
             )
+            HikariIconAction(
+                onClick = {},
+                contentDescription = "Share",
+                enabled = false,
+                style = HikariIconActionStyle.TONAL,
+            ) {
+                ShareIcon(size = ACTION_ICON_SIZE, tint = iconTint)
+            }
+            HikariIconAction(
+                onClick = {},
+                contentDescription = "More actions",
+                enabled = false,
+                style = HikariIconActionStyle.TONAL,
+            ) {
+                MoreIcon(size = ACTION_ICON_SIZE, tint = iconTint)
+            }
         }
+        StoryLibraryFailure(visible = libraryMutationFailed)
     }
 }
 
@@ -105,26 +105,46 @@ internal fun StoryLibraryAction(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
-        OutlinedButton(
-            onClick = onLibraryToggle,
-            enabled = libraryMembership.isStable,
-            modifier = Modifier.fillMaxWidth().height(SECONDARY_ACTION_HEIGHT),
-            shape = CircleShape,
-        ) {
-            BookmarkIcon(
-                size = BOOKMARK_ICON_SIZE,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.width(MaterialTheme.hikariSpacing.space8))
-            Text(libraryMembership.actionLabel, style = MaterialTheme.typography.labelMedium)
-        }
-        if (libraryMutationFailed) {
-            HikariInlineFeedback(
-                message = "Library could not be updated.",
-                actionLabel = null,
-                onAction = null,
-            )
-        }
+        StoryLibraryButton(
+            libraryMembership = libraryMembership,
+            onLibraryToggle = onLibraryToggle,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        StoryLibraryFailure(visible = libraryMutationFailed)
+    }
+}
+
+@Composable
+private fun StoryLibraryButton(
+    libraryMembership: LibraryMembershipUi,
+    onLibraryToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedButton(
+        onClick = onLibraryToggle,
+        enabled = libraryMembership.isStable,
+        modifier = Modifier
+            .heightIn(min = SECONDARY_ACTION_HEIGHT)
+            .then(modifier),
+        shape = CircleShape,
+    ) {
+        BookmarkIcon(
+            size = BOOKMARK_ICON_SIZE,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(MaterialTheme.hikariSpacing.space8))
+        Text(libraryMembership.actionLabel, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun StoryLibraryFailure(visible: Boolean) {
+    if (visible) {
+        HikariInlineFeedback(
+            message = "Library could not be updated.",
+            actionLabel = null,
+            onAction = null,
+        )
     }
 }
 
@@ -182,17 +202,6 @@ internal fun StoryRecommendations() {
 }
 
 @Composable
-private fun ActionIcon(content: @Composable () -> Unit) {
-    Surface(
-        modifier = Modifier.size(ACTION_BUTTON_SIZE),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
-        Box(contentAlignment = Alignment.Center) { content() }
-    }
-}
-
-@Composable
 private fun TabLabel(label: String) {
     Text(
         text = label,
@@ -201,9 +210,8 @@ private fun TabLabel(label: String) {
     )
 }
 
-private val PRIMARY_ACTION_HEIGHT = 48.dp
-private val SECONDARY_ACTION_HEIGHT = 40.dp
-private val ACTION_BUTTON_SIZE = 40.dp
+private val PRIMARY_ACTION_HEIGHT = HikariDimensions.MinimumTouchTarget
+private val SECONDARY_ACTION_HEIGHT = HikariDimensions.MinimumTouchTarget
 private val BOOKMARK_ICON_SIZE = 16.dp
 private val ACTION_ICON_SIZE = 18.dp
 private val ACTIVE_TAB_INDICATOR_WIDTH = 28.dp

@@ -10,8 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -26,9 +24,7 @@ fun HikariPosterCard(
     artwork: @Composable BoxScope.() -> Unit = {},
 ) {
     Column(
-        modifier = modifier
-            .semantics { contentDescription = title }
-            .clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         HikariArtworkFrame(

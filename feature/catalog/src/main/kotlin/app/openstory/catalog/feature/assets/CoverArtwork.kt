@@ -1,17 +1,9 @@
 package app.openstory.catalog.feature.assets
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.LifecycleStartEffect
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
@@ -23,56 +15,34 @@ import app.openstory.catalog.domain.failure.CatalogFailureException
 
 @Composable
 internal fun CoverArtwork(
-    title: String,
     locator: app.openstory.catalog.domain.asset.CoverLocator?,
     assetKey: app.openstory.catalog.domain.asset.CoverAssetKey?,
     modifier: Modifier,
     onStateChanged: (CoverArtworkState) -> Unit = {},
 ) {
-    Box(
-        modifier = modifier.background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer,
-                    MaterialTheme.colorScheme.primaryContainer,
-                    MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ),
-        ),
-        contentAlignment = Alignment.Center,
-    ) {
-        title.firstOrNull()?.uppercase()?.let { placeholder ->
-            Text(
-                text = placeholder,
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f),
-            )
+    val artworkLoader = LocalArtworkLoader.current
+    if (assetKey != null && artworkLoader != null) {
+        LifecycleStartEffect(artworkLoader, assetKey) {
+            artworkLoader.onDemandStarted()
+            onStopOrDispose { artworkLoader.onDemandStopped() }
         }
-        val artworkLoader = LocalArtworkLoader.current
-        if (assetKey != null && artworkLoader != null) {
-            LifecycleStartEffect(artworkLoader, assetKey) {
-                artworkLoader.onDemandStarted()
-                onStopOrDispose { artworkLoader.onDemandStopped() }
-            }
-            val context = androidx.compose.ui.platform.LocalContext.current
-            val imageRequest = remember(assetKey, locator, context) { assetKey.toImageRequest(context, locator) }
-            AsyncImage(
-                model = imageRequest,
-                contentDescription = null,
-                imageLoader = artworkLoader.imageLoader(),
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                onLoading = { onStateChanged(CoverArtworkState.Loading) },
-                onSuccess = {
-                    artworkLoader.onArtworkReady()
-                    onStateChanged(CoverArtworkState.Ready)
-                },
-                onError = { state: AsyncImagePainter.State.Error ->
-                    onStateChanged(CoverArtworkState.Failed(state.result.throwable.toCoverArtworkFailure()))
-                },
-            )
-        }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val imageRequest = remember(assetKey, locator, context) { assetKey.toImageRequest(context, locator) }
+        AsyncImage(
+            model = imageRequest,
+            contentDescription = null,
+            imageLoader = artworkLoader.imageLoader(),
+            modifier = modifier,
+            contentScale = ContentScale.Crop,
+            onLoading = { onStateChanged(CoverArtworkState.Loading) },
+            onSuccess = {
+                artworkLoader.onArtworkReady()
+                onStateChanged(CoverArtworkState.Ready)
+            },
+            onError = { state: AsyncImagePainter.State.Error ->
+                onStateChanged(CoverArtworkState.Failed(state.result.throwable.toCoverArtworkFailure()))
+            },
+        )
     }
 }
 

@@ -23,9 +23,10 @@ fun HikariValueRow(
         headlineContent = { Text(label) },
         supportingContent = { Text(value) },
         leadingContent = leadingContent,
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = HikariDimensions.MinimumTouchTarget)
+            .then(modifier)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
     )
 }

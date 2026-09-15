@@ -203,7 +203,6 @@ class LocalCoverContinuityInstrumentedTest {
                     Column {
                         Text("Visible metadata $tick")
                         CoverArtwork(
-                            title = "Failed cover",
                             locator = localLocator("1"),
                             assetKey = assetKey("failed-cover", "1"),
                             modifier = Modifier.size(96.dp),
@@ -260,7 +259,6 @@ class LocalCoverContinuityInstrumentedTest {
                 MaterialTheme {
                     if (visible) {
                         CoverArtwork(
-                            title = "Cancelable cover",
                             locator = localLocator("1"),
                             assetKey = assetKey("cancelable", "1"),
                             modifier = Modifier.size(96.dp),

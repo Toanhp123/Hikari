@@ -1,6 +1,7 @@
 package app.openstory.designsystem.control
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
@@ -12,6 +13,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import app.openstory.designsystem.R
+import app.openstory.designsystem.theme.HikariDimensions
 
 @Composable
 fun HikariSearchField(
@@ -27,7 +29,10 @@ fun HikariSearchField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier
+            .heightIn(min = HikariDimensions.MinimumTouchTarget)
+            .then(modifier)
+            .fillMaxWidth(),
         enabled = enabled,
         label = { Text(label) },
         leadingIcon = leadingIcon,

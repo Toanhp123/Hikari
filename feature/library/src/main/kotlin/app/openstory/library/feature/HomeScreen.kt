@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariPosterCard
 import app.openstory.designsystem.content.HikariPosterGeometry
@@ -32,7 +34,7 @@ import app.openstory.designsystem.control.HikariSearchField
 import app.openstory.designsystem.presentation.HikariFocusedHeader
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariErrorState
-import app.openstory.designsystem.theme.HikariDimensions
+import app.openstory.designsystem.theme.HikariBreakpoints
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.domain.LibraryFilter
 
@@ -48,7 +50,7 @@ fun HomeScreen(
     onRetry: () -> Unit,
     artwork: @Composable (LibraryStoryPosterUi, Modifier) -> Unit,
 ) {
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .testTag(HomeTestTags.ROOT)
@@ -61,33 +63,40 @@ fun HomeScreen(
                 ),
             ),
     ) {
-        HomeHeader(state, onInputQueryChanged, onFilterSelected)
-        when (val content = state.content) {
-            HomeContentState.Loading -> HomeLoading()
-            HomeContentState.LibraryEmpty -> HomeLibraryEmpty(onExploreManga, onExploreLightNovels)
-            HomeContentState.NoMatches -> HomeNoMatches()
-            HomeContentState.Failure -> HomeFailure(onRetry)
-            is HomeContentState.Content -> HikariPosterGrid(
-                state = gridState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = HOME_HORIZONTAL_PADDING,
-                    end = HOME_HORIZONTAL_PADDING,
-                    bottom = HOME_BOTTOM_PADDING,
-                ),
-            ) {
-                items(
-                    items = content.stories,
-                    key = { story -> story.ref.storyId.value },
-                ) { story ->
-                    HikariPosterCard(
-                        title = story.title,
-                        supportingText = story.supportingText,
-                        onClick = { onStorySelected(story) },
-                        modifier = Modifier.testTag(HomeTestTags.story(story.ref)),
-                        geometry = HikariPosterGeometry.Standard,
-                    ) {
-                        artwork(story, Modifier.fillMaxSize())
+        val horizontalInset = HikariBreakpoints.screenHorizontalInset(maxWidth)
+        Column(modifier = Modifier.fillMaxSize()) {
+            HomeHeader(state, onInputQueryChanged, onFilterSelected, horizontalInset)
+            when (val content = state.content) {
+                HomeContentState.Loading -> HomeLoading(horizontalInset)
+                HomeContentState.LibraryEmpty -> HomeLibraryEmpty(
+                    onExploreManga,
+                    onExploreLightNovels,
+                    horizontalInset,
+                )
+                HomeContentState.NoMatches -> HomeNoMatches(horizontalInset)
+                HomeContentState.Failure -> HomeFailure(onRetry, horizontalInset)
+                is HomeContentState.Content -> HikariPosterGrid(
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = horizontalInset,
+                        end = horizontalInset,
+                        bottom = HOME_BOTTOM_PADDING,
+                    ),
+                ) {
+                    items(
+                        items = content.stories,
+                        key = { story -> story.ref.storyId.value },
+                    ) { story ->
+                        HikariPosterCard(
+                            title = story.title,
+                            supportingText = story.supportingText,
+                            onClick = { onStorySelected(story) },
+                            modifier = Modifier.testTag(HomeTestTags.story(story.ref)),
+                            geometry = HikariPosterGeometry.Standard,
+                        ) {
+                            artwork(story, Modifier.fillMaxSize())
+                        }
                     }
                 }
             }
@@ -100,13 +109,14 @@ private fun HomeHeader(
     state: HomeUiState,
     onInputQueryChanged: (String) -> Unit,
     onFilterSelected: (LibraryFilter) -> Unit,
+    horizontalInset: Dp,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                start = HOME_HORIZONTAL_PADDING,
-                end = HOME_HORIZONTAL_PADDING,
+                start = horizontalInset,
+                end = horizontalInset,
                 top = HOME_TOP_PADDING,
                 bottom = MaterialTheme.hikariSpacing.space20,
             ),
@@ -138,9 +148,9 @@ private fun HomeHeader(
 }
 
 @Composable
-private fun HomeLoading() {
+private fun HomeLoading(horizontalInset: Dp) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = HOME_HORIZONTAL_PADDING),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalInset),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         repeat(HOME_LOADING_PLACEHOLDER_COUNT) {
@@ -156,9 +166,10 @@ private fun HomeLoading() {
 private fun HomeLibraryEmpty(
     onExploreManga: () -> Unit,
     onExploreLightNovels: () -> Unit,
+    horizontalInset: Dp,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(HOME_HORIZONTAL_PADDING),
+        modifier = Modifier.fillMaxSize().padding(horizontalInset),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -179,9 +190,9 @@ private fun HomeLibraryEmpty(
 }
 
 @Composable
-private fun HomeNoMatches() {
+private fun HomeNoMatches(horizontalInset: Dp) {
     Box(
-        modifier = Modifier.fillMaxSize().padding(HOME_HORIZONTAL_PADDING),
+        modifier = Modifier.fillMaxSize().padding(horizontalInset),
         contentAlignment = Alignment.Center,
     ) {
         HikariEmptyState(
@@ -192,9 +203,9 @@ private fun HomeNoMatches() {
 }
 
 @Composable
-private fun HomeFailure(onRetry: () -> Unit) {
+private fun HomeFailure(onRetry: () -> Unit, horizontalInset: Dp) {
     Box(
-        modifier = Modifier.fillMaxSize().padding(HOME_HORIZONTAL_PADDING),
+        modifier = Modifier.fillMaxSize().padding(horizontalInset),
         contentAlignment = Alignment.Center,
     ) {
         HikariErrorState(
@@ -213,7 +224,6 @@ private val LibraryFilter.label: String
         LibraryFilter.LIGHT_NOVEL -> "Light Novel"
     }
 
-private val HOME_HORIZONTAL_PADDING = HikariDimensions.CompactScreenInset
 private val HOME_TOP_PADDING = 28.dp
 private val HOME_BOTTOM_PADDING = 32.dp
 private const val HOME_LOADING_PLACEHOLDER_COUNT = 3

@@ -27,6 +27,7 @@ import app.openstory.designsystem.control.HikariIconAction
 import app.openstory.designsystem.control.HikariIconActionStyle
 import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.HikariBreakpoints
+import app.openstory.designsystem.theme.HikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.story.feature.presentation.BackArrowIcon
 
@@ -36,8 +37,8 @@ internal fun StoryDetailScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onLibraryToggle: () -> Unit = {},
-    artworkContent: @Composable (String, CoverLocator?, CoverAssetKey?, Modifier) -> Unit =
-        { title, _, _, modifier -> StoryArtworkPlaceholder(title, modifier) },
+    artworkContent: @Composable (CoverLocator?, CoverAssetKey?, Modifier) -> Unit =
+        { _, _, _ -> },
     onHeroMaterialized: () -> Unit = {},
     onBodyMaterialized: () -> Unit = {},
 ) {
@@ -62,7 +63,7 @@ private fun StoryDetailContent(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onLibraryToggle: () -> Unit,
-    artworkContent: @Composable (String, CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
+    artworkContent: @Composable (CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
     onHeroMaterialized: () -> Unit,
     onBodyMaterialized: () -> Unit,
 ) {
@@ -114,7 +115,7 @@ private fun StoryDetailContent(
     }
 }
 
-private val STORY_TOP_BAR_HEIGHT = 48.dp
+private val STORY_TOP_BAR_HEIGHT = HikariDimensions.MinimumTouchTarget
 private val BACK_ICON_SIZE = 18.dp
 
 @Composable
@@ -171,17 +172,14 @@ private fun StoryMetadataSkeleton() {
 }
 
 @Composable
-private fun storyLayout(width: Dp): StoryLayoutMetrics = if (HikariBreakpoints.isWide(width)) {
-    StoryLayoutMetrics(
-        screenInset = HikariBreakpoints.screenHorizontalInset(width),
-        identityGap = MaterialTheme.hikariSpacing.space24,
-    )
-} else {
-    StoryLayoutMetrics(
-        screenInset = HikariBreakpoints.screenHorizontalInset(width),
-        identityGap = MaterialTheme.hikariSpacing.space16,
-    )
-}
+private fun storyLayout(width: Dp): StoryLayoutMetrics = StoryLayoutMetrics(
+    screenInset = HikariBreakpoints.screenHorizontalInset(width),
+    identityGap = if (HikariBreakpoints.isWide(width)) {
+        MaterialTheme.hikariSpacing.space24
+    } else {
+        MaterialTheme.hikariSpacing.space16
+    },
+)
 
 private data class StoryLayoutMetrics(
     val screenInset: Dp,

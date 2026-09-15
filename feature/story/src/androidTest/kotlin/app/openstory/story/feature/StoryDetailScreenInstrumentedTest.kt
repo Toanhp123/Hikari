@@ -1,30 +1,31 @@
 package app.openstory.story.feature
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.mutableStateOf
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.identity.SourceStoryIdV1
 import app.openstory.catalog.domain.identity.SourceStoryKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.designsystem.theme.HikariTheme
 import app.openstory.story.feature.state.StoryIssueKind
 import app.openstory.story.feature.state.StoryIssueUi
-import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -139,11 +140,41 @@ class StoryDetailScreenInstrumentedTest {
         composeRule.onNodeWithTag(StoryTestTags.ROOT)
             .performScrollToNode(hasText("Read from Chapter 1"))
         composeRule.onNodeWithText("Read from Chapter 1").performScrollTo().assertIsNotEnabled()
-        composeRule.onNodeWithText("Add to Library").performScrollTo().assertIsEnabled().performClick()
+        composeRule.onNodeWithText("Add to Library")
+            .performScrollTo()
+            .assertHeightIsAtLeast(48.dp)
+            .assertIsEnabled()
+            .performClick()
+        composeRule.onNodeWithContentDescription("Share")
+            .assertHeightIsAtLeast(48.dp)
+            .assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("More actions")
+            .assertHeightIsAtLeast(48.dp)
+            .assertIsNotEnabled()
         composeRule.runOnIdle { assertEquals(1, toggleCalls) }
         listOf("Refresh", "Bookmark", "Favorite").forEach { copy ->
             composeRule.onNodeWithText(copy, substring = true).assertDoesNotExist()
         }
+    }
+
+    @Test
+    fun descriptionExpansionUsesARealMinimumTouchTarget() {
+        setContent(
+            state(detailLoading = false, issue = null).copy(
+                detail = StoryDetailUi(
+                    description = "A".repeat(160),
+                    authors = emptyList(),
+                    artists = emptyList(),
+                    genres = emptyList(),
+                    publicationStatus = null,
+                    language = null,
+                ),
+            ),
+        )
+
+        composeRule.onNodeWithText("Read More \u2304")
+            .performScrollTo()
+            .assertHeightIsAtLeast(48.dp)
     }
 
     @Test

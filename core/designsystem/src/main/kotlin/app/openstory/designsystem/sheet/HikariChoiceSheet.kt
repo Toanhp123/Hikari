@@ -13,15 +13,19 @@ import androidx.compose.ui.semantics.Role
 import app.openstory.designsystem.theme.HikariDimensions
 
 @Composable
-fun <T> HikariChoiceSheet(
+fun <T : Any> HikariChoiceSheet(
     title: String,
     options: List<T>,
-    selectedOption: T,
+    selectedOption: T?,
     optionLabel: (T) -> String,
     onOptionSelected: (T) -> Unit,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    require(options.toSet().size == options.size) {
+        "HikariChoiceSheet options must have unique identity."
+    }
+
     HikariActionSheet(
         title = title,
         onDismissRequest = onDismissRequest,

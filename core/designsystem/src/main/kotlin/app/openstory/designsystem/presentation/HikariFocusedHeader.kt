@@ -18,7 +18,9 @@ import app.openstory.designsystem.theme.hikariSpacing
 fun HikariFocusedHeader(
     title: String,
     modifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
     subtitle: String? = null,
+    titleTrailingContent: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
     Row(
@@ -30,12 +32,18 @@ fun HikariFocusedHeader(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4),
         ) {
-            Text(
-                text = title,
-                modifier = Modifier.semantics { heading() },
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    modifier = titleModifier.semantics { heading() },
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                titleTrailingContent?.invoke()
+            }
             subtitle?.let { supporting ->
                 Text(
                     text = supporting,

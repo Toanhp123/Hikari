@@ -1,10 +1,11 @@
 package app.openstory.story.feature
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -13,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.theme.HikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -132,15 +135,17 @@ private fun StoryAboutSection(description: String) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (description.length > DESCRIPTION_EXPAND_THRESHOLD) {
-            Text(
-                text = if (expanded) "Read Less \u2303" else "Read More \u2304",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .clickable { expanded = !expanded }
-                    .padding(vertical = MaterialTheme.hikariSpacing.space4),
-            )
+            TextButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.heightIn(min = HikariDimensions.MinimumTouchTarget),
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Text(
+                    text = if (expanded) "Read Less \u2303" else "Read More \u2304",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }

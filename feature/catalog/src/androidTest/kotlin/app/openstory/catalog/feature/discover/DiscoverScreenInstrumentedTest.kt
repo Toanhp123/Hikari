@@ -4,13 +4,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHasClickAction
-import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.assertTextEquals
@@ -100,14 +100,16 @@ class DiscoverScreenInstrumentedTest {
     }
 
     @Test
-    fun cardsExposeAccessibleLabelsWithinPolicyBound() {
+    fun cardsExposeOneTextLabelWithoutDuplicatingItAsContentDescription() {
         val state = contentState()
         setContent(state)
 
         val content = state.content as DiscoverContentState.Content
         val firstCard = content.sections.first().cards.first()
         composeRule.onNodeWithTag(DiscoverTestTags.card(CatalogSectionKind.POPULAR, firstCard.ref))
-            .assertContentDescriptionEquals(firstCard.title)
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
+            .assertHasClickAction()
+        composeRule.onNodeWithText(firstCard.title).assertIsDisplayed()
         assertTrue(content.sections.sumOf { it.cards.size } <= 19)
     }
 
@@ -142,9 +144,13 @@ class DiscoverScreenInstrumentedTest {
         ).assertWidthIsEqualTo(DiscoverVisualMetrics.LatestUpdatesCoverWidth)
             .assertHeightIsAtLeast(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
 
+        val topRatedTag = DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, topRated.ref)
         composeRule.onNodeWithTag(DiscoverTestTags.ROOT).performScrollToNode(
-            hasTestTag(DiscoverTestTags.card(CatalogSectionKind.TOP_RATED, topRated.ref)),
+            hasTestTag(topRatedTag),
         )
+        composeRule.onNodeWithTag(topRatedTag)
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
+            .assertHasClickAction()
         composeRule.onNodeWithText("1").assertIsDisplayed()
         composeRule.onNodeWithText("8.0").assertIsDisplayed()
     }
@@ -153,7 +159,10 @@ class DiscoverScreenInstrumentedTest {
     fun conceptOnlyActionsAreNonInteractiveChromeOrOmitted() {
         setContent(contentState())
 
-        composeRule.onNodeWithContentDescription("Search").assertHasNoClickAction()
+        composeRule.onNodeWithContentDescription("Search")
+            .assertIsNotEnabled()
+            .assertHeightIsAtLeast(48.dp)
+            .assertWidthIsAtLeast(48.dp)
         composeRule.onAllNodesWithText("See All").assertCountEquals(0)
         composeRule.onNodeWithText("Latest Updates").assertIsDisplayed()
         listOf("Read", "Add to Library", "Chapters", "Bookmark", "Explore", "Library", "Profile").forEach { copy ->

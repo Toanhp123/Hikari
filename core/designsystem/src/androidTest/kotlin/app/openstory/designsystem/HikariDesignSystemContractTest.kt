@@ -30,10 +30,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.test.platform.app.InstrumentationRegistry
-import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariArtworkFrame
 import app.openstory.designsystem.content.HikariPosterCard
 import app.openstory.designsystem.content.HikariPosterGrid
 import app.openstory.designsystem.content.HikariPosterSkeleton
+import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariEmptyState
@@ -45,8 +46,8 @@ import app.openstory.designsystem.theme.hikariSpacing
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -129,6 +130,26 @@ class HikariDesignSystemContractTest {
     }
 
     @Test
+    fun artworkFallbackIsDecorativeWhileFeatureArtworkKeepsItsOwnSemantics() {
+        composeRule.setContent {
+            HikariTheme(darkTheme = false) {
+                HikariArtworkFrame(
+                    title = "Decorative",
+                    modifier = Modifier.size(120.dp),
+                ) {
+                    androidx.compose.material3.Text(
+                        text = "Loaded artwork",
+                        modifier = Modifier.testTag("loaded-artwork"),
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("D", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag("loaded-artwork", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
     fun posterCardAndSkeletonShareArtworkGeometryWithoutDomainTypes() {
         var selections = 0
         composeRule.setContent {
@@ -147,6 +168,8 @@ class HikariDesignSystemContractTest {
             }
         }
 
+        composeRule.onNodeWithTag("poster")
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
         composeRule.onNodeWithTag("poster-artwork", useUnmergedTree = true)
             .assertWidthIsEqualTo(120.dp)
             .assertHeightIsEqualTo(174.dp)

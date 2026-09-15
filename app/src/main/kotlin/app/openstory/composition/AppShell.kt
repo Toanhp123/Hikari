@@ -59,7 +59,6 @@ internal fun AppShell() {
                 artwork = { story, modifier ->
                     CatalogCoverArtwork(
                         artworkLoader = artworkLoader,
-                        title = story.title,
                         locator = story.coverLocator,
                         assetKey = story.coverAssetKey,
                         modifier = modifier,

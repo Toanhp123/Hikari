@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -25,15 +24,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.feature.presentation.SearchIcon
 import app.openstory.catalog.feature.presentation.productLabel
+import app.openstory.designsystem.control.HikariIconAction
+import app.openstory.designsystem.control.HikariIconActionStyle
+import app.openstory.designsystem.presentation.HikariFocusedHeader
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -41,7 +40,18 @@ internal fun DiscoverHeader(
     mediaType: CatalogMediaType,
     horizontalInset: Dp,
 ) {
-    Row(
+    HikariFocusedHeader(
+        title = "Discover",
+        titleModifier = Modifier.testTag(DiscoverTestTags.PAGE_IDENTITY),
+        subtitle = "Amazing stories await you.",
+        titleTrailingContent = {
+            Text(
+                text = "\u2022 ${mediaType.productLabel}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        },
+        trailingContent = { DiscoverSearchPreview() },
         modifier = Modifier
             .fillMaxWidth()
             .padding(
@@ -49,57 +59,21 @@ internal fun DiscoverHeader(
                 top = MaterialTheme.hikariSpacing.space16,
                 end = horizontalInset,
             ),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        DiscoverIdentity(mediaType)
-        DiscoverSearchPreview()
-    }
-}
-
-@Composable
-private fun DiscoverIdentity(mediaType: CatalogMediaType) {
-    Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Discover",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier
-                    .testTag(DiscoverTestTags.PAGE_IDENTITY)
-                    .semantics { heading() },
-            )
-            Text(
-                text = "\u2022 ${mediaType.productLabel}",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            text = "Amazing stories await you.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    )
 }
 
 @Composable
 private fun DiscoverSearchPreview() {
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier
-            .size(SEARCH_CONTAINER_SIZE)
-            .semantics { contentDescription = "Search" },
+    HikariIconAction(
+        onClick = {},
+        contentDescription = "Search",
+        enabled = false,
+        style = HikariIconActionStyle.TONAL,
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            SearchIcon(
-                size = SEARCH_ICON_SIZE,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        SearchIcon(
+            size = SEARCH_ICON_SIZE,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -228,7 +202,6 @@ private val EDITORIAL_SLIDES = listOf(
     ),
 )
 
-private val SEARCH_CONTAINER_SIZE = 40.dp
 private val SEARCH_ICON_SIZE = 18.dp
 private val BANNER_ACTIVE_DOT_WIDTH = 20.dp
 private val BANNER_INACTIVE_DOT_WIDTH = 6.dp

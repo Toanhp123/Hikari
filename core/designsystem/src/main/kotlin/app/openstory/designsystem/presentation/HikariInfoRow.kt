@@ -19,6 +19,9 @@ fun HikariInfoRow(
         headlineContent = { Text(label) },
         supportingContent = { Text(value) },
         leadingContent = leadingContent,
-        modifier = modifier.fillMaxWidth().heightIn(min = HikariDimensions.MinimumTouchTarget),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = HikariDimensions.MinimumTouchTarget)
+            .then(modifier),
     )
 }

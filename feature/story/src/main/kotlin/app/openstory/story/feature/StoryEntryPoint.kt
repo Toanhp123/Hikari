@@ -17,7 +17,7 @@ fun StoryEntryPoint(
     presentationStore: StoryPresentationStore,
     catalogFacet: StoryCatalogFacet,
     libraryFacet: StoryLibraryFacet,
-    artworkContent: @Composable (String, CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
+    artworkContent: @Composable (CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
     onBack: () -> Unit,
     onUiPublished: () -> Unit = {},
     onHeroMaterialized: () -> Unit = {},

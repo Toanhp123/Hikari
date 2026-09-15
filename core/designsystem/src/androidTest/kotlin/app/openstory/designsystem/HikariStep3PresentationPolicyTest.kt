@@ -2,8 +2,9 @@ package app.openstory.designsystem
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -44,6 +46,7 @@ import app.openstory.designsystem.presentation.HikariValueRow
 import app.openstory.designsystem.sheet.HikariChoiceSheet
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 
@@ -68,7 +71,7 @@ class HikariStep3PresentationPolicyTest {
                         selected = false,
                         onClick = { events += "filter" },
                         label = "Manga",
-                        modifier = Modifier.testTag("filter-chip"),
+                        modifier = Modifier.height(20.dp).testTag("filter-chip"),
                     )
                     HikariSearchField(
                         value = query,
@@ -78,7 +81,7 @@ class HikariStep3PresentationPolicyTest {
                         },
                         label = "Search library",
                         onSearch = { events += "search:$it" },
-                        modifier = Modifier.testTag("search-field"),
+                        modifier = Modifier.height(20.dp).testTag("search-field"),
                     )
                 }
             }
@@ -89,13 +92,70 @@ class HikariStep3PresentationPolicyTest {
             .assertHeightIsAtLeast(48.dp)
         composeRule.onNodeWithContentDescription("Open filters").performClick()
         composeRule.onNodeWithTag("filter-chip").assertHeightIsAtLeast(48.dp).performClick()
-        val searchField = composeRule.onNodeWithTag("search-field")
+        val searchField = composeRule.onNodeWithTag("search-field").assertHeightIsAtLeast(48.dp)
         searchField.performTextInput("saved")
         searchField.performImeAction()
 
         composeRule.runOnIdle {
             assertEquals(listOf("icon", "filter", "saved", "search:saved"), events)
         }
+    }
+
+    @Test
+    fun callerCannotShrinkSharedRowsOrDestinationItemsBelowPolicy() {
+        composeRule.setContent {
+            HikariTheme(darkTheme = false) {
+                Column {
+                    HikariValueRow(
+                        label = "Theme",
+                        value = "System",
+                        onClick = {},
+                        modifier = Modifier.height(20.dp).testTag("value-row-shrunk"),
+                    )
+                    HikariInfoRow(
+                        label = "Version",
+                        value = "2.0",
+                        modifier = Modifier.height(20.dp).testTag("info-row-shrunk"),
+                    )
+                    HikariFloatingDestinationNav {
+                        HikariFloatingDestinationNavItem(
+                            label = "Home",
+                            selected = true,
+                            onClick = {},
+                            modifier = Modifier.height(20.dp).testTag("nav-item-shrunk"),
+                        )
+                    }
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag("value-row-shrunk").assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithTag("info-row-shrunk").assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithTag("nav-item-shrunk").assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun wideDestinationNavigationCentersItsBoundedContainer() {
+        composeRule.setContent {
+            HikariTheme(darkTheme = false) {
+                Box(Modifier.width(800.dp).testTag("wide-nav-host")) {
+                    HikariFloatingDestinationNav {
+                        HikariFloatingDestinationNavItem(
+                            label = "Home",
+                            selected = true,
+                            onClick = {},
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+
+        val hostCenter = composeRule.onNodeWithTag("wide-nav-host")
+            .fetchSemanticsNode().boundsInRoot.center.x
+        val itemCenter = composeRule.onNodeWithText("Home")
+            .fetchSemanticsNode().boundsInRoot.center.x
+        assertEquals(hostCenter, itemCenter, 1f)
     }
 
     @Test
@@ -134,6 +194,7 @@ class HikariStep3PresentationPolicyTest {
                     HikariFocusedHeader(
                         title = "Library",
                         subtitle = "Saved stories",
+                        titleTrailingContent = { Text("Manga") },
                         trailingContent = { Text("Edit") },
                     )
                     HikariValueRow(
@@ -149,6 +210,7 @@ class HikariStep3PresentationPolicyTest {
         composeRule.onNodeWithText("Library").assert(
             SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading),
         )
+        composeRule.onNodeWithText("Manga").assertIsDisplayed()
         composeRule.onNodeWithText("Theme").assertHasClickAction().performClick()
         composeRule.onNodeWithText("Version").assertHasNoClickAction()
         composeRule.runOnIdle { assertEquals(1, valueClicks) }
@@ -196,6 +258,43 @@ class HikariStep3PresentationPolicyTest {
         composeRule.onNodeWithTag("skeleton-artwork", useUnmergedTree = true)
             .assertWidthIsAtLeast(104.dp)
             .assertHeightIsAtLeast(150.dp)
+    }
+
+    @Test
+    fun choiceSheetAllowsNoSelectionForUnavailableOrUnmappedTruth() {
+        composeRule.setContent {
+            HikariTheme(darkTheme = false) {
+                HikariChoiceSheet(
+                    title = "Reading source",
+                    options = listOf("Built-in", "Plugin"),
+                    selectedOption = null,
+                    optionLabel = { it },
+                    onOptionSelected = {},
+                    onDismissRequest = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Built-in").assertIsNotSelected()
+        composeRule.onNodeWithText("Plugin").assertIsNotSelected()
+    }
+
+    @Test
+    fun choiceSheetRejectsDuplicateOptionIdentity() {
+        assertThrows(IllegalArgumentException::class.java) {
+            composeRule.setContent {
+                HikariTheme(darkTheme = false) {
+                    HikariChoiceSheet(
+                        title = "Theme",
+                        options = listOf("System", "System"),
+                        selectedOption = null,
+                        optionLabel = { it },
+                        onOptionSelected = {},
+                        onDismissRequest = {},
+                    )
+                }
+            }
+        }
     }
 
     @Test

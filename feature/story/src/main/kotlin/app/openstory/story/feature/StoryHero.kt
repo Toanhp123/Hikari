@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -29,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.model.CatalogMediaType
+import app.openstory.designsystem.content.HikariArtworkFrame
 import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.hikariSpacing
 
@@ -36,7 +36,7 @@ import app.openstory.designsystem.theme.hikariSpacing
 internal fun StoryHero(
     hero: StoryHeroUi,
     identityGap: Dp,
-    artworkContent: @Composable (String, CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
+    artworkContent: @Composable (CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
     modifier: Modifier = Modifier,
     onMaterialized: () -> Unit = {},
 ) {
@@ -45,19 +45,18 @@ internal fun StoryHero(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(identityGap),
     ) {
-        Box(
+        HikariArtworkFrame(
+            title = hero.title.orEmpty(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(StoryVisualMetrics.HeroBannerHeight)
-                .clip(MaterialTheme.shapes.large),
+                .testTag("story-hero-cover"),
+            shape = MaterialTheme.shapes.large,
         ) {
             artworkContent(
-                hero.title.orEmpty(),
                 hero.artwork.locator,
                 hero.artwork.assetKey,
-                Modifier
-                    .fillMaxSize()
-                    .testTag("story-hero-cover"),
+                Modifier.fillMaxSize(),
             )
             Box(
                 modifier = Modifier
@@ -78,34 +77,6 @@ internal fun StoryHero(
             StoryIdentitySkeleton(Modifier.fillMaxWidth())
         } else {
             StoryIdentity(hero = hero, modifier = Modifier.fillMaxWidth())
-        }
-    }
-}
-
-@Composable
-internal fun StoryArtworkPlaceholder(
-    title: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer,
-                    MaterialTheme.colorScheme.primaryContainer,
-                    MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ),
-        ),
-        contentAlignment = Alignment.Center,
-    ) {
-        title.firstOrNull()?.uppercase()?.let { placeholder ->
-            Text(
-                text = placeholder,
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f),
-            )
         }
     }
 }

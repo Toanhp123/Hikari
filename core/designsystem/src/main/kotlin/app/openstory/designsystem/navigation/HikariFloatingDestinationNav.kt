@@ -1,5 +1,6 @@
 package app.openstory.designsystem.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -24,17 +26,22 @@ fun HikariFloatingDestinationNav(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
-    Surface(
-        modifier = modifier.widthIn(max = 520.dp).fillMaxWidth(),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shadowElevation = 10.dp,
-        tonalElevation = 3.dp,
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            modifier = Modifier.selectableGroup().padding(6.dp),
-            content = content,
-        )
+        Surface(
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            shadowElevation = 10.dp,
+            tonalElevation = 3.dp,
+        ) {
+            Row(
+                modifier = Modifier.selectableGroup().padding(6.dp),
+                content = content,
+            )
+        }
     }
 }
 
@@ -47,8 +54,9 @@ fun RowScope.HikariFloatingDestinationNavItem(
     enabled: Boolean = true,
 ) {
     Surface(
-        modifier = modifier
+        modifier = Modifier
             .heightIn(min = HikariDimensions.MinimumTouchTarget)
+            .then(modifier)
             .selectable(
                 selected = selected,
                 enabled = enabled,
