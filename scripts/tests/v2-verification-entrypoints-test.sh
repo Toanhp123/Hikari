@@ -50,6 +50,7 @@ current_static_tests=(
   'v2-cutover-context-test.sh'
   'v2-salvage-ledger-test.sh'
   'v2-source-layout-policy-test.sh'
+  'v2-core-artwork-layout-test.sh'
   'v2-verification-entrypoints-test.sh'
 )
 for test_name in "${current_static_tests[@]}"; do

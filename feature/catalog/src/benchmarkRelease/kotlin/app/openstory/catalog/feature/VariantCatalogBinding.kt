@@ -1,9 +1,9 @@
 package app.openstory.catalog.feature
 
 import android.content.Context
-import app.openstory.artwork.ArtworkDecodeEvidence
-import app.openstory.artwork.ArtworkRuntimeCallbacks
-import app.openstory.artwork.ArtworkTransport
+import app.openstory.artwork.runtime.ArtworkDecodeEvidence
+import app.openstory.artwork.runtime.ArtworkRuntimeCallbacks
+import app.openstory.artwork.remote.ArtworkTransport
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.feature.fixture.BenchmarkCoverFixture

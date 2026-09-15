@@ -1,10 +1,8 @@
-package app.openstory.artwork
+package app.openstory.artwork.request
 
 import android.content.Context
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import coil3.size.Size
-import java.io.File
 
 data class ArtworkRequest(
     val identity: ArtworkRequestIdentity,
@@ -48,8 +46,4 @@ value class ArtworkLocalAsset(val resourceId: Int) {
 
 fun interface ArtworkLocalResolver {
     fun resolve(logicalAssetId: String, assetVersion: String): ArtworkLocalAsset?
-}
-
-fun interface ArtworkPreflight {
-    fun inspect(file: File, declaredMediaType: String, targetSize: Size)
 }

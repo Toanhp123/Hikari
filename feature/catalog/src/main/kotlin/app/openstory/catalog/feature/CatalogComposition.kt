@@ -17,11 +17,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.openstory.artwork.ArtworkAuthorityKey
-import app.openstory.artwork.ArtworkLoader
-import app.openstory.artwork.ArtworkPolicy
-import app.openstory.artwork.ArtworkPolicyResolver
-import app.openstory.artwork.ArtworkRuntime
+import app.openstory.artwork.request.ArtworkAuthorityKey
+import app.openstory.artwork.runtime.ArtworkLoader
+import app.openstory.artwork.policy.ArtworkPolicy
+import app.openstory.artwork.policy.ArtworkPolicyResolver
+import app.openstory.artwork.runtime.ArtworkRuntime
 import app.openstory.common.execution.ProcessWorkAdmission
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.model.CatalogMediaType

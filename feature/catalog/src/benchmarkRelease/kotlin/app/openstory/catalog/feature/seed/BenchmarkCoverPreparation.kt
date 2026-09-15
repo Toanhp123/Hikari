@@ -1,10 +1,10 @@
 package app.openstory.catalog.feature.seed
 
 import android.content.Context
-import app.openstory.artwork.ArtworkAuthorityKey
-import app.openstory.artwork.ArtworkPolicy
-import app.openstory.artwork.ArtworkPolicyResolver
-import app.openstory.artwork.ArtworkRuntime
+import app.openstory.artwork.request.ArtworkAuthorityKey
+import app.openstory.artwork.policy.ArtworkPolicy
+import app.openstory.artwork.policy.ArtworkPolicyResolver
+import app.openstory.artwork.runtime.ArtworkRuntime
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.asset.CoverRevisionV1

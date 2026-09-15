@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
-import app.openstory.artwork.ArtworkLoader
+import app.openstory.artwork.runtime.ArtworkLoader
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.feature.assets.CoverArtwork

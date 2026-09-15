@@ -1,8 +1,8 @@
 package app.openstory.catalog.feature
 
 import android.content.Context
-import app.openstory.artwork.ArtworkRuntimeCallbacks
-import app.openstory.artwork.ArtworkTransport
+import app.openstory.artwork.runtime.ArtworkRuntimeCallbacks
+import app.openstory.artwork.remote.ArtworkTransport
 import app.openstory.catalog.runtime.CatalogRuntimeOwnershipCallbacks
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 

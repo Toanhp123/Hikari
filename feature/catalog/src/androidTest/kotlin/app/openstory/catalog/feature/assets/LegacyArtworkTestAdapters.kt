@@ -1,29 +1,29 @@
 package app.openstory.catalog.feature.assets
 
 import android.content.Context
-import app.openstory.artwork.ArtworkAuthorityKey
-import app.openstory.artwork.ArtworkCallbacksRegistry
-import app.openstory.artwork.ArtworkDecodeEvidence
-import app.openstory.artwork.ArtworkDecodedMemoryCache
-import app.openstory.artwork.ArtworkEncodedCache
-import app.openstory.artwork.ArtworkEncodedDiskCache
-import app.openstory.artwork.ArtworkFetcher
-import app.openstory.artwork.ArtworkImagePreflight
-import app.openstory.artwork.ArtworkImagePreflightResult
+import app.openstory.artwork.request.ArtworkAuthorityKey
+import app.openstory.artwork.cache.ArtworkCallbacksRegistry
+import app.openstory.artwork.runtime.ArtworkDecodeEvidence
+import app.openstory.artwork.cache.ArtworkDecodedMemoryCache
+import app.openstory.artwork.cache.ArtworkEncodedCache
+import app.openstory.artwork.cache.ArtworkEncodedDiskCache
+import app.openstory.artwork.runtime.ArtworkFetcher
+import app.openstory.artwork.preflight.ArtworkImagePreflight
+import app.openstory.artwork.preflight.ArtworkImagePreflightResult
 import app.openstory.artwork.ArtworkLimits
-import app.openstory.artwork.ArtworkLoader
-import app.openstory.artwork.ArtworkPolicy
-import app.openstory.artwork.ArtworkPolicyResolver
-import app.openstory.artwork.ArtworkPreflight
-import app.openstory.artwork.ArtworkRemotePayload
-import app.openstory.artwork.ArtworkRemotePolicy
-import app.openstory.artwork.ArtworkRequest
-import app.openstory.artwork.ArtworkRuntime
-import app.openstory.artwork.ArtworkRuntimeCallbacks
-import app.openstory.artwork.ArtworkSession
-import app.openstory.artwork.ArtworkTransport
-import app.openstory.artwork.ArtworkTransportRequest
-import app.openstory.artwork.ArtworkTransportResponse
+import app.openstory.artwork.runtime.ArtworkLoader
+import app.openstory.artwork.policy.ArtworkPolicy
+import app.openstory.artwork.policy.ArtworkPolicyResolver
+import app.openstory.artwork.preflight.ArtworkPreflight
+import app.openstory.artwork.remote.ArtworkRemotePayload
+import app.openstory.artwork.remote.ArtworkRemotePolicy
+import app.openstory.artwork.request.ArtworkRequest
+import app.openstory.artwork.runtime.ArtworkRuntime
+import app.openstory.artwork.runtime.ArtworkRuntimeCallbacks
+import app.openstory.artwork.runtime.ArtworkSession
+import app.openstory.artwork.remote.ArtworkTransport
+import app.openstory.artwork.remote.ArtworkTransportRequest
+import app.openstory.artwork.remote.ArtworkTransportResponse
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
@@ -206,7 +206,7 @@ internal class RemoteCoverPolicy(
         val resolver = policyResolver(policyProvider)
         return mapFailure {
             ArtworkRemotePolicy(resolver, transport, temporaryDirectory).fetch(
-                app.openstory.artwork.ArtworkRequestIdentity(
+                app.openstory.artwork.request.ArtworkRequestIdentity(
                     authority = ArtworkAuthorityKey(sourceKey.value),
                     stableAssetKey = "android-test:$rawUri",
                     locator = rawUri,

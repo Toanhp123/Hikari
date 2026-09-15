@@ -2,11 +2,11 @@ package app.openstory.catalog.feature.assets
 
 import android.content.Context
 import androidx.compose.runtime.staticCompositionLocalOf
-import app.openstory.artwork.ArtworkAuthorityKey
-import app.openstory.artwork.ArtworkLoader
-import app.openstory.artwork.ArtworkLocator
-import app.openstory.artwork.ArtworkRequest
-import app.openstory.artwork.ArtworkRequestIdentity
+import app.openstory.artwork.request.ArtworkAuthorityKey
+import app.openstory.artwork.runtime.ArtworkLoader
+import app.openstory.artwork.request.ArtworkLocator
+import app.openstory.artwork.request.ArtworkRequest
+import app.openstory.artwork.request.ArtworkRequestIdentity
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import coil3.request.ImageRequest

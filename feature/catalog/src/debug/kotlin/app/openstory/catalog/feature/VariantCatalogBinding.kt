@@ -2,7 +2,7 @@ package app.openstory.catalog.feature
 
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.identity.CatalogSourceKey
-import app.openstory.artwork.ArtworkRuntimeCallbacks
+import app.openstory.artwork.runtime.ArtworkRuntimeCallbacks
 import app.openstory.catalog.feature.seed.LocalSeedCatalogSource
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
 

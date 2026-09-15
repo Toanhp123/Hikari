@@ -1,6 +1,6 @@
 package app.openstory.catalog.feature
 
-import app.openstory.artwork.ArtworkAuthorityKey
+import app.openstory.artwork.request.ArtworkAuthorityKey
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.model.CatalogMediaType

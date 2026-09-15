@@ -1,6 +1,6 @@
 # Current Implementation Roadmap
 
-Date: 2026-09-13
+Date: 2026-09-15
 Status: **CANONICAL repository execution roadmap**
 
 This roadmap preserves the approved product sequence after Architecture Baseline 2 reset
@@ -21,8 +21,9 @@ acceptance remain separate states.
 ## Current position
 
 **Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 10. A
-module-local repository cleanup interlude is active before Task 11; Task 11 remains not started and
-held for a later explicitly authorized turn.**
+module-local repository cleanup interlude is active before Task 11; `:core:artwork` is now
+completed/accepted after focused host Gradle verification, and Task 11 remains not started and held for
+a later explicitly authorized turn.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical for
 Step 3 feature work. Cleanup authority is
 `../project/file-package-ownership-policy.md` plus
@@ -81,6 +82,12 @@ broad affected-module/App/architecture/Detekt gate and the focused Design System
 gate. All six required user-owned gates are accepted, so Task 10 is completed/accepted. Task 11 remains
 not started. The intervening cleanup campaign is repository-maintenance work only and does not count
 as Task 11 progress; it must follow the canonical file/package policy and module-local cleanup design.
+The first authorized module cleanup, `:core:artwork`, now has the approved responsibility-bearing
+`cache/pipeline/policy/preflight/remote/request/runtime` package tree, the 628-line mixed
+`ArtworkPolicy.kt` has been split, all repository consumers have migrated off the old flat package,
+and a current-static layout ratchet is present. Agent-owned static/pure-Kotlin evidence is green. On
+2026-09-15, the user returned `BUILD SUCCESSFUL in 1m 2s` for the required focused host Gradle cone
+(`105 actionable tasks: 11 executed, 94 up-to-date`), so `:core:artwork` cleanup is completed/accepted.
 The Step 3 owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 

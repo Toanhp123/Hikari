@@ -1,8 +1,8 @@
 package app.openstory.catalog.feature.plugin
 
-import app.openstory.artwork.ArtworkTransport
-import app.openstory.artwork.ArtworkTransportRequest
-import app.openstory.artwork.ArtworkTransportResponse
+import app.openstory.artwork.remote.ArtworkTransport
+import app.openstory.artwork.remote.ArtworkTransportRequest
+import app.openstory.artwork.remote.ArtworkTransportResponse
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicInteger

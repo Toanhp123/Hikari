@@ -1,4 +1,4 @@
-package app.openstory.artwork
+package app.openstory.artwork.request
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest

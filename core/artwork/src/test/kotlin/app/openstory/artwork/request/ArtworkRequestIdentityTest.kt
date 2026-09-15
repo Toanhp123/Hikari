@@ -1,4 +1,4 @@
-package app.openstory.artwork
+package app.openstory.artwork.request
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals

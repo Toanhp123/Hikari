@@ -1,7 +1,7 @@
 package app.openstory.composition
 
 import androidx.compose.runtime.Composable
-import app.openstory.artwork.ArtworkLoader
+import app.openstory.artwork.runtime.ArtworkLoader
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.feature.CatalogRootEntryPoint
 import app.openstory.catalog.feature.CatalogRuntimeAccess

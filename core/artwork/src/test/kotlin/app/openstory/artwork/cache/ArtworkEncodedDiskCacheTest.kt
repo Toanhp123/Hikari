@@ -1,4 +1,6 @@
-package app.openstory.artwork
+package app.openstory.artwork.cache
+
+import app.openstory.artwork.ArtworkLimits
 
 import coil3.disk.DiskCache
 import java.util.concurrent.CancellationException

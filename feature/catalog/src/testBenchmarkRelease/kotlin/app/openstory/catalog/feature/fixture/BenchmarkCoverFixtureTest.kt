@@ -3,8 +3,8 @@ package app.openstory.catalog.feature.fixture
 import app.openstory.artwork.ArtworkFailureException
 import app.openstory.artwork.ArtworkFailureReason
 import app.openstory.artwork.ArtworkLimits
-import app.openstory.artwork.ArtworkTransportRequest
-import app.openstory.artwork.ArtworkImagePreflight
+import app.openstory.artwork.remote.ArtworkTransportRequest
+import app.openstory.artwork.preflight.ArtworkImagePreflight
 import coil3.size.Size
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger

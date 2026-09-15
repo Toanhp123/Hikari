@@ -1,4 +1,4 @@
-package app.openstory.artwork
+package app.openstory.artwork.remote
 
 import java.io.Closeable
 import java.io.InputStream

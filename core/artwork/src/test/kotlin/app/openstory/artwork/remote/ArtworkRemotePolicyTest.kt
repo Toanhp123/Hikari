@@ -1,4 +1,12 @@
-package app.openstory.artwork
+package app.openstory.artwork.remote
+
+import app.openstory.artwork.ArtworkFailureException
+import app.openstory.artwork.ArtworkFailureReason
+import app.openstory.artwork.ArtworkLimits
+import app.openstory.artwork.policy.ArtworkPolicy
+import app.openstory.artwork.policy.ArtworkPolicyResolver
+import app.openstory.artwork.request.ArtworkAuthorityKey
+import app.openstory.artwork.request.ArtworkRequestIdentity
 
 import java.io.ByteArrayInputStream
 import java.io.Closeable
@@ -18,7 +26,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class ArtworkPolicyTest {
+class ArtworkRemotePolicyTest {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 
@@ -34,25 +42,6 @@ class ArtworkPolicyTest {
         assertTrue(transport.requests.isEmpty())
     }
 
-    @Test
-    fun artworkPolicyRequiresCanonicalDnsHosts() {
-        listOf("images.example.", "127.0.0.1", "bad_host.example").forEach { host ->
-            assertThrows(IllegalArgumentException::class.java) {
-                ArtworkPolicy(AUTHORITY, setOf(host))
-            }
-        }
-    }
-
-    @Test
-    fun artworkPolicySnapshotsCallerOwnedHostSet() {
-        val hosts = mutableSetOf("images.example")
-        val policy = ArtworkPolicy(AUTHORITY, hosts)
-
-        hosts += "later.example"
-
-        assertEquals(setOf("images.example"), policy.allowedHttpsHosts)
-        assertEquals(ArtworkPolicy(AUTHORITY, setOf("images.example")), policy)
-    }
 
     @Test
     fun requestUsesFrozenTimeoutsAndRevalidatesThreeRedirects() = runTest {

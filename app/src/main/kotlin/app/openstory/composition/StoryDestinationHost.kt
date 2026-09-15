@@ -3,7 +3,7 @@ package app.openstory.composition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import app.openstory.artwork.ArtworkLoader
+import app.openstory.artwork.runtime.ArtworkLoader
 import app.openstory.catalog.feature.CatalogCoverArtwork
 import app.openstory.catalog.feature.CatalogRuntimeAccess
 import app.openstory.common.navigation.RouteEntryId

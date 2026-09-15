@@ -3,9 +3,9 @@ package app.openstory.catalog.feature.fixture
 import android.content.Context
 import android.os.Looper
 import app.openstory.artwork.ArtworkLimits
-import app.openstory.artwork.ArtworkTransport
-import app.openstory.artwork.ArtworkTransportRequest
-import app.openstory.artwork.ArtworkTransportResponse
+import app.openstory.artwork.remote.ArtworkTransport
+import app.openstory.artwork.remote.ArtworkTransportRequest
+import app.openstory.artwork.remote.ArtworkTransportResponse
 import app.openstory.catalog.feature.R
 import java.io.ByteArrayInputStream
 import java.io.InputStream
