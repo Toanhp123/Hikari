@@ -1,5 +1,6 @@
 package app.openstory.catalog.feature.discover
 
+import app.openstory.catalog.feature.discover.screen.DiscoverScreen
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
@@ -30,8 +31,8 @@ import app.openstory.catalog.domain.identity.SourceStoryKey
 import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogSectionKind
-import app.openstory.catalog.feature.state.CatalogIssueKind
-import app.openstory.catalog.feature.state.CatalogIssueUi
+import app.openstory.catalog.feature.discover.DiscoverIssueKind
+import app.openstory.catalog.feature.discover.DiscoverIssueUi
 import app.openstory.designsystem.theme.HikariTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -176,7 +177,7 @@ class DiscoverScreenInstrumentedTest {
         var retryCalls = 0
         val state = contentState().copy(
             content = (contentState().content as DiscoverContentState.Content).copy(
-                issue = CatalogIssueUi(CatalogIssueKind.ACQUISITION_FAILED, retryable = true),
+                issue = DiscoverIssueUi(DiscoverIssueKind.ACQUISITION_FAILED, retryable = true),
             ),
         )
         setContent(state, onRefresh = { refreshCalls += 1 }, onRetry = { retryCalls += 1 })

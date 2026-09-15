@@ -1,5 +1,6 @@
 package app.openstory.catalog.feature.plugin
 
+import app.openstory.catalog.feature.discover.screen.DiscoverScreen
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,13 +37,12 @@ import app.openstory.artwork.policy.ArtworkPolicyResolver
 import app.openstory.artwork.preflight.ArtworkPreflight
 import app.openstory.artwork.runtime.ArtworkRuntime
 import app.openstory.artwork.runtime.ArtworkRuntimeCallbacks
-import app.openstory.catalog.feature.assets.CoverImagePreflight
-import app.openstory.catalog.feature.assets.LocalArtworkLoader
-import app.openstory.catalog.feature.assets.LocalCoverAssetResolver
+import app.openstory.artwork.preflight.ArtworkImagePreflight
+import app.openstory.catalog.feature.artwork.LocalArtworkLoader
+import app.openstory.artwork.request.ArtworkLocalResolver
 import app.openstory.common.execution.BoundedProcessWorkAdmission
 import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverContentState
-import app.openstory.catalog.feature.discover.DiscoverScreen
 import app.openstory.catalog.feature.discover.TEST_DISCOVER_SECTION_LABELS
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
@@ -321,7 +321,7 @@ class MangaUpdatesCatalogIntegrationTest {
         val decodeCount = AtomicInteger()
         val loader = ArtworkRuntime(
             context = appContext,
-            localResolver = LocalCoverAssetResolver { _, _ -> null },
+            localResolver = ArtworkLocalResolver { _, _ -> null },
             remoteTransport = transport,
             policyResolver = ArtworkPolicyResolver { authority ->
                 ArtworkPolicy(authority, policy.allowedHttpsHosts)
@@ -329,7 +329,7 @@ class MangaUpdatesCatalogIntegrationTest {
             },
             admission = BoundedProcessWorkAdmission(),
             preflight = ArtworkPreflight { file, mediaType, size ->
-                CoverImagePreflight().inspect(file, mediaType, size)
+                ArtworkImagePreflight().inspect(file, mediaType, size)
             },
             callbacks = ArtworkRuntimeCallbacks(
                 onSuccessfulDecode = { decodeCount.incrementAndGet() },

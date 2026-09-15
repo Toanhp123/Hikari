@@ -21,9 +21,9 @@ acceptance remain separate states.
 ## Current position
 
 **Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 10. A
-module-local repository cleanup interlude is active before Task 11; `:core:artwork` is now
-completed/accepted after focused host Gradle verification, and Task 11 remains not started and held for
-a later explicitly authorized turn.**
+module-local repository cleanup interlude is active before Task 11; `:core:artwork` is
+completed/accepted, `:feature:catalog` is now completed/accepted, and Task 11
+remains not started and held for a later explicitly authorized turn.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical for
 Step 3 feature work. Cleanup authority is
 `../project/file-package-ownership-policy.md` plus
@@ -88,6 +88,18 @@ The first authorized module cleanup, `:core:artwork`, now has the approved respo
 and a current-static layout ratchet is present. Agent-owned static/pure-Kotlin evidence is green. On
 2026-09-15, the user returned `BUILD SUCCESSFUL in 1m 2s` for the required focused host Gradle cone
 (`105 actionable tasks: 11 executed, 94 up-to-date`), so `:core:artwork` cleanup is completed/accepted.
+The next explicitly authorized cleanup, `:feature:catalog`, has now replaced the mixed root composition and
+retired `assets/presentation/state` buckets with `entrypoint/runtime/artwork/discover` ownership, keeps shared
+Discover contracts below dedicated composition/screen/header/editorial/section packages to preserve an acyclic
+package graph, removes `LegacyArtworkTestAdapters.kt`, and migrates Catalog artwork instrumentation to the
+current `:core:artwork` APIs. Current static/layout/structural hard gates are green. On 2026-09-15, the user
+returned `BUILD SUCCESSFUL in 39s` for the complete focused host/architecture/Detekt cone
+(`278 actionable tasks: 13 executed, 265 up-to-date`) and then ran the focused connected gate on Redmi Note 9S
+Android 15: all 25 tests completed with zero skipped/failed and `BUILD SUCCESSFUL in 1m 44s`
+(`134 actionable tasks: 9 executed, 125 up-to-date`). Therefore `:feature:catalog` cleanup is
+completed/accepted. No later cleanup module is authorized yet, and Task 11 remains frozen. Checked-in
+Baseline/Startup Profile entries for moved Catalog FQNs are intentionally not claimed as current profile
+evidence; final Step 3 profile regeneration remains owned by the accepted Step 3 performance policy.
 The Step 3 owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 

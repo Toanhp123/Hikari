@@ -122,7 +122,7 @@ class AppShellContractTest {
             "app/src/main/kotlin/app/openstory/startup/ui/StartupGate.kt",
         ).readText()
         val entryPoint = rootFile(
-            "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt",
+            "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/entrypoint/CatalogEntryPoint.kt",
         ).readText()
 
         assertTrue("import androidx.compose.foundation.isSystemInDarkTheme" in startup)
@@ -140,7 +140,7 @@ class AppShellContractTest {
     @Test
     fun catalogRootEntryPointKeepsImmutableMediaAndEmitsStorySelection() {
         val entryPoint = repositoryFile(
-            "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/CatalogEntryPoint.kt",
+            "feature/catalog/src/main/kotlin/app/openstory/catalog/feature/entrypoint/CatalogEntryPoint.kt",
         )
 
         assertTrue("Catalog entry point is missing", entryPoint.isFile)

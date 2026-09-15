@@ -3,8 +3,8 @@ package app.openstory.composition
 import androidx.compose.runtime.Composable
 import app.openstory.artwork.runtime.ArtworkLoader
 import app.openstory.catalog.domain.model.CatalogMediaType
-import app.openstory.catalog.feature.CatalogRootEntryPoint
-import app.openstory.catalog.feature.CatalogRuntimeAccess
+import app.openstory.catalog.feature.entrypoint.CatalogRootEntryPoint
+import app.openstory.catalog.feature.runtime.CatalogRuntimeAccess
 import app.openstory.composition.navigation.StoryRouteCodec
 import app.openstory.navigation.AppMediaRoute
 import app.openstory.navigation.AppRoute

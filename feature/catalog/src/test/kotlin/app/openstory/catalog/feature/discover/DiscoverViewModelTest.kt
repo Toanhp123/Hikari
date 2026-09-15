@@ -1,5 +1,7 @@
 package app.openstory.catalog.feature.discover
 
+import app.openstory.catalog.feature.runtime.DiscoverRuntimeActivation
+import app.openstory.catalog.feature.runtime.DiscoverRuntime
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
@@ -24,9 +26,6 @@ import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
 import app.openstory.catalog.domain.source.AcquisitionProvenance
 import app.openstory.catalog.domain.source.SectionExpansion
-import app.openstory.catalog.feature.state.CatalogIssueKind
-import app.openstory.catalog.feature.state.CatalogIssueUi
-import app.openstory.catalog.feature.state.toCatalogIssueUi
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.discover.DiscoverSessionState
@@ -154,7 +153,7 @@ class DiscoverViewModelTest {
         advanceUntilIdle()
         assertEquals(
             DiscoverContentState.NoContentFailure(
-                CatalogIssueUi(CatalogIssueKind.SOURCE_UNAVAILABLE, retryable = false),
+                DiscoverIssueUi(DiscoverIssueKind.SOURCE_UNAVAILABLE, retryable = false),
             ),
             owner.viewModel.state.value.content,
         )
@@ -198,7 +197,7 @@ class DiscoverViewModelTest {
         advanceUntilIdle()
         val failedRefresh = owner.viewModel.state.value.content as DiscoverContentState.Content
         assertEquals("Persistent title", failedRefresh.sections.single().cards.single().title)
-        assertEquals(CatalogIssueKind.ACQUISITION_FAILED, failedRefresh.issue?.kind)
+        assertEquals(DiscoverIssueKind.ACQUISITION_FAILED, failedRefresh.issue?.kind)
         owner.clear()
     }
 
@@ -221,7 +220,7 @@ class DiscoverViewModelTest {
 
         assertEquals(
             DiscoverContentState.NoContentFailure(
-                CatalogIssueUi(CatalogIssueKind.STORAGE_FAILED, retryable = true),
+                DiscoverIssueUi(DiscoverIssueKind.STORAGE_FAILED, retryable = true),
             ),
             owner.viewModel.state.value.content,
         )
@@ -254,7 +253,7 @@ class DiscoverViewModelTest {
         assertEquals(1, activationCalls)
         assertEquals(
             DiscoverContentState.NoContentFailure(
-                CatalogIssueUi(CatalogIssueKind.STORAGE_FAILED, retryable = true),
+                DiscoverIssueUi(DiscoverIssueKind.STORAGE_FAILED, retryable = true),
             ),
             owner.viewModel.state.value.content,
         )
@@ -310,7 +309,7 @@ class DiscoverViewModelTest {
 
         assertEquals(
             DiscoverContentState.NoContentFailure(
-                CatalogIssueUi(CatalogIssueKind.SOURCE_UNAVAILABLE, retryable = false),
+                DiscoverIssueUi(DiscoverIssueKind.SOURCE_UNAVAILABLE, retryable = false),
             ),
             owner.viewModel.state.value.content,
         )
@@ -355,25 +354,25 @@ class DiscoverViewModelTest {
     @Test
     fun issueMappingContainsOnlyKindAndRetryability() {
         val cases = listOf(
-            CatalogFailure.SourceUnavailable to CatalogIssueUi(CatalogIssueKind.SOURCE_UNAVAILABLE, false),
+            CatalogFailure.SourceUnavailable to DiscoverIssueUi(DiscoverIssueKind.SOURCE_UNAVAILABLE, false),
             CatalogFailure.Validation("https://private.example/payload", CatalogValidationReason.MALFORMED) to
-                CatalogIssueUi(CatalogIssueKind.INVALID_SOURCE_DATA, false),
+                DiscoverIssueUi(DiscoverIssueKind.INVALID_SOURCE_DATA, false),
             CatalogFailure.IdentityCollision("plugin-secret-story-id") to
-                CatalogIssueUi(CatalogIssueKind.INVALID_SOURCE_DATA, false),
+                DiscoverIssueUi(DiscoverIssueKind.INVALID_SOURCE_DATA, false),
             CatalogFailure.Acquisition(CatalogOperation.DISCOVER) to
-                CatalogIssueUi(CatalogIssueKind.ACQUISITION_FAILED, true),
+                DiscoverIssueUi(DiscoverIssueKind.ACQUISITION_FAILED, true),
             CatalogFailure.Storage(CatalogStorageOperation.READ_DISCOVER) to
-                CatalogIssueUi(CatalogIssueKind.STORAGE_FAILED, true),
+                DiscoverIssueUi(DiscoverIssueKind.STORAGE_FAILED, true),
             CatalogFailure.Artwork(CatalogArtworkFailureReason.IO_FAILED) to
-                CatalogIssueUi(CatalogIssueKind.ARTWORK_FAILED, true),
+                DiscoverIssueUi(DiscoverIssueKind.ARTWORK_FAILED, true),
             CatalogFailure.Artwork(CatalogArtworkFailureReason.INVALID_LOCATOR) to
-                CatalogIssueUi(CatalogIssueKind.ARTWORK_FAILED, false),
+                DiscoverIssueUi(DiscoverIssueKind.ARTWORK_FAILED, false),
             CatalogFailure.InternalInvariant("host-list=private.example") to
-                CatalogIssueUi(CatalogIssueKind.INTERNAL_FAILURE, false),
+                DiscoverIssueUi(DiscoverIssueKind.INTERNAL_FAILURE, false),
         )
 
         cases.forEach { (failure, expected) ->
-            val actual = failure.toCatalogIssueUi()
+            val actual = failure.toDiscoverIssueUi()
             assertEquals(expected, actual)
             assertFalse(actual.toString().contains("private.example"))
             assertFalse(actual.toString().contains("plugin-secret"))
@@ -382,14 +381,14 @@ class DiscoverViewModelTest {
 
     @Test(expected = CancellationException::class)
     fun cancellationIsNeverMappedToAnIssue() {
-        CancellationException("caller cancelled").toCatalogIssueUi()
+        CancellationException("caller cancelled").toDiscoverIssueUi()
     }
 
     @Test
     fun unexpectedThrowableMapsToInternalWithoutLeakingItsMessage() {
-        val issue = IllegalStateException("https://private.example/host-list").toCatalogIssueUi()
+        val issue = IllegalStateException("https://private.example/host-list").toDiscoverIssueUi()
 
-        assertEquals(CatalogIssueUi(CatalogIssueKind.INTERNAL_FAILURE, false), issue)
+        assertEquals(DiscoverIssueUi(DiscoverIssueKind.INTERNAL_FAILURE, false), issue)
         assertFalse(issue.toString().contains("private.example"))
     }
 

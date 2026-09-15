@@ -6,9 +6,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import app.openstory.catalog.domain.read.StoryRouteArgs
 import app.openstory.catalog.domain.read.StoryRoutePreview
-import app.openstory.catalog.feature.CatalogCoverArtwork
-import app.openstory.catalog.feature.rememberCatalogArtworkLoader
-import app.openstory.catalog.feature.rememberCatalogRuntimeAccess
+import app.openstory.catalog.feature.artwork.CatalogCoverArtwork
+import app.openstory.catalog.feature.artwork.rememberCatalogArtworkLoader
+import app.openstory.catalog.feature.runtime.rememberCatalogRuntimeAccess
 import app.openstory.composition.navigation.StoryRouteCodec
 import app.openstory.execution.ProcessWorkAdmissionOwner
 import app.openstory.library.feature.HomeEntryPoint

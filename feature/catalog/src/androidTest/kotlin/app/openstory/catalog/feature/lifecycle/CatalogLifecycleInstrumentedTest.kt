@@ -10,9 +10,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.feature.CatalogDebugDiagnostics
-import app.openstory.catalog.feature.CatalogRootEntryPoint
-import app.openstory.catalog.feature.rememberCatalogArtworkLoader
-import app.openstory.catalog.feature.rememberCatalogRuntimeAccess
+import app.openstory.catalog.feature.entrypoint.CatalogRootEntryPoint
+import app.openstory.catalog.feature.artwork.rememberCatalogArtworkLoader
+import app.openstory.catalog.feature.runtime.rememberCatalogRuntimeAccess
 import app.openstory.common.execution.BoundedProcessWorkAdmission
 import org.junit.Assert.assertEquals
 import org.junit.Before

@@ -10,8 +10,8 @@ import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.asset.CoverRevisionV1
 import app.openstory.catalog.domain.asset.RemoteHttpsUriV1
 import app.openstory.catalog.domain.identity.CatalogSourceKey
-import app.openstory.catalog.feature.VariantLocalCoverAssets
-import app.openstory.catalog.feature.assets.toImageRequest
+import app.openstory.catalog.feature.artwork.VariantLocalCoverAssets
+import app.openstory.catalog.feature.artwork.toImageRequest
 import app.openstory.catalog.feature.fixture.BenchmarkCoverFixture
 import app.openstory.catalog.runtime.CatalogCapabilityActivation
 import app.openstory.common.execution.BoundedProcessWorkAdmission

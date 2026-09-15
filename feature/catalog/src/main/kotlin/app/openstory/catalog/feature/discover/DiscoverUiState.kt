@@ -6,7 +6,6 @@ import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.source.CatalogSectionDescriptor
 import app.openstory.catalog.domain.source.SectionExpansion
-import app.openstory.catalog.feature.state.CatalogIssueUi
 
 internal data class DiscoverUiState(
     val content: DiscoverContentState = DiscoverContentState.NoContentLoading,
@@ -16,18 +15,18 @@ internal sealed interface DiscoverContentState {
     data object NoContentLoading : DiscoverContentState
 
     data class NoContentFailure(
-        val issue: CatalogIssueUi,
+        val issue: DiscoverIssueUi,
     ) : DiscoverContentState
 
     data class Empty(
         val refreshing: Boolean = false,
-        val issue: CatalogIssueUi? = null,
+        val issue: DiscoverIssueUi? = null,
     ) : DiscoverContentState
 
     data class Content(
         val sections: List<DiscoverSectionUi>,
         val refreshing: Boolean,
-        val issue: CatalogIssueUi?,
+        val issue: DiscoverIssueUi?,
     ) : DiscoverContentState
 }
 

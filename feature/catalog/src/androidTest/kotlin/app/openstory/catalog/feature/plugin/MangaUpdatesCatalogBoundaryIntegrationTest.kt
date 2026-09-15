@@ -4,22 +4,29 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import app.openstory.artwork.ArtworkFailureException
+import app.openstory.artwork.ArtworkFailureReason
+import app.openstory.artwork.ArtworkLimits
+import app.openstory.artwork.cache.ArtworkEncodedDiskCache
+import app.openstory.artwork.policy.ArtworkPolicy
+import app.openstory.artwork.policy.ArtworkPolicyResolver
+import app.openstory.artwork.preflight.ArtworkImagePreflight
+import app.openstory.artwork.preflight.ArtworkPreflight
+import app.openstory.artwork.remote.ArtworkRemotePolicy
+import app.openstory.artwork.request.ArtworkAuthorityKey
+import app.openstory.artwork.request.ArtworkLocalResolver
+import app.openstory.artwork.request.ArtworkRequestIdentity
+import app.openstory.artwork.runtime.ArtworkFetcher
+import app.openstory.catalog.feature.artwork.toArtworkRequest
+import app.openstory.common.execution.BoundedProcessWorkAdmission
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.catalog.domain.asset.CoverRevisionV1
 import app.openstory.catalog.domain.asset.RemoteHttpsUriV1
 import app.openstory.catalog.domain.asset.SourceAssetPolicy
 import app.openstory.catalog.domain.asset.SourceAssetPolicyProvider
-import app.openstory.catalog.domain.failure.CatalogArtworkFailureReason
-import app.openstory.catalog.domain.failure.CatalogFailure
-import app.openstory.catalog.domain.failure.CatalogFailureException
+import app.openstory.catalog.domain.identity.CatalogSourceKey
 import app.openstory.catalog.domain.model.CatalogMediaType
-import app.openstory.catalog.feature.assets.CatalogImageLimits
-import app.openstory.catalog.feature.assets.CoverEncodedDiskCache
-import app.openstory.catalog.feature.assets.CoverFetcher
-import app.openstory.catalog.feature.assets.CoverRequest
-import app.openstory.catalog.feature.assets.LocalCoverAssetResolver
-import app.openstory.catalog.feature.assets.RemoteCoverPolicy
 import app.openstory.plugins.api.protocol.PluginOperation
 import coil3.disk.DiskCache
 import coil3.disk.directory
@@ -84,13 +91,13 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
             }
         }
 
-        assertArtworkFailure(CatalogArtworkFailureReason.INVALID_LOCATOR) {
-            RemoteCoverPolicy(policyProvider, null, appContext.cacheDir)
-                .fetch(SOURCE_KEY, "http://cdn.mangaupdates.com/cover.png")
+        assertArtworkFailure(ArtworkFailureReason.INVALID_LOCATOR) {
+            ArtworkRemotePolicy(artworkPolicyResolver(policyProvider()), null, appContext.cacheDir)
+                .fetch(remoteIdentity(SOURCE_KEY, "http://cdn.mangaupdates.com/cover.png"))
         }
-        assertArtworkFailure(CatalogArtworkFailureReason.POLICY_REJECTED) {
-            RemoteCoverPolicy(policyProvider, null, appContext.cacheDir)
-                .fetch(SOURCE_KEY, "https://unapproved.example/cover.png")
+        assertArtworkFailure(ArtworkFailureReason.POLICY_REJECTED) {
+            ArtworkRemotePolicy(artworkPolicyResolver(policyProvider()), null, appContext.cacheDir)
+                .fetch(remoteIdentity(SOURCE_KEY, "https://unapproved.example/cover.png"))
         }
 
         val redirectTransport = ControlledPluginTransport(
@@ -110,7 +117,7 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
         assertEquals(2, redirectTransport.coverRequestCount.get())
 
         val rejectionCases = listOf(
-            CatalogArtworkFailureReason.REDIRECT_REJECTED to ControlledPluginTransport(
+            ArtworkFailureReason.REDIRECT_REJECTED to ControlledPluginTransport(
                 handler = ::standardResponse,
                 coverHandler = { request ->
                     val hop = request.uri.substringAfterLast('/').substringBefore('.').toIntOrNull() ?: 0
@@ -120,7 +127,7 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
                     )
                 },
             ),
-            CatalogArtworkFailureReason.REDIRECT_REJECTED to ControlledPluginTransport(
+            ArtworkFailureReason.REDIRECT_REJECTED to ControlledPluginTransport(
                 handler = ::standardResponse,
                 coverHandler = {
                     ControlledCoverResponse(
@@ -129,32 +136,32 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
                     )
                 },
             ),
-            CatalogArtworkFailureReason.MEDIA_TYPE_REJECTED to ControlledPluginTransport(
+            ArtworkFailureReason.MEDIA_TYPE_REJECTED to ControlledPluginTransport(
                 handler = ::standardResponse,
                 coverHandler = { ControlledCoverResponse(200, "text/plain", "nope".encodeToByteArray()) },
             ),
-            CatalogArtworkFailureReason.ENCODED_TOO_LARGE to ControlledPluginTransport(
+            ArtworkFailureReason.ENCODED_TOO_LARGE to ControlledPluginTransport(
                 handler = ::standardResponse,
                 coverHandler = {
                     ControlledCoverResponse(
                         statusCode = 200,
                         contentType = "image/png",
-                        contentLength = CatalogImageLimits.MAX_ENCODED_BYTES + 1,
+                        contentLength = ArtworkLimits.MAX_ENCODED_BYTES + 1,
                     )
                 },
             ),
-            CatalogArtworkFailureReason.ENCODED_TOO_LARGE to ControlledPluginTransport(
+            ArtworkFailureReason.ENCODED_TOO_LARGE to ControlledPluginTransport(
                 handler = ::standardResponse,
                 coverHandler = {
                     ControlledCoverResponse(
                         statusCode = 200,
                         contentType = "image/png",
-                        bytes = ByteArray((CatalogImageLimits.MAX_ENCODED_BYTES + 1).toInt()),
+                        bytes = ByteArray((ArtworkLimits.MAX_ENCODED_BYTES + 1).toInt()),
                         contentLength = null,
                     )
                 },
             ),
-            CatalogArtworkFailureReason.DIMENSIONS_TOO_LARGE to ControlledPluginTransport(
+            ArtworkFailureReason.DIMENSIONS_TOO_LARGE to ControlledPluginTransport(
                 handler = ::standardResponse,
                 coverHandler = {
                     ControlledCoverResponse(200, "image/png", oversizedPngWidth())
@@ -238,21 +245,22 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
         val cacheDirectory = File(appContext.cacheDir, "task17-cover-${System.nanoTime()}")
         val diskCache = DiskCache.Builder()
             .directory(cacheDirectory)
-            .maxSizeBytes(CatalogImageLimits.ENCODED_DISK_BYTES)
+            .maxSizeBytes(ArtworkLimits.ENCODED_DISK_BYTES)
             .build()
         try {
-            val result = CoverFetcher(
-                request = CoverRequest(key, locator),
+            val result = ArtworkFetcher(
+                request = key.toArtworkRequest(locator),
                 options = Options(
                     context = appContext,
                     size = Size(48, 72),
                     fileSystem = FileSystem.SYSTEM,
                 ),
-                localResolver = LocalCoverAssetResolver { _, _ -> null },
-                encodedCache = CoverEncodedDiskCache(diskCache),
+                localResolver = ArtworkLocalResolver { _, _ -> null },
+                encodedCache = ArtworkEncodedDiskCache(diskCache),
                 remoteTransport = transport,
-                policyProvider = policyProvider,
-                preflight = app.openstory.catalog.feature.assets.CoverImagePreflight(),
+                policyResolver = artworkPolicyResolver(policyProvider()),
+                admission = BoundedProcessWorkAdmission(),
+                preflight = ArtworkPreflight(ArtworkImagePreflight()::inspect),
             ).fetch() as SourceFetchResult
             result.source.close()
         } finally {
@@ -262,16 +270,34 @@ class MangaUpdatesCatalogBoundaryIntegrationTest {
     }
 
     private suspend fun assertArtworkFailure(
-        expected: CatalogArtworkFailureReason,
+        expected: ArtworkFailureReason,
         block: suspend () -> Unit,
     ) {
         try {
             block()
             fail("Expected artwork failure $expected")
-        } catch (failure: CatalogFailureException) {
-            assertEquals(expected, (failure.failure as CatalogFailure.Artwork).reason)
+        } catch (failure: ArtworkFailureException) {
+            assertEquals(expected, failure.reason)
         }
     }
+
+    private fun artworkPolicyResolver(provider: SourceAssetPolicyProvider): ArtworkPolicyResolver =
+        ArtworkPolicyResolver { authority ->
+            provider.policyFor(CatalogSourceKey(authority.value))?.let { policy ->
+                ArtworkPolicy(
+                    authority = ArtworkAuthorityKey(policy.catalogSourceKey.value),
+                    allowedHttpsHosts = policy.allowedHttpsHosts,
+                )
+            }
+        }
+
+    private fun remoteIdentity(sourceKey: CatalogSourceKey, rawUri: String) = ArtworkRequestIdentity(
+        authority = ArtworkAuthorityKey(sourceKey.value),
+        stableAssetKey = "android-test:$rawUri",
+        locator = rawUri,
+        transformKey = "android-test",
+        varyKey = "public",
+    )
 
     private fun oversizedPngWidth(): ByteArray = png(1, 1).also { bytes ->
         check(String(bytes, 12, 4, Charsets.US_ASCII) == "IHDR")

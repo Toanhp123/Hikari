@@ -1,5 +1,7 @@
 package app.openstory.catalog.feature.discover
 
+import app.openstory.catalog.feature.runtime.DiscoverRuntimeActivation
+import app.openstory.catalog.feature.runtime.DiscoverRuntime
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
@@ -15,7 +17,6 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
 import app.openstory.catalog.domain.source.AcquisitionProvenance
-import app.openstory.catalog.feature.state.CatalogIssueKind
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.discover.DiscoverSessionState
@@ -77,7 +78,7 @@ class DiscoverRefreshStateTest {
         val failed = owner.viewModel.state.value.content as DiscoverContentState.Content
         assertEquals("Story One", failed.sections.single().cards.single().title)
         assertFalse(failed.refreshing)
-        assertEquals(CatalogIssueKind.ACQUISITION_FAILED, failed.issue?.kind)
+        assertEquals(DiscoverIssueKind.ACQUISITION_FAILED, failed.issue?.kind)
         owner.clear()
     }
 
@@ -96,7 +97,7 @@ class DiscoverRefreshStateTest {
 
         val failed = owner.viewModel.state.value.content as DiscoverContentState.Empty
         assertFalse(failed.refreshing)
-        assertEquals(CatalogIssueKind.ACQUISITION_FAILED, failed.issue?.kind)
+        assertEquals(DiscoverIssueKind.ACQUISITION_FAILED, failed.issue?.kind)
         owner.clear()
     }
 

@@ -7,6 +7,7 @@ import app.openstory.catalog.domain.identity.StorySourceRef
 import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.runtime.source.CatalogSourceBinding
+import app.openstory.catalog.feature.artwork.VariantLocalCoverAssets
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

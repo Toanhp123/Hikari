@@ -10,6 +10,7 @@ run_repository_static_contract_tests() {
     ./scripts/tests/v2-salvage-ledger-test.sh
     ./scripts/tests/v2-source-layout-policy-test.sh
     ./scripts/tests/v2-core-artwork-layout-test.sh
+    ./scripts/tests/v2-feature-catalog-layout-test.sh
     ./scripts/tests/v2-verification-entrypoints-test.sh
   )
 

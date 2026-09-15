@@ -1,5 +1,6 @@
 package app.openstory.catalog.feature.evidence
 
+import app.openstory.catalog.feature.discover.screen.DiscoverScreen
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
@@ -30,14 +31,13 @@ import app.openstory.catalog.domain.model.CatalogMediaType
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.discover.DiscoverCardUi
 import app.openstory.catalog.feature.discover.DiscoverContentState
-import app.openstory.catalog.feature.discover.DiscoverScreen
 import app.openstory.catalog.feature.discover.TEST_DISCOVER_SECTION_LABELS
 import app.openstory.catalog.feature.discover.DiscoverSectionUi
 import app.openstory.catalog.feature.discover.previewDescriptor
 import app.openstory.catalog.feature.discover.DiscoverTestTags
 import app.openstory.catalog.feature.discover.DiscoverUiState
-import app.openstory.catalog.feature.state.CatalogIssueKind
-import app.openstory.catalog.feature.state.CatalogIssueUi
+import app.openstory.catalog.feature.discover.DiscoverIssueKind
+import app.openstory.catalog.feature.discover.DiscoverIssueUi
 import app.openstory.designsystem.theme.HikariTheme
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -92,7 +92,7 @@ class CatalogScreenshotEvidenceTest {
         showDiscover(
             "discover-refresh-issue",
             publishedDiscoverState(
-                issue = CatalogIssueUi(CatalogIssueKind.ACQUISITION_FAILED, retryable = true),
+                issue = DiscoverIssueUi(DiscoverIssueKind.ACQUISITION_FAILED, retryable = true),
             ),
         )
         scrollDiscoverTo(hasText("Try again"))
@@ -196,7 +196,7 @@ class CatalogScreenshotEvidenceTest {
         fun publishedDiscoverState(
             mediaType: CatalogMediaType = CatalogMediaType.MANGA,
             refreshing: Boolean = false,
-            issue: CatalogIssueUi? = null,
+            issue: DiscoverIssueUi? = null,
         ) = DiscoverUiState(
             content = DiscoverContentState.Content(
                 sections = listOf(

@@ -8,12 +8,6 @@ import app.openstory.artwork.artworkFailure
 import java.io.File
 import java.io.RandomAccessFile
 
-internal data class EncodedImageBounds(
-    val mediaType: String,
-    val width: Long,
-    val height: Long,
-)
-
 internal fun inspectArtworkImageContainer(file: File, declaredMediaType: String): EncodedImageBounds =
     RandomAccessFile(file, "r").use { input ->
         val detected = detectImageBounds(input) ?: artworkFailure(ArtworkFailureReason.DECODE_FAILED)

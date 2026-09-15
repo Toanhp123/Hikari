@@ -1,7 +1,7 @@
 # Hikari Repository Module-Local Cleanup Checkpoint
 
 Date: 2026-09-15
-Status: **`:core:artwork` CLEANUP COMPLETED/ACCEPTED**
+Status: **`:feature:catalog` CLEANUP COMPLETED/ACCEPTED**
 
 ## Authority
 
@@ -9,7 +9,7 @@ Status: **`:core:artwork` CLEANUP COMPLETED/ACCEPTED**
 - Cleanup campaign constraints: `../../superpowers/specs/2026-09-15-hikari-module-local-cleanup-design.md`
 - Current execution routing: `../../implementation/current-roadmap.md`
 - Production dependency direction: `../../../config/architecture/module-boundaries.json`
-- Active module plan: `../../superpowers/plans/2026-09-15-core-artwork-module-cleanup.md`
+- Active module plan: `../../superpowers/plans/2026-09-15-feature-catalog-module-cleanup.md`
 
 ## Accepted boundary before this patch
 
@@ -139,11 +139,147 @@ adjacent Catalog test adapter is not part of the `:core:artwork` acceptance boun
 
 These are not hard policy failures and are not authorization for further splitting in this turn.
 
+## `:feature:catalog` cleanup — completed / accepted
+
+The next explicitly authorized primary module is `:feature:catalog`. The cleanup keeps the accepted
+module graph and Task 10 behavior while replacing flat/mixed source placement with responsibility-bearing
+packages. No build dependency edge, storage/runtime semantic, UI behavior, or Task 11 capability is added.
+
+Approved production tree:
+
+```text
+feature/catalog/src/main/kotlin/app/openstory/catalog/feature/
+├── CatalogVariantBinding.kt
+├── entrypoint/
+│   └── CatalogEntryPoint.kt
+├── artwork/
+│   ├── CatalogArtworkRuntime.kt
+│   ├── CatalogCoverArtwork.kt
+│   ├── CoverArtworkState.kt
+│   └── CoverRequest.kt
+├── runtime/
+│   ├── CatalogRuntimeAccess.kt
+│   ├── CatalogRuntimeHolder.kt
+│   └── DiscoverRuntime.kt
+├── discover/
+│   ├── DiscoverIssueUi.kt
+│   ├── DiscoverSectionLabels.kt
+│   ├── DiscoverTestTags.kt
+│   ├── DiscoverUiState.kt
+│   ├── DiscoverViewModel.kt
+│   ├── DiscoverVisualMetrics.kt
+│   ├── composition/
+│   │   └── DiscoverComposition.kt
+│   ├── screen/
+│   │   └── DiscoverScreen.kt
+│   ├── editorial/
+│   ├── header/
+│   └── section/
+└── trace/
+```
+
+The cleanup deletes the retired `CatalogComposition.kt`, `CatalogScreen.kt`,
+`CatalogSectionResources.kt`, `CatalogArtworkEntryPoint.kt`, the production `assets/presentation/state`
+buckets, and `LegacyArtworkTestAdapters.kt`. Catalog artwork instrumentation now calls the current
+`:core:artwork` APIs directly plus the real Catalog `CoverAssetKey -> ArtworkRequest` adapter rather than
+recreating the retired feature-local artwork surface. Debug/release/benchmark local-cover bindings now live
+under `feature/artwork/`; the build-surface `CatalogVariantBinding.kt` / `VariantCatalogBinding.kt` anchors
+remain in their accepted locations.
+
+### Fresh agent-owned evidence
+
+The cleanup workspace recorded the required layout RED before source migration. After implementation:
+
+- `bash scripts/tests/v2-feature-catalog-layout-test.sh` — **PASS**;
+- `bash scripts/tests/v2-source-layout-policy-test.sh` — **PASS**;
+- `bash scripts/tests/v2-verification-entrypoints-test.sh` — **PASS**;
+- `source scripts/verification-common.sh && run_repository_static_contract_tests` — **PASS** for every
+  current static contract, including the Catalog layout ratchet;
+- `bash scripts/structural-review-report.sh` — **PASS hard policies**; only review-level signals remain;
+- stale active-source scan — **PASS** for retired `CatalogComposition.kt`, `CatalogScreen.kt`,
+  `CatalogArtworkEntryPoint.kt`, feature `assets/presentation/state` production packages, and
+  `LegacyArtworkTestAdapters.kt`;
+- `settings.gradle.kts`, `config/architecture/module-boundaries.json`, and
+  `feature/catalog/build.gradle.kts` remain byte-unchanged.
+
+The sandbox attempted the focused Gradle cone but could not download Gradle 9.5.0 because external network
+access is unavailable. The first real host run then exposed three cleanup defects: `DiscoverScreen` lost the
+`loadingSections` import after section extraction; the initial package tree created a strongly connected component
+between the Catalog root/runtime/Discover rendering packages; and the previously accepted `:core:artwork`
+`ArtworkImageContainer.kt` filename violated Detekt `MatchingDeclarationName`. The remediation keeps the root
+Catalog package as a lower build-surface anchor, moves the public entry point to `entrypoint/`, moves Discover
+runtime ownership to `runtime/`, moves Discover composition/screen orchestration above the shared Discover
+contract package, restores the missing section import, and splits `EncodedImageBounds` into its matching file.
+Two subsequent host reruns exposed only package-move import omissions (`DiscoverTestTags` in `DiscoverScreen`
+and generated `R` in `DiscoverSectionCopyTest`); both were fixed without changing behavior or dependency edges.
+
+### User-owned host verification — accepted
+
+On 2026-09-15, the user reran the complete focused host/architecture cone from the real repository:
+
+```powershell
+.\gradlew.bat :feature:catalog:testDebugUnitTest `
+  :feature:catalog:compileDebugKotlin `
+  :feature:catalog:compileDebugAndroidTestKotlin `
+  :feature:catalog:compileReleaseKotlin `
+  :feature:catalog:compileBenchmarkReleaseKotlin `
+  :app:compileDebugKotlin `
+  verifyArchitecture :app:verifyFoundation verifyStep3BuildSurface `
+  verifyProductionPackageStructure verifyModuleBoundaries detekt `
+  --no-daemon
+```
+
+Returned host evidence:
+
+```text
+BUILD SUCCESSFUL in 39s
+278 actionable tasks: 13 executed, 265 up-to-date
+Configuration cache entry reused.
+```
+
+This closes package/import/type visibility across Catalog production, unit tests, Android instrumentation,
+release/benchmark source sets, the App consumer, live Step 3 architecture checks, and Detekt. Detekt still
+reported review-level warnings elsewhere in the repository, including the pre-existing `CatalogDebugDiagnostics`
+function-count signal, but no Detekt error blocked the successful host gate.
+
+Because this cleanup removed the test-only artwork compatibility façade and materially rewrote four
+instrumentation classes to use the current `:core:artwork` API directly, the user also ran the focused connected
+gate on Redmi Note 9S / Android 15:
+
+```powershell
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.artwork.ArtworkPreflightInstrumentedTest,app.openstory.catalog.feature.artwork.LocalCoverContinuityInstrumentedTest,app.openstory.catalog.feature.plugin.MangaUpdatesCatalogIntegrationTest,app.openstory.catalog.feature.plugin.MangaUpdatesCatalogBoundaryIntegrationTest' `
+  --no-daemon
+```
+
+Returned connected evidence:
+
+```text
+Starting 25 tests on Redmi Note 9S - 15
+Finished 25 tests on Redmi Note 9S - 15
+BUILD SUCCESSFUL in 1m 44s
+134 actionable tasks: 9 executed, 125 up-to-date
+Configuration cache entry stored.
+```
+
+All 25 focused connected tests completed with zero skipped and zero failed tests. This closes the materially
+rewritten Android-test surface; Discover screenshot/lifecycle tests that only received package/type import
+migrations remain covered by Android-test compilation here and by the later campaign/final broad gates.
+
+### Baseline/startup profile note
+
+The checked-in release Baseline/Startup Profile files still contain entries for pre-cleanup Catalog FQNs such
+as `CatalogCompositionKt` and `feature/assets/*`. This cleanup does **not** synthesize replacement profile
+entries or claim those generated artifacts are current performance evidence. The canonical Step 3 design
+already requires final baseline/startup-profile regeneration after the final Step 3 production graph is
+assembled; until that regeneration, stale moved-class entries may be ignored by ART and must not be used as
+evidence that the moved Catalog paths remain profile-covered. This is a performance-artifact validity note,
+not a correctness blocker for this module-local source cleanup.
+
 ## Exact resume boundary
 
-**`:core:artwork` is completed/accepted. STOP before another module and do not begin Step 3 Task 11.**
+**`:core:artwork` and `:feature:catalog` are both completed/accepted. STOP here before selecting the next
+primary cleanup module; do not begin another module or Step 3 Task 11 without a new explicit authorization.**
 
-The cleanup patch plus the user-returned host Gradle evidence close this module-local cleanup boundary.
-Commit this module cleanup as its own checkpoint. A later turn must explicitly name and audit the next
-primary module, present its target tree, and receive approval before any additional source reorganization
-begins. Task 11 remains frozen until the cleanup interlude is explicitly ended.
+Commit the Catalog cleanup independently at this accepted checkpoint. Task 11 remains frozen until the cleanup
+interlude is explicitly ended.

@@ -10,35 +10,19 @@ import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.domain.read.DiscoverCard
 import app.openstory.catalog.domain.read.DiscoverPersistenceState
-import app.openstory.catalog.feature.state.CatalogIssueUi
-import app.openstory.catalog.feature.state.CatalogIssueKind
-import app.openstory.catalog.feature.state.toCatalogIssueUi
+import app.openstory.catalog.feature.runtime.DiscoverRuntime
+import app.openstory.catalog.feature.runtime.DiscoverRuntimeActivation
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionResult
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.discover.DiscoverSessionState
 import java.util.Locale
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-internal interface DiscoverRuntime : AutoCloseable {
-    suspend fun activate(): DiscoverRuntimeActivation
-}
-
-internal sealed interface DiscoverRuntimeActivation {
-    data class Unavailable(val failure: CatalogFailure) : DiscoverRuntimeActivation
-
-    data class Available(
-        val observe: (CatalogMediaType) -> Flow<DiscoverSessionState>,
-        val refresh: suspend (CatalogMediaType) -> CatalogAcquisitionResult,
-        val quiesce: suspend (CatalogMediaType) -> Unit = {},
-    ) : DiscoverRuntimeActivation
-}
 
 internal class DiscoverViewModel(
     private val runtime: DiscoverRuntime,
@@ -48,7 +32,7 @@ internal class DiscoverViewModel(
     val state: StateFlow<DiscoverUiState> = mutableState.asStateFlow()
 
     private var available: DiscoverRuntimeActivation.Available? = null
-    private var activationIssue: CatalogIssueUi? = null
+    private var activationIssue: DiscoverIssueUi? = null
     private var activationJob: Job? = null
     private var observationJob: Job? = null
     private var refreshJob: Job? = null
@@ -65,7 +49,7 @@ internal class DiscoverViewModel(
         when {
             issue == null || !issue.retryable -> Unit
             activation == null -> activateIfNeeded()
-            issue.kind == CatalogIssueKind.STORAGE_FAILED -> {
+            issue.kind == DiscoverIssueKind.STORAGE_FAILED -> {
                 observeFixedMedia(activation)
             }
             else -> requestRefresh()
@@ -89,7 +73,7 @@ internal class DiscoverViewModel(
             } catch (failure: CatalogFailureException) {
                 showFailure(failure.failure)
             } catch (@Suppress("TooGenericExceptionCaught") error: Throwable) {
-                showActivationIssue(error.toCatalogIssueUi())
+                showActivationIssue(error.toDiscoverIssueUi())
             } finally {
                 activationJob = null
             }
@@ -106,7 +90,7 @@ internal class DiscoverViewModel(
                     CatalogAcquisitionResult.Success -> Unit
                     is CatalogAcquisitionResult.Failed -> {
                         mutableState.update { current ->
-                            current.copy(content = current.content.withIssue(result.failure.toCatalogIssueUi()))
+                            current.copy(content = current.content.withIssue(result.failure.toDiscoverIssueUi()))
                         }
                     }
                 }
@@ -162,10 +146,10 @@ internal class DiscoverViewModel(
     }
 
     private fun showFailure(failure: CatalogFailure) {
-        showActivationIssue(failure.toCatalogIssueUi())
+        showActivationIssue(failure.toDiscoverIssueUi())
     }
 
-    private fun showActivationIssue(issue: CatalogIssueUi) {
+    private fun showActivationIssue(issue: DiscoverIssueUi) {
         activationIssue = issue
         mutableState.update { current ->
             current.copy(content = current.content.withIssue(issue))
@@ -193,7 +177,7 @@ private fun DiscoverSessionState.toContentState(
     previous: DiscoverContentState,
     mediaType: CatalogMediaType,
 ): DiscoverContentState {
-    val failure = (acquisition as? CatalogAcquisitionStatus.Failed)?.failure?.toCatalogIssueUi()
+    val failure = (acquisition as? CatalogAcquisitionStatus.Failed)?.failure?.toDiscoverIssueUi()
     return when (val snapshot = persistence) {
         DiscoverPersistenceState.Absent -> if (failure == null) {
             DiscoverContentState.NoContentLoading
@@ -250,7 +234,7 @@ private fun DiscoverContentState.withRefreshRunning(): DiscoverContentState = wh
     is DiscoverContentState.Content -> copy(refreshing = true, issue = null)
 }
 
-private fun DiscoverContentState.withIssue(issue: CatalogIssueUi): DiscoverContentState = when (this) {
+private fun DiscoverContentState.withIssue(issue: DiscoverIssueUi): DiscoverContentState = when (this) {
     DiscoverContentState.NoContentLoading,
     is DiscoverContentState.NoContentFailure,
     -> DiscoverContentState.NoContentFailure(issue)
@@ -258,7 +242,7 @@ private fun DiscoverContentState.withIssue(issue: CatalogIssueUi): DiscoverConte
     is DiscoverContentState.Content -> copy(refreshing = false, issue = issue)
 }
 
-private fun DiscoverContentState.issueOrNull(): CatalogIssueUi? = when (this) {
+private fun DiscoverContentState.issueOrNull(): DiscoverIssueUi? = when (this) {
     DiscoverContentState.NoContentLoading -> null
     is DiscoverContentState.NoContentFailure -> issue
     is DiscoverContentState.Empty -> issue
