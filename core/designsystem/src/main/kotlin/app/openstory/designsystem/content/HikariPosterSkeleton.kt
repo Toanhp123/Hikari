@@ -2,6 +2,7 @@ package app.openstory.designsystem.content
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -16,13 +17,17 @@ import app.openstory.designsystem.theme.hikariSpacing
 fun HikariPosterSkeleton(
     modifier: Modifier = Modifier,
     artworkModifier: Modifier = Modifier,
+    geometry: HikariPosterGeometry? = null,
 ) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
     ) {
         HikariSkeleton(
-            modifier = Modifier.fillMaxWidth().then(artworkModifier),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(geometry?.let { Modifier.aspectRatio(it.artworkAspectRatio) } ?: Modifier)
+                .then(artworkModifier),
             shape = MaterialTheme.shapes.medium,
         )
         HikariSkeleton(

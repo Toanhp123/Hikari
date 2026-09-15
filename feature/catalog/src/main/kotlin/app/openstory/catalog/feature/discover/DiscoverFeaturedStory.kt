@@ -1,6 +1,5 @@
 package app.openstory.catalog.feature.discover
 
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -9,6 +8,7 @@ import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.catalog.feature.assets.CoverArtwork
 import app.openstory.catalog.feature.assets.CoverArtworkState
 import app.openstory.designsystem.content.HikariPosterCard
+import app.openstory.designsystem.content.HikariPosterGeometry
 
 @Composable
 internal fun DiscoverFeaturedStory(
@@ -24,7 +24,7 @@ internal fun DiscoverFeaturedStory(
         modifier = modifier
             .width(DiscoverVisualMetrics.TrendingCoverWidth)
             .testTag(DiscoverTestTags.card(CatalogSectionKind.POPULAR, card.ref)),
-        artworkModifier = Modifier.height(DiscoverVisualMetrics.TrendingCoverHeight),
+        geometry = HikariPosterGeometry.Featured,
     ) {
         CoverArtwork(
             title = card.title,

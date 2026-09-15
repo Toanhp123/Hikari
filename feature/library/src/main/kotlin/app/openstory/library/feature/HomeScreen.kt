@@ -3,7 +3,6 @@ package app.openstory.library.feature
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,22 +15,24 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariPosterCard
+import app.openstory.designsystem.content.HikariPosterGeometry
 import app.openstory.designsystem.content.HikariPosterGrid
 import app.openstory.designsystem.content.HikariPosterSkeleton
+import app.openstory.designsystem.control.HikariFilterChip
+import app.openstory.designsystem.control.HikariSearchField
+import app.openstory.designsystem.presentation.HikariFocusedHeader
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariErrorState
+import app.openstory.designsystem.theme.HikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.library.domain.LibraryFilter
 
@@ -84,7 +85,7 @@ fun HomeScreen(
                         supportingText = story.supportingText,
                         onClick = { onStorySelected(story) },
                         modifier = Modifier.testTag(HomeTestTags.story(story.ref)),
-                        artworkModifier = Modifier.aspectRatio(HOME_POSTER_ASPECT_RATIO),
+                        geometry = HikariPosterGeometry.Standard,
                     ) {
                         artwork(story, Modifier.fillMaxSize())
                     }
@@ -111,30 +112,25 @@ private fun HomeHeader(
             ),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space16),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space4)) {
-            Text("Library", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Text(
-                "Stories you saved, ready from local truth.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        OutlinedTextField(
+        HikariFocusedHeader(
+            title = "Library",
+            subtitle = "Stories you saved, ready from local truth.",
+        )
+        HikariSearchField(
             value = state.inputQuery,
             onValueChange = onInputQueryChanged,
             modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.SEARCH),
-            label = { Text("Search your library") },
-            singleLine = true,
+            label = "Search your library",
         )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
         ) {
             LibraryFilter.entries.forEach { filter ->
-                FilterChip(
+                HikariFilterChip(
                     selected = state.filter == filter,
                     onClick = { onFilterSelected(filter) },
-                    label = { Text(filter.label) },
+                    label = filter.label,
                 )
             }
         }
@@ -150,7 +146,7 @@ private fun HomeLoading() {
         repeat(HOME_LOADING_PLACEHOLDER_COUNT) {
             HikariPosterSkeleton(
                 modifier = Modifier.weight(1f).widthIn(max = 144.dp),
-                artworkModifier = Modifier.aspectRatio(HOME_POSTER_ASPECT_RATIO),
+                geometry = HikariPosterGeometry.Standard,
             )
         }
     }
@@ -217,8 +213,7 @@ private val LibraryFilter.label: String
         LibraryFilter.LIGHT_NOVEL -> "Light Novel"
     }
 
-private val HOME_HORIZONTAL_PADDING = 20.dp
+private val HOME_HORIZONTAL_PADDING = HikariDimensions.CompactScreenInset
 private val HOME_TOP_PADDING = 28.dp
 private val HOME_BOTTOM_PADDING = 32.dp
-private const val HOME_POSTER_ASPECT_RATIO = 104f / 150f
 private const val HOME_LOADING_PLACEHOLDER_COUNT = 3

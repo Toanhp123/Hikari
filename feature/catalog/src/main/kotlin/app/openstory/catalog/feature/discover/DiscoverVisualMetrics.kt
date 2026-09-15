@@ -3,7 +3,6 @@ package app.openstory.catalog.feature.discover
 import androidx.compose.ui.unit.dp
 
 internal object DiscoverVisualMetrics {
-    val WideLayoutThreshold = 600.dp
     val HeroBannerHeight = 190.dp
     val TrendingCoverWidth = 136.dp
     val TrendingCoverHeight = 192.dp

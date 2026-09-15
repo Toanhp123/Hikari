@@ -6,10 +6,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import app.openstory.designsystem.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,10 +27,12 @@ fun HikariPullToRefresh(
         return
     }
 
+    val refreshLabel = stringResource(R.string.hikari_refresh_action)
+    val refreshingLabel = stringResource(R.string.hikari_refreshing_state)
     val accessibleModifier = modifier.semantics {
-        if (refreshing) stateDescription = "Refreshing"
+        if (refreshing) stateDescription = refreshingLabel
         customActions = listOf(
-            CustomAccessibilityAction("Refresh") {
+            CustomAccessibilityAction(refreshLabel) {
                 if (refreshing) {
                     false
                 } else {

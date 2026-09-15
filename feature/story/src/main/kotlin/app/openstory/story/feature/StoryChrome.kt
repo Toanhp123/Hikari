@@ -171,18 +171,7 @@ internal fun StoryTabs() {
 @Composable
 internal fun StoryRecommendations() {
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HikariSectionHeader("You May Also Like")
-            Text(
-                text = "See All",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = LABEL_ALPHA),
-            )
-        }
+        HikariSectionHeader(title = "You May Also Like")
         Text(
             text = "Stories stay longer when details feel right.",
             style = MaterialTheme.typography.bodySmall,
@@ -219,5 +208,4 @@ private val BOOKMARK_ICON_SIZE = 16.dp
 private val ACTION_ICON_SIZE = 18.dp
 private val ACTIVE_TAB_INDICATOR_WIDTH = 28.dp
 private val ACTIVE_TAB_INDICATOR_HEIGHT = 3.dp
-private const val LABEL_ALPHA = 0.6f
 private const val TAB_ALPHA = 0.5f

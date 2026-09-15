@@ -1,0 +1,5 @@
+<resources>
+    <string name="hikari_clear_action">Clear</string>
+    <string name="hikari_refresh_action">Refresh</string>
+    <string name="hikari_refreshing_state">Refreshing</string>
+</resources>

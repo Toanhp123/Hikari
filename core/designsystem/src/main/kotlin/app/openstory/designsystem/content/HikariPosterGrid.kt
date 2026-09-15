@@ -11,13 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.openstory.designsystem.theme.HikariDimensions
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
 fun HikariPosterGrid(
     state: LazyGridState,
     modifier: Modifier = Modifier,
-    minPosterWidth: Dp = 112.dp,
+    minPosterWidth: Dp = HikariDimensions.PosterGridMinimumWidth,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     content: LazyGridScope.() -> Unit,
 ) {

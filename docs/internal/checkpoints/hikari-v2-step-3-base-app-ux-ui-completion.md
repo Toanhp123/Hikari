@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-15
-Status: **TASK 9 COMPLETED/ACCEPTED; TASK 10 READY FOR A NEW AUTHORIZED TURN**
+Status: **TASK 10 COMPLETED/ACCEPTED; TASK 11 READY FOR A NEW AUTHORIZED TURN**
 
 ## Authority
 
@@ -9,9 +9,9 @@ Status: **TASK 9 COMPLETED/ACCEPTED; TASK 10 READY FOR A NEW AUTHORIZED TURN**
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Tasks 0-9.
-- Current execution boundary: Task 9 implementation, remediation, and all required user-owned
-  evidence are accepted. Task 10 is ready only for a new explicitly authorized turn and is not
+- Completed/accepted execution boundary: Tasks 0-10.
+- Current execution boundary: Task 10 implementation, remediation, and all required user-owned
+  evidence are accepted. Task 11 is ready only for a new explicitly authorized turn and is not
   started here.
 
 Reviewed artifact SHA-256:
@@ -1001,8 +1001,158 @@ Focused real-App Home/Story continuity connected gate:
   --no-daemon
 ```
 
+## Task 10 Delta
+
+- Added domain-neutral Step 3 layout policy in `:core:designsystem`: the shared 600dp breakpoint,
+  compact/wide screen insets, 48dp minimum touch target, adaptive poster-grid minimum, and the two
+  accepted poster artwork geometries. Poster cards and skeletons now consume the same geometry
+  object, so loading and content cannot silently drift to different aspect ratios.
+- Added small caller-owned presentation primitives for poster rails, search, filter chips, icon
+  actions, floating destination navigation, focused headers, action/choice sheets, and distinct
+  clickable value vs informational rows. The APIs own visuals/accessibility only; labels, domain
+  identity, selected values, callbacks, query execution, navigation, and sheet state remain outside
+  Design System.
+- Migrated the repeated current callers: Discover and Story share breakpoint/inset policy; Discover
+  uses the poster rail/geometry family; Home uses the shared focused header, search, filter and poster
+  policy; App navigation uses the floating destination shell; Story Back uses the shared 48dp icon
+  action. Existing Catalog/Home poster sizes and App destination labels/selection remain unchanged.
+- Moved shared pull-to-refresh accessibility strings into localized Design System resources and
+  removed the nonfunctional Story `See All` label because no expanded Similar capability/callback is
+  admitted at this boundary.
+- Hardened module policy so `:core:designsystem` rejects lifecycle/navigation, Room, WorkManager,
+  coroutine, network, artwork acquisition, Catalog, Library, Reading, Story and plugin ownership
+  imports.
+
+## Task 10 Agent-Owned Evidence
+
+- TDD RED first failed on missing Library/Reading/Story Design System import bans, absent shared
+  breakpoint/dimension policy, and absent Step 3 presentation primitives. After implementation, the
+  focused architecture test and layout-policy unit test pass with zero failures/errors.
+- Fresh final-tree focused verification completed with `BUILD SUCCESSFUL in 13s` and 425 actionable tasks:
+  full `:core:designsystem:testDebugUnitTest`, the focused live module-policy test, debug/release/
+  benchmark/non-minified Kotlin compilation for Design System, Catalog, Library, Story and App, plus
+  Android-test Kotlin compilation for all five affected surfaces.
+- The Design System connected source now contains compiled Compose contract coverage across the
+  existing and new classes for resource-backed refresh labels, shared poster geometry, 48dp controls,
+  caller-owned search/filter/nav actions, distinct row semantics, poster rail materialization and
+  caller-owned choice selection.
+
+## Task 10 Self-Review
+
+- Design System remains dependency-free at the module graph and owns no domain/runtime state,
+  navigation back stack, query debounce/execution, image loading/cache, Room, WorkManager or network
+  behavior. No `GlobalUiState`, generic paging state, `:core:presentation` module, or universal
+  flag-heavy row was introduced.
+- Poster extraction preserves the accepted 136x192 featured and 104x150 standard geometries; skeleton
+  and content use the same geometry source. The changed visual cone is intentionally left for
+  screenshot comparison rather than silently freezing a new universal aspect ratio.
+- Interactive wrappers apply the 48dp minimum outside caller modifiers, so a caller cannot shrink a
+  control below policy. Value and info rows retain distinct click semantics; choice identity and
+  selected state remain caller-owned.
+- Existing feature/runtime lifetimes are unchanged. The migration changes only presentation policy;
+  it adds no work, collectors, acquisition, retry, cache or retained-route ownership.
+
+## Task 10 Required User-Owned Gates
+
+Status: **PASS - ALL SIX USER-OWNED GATES ACCEPTED**
+
+Returned 2026-09-15 evidence:
+
+- Catalog connected screenshot/UI gate: PASS, 11/11 tests.
+- Home connected screenshot/UI gate: PASS, 5/5 tests.
+- Story connected screenshot/UI gate: PASS, 9/9 tests.
+- Real-App destination navigation gate: PASS, 5/5 tests.
+- Broad gate: all reported compile, unit, architecture and structure work reached the final Detekt
+  stage; Detekt failed on one Task 10 `MatchingDeclarationName` finding because
+  `HikariIconActionStyle` shared `HikariIconAction.kt` with the composable declaration.
+- Design System connected gate: 13/15 passed. The two failures came from test fixture ownership, not
+  primitive behavior: sibling composables were emitted without a layout parent and overlapped at the
+  same coordinates, while the controlled search field fixture did not retain the value supplied by
+  `onValueChange` before dispatching IME Search.
+
+Remediation:
+
+- Moved `HikariIconActionStyle` to its matching `HikariIconActionStyle.kt` file without changing the
+  public API or production behavior.
+- Made the connected fixtures use a real vertical layout and caller-owned remembered search state.
+- Fresh focused remediation verification passes `:core:designsystem:testDebugUnitTest`, Design System
+  production/Android-test Kotlin compilation, and Story debug Kotlin compilation: `BUILD SUCCESSFUL
+  in 19s`, 71 actionable tasks, zero failures.
+
+Final returned 2026-09-15 evidence:
+
+- The user returned PASS for the remediated broad affected-module/App/architecture/Detekt rerun.
+- The user returned PASS for the remediated focused Design System connected contract rerun.
+- All six required Task 10 user-owned gates are accepted. The commands below remain the durable
+  evidence shape and do not require repetition without contradictory evidence.
+
+Broad affected-module/App/architecture and Detekt gate:
+
+```powershell
+.\gradlew.bat :core:designsystem:testDebugUnitTest :core:designsystem:assembleDebug `
+  :core:designsystem:assembleRelease :core:designsystem:compileBenchmarkReleaseKotlin `
+  :core:designsystem:compileNonMinifiedReleaseKotlin `
+  :core:designsystem:compileDebugAndroidTestKotlin :feature:catalog:testDebugUnitTest `
+  :feature:catalog:assembleDebug :feature:catalog:assembleRelease `
+  :feature:catalog:compileBenchmarkReleaseKotlin `
+  :feature:catalog:compileNonMinifiedReleaseKotlin `
+  :feature:catalog:compileDebugAndroidTestKotlin :feature:library:testDebugUnitTest `
+  :feature:library:assembleDebug :feature:library:assembleRelease `
+  :feature:library:compileBenchmarkReleaseKotlin `
+  :feature:library:compileNonMinifiedReleaseKotlin `
+  :feature:library:compileDebugAndroidTestKotlin :feature:story:testDebugUnitTest `
+  :feature:story:assembleDebug :feature:story:assembleRelease `
+  :feature:story:compileBenchmarkReleaseKotlin `
+  :feature:story:compileNonMinifiedReleaseKotlin `
+  :feature:story:compileDebugAndroidTestKotlin :app:testDebugUnitTest `
+  :app:assembleDebug :app:assembleRelease :app:compileBenchmarkReleaseKotlin `
+  :app:compileNonMinifiedReleaseKotlin :app:compileDebugAndroidTestKotlin `
+  :build-logic:test verifyArchitecture :app:verifyFoundation verifyStep3BuildSurface `
+  verifyProductionPackageStructure verifyModuleBoundaries detekt --no-daemon
+```
+
+Focused Design System connected contract gate:
+
+```powershell
+.\gradlew.bat :core:designsystem:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.designsystem.HikariDesignSystemContractTest,app.openstory.designsystem.HikariStep3PresentationPolicyTest' `
+  --no-daemon
+```
+
+Selective migrated Catalog screenshot/UI gate:
+
+```powershell
+.\gradlew.bat :feature:catalog:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.catalog.feature.discover.DiscoverScreenInstrumentedTest,app.openstory.catalog.feature.evidence.CatalogScreenshotEvidenceTest' `
+  --no-daemon
+```
+
+Selective migrated Home screenshot/UI gate:
+
+```powershell
+.\gradlew.bat :feature:library:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.library.feature.HomeScreenInstrumentedTest,app.openstory.library.feature.evidence.HomeScreenshotEvidenceTest' `
+  --no-daemon
+```
+
+Selective migrated Story screenshot/UI gate:
+
+```powershell
+.\gradlew.bat :feature:story:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.story.feature.StoryDetailScreenInstrumentedTest,app.openstory.story.feature.evidence.StoryScreenshotEvidenceTest' `
+  --no-daemon
+```
+
+Focused real-App destination navigation gate:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.startup.StartupFlowTest,app.openstory.composition.StoryLibraryHomeContinuityInstrumentedTest' `
+  --no-daemon
+```
+
 ## Exact Resume Boundary
 
-Tasks 0-9 are completed/accepted. Task 9 has no open implementation or verification gate. Stop here.
-Resume at Task 10 only in a new explicitly authorized turn; this Task 9 acceptance does not authorize
-starting Task 10 in the current turn.
+Tasks 0-10 are completed/accepted. Task 10 has no open implementation or verification gate. Stop
+here. Resume at Task 11 only in a new explicitly authorized turn; this Task 10 acceptance does not
+authorize starting Task 11 in the current turn.

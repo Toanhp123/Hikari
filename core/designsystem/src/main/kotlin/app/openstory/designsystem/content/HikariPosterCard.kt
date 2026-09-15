@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,6 +22,7 @@ fun HikariPosterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     artworkModifier: Modifier = Modifier,
+    geometry: HikariPosterGeometry? = null,
     artwork: @Composable BoxScope.() -> Unit = {},
 ) {
     Column(
@@ -31,7 +33,10 @@ fun HikariPosterCard(
     ) {
         HikariArtworkFrame(
             title = title,
-            modifier = Modifier.fillMaxWidth().then(artworkModifier),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(geometry?.let { Modifier.aspectRatio(it.artworkAspectRatio) } ?: Modifier)
+                .then(artworkModifier),
             content = artwork,
         )
         Text(

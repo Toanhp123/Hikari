@@ -20,7 +20,7 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 9; Task 10 is
+**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 10; Task 11 is
 ready only for a new explicitly authorized turn.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
@@ -62,7 +62,16 @@ point-scoped Library membership into Story, shares App-owned Library runtime tru
 passes 45 focused tests plus affected variant/Android-test compilation. Its focused Story and real-
 App Home continuity connected gates passed on Redmi Note 9S API 35. The initial broad gate failed
 only on three Task 9 Detekt guard-shape findings; after their focused remediation, root Detekt passed
-and the user returned PASS for the complete broad rerun. Task 9 is completed/accepted. Task 10 is
+and the user returned PASS for the complete broad rerun. Task 9 is completed/accepted. Task 10 now
+centralizes the Step 3 domain-neutral layout, poster, control, navigation, header, sheet and row
+visual policy, migrates the proven current callers, localizes pull-to-refresh accessibility labels,
+and hardens Design System ownership bans. Focused tests plus affected debug/release/benchmark/non-
+minified and Android-test compilation pass. The user-returned Catalog, Home, Story and real-App
+connected gates pass. The broad gate failed only on one remediated Task 10 Detekt declaration-name
+finding, and the Design System connected gate failed only on two remediated overlapping/controlled-
+state fixture defects. On 2026-09-15, the user returned PASS for both remediated reruns: the complete
+broad affected-module/App/architecture/Detekt gate and the focused Design System connected contract
+gate. All six required user-owned gates are accepted, so Task 10 is completed/accepted. Task 11 is
 ready only for a new explicitly authorized turn and is not started here.
 The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.

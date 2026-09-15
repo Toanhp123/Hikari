@@ -68,6 +68,7 @@
       "testDependencies": [],
       "forbiddenProductionImports": [
         "androidx.lifecycle.",
+        "androidx.navigation.",
         "androidx.room.",
         "androidx.work.",
         "androidx.javascriptengine.",
@@ -75,7 +76,11 @@
         "okhttp3.",
         "java.net.",
         "kotlinx.coroutines.",
+        "app.openstory.artwork.",
         "app.openstory.catalog.",
+        "app.openstory.library.",
+        "app.openstory.reading.",
+        "app.openstory.story.",
         "app.openstory.plugins."
       ]
     },

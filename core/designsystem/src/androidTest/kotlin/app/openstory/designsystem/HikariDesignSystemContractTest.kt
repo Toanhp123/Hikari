@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.test.platform.app.InstrumentationRegistry
 import app.openstory.designsystem.content.HikariSectionHeader
 import app.openstory.designsystem.content.HikariPosterCard
 import app.openstory.designsystem.content.HikariPosterGrid
@@ -214,6 +215,8 @@ class HikariDesignSystemContractTest {
     @Test
     fun idlePullRefreshAccessibilityActionDispatches() {
         var dispatches = 0
+        val refreshLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.hikari_refresh_action)
 
         composeRule.setContent {
             HikariTheme(darkTheme = false) {
@@ -227,7 +230,7 @@ class HikariDesignSystemContractTest {
 
         val idleActions = composeRule.onNodeWithTag("refresh")
             .fetchSemanticsNode().config[SemanticsActions.CustomActions]
-        assertEquals(listOf("Refresh"), idleActions.map { it.label })
+        assertEquals(listOf(refreshLabel), idleActions.map { it.label })
         assertTrue(idleActions.single().action())
         composeRule.runOnIdle { assertEquals(1, dispatches) }
     }
@@ -235,6 +238,8 @@ class HikariDesignSystemContractTest {
     @Test
     fun refreshingPullRefreshAccessibilityActionDoesNotDispatch() {
         var dispatches = 0
+        val refreshingLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.hikari_refreshing_state)
 
         composeRule.setContent {
             HikariTheme(darkTheme = false) {
@@ -247,7 +252,7 @@ class HikariDesignSystemContractTest {
         }
 
         val refreshing = composeRule.onNodeWithTag("refreshing").fetchSemanticsNode().config
-        assertEquals("Refreshing", refreshing[SemanticsProperties.StateDescription])
+        assertEquals(refreshingLabel, refreshing[SemanticsProperties.StateDescription])
         assertFalse(refreshing[SemanticsActions.CustomActions].single().action())
         composeRule.runOnIdle { assertEquals(0, dispatches) }
     }

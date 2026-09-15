@@ -1,7 +1,6 @@
 package app.openstory.story.feature
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,10 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -21,14 +18,15 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.openstory.catalog.domain.asset.CoverAssetKey
 import app.openstory.catalog.domain.asset.CoverLocator
 import app.openstory.designsystem.feedback.HikariInlineFeedback
+import app.openstory.designsystem.control.HikariIconAction
+import app.openstory.designsystem.control.HikariIconActionStyle
 import app.openstory.designsystem.state.HikariSkeleton
+import app.openstory.designsystem.theme.HikariBreakpoints
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.story.feature.presentation.BackArrowIcon
 
@@ -46,7 +44,7 @@ internal fun StoryDetailScreen(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         StoryDetailContent(
             state = state,
-            layout = storyLayout(maxWidth >= StoryVisualMetrics.WideLayoutThreshold),
+            layout = storyLayout(maxWidth),
             onBack = onBack,
             onRetry = onRetry,
             onLibraryToggle = onLibraryToggle,
@@ -117,9 +115,7 @@ private fun StoryDetailContent(
 }
 
 private val STORY_TOP_BAR_HEIGHT = 48.dp
-private val CIRCULAR_ACTION_SIZE = 40.dp
 private val BACK_ICON_SIZE = 18.dp
-private const val ICON_SURFACE_ALPHA = 0.08f
 
 @Composable
 private fun StoryTopBar(onBack: () -> Unit) {
@@ -128,20 +124,15 @@ private fun StoryTopBar(onBack: () -> Unit) {
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ICON_SURFACE_ALPHA),
-            modifier = Modifier
-                .size(CIRCULAR_ACTION_SIZE)
-                .semantics { contentDescription = "Back" },
+        HikariIconAction(
             onClick = onBack,
+            contentDescription = "Back",
+            style = HikariIconActionStyle.OVERLAY,
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                BackArrowIcon(
-                    size = BACK_ICON_SIZE,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+            BackArrowIcon(
+                size = BACK_ICON_SIZE,
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }
@@ -180,14 +171,14 @@ private fun StoryMetadataSkeleton() {
 }
 
 @Composable
-private fun storyLayout(wide: Boolean): StoryLayoutMetrics = if (wide) {
+private fun storyLayout(width: Dp): StoryLayoutMetrics = if (HikariBreakpoints.isWide(width)) {
     StoryLayoutMetrics(
-        screenInset = MaterialTheme.hikariSpacing.space32,
+        screenInset = HikariBreakpoints.screenHorizontalInset(width),
         identityGap = MaterialTheme.hikariSpacing.space24,
     )
 } else {
     StoryLayoutMetrics(
-        screenInset = MaterialTheme.hikariSpacing.space20,
+        screenInset = HikariBreakpoints.screenHorizontalInset(width),
         identityGap = MaterialTheme.hikariSpacing.space16,
     )
 }

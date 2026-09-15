@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -22,6 +21,8 @@ import androidx.compose.ui.unit.Dp
 import app.openstory.catalog.domain.model.CatalogSectionCaps
 import app.openstory.catalog.domain.model.CatalogSectionKind
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.content.HikariPosterRail
+import app.openstory.designsystem.content.HikariPosterGeometry
 import app.openstory.designsystem.content.HikariPosterSkeleton
 import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.hikariSpacing
@@ -122,9 +123,8 @@ private fun PosterRail(
     horizontalInset: Dp,
     content: @Composable (DiscoverCardUi) -> Unit,
 ) {
-    LazyRow(
+    HikariPosterRail(
         contentPadding = PaddingValues(horizontal = horizontalInset),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12),
     ) {
         items(
             items = cards.take(cap),
@@ -169,13 +169,12 @@ internal fun LazyListScope.loadingSections(horizontalInset: Dp, sectionLabels: D
 private fun LazyListScope.popularLoadingSection(horizontalInset: Dp, title: String) {
     item(key = "popular-skeleton") {
         SkeletonSection(title, horizontalInset) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
+            HikariPosterRail {
                 items(CatalogSectionCaps.cap(CatalogSectionKind.POPULAR)) { index ->
                     HikariPosterSkeleton(
                         modifier = Modifier.width(DiscoverVisualMetrics.TrendingCoverWidth),
-                        artworkModifier = Modifier
-                            .height(DiscoverVisualMetrics.TrendingCoverHeight)
-                            .then(
+                        geometry = HikariPosterGeometry.Featured,
+                        artworkModifier = Modifier.then(
                                 if (index == 0) {
                                     Modifier.testTag(DiscoverTestTags.POPULAR_SKELETON)
                                 } else {
@@ -192,13 +191,12 @@ private fun LazyListScope.popularLoadingSection(horizontalInset: Dp, title: Stri
 private fun LazyListScope.latestLoadingSection(horizontalInset: Dp, title: String) {
     item(key = "latest-skeleton") {
         SkeletonSection(title, horizontalInset) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space12)) {
+            HikariPosterRail {
                 items(LATEST_SKELETON_COUNT) { index ->
                     HikariPosterSkeleton(
                         modifier = Modifier.width(DiscoverVisualMetrics.LatestUpdatesCoverWidth),
-                        artworkModifier = Modifier
-                            .height(DiscoverVisualMetrics.LatestUpdatesCoverHeight)
-                            .then(
+                        geometry = HikariPosterGeometry.Standard,
+                        artworkModifier = Modifier.then(
                                 if (index == 0) {
                                     Modifier.testTag(DiscoverTestTags.LATEST_SKELETON)
                                 } else {

@@ -109,6 +109,30 @@ class ModuleGraphTest {
         assertFalse("app.openstory.catalog.runtime." in forbidden)
     }
 
+    @Test
+    fun designSystemPolicyRejectsFeatureAndRuntimeOwnershipImports() {
+        val forbidden = policy.modules.getValue(":core:designsystem").forbiddenProductionImports
+
+        setOf(
+            "androidx.lifecycle.",
+            "androidx.navigation.",
+            "androidx.room.",
+            "androidx.work.",
+            "coil.",
+            "okhttp3.",
+            "java.net.",
+            "kotlinx.coroutines.",
+            "app.openstory.catalog.",
+            "app.openstory.artwork.",
+            "app.openstory.library.",
+            "app.openstory.reading.",
+            "app.openstory.story.",
+            "app.openstory.plugins.",
+        ).forEach { prefix ->
+            assertTrue(prefix in forbidden, "Design System must reject $prefix imports")
+        }
+    }
+
     private data class ExpectedModule(
         val path: String,
         val platform: String,

@@ -24,6 +24,7 @@ import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.refresh.HikariPullToRefresh
 import app.openstory.designsystem.state.HikariEmptyState
 import app.openstory.designsystem.state.HikariErrorState
+import app.openstory.designsystem.theme.HikariBreakpoints
 import app.openstory.designsystem.theme.hikariSpacing
 
 @Composable
@@ -38,11 +39,7 @@ internal fun DiscoverScreen(
     onCoverReady: () -> Unit = {},
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val horizontalInset = if (maxWidth >= DiscoverVisualMetrics.WideLayoutThreshold) {
-            MaterialTheme.hikariSpacing.space32
-        } else {
-            MaterialTheme.hikariSpacing.space20
-        }
+        val horizontalInset = HikariBreakpoints.screenHorizontalInset(maxWidth)
         val layout = DiscoverLayoutMetrics(
             horizontalInset = horizontalInset,
             bottomReserve = MaterialTheme.hikariSpacing.space32,

@@ -3,6 +3,5 @@ package app.openstory.story.feature
 import androidx.compose.ui.unit.dp
 
 internal object StoryVisualMetrics {
-    val WideLayoutThreshold = 600.dp
     val HeroBannerHeight = 280.dp
 }
