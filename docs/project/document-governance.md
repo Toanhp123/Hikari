@@ -38,6 +38,12 @@ that invariant or when a concrete contradiction/root-cause trail crosses the bou
 The Baseline 1 decision in `pre-mvp-baseline-1.md` overrides pre-baseline instructions that retain
 development-only database migrations or selector generations.
 
+### Where should a source file/package live?
+
+Use `file-package-ownership-policy.md`, then the current module/dependency authority in
+`../../config/architecture/module-boundaries.json`. Active cleanup specs/plans may narrow the files
+being changed, but they may not silently create a competing source-layout convention.
+
 ### Has a gate passed?
 
 Use `../internal/checkpoints/`. A required command remains `NOT RUN` until its actual output is
@@ -85,3 +91,5 @@ and tested fixtures.
 - When a scoped design supersedes one surface, add an explicit notice to the older design.
 - When a checkpoint is accepted, update its evidence record and `current-state.md` together.
 - When a module is added, update settings, architecture policy, module documentation, tests, and current state in one reviewed change.
+- When source-layout/cleanup policy changes intentionally, update `file-package-ownership-policy.md`
+  and any executable gate that enforces the changed rule in the same reviewed change.

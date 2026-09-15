@@ -20,9 +20,16 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 10; Task 11 is
-ready only for a new explicitly authorized turn.**
-R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
+**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 10. A
+module-local repository cleanup interlude is active before Task 11; Task 11 remains not started and
+held for a later explicitly authorized turn.**
+R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical for
+Step 3 feature work. Cleanup authority is
+`../project/file-package-ownership-policy.md` plus
+`../superpowers/specs/2026-09-15-hikari-module-local-cleanup-design.md`. Cleanup resume/evidence is
+owned by `../internal/checkpoints/hikari-repository-module-cleanup.md`. Each cleanup turn must name one
+primary module, approve its target tree before implementation, and stop at that module boundary. No
+module-local cleanup may add/remove modules, change dependency edges, redesign behavior, or begin Task 11.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
 ACTIVE/RETAINED/RELEASED ownership independently of route Compose retention. Deterministic child
@@ -71,9 +78,10 @@ connected gates pass. The broad gate failed only on one remediated Task 10 Detek
 finding, and the Design System connected gate failed only on two remediated overlapping/controlled-
 state fixture defects. On 2026-09-15, the user returned PASS for both remediated reruns: the complete
 broad affected-module/App/architecture/Detekt gate and the focused Design System connected contract
-gate. All six required user-owned gates are accepted, so Task 10 is completed/accepted. Task 11 is
-ready only for a new explicitly authorized turn and is not started here.
-The owning plan is
+gate. All six required user-owned gates are accepted, so Task 10 is completed/accepted. Task 11 remains
+not started. The intervening cleanup campaign is repository-maintenance work only and does not count
+as Task 11 progress; it must follow the canonical file/package policy and module-local cleanup design.
+The Step 3 owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

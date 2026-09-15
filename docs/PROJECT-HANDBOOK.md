@@ -1,6 +1,6 @@
 # OpenStory / Hikari Project Handbook
 
-Date: 2026-08-24
+Date: 2026-09-15
 Status: **Canonical documentation entry point**
 
 This handbook exists so a contributor or agent can understand the project without
@@ -49,11 +49,9 @@ anime functionality, TTS/audiobook/translation/AI summaries, social features, na
 plugins, unrestricted JavaScript, automatic access-control bypass and cross-device download
 transfer.
 
-Implementation note: the current repository already contains a bounded MangaDex image-page
-Reader path. That is an implementation fact beyond the original 2026-08-03 MVP exclusion;
-it does not silently amend the release-scope decision. `project/current-state.md` records the
-capability, while any decision to make manga image reading normative MVP scope must be approved
-separately.
+Implementation note: this section describes approved product scope, not implemented-now state.
+`project/current-state.md` is authoritative for which capabilities are currently present; future
+Reader/content/plugin scope here does not make those runtimes active in the current Step 3 graph.
 
 ## 4. Repository implementation baseline
 
@@ -68,60 +66,57 @@ Kotlin                  2.4.10
 Compose BOM             2026.06.00
 Navigation              Navigation 3 1.1.4
 Room                    2.8.4
-WorkManager             2.11.2
 Coroutines              1.11.0
 kotlinx.serialization   1.11.0
-Hilt                    2.60.1
-JavaScript sandbox      AndroidX JavaScriptEngine 1.1.0
 Artwork loading         Coil 3.5.0
-Backdrop effect         Backdrop 2.0.0
-Screenshot testing      Roborazzi 1.70.0 + Robolectric 4.16.1
+DataStore               1.1.3
 ```
 
-Where an approved product document uses broader component terminology, these pins describe
-the repository implementation baseline, not a product-scope rewrite.
+`gradle/libs.versions.toml` is authoritative for dependency pins. Historical/future architecture
+may mention WorkManager, Hilt, Backdrop, Roborazzi, production JavaScript plugin execution or other
+libraries that are not part of the current production graph; do not infer current ownership from
+those older descriptions.
 
 ## 5. Architecture
 
-```text
-:app composition
-  -> Compose UI (:feature:catalog, :feature:reader) -> :core:designsystem
-  -> services/contracts (:catalog, :library, :chapters, :reader, :downloads)
-  -> Library membership/status (:library) -> :core:common
-  -> storage adapters (:storage:room, :storage:files) -> capability ports
-  -> :catalog -> plugin facade (:plugins:runtime) -> wire/package contracts (:plugins:api)
-```
+The accepted current repository is a modular monolith. App-owned composition/navigation sits above
+feature presentation; features depend on capability domain/runtime contracts; persistence remains in
+capability-owned storage modules; small cross-capability mechanics live in reviewed `core` modules.
 
-The accepted Baseline 2 production graph is a historical seven-module boundary. Post-baseline
-capabilities subsequently added modules through their owning reviewed architecture decisions. This
-handbook intentionally does not duplicate the fast-changing current module count. Use
-`settings.gradle.kts` for included modules, `config/architecture/module-boundaries.json` for exact
-dependency edges, and `project/current-state.md` for the implemented architecture boundary.
+The exact current graph is intentionally not copied into this handbook:
 
-Room owns private schema, DAOs, transactions, and persistence adapters. Plugin lifecycle,
-JavaScript execution, bounded host capabilities, and runtime persistence SPI belong to
-`:plugins:runtime`; `:storage:room` may depend only on reviewed capability contracts and
-that persistence SPI surface.
+- included modules: `../settings.gradle.kts`;
+- direct dependency/forbidden-import policy: `../config/architecture/module-boundaries.json`;
+- implemented responsibilities and live/retained/quarantined status: `project/current-state.md`.
+
+Current Step 3 ownership includes separate Catalog and Library domain/storage/runtime stacks,
+feature-owned Discover/Home/Story presentation, app-owned route/composition mechanics,
+`:core:artwork` for process artwork work, and `:core:designsystem` for domain-neutral shared visual
+policy. Retained/quarantined `:catalog:model`, `:catalog:engine`, `:reader:engine`, and `:plugins:api`
+are not proof of release runtime reachability.
+
+Do not recreate a shared cross-domain database, generic service locator, feature-to-feature dependency,
+or plugin-host runtime merely because broader product architecture describes later capabilities.
+
+### Source layout and module-local cleanup
+
+Source moves, renames, package reorganization, and responsibility splits are governed by
+`project/file-package-ownership-policy.md`. Decide module ownership before package shape, avoid generic
+helper/common buckets, keep test-only support in test source sets, and do not extract a shared/core
+abstraction without real neutral production consumers. Objective rules belong in executable gates;
+responsibility judgments remain review decisions.
 
 ## 6. Plugin execution model
 
-A package may expose `CATALOG`, `CONTENT`, or both kinds, but contracts remain independent.
-The current package format contains `manifest.json`, `main.js`, and optional bounded
-assets. Plugin operations exchange validated protocol JSON; there is no declarative
-selector runtime or compatibility path.
+The approved product architecture keeps Catalog and readable-content plugin contracts independent,
+even when one future package can expose both kinds. `:plugins:api` is currently retained as a
+pure-JVM protocol boundary and is used by the deterministic Catalog integration-test edge; a
+production plugin runtime is **not** admitted through Step 3 Task 10.
 
-### JavaScript plugins
-
-JavaScript plugins execute through AndroidX JavaScriptEngine isolation and a small
-validated host capability bridge. JavaScript does not receive Android classes,
-reflection, process, arbitrary files, databases, or unrestricted networking.
-
-### Network/security
-
-All plugin networking goes through host-owned allowlisting, redirect checks and budgets.
-Output URL validation must use the same validation policy **without performing a fetch**.
-Diagnostics must never expose credentials, cookies, raw HTML/chapter text, raw private
-URLs or raw cursor values.
+Historical/broader designs specify JavaScriptEngine isolation, host-owned allowlisted networking,
+redirect/budget checks, bounded package activation and secret-safe diagnostics. Those rules remain
+future capability constraints, not evidence that `:plugins:runtime`, unrestricted networking, or
+production JavaScript execution exists in the live graph today.
 
 ## 7. Current execution position
 
@@ -162,20 +157,19 @@ synchronization layers.
 
 ## 9. Verification model
 
-The repository separates development feedback, full host verification, Android
-instrumentation, and acceptance checkpoints. `scripts/verify-fast.sh` is the local
-development loop: repository/static gates (including `verify-ui-tokens.sh`), architecture
-verification, local tests, Detekt, and Room schema stability. `scripts/verify.sh` remains the canonical full host
-gate and additionally runs Android lint plus app debug assembly. Both paths keep strict
-dependency verification; full verification owns `verifyArchitecture` in the same Gradle
-invocation to avoid a redundant Gradle startup. Local Gradle build caching and daemon
-reuse are enabled for repeated runs. `scripts/verify-architecture-baseline-2.sh` asserts
-the exact retained architecture. Reusable device runners live in
-`scripts/instrumentation/`.
+The repository separates focused agent-owned checks, current host verification, connected/device
+acceptance, and checkpoint evidence. `scripts/verify-fast.sh` is the normal host loop and
+`scripts/verify.sh` is the canonical full host entrypoint. Both run an explicit current static
+contract set and then one top-level Gradle invocation; historical Step 2 freeze scripts are not
+wildcard-discovered as current law.
 
-A requirement is not considered checkpoint-proven solely because implementation exists.
-Evidence files under `internal/checkpoints/` retain `PASS`, `FAIL`, `NOT RUN`, or
-`NOT APPLICABLE` states.
+Gradle owns the live architecture/build-surface checks (`verifyArchitecture`, module boundaries,
+production package structure, Step 3 build surface) and the Step 3 fast/full module aggregates.
+Connected tests, screenshots, migrations, benchmarks and profiles remain task/checkpoint-owned and
+must not be inferred from host implementation presence.
+
+A requirement is not considered checkpoint-proven solely because implementation exists. Evidence
+files under `internal/checkpoints/` retain `PASS`, `FAIL`, `NOT RUN`, or `NOT APPLICABLE` states.
 
 ## 10. Documentation map
 
@@ -185,11 +179,12 @@ Read narrowly in this order:
 2. `implementation/current-roadmap.md` — read `Current position` first for current work and resume routing.
 3. The checkpoint and owning plan named by `Current position` — exact execution/evidence boundary.
 4. `project/document-governance.md` — precedence when documents disagree.
-5. `project/approved-product-design.md` — product/domain baseline and accepted amendments.
-6. The specific architecture/design section required by the active task — do not load all specs by default.
-7. `plugin-sdk/` only when changing public plugin contracts/packages.
-8. `internal/checkpoints/` when deciding whether a gate is proven.
-9. `internal/archive/` only for historical provenance or a concrete contradiction/root-cause trail.
+5. `project/file-package-ownership-policy.md` — only when source placement/package cleanup is in scope.
+6. `project/approved-product-design.md` — product/domain baseline and accepted amendments.
+7. The specific architecture/design section required by the active task — do not load all specs by default.
+8. `plugin-sdk/` only when changing public plugin contracts/packages.
+9. `internal/checkpoints/` when deciding whether a gate is proven.
+10. `internal/archive/` only for historical provenance or a concrete contradiction/root-cause trail.
 
 For agentic work, root `../AGENTS.md` owns the context-budget and evidence-expansion rules.
 

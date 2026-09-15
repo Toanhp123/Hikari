@@ -711,6 +711,27 @@ sealed interface LibraryMembershipUi {
 
 ---
 
+## Authorized maintenance interlude after Task 10 — Module-local cleanup
+
+This is **not** a new Step 3 feature task and does not renumber Tasks 11-13. The user has explicitly
+authorized a repository cleanup interlude before Task 11. During this interlude:
+
+- `docs/project/file-package-ownership-policy.md` is the canonical source-placement/ownership policy;
+- `docs/superpowers/specs/2026-09-15-hikari-module-local-cleanup-design.md` owns campaign-wide cleanup
+  constraints;
+- `docs/internal/checkpoints/hikari-repository-module-cleanup.md` owns the cleanup resume/evidence boundary;
+- exactly one primary module is selected and audited per cleanup turn;
+- the target package/file tree must be approved before source implementation;
+- module additions/removals, dependency-edge changes, UI/feature redesign, DB semantic changes, and
+  Reading Source work are out of scope;
+- each selected module receives a bounded module-specific implementation plan only after its audit is
+  approved; there is intentionally no placeholder-heavy all-module plan;
+- completion of one module never authorizes the next module automatically.
+
+Task 11 remains frozen until the cleanup interlude is explicitly ended.
+
+---
+
 ## Task 11 — Reading Source domain, binding DB and owner-level serialization
 
 **Goal:** Admit Story Reading configuration truth with no Chapter/Reader consumption dependency.

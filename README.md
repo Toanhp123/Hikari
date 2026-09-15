@@ -85,11 +85,11 @@ Windows PowerShell with Git Bash installed:
 
     & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify-fast.sh
 
-The fast gate runs repository/static contracts (including the fail-closed UI token
-policy), application identity and module architecture verification, build-logic tests,
-JVM/local Android unit tests, Detekt, strict dependency verification, and Room schema
-stability. It intentionally skips
-Android Lint and debug APK assembly to shorten the edit/verify loop.
+The fast gate runs the current repository/static contracts, application identity and module
+architecture verification, build-logic tests, the live Step 3 fast module aggregate, Detekt, and
+strict dependency verification. Historical Step 2 freeze scripts are not wildcard-discovered as
+current law. The static stage does not launch Gradle; the entrypoint performs one top-level Gradle
+invocation for the Gradle-backed work.
 
 Before closing a task or checkpoint, run the canonical full host gate:
 
@@ -101,76 +101,43 @@ Windows PowerShell with Git Bash installed:
 
     & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify.sh
 
-The full gate adds Android Lint and `:app:assembleDebug`. Architecture verification is
-part of the same Gradle invocation as the rest of the full Gradle workload, avoiding a
-second Gradle startup. Gradle daemon reuse, configuration cache, parallel execution, and
-local build cache are enabled for repeated local runs.
+The full gate uses the live Step 3 full module aggregate. Architecture verification remains part of
+the same Gradle invocation as the rest of the full Gradle workload, avoiding a second Gradle startup.
+Gradle configuration cache, parallel execution, and local build cache are enabled where the build
+permits them.
 
 CI executes the full `scripts/verify.sh` command.
 
-## Wave checkpoint verification
+## Task and checkpoint verification
 
-Wave checkpoints additionally require connected instrumentation and launcher
-smoke tests on API 26 and API 37.
+Connected-device, migration, screenshot, benchmark, profile, and other acceptance gates are owned by
+the active task/checkpoint rather than by a permanent Wave 01 command list in this README. Read
+`docs/implementation/current-roadmap.md` to resolve the active task, then follow its named owning plan
+and checkpoint for exact commands and device/API requirements.
 
-With both emulators running:
+Repository-wide host verification remains:
 
-    ANDROID_SERIAL_API_26=emulator-5554 \
-    ANDROID_SERIAL_API_37=emulator-5556 \
-      ./scripts/checkpoints/app-shell.sh
-
-To run one device independently:
-
-    ANDROID_SERIAL=emulator-5554 ./scripts/instrumentation/android.sh 26
-
-CI runs API 26 and API 37 as independent jobs. The Wave 01 checkpoint job is
-green only when full host verification and both instrumentation jobs succeed.
-
-Run the Room storage instrumentation suite on each required API level when
-storage behavior changes:
-
-    ANDROID_SERIAL=emulator-5554 \
-      ./scripts/instrumentation/storage-room.sh 26
-
-Repeat with an API 37 device before architecture acceptance.
-
-The shared verification command validates the current plugin protocol, package
-installation rules, module boundaries, structural policy, lint, tests, and APK:
-
+    ./scripts/verify-fast.sh
     ./scripts/verify.sh
 
-On Windows PowerShell:
+On Windows PowerShell, run those scripts through Git Bash as shown above. Do not infer a device or
+performance PASS from host implementation presence.
 
-    & "C:\Program Files\Git\bin\bash.exe" ./scripts/verify.sh
+## Current module graph authority
 
-## Current module graph
-
-- `:app` — composition root, Hilt, Compose shell, navigation
-- `:core:common` — Outcome, clocks, dispatchers, and stable cross-capability identifiers
-- `:core:designsystem` — application-wide Compose theme, visual tokens, and domain-neutral shared UX presentation
-- `:plugins:api` — public plugin protocol and package schemas
-- `:plugins:runtime` — package lifecycle, bounded capabilities, and JavaScript execution
-- `:catalog` — catalog models, source seam, matching, ranking, and application services
-- `:library` — metadata-only Library membership and reading status
-- `:chapters` — chapter synchronization, canonical grouping, and release contracts
-- `:reader` — document validation/loading, release selection, and reading-progress policy
-- `:downloads` — offline/cache state, quotas, integrity, and content-resolution policy
-- `:storage:room` — Room schema, migrations, and durable capability persistence
-- `:storage:files` — atomic app-private chapter blob storage
-- `:feature:catalog` — Discover, Home, Search, Story, Library, mapping, and chapter-list presentation
-- `:feature:reader` — accessible structured-text Reader presentation
-
-The direct project dependency policy is stored in:
+The exact included modules are defined by `settings.gradle.kts`; exact direct project dependency and
+forbidden-import policy is defined by:
 
     config/architecture/module-boundaries.json
 
-Every module included by `settings.gradle.kts` must be declared in this policy.
-`:core:common` remains independent from Android and Compose APIs. `:plugins:api`
-remains independent from Android and filesystem APIs. Test fixtures cannot leak
-into production dependencies.
+`docs/project/current-state.md` describes the responsibilities and live/retained/quarantined status
+of that graph. This README intentionally does not duplicate a fast-moving module list.
 
-See `docs/contributing/adding-a-module.md` before adding a module.
-See `docs/ui/design-system.md` for theme, token, shared-state, feedback, and confirmation rules.
+`:core:common` remains independent from Android APIs, `:plugins:api` remains a retained pure-JVM
+protocol boundary, and test-only dependencies must not become production edges. See
+`docs/contributing/adding-a-module.md` before adding a module,
+`docs/project/file-package-ownership-policy.md` before moving/reorganizing source, and
+`docs/ui/design-system.md` for the current shared presentation policy.
 
 ## Dependency updates
 

@@ -27,6 +27,10 @@ Before the first edit or focused RED/diagnostic command, read only:
 4. active `Task N` section only;
 5. affected production/tests/scripts plus immediate callers/callees.
 
+For any task that moves, renames, splits, extracts, or reorganizes source files/packages, also read
+`docs/project/file-package-ownership-policy.md` before proposing the target tree or making the first
+source-layout edit. This is a conditional cleanup authority, not part of normal feature-task bootstrap.
+
 Rules:
 
 - Locate headings/symbols first (`rg -n`, exact path/symbol search), then read bounded ranges. Do not open whole large plan/spec/checkpoint files when a slice is enough.
@@ -45,6 +49,8 @@ Rules:
 - Gate evidence: named record under `docs/internal/checkpoints/`.
 - Public plugin behavior: `docs/plugin-sdk/`, `:plugins:api`, tested fixtures.
 - Historical provenance: `docs/internal/archive/` only when materially required.
+- Source placement/module-local cleanup: `docs/project/file-package-ownership-policy.md`; dependency
+  direction still comes from `config/architecture/module-boundaries.json`.
 - README/handbook prose is navigation only and never overrides canonical state/task authority.
 
 ## Skill routing
@@ -72,7 +78,8 @@ Rules:
 Inside the changed cone plus justified root-cause expansion, check:
 
 - correctness, failure semantics, regressions;
-- module/package/ownership boundaries;
+- module/package/ownership boundaries, including the canonical file/package ownership policy when
+  source layout changed;
 - duplicate/dead/legacy/wrapper/circular/unnecessary indirection exposed by the change;
 - complexity and semantic-scope -> physical-work amplification;
 - concurrency, cancellation, lifecycle, invalidation, failure lifetime;

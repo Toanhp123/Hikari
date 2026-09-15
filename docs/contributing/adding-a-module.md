@@ -17,9 +17,11 @@ The same commit must include:
    - allowed direct test project dependencies;
    - forbidden production import prefixes when applicable.
 4. Focused tests for the module's first behavior.
-5. An update to the README module graph.
-6. CI report paths when the module produces reports not already captured.
-7. Current-wave checkpoint evidence.
+5. An update to `docs/project/current-state.md` and any affected navigation docs; do not duplicate an
+   exact module graph in README prose.
+6. A source/package layout that follows `../project/file-package-ownership-policy.md`.
+7. CI report paths when the module produces reports not already captured.
+8. Current-wave checkpoint evidence.
 
 ## Review rules
 
@@ -38,28 +40,26 @@ The same commit must include:
   Compose theme, tokens, and shared UX surfaces. Capability, storage, and plugin
   runtime modules must remain independent from it unless the exact architecture
   policy is explicitly redesigned and reviewed.
-- Production source in `:feature:catalog` may import only packages exposed by
-  its exact project dependencies.
-- Production source in `:storage:room` may import plugin runtime types only from
-  `app.openstory.plugins.runtime.persistence`.
-- Reusable protocol fixtures belong to the owning module's test resources;
-  deterministic fakes and builders stay in the test source set that owns them.
+- Production source may import only packages exposed by the module's exact project dependencies and
+  must remain inside its responsibility described by `module-boundaries.json` and the canonical
+  file/package ownership policy.
+- Reusable protocol fixtures belong to the owning module's test resources; deterministic fakes and
+  builders stay in the narrowest test source set that owns them.
+- Do not create `utils`, `helpers`, `misc`, capability-local `common`, or `impl` as convenience buckets
+  during module creation. Name packages by cohesive responsibility.
 
 ## Commands
 
-Run the architecture gate first:
+Run the focused dependency gate first:
 
     ./scripts/check-module-dependencies.sh
 
-Then run the complete fast gate:
+Then run the current fast host gate:
 
-    ./scripts/verify.sh
+    ./scripts/verify-fast.sh
 
-Before closing the wave, run API 26 and API 37 checkpoint verification:
-
-    ./scripts/checkpoints/app-shell.sh
-
-If the module affects Room storage, also run
-`scripts/instrumentation/storage-room.sh` on API 26 and API 37. Plugin protocol
-changes must run the contract commands documented in
-`docs/plugin-sdk/contract-testing.md`.
+Before closing the owning task/checkpoint, follow `../implementation/current-roadmap.md` and its named
+plan/checkpoint for the required full host, connected/device, migration, benchmark, or profile evidence.
+Do not hard-code historical API/device commands into a new module solely because an older wave used them.
+Plugin protocol changes must also run the contract commands documented in
+`../plugin-sdk/contract-testing.md`.

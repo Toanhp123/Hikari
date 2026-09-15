@@ -21,6 +21,7 @@ Use this directory instead of hunting through dated plans or checkpoint history.
 - [Discover semantic-feed redesign](superpowers/specs/2026-08-19-discover-semantic-feed-redesign-design.md)
 - [Requirement coverage](project/requirement-coverage.md)
 - [Documentation precedence/governance](project/document-governance.md)
+- [File/package ownership and module-local cleanup policy](project/file-package-ownership-policy.md)
 - [Design-system rules](ui/design-system.md)
 
 ## Current execution records
