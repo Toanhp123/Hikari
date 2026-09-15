@@ -28,13 +28,6 @@ internal fun BackArrowIcon(
 ) = StoryIcon(BackVector, size, tint, modifier)
 
 @Composable
-internal fun HeartIcon(
-    modifier: Modifier = Modifier,
-    size: Dp = 20.dp,
-    tint: Color = MaterialTheme.colorScheme.onSurface,
-) = StoryIcon(HeartVector, size, tint, modifier)
-
-@Composable
 internal fun BookmarkIcon(
     modifier: Modifier = Modifier,
     size: Dp = 18.dp,
@@ -74,17 +67,6 @@ private val BackVector = strokeIcon("Back") {
     moveTo(15f, 5f)
     lineTo(8f, 12f)
     lineTo(15f, 19f)
-}
-
-private val HeartVector = strokeIcon("Heart") {
-    moveTo(12f, 20.5f)
-    curveTo(9f, 17.7f, 4f, 14.2f, 4f, 9.5f)
-    curveTo(4f, 6.8f, 6.1f, 4.8f, 8.8f, 4.8f)
-    curveTo(10.3f, 4.8f, 11.4f, 5.5f, 12f, 6.5f)
-    curveTo(12.6f, 5.5f, 13.7f, 4.8f, 15.2f, 4.8f)
-    curveTo(17.9f, 4.8f, 20f, 6.8f, 20f, 9.5f)
-    curveTo(20f, 14.2f, 15f, 17.7f, 12f, 20.5f)
-    close()
 }
 
 private val BookmarkVector = strokeIcon("Bookmark") {

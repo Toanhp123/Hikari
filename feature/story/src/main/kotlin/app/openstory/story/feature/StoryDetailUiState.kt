@@ -14,7 +14,12 @@ internal data class StoryDetailUiState(
     val detailLoading: Boolean,
     val issue: StoryIssueUi?,
     val artwork: StoryArtworkUi = StoryArtworkUi(assetKey = null, locator = null),
+    val libraryMembership: LibraryMembershipUi = LibraryMembershipUi.NotSaved,
+    val libraryMutationFailed: Boolean = false,
 )
+
+internal val StoryDetailUiState.canPresentLibraryAction: Boolean
+    get() = summary != null
 
 @Immutable
 internal data class StoryArtworkUi(

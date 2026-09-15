@@ -5,7 +5,7 @@
       "path": "app",
       "platform": "android-application",
       "dependencyMode": "exact",
-      "productionDependencies": [":catalog:domain", ":catalog:runtime", ":core:artwork", ":core:common", ":core:designsystem", ":feature:catalog", ":feature:library", ":feature:story"],
+      "productionDependencies": [":catalog:domain", ":catalog:runtime", ":core:artwork", ":core:common", ":core:designsystem", ":feature:catalog", ":feature:library", ":feature:story", ":library:domain", ":library:runtime"],
       "testDependencies": [":benchmark"],
       "forbiddenProductionImports": [
         "androidx.room.",
@@ -276,7 +276,7 @@
       "path": "feature/story",
       "platform": "android-library",
       "dependencyMode": "exact",
-      "productionDependencies": [":catalog:domain", ":catalog:runtime", ":core:common", ":core:designsystem"],
+      "productionDependencies": [":catalog:domain", ":catalog:runtime", ":core:common", ":core:designsystem", ":library:domain", ":library:runtime"],
       "testDependencies": [],
       "forbiddenProductionImports": [
         "androidx.room.",
@@ -288,7 +288,8 @@
         "app.openstory.catalog.model.",
         "app.openstory.catalog.engine.",
         "app.openstory.catalog.storage.",
-        "app.openstory.catalog.feature."
+        "app.openstory.catalog.feature.",
+        "app.openstory.library.storage."
       ]
     },
     ":reader:engine": {

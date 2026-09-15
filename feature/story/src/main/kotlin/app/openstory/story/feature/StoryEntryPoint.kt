@@ -16,6 +16,7 @@ fun StoryEntryPoint(
     routeEntryId: RouteEntryId,
     presentationStore: StoryPresentationStore,
     catalogFacet: StoryCatalogFacet,
+    libraryFacet: StoryLibraryFacet,
     artworkContent: @Composable (String, CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
     onBack: () -> Unit,
     onUiPublished: () -> Unit = {},
@@ -27,6 +28,7 @@ fun StoryEntryPoint(
             entryId = routeEntryId,
             args = args,
             catalogFacet = catalogFacet,
+            libraryFacet = libraryFacet,
             onUiPublished = onUiPublished,
         )
     }
@@ -36,6 +38,7 @@ fun StoryEntryPoint(
         state = state,
         onBack = onBack,
         onRetry = owner::retry,
+        onLibraryToggle = owner::toggleLibraryMembership,
         artworkContent = artworkContent,
         onHeroMaterialized = onHeroMaterialized,
         onBodyMaterialized = onBodyMaterialized,

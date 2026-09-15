@@ -55,7 +55,7 @@ class ModuleGraphTest {
     }
 
     @Test
-    fun livePolicyContainsTheTaskEightLibraryGraph() {
+    fun livePolicyContainsTheTaskNineStoryLibraryGraph() {
         expectedTaskEightLibraryModules.forEach { (module, expected) ->
             val actual = policy.modules.getValue(module)
 
@@ -75,8 +75,25 @@ class ModuleGraphTest {
                 ":feature:catalog",
                 ":feature:library",
                 ":feature:story",
+                ":library:domain",
+                ":library:runtime",
             ),
             policy.modules.getValue(":app").productionDependencies,
+        )
+        assertEquals(
+            setOf(
+                ":catalog:domain",
+                ":catalog:runtime",
+                ":core:common",
+                ":core:designsystem",
+                ":library:domain",
+                ":library:runtime",
+            ),
+            policy.modules.getValue(":feature:story").productionDependencies,
+        )
+        assertTrue(
+            "app.openstory.library.storage." in
+                policy.modules.getValue(":feature:story").forbiddenProductionImports,
         )
     }
 

@@ -195,11 +195,14 @@ internal class HomeViewModel(
 
 internal class LibraryHomeRuntime(
     private val runtime: LibraryRuntime,
+    private val ownsRuntime: Boolean = true,
 ) : HomeLibraryRuntime {
     override fun createQuerySession(initialQuery: LibraryQuery): HomeQuerySession =
         runtime.createQuerySession(initialQuery).asHomeSession()
 
-    override fun close() = runtime.close()
+    override fun close() {
+        if (ownsRuntime) runtime.close()
+    }
 }
 
 private fun LibraryQuerySession.asHomeSession(): HomeQuerySession = object : HomeQuerySession {

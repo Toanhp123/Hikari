@@ -29,6 +29,9 @@ import app.openstory.designsystem.theme.hikariSpacing
 @Composable
 internal fun StoryMetadataSections(
     detail: StoryDetailUi,
+    libraryMembership: LibraryMembershipUi,
+    libraryMutationFailed: Boolean,
+    onLibraryToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val metadataRows = detail.metadataRows()
@@ -36,7 +39,11 @@ internal fun StoryMetadataSections(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space20),
     ) {
-        StoryActions()
+        StoryActions(
+            libraryMembership = libraryMembership,
+            libraryMutationFailed = libraryMutationFailed,
+            onLibraryToggle = onLibraryToggle,
+        )
         if (metadataRows.isNotEmpty()) StoryMetadataTable(metadataRows)
         if (detail.genres.isNotEmpty()) StoryGenresRow(detail.genres)
         StoryTabs()

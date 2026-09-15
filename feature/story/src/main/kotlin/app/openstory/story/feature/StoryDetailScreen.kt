@@ -31,13 +31,13 @@ import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.state.HikariSkeleton
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.story.feature.presentation.BackArrowIcon
-import app.openstory.story.feature.presentation.HeartIcon
 
 @Composable
 internal fun StoryDetailScreen(
     state: StoryDetailUiState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onLibraryToggle: () -> Unit = {},
     artworkContent: @Composable (String, CoverLocator?, CoverAssetKey?, Modifier) -> Unit =
         { title, _, _, modifier -> StoryArtworkPlaceholder(title, modifier) },
     onHeroMaterialized: () -> Unit = {},
@@ -49,6 +49,7 @@ internal fun StoryDetailScreen(
             layout = storyLayout(maxWidth >= StoryVisualMetrics.WideLayoutThreshold),
             onBack = onBack,
             onRetry = onRetry,
+            onLibraryToggle = onLibraryToggle,
             artworkContent = artworkContent,
             onHeroMaterialized = onHeroMaterialized,
             onBodyMaterialized = onBodyMaterialized,
@@ -62,6 +63,7 @@ private fun StoryDetailContent(
     layout: StoryLayoutMetrics,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onLibraryToggle: () -> Unit,
     artworkContent: @Composable (String, CoverLocator?, CoverAssetKey?, Modifier) -> Unit,
     onHeroMaterialized: () -> Unit,
     onBodyMaterialized: () -> Unit,
@@ -88,13 +90,28 @@ private fun StoryDetailContent(
                 onMaterialized = onHeroMaterialized,
             )
         }
+        if (state.canPresentLibraryAction && state.detail == null) {
+            item(key = "story-actions") {
+                StoryLibraryAction(
+                    libraryMembership = state.libraryMembership,
+                    libraryMutationFailed = state.libraryMutationFailed,
+                    onLibraryToggle = onLibraryToggle,
+                )
+            }
+        }
         state.issue?.let { issue -> item(key = "story-issue") { StoryIssue(issue.retryable, onRetry) } }
         if (state.detailLoading && state.detail == null) {
             item(key = "story-detail-loading") { StoryMetadataSkeleton() }
         }
         state.detail?.let { detail -> item(key = "story-detail") {
             SideEffect(onBodyMaterialized)
-            StoryMetadataSections(detail = detail, modifier = Modifier.fillMaxWidth())
+            StoryMetadataSections(
+                detail = detail,
+                libraryMembership = state.libraryMembership,
+                libraryMutationFailed = state.libraryMutationFailed,
+                onLibraryToggle = onLibraryToggle,
+                modifier = Modifier.fillMaxWidth(),
+            )
         } }
     }
 }
@@ -102,14 +119,13 @@ private fun StoryDetailContent(
 private val STORY_TOP_BAR_HEIGHT = 48.dp
 private val CIRCULAR_ACTION_SIZE = 40.dp
 private val BACK_ICON_SIZE = 18.dp
-private val HEART_ICON_SIZE = 18.dp
 private const val ICON_SURFACE_ALPHA = 0.08f
 
 @Composable
 private fun StoryTopBar(onBack: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().height(STORY_TOP_BAR_HEIGHT),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(
@@ -123,18 +139,6 @@ private fun StoryTopBar(onBack: () -> Unit) {
             Box(contentAlignment = Alignment.Center) {
                 BackArrowIcon(
                     size = BACK_ICON_SIZE,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-        }
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ICON_SURFACE_ALPHA),
-            modifier = Modifier.size(CIRCULAR_ACTION_SIZE),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                HeartIcon(
-                    size = HEART_ICON_SIZE,
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             }

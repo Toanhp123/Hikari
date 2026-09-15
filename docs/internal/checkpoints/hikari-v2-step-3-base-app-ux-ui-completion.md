@@ -1,7 +1,7 @@
 # Hikari V2 Step 3 - Base App UX/UI Completion
 
 Date: 2026-09-15
-Status: **TASK 8 COMPLETED/ACCEPTED; TASK 9 READY FOR A NEW AUTHORIZED TURN**
+Status: **TASK 9 COMPLETED/ACCEPTED; TASK 10 READY FOR A NEW AUTHORIZED TURN**
 
 ## Authority
 
@@ -9,9 +9,10 @@ Status: **TASK 8 COMPLETED/ACCEPTED; TASK 9 READY FOR A NEW AUTHORIZED TURN**
 - Decision traceability audit: `../v2/2026-09-13-hikari-v2-step-3-R1.5-decision-traceability-final-audit.md`
 - Implementation plan: `../../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`
 - Accepted predecessor: `hikari-v2-step-2-discover-story-foundation.md`
-- Completed/accepted execution boundary: Tasks 0-8.
-- Current execution boundary: Task 8 implementation, remediation, and required user-owned evidence
-  are accepted. Task 9 is ready only for a new explicitly authorized turn and is not started here.
+- Completed/accepted execution boundary: Tasks 0-9.
+- Current execution boundary: Task 9 implementation, remediation, and all required user-owned
+  evidence are accepted. Task 10 is ready only for a new explicitly authorized turn and is not
+  started here.
 
 Reviewed artifact SHA-256:
 
@@ -898,8 +899,110 @@ Focused shared-poster connected rerun:
   --no-daemon
 ```
 
+## Task 9 Delta
+
+- Added the independent Story Library facet and `LibraryMembershipUi` state. Story observes only the
+  current Story membership while ACTIVE, cancels that point collector while RETAINED/RELEASED, and
+  reconciles current local truth on reactivation without Catalog reacquisition.
+- Add/Remove uses the currently materialized Story summary/artwork snapshot, disables duplicate taps
+  during Saving/Removing, and restores the previous stable membership after a mutation failure. A
+  durable mutation already started by the user may finish after route release, but the released
+  presentation owner cannot publish its result.
+- Added the thin multi-facet `StoryReducer`: Catalog reduction preserves Library transition state,
+  and membership observation cannot overwrite an in-flight mutation. Trusted ACTIVE Catalog
+  presentation enriches a saved snapshot only when it is semantically different; the Library owner
+  retains `savedAt` and idempotent write authority.
+- App composition now owns one Library runtime shared by Home and Story. Home's adapter is explicitly
+  non-owning, so Story mutation and retained-Home reactivation use the same observable Room truth
+  without an event bus or remote refresh.
+- Story exposes the real Add/Saved action from a visible preview or rich detail, removes the duplicate
+  Heart/Favorite affordances, retains the true-disabled Step 4 Read action, and shows scoped Library
+  mutation feedback without blanking Catalog content.
+
+## Task 9 Agent-Owned Evidence
+
+- TDD RED first failed on the absent facet/state/toggle contract. Later REDs reproduced missing
+  snapshot enrichment, Catalog reduction resetting Saving, membership emissions overwriting an
+  in-flight mutation, route release cancelling a started durable commit, released-owner publication,
+  preview-only action absence, and the Task 8 graph expectation rejecting Task 9 dependencies.
+- Fresh focused verification passed 45 tests with zero failures/errors/skips: 8 Task 9 Library facet,
+  15 Story presentation-owner, 2 Story hero, 7 Home ViewModel, 9 App Shell contract, and 4 live module
+  graph tests.
+- `:feature:story`, `:feature:library`, and `:app` debug/release/benchmark/non-minified production
+  Kotlin compilation passed. Story and App Android-test Kotlin compilation also passed, including the
+  focused real-App Home/Story continuity test source. The final focused command completed with
+  `BUILD SUCCESSFUL in 25s`.
+
+## Task 9 Self-Review
+
+- `:feature:story` imports Library domain/runtime only; Library storage and Room remain forbidden.
+  No durable-truth event bus, broad Library observer, Catalog membership flag, or Catalog reacquisition
+  path was introduced.
+- Add/remove remains serialized by the Library runtime owner and additionally ignores duplicate UI
+  taps while transitional. Observation, mutation, Catalog acquisition, and optional enrichment retain
+  separate jobs/lifetimes; RETAINED holds lightweight presentation only.
+- Enrichment is source-keyed, point-scoped, ACTIVE-only, change-aware, and opportunistic. Failure keeps
+  stable membership and does not loop automatically; an identical snapshot performs no deliberate
+  write or timestamp churn.
+- Home query/filter/scroll ownership remains unchanged. Returning from Story reuses Home route state
+  and reconciles committed membership through the existing bounded local query.
+
+## Task 9 Required User-Owned Gates
+
+Status: **PASS / ACCEPTED**
+
+Returned evidence on 2026-09-15:
+
+- The broad affected-module/App/architecture command accounted for all 843 actionable tasks and
+  failed only at `:detekt`. The three blocking findings were Task 9 guard-shape findings in
+  `StoryPresentationOwner.kt`: one `ComplexCondition` and two `ReturnCount` violations.
+- The focused Story Library UI connected gate passed 8/8 tests on Redmi Note 9S API 35.
+- The focused real-App Home/Story continuity connected gate passed 1/1 test on the same device.
+- After the guard remediation, the user returned a concise PASS summary for the complete broad
+  affected-module/App/architecture and Detekt rerun.
+
+Failure remediation:
+
+- Refactored only the Task 9 mutation/enrichment guards without changing their lifecycle or durable
+  mutation semantics. Fresh `StoryLibraryFacetTest` verification passed, and a fresh root `detekt`
+  run completed with zero blocking issues; the pre-existing allowlisted `LargeClass` and
+  `TooManyFunctions` warnings remain non-blocking.
+- The returned broad rerun closes the final open Task 9 gate. No contradictory evidence was
+  reported, and the already-passing connected gates remain accepted.
+
+Broad affected-module/App/architecture and Detekt gate:
+
+```powershell
+.\gradlew.bat :feature:story:testDebugUnitTest :feature:story:assembleDebug `
+  :feature:story:assembleRelease :feature:story:compileBenchmarkReleaseKotlin `
+  :feature:story:compileNonMinifiedReleaseKotlin :feature:library:testDebugUnitTest `
+  :feature:library:assembleDebug :feature:library:assembleRelease `
+  :feature:library:compileBenchmarkReleaseKotlin `
+  :feature:library:compileNonMinifiedReleaseKotlin :app:testDebugUnitTest `
+  :app:assembleDebug :app:assembleRelease :app:compileBenchmarkReleaseKotlin `
+  :app:compileNonMinifiedReleaseKotlin :build-logic:test verifyArchitecture `
+  :app:verifyFoundation verifyStep3BuildSurface verifyProductionPackageStructure `
+  verifyModuleBoundaries detekt --no-daemon
+```
+
+Focused Story Library UI connected gate:
+
+```powershell
+.\gradlew.bat :feature:story:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.story.feature.StoryDetailScreenInstrumentedTest' `
+  --no-daemon
+```
+
+Focused real-App Home/Story continuity connected gate:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  '-Pandroid.testInstrumentationRunnerArguments.class=app.openstory.composition.StoryLibraryHomeContinuityInstrumentedTest' `
+  --no-daemon
+```
+
 ## Exact Resume Boundary
 
-Tasks 0-8 are completed/accepted. Task 8 - Home Library root and shared poster primitives - has no
-open implementation or verification gate. Stop here. Resume at Task 9 only in a new explicitly
-authorized turn; this Task 8 acceptance does not authorize starting Task 9 in the current turn.
+Tasks 0-9 are completed/accepted. Task 9 has no open implementation or verification gate. Stop here.
+Resume at Task 10 only in a new explicitly authorized turn; this Task 9 acceptance does not authorize
+starting Task 10 in the current turn.

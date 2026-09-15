@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -116,7 +117,8 @@ class StoryDetailScreenInstrumentedTest {
     }
 
     @Test
-    fun storyDetailActionsAreDisabledStubsWithoutActiveDispatches() {
+    fun storyLibraryActionReflectsMembershipAndDispatchesOneToggle() {
+        var toggleCalls = 0
         setContent(
             state(detailLoading = false, issue = null).copy(
                 detail = StoryDetailUi(
@@ -128,6 +130,7 @@ class StoryDetailScreenInstrumentedTest {
                     language = null,
                 ),
             ),
+            onLibraryToggle = { toggleCalls += 1 },
         )
 
         composeRule.onAllNodes(
@@ -136,10 +139,32 @@ class StoryDetailScreenInstrumentedTest {
         composeRule.onNodeWithTag(StoryTestTags.ROOT)
             .performScrollToNode(hasText("Read from Chapter 1"))
         composeRule.onNodeWithText("Read from Chapter 1").performScrollTo().assertIsNotEnabled()
-        composeRule.onNodeWithText("Add to Library").performScrollTo().assertIsNotEnabled()
-        listOf("Refresh", "Bookmark").forEach { copy ->
+        composeRule.onNodeWithText("Add to Library").performScrollTo().assertIsEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(1, toggleCalls) }
+        listOf("Refresh", "Bookmark", "Favorite").forEach { copy ->
             composeRule.onNodeWithText(copy, substring = true).assertDoesNotExist()
         }
+    }
+
+    @Test
+    fun savingLibraryMembershipDisablesDuplicateActionAndShowsScopedFailure() {
+        setContent(
+            state(detailLoading = false, issue = null).copy(
+                detail = StoryDetailUi(
+                    description = null,
+                    authors = emptyList(),
+                    artists = emptyList(),
+                    genres = emptyList(),
+                    publicationStatus = null,
+                    language = null,
+                ),
+                libraryMembership = LibraryMembershipUi.Saving,
+                libraryMutationFailed = true,
+            ),
+        )
+
+        composeRule.onNodeWithText("Saving").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("Library could not be updated.").assertIsDisplayed()
     }
 
     @Test
@@ -161,6 +186,7 @@ class StoryDetailScreenInstrumentedTest {
         }
 
         composeRule.onNodeWithText("Read from Chapter 1").assertDoesNotExist()
+        composeRule.onNodeWithText("Add to Library").assertIsDisplayed()
         composeRule.onNodeWithText("Synopsis").assertDoesNotExist()
         composeRule.onNodeWithText("You May Also Like").assertDoesNotExist()
         var heroCountBeforeDetail = 0
@@ -193,10 +219,16 @@ class StoryDetailScreenInstrumentedTest {
     private fun setContent(
         state: StoryDetailUiState,
         onRetry: () -> Unit = {},
+        onLibraryToggle: () -> Unit = {},
     ) {
         composeRule.setContent {
             HikariTheme(darkTheme = false) {
-                StoryDetailScreen(state = state, onBack = {}, onRetry = onRetry)
+                StoryDetailScreen(
+                    state = state,
+                    onBack = {},
+                    onRetry = onRetry,
+                    onLibraryToggle = onLibraryToggle,
+                )
             }
         }
     }

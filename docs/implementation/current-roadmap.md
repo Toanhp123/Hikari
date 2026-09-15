@@ -20,8 +20,8 @@ acceptance remain separate states.
 
 ## Current position
 
-**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 8; Task 9 is
-ready to start in a new authorized turn.**
+**Hikari V2 Step 3 - Base App UX/UI Completion is completed/accepted through Task 9; Task 10 is
+ready only for a new explicitly authorized turn.**
 R1.5 design authority, the R1.1 owning plan, and the decision-traceability audit remain canonical.
 Task 2 removes `CatalogRoute`, moves Story Detail presentation into `:feature:story`, adds validated
 Story route wire/codec boundaries, and makes app-owned `RouteEntryId` lifecycle transitions drive
@@ -57,8 +57,14 @@ test-only global text-selector collision between the Manga filter and poster sup
 selector is now scoped to selectable filter nodes and Android-test compilation passes. On
 2026-09-15, the user returned PASS for both remaining reruns: the broad affected-module/App/
 architecture/Detekt gate and the focused Home UI/screenshot connected gate. All Catalog, Design
-System, Home, and broad evidence is accepted, so Task 8 is completed/accepted. Task 9 is ready only
-for a new authorized turn and is not started here. The owning plan is
+System, Home, and broad evidence is accepted, so Task 8 is completed/accepted. Task 9 composes
+point-scoped Library membership into Story, shares App-owned Library runtime truth with Home, and
+passes 45 focused tests plus affected variant/Android-test compilation. Its focused Story and real-
+App Home continuity connected gates passed on Redmi Note 9S API 35. The initial broad gate failed
+only on three Task 9 Detekt guard-shape findings; after their focused remediation, root Detekt passed
+and the user returned PASS for the complete broad rerun. Task 9 is completed/accepted. Task 10 is
+ready only for a new explicitly authorized turn and is not started here.
+The owning plan is
 `../superpowers/plans/2026-09-13-hikari-v2-step-3-base-app-ux-ui-completion-implementation-plan-R1.1.md`.
 
 **Hikari V2 Step 2 - Discover + Story Detail Foundation is completed/accepted through Task 18.**

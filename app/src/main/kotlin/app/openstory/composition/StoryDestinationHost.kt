@@ -9,15 +9,19 @@ import app.openstory.catalog.feature.CatalogRuntimeAccess
 import app.openstory.common.navigation.RouteEntryId
 import app.openstory.common.navigation.RouteLifecycleSource
 import app.openstory.composition.navigation.StoryRouteCodec
+import app.openstory.library.runtime.LibraryRuntime
 import app.openstory.navigation.AppRoute
 import app.openstory.story.feature.CatalogStoryFacet
+import app.openstory.story.feature.RuntimeStoryLibraryFacet
 import app.openstory.story.feature.StoryEntryPoint
+import app.openstory.story.feature.StoryLibraryFacet
 import app.openstory.story.feature.StoryPresentationStore
 import app.openstory.story.feature.rememberStoryPresentationStore
 
 internal class StoryDestinationHost(
     private val presentationStore: StoryPresentationStore,
     private val runtimeAccess: CatalogRuntimeAccess,
+    private val libraryFacet: StoryLibraryFacet,
     private val artworkLoader: ArtworkLoader,
 ) {
     @Composable
@@ -29,6 +33,7 @@ internal class StoryDestinationHost(
             route = route,
             presentationStore = presentationStore,
             runtimeAccess = runtimeAccess,
+            libraryFacet = libraryFacet,
             artworkLoader = artworkLoader,
             onBack = onBack,
         )
@@ -39,11 +44,13 @@ internal class StoryDestinationHost(
 internal fun rememberStoryDestinationHost(
     lifecycleSource: RouteLifecycleSource,
     runtimeAccess: CatalogRuntimeAccess,
+    libraryRuntime: LibraryRuntime,
     artworkLoader: ArtworkLoader,
 ): StoryDestinationHost {
     val presentationStore = rememberStoryPresentationStore(lifecycleSource)
-    return remember(presentationStore, runtimeAccess, artworkLoader) {
-        StoryDestinationHost(presentationStore, runtimeAccess, artworkLoader)
+    val libraryFacet = remember(libraryRuntime) { RuntimeStoryLibraryFacet(libraryRuntime) }
+    return remember(presentationStore, runtimeAccess, libraryFacet, artworkLoader) {
+        StoryDestinationHost(presentationStore, runtimeAccess, libraryFacet, artworkLoader)
     }
 }
 
@@ -52,6 +59,7 @@ private fun StoryDestination(
     route: AppRoute.Story,
     presentationStore: StoryPresentationStore,
     runtimeAccess: CatalogRuntimeAccess,
+    libraryFacet: StoryLibraryFacet,
     artworkLoader: ArtworkLoader,
     onBack: () -> Unit,
 ) {
@@ -73,6 +81,7 @@ private fun StoryDestination(
         routeEntryId = RouteEntryId.from(route.entryId),
         presentationStore = presentationStore,
         catalogFacet = catalogFacet,
+        libraryFacet = libraryFacet,
         artworkContent = { title, locator, assetKey, modifier ->
             CatalogCoverArtwork(
                 artworkLoader = artworkLoader,

@@ -4,6 +4,7 @@ import app.openstory.catalog.domain.read.StoryDetailProjection
 import app.openstory.catalog.domain.read.StoryRouteArgs
 import app.openstory.catalog.runtime.acquisition.CatalogAcquisitionStatus
 import app.openstory.catalog.runtime.story.StoryDetailSessionState
+import app.openstory.library.domain.LibraryEntry
 import app.openstory.story.feature.state.toStoryIssueUi
 import java.time.Instant
 import java.time.ZoneOffset
@@ -55,7 +56,7 @@ internal fun StoryDetailSessionState.toStoryDetailUiState(
         }
     } ?: previous.artwork
 
-    return StoryDetailUiState(
+    return previous.copy(
         ref = currentProjection?.ref ?: previous.ref,
         summary = summary,
         detail = detail,
@@ -64,6 +65,26 @@ internal fun StoryDetailSessionState.toStoryDetailUiState(
         artwork = artwork,
     )
 }
+
+internal fun StoryDetailUiState.withLibraryMembership(entry: LibraryEntry?): StoryDetailUiState =
+    copy(
+        libraryMembership = when (libraryMembership) {
+            LibraryMembershipUi.Saving, LibraryMembershipUi.Removing -> libraryMembership
+            LibraryMembershipUi.NotSaved, LibraryMembershipUi.Saved -> if (entry == null) {
+                LibraryMembershipUi.NotSaved
+            } else {
+                LibraryMembershipUi.Saved
+            }
+        },
+        libraryMutationFailed = if (libraryMembership.isMutationInFlight) {
+            libraryMutationFailed
+        } else {
+            false
+        },
+    )
+
+private val LibraryMembershipUi.isMutationInFlight: Boolean
+    get() = this == LibraryMembershipUi.Saving || this == LibraryMembershipUi.Removing
 
 private fun StoryDetailProjection.toSummaryUi(): StorySummaryUi =
     StorySummaryUi(

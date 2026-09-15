@@ -33,6 +33,7 @@ class StoryPresentationStore internal constructor(
         entryId: RouteEntryId,
         args: StoryRouteArgs,
         catalogFacet: StoryCatalogFacet,
+        libraryFacet: StoryLibraryFacet? = null,
         onUiPublished: () -> Unit = {},
     ): StoryPresentationOwner {
         owners[entryId]?.let { existing ->
@@ -45,6 +46,7 @@ class StoryPresentationStore internal constructor(
         return StoryPresentationOwner(
             args = args,
             catalogFacet = catalogFacet,
+            libraryFacet = libraryFacet,
             onUiPublished = onUiPublished,
             coroutineScope = scope,
         ).also { owner ->

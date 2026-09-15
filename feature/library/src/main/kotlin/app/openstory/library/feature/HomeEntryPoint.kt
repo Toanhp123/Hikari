@@ -5,7 +5,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -15,15 +14,15 @@ import app.openstory.library.runtime.LibraryRuntime
 
 @Composable
 fun HomeEntryPoint(
+    libraryRuntime: LibraryRuntime,
     onExploreManga: () -> Unit,
     onExploreLightNovels: () -> Unit,
     onStorySelected: (LibraryStoryPosterUi) -> Unit,
     artwork: @Composable (LibraryStoryPosterUi, Modifier) -> Unit,
 ) {
-    val applicationContext = LocalContext.current.applicationContext
-    val factory = remember(applicationContext) {
+    val factory = remember(libraryRuntime) {
         HomeViewModel.factory {
-            LibraryHomeRuntime(LibraryRuntime(applicationContext))
+            LibraryHomeRuntime(libraryRuntime, ownsRuntime = false)
         }
     }
     val viewModel = viewModel<HomeViewModel>(factory = factory)

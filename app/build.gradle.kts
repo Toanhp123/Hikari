@@ -71,6 +71,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":catalog:domain"))
     implementation(project(":catalog:runtime"))
+    implementation(project(":library:domain"))
+    implementation(project(":library:runtime"))
     implementation(project(":feature:catalog"))
     implementation(project(":feature:library"))
     implementation(project(":feature:story"))

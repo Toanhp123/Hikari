@@ -27,14 +27,18 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.openstory.designsystem.content.HikariSectionHeader
+import app.openstory.designsystem.feedback.HikariInlineFeedback
 import app.openstory.designsystem.theme.hikariSpacing
 import app.openstory.story.feature.presentation.BookmarkIcon
-import app.openstory.story.feature.presentation.HeartIcon
 import app.openstory.story.feature.presentation.MoreIcon
 import app.openstory.story.feature.presentation.ShareIcon
 
 @Composable
-internal fun StoryActions() {
+internal fun StoryActions(
+    libraryMembership: LibraryMembershipUi,
+    libraryMutationFailed: Boolean,
+    onLibraryToggle: () -> Unit,
+) {
     val iconTint = MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -64,8 +68,8 @@ internal fun StoryActions() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(
-                onClick = {},
-                enabled = false,
+                onClick = onLibraryToggle,
+                enabled = libraryMembership.isStable,
                 modifier = Modifier
                     .weight(1f)
                     .height(SECONDARY_ACTION_HEIGHT),
@@ -76,14 +80,64 @@ internal fun StoryActions() {
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.width(MaterialTheme.hikariSpacing.space8))
-                Text("Add to Library", style = MaterialTheme.typography.labelMedium)
+                Text(libraryMembership.actionLabel, style = MaterialTheme.typography.labelMedium)
             }
-            ActionIcon { HeartIcon(size = ACTION_ICON_SIZE, tint = iconTint) }
             ActionIcon { ShareIcon(size = ACTION_ICON_SIZE, tint = iconTint) }
             ActionIcon { MoreIcon(size = ACTION_ICON_SIZE, tint = iconTint) }
         }
+        if (libraryMutationFailed) {
+            HikariInlineFeedback(
+                message = "Library could not be updated.",
+                actionLabel = null,
+                onAction = null,
+            )
+        }
     }
 }
+
+@Composable
+internal fun StoryLibraryAction(
+    libraryMembership: LibraryMembershipUi,
+    libraryMutationFailed: Boolean,
+    onLibraryToggle: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.hikariSpacing.space8),
+    ) {
+        OutlinedButton(
+            onClick = onLibraryToggle,
+            enabled = libraryMembership.isStable,
+            modifier = Modifier.fillMaxWidth().height(SECONDARY_ACTION_HEIGHT),
+            shape = CircleShape,
+        ) {
+            BookmarkIcon(
+                size = BOOKMARK_ICON_SIZE,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(MaterialTheme.hikariSpacing.space8))
+            Text(libraryMembership.actionLabel, style = MaterialTheme.typography.labelMedium)
+        }
+        if (libraryMutationFailed) {
+            HikariInlineFeedback(
+                message = "Library could not be updated.",
+                actionLabel = null,
+                onAction = null,
+            )
+        }
+    }
+}
+
+private val LibraryMembershipUi.isStable: Boolean
+    get() = this == LibraryMembershipUi.NotSaved || this == LibraryMembershipUi.Saved
+
+private val LibraryMembershipUi.actionLabel: String
+    get() = when (this) {
+        LibraryMembershipUi.NotSaved -> "Add to Library"
+        LibraryMembershipUi.Saving -> "Saving"
+        LibraryMembershipUi.Saved -> "Saved"
+        LibraryMembershipUi.Removing -> "Removing"
+    }
 
 @Composable
 internal fun StoryTabs() {
