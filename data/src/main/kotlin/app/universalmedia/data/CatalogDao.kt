@@ -9,8 +9,28 @@ import kotlinx.coroutines.flow.Flow
 
 internal data class CardRow(val mediaId: String, val kind: String, val fallbackDisplayName: String?)
 
+internal data class LibraryRootRow(
+    val rootId: String,
+    val access: String,
+    val runId: String?,
+    val outcome: String?,
+)
+
 @Dao
 internal interface CatalogDao {
+    // rowid captures insertion order even if the wall clock moves backwards between attempts.
+    @Query(
+        """
+        SELECT r.root_id AS rootId, r.access, run.run_id AS runId, run.outcome
+        FROM storage_root r LEFT JOIN scan_run run ON run.run_id = (
+            SELECT s.run_id FROM scan_scope s JOIN scan_run candidate USING(run_id)
+            WHERE s.root_id = r.root_id AND s.generation = r.generation
+            ORDER BY candidate.rowid DESC LIMIT 1
+        ) ORDER BY r.root_id
+        """,
+    )
+    fun libraryRoots(): Flow<List<LibraryRootRow>>
+
     @Insert fun insert(row: MediaRow)
 
     @Insert fun insert(row: TargetRow): Long

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE - Tasks 0-4 CLOSED; Task 5 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0-5 CLOSED; Task 6 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -605,6 +605,8 @@ No static service locator. Android-created Worker receives dependencies through 
 
 ## Task 5 — Library Projection + Root Registration UI
 
+**Status:** CLOSED - 8 focused JVM tests PASS; user confirmed both device commands, verifyArchitecture and manual Add Folder/rescan acceptance succeeded. Reviewed local XML: 6 Compose tests and 1 Room projection test, 0 failures/errors/skips on Redmi Note 9S / Android 15. Evidence reviewed on 2026-09-19; see foundation Current Control Block. Task 6 is next.
+
 **Purpose:** Make the first persisted result visible without coupling the feature to Room/SAF/WorkManager.
 
 **Files:**
@@ -655,14 +657,18 @@ The feature receives plain stable IDs/scalars/UI models. It does not receive DAO
 
 **Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :feature:library:testDebugUnitTest --no-daemon
+.\gradlew.bat :feature:library:testDebugUnitTest --tests '*LibraryPresentationTest' :app:testDebugUnitTest --tests '*LibraryCoordinatorTest' --tests '*LibraryStateHolderTest' :feature:library:compileDebugAndroidTestKotlin :data:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon
 ```
 
 **User-owned acceptance gate:**
 ```powershell
-# Run only the new/affected Library Compose instrumentation classes when class filters are available.
-.\gradlew.bat :feature:library:connectedDebugAndroidTest --no-daemon
+.\gradlew.bat :feature:library:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.feature.library.LibraryRootTest" --no-daemon
+.\gradlew.bat :data:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.data.LibraryRootsTest" verifyArchitecture --no-daemon
 ```
+
+Task 5 concretizes the planned durable scan projection with `LibraryQueries.observeLibraryRoots`: only RootId, access and current-generation run presence/outcome cross the domain boundary. No table/schema/module edge is added. The new Room query needs its own device gate for initial/active/finalized state, clock rollback, reopen and reauthorization. App observation/registration uses an application-owned scope, while Compose state collection is lifecycle-aware. Missing run finalization is shown as waiting for completion, not proof of a currently executing Worker.
+
+Manual acceptance: launch the app, choose **Add Folder**, grant a folder containing a provider-declared MP4, wait for its card, and rescan without losing the card. Playback remains deferred to its owning tasks.
 
 Do not request the full `:app:connectedDebugAndroidTest` surface here; Task 9 owns the composed app route/device proof.
 

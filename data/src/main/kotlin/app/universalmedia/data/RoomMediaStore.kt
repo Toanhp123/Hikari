@@ -7,6 +7,7 @@ import app.universalmedia.core.domain.DeclaredScanScope
 import app.universalmedia.core.domain.IncompleteReason
 import app.universalmedia.core.domain.LibraryCard
 import app.universalmedia.core.domain.LibraryQueries
+import app.universalmedia.core.domain.LibraryRootSummary
 import app.universalmedia.core.domain.LocalAccessState
 import app.universalmedia.core.domain.LocalDocumentLocator
 import app.universalmedia.core.domain.LocalDocumentObservation
@@ -22,6 +23,7 @@ import app.universalmedia.core.domain.RootRegistrationEvidence
 import app.universalmedia.core.domain.ScanCoverage
 import app.universalmedia.core.domain.ScanFinalization
 import app.universalmedia.core.domain.ScanJournal
+import app.universalmedia.core.domain.ScanOutcome
 import app.universalmedia.core.domain.ScanRun
 import app.universalmedia.core.domain.SeenLocalAsset
 import app.universalmedia.core.domain.StorageRoot
@@ -271,6 +273,21 @@ class RoomMediaStore(private val database: UniversalMediaDatabase) :
                 ),
             )
         }
+
+    override suspend fun observeLibraryRoots(onRoots: suspend (List<LibraryRootSummary>) -> Unit) {
+        dao.libraryRoots().collect { rows ->
+            onRoots(
+                rows.map {
+                    LibraryRootSummary(
+                        RootId(UUID.fromString(it.rootId)),
+                        LocalAccessState.valueOf(it.access),
+                        it.runId != null,
+                        it.outcome?.let(ScanOutcome::valueOf),
+                    )
+                },
+            )
+        }
+    }
 
     override suspend fun observeLibraryCards(onCards: suspend (List<LibraryCard>) -> Unit) {
         dao.cards().collect { rows ->
