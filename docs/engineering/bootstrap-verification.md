@@ -46,14 +46,14 @@ Use `-HostOnly` / `--host-only` when no device is attached. This proves every ho
 
 The workflow triggers pushes on the repository's canonical `master` branch plus pull requests. Both GitHub Actions jobs use `android-actions/setup-android@v4`, pin Android command-line tools build `15859902`, request only the still-supported `platform-tools` package from the setup action, and then explicitly provision `platforms;android-37.0` plus `build-tools;37.0.0`. The host job executes `bash scripts/verify-bootstrap.sh --host-only`. Do not reintroduce the removed legacy SDK package `tools`; the first real clean-checkout run proved that `setup-android@v3` fails before Gradle when current `sdkmanager` is asked to install it.
 
-The instrumentation job enables KVM before the emulator runner and uses explicit package-compatible matrix entries:
+The instrumentation job first aligns the runner image's `cmdline-tools/latest` with the setup-android 22.0 toolchain before `android-emulator-runner@v2`, because that action prepends `cmdline-tools/latest` and a stale preinstalled 12.0 `avdmanager` cannot safely create minor-versioned `android-37.x` AVDs. It then enables KVM before the emulator runner and uses explicit package-compatible matrix entries:
 
 ```text
 API 23     → api-level 23   / target default
 Android 17 → api-level 37.0 / target google_apis
 ```
 
-`compileSdk = 37` remains the Gradle API level; `37.0` here is the Android 17 SDK/system-image package version. Keeping those values distinct avoids both the clean-runner compile-platform gap and the Major.Minor AVD-target parsing failure seen with older command-line tools.
+`compileSdk = 37` remains the Gradle API level; `37.0` here is the Android 17 SDK/system-image package version. Keeping those values distinct, and ensuring the emulator runner actually resolves the pinned 22.0 tools rather than the stale `latest` directory, avoids both the clean-runner compile-platform gap and the Major.Minor AVD-target parsing failure seen with older command-line tools. Run `35364775034` proved `verify` and API-23 instrumentation green; Android-17 `37.0` reached AVD launch but remained `adb offline` until timeout, which is the evidence that triggered this `latest`-alignment correction.
 
 ## Evidence ownership
 

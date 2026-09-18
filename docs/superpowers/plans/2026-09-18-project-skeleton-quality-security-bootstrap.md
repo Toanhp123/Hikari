@@ -233,4 +233,6 @@ The generation container has Java 21, no Android SDK, no system Gradle, and cann
 - [x] Collect real Windows JDK-17 + SDK-37.0 host/device/release-like evidence through the canonical PowerShell verifier.
 - [x] Trigger the first real GitHub Actions run on canonical `master`; run `35363881972` proved the trigger fix but failed in `setup-android@v3` before Gradle because the removed legacy SDK package `tools` was requested.
 - [x] Correct CI setup to `android-actions/setup-android@v4` with explicit `platform-tools` only and harden the CI contract against regression to v3/legacy `tools`.
+- [x] Collect second real run `35364775034`: `verify` and API-23 instrumentation passed; Android-17 `37.0` installed/created/launched its AVD but remained `adb offline` until the 600-second boot timeout, so Gradle instrumentation never started in that lane.
+- [x] Align the runner image's stale `cmdline-tools/latest` with the pinned setup-android 22.0 toolchain before `android-emulator-runner@v2`, and harden the CI contract so minor-version AVD creation cannot silently fall back to the preinstalled 12.0 tools.
 - [ ] Collect a green GitHub Actions clean-checkout host + API-23 plus Android-17-`37.0` instrumentation retry before opening the first local vertical slice.

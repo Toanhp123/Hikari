@@ -22,6 +22,16 @@ COUNT_SETUP_ANDROID_PACKAGES="$(grep -c "packages: 'platform-tools'" "$CI" || tr
 COUNT_CMDLINE_TOOLS="$(grep -c "cmdline-tools-version: '15859902'" "$CI" || true)"
 [[ "$COUNT_CMDLINE_TOOLS" -eq 2 ]] || fail "expected command-line tools 15859902 in both CI jobs, found $COUNT_CMDLINE_TOOLS"
 
+COUNT_ALIGN_CMDLINE_TOOLS="$(grep -c 'name: Align emulator runner command-line tools' "$CI" || true)"
+[[ "$COUNT_ALIGN_CMDLINE_TOOLS" -eq 1 ]] || fail "expected exactly one emulator-runner cmdline-tools alignment step, found $COUNT_ALIGN_CMDLINE_TOOLS"
+ALIGN_LINE="$(grep -n 'name: Align emulator runner command-line tools' "$CI" | cut -d: -f1)"
+EMULATOR_RUNNER_LINE="$(grep -n 'uses: reactivecircus/android-emulator-runner@v2' "$CI" | cut -d: -f1)"
+[[ "$ALIGN_LINE" -lt "$EMULATOR_RUNNER_LINE" ]] || fail "cmdline-tools alignment must run before android-emulator-runner"
+grep -Fq 'PINNED_SDKMANAGER="$(command -v sdkmanager)"' "$CI" || fail "emulator toolchain alignment must derive the sdkmanager installed by setup-android"
+grep -Fq 'test "$PINNED_VERSION" = "22.0"' "$CI" || fail "emulator toolchain alignment must verify command-line tools 22.0"
+grep -Fq 'sudo rm -rf "$SDK/cmdline-tools/latest"' "$CI" || fail "stale cmdline-tools/latest must be removed before emulator-runner"
+grep -Fq 'sudo ln -s "$PINNED_ROOT" "$SDK/cmdline-tools/latest"' "$CI" || fail "cmdline-tools/latest must point at the pinned setup-android toolchain"
+
 COUNT_PLATFORM37="$(grep -c 'platforms;android-37.0' "$CI" || true)"
 [[ "$COUNT_PLATFORM37" -eq 2 ]] || fail "expected explicit compileSdk 37 install in both CI jobs, found $COUNT_PLATFORM37"
 

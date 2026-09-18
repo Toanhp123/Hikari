@@ -60,6 +60,18 @@ jobs:
         with:
           cmdline-tools-version: '15859902'
           packages: 'platform-tools'
+      - name: Align emulator runner command-line tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          PINNED_SDKMANAGER="$(command -v sdkmanager)"
+          PINNED_ROOT="$(cd "$(dirname "$PINNED_SDKMANAGER")/.." && pwd)"
+          PINNED_VERSION="$("$PINNED_SDKMANAGER" --version 2>/dev/null | grep -Eo '^[0-9][0-9.]*' | head -1)"
+          test "$PINNED_VERSION" = "22.0"
+          sudo rm -rf "$SDK/cmdline-tools/latest"
+          sudo ln -s "$PINNED_ROOT" "$SDK/cmdline-tools/latest"
+          test "$(readlink -f "$SDK/cmdline-tools/latest")" = "$(readlink -f "$PINNED_ROOT")"
       - name: Install compile SDK
         run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
       - name: Materialize official wrapper when bootstrap archive has no wrapper binary
