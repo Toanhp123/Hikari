@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** Pre-V1 Foundation R4.18 — Bootstrap Contract + Lean Agent Routing Baseline
+**Revision:** Pre-V1 Foundation R4.19 — Local Bootstrap Execution Evidence Checkpoint
 **Status:** Project Baseline / Pre-Implementation  
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-18 — standardized the compile-platform package/folder contract on `platforms;android-37.0`, removed contradictory daemon-JVM 25 criteria, and collapsed project state/handoff back into this single living canonical foundation; root `AGENTS.md` is now a lean routing layer rather than a second source of truth
+**Last foundation review:** 2026-09-18 — recorded a real Windows JDK-17/SDK-37.0 full bootstrap execution PASS through the canonical PowerShell verifier on Redmi Note 9S / Android 15; local host, Android launch smoke and release-like assembly are now proven, while GitHub Actions clean-checkout execution and Macrobenchmark device measurements remain pending
 
 ---
 
@@ -20,7 +20,7 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** Pre-V1 / Phase 0 bootstrap.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Product implementation:** minimal skeleton only; scanner/Room/source resolution/player/readers are not implemented yet.
-- **Current gate:** **BOOTSTRAP EXECUTION GATE — REAL HOST/DEVICE/CI EVIDENCE PENDING**.
+- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; CI CLEAN-CHECKOUT EVIDENCE PENDING**.
 - **Feature breadth:** blocked until the current gate is green.
 
 ## Current bootstrap contract
@@ -46,23 +46,20 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - `PASS` — `bash scripts/tests/gradle-bootstrap-contract-test.sh`.
 - `PASS` — `bash scripts/verify-security-baseline.sh`.
 - `PASS` — Bash syntax checks for repository scripts.
-- `BLOCKED (expected in generation environment)` — canonical doctor sees Java 21, while project baseline requires JDK 17.
-- `PENDING` — real JDK-17 host gate, connected-device smoke, release-like assembly, GitHub Actions clean-checkout evidence, and later Macrobenchmark measurements.
+- `PASS` — real Windows environment doctor with Temurin JDK 17.0.20, Gradle 9.4.1, `platforms;android-37.0`, `build-tools;37.0.0`, wrapper properties and wrapper JAR integrity.
+- `PASS` — canonical full PowerShell bootstrap verifier: Gradle runtime/help, `verifyFast`, one-device `:app:connectedDebugAndroidTest`, then `verifyRelease`.
+- `PASS` — Android launch smoke on Redmi Note 9S / Android 15: 1 test completed, 0 failures.
+- `PASS` — release-like local assembly, including `:app:assembleRelease` and `:benchmark:assembleBenchmark` through `verifyRelease`.
+- `PENDING` — GitHub Actions clean-checkout host/instrumentation lanes.
+- `PENDING` — Macrobenchmark device execution and any numeric performance evidence; benchmark assembly alone is not runtime performance evidence.
 
-Static/harness evidence never upgrades an unexecuted Gradle/Android/CI gate to `PASS`.
+The earlier Java-21/no-SDK generation-environment limitation is historical evidence only; the real Windows run supersedes it for local host/device execution. Static/harness evidence still never upgrades an unexecuted CI or Macrobenchmark gate to `PASS`.
 
 ## Next concrete action
 
-On the real Windows development environment:
+Push the local evidence checkpoint and observe the GitHub Actions clean-checkout lanes. The local canonical verifier is already green; do not rerun it merely to manufacture duplicate evidence unless code/toolchain inputs change.
 
-```powershell
-.\scripts\verify-bootstrap.ps1 -DoctorOnly
-.\scripts\verify-bootstrap.ps1 -HostOnly
-$env:ANDROID_SERIAL = '<device-id>'   # only when multiple devices are online or a specific target is required
-.\scripts\verify-bootstrap.ps1
-```
-
-Then observe the GitHub Actions clean-checkout lanes. If host + device + CI evidence is green, update this block and begin the deliberately small first local vertical slice in §13.1. If executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
+If the CI host lane and API-23/API-37 instrumentation lanes are green, update this block to close the blocking Phase-0 bootstrap gate and begin the deliberately small first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`. If CI execution contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
 
 ## Token-efficient reading rule
 
@@ -11337,7 +11334,7 @@ Current stable dependency evidence used only for bootstrap planning:
 
 ## 4.26 Bootstrap Implementation Evidence Record — Phase-0 Skeleton
 
-**Status:** `STRUCTURALLY VERIFIED / EXECUTABLE BUILD EVIDENCE PENDING`
+**Status:** `LOCAL EXECUTION VERIFIED / CI CLEAN-CHECKOUT EVIDENCE PENDING`
 
 R4.16 records implementation evidence for the downstream work opened by `Q-BOOT-001`. This record does **not** create a new architecture semantic decision and does not upgrade provisional Stages A–I to LOCKED. It proves only what the generated skeleton and static checks actually demonstrate.
 
@@ -11404,9 +11401,9 @@ Fresh checks completed successfully:
 
 Gradle 9.4.1 distribution and wrapper SHA-256 pins were cross-checked against the published Gradle checksum reference. The repository intentionally does not fabricate a `gradle-wrapper.jar`; checksum-verifying bootstrap scripts materialize the official wrapper on a networked JDK-17 machine.
 
-### 4.26.4 Evidence Not Yet Proven
+### 4.26.4 Generation-Handoff Limitations — Historical R4.16 State
 
-The generation environment has Java 21 only, no JDK 17, no Android SDK, no system Gradle and cannot fetch/materialize the official wrapper binary. Therefore the following remain **PENDING**, not PASS:
+At the R4.16 generation handoff, the generation environment had Java 21 only, no JDK 17, no Android SDK, no system Gradle and could not fetch/materialize the official wrapper binary. Therefore the following were **PENDING** at that handoff, not PASS:
 
 1. `./gradlew help` / Gradle sync on JDK 17.
 2. `./gradlew verifyFast --no-daemon`.
@@ -11418,36 +11415,55 @@ The generation environment has Java 21 only, no JDK 17, no Android SDK, no syste
 8. GitHub Actions clean-checkout execution.
 9. Macrobenchmark device execution and any numeric performance evidence.
 
-No later feature implementation may cite these pending items as green until fresh output exists.
+This list is retained as historical provenance, not current state. §4.26.5 supersedes the local host/device/build entries with fresh executable evidence; CI and Macrobenchmark runtime evidence remain pending.
 
-### 4.26.5 Next Execution Gate
+### 4.26.5 Real Windows Execution Evidence — 2026-09-18
 
-On a JDK-17 + Android-SDK-37 environment:
+The canonical PowerShell verifier was executed on the real Windows development environment with:
+
+- Temurin OpenJDK 17.0.20;
+- Gradle Wrapper 9.4.1;
+- Android SDK `platforms;android-37.0` and `build-tools;37.0.0`;
+- one connected Redmi Note 9S running Android 15.
+
+Observed results:
 
 ```text
-materialize + verify official Gradle 9.4.1 wrapper
-        ↓
-./gradlew help --no-daemon
-        ↓
-./gradlew verifyFast --no-daemon
-        ↓
-./gradlew :app:connectedDebugAndroidTest --no-daemon
-        ↓
-./gradlew verifyRelease --no-daemon
-        ↓
-CI clean-checkout evidence
-        ↓
-only then begin first local vertical slice
+verify-bootstrap.ps1 -DoctorOnly     → PASS
+verify-bootstrap.ps1                 → PASS
+  Gradle runtime/help                → PASS
+  verifyFast                         → BUILD SUCCESSFUL
+  :app:connectedDebugAndroidTest     → 1 test, 0 failures, BUILD SUCCESSFUL
+  verifyRelease                      → BUILD SUCCESSFUL
+Bootstrap execution gate             → PASS
 ```
 
-If any executable evidence contradicts Q-BOOT/Q-MOD/Q-API assumptions, reopen the affected question before expanding feature breadth.
+Because `verifyFast` owns formatting, architecture/security verification, JVM contract tests, app lint and debug assembly, and `verifyRelease` owns release plus benchmark assembly, this run upgrades those local executable checks from pending to PASS. It does **not** prove GitHub Actions execution or Macrobenchmark runtime measurements.
+
+### 4.26.6 Next Execution Gate
+
+The remaining blocking bootstrap evidence is the repository CI clean-checkout execution:
+
+```text
+local Windows host/device/release-like gate — PASS
+        ↓
+GitHub Actions host lane
+        ↓
+GitHub Actions API-23/API-37 instrumentation lanes
+        ↓
+close blocking Phase-0 bootstrap gate
+        ↓
+begin first local vertical slice
+```
+
+Macrobenchmark device execution remains a separate performance gate after bootstrap wiring/assembly. If CI evidence contradicts Q-BOOT/Q-MOD/Q-API assumptions, reopen the affected question before expanding feature breadth.
 
 ---
 
 
 ## 4.27 Bootstrap Execution Gate & Contract Record
 
-**Status:** `STATIC/HARNESS VERIFIED / REAL GRADLE + ANDROID + CI EXECUTION PENDING`
+**Status:** `LOCAL GRADLE + ANDROID VERIFIED / CI EXECUTION PENDING`
 
 This record owns the Phase-0 execution contract. Earlier R4.17 assumptions are corrected here rather than preserved as a competing current record.
 
@@ -11509,13 +11525,13 @@ bash -n scripts/**/*.sh
 
 The fake-SDK harness proves `android-37.0` is accepted and legacy `android-37` is rejected. CI contract tests require compile SDK/build-tools provisioning in both lanes. Gradle/bootstrap contract tests guard the JDK-17 daemon criterion and repository structure.
 
-These checks prove configuration/harness behavior only. They do **not** prove Gradle build, JVM tests, lint, Android instrumentation, release assembly, GitHub Actions execution, or Macrobenchmark measurements. Current PASS/PENDING/BLOCKED truth lives only in the **Current Control Block**.
+These static checks prove configuration/harness behavior only. Separately, the real Windows run on 2026-09-18 executed the canonical full PowerShell verifier successfully on JDK 17.0.20 with a Redmi Note 9S / Android 15, proving local Gradle build, owned JVM tests, lint/format/architecture/security gates, Android launch instrumentation, debug/release assembly, and benchmark assembly. It still does **not** prove GitHub Actions execution or Macrobenchmark runtime measurements. Current PASS/PENDING/BLOCKED truth lives only in the **Current Control Block**.
 
 ### 4.27.4 Gate transition
 
-Run the PowerShell or Bash verifier on a real JDK-17 environment with `platforms;android-37.0`, then collect connected-device and CI clean-checkout evidence. Only after the Current Control Block records those blocking gates as green may §13.1 become the active implementation slice.
+The real Windows PowerShell host/device gate is green. Collect GitHub Actions clean-checkout host + instrumentation evidence next. Only after the Current Control Block records the blocking CI lanes as green may §13.1 become the active implementation slice. Macrobenchmark runtime measurement is tracked separately and must not be inferred from benchmark assembly.
 
-If executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the affected decision before expanding feature breadth.
+If CI executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the affected decision before expanding feature breadth.
 
 ---
 
@@ -12774,10 +12790,10 @@ Feature implementation V1 chỉ bắt đầu sau khi checklist foundation đạt
 
 ## Quality
 
-- [ ] Unit-test baseline works.
-- [ ] Android-test baseline works.
-- [ ] Static analysis/formatting works.
-- [ ] CI baseline works.
+- [x] Unit-test baseline works on the real Windows JDK-17 bootstrap gate.
+- [x] Android-test launch baseline works on Redmi Note 9S / Android 15.
+- [x] Static analysis/formatting works through `verifyFast`.
+- [ ] CI baseline works; workflow contract is statically verified but clean-checkout execution evidence is still pending.
 - [x] Benchmark module/variant wiring implemented and statically reviewed; device execution/numeric evidence remain pending.
 - [x] Critical V1 performance journeys listed.
 
@@ -12803,23 +12819,21 @@ GENERATED + STATICALLY VERIFIED — PHASE-0 SKELETON
 module graph / build-logic / launch smoke surface / benchmark boundary /
 security docs + verifier / CI definition
         ↓
-BOOTSTRAP CONTRACT STATIC/HARNESS VERIFIED — SEE CURRENT CONTROL BLOCK
-canonical doctor/host/device verifier + CI compile-SDK provisioning contract
+LOCAL BOOTSTRAP EXECUTION VERIFIED — SEE CURRENT CONTROL BLOCK
+JDK 17 + SDK 37.0 doctor / Gradle help / verifyFast / Android smoke / verifyRelease
         ↓
-NEXT EXECUTION GATE
-official wrapper on JDK 17 + SDK 37
-→ Gradle help/sync
-→ verifyFast
-→ Android smoke test
-→ verifyRelease
-→ CI clean-checkout evidence
+NEXT BLOCKING EVIDENCE
+GitHub Actions clean-checkout host lane
+→ API-23/API-37 instrumentation lanes
+        ↓
+Close Phase-0 bootstrap gate
         ↓
 First local vertical slice
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The next session must prioritize **executable bootstrap evidence**, not add more product modules or feature breadth. Unit-test, Android-test, lint/format, assemble and CI checklist entries stay open until their commands actually pass. Security documentation/static manifest gates and benchmark wiring are now implemented; Macrobenchmark measurements remain a later device-performance gate.
+The next session must prioritize the **remaining CI clean-checkout bootstrap evidence**, not add more product modules or feature breadth. Local unit-test, Android-test launch smoke, lint/format/architecture/security, debug/release and benchmark assembly evidence are now green on the real Windows JDK-17 environment. CI stays open until its host and instrumentation commands actually pass. Macrobenchmark measurements remain a later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 

@@ -204,7 +204,7 @@ The generation container has Java 21, no Android SDK, no system Gradle, and cann
 - [x] RED: add CI contract test proving both jobs provision compileSdk 37/build-tools 37.0.0 and the host lane uses the canonical host verifier.
 - [x] GREEN: fix instrumentation CI provisioning and local/CI command drift.
 - [x] Re-run harness tests and Bash syntax checks.
-- [ ] Run the real full gate on JDK 17 + SDK 37 + connected device; generation environment is intentionally insufficient and must not substitute Java 21 evidence.
+- [x] Run the real full gate on Windows with Temurin JDK 17.0.20 + SDK `platforms;android-37.0` + connected Redmi Note 9S / Android 15; doctor, Gradle help, `verifyFast`, launch instrumentation and `verifyRelease` all passed.
 
 ### Task 10: Bootstrap Contract Correction + Lean Agent Routing
 
@@ -230,4 +230,5 @@ The generation container has Java 21, no Android SDK, no system Gradle, and cann
 - [x] Keep exactly one stable-path canonical foundation; update it in place and use Git history for revisions.
 - [x] Remove parallel `docs/state/` / persistent handoff sources of truth.
 - [x] Re-run repository-owned bootstrap/CI/Gradle/security contract tests and Bash syntax checks.
-- [ ] Collect real Windows JDK-17 + SDK-37.0 host/device evidence and CI clean-checkout evidence before opening the first local vertical slice.
+- [x] Collect real Windows JDK-17 + SDK-37.0 host/device/release-like evidence through the canonical PowerShell verifier.
+- [ ] Collect GitHub Actions clean-checkout host + API-23/API-37 instrumentation evidence before opening the first local vertical slice.
