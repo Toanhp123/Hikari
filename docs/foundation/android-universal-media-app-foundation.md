@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** Pre-V1 Foundation R4.22 — Android 17 AVD Toolchain Alignment
+**Revision:** Pre-V1 Foundation R4.23 — Android 17 Espresso Compatibility Correction
 **Status:** Project Baseline / Pre-Implementation  
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-18 — second real GitHub Actions run `35364775034` proved `verify` and API-23 instrumentation green after the setup-android v4 correction; Android-17 `37.0` installed and launched its AVD but remained `adb offline` until the 600-second boot timeout. The runner image still exposed `cmdline-tools/latest` 12.0 while setup-android installed the pinned 22.0 tools, and `android-emulator-runner@v2` prepends `latest`; CI now aligns `latest` to the pinned toolchain before AVD creation. A fresh clean-checkout retry plus Macrobenchmark device measurements remain pending
+**Last foundation review:** 2026-09-18 — third real GitHub Actions run `35366782420` proved the Android-17 `37.0` AVD/toolchain correction worked far enough to boot the emulator, execute Gradle, install the app/test APKs and start `AppLaunchSmokeTest`. The remaining failure is now in the instrumentation dependency graph: the Compose test stack resolved an Espresso implementation that still reflectively calls `InputManager.getInstance()`, which is incompatible with Android 17. The catalog already pins Espresso 3.7.0, whose AndroidX release explicitly replaced that reflective call with `getSystemService`, but `:app` was not consuming the alias. CI now adds the pinned Espresso core explicitly; a fresh clean-checkout retry plus Macrobenchmark device measurements remain pending
 
 ---
 
@@ -20,7 +20,7 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** Pre-V1 / Phase 0 bootstrap.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Product implementation:** minimal skeleton only; scanner/Room/source resolution/player/readers are not implemented yet.
-- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; CI HOST + API-23 PASS; ANDROID-17 `37.0` AVD BOOT BLOCKED BY STALE `cmdline-tools/latest`; TOOLCHAIN-ALIGNMENT CORRECTION AWAITS CLEAN-CHECKOUT RETRY**.
+- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; CI HOST + API-23 PASS; ANDROID-17 `37.0` NOW BOOTS AND RUNS GRADLE, BUT THE SMOKE TEST FAILS IN AN OLDER TRANSITIVE ESPRESSO INPUT-INJECTION PATH; EXPLICIT ESPRESSO-3.7.0 CORRECTION AWAITS CLEAN-CHECKOUT RETRY**.
 - **Feature breadth:** blocked until the current gate is green.
 
 ## Current bootstrap contract
@@ -39,6 +39,7 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 | Canonical CI push branch | `master` |
 | CI Android setup | `android-actions/setup-android@v4`, command-line tools build `15859902` / 22.0, `packages: platform-tools`; instrumentation aligns `cmdline-tools/latest` to this pinned toolchain before emulator-runner |
 | CI instrumentation packages | API `23` / `default`; Android 17 `37.0` / `google_apis` |
+| App instrumentation compatibility floor | explicit `androidx.test.espresso:espresso-core:3.7.0` |
 
 `compileSdk = 37` is the Gradle API level. `android-37.0` is the installed SDK package/folder contract. Do not normalize one into the other.
 
@@ -48,8 +49,10 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - `PASS` — `bash scripts/tests/ci-bootstrap-contract-test.sh`, including canonical `master` push trigger, `setup-android@v4`, command-line tools `15859902` / 22.0, platform-tools-only setup, stale-`latest` alignment before emulator-runner, KVM setup, and explicit API-23 / Android-17-`37.0` emulator matrix contracts.
 - `FAIL` — first real GitHub Actions run `35363881972`: verify, API-23 instrumentation and Android-17-`37.0` instrumentation all stopped in `android-actions/setup-android@v3` before Gradle because `sdkmanager` returned `Failed to find package 'tools'`; historical CI setup evidence only.
 - `PASS` — second real GitHub Actions run `35364775034`: host `verify` completed successfully and API-23/default instrumentation completed successfully.
-- `FAIL` — run `35364775034` Android-17 `37.0` / `google_apis`: platform/system image installation and AVD creation/launch succeeded, but `adb` remained `device offline` until the 600-second emulator boot timeout, so that lane never reached Gradle instrumentation. Setup logs showed the runner image `cmdline-tools/latest` was still 12.0 while setup-android installed pinned 22.0, and emulator-runner prepends `latest`; this is CI emulator-tooling evidence, not a product-test failure.
-- `PENDING` — GitHub Actions clean-checkout retry after aligning `cmdline-tools/latest` to the pinned 22.0 toolchain before emulator-runner.
+- `FAIL` — historical run `35364775034` Android-17 `37.0` / `google_apis`: AVD launch succeeded but remained `adb offline`; this led to the R4.22 command-line-tool alignment.
+- `PASS` — third real GitHub Actions run `35366782420`: host `verify` and API-23/default instrumentation remained green; Android-17 `37.0` booted, Gradle built the instrumentation APK, and the lane reached `Starting 1 tests on emulator-5554 - 17`. This proves the AVD/toolchain blocker is closed.
+- `FAIL` — run `35366782420` Android-17 smoke test failed inside Espresso before the app assertion: `NoSuchMethodException: android.hardware.input.InputManager.getInstance []`. AndroidX Test 3.7.0 explicitly replaced reflective `InputManager.getInstance` with `getSystemService`; the repo already pinned Espresso 3.7.0 in the version catalog but `:app` had not declared it, so the Compose test stack could resolve its older transitive Espresso implementation. This is a test-runtime compatibility failure, not product behavior evidence.
+- `PENDING` — GitHub Actions clean-checkout retry after explicitly consuming the pinned Espresso 3.7.0 core in `:app` instrumentation.
 - `PASS` — `bash scripts/tests/gradle-bootstrap-contract-test.sh`.
 - `PASS` — `bash scripts/verify-security-baseline.sh`.
 - `PASS` — Bash syntax checks for repository scripts.
@@ -63,7 +66,7 @@ The earlier Java-21/no-SDK generation-environment limitation is historical evide
 
 ## Next concrete action
 
-Commit and push the Android-17 AVD toolchain-alignment correction to canonical branch `master`, then observe a fresh GitHub Actions clean-checkout host lane plus the API-23 and Android-17-`37.0` instrumentation lanes. The local canonical verifier is already green, and run `35364775034` already proves the host lane plus API-23 instrumentation; because this correction changes workflow/docs/contracts rather than Gradle/product inputs, rerun the repository-owned static/harness contracts but do not manufacture duplicate local device evidence.
+Commit and push the Android-17 Espresso-compatibility correction to canonical branch `master`, then observe a fresh GitHub Actions run. The expected regression proof is: host `verify` remains green, API-23/default remains green, and Android-17 `37.0` / `google_apis` reaches and passes `AppLaunchSmokeTest` with the explicit Espresso 3.7.0 runtime. Because this correction changes the instrumentation dependency graph, rerun the repository-owned static/harness contracts before push; the clean-runner matrix supplies the decisive runtime evidence.
 
 If those CI lanes are green, update this block to close the blocking Phase-0 bootstrap gate and begin the deliberately small first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`. If CI execution contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
 
@@ -237,6 +240,7 @@ R4 không mở rộng product scope. Nó tích hợp kết quả **V1 architectu
 - **R4.20 CI clean-checkout remediation:** live-repository audit found the workflow push trigger targeted nonexistent `main` while canonical/default branch is `master`, explaining the absence of GitHub Actions runs. The CI contract now guards the `master` trigger, pins command-line tools build `15859902`, enables KVM, and distinguishes Gradle API `37` from Android 17 emulator package `37.0` with `google_apis`. CI execution remained pending until the remediated workflow ran on GitHub.
 - **R4.21 first CI execution setup correction:** real run `35363881972` proved the trigger fix worked, then all three jobs failed before Gradle because `android-actions/setup-android@v3` defaulted to the removed legacy SDK package `tools`. The workflow now uses `setup-android@v4`, explicitly requests only `platform-tools`, and the CI contract forbids regression to v3 or legacy `tools`. Clean-checkout retry evidence remains pending.
 - **R4.22 Android 17 AVD toolchain alignment:** second real run `35364775034` proved the host lane and API-23/default instrumentation green, while Android-17 `37.0`/`google_apis` created and launched an AVD that remained `adb offline` through the 600-second boot timeout. The same log showed setup-android installed command-line tools 22.0 while the runner image retained `cmdline-tools/latest` 12.0; `android-emulator-runner@v2` prepends that `latest` directory before its unqualified sdkmanager/avdmanager calls. The instrumentation job now repoints `latest` to the pinned setup-android toolchain before invoking emulator-runner, and the CI contract guards that alignment. Fresh retry evidence remains pending.
+- **R4.23 Android 17 Espresso compatibility correction:** third real run `35366782420` proved the R4.22 emulator correction: host and API-23 stayed green, Android-17 `37.0` booted, Gradle completed packaging, and the smoke test started on the Android-17 emulator. The remaining failure moved into Espresso input injection (`NoSuchMethodException: InputManager.getInstance`). AndroidX Espresso 3.7.0 contains the platform-compatibility fix, but the existing catalog alias was unused by `:app`; R4.23 makes that dependency explicit and adds a build-contract guard so future Compose-test transitive changes cannot silently downgrade the runtime again. Fresh retry evidence remains pending.
 
 Các tên/type được audit đề xuất chưa mặc định là final implementation. Question Ledger là nơi xác định cái gì còn OPEN và khi nào được phép downstream dependency.
 

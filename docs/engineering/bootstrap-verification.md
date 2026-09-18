@@ -53,7 +53,9 @@ API 23     → api-level 23   / target default
 Android 17 → api-level 37.0 / target google_apis
 ```
 
-`compileSdk = 37` remains the Gradle API level; `37.0` here is the Android 17 SDK/system-image package version. Keeping those values distinct, and ensuring the emulator runner actually resolves the pinned 22.0 tools rather than the stale `latest` directory, avoids both the clean-runner compile-platform gap and the Major.Minor AVD-target parsing failure seen with older command-line tools. Run `35364775034` proved `verify` and API-23 instrumentation green; Android-17 `37.0` reached AVD launch but remained `adb offline` until timeout, which is the evidence that triggered this `latest`-alignment correction.
+`compileSdk = 37` remains the Gradle API level; `37.0` here is the Android 17 SDK/system-image package version. Keeping those values distinct, and ensuring the emulator runner actually resolves the pinned 22.0 tools rather than the stale `latest` directory, avoids both the clean-runner compile-platform gap and the Major.Minor AVD-target parsing failure seen with older command-line tools. Run `35364775034` exposed that tooling issue; run `35366782420` then proved the aligned Android-17 AVD boots and reaches Gradle instrumentation.
+
+The app instrumentation classpath must also include the catalog-pinned `androidx.test.espresso:espresso-core:3.7.0` explicitly. Run `35366782420` reached `AppLaunchSmokeTest` but failed because the Compose test stack resolved an older Espresso implementation that reflectively called `InputManager.getInstance`; AndroidX Test 3.7.0 replaced that path with `getSystemService`. Keep the direct dependency so transitive Compose-test versions cannot silently reintroduce the Android-17 incompatibility.
 
 ## Evidence ownership
 

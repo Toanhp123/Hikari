@@ -35,6 +35,11 @@ grep -Fq '@TaskAction' "$SEC_TASK" || fail "VerifySecurityBaselineTask must use 
 ! grep -Eq '(^|[^A-Za-z])project\.|rootProject|subprojects' "$ARCH_TASK" || fail "VerifyArchitectureTask execution type must not capture Project APIs"
 ! grep -Eq '(^|[^A-Za-z])project\.|rootProject|subprojects' "$SEC_TASK" || fail "VerifySecurityBaselineTask execution type must not capture Project APIs"
 
+VERSION_CATALOG="$ROOT/gradle/libs.versions.toml"
+APP_BUILD="$ROOT/app/build.gradle.kts"
+grep -Eq '^espresso[[:space:]]*=[[:space:]]*"3\.7\.0"$' "$VERSION_CATALOG" || fail "Espresso must stay on the Android-17-compatible 3.7.0 baseline"
+grep -Fq 'androidTestImplementation(libs.androidx.test.espresso.core)' "$APP_BUILD" || fail "app instrumentation must consume the pinned Espresso core instead of relying on an older Compose-test transitive"
+
 DAEMON_JVM="$ROOT/gradle/gradle-daemon-jvm.properties"
 if [[ -f "$DAEMON_JVM" ]]; then
   grep -Eq '^toolchainVersion=17$' "$DAEMON_JVM" || fail "Gradle daemon JVM criteria must match the JDK 17 bootstrap baseline"
