@@ -63,7 +63,21 @@ bash scripts/verify-bootstrap.sh --host-only
 bash scripts/verify-bootstrap.sh
 ```
 
-Run focused tests while developing, then the owning canonical gate when the environment permits it. Self-review the final diff for accidental scope expansion, stale docs, dead code, and architecture/security regression.
+Run focused tests while developing, then the owning canonical gate when the environment permits it. Verification must be proportional to the change: do not rerun a broad gate merely because it exists in a plan when the current diff cannot affect it. Prefer one batched Gradle invocation for the affected modules, reuse configuration/build cache, and use instrumentation class filters when only a small Android behavior changed.
+
+For long-running commands, keep agent context lean: successful runs should be summarized by command + exit status/key counts, not pasted in full. Capture stdout/stderr to an OS-temp or repository-ignored local log when useful; on failure, surface only the first actionable error plus a small relevant tail, then rerun the failing task with `--stacktrace`/`--info` only if needed.
+
+Long-running execution is **blocking, not observed**:
+
+- launch one focused invocation and wait for its exit using the tool/runtime's native blocking wait with a finite wall-clock bound appropriate to that gate; a command may legitimately take minutes, so elapsed time alone is not failure;
+- never `tail -f`, `Get-Content -Wait`, repeatedly reopen the log, poll a process/job/device in a loop, or spend model/tool turns merely checking whether the command is still running;
+- if a tool returns a live-process/session handle instead of blocking, use one native bounded wait when available; do not create a `sleep`/poll/`feed` loop just to watch progress;
+- if the invocation exceeds its chosen execution bound or is clearly non-terminating, stop that invocation, preserve the log, and report the execution as timed out/blocked rather than continuing to observe it indefinitely; do not silently convert such a stop into a test `FAIL`;
+- after exit, read only the bounded summary or failure slice needed for the next decision. Do not paste the whole log back into agent context.
+
+Do not rerun doctor/bootstrap/full verification unless the environment, build logic, or owning surface changed. Full-suite/release/device matrices belong at explicit checkpoint/closure gates, not after every task.
+
+Self-review the final diff for accidental scope expansion, stale docs, dead code, and architecture/security regression.
 
 ## Documentation rule
 
