@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** Pre-V1 Foundation R4.23 — Android 17 Espresso Compatibility Correction
-**Status:** Project Baseline / Pre-Implementation  
+**Revision:** V1 Foundation R4.24 — Phase 0 Closure / First Slice Unlock
+**Status:** Project Baseline / V1 Implementation Ready
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-18 — third real GitHub Actions run `35366782420` proved the Android-17 `37.0` AVD/toolchain correction worked far enough to boot the emulator, execute Gradle, install the app/test APKs and start `AppLaunchSmokeTest`. The remaining failure is now in the instrumentation dependency graph: the Compose test stack resolved an Espresso implementation that still reflectively calls `InputManager.getInstance()`, which is incompatible with Android 17. The catalog already pins Espresso 3.7.0, whose AndroidX release explicitly replaced that reflective call with `getSystemService`, but `:app` was not consuming the alias. CI now adds the pinned Espresso core explicitly; a fresh clean-checkout retry plus Macrobenchmark device measurements remain pending
+**Last foundation review:** 2026-09-18 — fourth real GitHub Actions run `35368573651` completed successfully on canonical `master`: host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation all passed. Together with the already-green real Windows JDK-17 host/device/release-like verifier, this closes the blocking Phase-0 bootstrap execution gate and unlocks the deliberately small V1 first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate, non-blocking performance gate.
 
 ---
 
@@ -17,11 +17,11 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 
 ## Current position
 
-- **Phase:** Pre-V1 / Phase 0 bootstrap.
+- **Phase:** V1 implementation unlocked; Phase 0 bootstrap is closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Product implementation:** minimal skeleton only; scanner/Room/source resolution/player/readers are not implemented yet.
-- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; CI HOST + API-23 PASS; ANDROID-17 `37.0` NOW BOOTS AND RUNS GRADLE, BUT THE SMOKE TEST FAILS IN AN OLDER TRANSITIVE ESPRESSO INPUT-INJECTION PATH; EXPLICIT ESPRESSO-3.7.0 CORRECTION AWAITS CLEAN-CHECKOUT RETRY**.
-- **Feature breadth:** blocked until the current gate is green.
+- **Current gate:** **BOOTSTRAP EXECUTION GATE — CLOSED. REAL WINDOWS HOST/DEVICE/RELEASE-LIKE PASS + GITHUB CLEAN-CHECKOUT HOST/API-23/ANDROID-17 PASS.**
+- **Feature breadth:** the §13.1 first local vertical slice is unlocked; broader feature breadth remains intentionally incremental and evidence-gated.
 
 ## Current bootstrap contract
 
@@ -52,7 +52,7 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - `FAIL` — historical run `35364775034` Android-17 `37.0` / `google_apis`: AVD launch succeeded but remained `adb offline`; this led to the R4.22 command-line-tool alignment.
 - `PASS` — third real GitHub Actions run `35366782420`: host `verify` and API-23/default instrumentation remained green; Android-17 `37.0` booted, Gradle built the instrumentation APK, and the lane reached `Starting 1 tests on emulator-5554 - 17`. This proves the AVD/toolchain blocker is closed.
 - `FAIL` — run `35366782420` Android-17 smoke test failed inside Espresso before the app assertion: `NoSuchMethodException: android.hardware.input.InputManager.getInstance []`. AndroidX Test 3.7.0 explicitly replaced reflective `InputManager.getInstance` with `getSystemService`; the repo already pinned Espresso 3.7.0 in the version catalog but `:app` had not declared it, so the Compose test stack could resolve its older transitive Espresso implementation. This is a test-runtime compatibility failure, not product behavior evidence.
-- `PENDING` — GitHub Actions clean-checkout retry after explicitly consuming the pinned Espresso 3.7.0 core in `:app` instrumentation.
+- `PASS` — fourth real GitHub Actions run `35368573651`: overall workflow `success`; host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation all completed successfully. This is the decisive clean-checkout evidence that closes the blocking Phase-0 bootstrap gate.
 - `PASS` — `bash scripts/tests/gradle-bootstrap-contract-test.sh`.
 - `PASS` — `bash scripts/verify-security-baseline.sh`.
 - `PASS` — Bash syntax checks for repository scripts.
@@ -62,13 +62,13 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - `PASS` — release-like local assembly, including `:app:assembleRelease` and `:benchmark:assembleBenchmark` through `verifyRelease`.
 - `PENDING` — Macrobenchmark device execution and any numeric performance evidence; benchmark assembly alone is not runtime performance evidence.
 
-The earlier Java-21/no-SDK generation-environment limitation is historical evidence only; the real Windows run supersedes it for local host/device execution. Static/harness evidence never upgrades a failed or unexecuted CI retry, or an unexecuted Macrobenchmark gate, to `PASS`.
+The earlier Java-21/no-SDK generation-environment limitation and the first three CI failures are historical evidence only. The real Windows execution plus GitHub Actions run `35368573651` now prove the blocking bootstrap paths. Static/harness or assembly evidence still does not upgrade an unexecuted Macrobenchmark runtime gate to `PASS`.
 
 ## Next concrete action
 
-Commit and push the Android-17 Espresso-compatibility correction to canonical branch `master`, then observe a fresh GitHub Actions run. The expected regression proof is: host `verify` remains green, API-23/default remains green, and Android-17 `37.0` / `google_apis` reaches and passes `AppLaunchSmokeTest` with the explicit Espresso 3.7.0 runtime. Because this correction changes the instrumentation dependency graph, rerun the repository-owned static/harness contracts before push; the clean-runner matrix supplies the decisive runtime evidence.
+Research and plan the deliberately small §13.1 first local vertical slice before adding product breadth. Inspect the current skeleton/modules, then read only the decision records that own this path: `Q-SRC-001`, `Q-STO-001`, `Q-ID-001`, `Q-REC-001`, `Q-SCN-001`, `Q-PER-001`, `Q-LIB-001`, `Q-PROG-001..002`, `Q-RUN-001`, `Q-MOD-001`, and `Q-API-001`. Produce a task-by-task implementation plan for the end-to-end proof `register one local root → discover one simple media shape → create/reuse canonical Media (+ Unit when required) → persist → show in Library → consume → persist progress → kill/restart → restore`.
 
-If those CI lanes are green, update this block to close the blocking Phase-0 bootstrap gate and begin the deliberately small first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`. If CI execution contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
+Do not broaden into multiple media families, source ecosystems, or UI polish before this slice proves the decisions in code. If implementation evidence contradicts a provisional decision, reopen the owning question before expanding breadth. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`.
 
 ## Token-efficient reading rule
 
@@ -153,7 +153,7 @@ Decision record phải dùng `Decision Closure Template` của tài liệu này.
 
 ## A.5 Spec Update Rule
 
-Foundation này là **living canonical document** trong giai đoạn Pre-V1.
+Foundation này là **living canonical document** trong giai đoạn foundation/V1 hiện tại.
 
 - Trong repo writable, sửa **chính file này tại stable path hiện tại**. Không tạo `R4.19`, `R4.20`... như các foundation file song song; Git history là revision history.
 - Khi architecture/decision thay đổi: cập nhật Question Ledger + Decision Record + mọi wording downstream bị stale.
@@ -241,6 +241,7 @@ R4 không mở rộng product scope. Nó tích hợp kết quả **V1 architectu
 - **R4.21 first CI execution setup correction:** real run `35363881972` proved the trigger fix worked, then all three jobs failed before Gradle because `android-actions/setup-android@v3` defaulted to the removed legacy SDK package `tools`. The workflow now uses `setup-android@v4`, explicitly requests only `platform-tools`, and the CI contract forbids regression to v3 or legacy `tools`. Clean-checkout retry evidence remains pending.
 - **R4.22 Android 17 AVD toolchain alignment:** second real run `35364775034` proved the host lane and API-23/default instrumentation green, while Android-17 `37.0`/`google_apis` created and launched an AVD that remained `adb offline` through the 600-second boot timeout. The same log showed setup-android installed command-line tools 22.0 while the runner image retained `cmdline-tools/latest` 12.0; `android-emulator-runner@v2` prepends that `latest` directory before its unqualified sdkmanager/avdmanager calls. The instrumentation job now repoints `latest` to the pinned setup-android toolchain before invoking emulator-runner, and the CI contract guards that alignment. Fresh retry evidence remains pending.
 - **R4.23 Android 17 Espresso compatibility correction:** third real run `35366782420` proved the R4.22 emulator correction: host and API-23 stayed green, Android-17 `37.0` booted, Gradle completed packaging, and the smoke test started on the Android-17 emulator. The remaining failure moved into Espresso input injection (`NoSuchMethodException: InputManager.getInstance`). AndroidX Espresso 3.7.0 contains the platform-compatibility fix, but the existing catalog alias was unused by `:app`; R4.23 makes that dependency explicit and adds a build-contract guard so future Compose-test transitive changes cannot silently downgrade the runtime again. Fresh retry evidence remains pending.
+- **R4.24 Phase-0 closure / V1 first-slice unlock:** fourth real run `35368573651` completed successfully end-to-end: host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation all passed on the clean GitHub runner. Together with the existing real Windows host/device/release-like PASS, this closes the blocking Phase-0 bootstrap execution gate. §13.1 is now the active V1 implementation trigger; Macrobenchmark runtime remains a separate non-blocking performance gate.
 
 Các tên/type được audit đề xuất chưa mặc định là final implementation. Question Ledger là nơi xác định cái gì còn OPEN và khi nào được phép downstream dependency.
 
@@ -11348,7 +11349,7 @@ Current stable dependency evidence used only for bootstrap planning:
 
 ## 4.26 Bootstrap Implementation Evidence Record — Phase-0 Skeleton
 
-**Status:** `LOCAL EXECUTION VERIFIED / CI CLEAN-CHECKOUT EVIDENCE PENDING`
+**Status:** `PHASE-0 CLOSED / LOCAL + CI EXECUTION VERIFIED / MACROBENCHMARK RUNTIME PENDING`
 
 R4.16 records implementation evidence for the downstream work opened by `Q-BOOT-001`. This record does **not** create a new architecture semantic decision and does not upgrade provisional Stages A–I to LOCKED. It proves only what the generated skeleton and static checks actually demonstrate.
 
@@ -11429,7 +11430,7 @@ At the R4.16 generation handoff, the generation environment had Java 21 only, no
 8. GitHub Actions clean-checkout execution.
 9. Macrobenchmark device execution and any numeric performance evidence.
 
-This list is retained as historical provenance, not current state. §4.26.5 supersedes the local host/device/build entries with fresh executable evidence; CI and Macrobenchmark runtime evidence remain pending.
+This list is retained as historical provenance, not current state. §4.26.5 supersedes the local host/device/build entries with fresh executable evidence; §4.27 now supersedes the CI entry with a green clean-checkout run. Macrobenchmark runtime evidence remains pending separately.
 
 ### 4.26.5 Real Windows Execution Evidence — 2026-09-18
 
@@ -11454,34 +11455,32 @@ Bootstrap execution gate             → PASS
 
 Because `verifyFast` owns formatting, architecture/security verification, JVM contract tests, app lint and debug assembly, and `verifyRelease` owns release plus benchmark assembly, this run upgrades those local executable checks from pending to PASS. It does **not** prove GitHub Actions execution or Macrobenchmark runtime measurements.
 
-### 4.26.6 Next Execution Gate
+### 4.26.6 Phase-0 Closure Evidence
 
-The remaining blocking bootstrap evidence is a green repository CI clean-checkout execution. The R4.20 push to canonical `master` successfully triggered real run `35363881972`, proving the trigger repair, but all three jobs failed before Gradle inside `android-actions/setup-android@v3`: current `sdkmanager` rejected the action's legacy default package request with `Failed to find package 'tools'`. R4.21 upgrades the setup action to v4 and explicitly requests only `platform-tools`; the API-23 / Android-17-`37.0`, command-line-tools and KVM remediations remain unchanged.
+The blocking clean-checkout evidence is now complete. The first three GitHub Actions runs progressively exposed and corrected the `master` trigger, removed legacy SDK `tools` setup, stale Major.Minor AVD tooling, and the Android-17 Espresso runtime mismatch. Fourth real run `35368573651` then completed successfully with host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation all green.
 
 ```text
 local Windows host/device/release-like gate — PASS
         ↓
-first CI execution — TRIGGER PASS / SDK SETUP FAIL BEFORE GRADLE
+GitHub Actions host verify — PASS
         ↓
-setup-android@v4 + platform-tools-only correction — STATIC CONTRACT PASS / RETRY PENDING
+GitHub Actions API-23 instrumentation — PASS
         ↓
-GitHub Actions host lane
+GitHub Actions Android-17-37.0 instrumentation — PASS
         ↓
-GitHub Actions API-23 + Android-17-37.0 instrumentation lanes
+PHASE-0 BOOTSTRAP — CLOSED
         ↓
-close blocking Phase-0 bootstrap gate
-        ↓
-begin first local vertical slice
+§13.1 first local vertical slice — UNLOCKED
 ```
 
-Macrobenchmark device execution remains a separate performance gate after bootstrap wiring/assembly. If CI evidence contradicts Q-BOOT/Q-MOD/Q-API assumptions, reopen the affected question before expanding feature breadth.
+Macrobenchmark device execution remains a separate performance gate after bootstrap wiring/assembly; it does not block the first V1 slice. If future implementation evidence contradicts Q-BOOT/Q-MOD/Q-API assumptions, reopen the affected question before expanding feature breadth.
 
 ---
 
 
 ## 4.27 Bootstrap Execution Gate & Contract Record
 
-**Status:** `LOCAL GRADLE + ANDROID VERIFIED / FIRST CI EXECUTION FAILED IN SDK SETUP / V4 RETRY PENDING`
+**Status:** `PHASE-0 CLOSED / LOCAL + CLEAN-CHECKOUT CI VERIFIED / FIRST V1 SLICE UNLOCKED`
 
 This record owns the Phase-0 execution contract. Earlier R4.17 assumptions are corrected here rather than preserved as a competing current record.
 
@@ -11550,11 +11549,11 @@ bash -n scripts/**/*.sh
 
 The fake-SDK harness proves `android-37.0` is accepted and legacy `android-37` is rejected. CI contract tests require the canonical `master` push trigger, `android-actions/setup-android@v4`, command-line tools build `15859902`, platform-tools-only setup with no legacy `tools` request, compile SDK/build-tools provisioning in both lanes, KVM setup, API 23 paired with `default`, Android 17 package `37.0` paired with `google_apis`, and matrix values actually consumed by the emulator runner. Gradle/bootstrap contract tests guard the JDK-17 daemon criterion and repository structure.
 
-These static checks prove configuration/harness behavior only. Separately, the real Windows run on 2026-09-18 executed the canonical full PowerShell verifier successfully on JDK 17.0.20 with a Redmi Note 9S / Android 15, proving local Gradle build, owned JVM tests, lint/format/architecture/security gates, Android launch instrumentation, debug/release assembly, and benchmark assembly. It still does **not** prove GitHub Actions execution or Macrobenchmark runtime measurements. Current PASS/PENDING/BLOCKED truth lives only in the **Current Control Block**.
+These static checks prove configuration/harness behavior only. Separately, the real Windows run on 2026-09-18 executed the canonical full PowerShell verifier successfully on JDK 17.0.20 with a Redmi Note 9S / Android 15, proving local Gradle build, owned JVM tests, lint/format/architecture/security gates, Android launch instrumentation, debug/release assembly, and benchmark assembly. GitHub Actions run `35368573651` independently proved the clean-checkout host lane plus API-23/default and Android-17 `37.0`/`google_apis` instrumentation lanes. Macrobenchmark runtime measurements remain unexecuted and are not inferred from benchmark assembly. Current PASS/PENDING/BLOCKED truth lives only in the **Current Control Block**.
 
 ### 4.27.4 Gate transition
 
-The real Windows PowerShell host/device gate is green. The first post-remediation GitHub Actions run proved the `master` trigger works but exposed a setup-action incompatibility before any Gradle task ran; R4.21 corrects that specific failure by moving to `setup-android@v4` with platform-tools only. Commit/push this correction and collect a fresh clean-checkout host + instrumentation run next. Only after the Current Control Block records the blocking CI lanes as green may §13.1 become the active implementation slice. Macrobenchmark runtime measurement is tracked separately and must not be inferred from benchmark assembly.
+The real Windows PowerShell host/device gate and the clean-checkout GitHub Actions matrix are both green. Run `35368573651` records host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation as successful, so the blocking Phase-0 bootstrap gate is closed and §13.1 is now the active implementation slice. Macrobenchmark runtime measurement is tracked separately and must not be inferred from benchmark assembly.
 
 If CI executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the affected decision before expanding feature breadth.
 
@@ -12779,7 +12778,7 @@ Feature implementation V1 chỉ bắt đầu sau khi checklist foundation đạt
 
 ## Product / Domain
 
-- [ ] V1 scope accepted.
+- [x] V1 scope accepted as the locked roadmap direction defined in §5.1.
 - [x] `Q-DOM-001..003` are PROVISIONAL or LOCKED.
 - [x] `Q-SRC-001` and `Q-STO-001` are PROVISIONAL or LOCKED.
 - [x] `Q-ID-001`, `Q-REC-001`, `Q-SCN-001` are PROVISIONAL or LOCKED.
@@ -12818,7 +12817,7 @@ Feature implementation V1 chỉ bắt đầu sau khi checklist foundation đạt
 - [x] Unit-test baseline works on the real Windows JDK-17 bootstrap gate.
 - [x] Android-test launch baseline works on Redmi Note 9S / Android 15.
 - [x] Static analysis/formatting works through `verifyFast`.
-- [ ] CI baseline works; workflow contract is statically verified but clean-checkout execution evidence is still pending.
+- [x] CI baseline works; clean-checkout run `35368573651` passed host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation.
 - [x] Benchmark module/variant wiring implemented and statically reviewed; device execution/numeric evidence remain pending.
 - [x] Critical V1 performance journeys listed.
 
@@ -12847,18 +12846,17 @@ security docs + verifier / CI definition
 LOCAL BOOTSTRAP EXECUTION VERIFIED — SEE CURRENT CONTROL BLOCK
 JDK 17 + SDK 37.0 doctor / Gradle help / verifyFast / Android smoke / verifyRelease
         ↓
-NEXT BLOCKING EVIDENCE
-GitHub Actions clean-checkout host lane
-→ API-23 + Android-17-`37.0` instrumentation lanes
+CLEAN-CHECKOUT CI VERIFIED
+GitHub Actions host + API-23 + Android-17-`37.0` instrumentation — PASS
         ↓
-Close Phase-0 bootstrap gate
+PHASE-0 BOOTSTRAP CLOSED
         ↓
-First local vertical slice
+NEXT — RESEARCH + PLAN §13.1 FIRST LOCAL VERTICAL SLICE
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The next session must prioritize the **remaining CI clean-checkout bootstrap evidence**, not add more product modules or feature breadth. Local unit-test, Android-test launch smoke, lint/format/architecture/security, debug/release and benchmark assembly evidence are now green on the real Windows JDK-17 environment. CI stays open until its host and instrumentation commands actually pass. Macrobenchmark measurements remain a later device-performance gate.
+The next session must prioritize **researching and planning the §13.1 first local vertical slice**, not adding several product modules or feature families at once. The blocking bootstrap evidence is green locally and on a clean GitHub runner. Read the relevant owning decisions and inspect the existing module boundaries before coding; Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 

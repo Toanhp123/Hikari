@@ -43,8 +43,8 @@
 - Produces: deterministic root plugin/dependency catalog and wrapper entrypoint used by all later tasks.
 
 - [x] Add the root settings/build/catalog files with central repository ownership and exact pinned versions.
-- [ ] Install/generate the official Gradle 9.4.1 wrapper JAR/scripts on a JDK 17 networked machine; this generation environment cannot materialize the binary. Checksum-verifying bootstrap scripts are included.
-- [x] Verify wrapper properties/bootstrap scripts pin only Gradle 9.4.1 and the expected distribution/wrapper checksums; official JAR byte verification remains pending until generation.
+- [x] Materialize and verify the official Gradle 9.4.1 wrapper on the real JDK-17 development host; wrapper properties/JAR checksums pass the canonical doctor and CI wrapper validation.
+- [x] Verify wrapper properties/bootstrap scripts pin only Gradle 9.4.1 and the expected distribution/wrapper checksums; the real JDK-17 host and CI wrapper validation both confirmed the official wrapper bytes.
 - [x] Commit checkpoint: `build: establish reproducible Gradle bootstrap`.
 
 ### Task 2: Capability-Oriented Build Logic
@@ -98,7 +98,7 @@
 - Produces: one minimal Compose launch path proving JVM and Android-test source sets are wired.
 
 - [x] Keep JVM smoke tests wiring-only instead of inventing a production marker solely for testing; no product-domain behavior is introduced during bootstrap.
-- [ ] Run the JVM smoke tests through Gradle on JDK 17 once the official wrapper/SDK environment is available.
+- [x] Run the JVM smoke tests through Gradle on JDK 17 through the canonical `verifyFast`/bootstrap gate.
 - [x] Add the minimal Compose Activity and Library root text; no navigation/domain/data logic.
 - [x] Add instrumentation smoke test that launches `MainActivity` and asserts the bootstrap UI marker is visible.
 - [x] Commit checkpoint: `test: prove JVM and Android launch baselines`.
@@ -173,15 +173,15 @@
 
 - [x] Configure CI with JDK 17, Android SDK, wrapper validation, fast gate, release assembly, and a separate instrumentation lane; Macrobenchmark remains an explicit device/performance gate rather than a normal PR timing gate.
 - [x] Document exact local Bash/PowerShell commands and required SDK/JDK.
-- [x] Record which checks were executed in this environment versus structurally verified only; Android/Gradle execution is explicitly pending.
+- [x] Record which checks were executed in the original generation environment versus structurally verified only; Android/Gradle execution was explicitly pending at that handoff and was closed later by Tasks 9–10.
 - [x] Update the canonical foundation checklist: close only gates supported by evidence; do not claim Android build/device PASS if this environment cannot run it.
 - [x] Archive project as a transport ZIP excluding build caches/output.
-- [x] Final static verification: placeholder scan, dynamic-version scan, built-in-Kotlin guard, forbidden-permission scan, architecture allow-list scan, secret-pattern scan, XML/TOML/YAML parsing, Bash syntax, and security script all passed in the generation environment. Gradle/Android execution remains pending separately.
+- [x] Final static verification: placeholder scan, dynamic-version scan, built-in-Kotlin guard, forbidden-permission scan, architecture allow-list scan, secret-pattern scan, XML/TOML/YAML parsing, Bash syntax, and security script all passed in the generation environment. Gradle/Android execution was pending at that handoff and was subsequently closed by real Windows + clean-checkout CI evidence.
 
 
 ## Execution Evidence Note
 
-The generation container has Java 21, no Android SDK, no system Gradle, and cannot materialize the official wrapper JAR binary. Static/source/security checks are executed locally; Gradle build, JVM JUnit, Android instrumentation, lint and release/benchmark assembly remain pending clean-checkout evidence on JDK 17 + SDK 37. This is an evidence limitation, not a substituted PASS.
+The original generation container limitation (Java 21, no Android SDK/system Gradle, no wrapper materialization) is historical provenance only. It was superseded by the real Windows JDK-17/SDK-37.0 full bootstrap PASS and clean-checkout GitHub Actions run `35368573651`, where host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation all passed. Macrobenchmark runtime measurements remain separate and pending.
 
 ### Task 9: Executable Bootstrap Gate Harness + CI Parity
 
@@ -237,4 +237,4 @@ The generation container has Java 21, no Android SDK, no system Gradle, and cann
 - [x] Align the runner image's stale `cmdline-tools/latest` with the pinned setup-android 22.0 toolchain before `android-emulator-runner@v2`, and harden the CI contract so minor-version AVD creation cannot silently fall back to the preinstalled 12.0 tools.
 - [x] Collect third real run `35366782420`: `verify` and API-23 remained green; Android-17 `37.0` booted and Gradle reached `AppLaunchSmokeTest`, which then failed in an older Espresso input-injection path with `NoSuchMethodException: InputManager.getInstance`.
 - [x] Make the existing Espresso 3.7.0 catalog pin an explicit `:app` instrumentation dependency and guard it in the Gradle bootstrap contract; 3.7.0 contains the Android-17-compatible `getSystemService` fix.
-- [ ] Collect a green GitHub Actions clean-checkout host + API-23 plus Android-17-`37.0` instrumentation retry before opening the first local vertical slice.
+- [x] Collect green GitHub Actions clean-checkout evidence: run `35368573651` passed host `verify`, API-23/default instrumentation, and Android-17-`37.0`/`google_apis` instrumentation; Phase 0 is closed and the first local vertical slice is unlocked.
