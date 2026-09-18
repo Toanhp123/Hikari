@@ -67,7 +67,7 @@ The dependency graph is intentionally asymmetric: core contracts point inward; A
 
 ## CI
 
-Both CI lanes explicitly install `platforms;android-37.0`, `build-tools;37.0.0`, and platform-tools. The host lane runs the same `verify-bootstrap.sh --host-only` command used locally; instrumentation then proves the launch smoke test on API 23 and API 37 emulators.
+CI pushes run on the canonical `master` branch and pull requests. Both lanes pin Android command-line tools build `15859902` and explicitly install `platforms;android-37.0`, `build-tools;37.0.0`, and platform-tools. The host lane runs the same `verify-bootstrap.sh --host-only` command used locally. The instrumentation lane enables KVM and runs the launch smoke test on API 23 (`default`) and Android 17 package `37.0` (`google_apis`) emulators.
 
 ## Evidence state
 

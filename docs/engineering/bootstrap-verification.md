@@ -44,9 +44,16 @@ Use `-HostOnly` / `--host-only` when no device is attached. This proves every ho
 
 ## CI contract
 
-Both GitHub Actions jobs explicitly provision `platform-tools`, `platforms;android-37.0`, and `build-tools;37.0.0`. The host job executes `bash scripts/verify-bootstrap.sh --host-only`. The instrumentation matrix then runs `:app:connectedDebugAndroidTest` on API 23 and API 37 emulators.
+The workflow triggers pushes on the repository's canonical `master` branch plus pull requests. Both GitHub Actions jobs pin Android command-line tools build `15859902` and explicitly provision `platform-tools`, `platforms;android-37.0`, and `build-tools;37.0.0`. The host job executes `bash scripts/verify-bootstrap.sh --host-only`.
 
-This avoids a subtle clean-runner failure where an API-23 emulator exists but the compile SDK 37 platform is absent.
+The instrumentation job enables KVM before the emulator runner and uses explicit package-compatible matrix entries:
+
+```text
+API 23     → api-level 23   / target default
+Android 17 → api-level 37.0 / target google_apis
+```
+
+`compileSdk = 37` remains the Gradle API level; `37.0` here is the Android 17 SDK/system-image package version. Keeping those values distinct avoids both the clean-runner compile-platform gap and the Major.Minor AVD-target parsing failure seen with older command-line tools.
 
 ## Evidence ownership
 

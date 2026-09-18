@@ -231,4 +231,4 @@ The generation container has Java 21, no Android SDK, no system Gradle, and cann
 - [x] Remove parallel `docs/state/` / persistent handoff sources of truth.
 - [x] Re-run repository-owned bootstrap/CI/Gradle/security contract tests and Bash syntax checks.
 - [x] Collect real Windows JDK-17 + SDK-37.0 host/device/release-like evidence through the canonical PowerShell verifier.
-- [ ] Collect GitHub Actions clean-checkout host + API-23/API-37 instrumentation evidence before opening the first local vertical slice.
+- [ ] Collect GitHub Actions clean-checkout host + API-23 plus Android-17-`37.0` instrumentation evidence before opening the first local vertical slice.

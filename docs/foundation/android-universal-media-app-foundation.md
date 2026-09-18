@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** Pre-V1 Foundation R4.19 — Local Bootstrap Execution Evidence Checkpoint
+**Revision:** Pre-V1 Foundation R4.20 — CI Clean-Checkout Remediation Checkpoint
 **Status:** Project Baseline / Pre-Implementation  
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-18 — recorded a real Windows JDK-17/SDK-37.0 full bootstrap execution PASS through the canonical PowerShell verifier on Redmi Note 9S / Android 15; local host, Android launch smoke and release-like assembly are now proven, while GitHub Actions clean-checkout execution and Macrobenchmark device measurements remain pending
+**Last foundation review:** 2026-09-18 — audited the still-unexecuted GitHub Actions path after the local bootstrap PASS, found the push trigger targeting nonexistent `main` instead of canonical `master`, and hardened Android 17 CI provisioning for SDK package `37.0`; CI execution and Macrobenchmark device measurements remain pending
 
 ---
 
@@ -20,7 +20,7 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** Pre-V1 / Phase 0 bootstrap.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Product implementation:** minimal skeleton only; scanner/Room/source resolution/player/readers are not implemented yet.
-- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; CI CLEAN-CHECKOUT EVIDENCE PENDING**.
+- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; CI WORKFLOW REMEDIATED LOCALLY; CLEAN-CHECKOUT EXECUTION PENDING**.
 - **Feature breadth:** blocked until the current gate is green.
 
 ## Current bootstrap contract
@@ -36,13 +36,16 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 | Required compile platform package/folder | `platforms;android-37.0` |
 | Build tools | `build-tools;37.0.0` |
 | Gradle daemon JVM criteria | optional; if present `toolchainVersion=17` |
+| Canonical CI push branch | `master` |
+| CI Android command-line tools | build `15859902` |
+| CI instrumentation packages | API `23` / `default`; Android 17 `37.0` / `google_apis` |
 
 `compileSdk = 37` is the Gradle API level. `android-37.0` is the installed SDK package/folder contract. Do not normalize one into the other.
 
 ## Fresh evidence in this snapshot
 
 - `PASS` — `bash scripts/tests/bootstrap-execution-harness-test.sh`.
-- `PASS` — `bash scripts/tests/ci-bootstrap-contract-test.sh`.
+- `PASS` — `bash scripts/tests/ci-bootstrap-contract-test.sh`, including canonical `master` push trigger, command-line tools `15859902`, KVM setup, and explicit API-23 / Android-17-`37.0` emulator matrix contracts.
 - `PASS` — `bash scripts/tests/gradle-bootstrap-contract-test.sh`.
 - `PASS` — `bash scripts/verify-security-baseline.sh`.
 - `PASS` — Bash syntax checks for repository scripts.
@@ -57,9 +60,9 @@ The earlier Java-21/no-SDK generation-environment limitation is historical evide
 
 ## Next concrete action
 
-Push the local evidence checkpoint and observe the GitHub Actions clean-checkout lanes. The local canonical verifier is already green; do not rerun it merely to manufacture duplicate evidence unless code/toolchain inputs change.
+Commit and push the CI-remediation checkpoint to canonical branch `master`, then observe the GitHub Actions clean-checkout host lane plus the API-23 and Android-17-`37.0` instrumentation lanes. The local canonical verifier is already green; because this tranche changes workflow/docs/contracts rather than Gradle/product inputs, rerun the repository-owned static/harness contracts but do not manufacture duplicate local device evidence.
 
-If the CI host lane and API-23/API-37 instrumentation lanes are green, update this block to close the blocking Phase-0 bootstrap gate and begin the deliberately small first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`. If CI execution contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
+If those CI lanes are green, update this block to close the blocking Phase-0 bootstrap gate and begin the deliberately small first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`. If CI execution contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
 
 ## Token-efficient reading rule
 
@@ -227,6 +230,8 @@ R4 không mở rộng product scope. Nó tích hợp kết quả **V1 architectu
 - **R4.16 Phase-0 implementation evidence update:** generated the reviewed multi-module skeleton, capability convention plugins, minimal Compose launch surface, JVM/instrumentation smoke harnesses, Macrobenchmark boundary, deny-by-default manifest/security docs, static architecture/security gates and GitHub Actions workflow. Self-review fixed two bootstrap-gate defects before handoff: Android built-in Kotlin compiler options now use the official `kotlin.compilerOptions` path, and `verifyArchitecture` now uses a functioning project-dependency regex rather than a double-escaped pattern that could have produced a false PASS. Static scans/parsers/security checks pass in the generation environment; executable Gradle/Android evidence remains explicitly pending because that environment has Java 21 only, no JDK 17, no Android SDK and no system Gradle/wrapper binary.
 - **R4.17 bootstrap execution-gate update:** added one canonical Bash/PowerShell verifier with `--doctor-only`/`-DoctorOnly`, host-only and full-device modes; added RED→GREEN harness tests for JDK/SDK preconditions and a CI contract test; fixed a clean-runner gap where the API-23 instrumentation lane could start an emulator without explicitly provisioning compile SDK 37/build-tools 37.0.0. Both CI jobs now install the compile SDK baseline and the host lane executes the same `verify-bootstrap --host-only` gate used locally. Real Gradle/Android/CI execution remains pending until a JDK-17 + SDK-37 environment is available.
 - **R4.18 bootstrap/documentation correction:** executable self-review found R4.17 had mixed `android-37` and `android-37.0` platform-folder assumptions and a generated `gradle-daemon-jvm.properties` targeting JVM 25 despite the JDK-17 bootstrap contract. R4.18 standardizes the installed compile platform on `platforms;android-37.0` while retaining `compileSdk/targetSdk = 37`, removes the conflicting daemon-JVM criteria, adds guards requiring JDK 17 if criteria are reintroduced, and makes this stable-path foundation the single current-state source of truth. Root `AGENTS.md` is intentionally a lean routing/discipline layer; no parallel state/handoff documents are maintained. Real Gradle/Android/CI execution remains pending.
+- **R4.19 local bootstrap execution evidence:** recorded the real Windows Temurin JDK 17.0.20 / SDK `android-37.0` canonical PowerShell verifier PASS on Redmi Note 9S / Android 15, covering Gradle runtime/help, `verifyFast`, connected launch smoke, `verifyRelease`, release assembly and benchmark assembly. This closed local host/device/release-like uncertainty without claiming unexecuted GitHub Actions or Macrobenchmark runtime evidence.
+- **R4.20 CI clean-checkout remediation:** live-repository audit found the workflow push trigger targeted nonexistent `main` while canonical/default branch is `master`, explaining the absence of GitHub Actions runs. The CI contract now guards the `master` trigger, pins command-line tools build `15859902`, enables KVM, and distinguishes Gradle API `37` from Android 17 emulator package `37.0` with `google_apis`. CI execution remains pending until the remediated workflow runs on GitHub.
 
 Các tên/type được audit đề xuất chưa mặc định là final implementation. Question Ledger là nơi xác định cái gì còn OPEN và khi nào được phép downstream dependency.
 
@@ -11442,14 +11447,16 @@ Because `verifyFast` owns formatting, architecture/security verification, JVM co
 
 ### 4.26.6 Next Execution Gate
 
-The remaining blocking bootstrap evidence is the repository CI clean-checkout execution:
+The remaining blocking bootstrap evidence is the repository CI clean-checkout execution. Audit after the local PASS found that the workflow push trigger targeted `main` even though the repository default/canonical branch is `master`, so no push workflow had executed. The same remediation also makes Android 17 package identity explicit (`37.0`, not major-only `37`), pins command-line tools new enough for Major.Minor SDK packages, and enables KVM before emulator startup.
 
 ```text
 local Windows host/device/release-like gate — PASS
         ↓
+CI workflow remediation — STATIC CONTRACT PASS / EXECUTION PENDING
+        ↓
 GitHub Actions host lane
         ↓
-GitHub Actions API-23/API-37 instrumentation lanes
+GitHub Actions API-23 + Android-17-37.0 instrumentation lanes
         ↓
 close blocking Phase-0 bootstrap gate
         ↓
@@ -11463,7 +11470,7 @@ Macrobenchmark device execution remains a separate performance gate after bootst
 
 ## 4.27 Bootstrap Execution Gate & Contract Record
 
-**Status:** `LOCAL GRADLE + ANDROID VERIFIED / CI EXECUTION PENDING`
+**Status:** `LOCAL GRADLE + ANDROID VERIFIED / CI DEFINITION REMEDIATED / CI EXECUTION PENDING`
 
 This record owns the Phase-0 execution contract. Earlier R4.17 assumptions are corrected here rather than preserved as a competing current record.
 
@@ -11486,7 +11493,14 @@ build-tools;37.0.0
 
 The bootstrap process and project JVM/Kotlin toolchain require JDK 17. `gradle/gradle-daemon-jvm.properties` is optional; if present, `toolchainVersion` must equal `17`. Bash/PowerShell verifiers and contract tests reject drift from these values.
 
-Emulator API level is a runtime concern and is independent from the compile-platform folder name. CI may run API-23/API-37 devices while both lanes still install `platforms;android-37.0` for compilation.
+Emulator API/package identity is a runtime concern and is independent from the Gradle `compileSdk` integer. The CI contract is:
+
+```text
+API 23     → api-level `23`, target `default`
+Android 17 → api-level `37.0`, target `google_apis`
+```
+
+Both lanes still install `platforms;android-37.0` for compilation. GitHub Actions pins Android command-line tools build `15859902`; older tools before the Major.Minor package parsing fix can create an invalid AVD target for packages such as `android-37.0`. The instrumentation lane enables KVM before invoking the emulator runner.
 
 ### 4.27.2 Canonical verifier
 
@@ -11523,13 +11537,13 @@ scripts/verify-security-baseline.sh
 bash -n scripts/**/*.sh
 ```
 
-The fake-SDK harness proves `android-37.0` is accepted and legacy `android-37` is rejected. CI contract tests require compile SDK/build-tools provisioning in both lanes. Gradle/bootstrap contract tests guard the JDK-17 daemon criterion and repository structure.
+The fake-SDK harness proves `android-37.0` is accepted and legacy `android-37` is rejected. CI contract tests require the canonical `master` push trigger, command-line tools build `15859902`, compile SDK/build-tools provisioning in both lanes, KVM setup, API 23 paired with `default`, Android 17 package `37.0` paired with `google_apis`, and matrix values actually consumed by the emulator runner. Gradle/bootstrap contract tests guard the JDK-17 daemon criterion and repository structure.
 
 These static checks prove configuration/harness behavior only. Separately, the real Windows run on 2026-09-18 executed the canonical full PowerShell verifier successfully on JDK 17.0.20 with a Redmi Note 9S / Android 15, proving local Gradle build, owned JVM tests, lint/format/architecture/security gates, Android launch instrumentation, debug/release assembly, and benchmark assembly. It still does **not** prove GitHub Actions execution or Macrobenchmark runtime measurements. Current PASS/PENDING/BLOCKED truth lives only in the **Current Control Block**.
 
 ### 4.27.4 Gate transition
 
-The real Windows PowerShell host/device gate is green. Collect GitHub Actions clean-checkout host + instrumentation evidence next. Only after the Current Control Block records the blocking CI lanes as green may §13.1 become the active implementation slice. Macrobenchmark runtime measurement is tracked separately and must not be inferred from benchmark assembly.
+The real Windows PowerShell host/device gate is green and the CI definition has been locally remediated after detecting the stale `main` push trigger plus Android-17 emulator provisioning gaps. Commit/push this checkpoint to `master` and collect GitHub Actions clean-checkout host + instrumentation evidence next. Only after the Current Control Block records the blocking CI lanes as green may §13.1 become the active implementation slice. Macrobenchmark runtime measurement is tracked separately and must not be inferred from benchmark assembly.
 
 If CI executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the affected decision before expanding feature breadth.
 
@@ -12824,7 +12838,7 @@ JDK 17 + SDK 37.0 doctor / Gradle help / verifyFast / Android smoke / verifyRele
         ↓
 NEXT BLOCKING EVIDENCE
 GitHub Actions clean-checkout host lane
-→ API-23/API-37 instrumentation lanes
+→ API-23 + Android-17-`37.0` instrumentation lanes
         ↓
 Close Phase-0 bootstrap gate
         ↓
