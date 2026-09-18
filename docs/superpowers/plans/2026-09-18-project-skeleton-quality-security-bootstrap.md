@@ -205,3 +205,29 @@ The generation container has Java 21, no Android SDK, no system Gradle, and cann
 - [x] GREEN: fix instrumentation CI provisioning and local/CI command drift.
 - [x] Re-run harness tests and Bash syntax checks.
 - [ ] Run the real full gate on JDK 17 + SDK 37 + connected device; generation environment is intentionally insufficient and must not substitute Java 21 evidence.
+
+### Task 10: Bootstrap Contract Correction + Lean Agent Routing
+
+**Files:**
+- Modify: `scripts/verify-bootstrap.sh`
+- Modify: `scripts/verify-bootstrap.ps1`
+- Modify: `scripts/tests/bootstrap-execution-harness-test.sh`
+- Modify: `scripts/tests/ci-bootstrap-contract-test.sh`
+- Modify: `scripts/tests/gradle-bootstrap-contract-test.sh`
+- Modify: `.github/workflows/ci.yml`
+- Remove: `gradle/gradle-daemon-jvm.properties` (stale JVM-25 criteria)
+- Create/update: root `AGENTS.md` as a compact routing/discipline layer
+- Update in place: `docs/foundation/android-universal-media-app-foundation.md`
+
+**Interfaces:**
+- Consumes: Q-BOOT-001 JDK/API/toolchain baseline and the bootstrap execution harness.
+- Produces: one unambiguous SDK platform package/folder contract plus one canonical living foundation with token-efficient agent routing.
+
+- [x] Standardize compile-platform installation/checks on `platforms;android-37.0`; retain Gradle `compileSdk/targetSdk = 37` and API-37 runtime lane.
+- [x] Repair fake-SDK harness directory creation and Bash/PowerShell diagnostic parity.
+- [x] Remove contradictory Gradle daemon JVM 25 criteria; add guards requiring JDK 17 if daemon criteria are reintroduced.
+- [x] Keep `AGENTS.md` small: route to the foundation Current Control Block and task-specific decision records instead of duplicating project state/architecture.
+- [x] Keep exactly one stable-path canonical foundation; update it in place and use Git history for revisions.
+- [x] Remove parallel `docs/state/` / persistent handoff sources of truth.
+- [x] Re-run repository-owned bootstrap/CI/Gradle/security contract tests and Bash syntax checks.
+- [ ] Collect real Windows JDK-17 + SDK-37.0 host/device evidence and CI clean-checkout evidence before opening the first local vertical slice.

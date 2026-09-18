@@ -2,7 +2,7 @@
 
 ## Canonical execution gate
 
-Run on JDK 17 with Android SDK 37 installed. The canonical scripts keep local and CI execution order aligned.
+Run on JDK 17 with the Android SDK `platforms;android-37.0` package installed. The canonical scripts keep local and CI execution order aligned.
 
 ### Environment doctor
 
@@ -11,10 +11,10 @@ Run on JDK 17 with Android SDK 37 installed. The canonical scripts keep local an
 ```
 
 ```sh
-./scripts/verify-bootstrap.sh --doctor-only
+bash scripts/verify-bootstrap.sh --doctor-only
 ```
 
-This validates JDK 17, `platforms;android-37`, `build-tools;37.0.0`, wrapper properties and—when already present—the official wrapper JAR checksum. A missing wrapper JAR is not treated as green; the full gate materializes and verifies it.
+This validates JDK 17, `platforms;android-37.0`, `build-tools;37.0.0`, wrapper properties and—when already present—the official wrapper JAR checksum. A missing wrapper JAR is not treated as green; the full gate materializes and verifies it.
 
 ### Full device gate
 
@@ -23,7 +23,7 @@ This validates JDK 17, `platforms;android-37`, `build-tools;37.0.0`, wrapper pro
 ```
 
 ```sh
-./scripts/verify-bootstrap.sh
+bash scripts/verify-bootstrap.sh
 ```
 
 The full sequence is:
@@ -44,26 +44,16 @@ Use `-HostOnly` / `--host-only` when no device is attached. This proves every ho
 
 ## CI contract
 
-Both GitHub Actions jobs explicitly provision `platform-tools`, `platforms;android-37`, and `build-tools;37.0.0`. The host job executes `./scripts/verify-bootstrap.sh --host-only`. The instrumentation matrix then runs `:app:connectedDebugAndroidTest` on API 23 and API 37 emulators.
+Both GitHub Actions jobs explicitly provision `platform-tools`, `platforms;android-37.0`, and `build-tools;37.0.0`. The host job executes `bash scripts/verify-bootstrap.sh --host-only`. The instrumentation matrix then runs `:app:connectedDebugAndroidTest` on API 23 and API 37 emulators.
 
 This avoids a subtle clean-runner failure where an API-23 emulator exists but the compile SDK 37 platform is absent.
 
-## Environment limitation of the generation session
+## Evidence ownership
 
-The artifact-generation container has Java 21, no Android SDK and no system Gradle installation. Network/DNS restrictions prevent materializing the official Gradle wrapper JAR. The environment doctor therefore correctly fails with `Expected JDK 17, found Java 21`.
+This file is a runbook, not the current-state authority. Current `PASS` / `PENDING` / `BLOCKED` evidence and the next action live only in the **Current Control Block** of `docs/foundation/android-universal-media-app-foundation.md`. Static contract checks never substitute for real Gradle/Android execution.
 
-For that reason this revision treats build/test execution as **pending external verification**, not as proven green.
+## Consistency rules
 
-## Static/harness evidence already collected
-
-The generation session passed:
-
-- manifest security verifier;
-- architecture dependency allow-list scan;
-- XML/TOML/YAML parse checks;
-- Bash syntax validation;
-- placeholder/dynamic-version/built-in-Kotlin/forbidden-permission/secret scans;
-- `bootstrap-execution-harness-test.sh` (JDK mismatch, valid fake JDK17+SDK37 doctor, missing API37 failure);
-- `ci-bootstrap-contract-test.sh` (both CI jobs provision compile SDK/build-tools and host CI exercises the canonical host gate).
-
-These checks do not replace real Gradle/Android execution.
+- Gradle still uses `compileSdk = 37` / `targetSdk = 37`, while the required installed platform package/folder is `platforms;android-37.0` / `<SDK>/platforms/android-37.0/android.jar`.
+- `gradle/gradle-daemon-jvm.properties` is not required. If it is introduced by `updateDaemonJvm`, `toolchainVersion` must remain `17`; the canonical verifier rejects a contradictory daemon JVM baseline.
+- Do not infer executable PASS from this runbook, historical plans, or static inspection; use the foundation Current Control Block.

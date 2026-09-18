@@ -1,6 +1,6 @@
 # Universal Media — Pre-V1 Bootstrap
 
-This repository skeleton implements the R4.17 Phase-0 bootstrap execution-gate baseline for the Android Universal Media App. It intentionally contains only a minimal launch surface; scanner, Room schema, source resolution, playback and reader feature breadth begin only after the executable bootstrap gate is green.
+This repository skeleton implements the current Phase-0 bootstrap baseline in `docs/foundation/android-universal-media-app-foundation.md` for the Android Universal Media App. It intentionally contains only a minimal launch surface; scanner, Room schema, source resolution, playback and reader feature breadth begin only after the executable bootstrap gate is green.
 
 ## Toolchain
 
@@ -26,10 +26,10 @@ Before running builds, validate the machine:
 or on POSIX/Git Bash:
 
 ```sh
-./scripts/verify-bootstrap.sh --doctor-only
+bash scripts/verify-bootstrap.sh --doctor-only
 ```
 
-The doctor requires JDK 17, `ANDROID_SDK_ROOT`/`ANDROID_HOME`, `platforms;android-37`, and `build-tools;37.0.0`. Missing wrapper JAR is reported as `PENDING` because the full gate owns safe wrapper materialization.
+The doctor requires JDK 17, `ANDROID_SDK_ROOT`/`ANDROID_HOME`, `platforms;android-37.0`, and `build-tools;37.0.0`. Missing wrapper JAR is reported as `PENDING` because the full gate owns safe wrapper materialization.
 
 ## Canonical verification
 
@@ -40,7 +40,7 @@ Full bootstrap execution gate with exactly one connected Android device (or `AND
 ```
 
 ```sh
-./scripts/verify-bootstrap.sh
+bash scripts/verify-bootstrap.sh
 ```
 
 Host-only gate when no device is available:
@@ -50,12 +50,16 @@ Host-only gate when no device is available:
 ```
 
 ```sh
-./scripts/verify-bootstrap.sh --host-only
+bash scripts/verify-bootstrap.sh --host-only
 ```
 
 The host gate runs wrapper verification/materialization, `gradlew --version`, `help`, `verifyFast`, and `verifyRelease`. The full gate additionally runs `:app:connectedDebugAndroidTest` before the release-like gate.
 
 Macrobenchmark requires a supported device/emulator and is intentionally a separate, slower performance gate.
+
+## Agent workflow
+
+`AGENTS.md` is intentionally small and only routes Codex/agents to the canonical foundation. Read the foundation's **Current Control Block** first, then search only the decision record(s) relevant to the task. Do not read the entire foundation by default and do not create parallel state/handoff documents.
 
 ## Architecture
 
@@ -63,8 +67,8 @@ The dependency graph is intentionally asymmetric: core contracts point inward; A
 
 ## CI
 
-Both CI lanes explicitly install `platforms;android-37`, `build-tools;37.0.0`, and platform-tools. The host lane runs the same `verify-bootstrap.sh --host-only` command used locally; instrumentation then proves the launch smoke test on API 23 and API 37 emulators.
+Both CI lanes explicitly install `platforms;android-37.0`, `build-tools;37.0.0`, and platform-tools. The host lane runs the same `verify-bootstrap.sh --host-only` command used locally; instrumentation then proves the launch smoke test on API 23 and API 37 emulators.
 
 ## Evidence state
 
-Static architecture/security/configuration checks plus execution-harness contract tests passed in the generation environment. The generation container itself has Java 21 and no Android SDK, so Gradle sync/build, JVM tests, Android lint/instrumentation, release assembly, CI execution, and Macrobenchmark execution are still **not** claimed green. See `docs/engineering/bootstrap-verification.md` and the R4.17 foundation handoff.
+Static architecture/security/configuration checks plus execution-harness contract tests passed in the generation environment. The generation container itself has Java 21 and no Android SDK, so Gradle sync/build, JVM tests, Android lint/instrumentation, release assembly, CI execution, and Macrobenchmark execution are still **not** claimed green. Current PASS/PENDING/BLOCKED truth and the next concrete action live only in the foundation **Current Control Block**. See `docs/engineering/bootstrap-verification.md` for the runbook.

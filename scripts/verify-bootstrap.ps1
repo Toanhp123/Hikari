@@ -53,7 +53,7 @@ $SdkRoot = $env:ANDROID_SDK_ROOT
 if (-not $SdkRoot) { $SdkRoot = $env:ANDROID_HOME }
 if (-not $SdkRoot) { throw 'ANDROID_SDK_ROOT (or ANDROID_HOME) must point to an Android SDK.' }
 if (-not (Test-Path (Join-Path $SdkRoot 'platforms\android-37.0\android.jar'))) {
-    throw "Android SDK platform 37 not found under $SdkRoot\platforms\android-37"
+    throw "Android SDK platform 37 not found under $SdkRoot\platforms\android-37.0"
 }
 if (-not (Test-Path (Join-Path $SdkRoot 'build-tools\37.0.0'))) {
     throw "Android build-tools 37.0.0 not found under $SdkRoot\build-tools\37.0.0"
@@ -69,6 +69,16 @@ if ($WrapperText -notmatch [regex]::Escape("distributionSha256Sum=$ExpectedDistS
     throw 'Gradle distribution SHA-256 pin is missing or incorrect.'
 }
 Write-Host 'Wrapper properties: OK'
+
+$DaemonJvmProps = Join-Path $Root 'gradle\gradle-daemon-jvm.properties'
+if (Test-Path $DaemonJvmProps) {
+    $DaemonJvmText = Get-Content $DaemonJvmProps -Raw
+    if ($DaemonJvmText -notmatch '(?m)^toolchainVersion=17\s*$') {
+        $ConfiguredDaemonJvm = if ($DaemonJvmText -match '(?m)^toolchainVersion=(.+)$') { $Matches[1].Trim() } else { 'unset' }
+        throw "Gradle daemon JVM criteria must target JDK 17, found $ConfiguredDaemonJvm."
+    }
+    Write-Host 'Gradle daemon JVM criteria: JDK 17 OK'
+}
 
 $WrapperJar = Join-Path $Root 'gradle\wrapper\gradle-wrapper.jar'
 if (Test-Path $WrapperJar) {

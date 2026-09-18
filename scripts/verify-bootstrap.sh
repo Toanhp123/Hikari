@@ -10,7 +10,7 @@ HOST_ONLY=false
 
 usage() {
   cat <<'USAGE'
-Usage: ./scripts/verify-bootstrap.sh [--doctor-only | --host-only]
+Usage: bash scripts/verify-bootstrap.sh [--doctor-only | --host-only]
 
   --doctor-only  Validate JDK 17, SDK 37 and wrapper pins without running Gradle.
   --host-only    Run wrapper/help/verifyFast/verifyRelease but skip device smoke test.
@@ -39,8 +39,8 @@ echo "JDK 17: OK"
 
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 [ -n "$SDK_ROOT" ] || { echo "ANDROID_SDK_ROOT (or ANDROID_HOME) must point to an Android SDK" >&2; exit 1; }
-[ -f "$SDK_ROOT/platforms/android-37/android.jar" ] || {
-  echo "Android SDK platform 37 not found under $SDK_ROOT/platforms/android-37" >&2
+[ -f "$SDK_ROOT/platforms/android-37.0/android.jar" ] || {
+  echo "Android SDK platform 37 not found under $SDK_ROOT/platforms/android-37.0" >&2
   exit 1
 }
 [ -d "$SDK_ROOT/build-tools/37.0.0" ] || {
@@ -61,6 +61,16 @@ grep -q "distributionSha256Sum=${EXPECTED_DIST_SHA}" "$WRAPPER_PROPS" || {
 }
 echo "Wrapper properties: OK"
 
+DAEMON_JVM_PROPS="$ROOT/gradle/gradle-daemon-jvm.properties"
+if [ -f "$DAEMON_JVM_PROPS" ]; then
+  DAEMON_JVM_VERSION="$(sed -n 's/^toolchainVersion=//p' "$DAEMON_JVM_PROPS" | tail -n 1)"
+  [ "$DAEMON_JVM_VERSION" = "17" ] || {
+    echo "Gradle daemon JVM criteria must target JDK 17, found ${DAEMON_JVM_VERSION:-unset}" >&2
+    exit 1
+  }
+  echo "Gradle daemon JVM criteria: JDK 17 OK"
+fi
+
 WRAPPER_JAR="$ROOT/gradle/wrapper/gradle-wrapper.jar"
 if [ -f "$WRAPPER_JAR" ]; then
   printf '%s  %s\n' "$EXPECTED_WRAPPER_SHA" "$WRAPPER_JAR" | sha256sum --check --status || {
@@ -73,7 +83,7 @@ else
     echo "Wrapper JAR: PENDING (full run will materialize it with scripts/bootstrap-wrapper.sh)"
   else
     echo "Wrapper JAR missing; generating the official ${EXPECTED_GRADLE} wrapper..."
-    "$ROOT/scripts/bootstrap-wrapper.sh"
+    bash "$ROOT/scripts/bootstrap-wrapper.sh"
     printf '%s  %s\n' "$EXPECTED_WRAPPER_SHA" "$WRAPPER_JAR" | sha256sum --check --status || {
       echo "Generated Gradle wrapper JAR checksum mismatch" >&2
       exit 1
@@ -90,13 +100,13 @@ fi
 cd "$ROOT"
 
 echo "== Gradle runtime =="
-./gradlew --version --no-daemon
+bash ./gradlew --version --no-daemon
 
 echo "== Gradle configuration/help =="
-./gradlew help --no-daemon
+bash ./gradlew help --no-daemon
 
 echo "== Fast quality gate =="
-./gradlew verifyFast --no-daemon
+bash ./gradlew verifyFast --no-daemon
 
 if ! "$HOST_ONLY"; then
   ADB=""
@@ -125,10 +135,10 @@ if ! "$HOST_ONLY"; then
   fi
 
   echo "== Android launch smoke =="
-  ./gradlew :app:connectedDebugAndroidTest --no-daemon
+  bash ./gradlew :app:connectedDebugAndroidTest --no-daemon
 fi
 
 echo "== Release-like gate =="
-./gradlew verifyRelease --no-daemon
+bash ./gradlew verifyRelease --no-daemon
 
 echo "Bootstrap execution gate: PASS"

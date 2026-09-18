@@ -2,12 +2,82 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Version:** Pre-V1 Foundation R4.17 — Bootstrap Execution Gate Harness Baseline  
+**Revision:** Pre-V1 Foundation R4.18 — Bootstrap Contract + Lean Agent Routing Baseline
 **Status:** Project Baseline / Pre-Implementation  
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-18 — canonical bootstrap execution harness added and contract-tested; CI instrumentation provisioning corrected so both lanes explicitly install compile SDK 37/build-tools 37.0.0; generation environment still blocks real JDK17/SDK37 Gradle/Android execution, so first local vertical slice remains gated on fresh executable evidence  
+**Last foundation review:** 2026-09-18 — standardized the compile-platform package/folder contract on `platforms;android-37.0`, removed contradictory daemon-JVM 25 criteria, and collapsed project state/handoff back into this single living canonical foundation; root `AGENTS.md` is now a lean routing layer rather than a second source of truth
+
+---
+
+# Current Control Block — Read First
+
+This block is the **only current-state/handoff surface**. It is deliberately compact so a new Codex/agent session does not need to load the full foundation.
+
+## Current position
+
+- **Phase:** Pre-V1 / Phase 0 bootstrap.
+- **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
+- **Product implementation:** minimal skeleton only; scanner/Room/source resolution/player/readers are not implemented yet.
+- **Current gate:** **BOOTSTRAP EXECUTION GATE — REAL HOST/DEVICE/CI EVIDENCE PENDING**.
+- **Feature breadth:** blocked until the current gate is green.
+
+## Current bootstrap contract
+
+| Concern | Canonical value |
+|---|---|
+| JDK | 17 |
+| Gradle | 9.4.1 |
+| AGP | 9.2.1 |
+| Kotlin / Compose compiler plugin | 2.4.20 |
+| Compose BOM | 2026.08.00 |
+| compileSdk / targetSdk / minSdk | 37 / 37 / 23 |
+| Required compile platform package/folder | `platforms;android-37.0` |
+| Build tools | `build-tools;37.0.0` |
+| Gradle daemon JVM criteria | optional; if present `toolchainVersion=17` |
+
+`compileSdk = 37` is the Gradle API level. `android-37.0` is the installed SDK package/folder contract. Do not normalize one into the other.
+
+## Fresh evidence in this snapshot
+
+- `PASS` — `bash scripts/tests/bootstrap-execution-harness-test.sh`.
+- `PASS` — `bash scripts/tests/ci-bootstrap-contract-test.sh`.
+- `PASS` — `bash scripts/tests/gradle-bootstrap-contract-test.sh`.
+- `PASS` — `bash scripts/verify-security-baseline.sh`.
+- `PASS` — Bash syntax checks for repository scripts.
+- `BLOCKED (expected in generation environment)` — canonical doctor sees Java 21, while project baseline requires JDK 17.
+- `PENDING` — real JDK-17 host gate, connected-device smoke, release-like assembly, GitHub Actions clean-checkout evidence, and later Macrobenchmark measurements.
+
+Static/harness evidence never upgrades an unexecuted Gradle/Android/CI gate to `PASS`.
+
+## Next concrete action
+
+On the real Windows development environment:
+
+```powershell
+.\scripts\verify-bootstrap.ps1 -DoctorOnly
+.\scripts\verify-bootstrap.ps1 -HostOnly
+$env:ANDROID_SERIAL = '<device-id>'   # only when multiple devices are online or a specific target is required
+.\scripts\verify-bootstrap.ps1
+```
+
+Then observe the GitHub Actions clean-checkout lanes. If host + device + CI evidence is green, update this block and begin the deliberately small first local vertical slice in §13.1. If executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
+
+## Token-efficient reading rule
+
+Do **not** read this 13k-line foundation end-to-end by default. After this control block, search and read only the section(s) that own the task:
+
+```text
+canonical shape                         → Q-DOM-*
+source/storage/identity/reconciliation  → Q-SRC-* / Q-STO-* / Q-ID-* / Q-REC-* / Q-SCN-*
+progress/history/library/metadata       → Q-PROG-* / Q-HIST-* / Q-LIB-* / Q-META-*
+Android execution/backup                → Q-RUN-* / Q-BACK-*
+persistence/module/API/toolchain        → Q-PER-* / Q-MOD-* / Q-API-* / Q-BOOT-*
+implementation order/gates              → §7 / §13
+```
+
+Read the full foundation only for an architecture-wide audit or when a contradiction spans multiple decision families.
 
 ---
 
@@ -19,10 +89,11 @@ Phần này là **hướng dẫn bắt buộc cho mọi phiên/agent tiếp tụ
 
 Trước khi research, sửa spec hoặc viết code, agent phải:
 
-1. Xác định **bản foundation mới nhất** và coi nó là canonical project baseline.
-2. Đọc tối thiểu: phần Agent Rules này, `Document Map`, `Architecture Foundation`, `V1 Decision Queue`, `Required Resolution Order`, decision record gần nhất và quality gates liên quan.
-3. Xác định question/stage hiện tại từ Decision Queue. Nếu còn question `OPEN`, mặc định tiếp tục **question chưa giải đầu tiên theo dependency order**; nếu Decision Queue đã complete, tiếp tục downstream design/work được foundation mở khóa, trừ khi user chủ động đổi ưu tiên.
-4. Không hỏi lại quyết định đã có trong spec chỉ vì phiên mới không có context; phải đọc spec trước.
+1. Tuân theo root `AGENTS.md`; file đó chỉ là routing/operating layer, không phải architecture source of truth.
+2. Đọc **Current Control Block** ở đầu foundation này để biết phase, gate, evidence và next action hiện tại.
+3. Inspect code/tests/docs sở hữu scope đang làm, rồi search đúng Question ID/heading và chỉ đọc decision record liên quan. **Không đọc toàn bộ foundation theo mặc định.**
+4. Chỉ đọc implementation plan khi user hoặc Current Control Block chỉ đích danh plan đó.
+5. Không hỏi lại quyết định đã có trong foundation chỉ vì phiên mới thiếu context.
 
 ## A.2 Research Standard Before a Decision
 
@@ -76,30 +147,21 @@ Decision record phải dùng `Decision Closure Template` của tài liệu này.
 
 ## A.5 Spec Update Rule
 
-Foundation này là **living canonical document** trong giai đoạn Pre-V1. Sau mỗi question:
+Foundation này là **living canonical document** trong giai đoạn Pre-V1.
 
-1. Cập nhật status trong Question Ledger.
-2. Thêm/sửa Decision Record với research references.
-3. Sửa mọi wording cũ bị decision mới làm stale.
-4. Thêm question mới nếu research phát hiện ambiguity thực sự ảnh hưởng downstream.
-5. Cập nhật stage/gate/next question.
-6. Self-review toàn vùng ảnh hưởng trước khi giao file.
-
-Không tạo side-note thay cho việc cập nhật foundation. ADR/technical spec riêng chỉ được tạo khi tài liệu này chỉ ra rằng decision đủ sâu hoặc platform-specific để cần tài liệu riêng. Nếu file nguồn read-only trong môi trường làm việc, tạo **một replacement file hoàn chỉnh** kế thừa toàn bộ nội dung và ghi rõ revision mới; không giao patch rời làm canonical source.
+- Trong repo writable, sửa **chính file này tại stable path hiện tại**. Không tạo `R4.19`, `R4.20`... như các foundation file song song; Git history là revision history.
+- Khi architecture/decision thay đổi: cập nhật Question Ledger + Decision Record + mọi wording downstream bị stale.
+- Khi phase/gate/evidence/next action thay đổi nhưng architecture không đổi: chỉ cập nhật **Current Control Block** và section trực tiếp sở hữu gate đó.
+- Không tạo `docs/state/`, persistent `HANDOFF.md`, hay side-note làm source of truth thứ hai.
+- ADR/technical spec riêng chỉ được tạo khi foundation explicit delegate một decision đủ sâu/platform-specific; file đó không được redefine canonical ownership.
+- Chỉ khi canonical file thực sự read-only mới tạo một replacement file hoàn chỉnh; replacement phải thay thế authority cũ thay vì sống song song.
+- Self-review vùng ảnh hưởng và stale references trước khi giao.
 
 ## A.6 End-of-Session Handoff
 
-Mỗi phiên kết thúc phải để lại trong spec đủ thông tin để phiên tiếp theo biết:
+Handoff được giữ **ngay trong Current Control Block**, không phải một diary riêng. Kết thúc tranche chỉ cập nhật những mục thật sự đổi: current gate/evidence, blocker, và **một next concrete action**. Decision history nằm trong các Decision Record và Git history; không copy lại vào handoff.
 
-- question nào vừa được giải;
-- status hiện tại;
-- evidence/references chính;
-- decision + rejected alternatives;
-- downstream assumptions mới được mở khóa;
-- risks/questions còn mở;
-- **next question theo dependency order**, hoặc next downstream work nếu Decision Queue đã complete.
-
-Nếu implementation evidence về sau bác một provisional decision, quay lại Question Ledger trước khi mở rộng breadth.
+Nếu implementation evidence bác một provisional decision, quay lại Question Ledger trước khi mở rộng breadth.
 
 ---
 
@@ -167,6 +229,7 @@ R4 không mở rộng product scope. Nó tích hợp kết quả **V1 architectu
 - **R4.15 bootstrap update:** hoàn tất `Q-BOOT-001` ở mức PROVISIONAL với compatibility-first matrix Gradle 9.4.1 / AGP 9.2.1 / JDK 17 / Kotlin 2.4.20 / Compose Compiler 2.4.20 / Compose BOM 2026.08.00 / compileSdk 37 / targetSdk 37 / minSdk 23; dùng AGP built-in Kotlin, root version catalog, included `build-logic` convention plugins, pinned Wrapper checksum, release-like R8 baseline và wrapper-driven CI. `Q-COMP-001` không còn là blocker mặc định; manual constructor injection/app composition root tiếp tục cho skeleton + first slice.
 - **R4.16 Phase-0 implementation evidence update:** generated the reviewed multi-module skeleton, capability convention plugins, minimal Compose launch surface, JVM/instrumentation smoke harnesses, Macrobenchmark boundary, deny-by-default manifest/security docs, static architecture/security gates and GitHub Actions workflow. Self-review fixed two bootstrap-gate defects before handoff: Android built-in Kotlin compiler options now use the official `kotlin.compilerOptions` path, and `verifyArchitecture` now uses a functioning project-dependency regex rather than a double-escaped pattern that could have produced a false PASS. Static scans/parsers/security checks pass in the generation environment; executable Gradle/Android evidence remains explicitly pending because that environment has Java 21 only, no JDK 17, no Android SDK and no system Gradle/wrapper binary.
 - **R4.17 bootstrap execution-gate update:** added one canonical Bash/PowerShell verifier with `--doctor-only`/`-DoctorOnly`, host-only and full-device modes; added RED→GREEN harness tests for JDK/SDK preconditions and a CI contract test; fixed a clean-runner gap where the API-23 instrumentation lane could start an emulator without explicitly provisioning compile SDK 37/build-tools 37.0.0. Both CI jobs now install the compile SDK baseline and the host lane executes the same `verify-bootstrap --host-only` gate used locally. Real Gradle/Android/CI execution remains pending until a JDK-17 + SDK-37 environment is available.
+- **R4.18 bootstrap/documentation correction:** executable self-review found R4.17 had mixed `android-37` and `android-37.0` platform-folder assumptions and a generated `gradle-daemon-jvm.properties` targeting JVM 25 despite the JDK-17 bootstrap contract. R4.18 standardizes the installed compile platform on `platforms;android-37.0` while retaining `compileSdk/targetSdk = 37`, removes the conflicting daemon-JVM criteria, adds guards requiring JDK 17 if criteria are reintroduced, and makes this stable-path foundation the single current-state source of truth. Root `AGENTS.md` is intentionally a lean routing/discipline layer; no parallel state/handoff documents are maintained. Real Gradle/Android/CI execution remains pending.
 
 Các tên/type được audit đề xuất chưa mặc định là final implementation. Question Ledger là nơi xác định cái gì còn OPEN và khi nào được phép downstream dependency.
 
@@ -2335,7 +2398,7 @@ Locator → resume position, not canonical identity
 
 **Stage A status:** `PROVISIONAL BASELINE / COMPLETE FOR NEXT AUDIT STAGE`
 
-**Historical Stage A closure handoff:** later stages A–F were completed PROVISIONAL. R4.14 subsequently completed `Q-PER-001`, `Q-MOD-001` and `Q-API-001`; R4.15 then completed `Q-BOOT-001`. R4.17 has verified the execution harness/CI provisioning contract; current work is fresh executable bootstrap verification on JDK 17 + SDK 37, followed by device/CI evidence before the first local vertical slice.
+**Historical Stage A closure handoff:** later stages completed the downstream persistence/module/API/bootstrap work. Current execution state is tracked only in the **Current Control Block**.
 
 
 ## 4.8 Decision Record — Q-SRC-001: Source / SourceBinding / Asset / ResolvedContent
@@ -8605,7 +8668,7 @@ Metadata enrichment
 
 `Q-META-001` is **PROVISIONAL** and completes Stage E at provisional baseline level.
 
-**Historical Stage E handoff:** `Q-RUN-001` was the next blocking question and was completed at **PROVISIONAL** level. Stage F then completed `Q-BACK-001`; R4.14 completed deep persistence/module/API design; R4.15 completed `Q-BOOT-001`. R4.17 has verified the execution harness/CI provisioning contract; current work is fresh executable bootstrap verification on JDK 17 + SDK 37, followed by device/CI evidence before the first local vertical slice.
+**Historical Stage E handoff:** later stages completed runtime/backup plus downstream persistence/module/API/bootstrap work. Current execution state is tracked only in the **Current Control Block**.
 
 
 
@@ -9174,7 +9237,7 @@ foreground service != unlimited durability
 
 **Stage F status:** `PROVISIONAL BASELINE / COMPLETE`
 
-**Historical Stage F next work:** deep persistence schema + module/API boundary design. R4.14 completed that work and R4.15 subsequently completed `Q-BOOT-001`; R4.17 has verified the execution harness/CI provisioning contract; current work is fresh executable bootstrap verification on JDK 17 + SDK 37, followed by device/CI evidence before the first local vertical slice.
+**Historical Stage F next work:** deep persistence/module/API/bootstrap design was completed downstream. Current execution state is tracked only in the **Current Control Block**.
 
 ## 4.19 Decision Record — Q-BACK-001: Backup / Restore Ownership / Portable App State / Storage Re-Authorization
 
@@ -9861,7 +9924,7 @@ secret/device-bound key != default portable state
 
 **Stages A–F status:** `PROVISIONAL BASELINE / COMPLETE`
 
-**Historical Stage F handoff:** deep persistence schema + module/API boundary design was next. R4.14 completed `Q-PER-001`, `Q-MOD-001` and `Q-API-001` at PROVISIONAL level; R4.15 subsequently completed `Q-BOOT-001`. R4.17 has verified the execution harness/CI provisioning contract; current work is fresh executable bootstrap verification on JDK 17 + SDK 37, followed by device/CI evidence before the first local vertical slice.
+**Historical Stage F handoff:** deep persistence/module/API/bootstrap design was completed downstream. Current execution state is tracked only in the **Current Control Block**.
 
 
 ## 4.20 Audit / Development Loop
@@ -11382,102 +11445,77 @@ If any executable evidence contradicts Q-BOOT/Q-MOD/Q-API assumptions, reopen th
 ---
 
 
-## 4.27 Bootstrap Execution Gate Harness Evidence Record
+## 4.27 Bootstrap Execution Gate & Contract Record
 
-**Status:** `HARNESS VERIFIED / REAL GRADLE + ANDROID + CI EXECUTION PENDING`
+**Status:** `STATIC/HARNESS VERIFIED / REAL GRADLE + ANDROID + CI EXECUTION PENDING`
 
-R4.17 does not introduce a new product/domain architecture decision. It hardens the execution boundary required by R4.16 so a local machine and CI run the same ordered bootstrap gates instead of relying on a README checklist that can drift.
+This record owns the Phase-0 execution contract. Earlier R4.17 assumptions are corrected here rather than preserved as a competing current record.
 
-### 4.27.1 Canonical Gate Contract
+### 4.27.1 Canonical SDK/JVM contract
 
-The repository now exposes one canonical verifier in Bash and PowerShell:
+Gradle API levels remain:
+
+```text
+compileSdk = 37
+targetSdk  = 37
+```
+
+The installed compile platform/build-tools contract is:
+
+```text
+platforms;android-37.0
+<SDK>/platforms/android-37.0/android.jar
+build-tools;37.0.0
+```
+
+The bootstrap process and project JVM/Kotlin toolchain require JDK 17. `gradle/gradle-daemon-jvm.properties` is optional; if present, `toolchainVersion` must equal `17`. Bash/PowerShell verifiers and contract tests reject drift from these values.
+
+Emulator API level is a runtime concern and is independent from the compile-platform folder name. CI may run API-23/API-37 devices while both lanes still install `platforms;android-37.0` for compilation.
+
+### 4.27.2 Canonical verifier
 
 ```text
 verify-bootstrap --doctor-only / -DoctorOnly
-    → JDK 17
-    → Android SDK platform 37
-    → build-tools 37.0.0
-    → wrapper property/checksum pins
+    → JDK 17 + SDK/platform/build-tools + wrapper pins
 
 verify-bootstrap --host-only / -HostOnly
-    → doctor preconditions
-    → materialize + verify official Gradle 9.4.1 wrapper when absent
+    → doctor
+    → materialize/verify official Gradle 9.4.1 wrapper when absent
     → gradlew --version
     → gradlew help
     → verifyFast
     → verifyRelease
 
 verify-bootstrap (full)
-    → host gate
-    → exactly one online adb device, or explicit ANDROID_SERIAL
+    → host prerequisites/gates
+    → one selected online adb target
     → :app:connectedDebugAndroidTest
-    → verifyRelease
+    → release-like gate
 ```
 
-The device check intentionally rejects ambiguous multi-device execution when `ANDROID_SERIAL` is unset. This prevents a bootstrap smoke claim from silently targeting an unintended device set.
+Shell-to-shell calls use explicit `bash ...` so archive transport does not depend on preserved POSIX executable bits. If multiple adb devices are online, `ANDROID_SERIAL` must select one target.
 
-### 4.27.2 RED → GREEN Harness Evidence
+### 4.27.3 Contract evidence and evidence boundary
 
-Two shell contract tests were introduced and executed in the generation environment:
-
-1. `bootstrap-execution-harness-test.sh`
-   - RED before the verifier existed;
-   - verifies Java 21 is rejected with an explicit JDK-17 diagnostic;
-   - verifies fake JDK 17 + SDK 37 satisfies doctor mode even when wrapper JAR materialization is still pending;
-   - verifies missing `platforms;android-37` is rejected.
-2. `ci-bootstrap-contract-test.sh`
-   - RED against the R4.16 workflow because only the host job explicitly installed compile SDK 37;
-   - GREEN after both jobs provision `platform-tools`, `platforms;android-37` and `build-tools;37.0.0`;
-   - verifies the host CI lane executes the canonical `verify-bootstrap.sh --host-only` command.
-
-Bash syntax validation also covers the new verifier/tests.
-
-### 4.27.3 CI Provisioning Correction
-
-The R4.16 instrumentation matrix targeted API 23 and API 37, but the API level of an emulator is not the same as the app's compile SDK. A clean runner could therefore have an API-23 system image while lacking `platforms;android-37`, causing compilation to fail before instrumentation began.
-
-R4.17 makes compile-time provisioning explicit in **both** CI jobs:
+Repository-owned contract/static checks include:
 
 ```text
-platform-tools
-platforms;android-37
-build-tools;37.0.0
+scripts/tests/bootstrap-execution-harness-test.sh
+scripts/tests/ci-bootstrap-contract-test.sh
+scripts/tests/gradle-bootstrap-contract-test.sh
+scripts/verify-security-baseline.sh
+bash -n scripts/**/*.sh
 ```
 
-The host lane then runs the canonical host verifier, reducing local/CI command drift. The device matrix remains separate so API-23/API-37 runtime coverage does not force duplicate host release verification inside every emulator job.
+The fake-SDK harness proves `android-37.0` is accepted and legacy `android-37` is rejected. CI contract tests require compile SDK/build-tools provisioning in both lanes. Gradle/bootstrap contract tests guard the JDK-17 daemon criterion and repository structure.
 
-### 4.27.4 Evidence Boundary
+These checks prove configuration/harness behavior only. They do **not** prove Gradle build, JVM tests, lint, Android instrumentation, release assembly, GitHub Actions execution, or Macrobenchmark measurements. Current PASS/PENDING/BLOCKED truth lives only in the **Current Control Block**.
 
-The generation container currently reports Java 21 and has no Android SDK. Its network/DNS restrictions also prevent fetching the official Gradle distribution/wrapper. Running the new doctor therefore correctly fails with:
+### 4.27.4 Gate transition
 
-```text
-Expected JDK 17, found Java 21
-```
+Run the PowerShell or Bash verifier on a real JDK-17 environment with `platforms;android-37.0`, then collect connected-device and CI clean-checkout evidence. Only after the Current Control Block records those blocking gates as green may §13.1 become the active implementation slice.
 
-This is **expected blocked evidence**, not a project PASS and not a project failure. The following remain open until fresh execution exists:
-
-- official wrapper JAR byte materialization + checksum validation;
-- Gradle `--version` / `help` on JDK 17;
-- `verifyFast` including JVM tests, lint and debug assembly;
-- connected Android smoke test;
-- `verifyRelease` including release app + benchmark assembly;
-- GitHub Actions clean-checkout run;
-- Macrobenchmark device measurements.
-
-### 4.27.5 Next Execution Gate
-
-On the user's Windows development environment or another machine with JDK 17 + SDK 37:
-
-```powershell
-.\scripts\verify-bootstrap.ps1 -DoctorOnly
-.\scripts\verify-bootstrap.ps1 -HostOnly
-$env:ANDROID_SERIAL = '<device-id>'   # only when needed
-.\scripts\verify-bootstrap.ps1
-```
-
-Equivalent Git-Bash/POSIX commands are available through `scripts/verify-bootstrap.sh`.
-
-**Do not begin the first local vertical slice until host build/lint/tests, Android launch smoke and release-like assembly have fresh PASS evidence.** If those commands expose a contradiction in Q-BOOT/Q-MOD/Q-API assumptions, reopen the affected decision before expanding feature breadth.
+If executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the affected decision before expanding feature breadth.
 
 ---
 
@@ -12753,7 +12791,7 @@ Feature implementation V1 chỉ bắt đầu sau khi checklist foundation đạt
 
 # 13. Immediate Next Work
 
-R4.17 has generated and contract-tested the canonical bootstrap execution harness on top of the R4.16 skeleton. Do not reopen Stages A–I without contradiction evidence, and do not treat unexecuted Gradle/Android gates as PASS. The next action is to run the verifier on a real JDK-17 + SDK-37 environment; feature breadth remains blocked until that executable evidence is green.
+The bootstrap execution contract is defined by §4.27. Do not reopen Stages A–I without contradiction evidence, and do not treat unexecuted Gradle/Android gates as PASS. **Current gate/evidence/next action live only in the Current Control Block.**
 
 Current sequence:
 
@@ -12765,7 +12803,7 @@ GENERATED + STATICALLY VERIFIED — PHASE-0 SKELETON
 module graph / build-logic / launch smoke surface / benchmark boundary /
 security docs + verifier / CI definition
         ↓
-HARNESS VERIFIED — R4.17
+BOOTSTRAP CONTRACT STATIC/HARNESS VERIFIED — SEE CURRENT CONTROL BLOCK
 canonical doctor/host/device verifier + CI compile-SDK provisioning contract
         ↓
 NEXT EXECUTION GATE
@@ -12981,4 +13019,4 @@ V2 proves unified sources.
 V3 opens the ecosystem.
 ```
 
-This document is the baseline for all subsequent V1 technical specifications and implementation decisions. R4.17 additionally records the canonical bootstrap execution harness and CI provisioning correction while keeping real Gradle/Android/CI gates explicitly pending until fresh JDK-17/SDK-37 output exists.
+This document is the single canonical baseline for subsequent V1 technical specifications and implementation decisions. It is updated in place; current execution state and next action are maintained only in the Current Control Block, while detailed decisions remain in their owning records.

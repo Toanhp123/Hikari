@@ -20,16 +20,21 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - name: Install compile SDK
-        run: sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
+        run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
       - name: Materialize official wrapper when bootstrap archive has no wrapper binary
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            ./scripts/bootstrap-wrapper.sh
+            bash scripts/bootstrap-wrapper.sh
           fi
       - uses: gradle/actions/wrapper-validation@v6
       - uses: gradle/actions/setup-gradle@v6
+      - name: Verify bootstrap contracts
+        run: |
+          bash scripts/tests/bootstrap-execution-harness-test.sh
+          bash scripts/tests/ci-bootstrap-contract-test.sh
+          bash scripts/tests/gradle-bootstrap-contract-test.sh
       - name: Verify host bootstrap gate
-        run: ./scripts/verify-bootstrap.sh --host-only
+        run: bash scripts/verify-bootstrap.sh --host-only
 
   instrumentation:
     runs-on: ubuntu-latest
@@ -46,11 +51,11 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - name: Install compile SDK
-        run: sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
+        run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
       - name: Materialize official wrapper when bootstrap archive has no wrapper binary
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            ./scripts/bootstrap-wrapper.sh
+            bash scripts/bootstrap-wrapper.sh
           fi
       - uses: gradle/actions/wrapper-validation@v6
       - uses: gradle/actions/setup-gradle@v6
@@ -58,4 +63,4 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
-          script: ./gradlew :app:connectedDebugAndroidTest --no-daemon
+          script: bash ./gradlew :app:connectedDebugAndroidTest --no-daemon

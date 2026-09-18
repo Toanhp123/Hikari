@@ -35,6 +35,24 @@ grep -Fq '@TaskAction' "$SEC_TASK" || fail "VerifySecurityBaselineTask must use 
 ! grep -Eq '(^|[^A-Za-z])project\.|rootProject|subprojects' "$ARCH_TASK" || fail "VerifyArchitectureTask execution type must not capture Project APIs"
 ! grep -Eq '(^|[^A-Za-z])project\.|rootProject|subprojects' "$SEC_TASK" || fail "VerifySecurityBaselineTask execution type must not capture Project APIs"
 
+DAEMON_JVM="$ROOT/gradle/gradle-daemon-jvm.properties"
+if [[ -f "$DAEMON_JVM" ]]; then
+  grep -Eq '^toolchainVersion=17$' "$DAEMON_JVM" || fail "Gradle daemon JVM criteria must match the JDK 17 bootstrap baseline"
+fi
+
+AGENTS="$ROOT/AGENTS.md"
+FOUNDATION="$ROOT/docs/foundation/android-universal-media-app-foundation.md"
+[[ -f "$AGENTS" ]] || fail "missing root AGENTS.md"
+[[ -f "$FOUNDATION" ]] || fail "missing stable-path canonical foundation"
+[[ ! -d "$ROOT/docs/state" ]] || fail "docs/state must not become a parallel source of truth"
+[[ "$(find "$ROOT/docs/foundation" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')" -eq 1 ]] || fail "docs/foundation must contain exactly one canonical markdown foundation"
+[[ "$(wc -c < "$AGENTS" | tr -d ' ')" -le 8192 ]] || fail "AGENTS.md exceeds the 8 KiB repository instruction budget"
+grep -Fq 'docs/foundation/android-universal-media-app-foundation.md' "$AGENTS" || fail "AGENTS.md must route to the canonical foundation"
+grep -Fq 'Current Control Block' "$AGENTS" || fail "AGENTS.md must route startup reading to the Current Control Block"
+grep -Fq 'Do **not** create revision-suffixed foundation copies' "$AGENTS" || fail "AGENTS.md must forbid parallel foundation revisions"
+grep -Fq '# Current Control Block — Read First' "$FOUNDATION" || fail "foundation must expose a compact Current Control Block"
+grep -Fq 'sửa **chính file này tại stable path hiện tại**' "$FOUNDATION" || fail "foundation must require in-place canonical updates"
+
 BENCHMARK_SOURCE="$ROOT/benchmark/src/main/kotlin/app/universalmedia/benchmark/StartupBenchmark.kt"
 [[ -f "$BENCHMARK_SOURCE" ]] || fail "startup benchmark source is missing"
 ! grep -Fq 'measureStartup' "$BENCHMARK_SOURCE" || fail "Benchmark 1.5.0 startup benchmark must use MacrobenchmarkRule.measureRepeated, not removed measureStartup helper"
