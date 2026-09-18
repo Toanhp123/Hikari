@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** Pre-V1 Foundation R4.20 — CI Clean-Checkout Remediation Checkpoint
+**Revision:** Pre-V1 Foundation R4.21 — First CI Execution Setup Correction
 **Status:** Project Baseline / Pre-Implementation  
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-18 — audited the still-unexecuted GitHub Actions path after the local bootstrap PASS, found the push trigger targeting nonexistent `main` instead of canonical `master`, and hardened Android 17 CI provisioning for SDK package `37.0`; CI execution and Macrobenchmark device measurements remain pending
+**Last foundation review:** 2026-09-18 — first real GitHub Actions run `35363881972` triggered correctly on `master` but all three jobs failed inside `android-actions/setup-android@v3` before Gradle because current `sdkmanager` no longer serves the legacy `tools` package; CI setup is corrected to `setup-android@v4` with platform-tools only, and clean-checkout retry evidence plus Macrobenchmark device measurements remain pending
 
 ---
 
@@ -20,7 +20,7 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** Pre-V1 / Phase 0 bootstrap.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Product implementation:** minimal skeleton only; scanner/Room/source resolution/player/readers are not implemented yet.
-- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; CI WORKFLOW REMEDIATED LOCALLY; CLEAN-CHECKOUT EXECUTION PENDING**.
+- **Current gate:** **BOOTSTRAP EXECUTION GATE — LOCAL HOST/DEVICE PASS; FIRST CI RUN FAILED IN SDK SETUP BEFORE GRADLE; V4 CORRECTION AWAITS CLEAN-CHECKOUT RETRY**.
 - **Feature breadth:** blocked until the current gate is green.
 
 ## Current bootstrap contract
@@ -37,7 +37,7 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 | Build tools | `build-tools;37.0.0` |
 | Gradle daemon JVM criteria | optional; if present `toolchainVersion=17` |
 | Canonical CI push branch | `master` |
-| CI Android command-line tools | build `15859902` |
+| CI Android setup | `android-actions/setup-android@v4`, command-line tools build `15859902`, `packages: platform-tools` |
 | CI instrumentation packages | API `23` / `default`; Android 17 `37.0` / `google_apis` |
 
 `compileSdk = 37` is the Gradle API level. `android-37.0` is the installed SDK package/folder contract. Do not normalize one into the other.
@@ -45,7 +45,9 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 ## Fresh evidence in this snapshot
 
 - `PASS` — `bash scripts/tests/bootstrap-execution-harness-test.sh`.
-- `PASS` — `bash scripts/tests/ci-bootstrap-contract-test.sh`, including canonical `master` push trigger, command-line tools `15859902`, KVM setup, and explicit API-23 / Android-17-`37.0` emulator matrix contracts.
+- `PASS` — `bash scripts/tests/ci-bootstrap-contract-test.sh`, including canonical `master` push trigger, `setup-android@v4`, command-line tools `15859902`, platform-tools-only setup, KVM setup, and explicit API-23 / Android-17-`37.0` emulator matrix contracts.
+- `FAIL` — first real GitHub Actions run `35363881972`: verify, API-23 instrumentation and Android-17-`37.0` instrumentation all stopped in `android-actions/setup-android@v3` before Gradle because `sdkmanager` returned `Failed to find package 'tools'`; this is CI setup evidence, not a product/Gradle failure.
+- `PENDING` — GitHub Actions clean-checkout retry after the `setup-android@v4` correction.
 - `PASS` — `bash scripts/tests/gradle-bootstrap-contract-test.sh`.
 - `PASS` — `bash scripts/verify-security-baseline.sh`.
 - `PASS` — Bash syntax checks for repository scripts.
@@ -53,14 +55,13 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - `PASS` — canonical full PowerShell bootstrap verifier: Gradle runtime/help, `verifyFast`, one-device `:app:connectedDebugAndroidTest`, then `verifyRelease`.
 - `PASS` — Android launch smoke on Redmi Note 9S / Android 15: 1 test completed, 0 failures.
 - `PASS` — release-like local assembly, including `:app:assembleRelease` and `:benchmark:assembleBenchmark` through `verifyRelease`.
-- `PENDING` — GitHub Actions clean-checkout host/instrumentation lanes.
 - `PENDING` — Macrobenchmark device execution and any numeric performance evidence; benchmark assembly alone is not runtime performance evidence.
 
-The earlier Java-21/no-SDK generation-environment limitation is historical evidence only; the real Windows run supersedes it for local host/device execution. Static/harness evidence still never upgrades an unexecuted CI or Macrobenchmark gate to `PASS`.
+The earlier Java-21/no-SDK generation-environment limitation is historical evidence only; the real Windows run supersedes it for local host/device execution. Static/harness evidence never upgrades a failed or unexecuted CI retry, or an unexecuted Macrobenchmark gate, to `PASS`.
 
 ## Next concrete action
 
-Commit and push the CI-remediation checkpoint to canonical branch `master`, then observe the GitHub Actions clean-checkout host lane plus the API-23 and Android-17-`37.0` instrumentation lanes. The local canonical verifier is already green; because this tranche changes workflow/docs/contracts rather than Gradle/product inputs, rerun the repository-owned static/harness contracts but do not manufacture duplicate local device evidence.
+Commit and push the first-CI-run correction to canonical branch `master`, then observe a fresh GitHub Actions clean-checkout host lane plus the API-23 and Android-17-`37.0` instrumentation lanes. The local canonical verifier is already green; because this correction changes workflow/docs/contracts rather than Gradle/product inputs, rerun the repository-owned static/harness contracts but do not manufacture duplicate local device evidence.
 
 If those CI lanes are green, update this block to close the blocking Phase-0 bootstrap gate and begin the deliberately small first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`. If CI execution contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the owning decision before feature breadth expands.
 
@@ -231,7 +232,8 @@ R4 không mở rộng product scope. Nó tích hợp kết quả **V1 architectu
 - **R4.17 bootstrap execution-gate update:** added one canonical Bash/PowerShell verifier with `--doctor-only`/`-DoctorOnly`, host-only and full-device modes; added RED→GREEN harness tests for JDK/SDK preconditions and a CI contract test; fixed a clean-runner gap where the API-23 instrumentation lane could start an emulator without explicitly provisioning compile SDK 37/build-tools 37.0.0. Both CI jobs now install the compile SDK baseline and the host lane executes the same `verify-bootstrap --host-only` gate used locally. Real Gradle/Android/CI execution remains pending until a JDK-17 + SDK-37 environment is available.
 - **R4.18 bootstrap/documentation correction:** executable self-review found R4.17 had mixed `android-37` and `android-37.0` platform-folder assumptions and a generated `gradle-daemon-jvm.properties` targeting JVM 25 despite the JDK-17 bootstrap contract. R4.18 standardizes the installed compile platform on `platforms;android-37.0` while retaining `compileSdk/targetSdk = 37`, removes the conflicting daemon-JVM criteria, adds guards requiring JDK 17 if criteria are reintroduced, and makes this stable-path foundation the single current-state source of truth. Root `AGENTS.md` is intentionally a lean routing/discipline layer; no parallel state/handoff documents are maintained. Real Gradle/Android/CI execution remains pending.
 - **R4.19 local bootstrap execution evidence:** recorded the real Windows Temurin JDK 17.0.20 / SDK `android-37.0` canonical PowerShell verifier PASS on Redmi Note 9S / Android 15, covering Gradle runtime/help, `verifyFast`, connected launch smoke, `verifyRelease`, release assembly and benchmark assembly. This closed local host/device/release-like uncertainty without claiming unexecuted GitHub Actions or Macrobenchmark runtime evidence.
-- **R4.20 CI clean-checkout remediation:** live-repository audit found the workflow push trigger targeted nonexistent `main` while canonical/default branch is `master`, explaining the absence of GitHub Actions runs. The CI contract now guards the `master` trigger, pins command-line tools build `15859902`, enables KVM, and distinguishes Gradle API `37` from Android 17 emulator package `37.0` with `google_apis`. CI execution remains pending until the remediated workflow runs on GitHub.
+- **R4.20 CI clean-checkout remediation:** live-repository audit found the workflow push trigger targeted nonexistent `main` while canonical/default branch is `master`, explaining the absence of GitHub Actions runs. The CI contract now guards the `master` trigger, pins command-line tools build `15859902`, enables KVM, and distinguishes Gradle API `37` from Android 17 emulator package `37.0` with `google_apis`. CI execution remained pending until the remediated workflow ran on GitHub.
+- **R4.21 first CI execution setup correction:** real run `35363881972` proved the trigger fix worked, then all three jobs failed before Gradle because `android-actions/setup-android@v3` defaulted to the removed legacy SDK package `tools`. The workflow now uses `setup-android@v4`, explicitly requests only `platform-tools`, and the CI contract forbids regression to v3 or legacy `tools`. Clean-checkout retry evidence remains pending.
 
 Các tên/type được audit đề xuất chưa mặc định là final implementation. Question Ledger là nơi xác định cái gì còn OPEN và khi nào được phép downstream dependency.
 
@@ -11447,12 +11449,14 @@ Because `verifyFast` owns formatting, architecture/security verification, JVM co
 
 ### 4.26.6 Next Execution Gate
 
-The remaining blocking bootstrap evidence is the repository CI clean-checkout execution. Audit after the local PASS found that the workflow push trigger targeted `main` even though the repository default/canonical branch is `master`, so no push workflow had executed. The same remediation also makes Android 17 package identity explicit (`37.0`, not major-only `37`), pins command-line tools new enough for Major.Minor SDK packages, and enables KVM before emulator startup.
+The remaining blocking bootstrap evidence is a green repository CI clean-checkout execution. The R4.20 push to canonical `master` successfully triggered real run `35363881972`, proving the trigger repair, but all three jobs failed before Gradle inside `android-actions/setup-android@v3`: current `sdkmanager` rejected the action's legacy default package request with `Failed to find package 'tools'`. R4.21 upgrades the setup action to v4 and explicitly requests only `platform-tools`; the API-23 / Android-17-`37.0`, command-line-tools and KVM remediations remain unchanged.
 
 ```text
 local Windows host/device/release-like gate — PASS
         ↓
-CI workflow remediation — STATIC CONTRACT PASS / EXECUTION PENDING
+first CI execution — TRIGGER PASS / SDK SETUP FAIL BEFORE GRADLE
+        ↓
+setup-android@v4 + platform-tools-only correction — STATIC CONTRACT PASS / RETRY PENDING
         ↓
 GitHub Actions host lane
         ↓
@@ -11470,7 +11474,7 @@ Macrobenchmark device execution remains a separate performance gate after bootst
 
 ## 4.27 Bootstrap Execution Gate & Contract Record
 
-**Status:** `LOCAL GRADLE + ANDROID VERIFIED / CI DEFINITION REMEDIATED / CI EXECUTION PENDING`
+**Status:** `LOCAL GRADLE + ANDROID VERIFIED / FIRST CI EXECUTION FAILED IN SDK SETUP / V4 RETRY PENDING`
 
 This record owns the Phase-0 execution contract. Earlier R4.17 assumptions are corrected here rather than preserved as a competing current record.
 
@@ -11500,7 +11504,7 @@ API 23     → api-level `23`, target `default`
 Android 17 → api-level `37.0`, target `google_apis`
 ```
 
-Both lanes still install `platforms;android-37.0` for compilation. GitHub Actions pins Android command-line tools build `15859902`; older tools before the Major.Minor package parsing fix can create an invalid AVD target for packages such as `android-37.0`. The instrumentation lane enables KVM before invoking the emulator runner.
+Both lanes still install `platforms;android-37.0` for compilation. GitHub Actions uses `android-actions/setup-android@v4`, pins Android command-line tools build `15859902`, and limits the setup action to `platform-tools`; the removed legacy SDK package `tools` is forbidden by contract after real run `35363881972` proved it fails before Gradle. Older command-line tools before the Major.Minor package parsing fix can create an invalid AVD target for packages such as `android-37.0`. The instrumentation lane enables KVM before invoking the emulator runner.
 
 ### 4.27.2 Canonical verifier
 
@@ -11537,13 +11541,13 @@ scripts/verify-security-baseline.sh
 bash -n scripts/**/*.sh
 ```
 
-The fake-SDK harness proves `android-37.0` is accepted and legacy `android-37` is rejected. CI contract tests require the canonical `master` push trigger, command-line tools build `15859902`, compile SDK/build-tools provisioning in both lanes, KVM setup, API 23 paired with `default`, Android 17 package `37.0` paired with `google_apis`, and matrix values actually consumed by the emulator runner. Gradle/bootstrap contract tests guard the JDK-17 daemon criterion and repository structure.
+The fake-SDK harness proves `android-37.0` is accepted and legacy `android-37` is rejected. CI contract tests require the canonical `master` push trigger, `android-actions/setup-android@v4`, command-line tools build `15859902`, platform-tools-only setup with no legacy `tools` request, compile SDK/build-tools provisioning in both lanes, KVM setup, API 23 paired with `default`, Android 17 package `37.0` paired with `google_apis`, and matrix values actually consumed by the emulator runner. Gradle/bootstrap contract tests guard the JDK-17 daemon criterion and repository structure.
 
 These static checks prove configuration/harness behavior only. Separately, the real Windows run on 2026-09-18 executed the canonical full PowerShell verifier successfully on JDK 17.0.20 with a Redmi Note 9S / Android 15, proving local Gradle build, owned JVM tests, lint/format/architecture/security gates, Android launch instrumentation, debug/release assembly, and benchmark assembly. It still does **not** prove GitHub Actions execution or Macrobenchmark runtime measurements. Current PASS/PENDING/BLOCKED truth lives only in the **Current Control Block**.
 
 ### 4.27.4 Gate transition
 
-The real Windows PowerShell host/device gate is green and the CI definition has been locally remediated after detecting the stale `main` push trigger plus Android-17 emulator provisioning gaps. Commit/push this checkpoint to `master` and collect GitHub Actions clean-checkout host + instrumentation evidence next. Only after the Current Control Block records the blocking CI lanes as green may §13.1 become the active implementation slice. Macrobenchmark runtime measurement is tracked separately and must not be inferred from benchmark assembly.
+The real Windows PowerShell host/device gate is green. The first post-remediation GitHub Actions run proved the `master` trigger works but exposed a setup-action incompatibility before any Gradle task ran; R4.21 corrects that specific failure by moving to `setup-android@v4` with platform-tools only. Commit/push this correction and collect a fresh clean-checkout host + instrumentation run next. Only after the Current Control Block records the blocking CI lanes as green may §13.1 become the active implementation slice. Macrobenchmark runtime measurement is tracked separately and must not be inferred from benchmark assembly.
 
 If CI executable evidence contradicts `Q-BOOT`, `Q-MOD` or `Q-API`, reopen the affected decision before expanding feature breadth.
 

@@ -44,7 +44,7 @@ Use `-HostOnly` / `--host-only` when no device is attached. This proves every ho
 
 ## CI contract
 
-The workflow triggers pushes on the repository's canonical `master` branch plus pull requests. Both GitHub Actions jobs pin Android command-line tools build `15859902` and explicitly provision `platform-tools`, `platforms;android-37.0`, and `build-tools;37.0.0`. The host job executes `bash scripts/verify-bootstrap.sh --host-only`.
+The workflow triggers pushes on the repository's canonical `master` branch plus pull requests. Both GitHub Actions jobs use `android-actions/setup-android@v4`, pin Android command-line tools build `15859902`, request only the still-supported `platform-tools` package from the setup action, and then explicitly provision `platforms;android-37.0` plus `build-tools;37.0.0`. The host job executes `bash scripts/verify-bootstrap.sh --host-only`. Do not reintroduce the removed legacy SDK package `tools`; the first real clean-checkout run proved that `setup-android@v3` fails before Gradle when current `sdkmanager` is asked to install it.
 
 The instrumentation job enables KVM before the emulator runner and uses explicit package-compatible matrix entries:
 

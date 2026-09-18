@@ -11,8 +11,13 @@ fail() {
 grep -Fq 'branches: [ master ]' "$CI" || fail "push trigger must target canonical default branch master"
 ! grep -Fq 'branches: [ main ]' "$CI" || fail "stale main-only push trigger would skip the canonical master branch"
 
-COUNT_SETUP_ANDROID="$(grep -c 'uses: android-actions/setup-android@v3' "$CI" || true)"
-[[ "$COUNT_SETUP_ANDROID" -eq 2 ]] || fail "expected setup-android in both CI jobs, found $COUNT_SETUP_ANDROID"
+COUNT_SETUP_ANDROID="$(grep -c 'uses: android-actions/setup-android@v4' "$CI" || true)"
+[[ "$COUNT_SETUP_ANDROID" -eq 2 ]] || fail "expected setup-android@v4 in both CI jobs, found $COUNT_SETUP_ANDROID"
+! grep -Fq 'uses: android-actions/setup-android@v3' "$CI" || fail "setup-android@v3 requests the removed legacy tools package with current command-line tools"
+
+COUNT_SETUP_ANDROID_PACKAGES="$(grep -c "packages: 'platform-tools'" "$CI" || true)"
+[[ "$COUNT_SETUP_ANDROID_PACKAGES" -eq 2 ]] || fail "expected setup-android to request platform-tools only in both CI jobs, found $COUNT_SETUP_ANDROID_PACKAGES"
+! grep -Eq "packages:[[:space:]]*['\"]?tools([[:space:]]|['\"]|$)" "$CI" || fail "legacy Android SDK package tools is forbidden; Google no longer serves it"
 
 COUNT_CMDLINE_TOOLS="$(grep -c "cmdline-tools-version: '15859902'" "$CI" || true)"
 [[ "$COUNT_CMDLINE_TOOLS" -eq 2 ]] || fail "expected command-line tools 15859902 in both CI jobs, found $COUNT_CMDLINE_TOOLS"

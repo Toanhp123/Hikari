@@ -231,4 +231,6 @@ The generation container has Java 21, no Android SDK, no system Gradle, and cann
 - [x] Remove parallel `docs/state/` / persistent handoff sources of truth.
 - [x] Re-run repository-owned bootstrap/CI/Gradle/security contract tests and Bash syntax checks.
 - [x] Collect real Windows JDK-17 + SDK-37.0 host/device/release-like evidence through the canonical PowerShell verifier.
-- [ ] Collect GitHub Actions clean-checkout host + API-23 plus Android-17-`37.0` instrumentation evidence before opening the first local vertical slice.
+- [x] Trigger the first real GitHub Actions run on canonical `master`; run `35363881972` proved the trigger fix but failed in `setup-android@v3` before Gradle because the removed legacy SDK package `tools` was requested.
+- [x] Correct CI setup to `android-actions/setup-android@v4` with explicit `platform-tools` only and harden the CI contract against regression to v3/legacy `tools`.
+- [ ] Collect a green GitHub Actions clean-checkout host + API-23 plus Android-17-`37.0` instrumentation retry before opening the first local vertical slice.

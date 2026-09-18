@@ -18,9 +18,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           cmdline-tools-version: '15859902'
+          packages: 'platform-tools'
       - name: Install compile SDK
         run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
       - name: Materialize official wrapper when bootstrap archive has no wrapper binary
@@ -55,9 +56,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           cmdline-tools-version: '15859902'
+          packages: 'platform-tools'
       - name: Install compile SDK
         run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
       - name: Materialize official wrapper when bootstrap archive has no wrapper binary
