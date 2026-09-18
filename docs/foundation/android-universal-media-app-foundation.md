@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** V1 Foundation R4.24 — Phase 0 Closure / First Slice Unlock
-**Status:** Project Baseline / V1 Implementation Ready
+**Revision:** V1 Foundation R4.25 — First Slice Task 0 Closed / Task 1 Active
+**Status:** Project Baseline / V1 First Slice In Progress
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-18 — fourth real GitHub Actions run `35368573651` completed successfully on canonical `master`: host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation all passed. Together with the already-green real Windows JDK-17 host/device/release-like verifier, this closes the blocking Phase-0 bootstrap execution gate and unlocks the deliberately small V1 first local vertical slice in §13.1. Macrobenchmark device measurements remain a separate, non-blocking performance gate.
+**Last foundation review:** 2026-09-19 — first-slice Task 0 dependency/build preflight completed on the real Windows JDK-17 repository. `help :data:compileDebugKotlin :app:compileDebugKotlin verifyArchitecture --no-daemon` passed, then `scripts/verify-fast.ps1` passed end-to-end. This proves the selected Room/KSP/WorkManager/Media3 pins compile inside the locked bootstrap toolchain without changing the reviewed module graph. The active implementation authority is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`; Task 1 is the next action. Macrobenchmark device measurements remain a separate, non-blocking performance gate.
 
 ---
 
@@ -17,11 +17,12 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 
 ## Current position
 
-- **Phase:** V1 implementation unlocked; Phase 0 bootstrap is closed.
+- **Phase:** V1 first local vertical slice is in progress; Phase 0 bootstrap remains closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
-- **Product implementation:** minimal skeleton only; scanner/Room/source resolution/player/readers are not implemented yet.
-- **Current gate:** **BOOTSTRAP EXECUTION GATE — CLOSED. REAL WINDOWS HOST/DEVICE/RELEASE-LIKE PASS + GITHUB CLEAN-CHECKOUT HOST/API-23/ANDROID-17 PASS.**
-- **Feature breadth:** the §13.1 first local vertical slice is unlocked; broader feature breadth remains intentionally incremental and evidence-gated.
+- **Active implementation plan:** `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Read this plan after this control block before implementing the active task.
+- **Product implementation:** Task 0 dependency/build preflight is closed. Canonical IDs/domain scan/progress contracts, Room schema, scanner, source resolution, player and readers are not implemented yet.
+- **Current gate:** **FIRST LOCAL SLICE — TASK 0 CLOSED; TASK 1 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
+- **Feature breadth:** stay inside the §13.1 plan. Broader media families, metadata breadth, reconciliation breadth and UI polish remain locked behind executable evidence from this slice.
 
 ## Current bootstrap contract
 
@@ -43,8 +44,26 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 
 `compileSdk = 37` is the Gradle API level. `android-37.0` is the installed SDK package/folder contract. Do not normalize one into the other.
 
+## Current first-slice dependency baseline
+
+Task 0 has executable compile/verification evidence for these pinned first-slice dependencies:
+
+| Concern | Verified value |
+|---|---|
+| Room / Room Gradle plugin | 2.8.5 |
+| KSP | 2.3.12 |
+| WorkManager | 2.11.2 |
+| Media3 | 1.11.1 |
+| kotlinx.coroutines | 1.11.0 when explicitly required |
+| Lifecycle | 2.11.0 when lifecycle-aware Compose collection is actually required |
+
+KSP is the annotation-processing path; `kapt` remains forbidden. These pins are implementation dependencies under the existing bootstrap contract, not permission to broaden module dependencies or product scope.
+
 ## Fresh evidence in this snapshot
 
+- `PASS` — 2026-09-19 real Windows Task 0 preflight: `./gradlew.bat help :data:compileDebugKotlin :app:compileDebugKotlin verifyArchitecture --no-daemon`; Gradle 9.4.1 completed successfully with configuration-cache reuse.
+- `PASS` — 2026-09-19 real Windows `./scripts/verify-fast.ps1`; `verifyFast` completed successfully, including lint/build/test surfaces owned by that gate.
+- `PASS` — Task 0 therefore closes without changing the reviewed project-dependency allow-list and without adding product implementation.
 - `PASS` — `bash scripts/tests/bootstrap-execution-harness-test.sh`.
 - `PASS` — `bash scripts/tests/ci-bootstrap-contract-test.sh`, including canonical `master` push trigger, `setup-android@v4`, command-line tools `15859902` / 22.0, platform-tools-only setup, stale-`latest` alignment before emulator-runner, KVM setup, and explicit API-23 / Android-17-`37.0` emulator matrix contracts.
 - `FAIL` — first real GitHub Actions run `35363881972`: verify, API-23 instrumentation and Android-17-`37.0` instrumentation all stopped in `android-actions/setup-android@v3` before Gradle because `sdkmanager` returned `Failed to find package 'tools'`; historical CI setup evidence only.
@@ -66,9 +85,9 @@ The earlier Java-21/no-SDK generation-environment limitation and the first three
 
 ## Next concrete action
 
-Research and plan the deliberately small §13.1 first local vertical slice before adding product breadth. Inspect the current skeleton/modules, then read only the decision records that own this path: `Q-SRC-001`, `Q-STO-001`, `Q-ID-001`, `Q-REC-001`, `Q-SCN-001`, `Q-PER-001`, `Q-LIB-001`, `Q-PROG-001..002`, `Q-RUN-001`, `Q-MOD-001`, and `Q-API-001`. Produce a task-by-task implementation plan for the end-to-end proof `register one local root → discover one simple media shape → create/reuse canonical Media (+ Unit when required) → persist → show in Library → consume → persist progress → kill/restart → restore`.
+Implement **Task 1 — Minimal Canonical IDs, Target, Observation and Progress Contracts** from `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Before editing, inspect the current `:core:model` / `:core:domain` code and read only the owning decisions needed by Task 1, especially `Q-ID-001`, `Q-SCN-001`, `Q-PROG-001..002`, `Q-MOD-001`, and `Q-API-001`. Keep Task 1 pure Kotlin: no Android framework, Room, WorkManager, SAF or Media3 types may leak into the public core contracts.
 
-Do not broaden into multiple media families, source ecosystems, or UI polish before this slice proves the decisions in code. If implementation evidence contradicts a provisional decision, reopen the owning question before expanding breadth. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from `:benchmark:assembleBenchmark`.
+Do not rerun research/planning as though the slice were still unplanned, and do not skip ahead to Room/schema or Android implementation while Task 1 is red. If executable evidence contradicts a provisional decision, stop and reopen the owning `Q-*` before adding a workaround. Broader media families, source ecosystems and UI polish remain out of scope. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from assembly.
 
 ## Token-efficient reading rule
 
@@ -242,6 +261,7 @@ R4 không mở rộng product scope. Nó tích hợp kết quả **V1 architectu
 - **R4.22 Android 17 AVD toolchain alignment:** second real run `35364775034` proved the host lane and API-23/default instrumentation green, while Android-17 `37.0`/`google_apis` created and launched an AVD that remained `adb offline` through the 600-second boot timeout. The same log showed setup-android installed command-line tools 22.0 while the runner image retained `cmdline-tools/latest` 12.0; `android-emulator-runner@v2` prepends that `latest` directory before its unqualified sdkmanager/avdmanager calls. The instrumentation job now repoints `latest` to the pinned setup-android toolchain before invoking emulator-runner, and the CI contract guards that alignment. Fresh retry evidence remains pending.
 - **R4.23 Android 17 Espresso compatibility correction:** third real run `35366782420` proved the R4.22 emulator correction: host and API-23 stayed green, Android-17 `37.0` booted, Gradle completed packaging, and the smoke test started on the Android-17 emulator. The remaining failure moved into Espresso input injection (`NoSuchMethodException: InputManager.getInstance`). AndroidX Espresso 3.7.0 contains the platform-compatibility fix, but the existing catalog alias was unused by `:app`; R4.23 makes that dependency explicit and adds a build-contract guard so future Compose-test transitive changes cannot silently downgrade the runtime again. Fresh retry evidence remains pending.
 - **R4.24 Phase-0 closure / V1 first-slice unlock:** fourth real run `35368573651` completed successfully end-to-end: host `verify`, API-23/default instrumentation, and Android-17 `37.0`/`google_apis` instrumentation all passed on the clean GitHub runner. Together with the existing real Windows host/device/release-like PASS, this closes the blocking Phase-0 bootstrap execution gate. §13.1 is now the active V1 implementation trigger; Macrobenchmark runtime remains a separate non-blocking performance gate.
+- **R4.25 first-slice Task 0 closure:** research/self-review produced the active plan at `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`; Task 0 then pinned the first-slice Room/KSP/WorkManager/Media3 dependency set and added build-contract protection without changing the module allow-list. Real Windows execution passed `help :data:compileDebugKotlin :app:compileDebugKotlin verifyArchitecture --no-daemon` and `scripts/verify-fast.ps1`. Task 1 pure-Kotlin identity/scan/progress contracts are now the single next action.
 
 Các tên/type được audit đề xuất chưa mặc định là final implementation. Question Ledger là nơi xác định cái gì còn OPEN và khi nào được phép downstream dependency.
 
@@ -12851,12 +12871,16 @@ GitHub Actions host + API-23 + Android-17-`37.0` instrumentation — PASS
         ↓
 PHASE-0 BOOTSTRAP CLOSED
         ↓
-NEXT — RESEARCH + PLAN §13.1 FIRST LOCAL VERTICAL SLICE
+§13.1 RESEARCH + SELF-REVIEWED IMPLEMENTATION PLAN COMPLETE
+        ↓
+TASK 0 DEPENDENCY / BUILD / ARCHITECTURE PREFLIGHT — CLOSED
+        ↓
+NEXT — TASK 1 PURE-KOTLIN IDENTITY / OBSERVATION / PROGRESS CONTRACTS
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The next session must prioritize **researching and planning the §13.1 first local vertical slice**, not adding several product modules or feature families at once. The blocking bootstrap evidence is green locally and on a clean GitHub runner. Read the relevant owning decisions and inspect the existing module boundaries before coding; Macrobenchmark measurements remain a separate later device-performance gate.
+The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 1** rather than repeating research or broadening into several product modules. The bootstrap and Task 0 evidence are green; Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 
