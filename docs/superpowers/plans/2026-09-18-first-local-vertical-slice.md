@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE — Tasks 0 and 1 CLOSED; Task 2 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0, 1 and 2 CLOSED; Task 3 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -336,7 +336,7 @@ VideoProgressCheckpoint
 
 ## Task 2 — Canonical Room Database V1 + Semantic Transactions
 
-**Status:** NEXT — not started.
+**Status:** CLOSED - focused JVM/compile checks PASS and user-owned Room device acceptance PASS (10 tests, 0 failures/errors/skips; Redmi Note 9S / Android 15). Local result artifacts reviewed on 2026-09-19; see foundation Current Control Block.
 
 **Purpose:** Materialize the minimum approved Q-PER schema needed by the first slice while establishing migration discipline from schema version 1.
 
@@ -427,8 +427,7 @@ Do not pre-create `media_grouping`, History, image/publication anchors or metada
 
 **User-owned acceptance gate after the focused gate is green:**
 ```powershell
-# Prefer the new Room instrumentation class filter once concrete class names exist.
-.\gradlew.bat :data:connectedDebugAndroidTest --no-daemon
+.\gradlew.bat :data:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.data.RoomMediaStoreTest" --no-daemon
 ```
 
 Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; if required, it is user-owned.

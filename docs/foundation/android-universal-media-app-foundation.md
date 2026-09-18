@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** V1 Foundation R4.27 — First Slice Task 1 Closed / Task 2 Next
+**Revision:** V1 Foundation R4.29 - First Slice Task 2 Closed / Task 3 Next
 **Status:** Project Baseline / V1 First Slice In Progress
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-19 — Task 1 is CLOSED: 9 focused JVM tests passed and the user confirmed PASS for `./gradlew.bat :core:model:test :core:domain:test --no-daemon`. Task 0 dependency/build evidence remains valid, with no build or project-edge changes. Task 2 canonical Room database and semantic transactions are next under `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Macrobenchmark device measurements remain a separate, non-blocking performance gate.
+**Last foundation review:** 2026-09-19 - Task 2 is CLOSED. The user confirmed the quoted PowerShell device gate passed; local XML and exit-code artifacts confirm 10 tests, 0 failures/errors/skips on Redmi Note 9S / Android 15, exit 0. Focused JVM/compile evidence remains valid. Task 3 SAF root registration and direct DocumentsContract access is next.
 
 ---
 
@@ -20,8 +20,8 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** V1 first local vertical slice is in progress; Phase 0 bootstrap remains closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Active implementation plan:** `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Read this plan after this control block before implementing the active task.
-- **Product implementation:** Task 0 dependency/build preflight is closed. Task 1 canonical IDs, target, root/observation/scan contracts, semantic ports and video-progress contracts exist in pure Kotlin. Room schema, port implementations, scanner, source resolution, player and readers are not implemented yet.
-- **Current gate:** **FIRST LOCAL SLICE — TASK 1 CLOSED; TASK 2 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
+- **Product implementation:** Tasks 0, 1 and 2 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Scanner, runtime source resolution, player and readers are not implemented yet.
+- **Current gate:** **FIRST LOCAL SLICE - TASK 2 CLOSED; TASK 3 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
 - **Feature breadth:** stay inside the §13.1 plan. Broader media families, metadata breadth, reconciliation breadth and UI polish remain locked behind executable evidence from this slice.
 
 ## Current bootstrap contract
@@ -61,6 +61,11 @@ KSP is the annotation-processing path; `kapt` remains forbidden. These pins are 
 
 ## Fresh evidence in this snapshot
 
+- `FAIL` — 2026-09-19 user-reported Task 2 acceptance invocation stopped during Gradle task selection: the unquoted PowerShell `-Pandroid.testInstrumentationRunnerArguments.class=...` argument was split and `.testInstrumentationRunnerArguments.class=...` was interpreted as a task. No instrumentation executed. The handoff command now quotes the entire property argument; the corrected rerun subsequently passed. This is historical invocation evidence only.
+
+- `PASS` — 2026-09-19 Task 2 focused agent gate: `./gradlew.bat :data:testDebugUnitTest --tests '*PersistenceRulesTest' :data:compileDebugAndroidTestKotlin --no-daemon`; final invocation exit 0, 2 JVM tests with 0 failures/errors, configuration-cache reuse. Instrumentation compiled only; no Room/device runtime PASS is inferred. Initial RED failed on missing revision rules; initial production compilation exposed cross-module nullable smart casts and a missing FK index, corrected before PASS.
+- `PASS` — 2026-09-19 user-confirmed Task 2 acceptance: `./gradlew.bat :data:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.data.RoomMediaStoreTest" --no-daemon`. The 10 instrumentation cases cover two-connection duplicate prevention, reopen/identity/Library/progress, schema validation and target constraints, stale runs, batch rollback, suppression/access loss, incomplete coverage, Library cancellation and corruption-file preservation. Reviewed local XML: 10 tests, 0 failures/errors/skips on Redmi Note 9S / Android 15; test-result exit code 0. This closes the required device gate.
+- Task 2 static self-review: no project-dependency edge, permission, module or domain-contract change; added only baseline coroutines and test dependencies within `:data`. Target XOR uses insert/update triggers, which must accompany future migrations because Room JSON does not export triggers. Progress context IDs are provenance, not Asset-owned foreign keys. Canonical corruption/open errors propagate instead of deleting the DB or returning empty Library. Independent review was unavailable because the reviewer provider returned a credentials error. No new architecture/full gate execution is claimed; device acceptance is recorded separately above.
 - `PASS` — 2026-09-19 Task 1 focused JVM gate: `./gradlew.bat :core:model:test --tests '*CanonicalIdentityTest' :core:domain:test --tests '*FirstSliceContractTest' --no-daemon`; 9 tests, 0 failures/errors, final invocation exit 0 with configuration-cache reuse. Initial RED failed on missing contract types; the first implementation run exposed a redundant test assertion under warnings-as-errors, corrected before the final PASS.
 - `PASS` — 2026-09-19 user-reported Task 1 unfiltered module gate: `./gradlew.bat :core:model:test :core:domain:test --no-daemon`. The user confirmed the exact handoff command passed; this evidence was reviewed and closes Task 1 alongside the focused tests and permitted Task 0 architecture-evidence reuse.
 - Task 1 static self-review found no Android/Room imports or build/project-edge changes. Task 0 architecture evidence is reused as allowed by Task 1; this is not a new architecture-gate execution. Independent automated review was unavailable because the reviewer provider returned a credentials error.
@@ -88,9 +93,9 @@ The earlier Java-21/no-SDK generation-environment limitation and the first three
 
 ## Next concrete action
 
-Implement **Task 2 — Canonical Room Database V1 + Semantic Transactions** from the active plan. Inspect `:data` and the existing core contracts, then read the owning `Q-PER-001` decision and only the relevant identity, scan, Library and progress decisions. Task 1 uses UUID-backed app-generated IDs, serialized/redacted locator evidence, full-root provider-declared-MP4 scope, separate outcome/coverage, and target-owned video progress with compare-and-set state revisions (absent state revision 0). Port implementations must enforce the documented atomicity, stale-run rejection and checkpoint ordering; contract tests do not prove persistence behavior. Library observation uses a suspending callback with caller cancellation. Task 2 device acceptance remains user-owned and must pass before closure.
+Implement **Task 3 - SAF Root Registration and Direct DocumentsContract Access** from the active plan. Inspect `:storage:local` and the current domain observation contracts, then read the relevant `Q-STO-001` and `Q-SCN-001` sections. Keep registration/grant mechanics in the storage adapter, traverse through direct DocumentsContract queries with bounded batches and cancellation, and preserve incomplete coverage semantics. Task 3 device acceptance remains user-owned.
 
-Do not rerun research/planning as though the slice were still unplanned, and do not skip ahead to Room/schema or Android implementation while Task 1 is red. If executable evidence contradicts a provisional decision, stop and reopen the owning `Q-*` before adding a workaround. Broader media families, source ecosystems and UI polish remain out of scope. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from assembly.
+Do not rerun research/planning as though the slice were still unplanned. Task 2 is CLOSED; Task 3 has not started. If executable evidence contradicts a provisional decision, stop and reopen the owning `Q-*` before adding a workaround. Broader media families, source ecosystems and UI polish remain out of scope. Macrobenchmark measurements remain a separate performance gate.
 
 ## Token-efficient reading rule
 
@@ -12880,12 +12885,14 @@ TASK 0 DEPENDENCY / BUILD / ARCHITECTURE PREFLIGHT — CLOSED
         ↓
 TASK 1 PURE-KOTLIN CONTRACTS — CLOSED
         ↓
-NEXT — TASK 2 CANONICAL ROOM DATABASE / SEMANTIC TRANSACTIONS
+TASK 2 CANONICAL ROOM DATABASE / SEMANTIC TRANSACTIONS - CLOSED
+        |
+NEXT - TASK 3 SAF ROOT REGISTRATION / DIRECT DOCUMENTSCONTRACT ACCESS
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 2**. The bootstrap, Task 0 and Task 1 evidence are green; Macrobenchmark measurements remain a separate later device-performance gate.
+The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 3**. Bootstrap and Tasks 0-2 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 
