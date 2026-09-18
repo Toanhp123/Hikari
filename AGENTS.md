@@ -51,6 +51,8 @@ Do not load unrelated decision records "just in case".
 
 Use repository-owned gates. `PASS` means actually executed; `PENDING` means not run; `BLOCKED` means an environmental prerequisite prevented execution; `FAIL` means execution exposed a defect. Static inspection never becomes executable PASS.
 
+A task may be marked `CLOSED` in the Current Control Block/active plan only after every executable gate required by that task's exit criteria has actually run and produced the required evidence. Code review, static inspection, compilation alone, or an earlier unrelated `PASS` may not be promoted into closure evidence. If a required gate cannot run, keep the task `PENDING`/`BLOCKED` and record the blocker; do not advance the current-work pointer merely because the implementation looks complete.
+
 ```powershell
 .\scripts\verify-bootstrap.ps1 -DoctorOnly
 .\scripts\verify-bootstrap.ps1 -HostOnly
@@ -63,19 +65,24 @@ bash scripts/verify-bootstrap.sh --host-only
 bash scripts/verify-bootstrap.sh
 ```
 
-Run focused tests while developing, then the owning canonical gate when the environment permits it. Verification must be proportional to the change: do not rerun a broad gate merely because it exists in a plan when the current diff cannot affect it. Prefer one batched Gradle invocation for the affected modules, reuse configuration/build cache, and use instrumentation class filters when only a small Android behavior changed.
+Verification ownership is explicit and does not change merely because a gate appears in a plan:
 
-For long-running commands, keep agent context lean: successful runs should be summarized by command + exit status/key counts, not pasted in full. Capture stdout/stderr to an OS-temp or repository-ignored local log when useful; on failure, surface only the first actionable error plus a small relevant tail, then rerun the failing task with `--stacktrace`/`--info` only if needed.
+- **Agent-owned by default:** focused JVM/unit tests, targeted test filters that do not require a device/emulator, small compile checks, and narrow static/diagnostic contracts needed while reasoning is local.
+- **User-owned by default:** connected/instrumented/device/emulator tests; WorkManager/SAF/Media3 runtime acceptance; process-death harnesses; unfiltered module/full regression; cross-module architecture/foundation/security acceptance; lint/Detekt sweeps; `verify*.ps1`/`verify*.sh`; release-like builds; clean-checkout CI parity; benchmarks/profiling; and physical-device acceptance.
+- A plan may require a user-owned gate, but that requirement does **not** authorize the agent to run it automatically. At handoff, emit the exact remaining command(s); the user may explicitly delegate any command back.
+- Do not ask the user to run an expensive acceptance gate merely to manufacture a ceremonial RED. First make agent-owned focused checks green unless the owning plan explicitly requires a pre-change baseline.
+- Successful user evidence may be concise (`command` + `PASS`/exit summary). On failure, ask for or inspect the first actionable failure region and only expand when diagnosis needs more context.
+- Never mark a task `CLOSED` until every required user-owned gate has been supplied and reviewed.
 
-Long-running execution is **blocking, not observed**:
+Verification must remain proportional to the change. Prefer one batched Gradle invocation for affected agent-owned checks, reuse configuration/build cache, and narrow failures before requesting a broader rerun. Do not rerun doctor/bootstrap/full verification unless the environment, build logic, or owning surface changed.
 
-- launch one focused invocation and wait for its exit using the tool/runtime's native blocking wait with a finite wall-clock bound appropriate to that gate; a command may legitimately take minutes, so elapsed time alone is not failure;
-- never `tail -f`, `Get-Content -Wait`, repeatedly reopen the log, poll a process/job/device in a loop, or spend model/tool turns merely checking whether the command is still running;
-- if a tool returns a live-process/session handle instead of blocking, use one native bounded wait when available; do not create a `sleep`/poll/`feed` loop just to watch progress;
-- if the invocation exceeds its chosen execution bound or is clearly non-terminating, stop that invocation, preserve the log, and report the execution as timed out/blocked rather than continuing to observe it indefinitely; do not silently convert such a stop into a test `FAIL`;
-- after exit, read only the bounded summary or failure slice needed for the next decision. Do not paste the whole log back into agent context.
+For agent-owned commands, keep context lean and execution **blocking, not observed**:
 
-Do not rerun doctor/bootstrap/full verification unless the environment, build logic, or owning surface changed. Full-suite/release/device matrices belong at explicit checkpoint/closure gates, not after every task.
+- run one non-interactive invocation through process exit when the runtime can block silently; command duration alone is not a reason to poll or stream progress;
+- redirect chatty stdout/stderr to an OS-temp or repository-ignored log when useful; successful runs are summarized by command + exit status/key counts, not pasted in full;
+- never `tail -f`, `Get-Content -Wait`, repeatedly reopen the log, or spend model/tool turns polling a live process merely to see whether it is still running;
+- if the runtime returns a live-process handle, use a native blocking wait when available. If completion would require repeated model turns or streamed output, stop supervising and hand the command to the user instead of entering a polling loop;
+- after exit/failure, read only the bounded summary or failure slice needed for the next decision; use `--stacktrace`/`--info` only on the narrowed failing task when needed.
 
 Self-review the final diff for accidental scope expansion, stale docs, dead code, and architecture/security regression.
 

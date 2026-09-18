@@ -25,7 +25,7 @@ register one SAF root
 
 **Current toolchain baseline:** JDK 17, Gradle 9.4.1, AGP 9.2.1, Kotlin 2.4.20, compile/target/min SDK 37/37/23, SDK package `platforms;android-37.0`.
 
-**New library baseline to verify in Task 0:** Room 2.8.5, KSP 2.3.12, WorkManager 2.11.2, Media3 1.11.1, kotlinx.coroutines 1.11.0, and Lifecycle 2.11.0 where lifecycle-aware Compose collection is actually needed. Versions are pinned only after the real repository compile/verification spike passes; no `kapt` is introduced. Avoid Lifecycle 2.12 alpha because its Compose artifacts require compileSdk 37.1, conflicting with the current locked compileSdk 37 bootstrap contract.
+**Verified first-slice library baseline from Task 0:** Room 2.8.5, KSP 2.3.12, WorkManager 2.11.2, Media3 1.11.1, kotlinx.coroutines 1.11.0, and Lifecycle 2.11.0 where lifecycle-aware Compose collection is actually needed. These pins were accepted only after the real repository compile/verification spike passed on Windows/JDK 17; no `kapt` was introduced. Avoid Lifecycle 2.12 alpha because its Compose artifacts require compileSdk 37.1, conflicting with the current locked compileSdk 37 bootstrap contract.
 
 ---
 
@@ -159,21 +159,22 @@ Traversal and reconciliation are separate phases even when the first slice only 
 - `:playback:media3` does not directly depend on `:data`; persistence is injected through a narrow playback-api callback/event boundary owned by `:app` composition.
 - Android framework objects do not cross pure-Kotlin public APIs when a small typed scalar/value object suffices.
 
-### Verification economy / agent token discipline
+### Verification ownership / agent token discipline
 
-The commands in each task are **owning gates**, not a requirement to rerun every previously-green repository gate after every edit. Use the smallest evidence surface that can falsify the current change, then broaden only at explicit checkpoints.
+The commands in each task are **owning gates**, not blanket permission for the agent to execute every gate. Preserve Hikari-style ownership: cheap local reasoning stays agent-owned; expensive/runtime/acceptance evidence is user-owned by default.
 
-- During RED/GREEN loops, run the single affected test class/task first. Do not run connected/device suites while a JVM/unit/compile failure is still red.
-- Batch related Gradle tasks into one invocation so configuration cache/build cache can be reused; do not run the same module compile/test repeatedly as separate commands without a diagnostic reason.
-- `verifyArchitecture` is required when Gradle project edges/build logic/module public boundaries change and at Tasks 0, 4, 7, 10, 12 and 13 checkpoints; otherwise a previously-green result may be reused when the owning surface is untouched.
-- `verifyFast`, security baseline, release-like builds, clean-checkout CI parity and broad device matrices are checkpoint/closure gates. Do not run them after every task.
-- Connected tests are required only for behavior that depends on Android framework/runtime/Room-on-device/WorkManager/Media3/SAF. Prefer instrumentation class filters for the tests added by the current task.
-- Do not rerun environment doctor/bootstrap checks unless the JDK/SDK/wrapper/build-logic/environment changed or a failure points there.
-- On a failing broad command, narrow immediately to the first failing task/test; do not repeatedly rerun the entire broad gate while debugging.
-- Keep agent context small: successful commands are recorded as command + PASS + concise counts/timing. Full successful Gradle output is not copied into reasoning/handoff. On failure, retain the first actionable error and a small relevant tail; use a local ignored log for full output when needed.
-- A prior PASS may be reused only when the files/configuration that own that gate have not changed since that PASS. If uncertain, rerun the owning gate.
+- **Agent-owned:** focused JVM/unit tests, targeted non-device test filters, small compile checks, and narrow static/contract diagnostics. Batch related checks into one Gradle invocation where practical.
+- **User-owned:** connected/instrumented/device/emulator tests; WorkManager/SAF/Media3 runtime acceptance; process-death proof; unfiltered module/full regression; cross-module `verifyArchitecture` / `:app:verifyFoundation` / security acceptance; `verify*.ps1`/`verify*.sh`; lint/Detekt sweeps; release-like builds; clean-checkout CI parity; benchmarks/profiling; and physical-device acceptance.
+- A task may require a user-owned gate, but the agent stops at that boundary and hands off the exact command(s). The user may explicitly delegate a command back.
+- Do not spend a user-owned acceptance run merely to manufacture a ceremonial RED. First make the relevant agent-owned unit/compile/static checks green unless a pre-change baseline is explicitly required.
+- Prefer instrumentation class filters when handing off connected tests added by the current task. Do not request a broad device suite while a focused local failure remains unresolved.
+- On a failed user-owned gate, narrow the next requested command to the smallest failing task/class before asking for another broad rerun.
+- Keep evidence concise: successful commands are recorded as command + PASS + counts/timing; failures surface the first actionable region plus a small tail. Full logs are requested only when root-cause analysis needs them.
+- A prior PASS may be reused only when the files/configuration that own that gate have not changed since that PASS. Reuse never converts an unexecuted required gate into `PASS`.
+- `verifyArchitecture` remains required when project edges/build logic/public module boundaries change and at Tasks 0, 4, 7, 10, 12 and 13 checkpoints; outside those checkpoints it need not be repeated when the owning surface is untouched.
+- Task 13 still performs the complete closure verification, but those broad closure gates remain user-owned by default.
 
-This economy rule reduces wall-clock time and token/log churn; it never converts an unexecuted gate into `PASS`. Task 13 still performs the full closure verification once.
+For agent-owned commands, use one blocking invocation and do not tail/poll live output. If the runtime cannot await a command without repeated model turns or streamed progress, hand it to the user instead of supervising it.
 
 ---
 
@@ -194,7 +195,7 @@ This economy rule reduces wall-clock time and token/log churn; it never converts
 - Modify only as required: `app/build.gradle.kts`
 - Add/modify repository-owned build contract tests only when a new pin needs mechanical protection.
 
-**Pin candidates to verify:**
+**Verified Task 0 pins:**
 - Room `2.8.5`
 - Room Gradle plugin `2.8.5`
 - KSP `2.3.12`
@@ -315,12 +316,12 @@ VideoProgressCheckpoint
 - completion is not inferred from percentage;
 - incomplete traversal is representable independently from failure.
 
-**Focused gate:**
+**Agent-owned focused gate:**
 ```powershell
 .\gradlew.bat :core:model:test :core:domain:test --no-daemon
 ```
 
-`verifyArchitecture` may reuse the Task 0 PASS because Task 1 changes no Gradle project edge; rerun it only if Task 1 unexpectedly changes build/module boundaries.
+`verifyArchitecture` may reuse the Task 0 PASS because Task 1 changes no Gradle project edge. If Task 1 unexpectedly changes a build/module boundary, hand the required architecture gate to the user rather than auto-running it.
 
 **Exit criteria:** pure Kotlin contract layer exists; no Android/Room imports in core APIs.
 
@@ -412,14 +413,18 @@ Do not pre-create `media_grouping`, History, image/publication anchors or metada
 - DB close/reopen restores IDs, Library and progress;
 - schema export exists and Room schema validation passes.
 
-**Focused gate:**
+**Agent-owned focused gate:**
 ```powershell
 .\gradlew.bat :data:testDebugUnitTest --no-daemon
-# After JVM/schema tests are green, run only the new Room instrumentation classes (class filter preferred):
+```
+
+**User-owned acceptance gate after the focused gate is green:**
+```powershell
+# Prefer the new Room instrumentation class filter once concrete class names exist.
 .\gradlew.bat :data:connectedDebugAndroidTest --no-daemon
 ```
 
-Do not rerun `verifyArchitecture` unless this task changes a project dependency/build boundary.
+Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; if required, it is user-owned.
 
 **Exit criteria:** canonical DB version 1 exists, schema JSON committed, semantic transactions proven on device/emulator.
 
@@ -479,14 +484,18 @@ Do not rerun `verifyArchitecture` unless this task changes a project dependency/
 - URI/document ID never appears as generated `RootId`/`MediaId`/`AssetId`;
 - production code contains no `DocumentFile` scanner usage.
 
-**Focused gate:**
+**Agent-owned focused gate:**
 ```powershell
 .\gradlew.bat :storage:local:testDebugUnitTest --no-daemon
-# Then run only the new SAF/provider instrumentation classes (class filter preferred):
+```
+
+**User-owned acceptance gate after the focused gate is green:**
+```powershell
+# Prefer the new SAF/provider instrumentation class filter once concrete class names exist.
 .\gradlew.bat :storage:local:connectedDebugAndroidTest --no-daemon
 ```
 
-Do not rerun `verifyArchitecture` unless this task changes a project dependency/build boundary.
+Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; if required, it is user-owned.
 
 **Exit criteria:** SAF root can be validated/traversed through direct APIs and represented as typed observations without canonical identity leakage.
 
@@ -568,9 +577,15 @@ No static service locator. Android-created Worker receives dependencies through 
 - worker input contains `RootId` rather than the persisted tree URI/descriptor;
 - stale/superseded run cannot execute a negative-finalization path (first slice path is absent/disabled).
 
-**Gate:**
+**Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :ingestion:local:testDebugUnitTest :ingestion:local:connectedDebugAndroidTest :app:compileDebugKotlin verifyArchitecture --no-daemon
+.\gradlew.bat :ingestion:local:testDebugUnitTest :app:compileDebugKotlin --no-daemon
+```
+
+**User-owned checkpoint gate:**
+```powershell
+# Prefer class-filtered ingestion instrumentation when concrete classes exist.
+.\gradlew.bat :ingestion:local:connectedDebugAndroidTest verifyArchitecture --no-daemon
 ```
 
 **Exit criteria:** one root can be scheduled and scanned restart-safely with durable ScanRun truth independent from WorkManager state.
@@ -629,14 +644,18 @@ The feature receives plain stable IDs/scalars/UI models. It does not receive DAO
 - typed registration/scan failure is visible and retryable;
 - feature package has no forbidden Android storage/Room/WorkManager/Media3 imports.
 
-**Focused gate:**
+**Agent-owned focused gate:**
 ```powershell
 .\gradlew.bat :feature:library:testDebugUnitTest --no-daemon
-# Then run the new/affected Library Compose instrumentation classes only:
+```
+
+**User-owned acceptance gate:**
+```powershell
+# Run only the new/affected Library Compose instrumentation classes when class filters are available.
 .\gradlew.bat :feature:library:connectedDebugAndroidTest --no-daemon
 ```
 
-Do not run the full `:app:connectedDebugAndroidTest` surface here; Task 9 owns the composed app route/device proof.
+Do not request the full `:app:connectedDebugAndroidTest` surface here; Task 9 owns the composed app route/device proof.
 
 **Exit criteria:** user can register one folder and see the recognized MP4 in Library after the asynchronous scan completes.
 
@@ -688,12 +707,12 @@ MediaTarget(MediaId)
 - runtime resolved URI is not written to canonical Media ID or Library/navigation state;
 - second process/app graph construction reconstructs resolution entirely from durable binding/asset/locator state.
 
-**Focused gate:**
+**Agent-owned focused gate:**
 ```powershell
 .\gradlew.bat :source:api:test :source:local:testDebugUnitTest --no-daemon
 ```
 
-Do not rerun `verifyArchitecture` unless this task changes a project dependency/build boundary.
+Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; if required, it is user-owned.
 
 **Exit criteria:** canonical target can be resolved after restart without Library/feature directly knowing the SAF locator.
 
@@ -759,9 +778,15 @@ Activity/app UI
 - service teardown releases session/player;
 - feature modules have zero Media3 imports.
 
-**Gate:**
+**Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :playback:api:test :playback:media3:testDebugUnitTest :playback:media3:connectedDebugAndroidTest :app:verifyFoundation verifyArchitecture --no-daemon
+.\gradlew.bat :playback:api:test :playback:media3:testDebugUnitTest --no-daemon
+```
+
+**User-owned checkpoint gates:**
+```powershell
+# Prefer class-filtered Media3 instrumentation when concrete classes exist.
+.\gradlew.bat :playback:media3:connectedDebugAndroidTest :app:verifyFoundation verifyArchitecture --no-daemon
 .\scripts\verify-security-baseline.ps1
 ```
 
@@ -810,14 +835,18 @@ Activity/app UI
 - compatible same Asset/revision resumes exact persisted `positionMs`;
 - incompatible context does not blindly reuse precise anchor.
 
-**Focused gate:**
+**Agent-owned focused gate:**
 ```powershell
 .\gradlew.bat :core:domain:test :data:testDebugUnitTest :playback:media3:testDebugUnitTest --no-daemon
-# Once local tests are green, run only the new progress/persistence Media3 + Room instrumentation classes:
+```
+
+**User-owned acceptance gate:**
+```powershell
+# Prefer class-filtered progress/persistence Media3 + Room instrumentation when concrete classes exist.
 .\gradlew.bat :data:connectedDebugAndroidTest :playback:media3:connectedDebugAndroidTest --no-daemon
 ```
 
-Task 7 already owns the nearby architecture checkpoint; rerun `verifyArchitecture` here only if Task 8 changes module/build boundaries.
+Task 7 already owns the nearby architecture checkpoint; request `verifyArchitecture` here only if Task 8 changes module/build boundaries, and treat it as user-owned.
 
 **Exit criteria:** playback progress is durable typed application state, not Media3 runtime state.
 
@@ -871,14 +900,18 @@ Library onMediaSelected(MediaId)
 - returning from player does not create duplicate Media/Library entries;
 - Activity recreation reconnects to existing service/session rather than creating a second player owner.
 
-**Focused gate:**
+**Agent-owned focused gate:**
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest --no-daemon
-# Then run only the new/affected app orchestration instrumentation classes:
+```
+
+**User-owned acceptance gate:**
+```powershell
+# Prefer the new/affected app orchestration instrumentation class filter once concrete classes exist.
 .\gradlew.bat :app:connectedDebugAndroidTest --no-daemon
 ```
 
-Do not rerun `verifyArchitecture` unless this task changes a project dependency/build boundary; Task 10 owns the next architecture checkpoint.
+Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; Task 10 owns the next scheduled architecture checkpoint.
 
 **Exit criteria:** the user-visible path from Library card to playing/resuming MP4 works through all intended boundaries.
 
@@ -934,10 +967,17 @@ Characterize explicitly:
 - test prevents accidental filename/hash matching from silently becoming canonical policy;
 - record this as deferred breadth owned by `Q-ID-001/Q-REC-001`, not as a defect in first-slice acceptance.
 
-**Gate:**
+**Agent-owned focused pre-check:**
 ```powershell
-.\gradlew.bat :core:domain:test :data:connectedDebugAndroidTest :storage:local:connectedDebugAndroidTest :ingestion:local:connectedDebugAndroidTest :app:connectedDebugAndroidTest verifyArchitecture --no-daemon
+.\gradlew.bat :core:domain:test --no-daemon
 ```
+
+**User-owned checkpoint gate:**
+```powershell
+.\gradlew.bat :data:connectedDebugAndroidTest :storage:local:connectedDebugAndroidTest :ingestion:local:connectedDebugAndroidTest :app:connectedDebugAndroidTest verifyArchitecture --no-daemon
+```
+
+Prefer class filters for newly added characterization tests when they can preserve the same checkpoint evidence.
 
 **Exit criteria:** reruns, interruption and access loss cannot corrupt canonical identity/user state.
 
@@ -1007,7 +1047,7 @@ The test-evidence file is assertion input only; production code must not read it
 - primary modern: Android 17 / SDK 37.0 `google_apis` lane used by current CI;
 - real physical device when available for final evidence parity with bootstrap practice.
 
-**Gate:** run only the repository-owned two-phase process-death harness produced by this task. Do **not** rerun the full bootstrap verifier here; Tasks 12/13 own the broad quality/closure gates.
+**User-owned gate:** run only the repository-owned two-phase process-death harness produced by this task. The agent prepares the exact command/protocol and stops for returned evidence. Do **not** rerun the full bootstrap verifier here; Tasks 12/13 own the broad quality/closure gates.
 
 **Exit criteria:** real force-stop/restart demonstrates Library + source resolution + progress restoration with persisted SAF access.
 
@@ -1050,14 +1090,14 @@ The test-evidence file is assertion input only; production code must not read it
 - query cursors/resources closed deterministically;
 - no unbounded coroutine scope owned by a Composable.
 
-**Gate:**
+**User-owned quality checkpoint:**
 ```powershell
 .\scripts\verify-fast.ps1
 .\scripts\verify-security-baseline.ps1
 .\gradlew.bat verifyArchitecture :app:verifyFoundation --no-daemon
 ```
 
-Run connected and benchmark/device gates defined by the implemented harness.
+Connected, benchmark/profile and device gates defined by the implemented harness are also user-owned. The agent should hand them off as the smallest coherent batch after focused local diagnostics are green.
 
 **Exit criteria:** no architecture/security/performance regression requiring a workaround.
 
@@ -1074,8 +1114,8 @@ Run connected and benchmark/device gates defined by the implemented harness.
 - Update relevant engineering/security docs only when implementation changed an actual baseline.
 - Keep this plan as implementation history; do not create `docs/state/` or a second handoff document.
 
-**Full verification:**
-- all JVM/unit tests;
+**Full verification — user-owned closure gate by default:**
+- all JVM/unit tests not already covered by an unchanged reusable PASS;
 - all relevant Android instrumented tests;
 - `verifyArchitecture`;
 - `:app:verifyFoundation`;
@@ -1085,6 +1125,8 @@ Run connected and benchmark/device gates defined by the implemented harness.
 - first-slice real device/process-death proof;
 - startup Macrobenchmark characterization when runnable;
 - clean-checkout CI equivalent lanes.
+
+Before handoff, the agent must make focused local checks green, self-review the diff, then emit the exact closure command batch. It must not auto-run these broad gates unless the user explicitly delegates them back.
 
 **Foundation update rules:**
 - Current Control Block records only evidence actually produced;
