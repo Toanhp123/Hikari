@@ -40,6 +40,44 @@ APP_BUILD="$ROOT/app/build.gradle.kts"
 grep -Eq '^espresso[[:space:]]*=[[:space:]]*"3\.7\.0"$' "$VERSION_CATALOG" || fail "Espresso must stay on the Android-17-compatible 3.7.0 baseline"
 grep -Fq 'androidTestImplementation(libs.androidx.test.espresso.core)' "$APP_BUILD" || fail "app instrumentation must consume the pinned Espresso core instead of relying on an older Compose-test transitive"
 
+# First-slice Task 0 build contract: AGP 9 built-in Kotlin stays KSP-only, and the
+# compile API level remains distinct from the installed Android 17 package name.
+if grep -R -n -E '(^|[^A-Za-z])(kotlin-kapt|org\.jetbrains\.kotlin\.kapt|kapt\()' \
+  --include='*.gradle.kts' "$ROOT" --exclude-dir=.gradle --exclude-dir=build >/dev/null; then
+  fail "production Gradle scripts must not apply/use kapt under AGP 9 built-in Kotlin"
+fi
+
+ANDROID_APP_PLUGIN="$ROOT/build-logic/src/main/kotlin/universalmedia.android.application.gradle.kts"
+ANDROID_LIBRARY_PLUGIN="$ROOT/build-logic/src/main/kotlin/universalmedia.android.library.gradle.kts"
+BENCHMARK_BUILD="$ROOT/benchmark/build.gradle.kts"
+grep -Fq 'compileSdk = 37' "$ANDROID_APP_PLUGIN" || fail "application convention must keep compileSdk = 37"
+grep -Fq 'compileSdk = 37' "$ANDROID_LIBRARY_PLUGIN" || fail "library convention must keep compileSdk = 37"
+grep -Fq 'compileSdk = 37' "$BENCHMARK_BUILD" || fail "benchmark module must keep compileSdk = 37"
+grep -Fq 'platforms/android-37.0/android.jar' "$ROOT/scripts/verify-bootstrap.sh" || fail "Bash verifier must keep platforms/android-37.0 distinct from compileSdk 37"
+grep -Fq 'platforms\android-37.0\android.jar' "$ROOT/scripts/verify-bootstrap.ps1" || fail "PowerShell verifier must keep platforms/android-37.0 distinct from compileSdk 37"
+
+for pin in \
+  'room = "2.8.5"' \
+  'ksp = "2.3.12"' \
+  'work = "2.11.2"' \
+  'media3 = "1.11.1"' \
+  'coroutines = "1.11.0"' \
+  'lifecycle = "2.11.0"'; do
+  grep -Fq "$pin" "$VERSION_CATALOG" || fail "missing first-slice dependency pin: $pin"
+done
+
+DATA_BUILD="$ROOT/data/build.gradle.kts"
+INGESTION_BUILD="$ROOT/ingestion/local/build.gradle.kts"
+PLAYBACK_MEDIA3_BUILD="$ROOT/playback/media3/build.gradle.kts"
+grep -Fq 'alias(libs.plugins.ksp)' "$DATA_BUILD" || fail "Room data module must apply KSP"
+grep -Fq 'alias(libs.plugins.androidx.room)' "$DATA_BUILD" || fail "Room data module must apply the Room Gradle plugin"
+grep -Fq 'schemaDirectory("$projectDir/schemas")' "$DATA_BUILD" || fail "Room data module must export schemas to a committed project directory"
+grep -Fq 'ksp(libs.androidx.room.compiler)' "$DATA_BUILD" || fail "Room compiler must use KSP"
+grep -Fq 'implementation(libs.androidx.room.runtime)' "$DATA_BUILD" || fail "data module must consume Room runtime"
+grep -Fq 'implementation(libs.androidx.work.runtime.ktx)' "$INGESTION_BUILD" || fail "ingestion module must consume WorkManager Kotlin/coroutines runtime"
+grep -Fq 'implementation(libs.androidx.media3.exoplayer)' "$PLAYBACK_MEDIA3_BUILD" || fail "playback implementation must consume Media3 ExoPlayer"
+grep -Fq 'implementation(libs.androidx.media3.session)' "$PLAYBACK_MEDIA3_BUILD" || fail "playback implementation must consume Media3 session"
+
 DAEMON_JVM="$ROOT/gradle/gradle-daemon-jvm.properties"
 if [[ -f "$DAEMON_JVM" ]]; then
   grep -Eq '^toolchainVersion=17$' "$DAEMON_JVM" || fail "Gradle daemon JVM criteria must match the JDK 17 bootstrap baseline"
