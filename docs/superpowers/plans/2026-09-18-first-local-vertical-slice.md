@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE - Tasks 0-3 CLOSED; Task 4 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0-4 CLOSED; Task 5 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -512,6 +512,8 @@ Do not request `verifyArchitecture` unless this task changes a project dependenc
 
 ## Task 4 — Scan Orchestration + WorkManager Ownership
 
+**Status:** CLOSED - 8 focused JVM tests PASS; user confirmed both runtime handoff commands and verifyArchitecture succeeded. Reviewed local XML: 4 WorkManager tests and 1 app composition test, 0 failures/errors/skips on Redmi Note 9S / Android 15. Evidence reviewed on 2026-09-19; see foundation Current Control Block. Task 5 is next.
+
 **Purpose:** Run a restart-safe root scan through Q-SCN/Q-RUN semantics while keeping WorkManager telemetry separate from domain scan truth.
 
 **Files:**
@@ -586,13 +588,13 @@ No static service locator. Android-created Worker receives dependencies through 
 
 **Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :ingestion:local:testDebugUnitTest :app:compileDebugKotlin --no-daemon
+.\gradlew.bat :ingestion:local:testDebugUnitTest --tests '*LocalRootScanRunnerTest' :ingestion:local:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon
 ```
 
 **User-owned checkpoint gate:**
 ```powershell
-# Prefer class-filtered ingestion instrumentation when concrete classes exist.
-.\gradlew.bat :ingestion:local:connectedDebugAndroidTest verifyArchitecture --no-daemon
+.\gradlew.bat :ingestion:local:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.ingestion.local.LocalScanWorkerTest" verifyArchitecture --no-daemon
+.\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.ScanCompositionTest" --no-daemon
 ```
 
 **Exit criteria:** one root can be scheduled and scanned restart-safely with durable ScanRun truth independent from WorkManager state.

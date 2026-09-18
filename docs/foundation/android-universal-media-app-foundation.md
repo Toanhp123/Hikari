@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** V1 Foundation R4.31 - First Slice Task 3 Closed / Task 4 Next
+**Revision:** V1 Foundation R4.33 - First Slice Task 4 Closed / Task 5 Next
 **Status:** Project Baseline / V1 First Slice In Progress
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-19 - Task 3 is CLOSED. The user confirmed the narrowed device rerun passed; local XML confirms 1 test, 0 failures/errors/skips on Redmi Note 9S / Android 15. Together with the seven unaffected cases from the earlier class run and focused JVM/compile evidence, this closes Task 3. Task 4 scan orchestration and WorkManager ownership is next.
+**Last foundation review:** 2026-09-19 - Task 4 is CLOSED. The user confirmed both handoff commands succeeded, including verifyArchitecture. Reviewed local device XML confirms 4 WorkManager tests and 1 app composition test, all with 0 failures/errors/skips on Redmi Note 9S / Android 15. Together with 8 focused JVM tests, this closes Task 4. Task 5 Library projection and root registration UI is next.
 
 ---
 
@@ -20,8 +20,8 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** V1 first local vertical slice is in progress; Phase 0 bootstrap remains closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Active implementation plan:** `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Read this plan after this control block before implementing the active task.
-- **Product implementation:** Tasks 0-3 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Scan orchestration, runtime source resolution, player and readers are not implemented yet.
-- **Current gate:** **FIRST LOCAL SLICE - TASK 3 CLOSED; TASK 4 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
+- **Product implementation:** Tasks 0-4 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Task 4 adds positive-only scan orchestration, unique root scheduling, injected Workers and eager WorkManager initialization with runtime and architecture acceptance evidence. Library/root-registration UI, runtime source resolution, player and readers are not implemented yet.
+- **Current gate:** **FIRST LOCAL SLICE - TASK 4 CLOSED; TASK 5 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
 - **Feature breadth:** stay inside the §13.1 plan. Broader media families, metadata breadth, reconciliation breadth and UI polish remain locked behind executable evidence from this slice.
 
 ## Current bootstrap contract
@@ -61,6 +61,12 @@ KSP is the annotation-processing path; `kapt` remains forbidden. These pins are 
 
 ## Fresh evidence in this snapshot
 
+- `PASS` - 2026-09-19 Task 4 focused agent gate: `./gradlew.bat :ingestion:local:testDebugUnitTest --tests '*LocalRootScanRunnerTest' :ingestion:local:compileDebugAndroidTestKotlin :app:compileDebugKotlin :app:processDebugMainManifest --no-daemon`; BUILD SUCCESSFUL. Initial RED failed on missing runner/result types. Final expanded gate: `./gradlew.bat :ingestion:local:testDebugUnitTest --tests '*LocalRootScanRunnerTest' :ingestion:local:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon`; Final post-format invocation BUILD SUCCESSFUL in 17s with configuration-cache reuse; XML: 8 tests, 0 failures/errors/skips. Instrumentation compilation is not device runtime evidence.
+- Task 4 static self-review: no project-dependency edge, core port, schema, broad storage/network permission or negative reconciliation path added. Materialization already commits run-positive evidence atomically; the runner does not duplicate that write. Existing Room beginRun supersedes abandoned attempts; existing SAF traversal owns batch/cycle/budget bounds. WorkManager carries only RootId and uses KEEP with explicit exponential backoff. Merged app manifest selects UniversalMediaApplication and removes WorkManagerInitializer. These are inspection facts, not architecture/security acceptance PASS. Independent implementer/reviewer attempts were unavailable because the provider returned a credentials error.
+- `PASS` - 2026-09-19 user-confirmed Task 4 runtime and architecture checkpoint: `./gradlew.bat :ingestion:local:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.ingestion.local.LocalScanWorkerTest" verifyArchitecture --no-daemon`. Reviewed local XML: 4 tests, 0 failures/errors/skips on Redmi Note 9S / Android 15. Architecture PASS is based on the user's confirmation of this exact combined command.
+- `PASS` - 2026-09-19 user-confirmed app composition acceptance: `./gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.ScanCompositionTest" --no-daemon`. Reviewed local XML: 1 test, 0 failures/errors/skips on the same device. These results close Task 4. Worker recreation uses a reused scheduler ID with fresh domain runs; actual process-death acceptance remains the later slice gate.
+
+
 - `PASS` - 2026-09-19 Task 3 focused agent gate: `./gradlew.bat :storage:local:testDebugUnitTest --tests '*SafTraversalTest' :storage:local:compileDebugAndroidTestKotlin :storage:local:processDebugAndroidTestManifest --no-daemon`; exit 0; 9 JVM tests, 0 failures/errors/skips. Initial RED exposed missing traversal implementation; a later regression RED exposed cursor-close failures escaping typed coverage. Instrumentation compilation/manifest processing is not device runtime evidence.
 - `FAIL` - 2026-09-19 user-owned Task 3 device acceptance: `./gradlew.bat :storage:local:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.storage.local.SafLocalStorageTest" --no-daemon`; 8 tests, 1 failure on Redmi Note 9S / Android 15. The current-document test expected NOT_FOUND from a provider query throwing FileNotFoundException, but Android DocumentsProvider.query catches it and returns null. Null also represents provider failure, so production correctly retains UNAVAILABLE; it is not absence evidence. This corrects the test's platform assumption, not Q-STO/Q-SCN semantics.
 - `PASS` - 2026-09-19 correction gate: `./gradlew.bat :storage:local:testDebugUnitTest --tests '*SafTraversalTest' :storage:local:compileDebugAndroidTestKotlin --no-daemon`; exit 0, 9 JVM tests with 0 failures/errors/skips. The device regression now characterizes framework null behavior and separately tests empty-cursor and open-file NOT_FOUND. Production behavior is unchanged; only an explanatory comment was added.
@@ -99,9 +105,9 @@ The earlier Java-21/no-SDK generation-environment limitation and the first three
 
 ## Next concrete action
 
-Implement **Task 4 - Scan Orchestration + WorkManager Ownership** from the active plan. Inspect `:ingestion:local`, app composition and the existing scan/storage/materialization ports, then read the relevant `Q-SCN-001` and `Q-RUN-001` sections. Keep WorkManager telemetry separate from durable ScanRun truth. Task 4 runtime and architecture acceptance remain user-owned.
+Implement **Task 5 - Library Projection + Root Registration UI** from the active plan. Inspect `:feature:library`, app composition and the existing registration/Library/scan ports, then read the relevant `Q-LIB-001` and `Q-STO-001` sections. Keep platform registration and scheduling in app composition, with presentation-only feature inputs. Task 5 Compose runtime acceptance remains user-owned.
 
-Do not rerun research/planning as though the slice were still unplanned. Task 3 is CLOSED; Task 4 has not started. If executable evidence contradicts a provisional decision, stop and reopen the owning `Q-*` before adding a workaround. Broader media families, source ecosystems and UI polish remain out of scope. Macrobenchmark measurements remain a separate performance gate.
+Task 4 is CLOSED; Task 5 has not started. Do not repeat closed Tasks 0-4 or broaden the slice. If executable evidence contradicts a provisional decision, reopen the owning Q-* before a workaround. Macrobenchmark and real process-death measurements remain separate later gates.
 
 ## Token-efficient reading rule
 
@@ -12900,7 +12906,7 @@ NEXT - TASK 4 SCAN ORCHESTRATION / WORKMANAGER OWNERSHIP
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 4**. Bootstrap and Tasks 0-3 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
+The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 5**. Bootstrap and Tasks 0-4 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 
