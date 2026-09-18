@@ -1,0 +1,42 @@
+Phase-0 static verification — 2026-09-18 — R4.17
+
+[1] Bash script syntax
+PASS scripts/bootstrap-wrapper.sh
+PASS scripts/verify-fast.sh
+PASS scripts/verify-security-baseline.sh
+PASS scripts/verify-bootstrap.sh
+PASS scripts/tests/bootstrap-execution-harness-test.sh
+PASS scripts/tests/ci-bootstrap-contract-test.sh
+
+[2] Security baseline verifier
+PASS security baseline static checks
+
+[3] XML/TOML/YAML parse + architecture + policy scans
+PASS XML parse
+PASS version catalog TOML parse
+PASS CI YAML parse
+PASS architecture dependency allow-list
+PASS placeholder + built-in Kotlin policy scan
+PASS pinned-version scan
+PASS forbidden-permission scan
+PASS basic hard-coded secret scan
+
+[4] Wrapper pins
+PASS Gradle 9.4.1 distribution SHA-256 pin present
+PASS Gradle 9.4.1 wrapper JAR SHA-256 expected value present
+PENDING wrapper JAR byte materialization in this environment
+
+[5] Bootstrap execution harness tests
+PASS JDK 21 rejection behavior
+PASS fake JDK 17 + SDK 37 doctor behavior
+PASS missing Android API 37 rejection behavior
+PASS CI provisions compile SDK 37 + build-tools 37.0.0 in both jobs
+PASS CI host lane executes canonical verify-bootstrap --host-only gate
+
+[6] Current environment execution capability
+openjdk version "21.0.11" 2026-04-21
+EXPECTED BLOCK: verify-bootstrap --doctor-only => Expected JDK 17, found Java 21
+PENDING official gradle-wrapper.jar materialization
+PENDING Android SDK tooling
+
+RESULT: STATIC/HARNESS VERIFICATION PASS; REAL GRADLE/ANDROID/CI EXECUTION PENDING.
