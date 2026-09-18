@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** V1 Foundation R4.25 — First Slice Task 0 Closed / Task 1 Active
+**Revision:** V1 Foundation R4.27 — First Slice Task 1 Closed / Task 2 Next
 **Status:** Project Baseline / V1 First Slice In Progress
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-19 — first-slice Task 0 dependency/build preflight completed on the real Windows JDK-17 repository. `help :data:compileDebugKotlin :app:compileDebugKotlin verifyArchitecture --no-daemon` passed, then `scripts/verify-fast.ps1` passed end-to-end. This proves the selected Room/KSP/WorkManager/Media3 pins compile inside the locked bootstrap toolchain without changing the reviewed module graph. The active implementation authority is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`; Task 1 is the next action. Macrobenchmark device measurements remain a separate, non-blocking performance gate.
+**Last foundation review:** 2026-09-19 — Task 1 is CLOSED: 9 focused JVM tests passed and the user confirmed PASS for `./gradlew.bat :core:model:test :core:domain:test --no-daemon`. Task 0 dependency/build evidence remains valid, with no build or project-edge changes. Task 2 canonical Room database and semantic transactions are next under `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Macrobenchmark device measurements remain a separate, non-blocking performance gate.
 
 ---
 
@@ -20,8 +20,8 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** V1 first local vertical slice is in progress; Phase 0 bootstrap remains closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Active implementation plan:** `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Read this plan after this control block before implementing the active task.
-- **Product implementation:** Task 0 dependency/build preflight is closed. Canonical IDs/domain scan/progress contracts, Room schema, scanner, source resolution, player and readers are not implemented yet.
-- **Current gate:** **FIRST LOCAL SLICE — TASK 0 CLOSED; TASK 1 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
+- **Product implementation:** Task 0 dependency/build preflight is closed. Task 1 canonical IDs, target, root/observation/scan contracts, semantic ports and video-progress contracts exist in pure Kotlin. Room schema, port implementations, scanner, source resolution, player and readers are not implemented yet.
+- **Current gate:** **FIRST LOCAL SLICE — TASK 1 CLOSED; TASK 2 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
 - **Feature breadth:** stay inside the §13.1 plan. Broader media families, metadata breadth, reconciliation breadth and UI polish remain locked behind executable evidence from this slice.
 
 ## Current bootstrap contract
@@ -61,6 +61,9 @@ KSP is the annotation-processing path; `kapt` remains forbidden. These pins are 
 
 ## Fresh evidence in this snapshot
 
+- `PASS` — 2026-09-19 Task 1 focused JVM gate: `./gradlew.bat :core:model:test --tests '*CanonicalIdentityTest' :core:domain:test --tests '*FirstSliceContractTest' --no-daemon`; 9 tests, 0 failures/errors, final invocation exit 0 with configuration-cache reuse. Initial RED failed on missing contract types; the first implementation run exposed a redundant test assertion under warnings-as-errors, corrected before the final PASS.
+- `PASS` — 2026-09-19 user-reported Task 1 unfiltered module gate: `./gradlew.bat :core:model:test :core:domain:test --no-daemon`. The user confirmed the exact handoff command passed; this evidence was reviewed and closes Task 1 alongside the focused tests and permitted Task 0 architecture-evidence reuse.
+- Task 1 static self-review found no Android/Room imports or build/project-edge changes. Task 0 architecture evidence is reused as allowed by Task 1; this is not a new architecture-gate execution. Independent automated review was unavailable because the reviewer provider returned a credentials error.
 - `PASS` — 2026-09-19 real Windows Task 0 preflight: `./gradlew.bat help :data:compileDebugKotlin :app:compileDebugKotlin verifyArchitecture --no-daemon`; Gradle 9.4.1 completed successfully with configuration-cache reuse.
 - `PASS` — 2026-09-19 real Windows `./scripts/verify-fast.ps1`; `verifyFast` completed successfully, including lint/build/test surfaces owned by that gate.
 - `PASS` — Task 0 therefore closes without changing the reviewed project-dependency allow-list and without adding product implementation.
@@ -85,7 +88,7 @@ The earlier Java-21/no-SDK generation-environment limitation and the first three
 
 ## Next concrete action
 
-Implement **Task 1 — Minimal Canonical IDs, Target, Observation and Progress Contracts** from `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Before editing, inspect the current `:core:model` / `:core:domain` code and read only the owning decisions needed by Task 1, especially `Q-ID-001`, `Q-SCN-001`, `Q-PROG-001..002`, `Q-MOD-001`, and `Q-API-001`. Keep Task 1 pure Kotlin: no Android framework, Room, WorkManager, SAF or Media3 types may leak into the public core contracts.
+Implement **Task 2 — Canonical Room Database V1 + Semantic Transactions** from the active plan. Inspect `:data` and the existing core contracts, then read the owning `Q-PER-001` decision and only the relevant identity, scan, Library and progress decisions. Task 1 uses UUID-backed app-generated IDs, serialized/redacted locator evidence, full-root provider-declared-MP4 scope, separate outcome/coverage, and target-owned video progress with compare-and-set state revisions (absent state revision 0). Port implementations must enforce the documented atomicity, stale-run rejection and checkpoint ordering; contract tests do not prove persistence behavior. Library observation uses a suspending callback with caller cancellation. Task 2 device acceptance remains user-owned and must pass before closure.
 
 Do not rerun research/planning as though the slice were still unplanned, and do not skip ahead to Room/schema or Android implementation while Task 1 is red. If executable evidence contradicts a provisional decision, stop and reopen the owning `Q-*` before adding a workaround. Broader media families, source ecosystems and UI polish remain out of scope. Macrobenchmark device measurements remain a separate performance gate and are not silently inferred from assembly.
 
@@ -12875,12 +12878,14 @@ PHASE-0 BOOTSTRAP CLOSED
         ↓
 TASK 0 DEPENDENCY / BUILD / ARCHITECTURE PREFLIGHT — CLOSED
         ↓
-NEXT — TASK 1 PURE-KOTLIN IDENTITY / OBSERVATION / PROGRESS CONTRACTS
+TASK 1 PURE-KOTLIN CONTRACTS — CLOSED
+        ↓
+NEXT — TASK 2 CANONICAL ROOM DATABASE / SEMANTIC TRANSACTIONS
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 1** rather than repeating research or broadening into several product modules. The bootstrap and Task 0 evidence are green; Macrobenchmark measurements remain a separate later device-performance gate.
+The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 2**. The bootstrap, Task 0 and Task 1 evidence are green; Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 

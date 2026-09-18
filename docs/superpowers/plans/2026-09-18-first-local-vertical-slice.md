@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE — research/self-review complete; Task 0 dependency/build preflight CLOSED with real Windows executable evidence on 2026-09-19; Task 1 is NEXT.
+**Status:** ACTIVE — Tasks 0 and 1 CLOSED; Task 2 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -242,7 +242,7 @@ For agent-owned commands, use one blocking invocation and do not tail/poll live 
 
 ## Task 1 — Minimal Canonical IDs, Target, Observation and Progress Contracts
 
-**Status:** NEXT — not started.
+**Status:** CLOSED — 9 focused JVM tests PASS and user-confirmed unfiltered module gate PASS on 2026-09-19; see foundation Current Control Block.
 
 **Purpose:** Introduce only the stable types needed by the vertical slice before Room/Android implementation details appear.
 
@@ -316,7 +316,12 @@ VideoProgressCheckpoint
 - completion is not inferred from percentage;
 - incomplete traversal is representable independently from failure.
 
-**Agent-owned focused gate:**
+**Agent-owned focused checks:**
+```powershell
+.\gradlew.bat :core:model:test --tests '*CanonicalIdentityTest' :core:domain:test --tests '*FirstSliceContractTest' --no-daemon
+```
+
+**User-owned module gate (per root `AGENTS.md`):**
 ```powershell
 .\gradlew.bat :core:model:test :core:domain:test --no-daemon
 ```
@@ -330,6 +335,8 @@ VideoProgressCheckpoint
 ---
 
 ## Task 2 — Canonical Room Database V1 + Semantic Transactions
+
+**Status:** NEXT — not started.
 
 **Purpose:** Materialize the minimum approved Q-PER schema needed by the first slice while establishing migration discipline from schema version 1.
 
