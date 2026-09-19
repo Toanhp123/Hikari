@@ -102,6 +102,7 @@ class InternalPlaybackController private constructor(private val controller: Med
             controller.currentPosition.coerceAtLeast(0),
             controller.duration.takeIf { it >= 0 },
             failure,
+            controller.sessionExtras.getBoolean(PlaybackService.PROGRESS_SAVE_FAILED),
         )
     }
 

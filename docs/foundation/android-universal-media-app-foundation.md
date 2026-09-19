@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** V1 Foundation R4.39 - First Slice Task 7 Closed / Task 8 Next
+**Revision:** V1 Foundation R4.41 - First Slice Task 8 Closed / Task 9 Next
 **Status:** Project Baseline / V1 First Slice In Progress
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-19 - Task 7 is CLOSED. User confirmed the narrowed playback device rerun plus verifyArchitecture passed. Reviewed XML: 1 playback lifecycle test, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Combined with the earlier private transport PASS, security script PASS and focused JVM evidence, this closes Task 7. Task 8 is next. Retained JDK-25 criteria remain a separate deviation from the canonical JDK-17 baseline.
+**Last foundation review:** 2026-09-19 - Task 8 is CLOSED. User confirmed both acceptance commands succeeded, including verifyArchitecture. Reviewed local XML: 3 Media3 tests and 1 Room reopen/resume test, 0 failures/errors/skips on Redmi Note 9S / Android 15. Together with 13 focused JVM tests, this closes Task 8. Task 9 is next. Retained JDK-25 criteria do not establish canonical JDK-17 parity.
 
 ---
 
@@ -20,8 +20,8 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** V1 first local vertical slice is in progress; Phase 0 bootstrap remains closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Active implementation plan:** `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Read this plan after this control block before implementing the active task.
-- **Product implementation:** Tasks 0-7 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Task 4 adds positive-only scan orchestration, unique root scheduling, injected Workers and eager WorkManager initialization with runtime and architecture acceptance evidence. Task 5 adds presentation-only Library/root controls, app-owned SAF registration-to-scan orchestration and a locator-free durable root/scan projection with device, architecture and user-confirmed folder-to-card acceptance evidence. Task 6 adds runtime local source resolution through LocalSourceCatalog and LocalDocumentAccess, with app-owned injection and device/architecture acceptance evidence. Task 7 adds the internal playback runtime with device lifecycle, architecture and security acceptance; app playback navigation and readers are not implemented yet.
-- **Current gate:** **FIRST LOCAL SLICE - TASK 7 CLOSED; TASK 8 IS NEXT.** Bootstrap and Tasks 0-7 retain their closure evidence. Current local daemon criteria select JDK 25 instead of the canonical JDK 17; baseline parity needs reconciliation and verification.
+- **Product implementation:** Tasks 0-8 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Task 4 adds positive-only scan orchestration, unique root scheduling, injected Workers and eager WorkManager initialization with runtime and architecture acceptance evidence. Task 5 adds presentation-only Library/root controls, app-owned SAF registration-to-scan orchestration and a locator-free durable root/scan projection with device, architecture and user-confirmed folder-to-card acceptance evidence. Task 6 adds runtime local source resolution through LocalSourceCatalog and LocalDocumentAccess, with app-owned injection and device/architecture acceptance evidence. Task 7 adds the internal playback runtime with device lifecycle, architecture and security acceptance; Task 8 adds typed checkpoint/resume policy with focused host, Media3 runtime, Room reopen/resume and architecture acceptance evidence. App playback navigation and readers are not implemented yet.
+- **Current gate:** **FIRST LOCAL SLICE - TASK 8 CLOSED; TASK 9 IS NEXT.** Bootstrap and Tasks 0-8 retain their closure evidence. Current local daemon criteria select JDK 25 instead of the canonical JDK 17; baseline parity needs reconciliation and verification.
 - **Feature breadth:** stay inside the §13.1 plan. Broader media families, metadata breadth, reconciliation breadth and UI polish remain locked behind executable evidence from this slice.
 
 ## Current bootstrap contract
@@ -60,6 +60,13 @@ Task 0 has executable compile/verification evidence for these pinned first-slice
 KSP is the annotation-processing path; `kapt` remains forbidden. These pins are implementation dependencies under the existing bootstrap contract, not permission to broaden module dependencies or product scope.
 
 ## Fresh evidence in this snapshot
+
+- Task 8 implementation policy: 5-second periodic sampling during active playback; unchanged positions do not write; pause/seek/stop/transition/ended/teardown checkpoint established playback. A 64-entry FIFO replaces cross-target conflation; writes select the accepted revision serially. Queue overflow, stale CAS, exceptions or 5-second sink timeout disable that run and expose a save failure. Teardown drains accepted events for at most 10 seconds while the process remains alive; neither teardown nor a blocked/failing store guarantees durability after OS kill.
+- Task 8 domain policy: exact timestamp reuse requires the requested canonical target and same Asset/revision; binding changes alone do not invalidate equivalent representation provenance. Missing/changed provenance returns typed start-from-beginning without modifying durable state. App persistence preserves existing COMPLETED state on backward movement. Public policy/state contract changes require user-owned `verifyArchitecture`; no module edge, table/schema, permission or navigation change is introduced.
+- Task 8 development evidence: policy RED failed on missing policy symbols. Initial GREEN attempt exposed two redundant instrumentation `!!` assertions under `-Werror`, corrected. Changed-file formatter required renaming the domain file to `VideoResumeDecision.kt`, corrected. Independent reviewer startup failed because the tool's inherited model was unavailable; final review is author self-review only.
+- `PASS` - 2026-09-19 Task 8 focused gate: `./gradlew.bat :core:domain:test --tests '*VideoResumePolicyTest' :playback:media3:testDebugUnitTest --tests '*PlaybackCheckpointPolicyTest' --tests '*PlaybackCheckpointWriterTest' :app:testDebugUnitTest --tests '*PlaybackProgressAdapterTest' :data:compileDebugAndroidTestKotlin :playback:media3:compileDebugAndroidTestKotlin --no-daemon`, batched with changed-file `spotlessKotlinApply` using absolute-path `spotlessIdeHook`. BUILD SUCCESSFUL in 30s, exit 0. Reviewed XML: 13 tests, 0 failures/errors (3 resume, 4 policy, 4 writer, 2 adapter). Instrumentation compiled only. Retained JDK-25 criteria do not prove JDK-17 parity.
+- `PASS` - 2026-09-19 user-confirmed Task 8 acceptance: `./gradlew.bat :playback:media3:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.playback.media3.PlaybackServiceTest" verifyArchitecture --no-daemon` and `./gradlew.bat :data:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.data.RoomMediaStoreTest#reopenRestoresIdentityLibraryAndBackwardSeekAndRejectsStaleCheckpoint" --no-daemon`. Reviewed local XML: 3 Media3 tests and 1 Room test, 0 failures/errors/skips on Redmi Note 9S / Android 15. Architecture PASS is based on user confirmation of the combined command. These results close Task 8; they prove checkpoint production and database reopen/resume compatibility, not OS process death. No device gate was run by the agent.
+
 
 - `PASS` - 2026-09-19 Task 7 focused gate: `./gradlew.bat :playback:api:test --tests '*PlaybackRequestTest' :playback:media3:testDebugUnitTest --tests '*PlaybackCheckpointWriterTest' :app:testDebugUnitTest --tests '*PlaybackProgressAdapterTest' :playback:media3:compileDebugAndroidTestKotlin :playback:media3:processDebugAndroidTestManifest :app:processDebugMainManifest --no-daemon`. BUILD SUCCESSFUL in 26s; final post-manifest-hardening invocation succeeded in 9s with configuration-cache reuse. Reviewed XML: 8 tests, 0 failures/errors/skips (4 request, 3 writer, 1 app adapter). Instrumentation compiled only. These runs retain JDK-25 daemon criteria and do not prove JDK-17 parity.
 - Task 7 implementation: pure-Kotlin playback request/state/command/sink contracts; explicit same-app controller; service-owned ExoPlayer/MediaSession; Android SurfaceView adapter; app-owned ProgressStore adapter. The initial producer checkpoints pause/transition through a bounded queue and a serial revision-aware writer. Periodic/completion checkpointing, full transition/teardown durability and resume policy remain Task 8; app navigation remains Task 9. Sink failure/staleness disables writes for that run without retrying or crashing playback; surfacing durable-progress failure belongs with Task 8 policy.
@@ -127,9 +134,9 @@ The earlier Java-21/no-SDK generation-environment limitation and the first three
 
 ## Next concrete action
 
-Implement **Task 8 - Typed Video Progress Checkpointing + Resume Compatibility** from the active plan. Inspect the service checkpoint producer, app progress adapter, domain progress contracts and data revision guards; read the owning Q-PROG decisions. Preserve canonical target ownership, serialize writes without enforcing monotonic position, and keep exact resume conditional on compatible Asset/revision provenance.
+Implement **Task 9 - App Playback Route and End-to-End Orchestration** from the active plan. Connect Library target selection to app-owned source resolution, durable progress load, typed resume compatibility and playback. Keep feature UI presentation-only and Media3-specific surface ownership in `:playback:media3`.
 
-Task 7 is CLOSED; Task 8 has not started. Periodic/completion checkpoint policy and compatible resume belong to Task 8; app playback navigation remains Task 9; actual OS process-death acceptance remains Task 11. Retain the user-requested JDK-25 daemon file; no canonical JDK-17 parity or baseline migration is claimed.
+Task 8 is CLOSED with focused host and user-confirmed device/architecture evidence. Task 9 has not started. Actual OS process-death acceptance remains Task 11. Retain the user-requested JDK-25 daemon file; no canonical JDK-17 parity or baseline migration is claimed.
 
 ## Token-efficient reading rule
 
@@ -12931,12 +12938,14 @@ TASK 6 LOCAL SOURCE RESOLUTION BOUNDARY - CLOSED
         |
 TASK 7 PLAYBACK API / MEDIA3 SESSION SERVICE - CLOSED
         |
-NEXT - TASK 8 TYPED VIDEO PROGRESS / RESUME COMPATIBILITY
+TASK 8 TYPED VIDEO PROGRESS / RESUME COMPATIBILITY - CLOSED
+        |
+NEXT - TASK 9 APP PLAYBACK ROUTE / END-TO-END ORCHESTRATION
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 8**. Bootstrap and Tasks 0-7 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
+The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 9**. Bootstrap and Tasks 0-8 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 

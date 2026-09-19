@@ -828,6 +828,8 @@ Activity/app UI
 
 ## Task 8 — Typed Video Progress Checkpointing + Resume Compatibility
 
+**Status:** CLOSED - 13 focused JVM tests PASS; user confirmed both acceptance commands and verifyArchitecture succeeded. Reviewed local XML on 2026-09-19: 3 Media3 tests and 1 Room reopen/resume test, 0 failures/errors/skips on Redmi Note 9S / Android 15. This does not prove OS process death. Canonical evidence lives in the foundation Current Control Block. Task 9 is next.
+
 **Purpose:** Prove durable progress independent from the runtime player and representation availability.
 
 **Files:**
@@ -867,16 +869,16 @@ Activity/app UI
 
 **Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :core:domain:test :data:testDebugUnitTest :playback:media3:testDebugUnitTest --no-daemon
+.\gradlew.bat :core:domain:test --tests '*VideoResumePolicyTest' :playback:media3:testDebugUnitTest --tests '*PlaybackCheckpointPolicyTest' --tests '*PlaybackCheckpointWriterTest' :app:testDebugUnitTest --tests '*PlaybackProgressAdapterTest' :data:compileDebugAndroidTestKotlin :playback:media3:compileDebugAndroidTestKotlin --no-daemon
 ```
 
-**User-owned acceptance gate:**
+**User-owned acceptance gates:**
 ```powershell
-# Prefer class-filtered progress/persistence Media3 + Room instrumentation when concrete classes exist.
-.\gradlew.bat :data:connectedDebugAndroidTest :playback:media3:connectedDebugAndroidTest --no-daemon
+.\gradlew.bat :playback:media3:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.playback.media3.PlaybackServiceTest" verifyArchitecture --no-daemon
+.\gradlew.bat :data:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.data.RoomMediaStoreTest#reopenRestoresIdentityLibraryAndBackwardSeekAndRejectsStaleCheckpoint" --no-daemon
 ```
 
-Task 7 already owns the nearby architecture checkpoint; request `verifyArchitecture` here only if Task 8 changes module/build boundaries, and treat it as user-owned.
+Task 8 adds domain resume-policy and playback-state contracts, so `verifyArchitecture` is required here. The Room fixture proves database reopen plus exact/fallback resume policy; the Media3 fixture proves runtime checkpoint production through the injected sink. Neither proves OS process death. Failed/slow sinks and forced process termination can lose uncommitted observations; the 5-second interval is the sampling policy, not an unconditional I/O latency guarantee.
 
 **Exit criteria:** playback progress is durable typed application state, not Media3 runtime state.
 

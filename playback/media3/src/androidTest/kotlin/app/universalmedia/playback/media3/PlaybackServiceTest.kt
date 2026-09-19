@@ -31,6 +31,79 @@ class PlaybackServiceTest {
     private val context = instrumentation.targetContext
     private val uri = Uri.parse("content://app.universalmedia.playback.fixture/fixture.mp4")
 
+    @Test fun periodicPauseBackwardSeekTransitionAndCompletionAreCheckpointed() = runBlocking {
+        instrumentation.context.grantUriPermission(
+            context.packageName,
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION,
+        )
+        val application = context.applicationContext as PlaybackTestApplication
+        val first = request()
+        val second = request()
+        var controller: InternalPlaybackController? = null
+        val screen = ActivityScenario.launch(PlaybackFixtureActivity::class.java)
+        try {
+            withContext(Dispatchers.Main) {
+                controller = InternalPlaybackController.connect(context)
+                assertTrue(controller.start(first))
+            }
+            awaitPlaying { controller!! }
+            withTimeout(12_000) {
+                while (application.checkpoints.none {
+                        it.request.target == first.target &&
+                            it.positionMs > 1000
+                    }
+                ) {
+                    delay(50)
+                }
+            }
+            withContext(Dispatchers.Main) {
+                controller!!.pause()
+                controller.seekTo(500)
+            }
+            withTimeout(5000) {
+                while (application.checkpoints.none {
+                        it.request.target == first.target &&
+                            it.positionMs in 400..600
+                    }
+                ) {
+                    delay(50)
+                }
+            }
+            withContext(Dispatchers.Main) { assertTrue(controller!!.start(second)) }
+            awaitPlaying { controller!! }
+            withContext(Dispatchers.Main) { controller!!.seekTo(29_500) }
+            withTimeout(10_000) {
+                while (application.checkpoints.none {
+                        it.request.target == second.target &&
+                            it.completed
+                    }
+                ) {
+                    delay(50)
+                }
+            }
+            val firstWrites = application.checkpoints.filter { it.request.target == first.target }
+            assertTrue(firstWrites.last().positionMs in 400..600)
+            assertEquals(
+                firstWrites.indices.map {
+                    it.toLong()
+                },
+                firstWrites.map { it.expectedRevision },
+            )
+            val ended = application.checkpoints.last { it.request.target == second.target }
+            assertTrue(ended.completed)
+            assertTrue(ended.positionMs >= 29_500)
+        } finally {
+            withContext(Dispatchers.Main) {
+                controller?.stop()
+                controller?.close()
+                context.stopService(Intent(context, PlaybackService::class.java))
+            }
+            screen.close()
+            instrumentation.context.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
     @Test fun localMp4SurvivesControllerDisconnectAndServiceCanBeRecreated() = runBlocking {
         instrumentation.context.grantUriPermission(
             context.packageName,

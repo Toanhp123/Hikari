@@ -16,11 +16,12 @@ internal class PlaybackProgressAdapter(private val store: ProgressStore) : Playb
     override suspend fun checkpoint(checkpoint: PlaybackCheckpoint): Long? =
         withContext(Dispatchers.IO) {
             val provenance = checkpoint.request.provenance
+            val previous = store.load(checkpoint.request.target)
             val result = store.checkpointVideo(
                 VideoProgressCheckpoint(
                     checkpoint.request.target,
                     VideoResumeAnchor(checkpoint.positionMs, checkpoint.durationMs),
-                    if (checkpoint.completed) {
+                    if (checkpoint.completed || previous?.completion == CompletionState.COMPLETED) {
                         CompletionState.COMPLETED
                     } else {
                         CompletionState.IN_PROGRESS

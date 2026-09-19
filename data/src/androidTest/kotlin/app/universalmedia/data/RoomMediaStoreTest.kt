@@ -123,6 +123,24 @@ class RoomMediaStoreTest {
         assertEquals(1000L, store.progress.load(target)?.anchor?.positionMs)
         assertEquals(2L, store.progress.load(target)?.stateRevision)
         assertEquals(
+            app.universalmedia.core.domain.VideoResumeDecision.Exact(VideoResumeAnchor(1000)),
+            app.universalmedia.core.domain.selectVideoResume(
+                target,
+                store.progress.load(target),
+                checkpoint.context,
+            ),
+        )
+        assertEquals(
+            app.universalmedia.core.domain.VideoResumeDecision.StartFromBeginning,
+            app.universalmedia.core.domain.selectVideoResume(
+                target,
+                store.progress.load(target),
+                checkpoint.context.copy(
+                    assetRevision = app.universalmedia.core.domain.AssetRevision(999),
+                ),
+            ),
+        )
+        assertEquals(
             item.mediaId.value.toString(),
             database.catalog().cards().first().single().mediaId,
         )

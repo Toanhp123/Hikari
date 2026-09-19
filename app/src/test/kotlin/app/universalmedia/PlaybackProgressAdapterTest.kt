@@ -1,5 +1,6 @@
 package app.universalmedia
 
+import app.universalmedia.core.domain.CompletionState
 import app.universalmedia.core.domain.ProgressStore
 import app.universalmedia.core.domain.ProgressWriteResult
 import app.universalmedia.core.domain.VideoProgressCheckpoint
@@ -18,6 +19,21 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PlaybackProgressAdapterTest {
+    @Test fun backwardCheckpointPreservesPreviouslyCompletedTarget() = runBlocking {
+        val store = Store()
+        val request = PlaybackRequest(
+            ConsumptionTargetRef.MediaTarget(MediaId.generate()),
+            ResolvedVideo("content://private/video", "video/mp4"),
+            PlaybackProvenance(SourceBindingId.generate(), AssetId.generate(), 4),
+        )
+        store.previous =
+            VideoProgressState(request.target, null, CompletionState.COMPLETED, null, 7, 1)
+        PlaybackProgressAdapter(
+            store,
+        ).checkpoint(PlaybackCheckpoint(request, 12, 100, false, 50, 7))
+        assertEquals(CompletionState.COMPLETED, store.saved?.completion)
+    }
+
     @Test fun mapsRuntimeEventToCanonicalProgressWithoutPersistingUri() = runBlocking {
         val store = Store()
         val request = PlaybackRequest(
@@ -39,7 +55,8 @@ class PlaybackProgressAdapterTest {
 
     private class Store : ProgressStore {
         var saved: VideoProgressCheckpoint? = null
-        override suspend fun load(target: ConsumptionTargetRef): VideoProgressState? = null
+        var previous: VideoProgressState? = null
+        override suspend fun load(target: ConsumptionTargetRef): VideoProgressState? = previous
         override suspend fun checkpointVideo(
             checkpoint: VideoProgressCheckpoint,
         ): ProgressWriteResult {

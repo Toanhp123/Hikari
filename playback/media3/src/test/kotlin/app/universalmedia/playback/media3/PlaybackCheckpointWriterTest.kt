@@ -9,11 +9,40 @@ import app.universalmedia.playback.api.PlaybackProgressSink
 import app.universalmedia.playback.api.PlaybackProvenance
 import app.universalmedia.playback.api.PlaybackRequest
 import app.universalmedia.source.api.ResolvedVideo
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlaybackCheckpointWriterTest {
+    @Test fun delayedWriteFinishesBeforeNewerBackwardSeek() = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val writes = mutableListOf<Long>()
+        val writer = PlaybackCheckpointWriter(
+            PlaybackProgressSink {
+                if (it.expectedRevision == 0L) {
+                    entered.complete(Unit)
+                    release.await()
+                }
+                writes.add(it.positionMs)
+                it.expectedRevision + 1
+            },
+        )
+        val run = PlaybackRun(request)
+        val consumer = launch {
+            writer.write(run, sample(900))
+            writer.write(run, sample(100))
+        }
+        entered.await()
+        assertEquals(emptyList<Long>(), writes)
+        release.complete(Unit)
+        consumer.join()
+        assertEquals(listOf(900L, 100L), writes)
+        assertEquals(2L, run.revision)
+    }
+
     private val request = PlaybackRequest(
         ConsumptionTargetRef.MediaTarget(MediaId.generate()),
         ResolvedVideo("content://fixture/video", "video/mp4"),

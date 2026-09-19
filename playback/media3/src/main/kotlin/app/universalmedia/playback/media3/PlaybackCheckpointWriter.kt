@@ -8,6 +8,9 @@ import kotlinx.coroutines.CancellationException
 internal class PlaybackRun(val request: PlaybackRequest) {
     var revision = request.expectedProgressRevision
     var writable = true
+    val policy = PlaybackCheckpointPolicy()
+    var completed = false
+    var established = false
 }
 
 /** Called by one service consumer; revisions are chosen at write time, never at enqueue time. */

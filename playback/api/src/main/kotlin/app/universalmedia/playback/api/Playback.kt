@@ -39,6 +39,7 @@ data class PlaybackState(
     val positionMs: Long,
     val durationMs: Long?,
     val failure: PlaybackFailure? = null,
+    val progressSaveFailed: Boolean = false,
 )
 
 interface PlaybackController : AutoCloseable {
