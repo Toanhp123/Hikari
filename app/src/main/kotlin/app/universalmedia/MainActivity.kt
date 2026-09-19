@@ -5,18 +5,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.universalmedia.core.model.MediaId
+import app.universalmedia.core.model.RootId
 import app.universalmedia.feature.library.LibraryRoot
+import app.universalmedia.feature.library.LibraryUiState
 import app.universalmedia.storage.local.SafRegistrationResult
+import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,7 +27,6 @@ class MainActivity : ComponentActivity() {
         val graph = application as UniversalMediaApplication
         setContent {
             val state by graph.library.state.collectAsStateWithLifecycle()
-            var selectedMedia by rememberSaveable { mutableStateOf<String?>(null) }
             val picker =
                 rememberLauncherForActivityResult(
                     ActivityResultContracts.OpenDocumentTree(),
@@ -38,26 +40,46 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-            MaterialTheme {
-                Surface {
-                    LibraryRoot(
-                        state = state,
-                        onAddRoot = { picker.launch(null) },
-                        onMediaSelected = { selectedMedia = it.value.toString() },
-                        onRetryScan = graph.library::retry,
-                        onReloadLibrary = graph.library::refresh,
-                    )
-                    if (selectedMedia != null) {
-                        AlertDialog(
-                            onDismissRequest = { selectedMedia = null },
-                            title = { Text("Video in Library") },
-                            text = { Text("Playback is not available yet.") },
-                            confirmButton = {
-                                TextButton(onClick = { selectedMedia = null }) { Text("OK") }
-                            },
-                        )
-                    }
-                }
+            LibraryPlaybackContent(
+                state,
+                graph.playback,
+                graph.playbackScope,
+                { picker.launch(null) },
+                graph.library::retry,
+                graph.library::refresh,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun LibraryPlaybackContent(
+    state: LibraryUiState,
+    coordinator: PlaybackCoordinator,
+    scope: CoroutineScope,
+    onAddRoot: () -> Unit,
+    onRetryScan: (RootId) -> Unit,
+    onReloadLibrary: () -> Unit,
+) {
+    var selectedMedia by rememberSaveable { mutableStateOf<String?>(null) }
+    MaterialTheme {
+        Surface {
+            val media = selectedMedia
+            if (media == null) {
+                LibraryRoot(
+                    state,
+                    onAddRoot,
+                    { selectedMedia = it.value.toString() },
+                    onRetryScan,
+                    onReloadLibrary,
+                )
+            } else {
+                PlayerRoute(
+                    MediaId(UUID.fromString(media)),
+                    coordinator,
+                    scope,
+                    onBack = { selectedMedia = null },
+                )
             }
         }
     }

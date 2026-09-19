@@ -10,6 +10,7 @@ import app.universalmedia.ingestion.local.LocalScanScheduler
 import app.universalmedia.ingestion.local.LocalScanWorkerFactory
 import app.universalmedia.playback.api.PlaybackRuntimeDependencies
 import app.universalmedia.playback.api.PlaybackRuntimeDependenciesProvider
+import app.universalmedia.playback.media3.InternalPlaybackController
 import app.universalmedia.source.api.SourceResolver
 import app.universalmedia.source.local.LocalSourceResolver
 import app.universalmedia.storage.local.SafLocalStorage
@@ -29,6 +30,9 @@ class UniversalMediaApplication :
         private set
     internal lateinit var sources: SourceResolver
         private set
+    internal lateinit var playback: PlaybackCoordinator
+        private set
+    internal val playbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
@@ -36,6 +40,9 @@ class UniversalMediaApplication :
         playbackDependencies = PlaybackRuntimeDependencies(PlaybackProgressAdapter(store.progress))
         storage = SafLocalStorage(contentResolver)
         sources = LocalSourceResolver(store.sources, storage)
+        playback = PlaybackCoordinator(store.progress, sources) {
+            InternalPlaybackController.connect(this)
+        }
         val runner = LocalRootScanRunner(store, storage, store, store)
         WorkManager.initialize(
             this,

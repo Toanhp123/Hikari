@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE - Tasks 0-7 CLOSED; Task 8 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0-9 CLOSED; Task 10 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -888,6 +888,8 @@ Task 8 adds domain resume-policy and playback-state contracts, so `verifyArchite
 
 ## Task 9 — App Playback Route and End-to-End Orchestration
 
+**Status:** CLOSED - 10 focused JVM tests PASS; user confirmed the device command and real-MP4 acceptance succeeded. Reviewed local XML on 2026-09-19: 2 PlaybackRouteTest cases, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Activity recreation is proven by the fixture; real Media3 playback/surface acceptance is user-confirmed. Actual OS process death remains Task 11. Canonical evidence lives in the foundation Current Control Block. Task 10 is next.
+
 **Purpose:** Connect Library selection to source resolution, progress load and playback without teaching the feature about implementation details.
 
 **Files:**
@@ -934,14 +936,15 @@ Library onMediaSelected(MediaId)
 
 **Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :app:testDebugUnitTest --no-daemon
+.\gradlew.bat :app:testDebugUnitTest --tests '*PlaybackCoordinatorTest' --tests '*PlaybackProgressAdapterTest' :app:compileDebugAndroidTestKotlin :app:processDebugMainManifest :app:processDebugAndroidTestManifest --no-daemon
 ```
 
 **User-owned acceptance gate:**
 ```powershell
-# Prefer the new/affected app orchestration instrumentation class filter once concrete classes exist.
-.\gradlew.bat :app:connectedDebugAndroidTest --no-daemon
+.\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.PlaybackRouteTest" --no-daemon
 ```
+
+The fixture runs the production root UI with real Room and LocalSourceResolver, a fake access port and a recording playback port. Its Activity is debug-only/non-exported so ActivityScenario recreates a component in the target APK; it does not enter the release manifest. Also verify a real local MP4 in the app: Library selection, play/pause/seek, Activity recreation with position retained, Back and reopen without duplicate cards. This manual runtime evidence is required for the exit criterion; fixture PASS alone is insufficient. Actual OS process death remains Task 11.
 
 Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; Task 10 owns the next scheduled architecture checkpoint.
 
