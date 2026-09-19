@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE - Tasks 0-6 CLOSED; Task 7 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0-7 CLOSED; Task 8 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -164,7 +164,7 @@ Traversal and reconciliation are separate phases even when the first slice only 
 The commands in each task are **owning gates**, not blanket permission for the agent to execute every gate. Preserve Hikari-style ownership: cheap local reasoning stays agent-owned; expensive/runtime/acceptance evidence is user-owned by default.
 
 - **Agent-owned:** focused JVM/unit tests, targeted non-device test filters, small compile checks, and narrow static/contract diagnostics. Batch related checks into one Gradle invocation where practical.
-- **User-owned:** connected/instrumented/device/emulator tests; WorkManager/SAF/Media3 runtime acceptance; process-death proof; unfiltered module/full regression; cross-module `verifyArchitecture` / `:app:verifyFoundation` / security acceptance; `verify*.ps1`/`verify*.sh`; lint/Detekt sweeps; release-like builds; clean-checkout CI parity; benchmarks/profiling; and physical-device acceptance.
+- **User-owned:** connected/instrumented/device/emulator tests; WorkManager/SAF/Media3 runtime acceptance; process-death proof; unfiltered module/full regression; cross-module `verifyArchitecture` / `verifySecurityBaseline` / security acceptance; `verify*.ps1`/`verify*.sh`; lint/Detekt sweeps; release-like builds; clean-checkout CI parity; benchmarks/profiling; and physical-device acceptance.
 - A task may require a user-owned gate, but the agent stops at that boundary and hands off the exact command(s). The user may explicitly delegate a command back.
 - Do not spend a user-owned acceptance run merely to manufacture a ceremonial RED. First make the relevant agent-owned unit/compile/static checks green unless a pre-change baseline is explicitly required.
 - Prefer instrumentation class filters when handing off connected tests added by the current task. Do not request a broad device suite while a focused local failure remains unresolved.
@@ -748,6 +748,10 @@ The user-requested retained `gradle/gradle-daemon-jvm.properties` selects JDK 25
 
 ## Task 7 — Playback API Contract + Internal Media3 Session Service
 
+**Status:** CLOSED - user confirmed the corrected playback lifecycle rerun and verifyArchitecture passed. Reviewed XML: 1 test, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Combined with earlier private transport, security baseline and focused JVM PASS, Task 7 acceptance is complete. The fixture uses 640x360 after the device decoder rejected 64x64. This does not prove durable resume or OS process death. Task 8 is next; canonical evidence lives in the foundation Current Control Block.
+
+**Gate correction (2026-09-19):** Gradle help confirmed that the formerly named `:app:verifyFoundation` task does not exist. Task 7 uses the repository-owned architecture gate and security script below. Later security references use the existing `verifySecurityBaseline` task; no nonexistent gate is counted as passed.
+
 **Purpose:** Consume `ResolvedVideo` with Media3 while preserving the existing module graph and exported-component security baseline.
 
 **Files:**
@@ -806,13 +810,13 @@ Activity/app UI
 
 **Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :playback:api:test :playback:media3:testDebugUnitTest --no-daemon
+.\gradlew.bat :playback:api:test --tests '*PlaybackRequestTest' :playback:media3:testDebugUnitTest --tests '*PlaybackCheckpointWriterTest' :app:testDebugUnitTest --tests '*PlaybackProgressAdapterTest' :playback:media3:compileDebugAndroidTestKotlin :playback:media3:processDebugAndroidTestManifest :app:processDebugMainManifest --no-daemon
 ```
 
 **User-owned checkpoint gates:**
 ```powershell
 # Prefer class-filtered Media3 instrumentation when concrete classes exist.
-.\gradlew.bat :playback:media3:connectedDebugAndroidTest :app:verifyFoundation verifyArchitecture --no-daemon
+.\gradlew.bat :playback:media3:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.playback.media3.PlaybackServiceTest" verifyArchitecture --no-daemon
 .\scripts\verify-security-baseline.ps1
 ```
 
@@ -1120,7 +1124,7 @@ The test-evidence file is assertion input only; production code must not read it
 ```powershell
 .\scripts\verify-fast.ps1
 .\scripts\verify-security-baseline.ps1
-.\gradlew.bat verifyArchitecture :app:verifyFoundation --no-daemon
+.\gradlew.bat verifyArchitecture verifySecurityBaseline --no-daemon
 ```
 
 Connected, benchmark/profile and device gates defined by the implemented harness are also user-owned. The agent should hand them off as the smallest coherent batch after focused local diagnostics are green.
@@ -1144,7 +1148,7 @@ Connected, benchmark/profile and device gates defined by the implemented harness
 - all JVM/unit tests not already covered by an unchanged reusable PASS;
 - all relevant Android instrumented tests;
 - `verifyArchitecture`;
-- `:app:verifyFoundation`;
+- `verifySecurityBaseline`;
 - `verifyFast`;
 - security baseline;
 - release-like build;

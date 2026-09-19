@@ -15,6 +15,12 @@ External files, document URIs, archives, publication packages, metadata and futu
 
 The launcher activity is the only exported component in the bootstrap manifest. Every future Activity, Service, Receiver and Provider must declare `android:exported` explicitly and default to `false` unless an external contract requires exposure. Any exported component requires an intent/input threat review before merge.
 
+The first local playback slice declares only `FOREGROUND_SERVICE` and
+`FOREGROUND_SERVICE_MEDIA_PLAYBACK` for its internal Media3 service, with service
+type `mediaPlayback`. It adds no network or broad storage permission. Explicit
+same-app controllers and the app-supplied progress sink preserve the playback
+boundary; runtime URI data is not persisted as progress.
+
 ## Network and cleartext
 
 Cleartext traffic is disabled at application level. Future provider networking must use HTTPS by default and must not relax the global policy to accommodate one endpoint.

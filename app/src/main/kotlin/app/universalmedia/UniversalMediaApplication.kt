@@ -8,6 +8,8 @@ import app.universalmedia.data.UniversalMediaDatabase
 import app.universalmedia.ingestion.local.LocalRootScanRunner
 import app.universalmedia.ingestion.local.LocalScanScheduler
 import app.universalmedia.ingestion.local.LocalScanWorkerFactory
+import app.universalmedia.playback.api.PlaybackRuntimeDependencies
+import app.universalmedia.playback.api.PlaybackRuntimeDependenciesProvider
 import app.universalmedia.source.api.SourceResolver
 import app.universalmedia.source.local.LocalSourceResolver
 import app.universalmedia.storage.local.SafLocalStorage
@@ -16,7 +18,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 
-class UniversalMediaApplication : Application() {
+class UniversalMediaApplication :
+    Application(),
+    PlaybackRuntimeDependenciesProvider {
+    override lateinit var playbackDependencies: PlaybackRuntimeDependencies
+        private set
     internal lateinit var library: LibraryStateHolder
         private set
     internal lateinit var storage: SafLocalStorage
@@ -27,6 +33,7 @@ class UniversalMediaApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         val store = RoomMediaStore(UniversalMediaDatabase.open(this))
+        playbackDependencies = PlaybackRuntimeDependencies(PlaybackProgressAdapter(store.progress))
         storage = SafLocalStorage(contentResolver)
         sources = LocalSourceResolver(store.sources, storage)
         val runner = LocalRootScanRunner(store, storage, store, store)
