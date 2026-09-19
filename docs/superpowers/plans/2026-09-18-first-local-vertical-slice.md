@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE - Tasks 0-10 CLOSED; Task 11 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0-11 CLOSED; Task 12 is next. Task 11 has user-owned real process-death/persisted-SAF device evidence PASS. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -888,7 +888,7 @@ Task 8 adds domain resume-policy and playback-state contracts, so `verifyArchite
 
 ## Task 9 — App Playback Route and End-to-End Orchestration
 
-**Status:** CLOSED - 10 focused JVM tests PASS; user confirmed the device command and real-MP4 acceptance succeeded. Reviewed local XML on 2026-09-19: 2 PlaybackRouteTest cases, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Activity recreation is proven by the fixture; real Media3 playback/surface acceptance is user-confirmed. Actual OS process death remains Task 11. Canonical evidence lives in the foundation Current Control Block. Task 10 is CLOSED; Task 11 is next.
+**Status:** CLOSED - 10 focused JVM tests PASS; user confirmed the device command and real-MP4 acceptance succeeded. Reviewed local XML on 2026-09-19: 2 PlaybackRouteTest cases, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Activity recreation is proven by the fixture; real Media3 playback/surface acceptance is user-confirmed. Actual OS process death was deferred to Task 11 and is now closed by the 2026-09-20 Task 11 evidence. Canonical evidence lives in the foundation Current Control Block. Task 10 remains CLOSED.
 
 **Purpose:** Connect Library selection to source resolution, progress load and playback without teaching the feature about implementation details.
 
@@ -944,7 +944,7 @@ Library onMediaSelected(MediaId)
 .\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.PlaybackRouteTest" --no-daemon
 ```
 
-The fixture runs the production root UI with real Room and LocalSourceResolver, a fake access port and a recording playback port. Its Activity is debug-only/non-exported so ActivityScenario recreates a component in the target APK; it does not enter the release manifest. Also verify a real local MP4 in the app: Library selection, play/pause/seek, Activity recreation with position retained, Back and reopen without duplicate cards. This manual runtime evidence is required for the exit criterion; fixture PASS alone is insufficient. Actual OS process death remains Task 11.
+The fixture runs the production root UI with real Room and LocalSourceResolver, a fake access port and a recording playback port. Its Activity is debug-only/non-exported so ActivityScenario recreates a component in the target APK; it does not enter the release manifest. Also verify a real local MP4 in the app: Library selection, play/pause/seek, Activity recreation with position retained, Back and reopen without duplicate cards. This manual runtime evidence is required for the exit criterion; fixture PASS alone is insufficient. Actual OS process death was deferred to Task 11 and is now closed by the 2026-09-20 Task 11 evidence.
 
 Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; Task 10 owns the next scheduled architecture checkpoint.
 
@@ -956,7 +956,7 @@ Do not request `verifyArchitecture` unless this task changes a project dependenc
 
 ## Task 10 — Idempotency, Rescan and Failure-Safety Characterization
 
-**Status:** CLOSED - 19 focused JVM tests PASS; user confirmed all four device/architecture commands succeeded. Reviewed local XML on 2026-09-19: 31 tests, 0 failures/errors/skips on Redmi Note 9S / Android 15 (10 Room, 9 SAF, 4 Worker, 8 app). Architecture PASS is user-confirmed. Actual OS process-death acceptance remains Task 11. Canonical evidence lives in the foundation Current Control Block.
+**Status:** CLOSED - 19 focused JVM tests PASS; user confirmed all four device/architecture commands succeeded. Reviewed local XML on 2026-09-19: 31 tests, 0 failures/errors/skips on Redmi Note 9S / Android 15 (10 Room, 9 SAF, 4 Worker, 8 app). Architecture PASS is user-confirmed. Actual OS process-death acceptance was deferred to Task 11 and is now closed by the 2026-09-20 Task 11 evidence. Canonical evidence lives in the foundation Current Control Block.
 
 **Purpose:** Prove the architecture remains correct before process-death closure and before future reconciliation breadth is added.
 
@@ -1029,6 +1029,8 @@ Coverage placement: `ScanSafetyTest` composes production Room, scan runner and r
 
 ## Task 11 — Real Process-Death / Persisted-SAF End-to-End Evidence
 
+**Status:** CLOSED — 2026-09-20 user-owned `scripts/task11-process-death.ps1` evidence PASS. The harness built/installed once, Phase A passed through real DocumentsUI/SAF + scan + Media3 checkpoint, the repository harness executed external `adb shell am force-stop`, Phase B passed in a fresh process, and the script reported `Task 11 process-death / persisted-SAF device evidence: PASS`.
+
 **Purpose:** Close the actual §13.1 proof on a device/emulator, not merely through same-process mocks.
 
 **Preferred harness:** a repository-owned Bash/PowerShell script orchestrates **two separate app instrumentation invocations** with an external `adb shell am force-stop` between them. This proves real process reconstruction without turning `:benchmark` into a functional-test module and without killing the harness mid-assertion. Do not fake process death by only recreating the Activity.
@@ -1091,7 +1093,7 @@ The test-evidence file is assertion input only; production code must not read it
 
 **User-owned gate:** run only the repository-owned two-phase process-death harness produced by this task. The agent prepares the exact command/protocol and stops for returned evidence. Do **not** rerun the full bootstrap verifier here; Tasks 12/13 own the broad quality/closure gates.
 
-**Exit criteria:** real force-stop/restart demonstrates Library + source resolution + progress restoration with persisted SAF access.
+**Exit criteria:** real force-stop/restart demonstrates Library + source resolution + progress restoration with persisted SAF access. **SATISFIED** by the 2026-09-20 user-owned Phase A → external force-stop → Phase B run (`OK (1 test)` for each phase; final harness PASS).
 
 **Commit checkpoint:** `test: prove first local slice across process restart`
 
