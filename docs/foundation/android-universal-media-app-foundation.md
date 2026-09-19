@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** V1 Foundation R4.43 - First Slice Task 9 Closed / Task 10 Next
+**Revision:** V1 Foundation R4.45 - First Slice Task 10 Closed / Task 11 Next
 **Status:** Project Baseline / V1 First Slice In Progress
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-19 - Task 9 CLOSED with 10 focused JVM tests, user-confirmed device command and real-MP4 acceptance. Reviewed local XML: 2 PlaybackRouteTest cases, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Task 10 is next. Retained JDK-25 criteria do not establish canonical JDK-17 parity.
+**Last foundation review:** 2026-09-19 - Task 9 CLOSED with 10 focused JVM tests, user-confirmed device command and real-MP4 acceptance. Reviewed local XML: 2 PlaybackRouteTest cases, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Task 10 CLOSED with 19 focused JVM tests and 31 reviewed device tests PASS plus user-confirmed architecture acceptance. Task 11 is next. Retained JDK-25 criteria do not establish canonical JDK-17 parity.
 
 ---
 
@@ -20,8 +20,8 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** V1 first local vertical slice is in progress; Phase 0 bootstrap remains closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Active implementation plan:** `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Read this plan after this control block before implementing the active task.
-- **Product implementation:** Tasks 0-9 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Task 4 adds positive-only scan orchestration, unique root scheduling, injected Workers and eager WorkManager initialization with runtime and architecture acceptance evidence. Task 5 adds presentation-only Library/root controls, app-owned SAF registration-to-scan orchestration and a locator-free durable root/scan projection with device, architecture and user-confirmed folder-to-card acceptance evidence. Task 6 adds runtime local source resolution through LocalSourceCatalog and LocalDocumentAccess, with app-owned injection and device/architecture acceptance evidence. Task 7 adds the internal playback runtime with device lifecycle, architecture and security acceptance; Task 8 adds typed checkpoint/resume policy with focused host, Media3 runtime, Room reopen/resume and architecture acceptance evidence. Task 9 adds app-owned Library-to-Player navigation, resume orchestration and minimal controls with device and user-confirmed real-MP4 acceptance. Readers are not implemented.
-- **Current gate:** **FIRST LOCAL SLICE - TASK 9 CLOSED; TASK 10 IS NEXT.** Bootstrap and Tasks 0-9 retain their closure evidence. Current local daemon criteria select JDK 25 instead of the canonical JDK 17; baseline parity needs reconciliation and verification.
+- **Product implementation:** Tasks 0-10 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Task 4 adds positive-only scan orchestration, unique root scheduling, injected Workers and eager WorkManager initialization with runtime and architecture acceptance evidence. Task 5 adds presentation-only Library/root controls, app-owned SAF registration-to-scan orchestration and a locator-free durable root/scan projection with device, architecture and user-confirmed folder-to-card acceptance evidence. Task 6 adds runtime local source resolution through LocalSourceCatalog and LocalDocumentAccess, with app-owned injection and device/architecture acceptance evidence. Task 7 adds the internal playback runtime with device lifecycle, architecture and security acceptance; Task 8 adds typed checkpoint/resume policy with focused host, Media3 runtime, Room reopen/resume and architecture acceptance evidence. Task 9 adds app-owned Library-to-Player navigation, resume orchestration and minimal controls with device and user-confirmed real-MP4 acceptance. Task 10 characterizes rescan identity reuse, incomplete observations, interruption recovery and access-loss safety with host/device/architecture acceptance. Readers are not implemented.
+- **Current gate:** **FIRST LOCAL SLICE - TASK 10 CLOSED; TASK 11 IS NEXT.** Bootstrap and Tasks 0-10 retain their closure evidence. Current local daemon criteria select JDK 25 instead of the canonical JDK 17; baseline parity needs reconciliation and verification.
 - **Feature breadth:** stay inside the §13.1 plan. Broader media families, metadata breadth, reconciliation breadth and UI polish remain locked behind executable evidence from this slice.
 
 ## Current bootstrap contract
@@ -60,6 +60,11 @@ Task 0 has executable compile/verification evidence for these pinned first-slice
 KSP is the annotation-processing path; `kapt` remains forbidden. These pins are implementation dependencies under the existing bootstrap contract, not permission to broaden module dependencies or product scope.
 
 ## Fresh evidence in this snapshot
+
+- Task 10 characterization: five app instrumentation cases compose real Room, scan runner and resolver with injected traversal/access results. They assert exact-locator Media/Binding/Asset reuse and unchanged membership epoch, committed positives and unseen-row preservation after loading/provider error, cancellation and abandoned-run reopen recovery, access-loss preservation of progress/membership, and distinct identities for changed locators with identical filename/metadata. One new focused runner test asserts replay after cancellation starts a fresh run. Rename/move matching remains deferred under `Q-ID-001/Q-REC-001`; reopen is not actual OS process death.
+- `PASS` - 2026-09-19 Task 10 focused gate: `./gradlew.bat :core:domain:test --tests '*FirstSliceContractTest' --tests '*VideoResumePolicyTest' :ingestion:local:testDebugUnitTest --tests '*LocalRootScanRunnerTest' :app:compileDebugAndroidTestKotlin --no-daemon`, batched with changed-file `spotlessKotlinApply` using absolute-path `spotlessIdeHook`. BUILD SUCCESSFUL in 42s. Reviewed XML: 19 tests, 0 failures/errors/skips (7 contract, 3 resume, 9 runner). Instrumentation compiled only. This characterizes existing behavior; no production fix or RED-to-GREEN claim. Retained JDK-25 daemon criteria do not prove canonical JDK-17 parity.
+- Task 10 review: production code, schema, permissions, public APIs and dependency edges are unchanged. Independent review could not start because provider credentials were unavailable; final review is author self-review only. Focused domain filters replace the plan's unfiltered pre-check to honor AGENTS.md verification ownership. Device checkpoint is narrowed to four commands in Task 10 covering RoomMediaStoreTest, SafLocalStorageTest, LocalScanWorkerTest, ScanSafetyTest/ScanCompositionTest/PlaybackRouteTest plus verifyArchitecture.
+- `PASS` - 2026-09-19 user confirmed all four Task 10 class-filtered commands in the active plan succeeded, including `verifyArchitecture`. Reviewed local connected-test XML: 31 tests, 0 failures/errors/skips on Redmi Note 9S / Android 15 (10 RoomMediaStoreTest, 9 SafLocalStorageTest, 4 LocalScanWorkerTest, 5 ScanSafetyTest, 1 ScanCompositionTest, 2 PlaybackRouteTest). Architecture PASS is based on user confirmation of the combined app/architecture command. Together with 19 focused JVM tests, these results close Task 10. No device gate was run by the agent; actual OS process-death/persisted-SAF acceptance remains Task 11.
 
 - Task 9 implementation: app-owned saveable MediaId-only route connects Library selection to IO-bound progress load and source resolution, typed resume policy and the existing Media3 adapter. The app retains its controller across Activity recreation; the service remains the sole player owner. UI exposes play/pause, +/-10-second seek, Back, typed source/playback errors and progress-save failure. Returning to Library pauses playback, including a late or queued START; accepted START is not repeated merely because controller state still reports IDLE. Runtime content is never saved in route state.
 - `PASS` - 2026-09-19 Task 9 focused gate: `./gradlew.bat :app:testDebugUnitTest --tests '*PlaybackCoordinatorTest' --tests '*PlaybackProgressAdapterTest' :app:compileDebugAndroidTestKotlin :app:processDebugMainManifest :app:processDebugAndroidTestManifest --no-daemon`, batched with changed-file `spotlessKotlinApply` using absolute-path `spotlessIdeHook`. Final invocation BUILD SUCCESSFUL in 39s, exit 0. Reviewed XML: 10 tests, 0 failures/errors/skips (8 orchestration, 2 adapter). Instrumentation compiled only; JDK-25 criteria retained, no JDK-17 parity claimed.
@@ -139,9 +144,9 @@ The earlier Java-21/no-SDK generation-environment limitation and the first three
 
 ## Next concrete action
 
-Implement **Task 10 - Idempotency, Rescan and Failure-Safety Characterization** from the active plan. Characterize exact-locator identity reuse, partial observations, interruption/cancellation, access loss and the explicitly deferred rename/move continuity boundary. Make focused agent-owned checks green before handing off the required user-owned device/architecture checkpoint.
+Implement **Task 11 - Real Process-Death / Persisted-SAF End-to-End Evidence** from the active plan. Prepare the two-phase instrumentation and external force-stop harness, then hand off the user-owned device acceptance command. Activity recreation and database reopen do not prove OS process death.
 
-Task 9 is CLOSED with focused host, reviewed device results and user-confirmed real-MP4 acceptance. Task 10 has not started. Actual OS process-death acceptance remains Task 11. Retain the user-requested JDK-25 daemon file; no canonical JDK-17 parity or baseline migration is claimed.
+Tasks 0-10 are CLOSED. Task 10 has 19 focused JVM tests and 31 reviewed device tests PASS plus user-confirmed architecture acceptance. Task 11 has not started; actual OS process-death acceptance remains pending. Retain the user-requested JDK-25 daemon file; no canonical JDK-17 parity or baseline migration is claimed.
 
 ## Token-efficient reading rule
 
@@ -12947,12 +12952,14 @@ TASK 8 TYPED VIDEO PROGRESS / RESUME COMPATIBILITY - CLOSED
         |
 TASK 9 APP PLAYBACK ROUTE / END-TO-END ORCHESTRATION - CLOSED
         |
-NEXT - TASK 10 IDEMPOTENCY / RESCAN / FAILURE-SAFETY CHARACTERIZATION
+TASK 10 IDEMPOTENCY / RESCAN / FAILURE-SAFETY CHARACTERIZATION - CLOSED
+        |
+NEXT - TASK 11 REAL PROCESS-DEATH / PERSISTED-SAF EVIDENCE
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 10**. Bootstrap and Tasks 0-9 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
+The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 11**. Bootstrap and Tasks 0-10 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 

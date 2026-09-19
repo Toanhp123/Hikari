@@ -136,6 +136,26 @@ class LocalRootScanRunnerTest {
     }
 
     @Test
+    fun cancelledAttemptCanReplayPositivesInFreshRun() = runBlocking {
+        val fixture = Fixture()
+        fixture.pauseAfterBatch = true
+        val execution = launch { fixture.runner.run(fixture.root.id) }
+        fixture.batchCommitted.await()
+        execution.cancelAndJoin()
+        fixture.pauseAfterBatch = false
+
+        assertEquals(LocalScanResult.COMPLETE, fixture.runner.run(fixture.root.id))
+        assertNotEquals(fixture.runs[0].id, fixture.runs[1].id)
+        assertEquals(
+            listOf(ScanOutcome.CANCELLED, ScanOutcome.COMPLETE),
+            fixture.finished.map {
+                it.outcome
+            },
+        )
+        assertEquals(listOf(fixture.batch.single(), fixture.batch.single()), fixture.committed)
+    }
+
+    @Test
     fun supersededRunRejectionCannotReportSuccessfulScan() = runBlocking {
         val fixture = Fixture()
         fixture.rejectFinalization = true

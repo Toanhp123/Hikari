@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE - Tasks 0-9 CLOSED; Task 10 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0-10 CLOSED; Task 11 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -888,7 +888,7 @@ Task 8 adds domain resume-policy and playback-state contracts, so `verifyArchite
 
 ## Task 9 — App Playback Route and End-to-End Orchestration
 
-**Status:** CLOSED - 10 focused JVM tests PASS; user confirmed the device command and real-MP4 acceptance succeeded. Reviewed local XML on 2026-09-19: 2 PlaybackRouteTest cases, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Activity recreation is proven by the fixture; real Media3 playback/surface acceptance is user-confirmed. Actual OS process death remains Task 11. Canonical evidence lives in the foundation Current Control Block. Task 10 is next.
+**Status:** CLOSED - 10 focused JVM tests PASS; user confirmed the device command and real-MP4 acceptance succeeded. Reviewed local XML on 2026-09-19: 2 PlaybackRouteTest cases, 0 failures/errors/skips, exit 0 on Redmi Note 9S / Android 15. Activity recreation is proven by the fixture; real Media3 playback/surface acceptance is user-confirmed. Actual OS process death remains Task 11. Canonical evidence lives in the foundation Current Control Block. Task 10 is CLOSED; Task 11 is next.
 
 **Purpose:** Connect Library selection to source resolution, progress load and playback without teaching the feature about implementation details.
 
@@ -956,6 +956,8 @@ Do not request `verifyArchitecture` unless this task changes a project dependenc
 
 ## Task 10 — Idempotency, Rescan and Failure-Safety Characterization
 
+**Status:** CLOSED - 19 focused JVM tests PASS; user confirmed all four device/architecture commands succeeded. Reviewed local XML on 2026-09-19: 31 tests, 0 failures/errors/skips on Redmi Note 9S / Android 15 (10 Room, 9 SAF, 4 Worker, 8 app). Architecture PASS is user-confirmed. Actual OS process-death acceptance remains Task 11. Canonical evidence lives in the foundation Current Control Block.
+
 **Purpose:** Prove the architecture remains correct before process-death closure and before future reconciliation breadth is added.
 
 **Tests to add across domain/data/storage/ingestion/app:**
@@ -1004,15 +1006,20 @@ Characterize explicitly:
 
 **Agent-owned focused pre-check:**
 ```powershell
-.\gradlew.bat :core:domain:test --no-daemon
+.\gradlew.bat :core:domain:test --tests '*FirstSliceContractTest' --tests '*VideoResumePolicyTest' :ingestion:local:testDebugUnitTest --tests '*LocalRootScanRunnerTest' :app:compileDebugAndroidTestKotlin --no-daemon
 ```
 
 **User-owned checkpoint gate:**
 ```powershell
-.\gradlew.bat :data:connectedDebugAndroidTest :storage:local:connectedDebugAndroidTest :ingestion:local:connectedDebugAndroidTest :app:connectedDebugAndroidTest verifyArchitecture --no-daemon
+.\gradlew.bat :data:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.data.RoomMediaStoreTest" --no-daemon
+.\gradlew.bat :storage:local:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.storage.local.SafLocalStorageTest" --no-daemon
+.\gradlew.bat :ingestion:local:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.ingestion.local.LocalScanWorkerTest" --no-daemon
+.\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.ScanSafetyTest,app.universalmedia.ScanCompositionTest,app.universalmedia.PlaybackRouteTest" verifyArchitecture --no-daemon
 ```
 
 Prefer class filters for newly added characterization tests when they can preserve the same checkpoint evidence.
+
+Coverage placement: `ScanSafetyTest` composes production Room, scan runner and resolver through injected traversal/access ports without adding module edges. It covers identity/membership reuse, unseen-row preservation after loading/error, cancellation plus abandoned-run reopen, access loss and changed-locator non-matching. Existing SAF fixtures own actual provider semantics; Worker tests own scheduler retry/fresh-run behavior; app route tests own access-error UI. The new JVM replay test covers cancellation followed by a fresh attempt. Database reopen is not OS process-death evidence. Changed-locator rename/move continuity remains deferred under `Q-ID-001/Q-REC-001`.
 
 **Exit criteria:** reruns, interruption and access loss cannot corrupt canonical identity/user state.
 
