@@ -4,4 +4,6 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:domain"))
     implementation(project(":source:api"))
+    testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.core)
 }

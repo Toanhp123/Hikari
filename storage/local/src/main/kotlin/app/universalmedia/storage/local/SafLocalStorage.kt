@@ -11,6 +11,8 @@ import app.universalmedia.core.domain.CoverageGap
 import app.universalmedia.core.domain.DeclaredScanScope
 import app.universalmedia.core.domain.IncompleteReason
 import app.universalmedia.core.domain.LocalAccessFailure
+import app.universalmedia.core.domain.LocalDocumentAccess
+import app.universalmedia.core.domain.LocalDocumentAccessResult
 import app.universalmedia.core.domain.LocalDocumentLocator
 import app.universalmedia.core.domain.LocalDocumentObservation
 import app.universalmedia.core.domain.LocalRootDescriptor
@@ -41,12 +43,38 @@ sealed interface SafDocumentResult {
 }
 
 /** Android-only adapter. Callers persist successful evidence via StorageRootStore. */
-class SafLocalStorage(private val resolver: ContentResolver) : LocalTreeObservationSource {
+class SafLocalStorage(private val resolver: ContentResolver) :
+    LocalTreeObservationSource,
+    LocalDocumentAccess {
+    override suspend fun validate(
+        root: StorageRoot,
+        locator: LocalDocumentLocator,
+    ): LocalDocumentAccessResult = when (val result = inspect(root, locator)) {
+        is SafDocumentResult.Readable -> LocalDocumentAccessResult.Readable(
+            result.observation.mimeType,
+        )
+
+        is SafDocumentResult.Failed -> LocalDocumentAccessResult.Failed(result.failure)
+    }
+
     suspend fun register(treeUri: Uri): SafRegistrationResult = withContext(Dispatchers.IO) {
         try {
-            val tree = SafTree.decode(LocalRootDescriptor(treeUri.authority.orEmpty(), treeUri.toString()))
-            providerCall { resolver.takePersistableUriPermission(tree.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            if (providerCall { resolver.persistedUriPermissions.none { it.uri == tree.uri && it.isReadPermission } }) {
+            val tree = SafTree.decode(
+                LocalRootDescriptor(treeUri.authority.orEmpty(), treeUri.toString()),
+            )
+            providerCall {
+                resolver.takePersistableUriPermission(
+                    tree.uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            if (providerCall {
+                    resolver.persistedUriPermissions.none {
+                        it.uri == tree.uri &&
+                            it.isReadPermission
+                    }
+                }
+            ) {
                 return@withContext SafRegistrationResult.Failed(LocalAccessFailure.ACCESS_LOST)
             }
             val row = queryDocument(tree.document(tree.id), CancellationSignal())
@@ -54,7 +82,11 @@ class SafLocalStorage(private val resolver: ContentResolver) : LocalTreeObservat
                 return@withContext SafRegistrationResult.Failed(LocalAccessFailure.UNAVAILABLE)
             }
             SafRegistrationResult.Registered(
-                RootRegistrationEvidence(LocalRootDescriptor(tree.authority, tree.uri.toString()), true, System.currentTimeMillis()),
+                RootRegistrationEvidence(
+                    LocalRootDescriptor(tree.authority, tree.uri.toString()),
+                    true,
+                    System.currentTimeMillis(),
+                ),
             )
         } catch (failure: SafAccessException) {
             SafRegistrationResult.Failed(failure.failure)
@@ -70,7 +102,9 @@ class SafLocalStorage(private val resolver: ContentResolver) : LocalTreeObservat
         onBatch: suspend (List<LocalDocumentObservation>) -> Unit,
     ): TraversalResult = withContext(Dispatchers.IO) {
         if (scope.rootId != root.id || scope.configGeneration != root.configGeneration) {
-            return@withContext TraversalResult.Incomplete(listOf(CoverageGap(null, IncompleteReason.SUPERSEDED)))
+            return@withContext TraversalResult.Incomplete(
+                listOf(CoverageGap(null, IncompleteReason.SUPERSEDED)),
+            )
         }
         if (cancellation.isCancelled()) return@withContext TraversalResult.Cancelled
         val tree = try {
@@ -87,16 +121,22 @@ class SafLocalStorage(private val resolver: ContentResolver) : LocalTreeObservat
             } catch (failure: SafAccessException) {
                 return@withSignal when {
                     cancellation.isCancelled() -> TraversalResult.Cancelled
+
                     failure.providerLoading -> TraversalResult.Incomplete(
                         listOf(CoverageGap(null, IncompleteReason.PROVIDER_LOADING)),
                     )
+
                     else -> TraversalResult.Failed(failure.failure)
                 }
             }
             val source = object : SafDirectorySource {
-                override fun locator(documentId: String): String = tree.document(documentId).toString()
+                override fun locator(documentId: String): String =
+                    tree.document(documentId).toString()
                 override fun children(documentId: String): SafListing = providerCall {
-                    val uri = DocumentsContract.buildChildDocumentsUriUsingTree(tree.uri, documentId)
+                    val uri = DocumentsContract.buildChildDocumentsUriUsingTree(
+                        tree.uri,
+                        documentId,
+                    )
                     val cursor = resolver.query(uri, PROJECTION, null, null, null, signal)
                         ?: throw SafAccessException(LocalAccessFailure.UNAVAILABLE)
                     CursorListing(cursor)
@@ -107,36 +147,53 @@ class SafLocalStorage(private val resolver: ContentResolver) : LocalTreeObservat
     }
 
     /** Revalidates persisted current-locator evidence; never creates canonical identity or runtime content. */
-    suspend fun inspect(root: StorageRoot, locator: LocalDocumentLocator): SafDocumentResult = withContext(Dispatchers.IO) {
-        try {
-            val tree = SafTree.decode(root.descriptor)
-            require(locator.rootId == root.id && locator.providerAuthority == tree.authority)
-            require(locator.documentLocator.length <= MAX_PROVIDER_TEXT * 6)
-            val uri = Uri.parse(locator.documentLocator)
-            require(uri.scheme == "content" && uri.authority == tree.authority)
-            require(DocumentsContract.getTreeDocumentId(uri) == tree.id)
-            val documentId = DocumentsContract.getDocumentId(uri)
-            require(uri == tree.document(documentId))
-            val row = queryDocument(uri, CancellationSignal())
-            if (row.mimeType == DIRECTORY_MIME) return@withContext SafDocumentResult.Failed(LocalAccessFailure.UNAVAILABLE)
-            providerCall { resolver.openFileDescriptor(uri, "r")?.use { } }
-                ?: return@withContext SafDocumentResult.Failed(LocalAccessFailure.UNAVAILABLE)
-            SafDocumentResult.Readable(
-                LocalDocumentObservation(locator, row.name, row.mimeType, row.size, row.modified, System.currentTimeMillis()),
-            )
-        } catch (failure: SafAccessException) {
-            SafDocumentResult.Failed(failure.failure)
-        } catch (_: IllegalArgumentException) {
-            SafDocumentResult.Failed(LocalAccessFailure.UNAVAILABLE)
+    suspend fun inspect(root: StorageRoot, locator: LocalDocumentLocator): SafDocumentResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val tree = SafTree.decode(root.descriptor)
+                require(locator.rootId == root.id && locator.providerAuthority == tree.authority)
+                require(locator.documentLocator.length <= MAX_PROVIDER_TEXT * 6)
+                val uri = Uri.parse(locator.documentLocator)
+                require(uri.scheme == "content" && uri.authority == tree.authority)
+                require(DocumentsContract.getTreeDocumentId(uri) == tree.id)
+                val documentId = DocumentsContract.getDocumentId(uri)
+                require(uri == tree.document(documentId))
+                val row = queryDocument(uri, CancellationSignal())
+                if (row.mimeType ==
+                    DIRECTORY_MIME
+                ) {
+                    return@withContext SafDocumentResult.Failed(LocalAccessFailure.UNAVAILABLE)
+                }
+                providerCall { resolver.openFileDescriptor(uri, "r")?.use { } }
+                    ?: return@withContext SafDocumentResult.Failed(LocalAccessFailure.UNAVAILABLE)
+                SafDocumentResult.Readable(
+                    LocalDocumentObservation(
+                        locator,
+                        row.name,
+                        row.mimeType,
+                        row.size,
+                        row.modified,
+                        System.currentTimeMillis(),
+                    ),
+                )
+            } catch (failure: SafAccessException) {
+                SafDocumentResult.Failed(failure.failure)
+            } catch (_: IllegalArgumentException) {
+                SafDocumentResult.Failed(LocalAccessFailure.UNAVAILABLE)
+            }
         }
-    }
 
     private fun queryDocument(uri: Uri, signal: CancellationSignal): SafRow = providerCall {
         // Null can mean provider failure or a swallowed FileNotFoundException; it cannot prove absence.
         val cursor = resolver.query(uri, PROJECTION, null, null, null, signal)
             ?: throw SafAccessException(LocalAccessFailure.UNAVAILABLE)
         CursorListing(cursor).use { listing ->
-            if (listing.loading) throw SafAccessException(LocalAccessFailure.TRANSIENT_PROVIDER_FAILURE, providerLoading = true)
+            if (listing.loading) {
+                throw SafAccessException(
+                    LocalAccessFailure.TRANSIENT_PROVIDER_FAILURE,
+                    providerLoading = true,
+                )
+            }
             val row = listing.next() ?: throw SafAccessException(LocalAccessFailure.NOT_FOUND)
             if (!row.valid() || row.id != DocumentsContract.getDocumentId(uri)) {
                 throw SafAccessException(LocalAccessFailure.UNAVAILABLE)
@@ -153,7 +210,10 @@ private class SafTree(val uri: Uri, val authority: String, val id: String) {
         fun decode(descriptor: LocalRootDescriptor): SafTree {
             require(descriptor.treeLocator.length <= MAX_PROVIDER_TEXT * 6)
             val uri = Uri.parse(descriptor.treeLocator)
-            require(uri.scheme == "content" && !uri.authority.isNullOrBlank() && uri.authority == descriptor.providerAuthority)
+            require(
+                uri.scheme == "content" && !uri.authority.isNullOrBlank() &&
+                    uri.authority == descriptor.providerAuthority,
+            )
             val id = DocumentsContract.getTreeDocumentId(uri)
             require(id.isNotBlank() && id.length <= MAX_PROVIDER_TEXT)
             require(uri == DocumentsContract.buildTreeDocumentUri(uri.authority, id))
@@ -222,19 +282,21 @@ private inline fun <T> providerCall(block: () -> T): T = try {
 }
 
 /** Bridge the polling domain token and coroutine cancellation to a blocking Binder query. */
-private suspend fun <T> withSignal(cancellation: ScanCancellation, block: suspend (CancellationSignal) -> T): T =
-    coroutineScope {
-        val signal = CancellationSignal()
-        val watcher = launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
-            try {
-                while (isActive && !cancellation.isCancelled()) delay(25)
-            } finally {
-                signal.cancel()
-            }
-        }
+private suspend fun <T> withSignal(
+    cancellation: ScanCancellation,
+    block: suspend (CancellationSignal) -> T,
+): T = coroutineScope {
+    val signal = CancellationSignal()
+    val watcher = launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
         try {
-            block(signal)
+            while (isActive && !cancellation.isCancelled()) delay(25)
         } finally {
-            watcher.cancelAndJoin()
+            signal.cancel()
         }
     }
+    try {
+        block(signal)
+    } finally {
+        watcher.cancelAndJoin()
+    }
+}

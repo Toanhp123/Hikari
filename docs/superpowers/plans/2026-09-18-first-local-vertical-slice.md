@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement task-by-task. Do not broaden scope while a task is red. Re-read the foundation Current Control Block before implementation and reopen an owning `Q-*` only when executable evidence contradicts a provisional decision.
 
-**Status:** ACTIVE - Tasks 0-5 CLOSED; Task 6 is NEXT. Current evidence and next action live in the foundation Current Control Block.
+**Status:** ACTIVE - Tasks 0-6 CLOSED; Task 7 is NEXT. Current evidence and next action live in the foundation Current Control Block.
 
 **Goal:** Prove the V1 foundation with one deliberately small, restart-safe local vertical slice:
 
@@ -680,6 +680,8 @@ Do not request the full `:app:connectedDebugAndroidTest` surface here; Task 9 ow
 
 ## Task 6 — Local Source Resolution Boundary
 
+**Status:** CLOSED - 8 focused JVM tests PASS; user confirmed both handoff commands and verifyArchitecture succeeded. Reviewed local XML on 2026-09-19: 2 app reconstruction/composition tests and 1 SAF access-port test, 0 failures/errors/skips on Redmi Note 9S / Android 15. This is database close/reopen reconstruction, not actual OS process-death evidence. Retained JDK-25 criteria remain a separate baseline-parity issue in the Current Control Block. Task 7 is next.
+
 **Purpose:** Prove that playback receives runtime content through Source → Binding → Asset → ResolvedContent rather than by reading a URI directly from Library/Room.
 
 **Files:**
@@ -724,10 +726,19 @@ MediaTarget(MediaId)
 
 **Agent-owned focused gate:**
 ```powershell
-.\gradlew.bat :source:api:test :source:local:testDebugUnitTest --no-daemon
+.\gradlew.bat :source:api:test --tests '*ResolvedContentTest' :source:local:testDebugUnitTest --tests '*LocalSourceResolverTest' :storage:local:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon
 ```
 
 Do not request `verifyArchitecture` unless this task changes a project dependency/build boundary; if required, it is user-owned.
+
+**User-owned acceptance:** The new app instrumentation fixture uses test-only Room runtime to close/reopen the database; source-local adds test-only JUnit/coroutines. Production project edges are unchanged. Both commands below passed; evidence was reviewed on 2026-09-19:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.LocalSourceResolutionTest" verifyArchitecture --no-daemon
+.\gradlew.bat :storage:local:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.storage.local.SafLocalStorageTest#sourceAccessPortPreservesCurrentOpenabilityAndTypedFailures" --no-daemon
+```
+
+The user-requested retained `gradle/gradle-daemon-jvm.properties` selects JDK 25. This differs from the canonical JDK-17 baseline; current runs must identify that environment and cannot establish JDK-17 parity. Keep toolchain reconciliation and baseline verification pending rather than silently rewriting the file or changing Q-BOOT-001.
 
 **Exit criteria:** canonical target can be resolved after restart without Library/feature directly knowing the SAF locator.
 

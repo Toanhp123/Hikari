@@ -8,6 +8,8 @@ import app.universalmedia.data.UniversalMediaDatabase
 import app.universalmedia.ingestion.local.LocalRootScanRunner
 import app.universalmedia.ingestion.local.LocalScanScheduler
 import app.universalmedia.ingestion.local.LocalScanWorkerFactory
+import app.universalmedia.source.api.SourceResolver
+import app.universalmedia.source.local.LocalSourceResolver
 import app.universalmedia.storage.local.SafLocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,11 +21,14 @@ class UniversalMediaApplication : Application() {
         private set
     internal lateinit var storage: SafLocalStorage
         private set
+    internal lateinit var sources: SourceResolver
+        private set
 
     override fun onCreate() {
         super.onCreate()
         val store = RoomMediaStore(UniversalMediaDatabase.open(this))
         storage = SafLocalStorage(contentResolver)
+        sources = LocalSourceResolver(store.sources, storage)
         val runner = LocalRootScanRunner(store, storage, store, store)
         WorkManager.initialize(
             this,

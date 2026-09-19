@@ -2,12 +2,12 @@
 
 ## Project Foundation, Product Scope & Development Roadmap
 
-**Revision:** V1 Foundation R4.34 - First Slice Task 5 Closed / Task 6 Next
+**Revision:** V1 Foundation R4.36 - First Slice Task 6 Closed / Task 7 Next
 **Status:** Project Baseline / V1 First Slice In Progress
 **Platform:** Android  
 **Primary language:** Kotlin  
 **UI direction:** Jetpack Compose  
-**Last foundation review:** 2026-09-19 - Task 5 is CLOSED. The user confirmed all handoff acceptance succeeded, including verifyArchitecture and manual Add Folder/rescan. Reviewed device XML confirms 6 Library Compose tests and 1 Room root-projection test, with 0 failures/errors/skips on Redmi Note 9S / Android 15. Together with 8 focused JVM tests, this closes Task 5. Task 6 Local Source Resolution Boundary is next.
+**Last foundation review:** 2026-09-19 - Task 6 is CLOSED. The user confirmed both handoff commands succeeded, including verifyArchitecture. Reviewed device XML confirms 2 app resolution/reconstruction tests and 1 SAF access-port test, with 0 failures/errors/skips on Redmi Note 9S / Android 15. Together with 8 focused JVM tests, this closes the Task 6 acceptance gates. Task 7 is next. Retained JDK-25 daemon criteria remain a separate local deviation from the canonical JDK-17 baseline; no baseline migration/parity claim is made.
 
 ---
 
@@ -20,8 +20,8 @@ This block is the **only current-state/handoff surface**. It is deliberately com
 - **Phase:** V1 first local vertical slice is in progress; Phase 0 bootstrap remains closed.
 - **Decision queue:** Stages A–I are complete at `PROVISIONAL` baseline level; reopen only on contradiction evidence.
 - **Active implementation plan:** `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. Read this plan after this control block before implementing the active task.
-- **Product implementation:** Tasks 0-5 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Task 4 adds positive-only scan orchestration, unique root scheduling, injected Workers and eager WorkManager initialization with runtime and architecture acceptance evidence. Task 5 adds presentation-only Library/root controls, app-owned SAF registration-to-scan orchestration and a locator-free durable root/scan projection with device, architecture and user-confirmed folder-to-card acceptance evidence. Runtime source resolution, player and readers are not implemented yet.
-- **Current gate:** **FIRST LOCAL SLICE - TASK 5 CLOSED; TASK 6 IS NEXT.** The underlying bootstrap execution gate remains closed/green on real Windows plus clean-checkout CI.
+- **Product implementation:** Tasks 0-6 are closed. Task 2 adds canonical Room schema v1 (14 table families), root/scan/materialization transactions, Library observation, durable source-context lookup and revision-guarded video progress. Schema JSON is exported in `data/schemas/`. Task 3 adds the SAF storage adapter and provider fixtures with device acceptance evidence. Task 4 adds positive-only scan orchestration, unique root scheduling, injected Workers and eager WorkManager initialization with runtime and architecture acceptance evidence. Task 5 adds presentation-only Library/root controls, app-owned SAF registration-to-scan orchestration and a locator-free durable root/scan projection with device, architecture and user-confirmed folder-to-card acceptance evidence. Task 6 adds runtime local source resolution through LocalSourceCatalog and LocalDocumentAccess, with app-owned injection and device/architecture acceptance evidence. Player and readers are not implemented yet.
+- **Current gate:** **FIRST LOCAL SLICE - TASK 6 CLOSED; TASK 7 IS NEXT.** Bootstrap and Tasks 0-6 retain their closure evidence. Current local daemon criteria select JDK 25 instead of the canonical JDK 17; baseline parity needs reconciliation and verification.
 - **Feature breadth:** stay inside the §13.1 plan. Broader media families, metadata breadth, reconciliation breadth and UI polish remain locked behind executable evidence from this slice.
 
 ## Current bootstrap contract
@@ -60,6 +60,11 @@ Task 0 has executable compile/verification evidence for these pinned first-slice
 KSP is the annotation-processing path; `kapt` remains forbidden. These pins are implementation dependencies under the existing bootstrap contract, not permission to broaden module dependencies or product scope.
 
 ## Fresh evidence in this snapshot
+
+- `PASS` - 2026-09-19 Task 6 focused gate: `./gradlew.bat :source:api:test --tests '*ResolvedContentTest' :source:local:testDebugUnitTest --tests '*LocalSourceResolverTest' :storage:local:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon`; final invocation BUILD SUCCESSFUL in 35s (unit tasks up-to-date from the preceding execution). Reviewed XML: 8 JVM tests, 0 failures/errors/skips (1 runtime descriptor, 7 resolver). Instrumentation compiled only. These runs use the retained JDK-25 daemon criteria; they do not verify the canonical JDK-17 environment.
+- Task 6 development evidence: RED failed on missing source API/resolver. Compilation exposed a cross-module nullable smart cast, fixed using a local MIME snapshot, and missing Room superclass visibility in the app reopen fixture, fixed with test-only Room runtime. Changed-file Spotless formatting passed; an earlier relative-path hook was ignored and was rerun with absolute paths. Static self-review and `git diff --check` found no production project-edge, schema, manifest, permission or Library/navigation change. The resolver has only read/access ports and stores no runtime descriptor; provenance is separate from `ResolvedVideo`. Independent reviewer startup failed due to provider credentials, so this is author self-review, not independent acceptance.
+- `PASS` - 2026-09-19 user-confirmed Task 6 acceptance: `./gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.LocalSourceResolutionTest" verifyArchitecture --no-daemon` and `./gradlew.bat :storage:local:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=app.universalmedia.storage.local.SafLocalStorageTest#sourceAccessPortPreservesCurrentOpenabilityAndTypedFailures" --no-daemon`. Reviewed local XML: 2 app tests and 1 SAF test, 0 failures/errors/skips on Redmi Note 9S / Android 15. Architecture PASS is based on user confirmation of the combined command. These results close Task 6. The Room fixture closes/reopens a real database and reconstructs a new resolver using a fake access port; a separate provider fixture tests the actual SAF access port. Neither proves OS process death, which remains Task 11.
+- `PENDING` - local toolchain reconciliation: the user explicitly requested retaining `gradle/gradle-daemon-jvm.properties` with `toolchainVersion=25` / JetBrains. It was not created or modified by the Task 6 implementation. Q-BOOT-001 still records JDK 17; no automatic foundation migration or bootstrap rerun is claimed.
 
 - `PASS` - 2026-09-19 Task 5 focused agent gate: `./gradlew.bat :feature:library:testDebugUnitTest --tests '*LibraryPresentationTest' :app:testDebugUnitTest --tests '*LibraryCoordinatorTest' --tests '*LibraryStateHolderTest' :feature:library:compileDebugAndroidTestKotlin :data:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin --no-daemon`; final post-format execution BUILD SUCCESSFUL in 32s with configuration-cache reuse. Reviewed XML: 8 JVM tests, 0 failures/errors/skips (2 presentation, 4 registration/scheduling, 2 state-holder). Compose/Room instrumentation compiled only; no device runtime PASS is inferred.
 - Task 5 development evidence: initial presentation RED failed on missing `LibraryCardUi`; intermediate compilation exposed the changed LibraryRoot call signature and a cross-module nullable smart cast, both corrected. Changed-file-only Spotless formatting completed successfully after fixing line-length violations; this is not a lint/Detekt sweep. Static self-review and `git diff --check` found no schema/manifest/permission/module-edge change or forbidden storage/Room/WorkManager/Media3 feature import. The Task 5 use case owns the narrow addition to `LibraryQueries` for durable root summaries. Independent subagent implementation was unavailable (provider credentials error); self-review is not executable architecture acceptance.
@@ -111,9 +116,9 @@ The earlier Java-21/no-SDK generation-environment limitation and the first three
 
 ## Next concrete action
 
-Implement **Task 6 - Local Source Resolution Boundary** from the active plan. Inspect `:source:api`, `:source:local`, the durable `LocalSourceCatalog` and SAF current-document access adapter, then read the relevant `Q-SRC-001`, `Q-STO-001`, `Q-MOD-001` and `Q-API-001` sections. Keep resolution through canonical target/binding/asset context, validate current access and return ephemeral runtime content through narrow injected ports; do not add a direct source-local to storage-local dependency.
+Implement **Task 7 - Playback API Contract + Internal Media3 Session Service** from the active plan. Inspect the source-resolution API and playback modules, then read the owning Q-MOD/Q-API/Q-RUN and security decisions. Preserve app-owned composition and consume ephemeral ResolvedVideo through the playback boundary.
 
-Task 5 is CLOSED; Task 6 has not started. Do not repeat closed Tasks 0-5 or broaden the slice. If executable evidence contradicts a provisional decision, reopen the owning Q-* before a workaround. Playback and real process-death acceptance remain separate later gates.
+Task 6 is CLOSED; Task 7 has not started. Do not repeat closed Tasks 0-6 or broaden the slice. Retain the user-requested JDK-25 daemon file; reconcile its deviation from Q-BOOT-001 before claiming JDK-17 baseline parity. Actual process-death acceptance remains Task 11.
 
 ## Token-efficient reading rule
 
@@ -12911,12 +12916,14 @@ TASK 4 SCAN ORCHESTRATION / WORKMANAGER OWNERSHIP - CLOSED
         |
 TASK 5 LIBRARY / ROOT REGISTRATION UI - CLOSED
         |
-NEXT - TASK 6 LOCAL SOURCE RESOLUTION BOUNDARY
+TASK 6 LOCAL SOURCE RESOLUTION BOUNDARY - CLOSED
+        |
+NEXT - TASK 7 PLAYBACK API / MEDIA3 SESSION SERVICE
 ```
 
 No DI-framework question blocks the skeleton or first slice: manual constructor injection/app composition root remains the default until implementation evidence demonstrates real framework value.
 
-The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 6**. Bootstrap and Tasks 0-5 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
+The active plan is `docs/superpowers/plans/2026-09-18-first-local-vertical-slice.md`. New sessions must read the Current Control Block first, then that plan, and resume at **Task 7**. Bootstrap and Tasks 0-6 are closed with executable evidence. Macrobenchmark measurements remain a separate later device-performance gate.
 
 ## 13.1 First Implementation Trigger
 
