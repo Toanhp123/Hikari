@@ -8,11 +8,11 @@ This directory is the project knowledge base. It is intentionally **progressive*
 
 | Document | Canonical responsibility | Read when |
 | --- | --- | --- |
-| `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, roadmap, decided vs undecided areas | Product, architecture, feature-scope, or roadmap discussion |
+| `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/<SUBSYSTEM>.md` | How one subsystem is structured | Working on that subsystem |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
-| `roadmap/*.md` | Execution status, milestones, implementation sequencing | Planning or tracking implementation |
+| `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing once active tracking needs its own document | Planning or tracking implementation |
 
 Only the first two documents exist initially. Create the other document types when real content requires them.
 
@@ -67,7 +67,7 @@ Use **one fact, one canonical home**.
 - platform targets;
 - major capability groups;
 - high-level architecture invariants;
-- phase-level roadmap;
+- phase-level direction;
 - decided vs undecided areas.
 
 It should not become an API reference or implementation plan.
@@ -109,7 +109,7 @@ ADRs answer **why this choice was made**. They should not duplicate the full sub
 
 `roadmap/` owns implementation sequencing and current execution state.
 
-Roadmap documents may change frequently. They should not become architectural authority.
+Roadmap documents may change frequently. They should not become architectural authority. Keep stable product intent in `PROJECT_OVERVIEW.md`; move detailed sequencing and live execution status here once that information becomes substantial enough to justify a separate document.
 
 ### Workflow docs
 

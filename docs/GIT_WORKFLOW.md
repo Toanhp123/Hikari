@@ -219,6 +219,8 @@ Nếu thay đổi có test liên quan:
 flutter test
 ```
 
+Trong bootstrap hiện tại, repository chưa có Flutter/Dart test suite. Cho tới khi test đầu tiên được thêm, `flutter test` phải được báo rõ là **chưa áp dụng**, không được mô tả là đã pass. Khi bắt đầu Domain Core/Application code, thay đổi đầu tiên ở các tầng đó phải đồng thời thiết lập test suite phù hợp; từ thời điểm đó `flutter test` trở thành gate bắt buộc như các mục merge bên dưới.
+
 Sau đó:
 
 ```bash

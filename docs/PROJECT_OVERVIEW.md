@@ -656,6 +656,12 @@ Hikari được xây theo thứ tự móng → tầng trên.
 
 Không đi sâu vào một tầng chưa đến lượt trừ khi cần nghiên cứu để tránh khóa kiến trúc sai.
 
+Mỗi phase chỉ xây **mức tối thiểu đã được requirement hiện tại chứng minh cần thiết**. Không hoàn thiện trước một framework/domain abstraction tổng quát chỉ vì roadmap cho thấy phase đó sẽ tồn tại.
+
+Các foundation phase phải hướng tới một **walking skeleton** có thể chạy end-to-end sớm: một luồng nhỏ dùng mock/local/legal provider đi qua contract thật, persistence thật khi đã cần, application logic và UI tối thiểu. Kết quả của vertical đó được dùng để điều chỉnh boundary trước khi mở rộng subsystem.
+
+`Feature Verticals` là cách kiểm chứng kiến trúc, không phải phần thưởng chỉ được bắt đầu sau khi mọi engine đã hoàn thiện. Có thể kéo một vertical mỏng lên sớm khi cần chứng minh rằng các contract hiện tại thực sự dùng được.
+
 Mỗi phase phải để lại một checkpoint build/test được trước khi sang phase tiếp theo.
 
 ---
