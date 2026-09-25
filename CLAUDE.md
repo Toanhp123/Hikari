@@ -85,7 +85,7 @@ Do not invoke it for domain, persistence, networking, or other non-UI work.
 
 ### Firecrawl
 
-Use Firecrawl for current external research when needed.
+Default Hikari external technical research to Firecrawl when current or upstream evidence is needed. Search first, then read the important primary sources deeply before making architecture, dependency, or compatibility decisions.
 
 Prefer:
 
@@ -162,8 +162,8 @@ Before saying a code/file task is complete:
 
 1. Self-review the final diff for scope, correctness, duplication, and unnecessary complexity.
 2. Run the smallest relevant fresh verification that proves the claim.
-3. For Flutter code, normally include `flutter analyze` and relevant tests; add platform build/run checks when the changed scope requires them.
-4. Run `git diff --check`.
+3. For Flutter code, use the project-pinned SDK (`fvm flutter ...` / `fvm dart ...`) and normally include analyze plus relevant tests; add platform build/run checks when the changed scope requires them.
+4. Prefer `tool/check.ps1` on Windows for the Foundation v1 baseline, and run `git diff --check` when reviewing the final change.
 5. Update affected docs/ADR when behavior, architecture, or a recorded decision changed.
 6. Confirm no secrets, generated build output, local caches, or unrelated edits entered the change.
 7. Produce a patch/diff for every code or file change.

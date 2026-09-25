@@ -47,10 +47,10 @@ dev -> main
 Trước khi merge vào `main`:
 
 ```bash
-flutter analyze
-flutter test
-flutter build apk --debug
-flutter build windows --debug
+fvm flutter analyze
+fvm flutter test
+fvm flutter build apk --debug
+fvm flutter build windows --debug
 ```
 
 Nếu một platform chưa thể build trên máy hiện tại, phải ghi rõ platform nào chưa được xác minh.
@@ -206,20 +206,26 @@ git status
 git diff
 ```
 
-Trước mỗi commit:
+Trước mỗi commit, trên Windows có thể chạy toàn bộ Foundation v1 gate bằng:
+
+```powershell
+.\tool\check.ps1
+```
+
+Hoặc chạy từng bước liên quan thủ công. Tối thiểu:
 
 ```bash
 git diff --check
-flutter analyze
+fvm flutter analyze
 ```
 
 Nếu thay đổi có test liên quan:
 
 ```bash
-flutter test
+fvm flutter test
 ```
 
-Trong bootstrap hiện tại, repository chưa có Flutter/Dart test suite. Cho tới khi test đầu tiên được thêm, `flutter test` phải được báo rõ là **chưa áp dụng**, không được mô tả là đã pass. Khi bắt đầu Domain Core/Application code, thay đổi đầu tiên ở các tầng đó phải đồng thời thiết lập test suite phù hợp; từ thời điểm đó `flutter test` trở thành gate bắt buộc như các mục merge bên dưới.
+Foundation v1 đã có smoke test, vì vậy `fvm flutter test` là gate bắt buộc từ thời điểm này. Mỗi thay đổi behavior mới phải bổ sung test phù hợp thay vì chỉ dựa vào smoke test.
 
 Sau đó:
 
@@ -272,8 +278,8 @@ Chỉ dùng `--force-with-lease` cho branch cá nhân/feature của chính công
 Trước khi merge:
 
 ```bash
-flutter analyze
-flutter test
+fvm flutter analyze
+fvm flutter test
 ```
 
 Nếu thay đổi ảnh hưởng Android hoặc Windows, nên chạy target tương ứng.
@@ -358,21 +364,21 @@ Tối thiểu:
 
 ```bash
 git diff --check
-flutter analyze
-flutter test
+fvm flutter analyze
+fvm flutter test
 ```
 
 Với thay đổi platform:
 
 ```bash
-flutter run -d <device>
+fvm flutter run -d <device>
 ```
 
 hoặc build:
 
 ```bash
-flutter build apk --debug
-flutter build windows --debug
+fvm flutter build apk --debug
+fvm flutter build windows --debug
 ```
 
 Không merge code đang:
@@ -422,11 +428,9 @@ Khi ChatGPT cung cấp file đã chỉnh sửa, phải cung cấp cả:
 Các mốc lớn dự kiến:
 
 ```text
-chore: bootstrap Flutter project
+chore: establish foundation v1
         ↓
 feat: establish domain core
-        ↓
-feat: establish core contracts
         ↓
 feat: add persistence foundation
         ↓
@@ -436,7 +440,7 @@ feat: add provider engine
         ↓
 feat: add media engines
         ↓
-feat: add application use cases
+feat: add application workflows
         ↓
 feat: add UI foundation
 ```
@@ -474,8 +478,8 @@ Làm việc:
 ```bash
 git status
 git diff
-flutter analyze
-flutter test
+fvm flutter analyze
+fvm flutter test
 ```
 
 Commit:
@@ -510,8 +514,8 @@ Trước khi mở PR hoặc đề nghị merge:
 
 ```bash
 git diff --check
-flutter analyze
-flutter test
+fvm flutter analyze
+fvm flutter test
 ```
 
 Ngoài các lệnh tối thiểu trên:

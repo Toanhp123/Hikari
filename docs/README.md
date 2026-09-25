@@ -14,7 +14,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
 | `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing once active tracking needs its own document | Planning or tracking implementation |
 
-Only the first two documents exist initially. Create the other document types when real content requires them.
+Architecture and roadmap documents are created only when real content requires them. Accepted cross-cutting decisions already live under `decisions/`.
 
 ## Reading strategy
 
@@ -158,16 +158,10 @@ Hikari/
 └── docs/
     ├── README.md
     ├── PROJECT_OVERVIEW.md
-    └── GIT_WORKFLOW.md
+    ├── GIT_WORKFLOW.md
+    └── decisions/
+        ├── ADR-001-hybrid-layered-architecture.md
+        └── ADR-002-foundation-v1.md
 ```
 
-Likely future structure, created incrementally:
-
-```text
-docs/
-├── architecture/
-├── decisions/
-└── roadmap/
-```
-
-The structure grows only when the project has real knowledge to store.
+Future `architecture/` and `roadmap/` documents are still created incrementally, only when the project has real knowledge to store.

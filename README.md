@@ -17,15 +17,17 @@ Do not treat this README as the project specification; canonical project knowled
 
 ## Current bootstrap
 
-The application is intentionally minimal while the domain and subsystem boundaries are being validated.
+Foundation v1 pins Flutter with FVM and enforces format, analysis, tests, and an Android debug build in CI. The runtime app intentionally remains minimal while Domain Core is designed.
 
-```bash
-flutter pub get
-flutter analyze
-flutter run
+FVM must be installed and available on `PATH`. On Windows, enable Developer Mode if `fvm install` reports symbolic-link error 1314.
+
+```powershell
+fvm install
+.\tool\check.ps1
+fvm flutter run
 ```
 
-Run `flutter test` whenever a Flutter/Dart test suite exists. Once implementation work begins in the domain/application layers, relevant automated tests are expected as part of the same change.
+The canonical architecture and toolchain decisions are recorded under `docs/decisions/`.
 
 ## Working on Hikari
 

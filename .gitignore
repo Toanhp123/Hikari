@@ -16,6 +16,7 @@ Desktop.ini
 .svn/
 .swiftpm/
 migrate_working_dir/
+graphify-out
 
 # IntelliJ related
 *.iml
@@ -29,6 +30,7 @@ migrate_working_dir/
 #.vscode/
 
 # Flutter/Dart/Pub related
+.fvm/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/

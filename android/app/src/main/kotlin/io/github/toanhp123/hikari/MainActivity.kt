@@ -1,4 +1,4 @@
-package com.example.hikari
+package io.github.toanhp123.hikari
 
 import io.flutter.embedding.android.FlutterActivity
 

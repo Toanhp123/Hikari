@@ -518,6 +518,35 @@ Player / Reader consumes canonical data
 
 Các nguyên tắc này quan trọng hơn việc chọn package cụ thể.
 
+Kiến trúc cấp cao đã được chốt trong [`ADR-001`](decisions/ADR-001-hybrid-layered-architecture.md). Hikari dùng cấu trúc hybrid: presentation theo feature, còn domain/application/infrastructure giữ boundary theo trách nhiệm.
+
+```text
+lib/
+├── app/              # composition root, routing, global app configuration
+├── core/             # cross-cutting primitives thật sự dùng chung
+├── domain/           # pure Dart business concepts, rules, ports/contracts
+├── application/      # workflows/use cases điều phối domain contracts
+├── infrastructure/   # DB/HTTP/providers/engines/platform implementations
+└── features/         # Flutter UI + presentation state theo feature
+```
+
+Đây là **architecture map**, không phải danh sách folder phải tạo ngay. Chỉ tạo boundary khi có code thật cần đến nó.
+
+Dependency direction mục tiêu:
+
+```text
+features ─────────> application
+   |                    |
+   └────────────────────v
+                      domain
+                        ^
+                        |
+infrastructure ----------┘
+
+app = composition root / wiring
+core = shared primitives có scope thật sự cross-cutting
+```
+
 ### 7.1 Domain không phụ thuộc framework
 
 Domain core không được biết:
@@ -617,39 +646,90 @@ Kotlin / Swift / Windows implementation
 
 Business logic không được nằm rải rác trong platform folders.
 
+### 7.7 Application là nơi điều phối workflow
+
+`domain/` mô tả business concepts, invariant và contract. `application/` điều phối nhiều domain capability/repository thành một workflow mà UI có thể gọi.
+
+Ví dụ:
+
+```text
+Resume media
+→ read progress
+→ resolve source
+→ load episode/chapter
+→ choose engine
+→ restore position
+```
+
+Logic dạng này không được phình trong Widget, state object hoặc repository implementation.
+
+Không bắt buộc tạo một use case pass-through cho mọi thao tác đơn giản. Use case/application service chỉ xuất hiện khi workflow hoặc reuse thực sự cần nó.
+
+### 7.8 Infrastructure chứa implementation details
+
+Các thành phần có thể thay bởi thư viện, OS hoặc external system nằm dưới `infrastructure/`:
+
+```text
+persistence
+network
+provider implementations
+media engines
+platform adapters
+repository implementations
+```
+
+Repository implementation không nằm bên trong một data source cụ thể như `local/`, vì một repository có thể điều phối local DB, cache và remote sync cùng lúc.
+
+### 7.9 `core/` không phải thư mục tiện ích chung
+
+`core/` chỉ chứa primitive thực sự không thuộc domain nào và được dùng xuyên boundary, ví dụ một `Result`/error primitive khi nhu cầu thật xuất hiện.
+
+Không tạo các bucket chung kiểu `helpers/`, `managers/`, `misc/` hoặc abstraction dự phòng chỉ để “có kiến trúc”.
+
+### 7.10 Source/provider ưu tiên capability-oriented contracts
+
+Một source có thể cung cấp một hoặc nhiều capability như search, details, episodes, streams, chapters, pages hoặc text content. Domain không mặc định rằng một provider chỉ thuộc đúng một media type.
+
+API capability cụ thể vẫn là quyết định của Domain Core; Foundation không scaffold trước interface chưa được requirement chứng minh.
+
 ---
 
 ## 8. Thứ tự phát triển tổng quát
 
-Hikari được xây theo thứ tự móng → tầng trên.
+Hikari được xây theo thứ tự móng → tầng trên, nhưng một vertical mỏng có thể được kéo lên sớm để kiểm chứng boundary thật.
 
 ```text
-0. Environment / Bootstrap
+0. Foundation v1
+   ├── pinned toolchain
+   ├── quality gates / CI
+   └── architecture baseline
           ↓
 1. Domain Core
+   ├── Media
+   ├── Progress
+   ├── Library
+   └── Source capabilities/contracts
           ↓
-2. Core Contracts
+2. Persistence Foundation
           ↓
-3. Persistence / Data Foundation
+3. Infrastructure Foundation
           ↓
-4. Infrastructure Foundation
+4. Provider / Source Engine
           ↓
-5. Provider / Source Engine
-          ↓
-6. Media Engines
+5. Media Engines
    ├── Video
    ├── Manga
    └── Novel
           ↓
-7. Application / Use Cases
+6. Application Workflows / Use Cases
           ↓
-8. UI Foundation
+7. UI Foundation
           ↓
-9. Feature Verticals
+8. Feature Verticals
           ↓
-10. Extensions / Advanced Platform
+9. Extensions / Advanced Platform
           ↓
-11. Hardening
+10. Hardening
 ```
 
 ### Quy tắc
@@ -922,7 +1002,9 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 
 ### Hoàn thành
 
-- Flutter SDK setup;
+- Flutter SDK/toolchain setup;
+- Foundation v1 baseline (FVM pin, quality gates, smoke test, CI);
+- architecture direction (`app/core/domain/application/infrastructure/features`);
 - Windows toolchain;
 - Android toolchain;
 - Android build/run trên thiết bị thật;
@@ -930,10 +1012,14 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 - Git workflow standard;
 - Claude Code project instructions and skill-routing policy.
 
-### Đang chuẩn bị
+### Tiếp theo
 
 ```text
 Domain Core
+→ Media identity/model
+→ Progress model
+→ Library model
+→ Source capability contracts
 ```
 
 ### Chưa bắt đầu
@@ -985,29 +1071,13 @@ Hikari/
 └── docs/
     ├── README.md             # documentation index/routing
     ├── PROJECT_OVERVIEW.md   # product source of truth
-    └── GIT_WORKFLOW.md       # Git/process source of truth
+    ├── GIT_WORKFLOW.md       # Git/process source of truth
+    └── decisions/
+        ├── ADR-001-hybrid-layered-architecture.md
+        └── ADR-002-foundation-v1.md
 ```
 
-Trong tương lai có thể bổ sung:
-
-```text
-docs/
-├── architecture/
-│   ├── DOMAIN.md
-│   ├── PERSISTENCE.md
-│   ├── PROVIDERS.md
-│   ├── PLAYER.md
-│   └── READERS.md
-│
-├── decisions/
-│   ├── ADR-001-...
-│   └── ADR-002-...
-│
-└── roadmap/
-    └── ROADMAP.md
-```
-
-Không tạo trước các tài liệu chưa có nội dung thực tế chỉ để đủ cấu trúc.
+Trong tương lai có thể bổ sung `docs/architecture/` cho thiết kế subsystem và `docs/roadmap/` khi cần theo dõi execution chi tiết. Không tạo trước tài liệu chưa có nội dung thực tế chỉ để đủ cấu trúc.
 
 ---
 
