@@ -87,7 +87,7 @@ A content source can expose one or more capabilities. The source subsystem shoul
 ### Trade-offs
 
 - The project has more conceptual boundaries than a minimal Flutter app.
-- Dependency direction must be reviewed continuously; folder names alone do not enforce it.
+- A repository architecture guard enforces the mapped dependency direction, but semantic separation still requires review; see ADR-003.
 - Some simple features can legitimately call a domain repository directly until an application use case is justified. The architecture must not require pass-through use cases solely for symmetry.
 
 ## Rejected alternatives

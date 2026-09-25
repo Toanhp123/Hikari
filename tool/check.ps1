@@ -20,10 +20,10 @@ function Invoke-Step {
     }
 }
 
-Invoke-Step 'Resolve dependencies' { fvm flutter pub get }
+Invoke-Step 'Resolve locked dependencies' { fvm flutter pub get --enforce-lockfile }
 Invoke-Step 'Check formatting' { fvm dart format -o none --set-exit-if-changed . }
 Invoke-Step 'Analyze' { fvm flutter analyze }
-Invoke-Step 'Run tests' { fvm flutter test }
+Invoke-Step 'Run tests and architecture guard' { fvm flutter test }
 Invoke-Step 'Check unstaged diff whitespace' { git diff --check }
 Invoke-Step 'Check staged diff whitespace' { git diff --cached --check }
 

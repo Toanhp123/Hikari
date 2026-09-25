@@ -135,6 +135,7 @@ Examples:
 - Do not add speculative abstractions, dependencies, configuration, or scaffolding.
 - Do not make unrelated refactors inside a focused task.
 - Keep domain/business logic independent from UI, storage, network, and platform implementations.
+- Treat architecture guard failures as boundary failures; fix the dependency or update the accepted ADR and guard together when an exception is real.
 - Keep provider-specific details out of UI and normalized domain contracts.
 - Keep database models separate from domain models.
 - Isolate platform-specific code behind explicit boundaries.
@@ -163,7 +164,7 @@ Before saying a code/file task is complete:
 1. Self-review the final diff for scope, correctness, duplication, and unnecessary complexity.
 2. Run the smallest relevant fresh verification that proves the claim.
 3. For Flutter code, use the project-pinned SDK (`fvm flutter ...` / `fvm dart ...`) and normally include analyze plus relevant tests; add platform build/run checks when the changed scope requires them.
-4. Prefer `tool/check.ps1` on Windows for the Foundation v1 baseline, and run `git diff --check` when reviewing the final change.
+4. Prefer `tool/check.ps1` on Windows for the Foundation v1.1 baseline, and run `git diff --check` when reviewing the final change.
 5. Update affected docs/ADR when behavior, architecture, or a recorded decision changed.
 6. Confirm no secrets, generated build output, local caches, or unrelated edits entered the change.
 7. Produce a patch/diff for every code or file change.

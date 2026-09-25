@@ -161,7 +161,8 @@ Hikari/
     ├── GIT_WORKFLOW.md
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
-        └── ADR-002-foundation-v1.md
+        ├── ADR-002-foundation-v1.md
+        └── ADR-003-architecture-guardrails.md
 ```
 
 Future `architecture/` and `roadmap/` documents are still created incrementally, only when the project has real knowledge to store.

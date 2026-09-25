@@ -17,7 +17,7 @@ Do not treat this README as the project specification; canonical project knowled
 
 ## Current bootstrap
 
-Foundation v1 pins Flutter with FVM and enforces format, analysis, tests, and an Android debug build in CI. The runtime app intentionally remains minimal while Domain Core is designed.
+Foundation v1.1 pins Flutter with FVM and enforces the dependency lock, format, static type/lint analysis, tests with an architecture guard, and an Android debug build in CI. The runtime app intentionally remains minimal while Domain Core is designed.
 
 FVM must be installed and available on `PATH`. On Windows, enable Developer Mode if `fvm install` reports symbolic-link error 1314.
 

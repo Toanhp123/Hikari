@@ -206,7 +206,7 @@ git status
 git diff
 ```
 
-Trước mỗi commit, trên Windows có thể chạy toàn bộ Foundation v1 gate bằng:
+Trước mỗi commit, trên Windows có thể chạy toàn bộ Foundation v1.1 gate bằng:
 
 ```powershell
 .\tool\check.ps1
@@ -225,7 +225,7 @@ Nếu thay đổi có test liên quan:
 fvm flutter test
 ```
 
-Foundation v1 đã có smoke test, vì vậy `fvm flutter test` là gate bắt buộc từ thời điểm này. Mỗi thay đổi behavior mới phải bổ sung test phù hợp thay vì chỉ dựa vào smoke test.
+Foundation v1.1 đã có smoke test và architecture guard trong test suite. `fvm flutter analyze` giữ type/lint sạch; `fvm flutter test` đồng thời kiểm tra behavior cơ bản và dependency direction. Nếu architecture guard đỏ, sửa dependency hoặc cập nhật ADR + guard trong cùng thay đổi khi một exception thực sự được chấp nhận.
 
 Sau đó:
 
@@ -388,6 +388,23 @@ Không merge code đang:
 - không build trên platform bị ảnh hưởng;
 - chứa secret/API key;
 - chứa code debug tạm thời mà không có lý do giữ lại.
+
+### GitHub merge enforcement
+
+`dev` và `main` phải được bảo vệ ở repository settings để CI không chỉ mang tính tham khảo. Cấu hình mục tiêu:
+
+```text
+Require a pull request before merging
+Require status checks to pass
+  -> Quality gates
+Require branches to be up to date before merging
+Block force pushes
+Block branch deletion
+```
+
+Workflow `CI / Quality gates` chạy cho pull request vào cả `dev` và `main`. Nếu GitHub đổi tên status context sau khi workflow được chỉnh, chọn status check tương ứng với job `Quality gates` đang chạy thực tế.
+
+Repository rulesets/branch protection là trạng thái trên GitHub, không nằm trong Git tree; phải kiểm tra lại trong Settings sau khi tạo repo mới, transfer repo, hoặc thay workflow bảo vệ.
 
 ## 12. Patch/diff là một phần của workflow
 

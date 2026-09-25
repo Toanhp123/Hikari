@@ -532,6 +532,8 @@ lib/
 
 Đây là **architecture map**, không phải danh sách folder phải tạo ngay. Chỉ tạo boundary khi có code thật cần đến nó.
 
+Dependency direction này được machine-enforce bởi architecture guard trong test suite, được chốt ở [`ADR-003`](decisions/ADR-003-architecture-guardrails.md). Guard kiểm tra `import`, `export`, `part`, relative URI và package URI; `app/` là composition root còn các layer bên trong không được bypass boundary bằng dependency trực tiếp tới implementation bên ngoài.
+
 Dependency direction mục tiêu:
 
 ```text
@@ -699,10 +701,11 @@ API capability cụ thể vẫn là quyết định của Domain Core; Foundatio
 Hikari được xây theo thứ tự móng → tầng trên, nhưng một vertical mỏng có thể được kéo lên sớm để kiểm chứng boundary thật.
 
 ```text
-0. Foundation v1
+0. Foundation v1.1
    ├── pinned toolchain
    ├── quality gates / CI
-   └── architecture baseline
+   ├── machine-enforced architecture boundaries
+   └── CI supply-chain hardening
           ↓
 1. Domain Core
    ├── Media
@@ -1003,7 +1006,7 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 ### Hoàn thành
 
 - Flutter SDK/toolchain setup;
-- Foundation v1 baseline (FVM pin, quality gates, smoke test, CI);
+- Foundation v1.1 baseline (FVM pin, quality gates, architecture guardrails, smoke test, CI);
 - architecture direction (`app/core/domain/application/infrastructure/features`);
 - Windows toolchain;
 - Android toolchain;
@@ -1074,7 +1077,8 @@ Hikari/
     ├── GIT_WORKFLOW.md       # Git/process source of truth
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
-        └── ADR-002-foundation-v1.md
+        ├── ADR-002-foundation-v1.md
+        └── ADR-003-architecture-guardrails.md
 ```
 
 Trong tương lai có thể bổ sung `docs/architecture/` cho thiết kế subsystem và `docs/roadmap/` khi cần theo dõi execution chi tiết. Không tạo trước tài liệu chưa có nội dung thực tế chỉ để đủ cấu trúc.
