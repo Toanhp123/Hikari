@@ -500,6 +500,28 @@ dev -> main
 Create a merge commit
 ```
 
+### Đóng task / branch
+
+Một task chưa được coi là đóng chỉ vì code đã được viết.
+
+Trước khi mở PR hoặc đề nghị merge:
+
+```bash
+git diff --check
+flutter analyze
+flutter test
+```
+
+Ngoài các lệnh tối thiểu trên:
+
+- chạy build/run cho platform bị ảnh hưởng khi thay đổi có yếu tố platform;
+- tự review final diff để tìm thay đổi ngoài scope và complexity không cần thiết;
+- cập nhật docs/ADR nếu thay đổi làm thông tin hiện tại bị stale;
+- tạo patch/diff cho mọi thay đổi code/file;
+- ghi rõ phần nào chưa thể verify thay vì suy đoán là đã pass.
+
+Khi làm việc bằng Claude Code, Definition of Done đầy đủ nằm trong root `CLAUDE.md`; procedure kiểm chứng nên dùng skill phù hợp (đặc biệt Superpowers `verification-before-completion`) thay vì sao chép quy trình dài vào tài liệu Git này.
+
 ---
 
 Tài liệu này là chuẩn mặc định của Hikari. Nếu workflow cần thay đổi về sau, thay đổi đó phải được cập nhật vào chính tài liệu này trước hoặc cùng lúc với việc áp dụng quy trình mới.
