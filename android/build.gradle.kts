@@ -17,6 +17,14 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    // This native-library wrapper still defaults to obsolete Java 8 options.
+    // Match the app's Java 17 toolchain without suppressing compiler warnings.
+    if (name == "media_kit_libs_android_video") {
+        tasks.withType<JavaCompile>().configureEach {
+            sourceCompatibility = "17"
+            targetCompatibility = "17"
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

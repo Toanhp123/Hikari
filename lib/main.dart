@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:hikari/app/app.dart';
+import 'package:hikari/app/bootstrap.dart';
 
-void main() {
-  runApp(const HikariApp());
-}
+void main() => bootstrap();

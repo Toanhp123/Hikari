@@ -10,7 +10,8 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | --- | --- | --- |
 | `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
-| `architecture/<SUBSYSTEM>.md` | How one subsystem is structured | Working on that subsystem |
+| `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
+| `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
 | `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing once active tracking needs its own document | Planning or tracking implementation |
 
@@ -159,10 +160,14 @@ Hikari/
     ├── README.md
     ├── PROJECT_OVERVIEW.md
     ├── GIT_WORKFLOW.md
+    ├── architecture/
+    │   ├── LOCAL_MEDIA.md
+    │   └── USER_STATE.md
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
         ├── ADR-002-foundation-v1.md
-        └── ADR-003-architecture-guardrails.md
+        ├── ADR-003-architecture-guardrails.md
+        └── ADR-004-user-state-persistence.md
 ```
 
 Future `architecture/` and `roadmap/` documents are still created incrementally, only when the project has real knowledge to store.
