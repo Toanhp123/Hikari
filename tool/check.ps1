@@ -21,7 +21,18 @@ function Invoke-Step {
 }
 
 Invoke-Step 'Resolve locked dependencies' { fvm flutter pub get --enforce-lockfile }
-Invoke-Step 'Check formatting' { fvm dart format -o none --set-exit-if-changed . }
+Invoke-Step 'Check formatting' {
+    $dartFiles = @(git ls-files -- '*.dart')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not enumerate tracked Dart files.'
+    }
+    if ($dartFiles.Count -eq 0) {
+        Write-Host 'No tracked Dart files found.'
+        return
+    }
+
+    fvm dart format -o none --set-exit-if-changed -- $dartFiles
+}
 Invoke-Step 'Analyze' { fvm flutter analyze }
 Invoke-Step 'Run tests and architecture guard' { fvm flutter test }
 Invoke-Step 'Check unstaged diff whitespace' { git diff --check }
