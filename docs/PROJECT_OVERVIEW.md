@@ -868,9 +868,8 @@ Chưa cần chốt trước UI/Application phase.
 
 ### Player
 
-- media_kit;
-- platform video player;
-- hybrid engine.
+Walking skeleton local Android dùng media_kit; xem [LOCAL_MEDIA](architecture/LOCAL_MEDIA.md).
+Lựa chọn engine cho các capability nâng cao vẫn chưa chốt.
 
 ### Extension runtime
 
@@ -1015,22 +1014,25 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 - Git workflow standard;
 - Claude Code project instructions and skill-routing policy.
 
+### Walking skeleton đã có code
+
+- Android local folder scan qua SAF, phân loại Anime/Manga/Light Novel;
+- một local root được nhớ qua restart bằng persisted SAF grant + Android-native selection state;
+- model Media + source reference tối thiểu với `SourceId` opaque, chưa có canonical identity;
+- video playback bằng media_kit, image reader và UTF-8 text reader;
+- cần xác minh end-to-end trên thiết bị Android với bộ file thật; chi tiết boundary,
+  giới hạn và checklist tại [LOCAL_MEDIA](architecture/LOCAL_MEDIA.md).
+
 ### Tiếp theo
 
-```text
-Domain Core
-→ Media identity/model
-→ Progress model
-→ Library model
-→ Source capability contracts
-```
+Xác minh local-media vertical trên thiết bị, rồi mở rộng domain theo nhu cầu thực tế:
+canonical identity, Progress, Library và source capabilities chưa được slice này giải quyết.
 
 ### Chưa bắt đầu
 
-- persistence;
-- provider engine;
-- player engine;
-- readers;
+- library/progress persistence;
+- provider engine tổng quát;
+- production player/readers;
 - application layer;
 - production UI;
 - extension runtime.
