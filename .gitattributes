@@ -1,0 +1,6 @@
+# Keep repository text files normalized and diffs stable across platforms.
+* text=auto eol=lf
+
+# Windows command scripts are safest with native CRLF line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf

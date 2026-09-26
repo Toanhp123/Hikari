@@ -25,6 +25,7 @@ Foundation v1 uses the following baseline:
 - GitHub Actions runs with Temurin JDK 17, the same Dart/Flutter quality gates, a lockfile freshness check, and an Android debug APK build on pushes and pull requests targeting `main` or `dev`.
 - `.fvmrc` is the project source of truth for the Flutter version; CI reads that file instead of duplicating the version in workflow YAML.
 - FVM-managed `.vscode/settings.json` is committed so VS Code resolves the same project SDK; `.fvmrc` remains the source of truth and FVM updates the editor path when the pinned SDK changes.
+- `.gitattributes` normalizes repository text files to LF across platforms while keeping Windows `.bat` and `.cmd` scripts on CRLF, preventing line-ending-only diffs.
 - Existing Flutter-generated AGP/Gradle/Kotlin compatibility settings are kept unless a dedicated compatibility review justifies changing them.
 - The initial platform identifier is `io.github.toanhp123.hikari`, replacing Flutter's `com.example.hikari` placeholder on Android and iOS.
 

@@ -76,10 +76,28 @@ void main() {
   test('guard catches representative violations', () {
     const cases = [
       (
+        sourcePath: 'main.dart',
+        sourceLayer: 'root',
+        kind: 'import',
+        uri: 'package:hikari/domain/media.dart',
+      ),
+      (
+        sourcePath: 'core/result.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:hikari/domain/media.dart',
+      ),
+      (
         sourcePath: 'domain/media.dart',
         sourceLayer: 'domain',
         kind: 'import',
         uri: 'package:hikari/infrastructure/network/client.dart',
+      ),
+      (
+        sourcePath: 'infrastructure/repositories/library_repository.dart',
+        sourceLayer: 'infrastructure',
+        kind: 'import',
+        uri: 'package:hikari/application/library/load_library.dart',
       ),
       (
         sourcePath: 'features/library/page.dart',
@@ -99,6 +117,18 @@ void main() {
         kind: 'import',
         uri: 'package:dio/dio.dart',
       ),
+      (
+        sourcePath: 'domain/media.dart',
+        sourceLayer: 'domain',
+        kind: 'import',
+        uri: 'package:hikari/experimental/media.dart',
+      ),
+      (
+        sourcePath: 'features/library/state.dart',
+        sourceLayer: 'features',
+        kind: 'part',
+        uri: 'package:hikari/domain/state.g.dart',
+      ),
     ];
 
     for (final item in cases) {
@@ -110,6 +140,7 @@ void main() {
           uri: item.uri,
         ),
         isNotNull,
+        reason: '${item.sourcePath} should reject ${item.kind} ${item.uri}',
       );
     }
   });
@@ -117,16 +148,46 @@ void main() {
   test('guard accepts representative legal dependencies', () {
     const cases = [
       (
+        sourcePath: 'main.dart',
+        sourceLayer: 'root',
+        kind: 'import',
+        uri: 'package:hikari/app/app.dart',
+      ),
+      (
+        sourcePath: 'main.dart',
+        sourceLayer: 'root',
+        kind: 'import',
+        uri: 'package:flutter/widgets.dart',
+      ),
+      (
+        sourcePath: 'core/result.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'result_error.dart',
+      ),
+      (
         sourcePath: 'domain/media.dart',
         sourceLayer: 'domain',
         kind: 'import',
         uri: 'package:hikari/core/result.dart',
       ),
       (
+        sourcePath: 'infrastructure/repositories/library_repository.dart',
+        sourceLayer: 'infrastructure',
+        kind: 'import',
+        uri: 'package:hikari/domain/library/library_repository.dart',
+      ),
+      (
         sourcePath: 'features/library/page.dart',
         sourceLayer: 'features',
         kind: 'import',
-        uri: 'package:hikari/application/library/load_library.dart',
+        uri: '../../application/library/load_library.dart',
+      ),
+      (
+        sourcePath: 'features/library/state.dart',
+        sourceLayer: 'features',
+        kind: 'part',
+        uri: 'state.g.dart',
       ),
       (
         sourcePath: 'app/app.dart',
@@ -145,8 +206,66 @@ void main() {
           uri: item.uri,
         ),
         isNull,
+        reason: '${item.sourcePath} should allow ${item.kind} ${item.uri}',
       );
     }
+  });
+
+  test('internal paths normalize package and relative URIs', () {
+    expect(
+      _internalPath('domain/media.dart', 'package:hikari/core/result.dart'),
+      'core/result.dart',
+    );
+    expect(
+      _internalPath(
+        'features/library/page.dart',
+        '../../application/library/load_library.dart',
+      ),
+      'application/library/load_library.dart',
+    );
+    expect(_internalPath('domain/media.dart', 'package:dio/dio.dart'), isNull);
+    expect(_internalPath('domain/media.dart', 'dart:io'), isNull);
+  });
+
+  test('lib paths normalize Windows and POSIX separators', () {
+    expect(
+      _libPath(r'F:\project\hikari\lib\domain\media.dart'),
+      'domain/media.dart',
+    );
+    expect(_libPath('lib/domain/media.dart'), 'domain/media.dart');
+  });
+
+  test('directive scanner captures multiline and conditional dependencies', () {
+    const source =
+        r'''// import 'package:hikari/infrastructure/commented_out.dart';
+/*
+export 'package:hikari/infrastructure/also_commented_out.dart';
+*/
+import 'package:hikari/core/result.dart'
+    if (dart.library.io) 'package:hikari/infrastructure/io_adapter.dart'
+    if (dart.library.js_interop) 'package:hikari/infrastructure/web_adapter.dart';
+export /* keep parser honest */ 'package:hikari/domain/media.dart';
+part 'state.g.dart';
+part of 'library.dart';
+
+class StopsDirectiveScanningHere {}
+''';
+
+    final directives = _dependencyDirectives(source).toList();
+
+    expect(directives, hasLength(4));
+    expect(directives[0].kind, 'import');
+    expect(directives[0].uris, [
+      'package:hikari/core/result.dart',
+      'package:hikari/infrastructure/io_adapter.dart',
+      'package:hikari/infrastructure/web_adapter.dart',
+    ]);
+    expect(directives[1].kind, 'export');
+    expect(directives[1].uris, ['package:hikari/domain/media.dart']);
+    expect(directives[2].kind, 'part');
+    expect(directives[2].uris, ['state.g.dart']);
+    expect(directives[3].kind, 'part of');
+    expect(directives[3].uris, ['library.dart']);
   });
 }
 

@@ -5,3 +5,9 @@ updates:
     target-branch: dev
     schedule:
       interval: weekly
+
+  - package-ecosystem: pub
+    directory: "/"
+    target-branch: dev
+    schedule:
+      interval: weekly

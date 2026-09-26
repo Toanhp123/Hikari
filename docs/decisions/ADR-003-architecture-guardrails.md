@@ -64,7 +64,7 @@ The project continues to use `flutter_lints` and enables only three extra Dart c
 
 Foundation validation uses `pub get --enforce-lockfile` so CI fails when `pubspec.lock` is stale or a hosted package content hash no longer matches.
 
-Every external GitHub Action used by Hikari CI is pinned to a full commit SHA, with the reviewed release version retained as a comment. Dependabot checks GitHub Actions weekly against `dev` so updates arrive as reviewable pull requests instead of mutable action tags changing underneath CI.
+Every external GitHub Action used by Hikari CI is pinned to a full commit SHA, with the reviewed release version retained as a comment. Dependabot checks both GitHub Actions and Pub dependencies weekly against `dev` so dependency changes arrive as reviewable pull requests instead of mutable action tags or silently aging package locks.
 
 ## Merge enforcement
 
