@@ -53,11 +53,13 @@ nullable fields belonging to a prior position kind. UTC timestamps use epoch
 milliseconds; domain values never import Drift or Flutter.
 
 Drift Flutter opens `hikari_user_state.sqlite` in application documents and uses a
-native background connection. Root State creates database, repositories and local
-source once, injects consumers, and closes its owned database on disposal. `main`
-remains thin. Source resolution uses id equality and capability type checks; no
-registry, DI framework or provider engine exists. Both scan and Library call the
-same open route. Library opens persisted snapshots without rescanning.
+native background connection. Root State creates the database, repositories, local
+source and default remote source once, injects consumers, and closes resources it
+owns on disposal. `main` remains thin. Source resolution uses a small in-memory
+`SourceId -> MediaSource` map plus capability type checks; duplicate source IDs fail
+fast instead of silently replacing an existing source. No registry, DI framework or
+provider engine exists. Scan, remote search and Library reuse the same open route;
+Library opens persisted snapshots without rescanning or repeating the original search.
 
 ## Resume and writes
 

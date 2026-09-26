@@ -34,7 +34,9 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not open chapter or saved progress.'),
+            content: Text(
+              'Could not open this chapter. It may no longer be available from the source.',
+            ),
           ),
         );
       }
@@ -91,12 +93,16 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                   itemCount: chapters.length,
                   itemBuilder: (context, index) {
                     final chapter = chapters[index];
+                    final subtitle = <String>[
+                      chapter.scanlator ?? widget.sourceName,
+                      if (!chapter.canReadPages) 'Not readable in Hikari',
+                    ].join(' · ');
                     return ListTile(
                       key: ValueKey(chapter.source),
                       title: Text(chapter.title),
-                      subtitle: Text(chapter.scanlator ?? widget.sourceName),
-                      enabled: !_opening,
-                      onTap: () => _open(chapter),
+                      subtitle: Text(subtitle),
+                      enabled: !_opening && chapter.canReadPages,
+                      onTap: chapter.canReadPages ? () => _open(chapter) : null,
                     );
                   },
                 );

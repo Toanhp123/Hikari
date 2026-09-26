@@ -16,10 +16,12 @@ final class MangaChapter {
     required this.title,
     required this.source,
     this.scanlator,
+    this.canReadPages = true,
   });
   final String title;
   final SourceMediaRef source;
   final String? scanlator;
+  final bool canReadPages;
 }
 
 abstract interface class MangaChapterSource implements MediaSource {

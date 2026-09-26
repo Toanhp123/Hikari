@@ -232,11 +232,14 @@ final class MangaDexSource
         if (readable == null) {
           throw const FormatException('Invalid readable date.');
         }
-        if (attributes['externalUrl'] != null ||
-            attributes['isUnavailable'] == true ||
-            count == 0 ||
+        final externalUrl = attributes['externalUrl'];
+        if (externalUrl != null && externalUrl is! String) {
+          throw const FormatException('Invalid external chapter URL.');
+        }
+        if (attributes['isUnavailable'] == true ||
             readable.isAfter(_now()) ||
-            attributes['translatedLanguage'] != 'en') {
+            attributes['translatedLanguage'] != 'en' ||
+            (externalUrl == null && count == 0)) {
           continue;
         }
         final groups = <String>[];
@@ -268,6 +271,7 @@ final class MangaDexSource
             title: parts.isEmpty ? 'Oneshot' : parts.join(' · '),
             source: SourceMediaRef(sourceId: id, itemId: chapterId),
             scanlator: groups.isEmpty ? null : groups.join(', '),
+            canReadPages: externalUrl == null,
           ),
         );
       }
@@ -328,6 +332,33 @@ final class MangaDexSource
     );
   }
 
+  void _reportImage(Uri url, http.Response? response, Duration duration) {
+    if (url.host == 'mangadex.org' || url.host.endsWith('.mangadex.org')) {
+      return;
+    }
+    unawaited(() async {
+      try {
+        final report =
+            http.Request(
+                'POST',
+                Uri.parse('https://api.mangadex.network/report'),
+              )
+              ..headers['Content-Type'] = 'application/json'
+              ..body = jsonEncode({
+                'url': url.toString(),
+                'success': response?.statusCode == 200,
+                'cached':
+                    response?.headers['x-cache']?.startsWith('HIT') ?? false,
+                'bytes': response?.bodyBytes.length ?? 0,
+                'duration': duration.inMilliseconds,
+              });
+        await _request(report, timeout: const Duration(seconds: 5));
+      } catch (_) {
+        // MangaDex@Home reporting is best-effort and never blocks page display.
+      }
+    }());
+  }
+
   @override
   Future<Uint8List> readPage(SourceMediaRef page) async {
     if (page.sourceId != id) throw ArgumentError('Wrong source.');
@@ -358,28 +389,7 @@ final class MangaDexSource
       } finally {
         watch.stop();
         if (response == null || response.statusCode != 200) _session = null;
-        if (url.host != 'mangadex.org' && !url.host.endsWith('.mangadex.org')) {
-          try {
-            final report =
-                http.Request(
-                    'POST',
-                    Uri.parse('https://api.mangadex.network/report'),
-                  )
-                  ..headers['Content-Type'] = 'application/json'
-                  ..body = jsonEncode({
-                    'url': url.toString(),
-                    'success': response?.statusCode == 200,
-                    'cached':
-                        response?.headers['x-cache']?.startsWith('HIT') ??
-                        false,
-                    'bytes': response?.bodyBytes.length ?? 0,
-                    'duration': watch.elapsedMilliseconds,
-                  });
-            await _request(report, timeout: const Duration(seconds: 5));
-          } catch (_) {
-            /* Reporting must not discard a downloaded page. */
-          }
-        }
+        _reportImage(url, response, watch.elapsed);
       }
       if (response.statusCode == 403 && attempt == 0) continue;
       _status(response.statusCode);

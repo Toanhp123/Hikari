@@ -1,21 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 import 'package:drift/native.dart';
-import 'package:hikari/app/app.dart';
-import 'package:hikari/infrastructure/persistence/user_database.dart';
-import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
-import 'package:hikari/features/manga_reader/manga_reader_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/app/app.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
-import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
+import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
+import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
+import 'package:hikari/infrastructure/persistence/user_database.dart';
+import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
 
 class FakeRemote
     implements MediaSearchSource, MangaChapterSource, MangaPageSource {
@@ -64,6 +63,18 @@ class ResumableRemote extends FakeRemote {
   Future<Uint8List> readPage(SourceMediaRef page) async => _png;
 }
 
+class DuplicateIdRemote extends FakeRemote {
+  @override
+  SourceId get id => SourceId.local;
+}
+
+class UnavailableRemote extends FakeRemote {
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async {
+    throw StateError('chapter unavailable');
+  }
+}
+
 class _CountingRemote extends FakeRemote {
   _CountingRemote({required this.onSearch});
   final void Function() onSearch;
@@ -76,6 +87,54 @@ class _CountingRemote extends FakeRemote {
 }
 
 void main() {
+  testWidgets('duplicate source ids fail fast during app composition', (
+    tester,
+  ) async {
+    final db = UserDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await tester.pumpWidget(
+      HikariApp(database: db, remoteSource: DuplicateIdRemote()),
+    );
+
+    expect(tester.takeException(), isA<StateError>());
+  });
+
+  testWidgets('unavailable remote chapter does not open a broken reader', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    final db = UserDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    try {
+      await tester.pumpWidget(
+        HikariApp(database: db, remoteSource: UnavailableRemote()),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Search manga'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'test');
+      await tester.tap(find.text('Search'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Series'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chapter'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MangaChapterPage), findsOneWidget);
+      expect(find.byType(MangaReaderPage), findsNothing);
+      expect(
+        find.text(
+          'Could not open this chapter. It may no longer be available from the source.',
+        ),
+        findsOneWidget,
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('remote series opens chapters then reader on non Android', (
     tester,
   ) async {
@@ -269,6 +328,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Could not search'), findsOneWidget);
   });
+  testWidgets('non-readable chapters stay visible but cannot open', (
+    tester,
+  ) async {
+    var opens = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaChapterPage(
+          title: 'Series',
+          sourceName: 'Test source',
+          loadChapters: () async => [
+            const MangaChapter(
+              title: 'External chapter',
+              source: SourceMediaRef(
+                sourceId: SourceId('fake'),
+                itemId: 'external',
+              ),
+              scanlator: 'External group',
+              canReadPages: false,
+            ),
+          ],
+          openChapter: (_, _) async {
+            opens++;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('External chapter'), findsOneWidget);
+    expect(find.textContaining('Not readable in Hikari'), findsOneWidget);
+    await tester.tap(find.text('External chapter'));
+    await tester.pumpAndSettle();
+    expect(opens, 0);
+  });
+
   testWidgets('chapter list preserves attribution and selected ref', (
     tester,
   ) async {

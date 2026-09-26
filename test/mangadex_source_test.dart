@@ -272,7 +272,7 @@ void main() {
       expect(result.first.scanlator, 'Group');
     },
   );
-  test('feed filters unavailable external future and empty chapters', () async {
+  test('feed keeps external chapters visible but not page-readable', () async {
     final source = MangaDexSource(
       client: MockClient(
         (_) async => jsonResponse({
@@ -281,7 +281,7 @@ void main() {
           'data': [
             chapter(
               chapterId,
-              attributes: {'externalUrl': 'https://example.com'},
+              attributes: {'externalUrl': 'https://example.com', 'pages': 0},
             ),
             chapter(chapterId, attributes: {'isUnavailable': true}),
             chapter(
@@ -298,7 +298,10 @@ void main() {
       ),
     );
     final result = await source.chapters(ref);
-    expect(result.single.title, 'Oneshot');
+    expect(result, hasLength(2));
+    expect(result.first.canReadPages, isFalse);
+    expect(result.last.canReadPages, isTrue);
+    expect(result.last.title, 'Oneshot');
   });
   test(
     'expired session resolves again with same stable page reference',
@@ -327,6 +330,7 @@ void main() {
       var resolves = 0;
       var images = 0;
       final reports = <Map<String, dynamic>>[];
+      final reportsDone = Completer<void>();
       final source = MangaDexSource(
         client: MockClient((r) async {
           if (r.url.path.startsWith('/at-home/')) {
@@ -335,6 +339,9 @@ void main() {
           }
           if (r.method == 'POST') {
             reports.add(jsonDecode(r.body) as Map<String, dynamic>);
+            if (reports.length == 2 && !reportsDone.isCompleted) {
+              reportsDone.complete();
+            }
             expect(r.headers['content-type'], 'application/json');
             return http.Response('', 200);
           }
@@ -348,6 +355,7 @@ void main() {
           itemId: '$chapterId/0',
         ),
       );
+      await reportsDone.future;
       expect(resolves, 2);
       expect(images, 2);
       expect(reports.map((r) => r['success']), [false, true]);
@@ -379,6 +387,34 @@ void main() {
     expect(resolves, 2);
     expect(images, 2);
   });
+  test('successful page bytes do not wait for a slow report', () async {
+    final reportStarted = Completer<void>();
+    final releaseReport = Completer<http.Response>();
+    final source = MangaDexSource(
+      client: MockClient((r) async {
+        if (r.url.path.startsWith('/at-home/')) {
+          return jsonResponse(session());
+        }
+        if (r.method == 'POST') {
+          if (!reportStarted.isCompleted) reportStarted.complete();
+          return releaseReport.future;
+        }
+        return http.Response.bytes([7, 8], 200);
+      }),
+    );
+
+    final page = source.readPage(
+      const SourceMediaRef(
+        sourceId: SourceId('mangadex'),
+        itemId: '$chapterId/0',
+      ),
+    );
+    await reportStarted.future;
+    expect(await page, [7, 8]);
+    releaseReport.complete(http.Response('', 200));
+    await Future<void>.delayed(Duration.zero);
+  });
+
   test(
     'report failure preserves successful bytes and uploads are exempt',
     () async {
@@ -387,6 +423,7 @@ void main() {
         'https://uploads.mangadex.org',
       ]) {
         var reports = 0;
+        final reportStarted = Completer<void>();
         final source = MangaDexSource(
           client: MockClient((r) async {
             if (r.url.path.startsWith('/at-home/')) {
@@ -394,6 +431,7 @@ void main() {
             }
             if (r.method == 'POST') {
               reports++;
+              if (!reportStarted.isCompleted) reportStarted.complete();
               throw http.ClientException('offline');
             }
             return http.Response.bytes([3, 4], 200);
@@ -408,6 +446,7 @@ void main() {
           ),
           [3, 4],
         );
+        if (!base.contains('uploads')) await reportStarted.future;
         expect(reports, base.contains('uploads') ? 0 : 1);
       }
     },
@@ -416,6 +455,7 @@ void main() {
     'connection failure reports zero bytes and invalidates session',
     () async {
       Map<String, dynamic>? report;
+      final reportDone = Completer<void>();
       final source = MangaDexSource(
         client: MockClient((r) async {
           if (r.url.path.startsWith('/at-home/')) {
@@ -423,6 +463,7 @@ void main() {
           }
           if (r.method == 'POST') {
             report = jsonDecode(r.body) as Map<String, dynamic>;
+            if (!reportDone.isCompleted) reportDone.complete();
             return http.Response('', 200);
           }
           throw http.ClientException('offline');
@@ -437,6 +478,7 @@ void main() {
         ),
         throwsA(isA<http.ClientException>()),
       );
+      await reportDone.future;
       expect(report, containsPair('bytes', 0));
       expect(report, containsPair('success', false));
     },
@@ -520,6 +562,7 @@ void main() {
   test('page refs stay stable and session is reused with reports', () async {
     var resolves = 0;
     final reports = <Map<String, dynamic>>[];
+    final reportsDone = Completer<void>();
     final source = MangaDexSource(
       client: MockClient((r) async {
         if (r.url.path.startsWith('/at-home/')) {
@@ -535,6 +578,9 @@ void main() {
         }
         if (r.method == 'POST') {
           reports.add(jsonDecode(r.body) as Map<String, dynamic>);
+          if (reports.length == 2 && !reportsDone.isCompleted) {
+            reportsDone.complete();
+          }
           return http.Response('', 200);
         }
         expect(r.headers.containsKey('authorization'), false);
@@ -549,6 +595,7 @@ void main() {
     expect(pages.map((p) => p.itemId), ['$chapterId/0', '$chapterId/1']);
     await source.readPage(pages.first);
     await source.readPage(pages.last);
+    await reportsDone.future;
     expect(resolves, 1);
     expect(reports, hasLength(2));
     expect(reports.first, containsPair('cached', true));

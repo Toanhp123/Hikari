@@ -2,77 +2,119 @@
 
 ## Scope and boundaries
 
-This vertical slice probes the existing boundaries, not a provider framework.
-`MediaSearchSource` returns normalized `Media`; `MangaChapterSource` returns
-`MangaChapter(title, source, scanlator?)`. `MangaPageSource.pages` accepts a readable
-reference: a local folder or a selected remote chapter. Domain stays pure Dart;
-provider parsing, HTTP and MangaDex identifiers stay in infrastructure.
+The current remote slice is an architecture probe, not a generic provider or plugin
+framework. `MediaSearchSource` returns normalized `Media`; `MangaChapterSource`
+returns provider-neutral chapter metadata; `MangaPageSource` resolves page references
+and bytes for a selected readable. Domain stays pure Dart. HTTP, MangaDex JSON,
+rate limits, UUID validation and MangaDex@Home handling stay in infrastructure.
 
-App composition owns a `SourceId → MediaSource` map, injects search callbacks and
-routes by capability. A series opens the generic chapter list before the reader;
-no first/latest chapter is selected implicitly. Local manga still opens its folder
-pages directly. Remote navigation does not require Android local scanning.
-The app owns and disposes its default HTTP source; injected clients remain caller-owned.
-No application service, registry, plugin engine or DI framework is introduced.
+App composition owns a small `SourceId -> MediaSource` map and routes by capability.
+Duplicate source IDs fail fast. A remote manga series opens the generic chapter list
+before the reader; local manga still opens folder pages directly. Remote navigation is
+independent of Android local scanning. No application service, registry, plugin engine
+or DI framework exists yet.
 
 ## Identity and user state
 
-MangaDex owns `SourceId('mangadex')`. Series references use manga UUIDs, chapter
-references use chapter UUIDs, and page references use `chapterUUID/zeroBasedIndex`.
-These are source-local locators, not canonical identities. Temporary image hosts,
-base URLs and full page URLs are never stored in references or SQLite.
+MangaDex owns `SourceId('mangadex')`.
 
-Library saves series snapshots. Progress saves the selected chapter reference with
-the existing `PagePosition`; schema version 1 is unchanged. Reopening that chapter
-restores its page. Removing the series from Library leaves chapter progress intact.
-Series-level “resume last chapter” is deliberately deferred: reopening a series
-always shows chapter selection. Reader decode/completion semantics remain those in
-[USER_STATE](USER_STATE.md). Source and scanlator credit stay visible.
+- series reference: MangaDex manga UUID;
+- chapter reference: MangaDex chapter UUID;
+- page reference: opaque `chapterUUID/zeroBasedIndex` owned by the source.
 
-## API and bounded resources
+These are source-local locators, not canonical content identities. MangaDex@Home
+`baseUrl`, chapter hash, filenames and complete image URLs are transport state and are
+never persisted as identity.
 
-- Explicit title search: first 20 results, available English chapters, safe/suggestive.
-  English title preferred; deterministic language-key fallback, then Untitled manga.
-- English feed requests use 500 rows, ascending volume/chapter, expanded groups and
-  no `includeEmptyPages`. Pagination advances by raw returned rows, including filtered
-  rows. Distinct upload UUIDs remain distinct even when chapter numbers match.
-- External, unavailable, empty and future-readable chapters are skipped. Empty feeds
-  are valid. Invalid responses, no-progress pagination and totals above 10,000 fail
-  explicitly; at most 20 feed requests are allowed rather than silently truncating.
-- Original-quality at-home metadata is held only in memory: one chapter, 15-minute TTL,
-  at most 10,000 page references. Images load individually, with no disk/download cache.
-- API bodies cap at 8 MiB; images cap at 32 MiB. Requests time out after 30 seconds;
-  reports after 5 seconds. Abortable HTTP requests cancel on timeout/source disposal.
-- API requests serialize with at least 250 ms between starts; at-home starts are at
-  least 1,500 ms apart. HTTP 429 surfaces an error, not an automatic retry loop.
-- A failed image invalidates the session. HTTP 403 refreshes metadata and retries once;
-  a second failure reaches UI. Base URL path prefixes and ports are preserved.
+Library saves the top-level series snapshot. Progress for remote manga is currently
+saved against the selected chapter reference with the existing `PagePosition`.
+Reopening that same chapter resumes its page. Removing the series from Library does
+not remove chapter progress. Series-level “resume last chapter” remains deliberately
+deferred.
 
-Eligible image requests report success/failure to MangaDex@Home with URL, actual
-received response byte length (zero when no response completes), duration and
-`X-Cache` HIT status. MangaDex-owned `mangadex.org` hosts are exempt per upstream
-instructions. Report failures never discard successfully downloaded bytes.
-The API abuse-report endpoint's 10/minute limit is not the image-report endpoint.
+## Chapter availability
 
-## Access and verification limits
+The MangaDex feed can contain both MangaDex-hosted chapters and chapters whose
+`externalUrl` points to another service. Hikari keeps eligible external entries visible
+in the chapter list for an accurate view of the feed, but marks them as not readable in
+Hikari; it does not scrape or proxy another publisher/service to turn those links into
+pages.
 
-No authentication, credentials, cookies, OAuth or guest restriction workarounds.
-No authentication headers are sent to image/CDN hosts. Native clients do not need
-a browser CORS proxy. Android release manifest declares INTERNET permission.
-Guest/account policy can restrict service access; no unverified daily quota is
-presented as a confirmed API contract. Unit/widget tests use injected offline HTTP
-and fake source implementations, never live MangaDex.
+Unavailable, future-readable and invalid internal empty chapters are omitted. Distinct
+chapter UUIDs remain distinct even when logical chapter numbers match; no scanlation-
+group deduplication policy exists.
 
-Device/network behavior and live service compatibility need separate manual checks.
-Windows/iOS local scanning remains unsupported; this is independent of remote routes.
-Covers, downloads, reconciliation, canonical IDs and series resume are out of scope.
+MangaDex feed metadata is not a guarantee that MangaDex@Home still has the chapter.
+A chapter can remain in the feed while `GET /at-home/server/{chapterId}` returns 404.
+Hikari therefore resolves page metadata before pushing the reader. A stale/removed
+chapter fails on the chapter-selection screen instead of opening a reader that can only
+show a page-load error. Hikari does not preflight every chapter because that would add
+unnecessary MangaDex@Home requests and consume the provider's endpoint quota.
 
-## Primary references
+## Search and feed behavior
 
+- Explicit title search returns the first 20 results with English chapter availability
+  requested and safe/suggestive content ratings.
+- English chapter feed requests use up to 500 rows, ascending volume/chapter and
+  expanded scanlation-group relationships. `includeEmptyPages` is intentionally not
+  forced because upstream behavior has changed and clients have seen valid chapters
+  disappear when that parameter was used.
+- Pagination advances by raw returned rows, including rows later omitted from reading.
+  Totals above 10,000, no-progress pagination and malformed payloads fail explicitly.
+- Scanlation-group credit is kept visible in the chapter list and reader.
+
+## MangaDex@Home transport
+
+`GET /at-home/server/{chapterId}` provides a dynamic HTTPS `baseUrl`, chapter hash and
+ordered page filenames. Original `data` quality is used for this slice. One chapter
+session is cached in memory for at most 15 minutes; page refs remain stable across
+session refreshes.
+
+A failed image invalidates the session. HTTP 403 refreshes the MangaDex@Home metadata
+and retries once; there is no unbounded retry loop. API response bodies cap at 8 MiB,
+page images at 32 MiB, and ordinary requests time out after 30 seconds.
+
+MangaDex requires image retrieval reports for applicable MangaDex@Home hosts. Hikari
+captures URL, success, `X-Cache` HIT status, byte count and complete retrieval duration,
+then submits the report best-effort with a bounded timeout. Reporting is off the reader
+critical path: a successfully downloaded image is returned without waiting for the
+report response, and report failure cannot replace the image result. Source disposal
+aborts owned in-flight requests.
+
+## Current upstream constraints
+
+Verified against current MangaDex documentation on 2026-09-27:
+
+- requests require a truthful `User-Agent`;
+- the documented global `api.mangadex.org` allowance is approximately 5 requests/s
+  per IP;
+- `GET /at-home/server/{id}` has an endpoint-specific limit of 40 requests/minute;
+- MangaDex@Home base URLs are temporary and should be re-resolved after expiry/403;
+- chapters with `externalUrl` are hosted externally and are not MangaDex@Home pages;
+- consumers must credit MangaDex and scanlation groups when offering chapter reading.
+
+The implementation serializes API starts with at least 250 ms spacing and at-home
+starts with at least 1,500 ms spacing. HTTP 429 surfaces as an error rather than being
+retried aggressively. No OAuth, account sync, cookies, guest-limit workaround or
+browser proxy is implemented. Native Flutter clients are not subject to browser CORS in
+the same way as a website, so no proxy architecture is added for this Android-first
+slice.
+
+## Verification boundary and deferred work
+
+Automated tests use injected HTTP/fake sources and do not prove live MangaDex
+availability. Physical Android verification still needs to cover search, chapter list,
+MangaDex@Home reading, background/reopen, chapter progress, Library restart and slow or
+failed networks.
+
+Covers, downloads, disk image cache, auth/account features, series-level last-chapter
+resume, canonical identity, chapter dedup policy, additional remote providers and a
+provider/plugin runtime remain out of scope.
+
+## Primary upstream references
+
+- [MangaDex OpenAPI / Swagger](https://api.mangadex.org/docs/swagger.html)
 - [API limitations](https://api.mangadex.org/docs/2-limitations/)
-- [Chapter retrieval and image reporting](https://api.mangadex.org/docs/04-chapter/retrieving-chapter/)
 - [Manga search](https://api.mangadex.org/docs/03-manga/search/)
-- [OpenAPI](https://api.mangadex.org/docs/swagger.html)
-
-Contracts were checked against retained upstream documentation during this slice;
-mocked tests establish local behavior, not upstream availability.
+- [Chapter feed](https://api.mangadex.org/docs/04-chapter/feed/)
+- [Chapter retrieval and MangaDex@Home reporting](https://api.mangadex.org/docs/04-chapter/retrieving-chapter/)
