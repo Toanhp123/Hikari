@@ -12,7 +12,7 @@ import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/playback/local_video.dart';
-import 'package:hikari/infrastructure/playback/video_progress.dart';
+import 'package:hikari/infrastructure/playback/local_video_session.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
 
@@ -24,7 +24,8 @@ class HikariApp extends StatefulWidget {
   State<HikariApp> createState() => _HikariAppState();
 }
 
-class _HikariAppState extends State<HikariApp> {
+class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+  final _video = LocalVideoSession();
   late final UserDatabase _database;
   late final LibraryRepository _library;
   late final ProgressRepository _progress;
@@ -34,6 +35,7 @@ class _HikariAppState extends State<HikariApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _database = widget.database ?? UserDatabase();
     _library = SqliteLibraryRepository(_database);
     _progress = SqliteProgressRepository(_database);
@@ -42,8 +44,29 @@ class _HikariAppState extends State<HikariApp> {
 
   @override
   void dispose() {
-    if (widget.database == null) unawaited(_database.close());
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(
+      _video
+          .shutdown()
+          .whenComplete(() async {
+            if (widget.database == null) await _database.close();
+          })
+          .catchError((Object error) {
+            FlutterError.reportError(FlutterErrorDetails(exception: error));
+          }),
+    );
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    unawaited(
+      _video.setForeground(state == AppLifecycleState.resumed).catchError((
+        Object error,
+      ) {
+        FlutterError.reportError(FlutterErrorDetails(exception: error));
+      }),
+    );
   }
 
   Future<void> _open(BuildContext context, Media media) async {
@@ -70,15 +93,15 @@ class _HikariAppState extends State<HikariApp> {
       final Widget page;
       switch (media.type) {
         case MediaType.anime:
-          final tracker = VideoProgressTracker(saveProgress: save);
+          final playback = _video.open(
+            locator: media.source.itemId,
+            initialProgress: saved,
+            saveProgress: save,
+          );
           page = PlayerPage(
             title: media.title,
-            beforeExit: tracker.finish,
-            playback: LocalVideo(
-              locator: media.source.itemId,
-              initialProgress: saved,
-              progress: tracker,
-            ),
+            beforeExit: playback.finish,
+            playback: LocalVideo(playback: playback),
           );
         case MediaType.manga:
           if (source is! MangaPageSource) {

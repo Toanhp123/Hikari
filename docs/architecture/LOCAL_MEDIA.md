@@ -81,9 +81,14 @@ References:
 ## Playback and readers
 
 Video uses `media_kit` 1.2.6, `media_kit_video` 2.0.1 and `media_kit_libs_video` 1.0.7.
-The adapter initializes media-kit lazily when opening video, passes the document locator
-to the engine, displays its controls/errors, pauses when the app leaves the foreground,
-and disposes subscriptions/player on exit. No whole-video cache copy is made.
+App bootstrap initializes media-kit once before any Player construction. One concrete
+app-owned LocalVideoSession per Flutter app/engine lazily constructs one Player and
+VideoController at first playback and reuses them across routes. Routes await frozen
+progress persistence and stop/unload, never native Player disposal. Only owner shutdown
+cancels subscriptions/timer and disposes the Player; VideoController cleanup belongs to
+that Player. LocalVideo displays the shared controller and errors only. Native commands
+are serialized; leaving foreground flushes and pauses without closing the session.
+No whole-video cache copy is made. Progress/reset semantics live in [USER_STATE](USER_STATE.md).
 Installed media-kit 1.2.6 `media_native.dart` normalizes Android `content://` to
 `fd://`; its Android provider owns/caches the descriptor, and `Media` finalization
 closes it after release. The player retains its playlist while playing. Hikari does
@@ -108,8 +113,9 @@ Markdown displays as plain text. The reader scrolls, constrains line width and s
 selection. Limits fail explicitly rather than truncating content. Scan metadata is capped
 at 50,000 entries; choose a smaller tree if exceeded.
 
-Non-Android platforms display an unsupported local-scan message without initializing
-native playback during bootstrap. Windows/iOS scanning is not implemented.
+Non-Android platforms display an unsupported local-scan message. Bootstrap initializes
+media-kit, but no native Player is constructed until playback is requested.
+Windows/iOS scanning is not implemented.
 
 ## Deferred
 
@@ -145,6 +151,10 @@ HikariTest/
    confirm resume; repeat using Android edge/system back with predictive back enabled.
    Try rapid double-back and cancellation of a gesture; confirm no double exit or reset
    to zero. Complete playback, reopen, and verify completion/replay behavior.
+   Stress repeatedly: video A → leave → manga → leave → A → leave → B → leave.
+   Check both back paths, background transitions and leaving during loading. Confirm each
+   video's latest meaningful progress resumes independently. This ownership rebuild has
+   deterministic fake-driver coverage, not physical-device verification.
 5. Read manga pages in 1, 2, 10 order, zoom, navigate back, and leave/reopen the reader.
    Complete manga, reopen at page zero and leave untouched: completion must remain.
    Navigate to an earlier nonfinal page: progress becomes active; finish again.

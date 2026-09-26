@@ -62,17 +62,29 @@ Video loads saved state before native open. Playback opens paused, waits for a
 known duration, clamps incomplete position to current duration, then seeks before
 playback. Completed entries start at zero. Only the engine completion event marks
 completion; meaningful nonterminal playback clears it. Changed samples write at
-most roughly every five seconds, plus pause/background/close flushes. Timers and
-subscriptions dispose with the player. Position/duration events maintain a Dart-side
-snapshot; flushes never query native state. PlayerPage uses `PopScope` to block exit
-until one final frozen snapshot is queued after earlier writes and awaited. AppBar
-and Android system back use this same path; repeated attempts are ignored. Events
-and lifecycle callbacks cannot mutate progress after finalization starts. Save failure
-reports an error but still permits exit. Player teardown follows route pop; disposal
-only retains a best-effort fallback for forced widget removal. Predictive gesture
-eligibility is false while async finalization is required, so native predictive route
-preview is not available on this page. Native decoding is not mocked behind a new
-engine abstraction; route exit and save ordering have deterministic tests.
+most roughly every five seconds, plus pause/background/close flushes. One app-owned
+LocalVideoSession owns the reusable Player, VideoController, timer and subscriptions.
+Each route gets a separate identity and tracker; async continuations check that identity
+and explicit lifecycle phase. Opening/seek events cannot update progress. Restore failure
+shows a playback error without writing the saved record; reopening gets fresh tracking
+state. A restore target alone is not meaningful playback.
+
+Position/duration events maintain a Dart-side snapshot; flushes never query native state.
+PlayerPage uses `PopScope` to block exit until a frozen final sample is queued after
+previous writes, awaited, and media stopped/unloaded. Closing starts synchronously;
+stop/open reset zeros and completed=false never overwrite progress or imply replay.
+AppBar and Android system back share this path; repeated attempts are ignored. Save
+failure still attempts stop and permits exit. Player destruction happens only at owner
+shutdown, before its owned database closes. Forced route removal has a best-effort
+finish fallback, not the normal persistence path. Predictive route preview remains
+unavailable while asynchronous finalization is required.
+
+The infrastructure-local fake driver tests native command ordering, reset streams,
+sequential sessions and 60 repeated navigation cycles without introducing a domain
+engine framework. Native streams have no media IDs: identity guards protect Dart
+continuations, while serialized stop/open and duration readiness gate native samples.
+An arbitrarily delayed old native event after new playback becomes active cannot be
+identified by a Dart token; physical-device stress remains necessary.
 
 Manga clamps saved index against the newly loaded page list; completed content
 starts at page zero. Only a successfully decoded frame presented by Image schedules

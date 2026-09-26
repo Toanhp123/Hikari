@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class PlayerPage extends StatefulWidget {
@@ -40,6 +42,15 @@ class _PlayerPageState extends State<PlayerPage> {
         Navigator.of(context).pop();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    // Forced removal only; normal back awaits the same idempotent callback.
+    if (!_exiting) {
+      unawaited(widget.beforeExit?.call().catchError((Object _) {}));
+    }
+    super.dispose();
   }
 
   @override
