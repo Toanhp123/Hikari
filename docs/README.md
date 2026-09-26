@@ -11,9 +11,10 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
+| `architecture/REMOTE_MANGA.md` | Remote manga hierarchy, MangaDex transport and stable identity | Working on search, chapter selection or remote page delivery |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
-| `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing once active tracking needs its own document | Planning or tracking implementation |
+| `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing while active tracking needs its own document | Planning or tracking active implementation |
 
 Architecture and roadmap documents are created only when real content requires them. Accepted cross-cutting decisions already live under `decisions/`.
 
@@ -162,7 +163,8 @@ Hikari/
     ├── GIT_WORKFLOW.md
     ├── architecture/
     │   ├── LOCAL_MEDIA.md
-    │   └── USER_STATE.md
+    │   ├── USER_STATE.md
+    │   └── REMOTE_MANGA.md
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
         ├── ADR-002-foundation-v1.md
@@ -170,4 +172,4 @@ Hikari/
         └── ADR-004-user-state-persistence.md
 ```
 
-Future `architecture/` and `roadmap/` documents are still created incrementally, only when the project has real knowledge to store.
+Future `architecture/` and `roadmap/` documents are created incrementally only when the project has real knowledge or active execution state to store. Completed one-off plans should be removed after durable facts move to canonical architecture/product docs.

@@ -61,6 +61,74 @@ void main() {
     expect((text.position as TextPosition).progression, 1);
     expect(text.completed, isFalse);
   });
+  test('remote series snapshot survives close and reopen', () async {
+    await db.close();
+    final directory = await Directory.systemTemp.createTemp('hikari-remote-');
+    final file = File('${directory.path}/state.sqlite');
+    final first = UserDatabase(NativeDatabase.createInBackground(file));
+    const series = SourceMediaRef(
+      sourceId: SourceId('mangadex'),
+      itemId: 'series-id',
+    );
+    try {
+      await SqliteLibraryRepository(first).upsert(
+        LibraryEntry(
+          media: const Media(
+            title: 'Remote Series',
+            type: MediaType.manga,
+            source: series,
+          ),
+          addedAt: now,
+        ),
+      );
+    } finally {
+      await first.close();
+    }
+
+    final second = UserDatabase(NativeDatabase.createInBackground(file));
+    try {
+      final restored = (await SqliteLibraryRepository(second).loadAll()).single;
+      expect(restored.media.title, 'Remote Series');
+      expect(restored.media.source, series);
+      expect(restored.media.type, MediaType.manga);
+    } finally {
+      await second.close();
+      await directory.delete(recursive: true);
+    }
+  });
+
+  test('removing remote series keeps chapter progress', () async {
+    const series = SourceMediaRef(
+      sourceId: SourceId('mangadex'),
+      itemId: 'series-id',
+    );
+    const chapter = SourceMediaRef(
+      sourceId: SourceId('mangadex'),
+      itemId: 'chapter-id',
+    );
+    await library.upsert(
+      LibraryEntry(
+        media: const Media(
+          title: 'Remote Series',
+          type: MediaType.manga,
+          source: series,
+        ),
+        addedAt: now,
+      ),
+    );
+    await progress.save(
+      record(PagePosition(pageIndex: 1, pageCount: 3), media: chapter),
+    );
+
+    await library.remove(series);
+
+    expect(await library.contains(series), isFalse);
+    final saved = await progress.load(chapter);
+    expect(saved, isNotNull);
+    expect((saved!.position as PagePosition).pageIndex, 1);
+    expect((saved.position as PagePosition).pageCount, 3);
+  });
+
   test(
     'source keys do not collide; library operations independent from progress',
     () async {

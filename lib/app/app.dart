@@ -1,23 +1,27 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
-import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
+import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
+import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
+import 'package:hikari/infrastructure/mangadex/mangadex_source.dart';
+import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/playback/local_video.dart';
 import 'package:hikari/infrastructure/playback/local_video_session.dart';
-import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
 
 class HikariApp extends StatefulWidget {
-  const HikariApp({super.key, this.database, this.source});
+  const HikariApp({super.key, this.database, this.source, this.remoteSource});
+  final MediaSearchSource? remoteSource;
   final UserDatabase? database;
   final LocalMediaSource? source;
   @override
@@ -30,6 +34,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   late final LibraryRepository _library;
   late final ProgressRepository _progress;
   late final LocalMediaSource _local;
+  late final MediaSearchSource _remote;
+  late final Map<SourceId, MediaSource> _sources;
+  MangaDexSource? _ownedRemote;
   bool _opening = false;
 
   @override
@@ -40,11 +47,21 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     _library = SqliteLibraryRepository(_database);
     _progress = SqliteProgressRepository(_database);
     _local = widget.source ?? LocalMediaSource();
+    _remote = widget.remoteSource ?? (_ownedRemote = MangaDexSource());
+    final sources = <SourceId, MediaSource>{};
+    for (final source in <MediaSource>[_local, _remote]) {
+      if (sources.containsKey(source.id)) {
+        throw StateError('Duplicate media source id: ${source.id}.');
+      }
+      sources[source.id] = source;
+    }
+    _sources = sources;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _ownedRemote?.close();
     unawaited(
       _video
           .shutdown()
@@ -73,11 +90,24 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     if (_opening) return;
     _opening = true;
     try {
-      final MediaSource? source = media.source.sourceId == _local.id
-          ? _local
-          : null;
-      if (source == null || !_local.supported) {
+      final source = _sources[media.source.sourceId];
+      if (source == null || (source == _local && !_local.supported)) {
         throw StateError('Source is unavailable on this device.');
+      }
+      if (media.type == MediaType.manga && source is MangaChapterSource) {
+        if (source is! MangaPageSource) throw StateError('Pages unavailable.');
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => MangaChapterPage(
+              title: media.title,
+              sourceName: source.name,
+              loadChapters: () => source.chapters(media.source),
+              openChapter: (context, chapter) =>
+                  _openChapter(context, source as MangaPageSource, chapter),
+            ),
+          ),
+        );
+        return;
       }
       final saved = await _progress.load(media.source);
       if (!context.mounted) return;
@@ -140,6 +170,39 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _openChapter(
+    BuildContext context,
+    MangaPageSource source,
+    MangaChapter chapter,
+  ) async {
+    final saved = await _progress.load(chapter.source);
+    // Resolve before navigation so stale remote chapters never open a broken reader.
+    final pages = await source.pages(chapter.source);
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MangaReaderPage(
+          title: chapter.title,
+          credit: [
+            source.name,
+            if (chapter.scanlator != null) chapter.scanlator!,
+          ].join(' · '),
+          loadPages: () async => pages,
+          readPage: source.readPage,
+          initialProgress: saved,
+          saveProgress: (position, completed) => _progress.save(
+            MediaProgress(
+              media: chapter.source,
+              position: position,
+              completed: completed,
+              updatedAt: DateTime.now().toUtc(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Hikari',
@@ -155,6 +218,16 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         chooseRoot: _local.chooseRoot,
         library: _library,
         openMedia: _open,
+        openRemote: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => RemoteMangaSearchPage(
+              sourceName: _remote.name,
+              search: _remote.search,
+              openMedia: _open,
+              library: _library,
+            ),
+          ),
+        ),
         openLibrary: () async {
           await Navigator.of(context).push(
             MaterialPageRoute<void>(

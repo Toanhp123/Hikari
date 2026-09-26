@@ -694,6 +694,11 @@ Một source có thể cung cấp một hoặc nhiều capability như search, d
 
 API capability cụ thể vẫn là quyết định của Domain Core; Foundation không scaffold trước interface chưa được requirement chứng minh.
 
+Vertical MangaDex hiện kiểm chứng search → series → chọn chapter → pages bằng các
+capability nhỏ, không tạo provider engine tổng quát. Library lưu series; progress
+lưu chapter, chưa có resume chapter cuối ở cấp series. Chi tiết hiện trạng và giới
+hạn: [Remote manga](architecture/REMOTE_MANGA.md).
+
 ---
 
 ## 8. Thứ tự phát triển tổng quát
@@ -1026,12 +1031,19 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Drift/SQLite schema v1; cả ba reader có resume. Slice persistence/resume mới có
   automated tests và Android debug build, chưa xác minh E2E trên thiết bị thật;
   xem [USER_STATE](architecture/USER_STATE.md).
+- vertical MangaDex thử nghiệm: title search → series UUID → chapter feed → chapter
+  UUID → MangaDex@Home pages. Library lưu series; page progress lưu theo chapter;
+  external chapters vẫn hiển thị nhưng không mở trong Hikari. Source-scoped identity
+  hoạt động với cả local SAF và remote UUID mà chưa cần canonical `MediaId`; xem
+  [REMOTE_MANGA](architecture/REMOTE_MANGA.md).
 
 ### Tiếp theo
 
-Xác minh persistence/restart/resume mới trên Android. Canonical identity tiếp tục
-hoãn đến khi có yêu cầu rename reconciliation/dedup thực tế; không mở rộng domain
-chỉ để dự đoán provider tương lai.
+Xác minh persistence/restart/resume mới và MangaDex live flow trên Android thực:
+search → chapter list → reader → resume → Library → restart. Canonical identity tiếp
+tục hoãn đến khi có yêu cầu rename reconciliation/dedup thực tế. Series-level
+last-chapter resume, additional remote providers và generic provider/extension engine
+chỉ được thiết kế khi requirement thật chứng minh cần.
 
 ### Chưa bắt đầu
 

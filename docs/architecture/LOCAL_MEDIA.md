@@ -115,13 +115,16 @@ at 50,000 entries; choose a smaller tree if exceeded.
 
 Non-Android platforms display an unsupported local-scan message. Bootstrap initializes
 media-kit, but no native Player is constructed until playback is requested.
-Windows/iOS scanning is not implemented.
+Windows/iOS scanning is not implemented. Remote search remains available on these
+platforms; its independent capability-based route is documented in
+[REMOTE_MANGA](REMOTE_MANGA.md). Local manga still opens folder pages directly,
+without a chapter-selection screen.
 
 ## Deferred
 
 CBZ/ZIP, CBR/RAR, EPUB, PDF; series/season/chapter parsing; canonical identity,
 hashing/deduplication, enrichment, covers/thumbnails; rename recovery, watchers,
-history sessions, downloads, remote providers and generic source/engine frameworks.
+history sessions, downloads, additional remote providers and generic source/engine frameworks.
 Progress/Library persistence and minimal page/text source capabilities are implemented
 in [USER_STATE](USER_STATE.md); canonical identity remains deferred.
 
