@@ -12,6 +12,7 @@ class MangaReaderPage extends StatefulWidget {
     required this.title,
     required this.loadPages,
     required this.readPage,
+    this.credit,
     this.initialProgress,
     this.saveProgress,
   });
@@ -20,6 +21,7 @@ class MangaReaderPage extends StatefulWidget {
   final Future<void> Function(ProgressPosition, bool)? saveProgress;
 
   final String title;
+  final String? credit;
   final Future<List<SourceMediaRef>> Function() loadPages;
   final Future<Uint8List> Function(SourceMediaRef) readPage;
 
@@ -162,6 +164,11 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
       body: SafeArea(
         child: Column(
           children: [
+            if (widget.credit != null)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(widget.credit!),
+              ),
             if (pages != null && pages.isNotEmpty)
               Row(
                 children: [

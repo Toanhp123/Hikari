@@ -694,6 +694,11 @@ Một source có thể cung cấp một hoặc nhiều capability như search, d
 
 API capability cụ thể vẫn là quyết định của Domain Core; Foundation không scaffold trước interface chưa được requirement chứng minh.
 
+Vertical MangaDex hiện kiểm chứng search → series → chọn chapter → pages bằng các
+capability nhỏ, không tạo provider engine tổng quát. Library lưu series; progress
+lưu chapter, chưa có resume chapter cuối ở cấp series. Chi tiết hiện trạng và giới
+hạn: [Remote manga](architecture/REMOTE_MANGA.md).
+
 ---
 
 ## 8. Thứ tự phát triển tổng quát
