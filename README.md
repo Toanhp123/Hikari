@@ -2,7 +2,7 @@
 
 Hikari is a cross-platform Flutter media hub for movies, series, anime, manga/comics/webtoon, and novels.
 
-Primary targets are Android, Windows, and iOS, with Android as the first-priority platform. The project is currently in its foundation/bootstrap stage; product scope and architecture choices are documented before implementation is expanded.
+Primary targets are Android, Windows, and iOS, with Android as the first-priority platform. The current local-media vertical scans Android folders, opens video/image/text content, and adds source-keyed progress, Library snapshots and SQLite persistence.
 
 ## Project documentation
 
@@ -15,9 +15,9 @@ Start with the smallest document relevant to the task:
 
 Do not treat this README as the project specification; canonical project knowledge lives in `docs/`.
 
-## Current bootstrap
+## Current development baseline
 
-Foundation v1.1 pins Flutter with FVM and enforces the dependency lock, format, static type/lint analysis, tests with an architecture guard, and an Android debug build in CI. The runtime app intentionally remains minimal while Domain Core is designed.
+Foundation v1.1 pins Flutter with FVM and enforces the dependency lock, format, static type/lint analysis, tests with an architecture guard, and an Android debug build in CI. See [local media](docs/architecture/LOCAL_MEDIA.md) and [user state](docs/architecture/USER_STATE.md) for current behavior and verification limits. Regenerate Drift records after schema changes with `fvm dart run build_runner build --delete-conflicting-outputs`.
 
 FVM must be installed and available on `PATH`. On Windows, enable Developer Mode if `fvm install` reports symbolic-link error 1314.
 

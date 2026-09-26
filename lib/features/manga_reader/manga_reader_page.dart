@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/progress/resume.dart';
 
 class MangaReaderPage extends StatefulWidget {
   const MangaReaderPage({
@@ -10,7 +12,12 @@ class MangaReaderPage extends StatefulWidget {
     required this.title,
     required this.loadPages,
     required this.readPage,
+    this.initialProgress,
+    this.saveProgress,
   });
+
+  final MediaProgress? initialProgress;
+  final Future<void> Function(ProgressPosition, bool)? saveProgress;
 
   final String title;
   final Future<List<SourceMediaRef>> Function() loadPages;
@@ -27,6 +34,29 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   bool _loading = true;
   bool _failed = false;
   int _index = 0;
+  ImageProvider? _savedImage;
+  bool _hasNavigated = false;
+
+  void _displayed(ImageProvider image, int index) {
+    if (widget.initialProgress?.completed == true && !_hasNavigated) return;
+    if (_savedImage == image) return;
+    _savedImage = image;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _image != image) return;
+      try {
+        await widget.saveProgress?.call(
+          PagePosition(pageIndex: index, pageCount: _pages!.length),
+          index == _pages!.length - 1,
+        );
+      } catch (_) {
+        if (!mounted) return;
+        _savedImage = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save reading progress.')),
+        );
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -37,6 +67,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   void _releaseImage() {
     final image = _image;
     _image = null;
+    _savedImage = null;
     if (image != null) unawaited(image.evict());
   }
 
@@ -56,6 +87,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
       final pages = await widget.loadPages();
       if (!mounted) return;
       _pages = pages;
+      _index = resumePage(widget.initialProgress, pages.length);
       await _loadCurrent();
     } catch (_) {
       if (mounted) {
@@ -100,6 +132,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
 
   void _move(int delta) {
     if (_loading) return;
+    _hasNavigated = true;
     _index += delta;
     _loadCurrent();
   }
@@ -166,6 +199,12 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                         child: Image(
                           image: _image!,
                           fit: BoxFit.contain,
+                          frameBuilder: (_, child, frame, synchronouslyLoaded) {
+                            if (frame != null || synchronouslyLoaded) {
+                              _displayed(_image!, _index);
+                            }
+                            return child;
+                          },
                           semanticLabel: 'Page ${_index + 1}',
                           errorBuilder: (_, _, _) =>
                               _failure('Could not decode this page.'),

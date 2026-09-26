@@ -22,6 +22,18 @@ class SourceMediaRef {
 
   final SourceId sourceId;
   final String itemId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SourceMediaRef &&
+      other.sourceId == sourceId &&
+      other.itemId == itemId;
+
+  @override
+  int get hashCode => Object.hash(sourceId, itemId);
+
+  @override
+  String toString() => 'SourceMediaRef($sourceId, $itemId)';
 }
 
 class Media {

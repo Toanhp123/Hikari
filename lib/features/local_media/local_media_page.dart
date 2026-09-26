@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/features/library/library_page.dart';
 
 class LocalMediaPage extends StatefulWidget {
   const LocalMediaPage({
@@ -8,7 +10,12 @@ class LocalMediaPage extends StatefulWidget {
     required this.chooseRoot,
     required this.openMedia,
     this.supported = true,
+    this.library,
+    this.openLibrary,
   });
+
+  final LibraryRepository? library;
+  final Future<void> Function()? openLibrary;
 
   final Future<List<Media>?> Function() scanSelectedRoot;
   final Future<bool> Function() chooseRoot;
@@ -24,6 +31,12 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
   Object? _error;
   bool _loading = false;
   bool _started = false;
+  int _libraryRevision = 0;
+
+  Future<void> _openLibrary() async {
+    await widget.openLibrary?.call();
+    if (mounted) setState(() => _libraryRevision++);
+  }
 
   @override
   void initState() {
@@ -161,6 +174,13 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
         title: Text(media.title),
         subtitle: Text(_typeLabel(media.type)),
         onTap: () => widget.openMedia(context, media),
+        trailing: widget.library == null
+            ? null
+            : LibraryButton(
+                key: ValueKey((media.source, _libraryRevision)),
+                repository: widget.library!,
+                media: media,
+              ),
       ),
     );
   }
@@ -175,14 +195,34 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
   Widget build(BuildContext context) {
     if (!widget.supported) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Local media')),
+        appBar: AppBar(
+          title: const Text('Local media'),
+          actions: [
+            if (widget.openLibrary != null)
+              IconButton(
+                tooltip: 'Library',
+                onPressed: _openLibrary,
+                icon: const Icon(Icons.bookmarks_outlined),
+              ),
+          ],
+        ),
         body: const Center(
           child: Text('Local media is not supported on this device.'),
         ),
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Local media')),
+      appBar: AppBar(
+        title: const Text('Local media'),
+        actions: [
+          if (widget.openLibrary != null)
+            IconButton(
+              tooltip: 'Library',
+              onPressed: _openLibrary,
+              icon: const Icon(Icons.bookmarks_outlined),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _scanSelectedRoot,

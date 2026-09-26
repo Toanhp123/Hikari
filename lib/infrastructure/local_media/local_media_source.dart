@@ -3,9 +3,14 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/classifier.dart';
 
-class LocalMediaSource {
+class LocalMediaSource implements MangaPageSource, NovelTextSource {
+  @override
+  SourceId get id => SourceId.local;
+  @override
+  String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
 
   bool get supported =>
@@ -63,6 +68,7 @@ class LocalMediaSource {
     }).toList();
   }
 
+  @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef ref) async {
     final entries = (await _children(ref.itemId)).where(isPage).toList()
       ..sort((a, b) {
@@ -74,9 +80,12 @@ class LocalMediaSource {
         .toList();
   }
 
-  Future<Uint8List> image(SourceMediaRef ref) => _read(ref, 32 * 1024 * 1024);
+  @override
+  Future<Uint8List> readPage(SourceMediaRef ref) =>
+      _read(ref, 32 * 1024 * 1024);
 
-  Future<String> text(SourceMediaRef ref) async {
+  @override
+  Future<String> readText(SourceMediaRef ref) async {
     final bytes = await _read(ref, 4 * 1024 * 1024);
     return compute(_decodeText, bytes);
   }

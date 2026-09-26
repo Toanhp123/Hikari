@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 
 void main() {
@@ -13,6 +14,14 @@ void main() {
   final source = LocalMediaSource();
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'opaque');
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+  test('local source exposes only implemented capabilities', () {
+    expect(source, isA<MediaSource>());
+    expect(source, isA<MangaPageSource>());
+    expect(source, isA<NovelTextSource>());
+    expect(source.id, SourceId.local);
+    expect(source.name, isNotEmpty);
+  });
 
   test('missing stored root is a normal null restore result', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
@@ -118,7 +127,7 @@ void main() {
       expect(call.method, 'read');
       return Uint8List.fromList([0x61, 0xff, 0x62]);
     });
-    expect(await source.text(ref), 'a�b');
+    expect(await source.readText(ref), 'a�b');
   });
 
   test('stored-root failure propagates to feature recovery', () async {

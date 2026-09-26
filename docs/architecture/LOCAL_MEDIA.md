@@ -4,7 +4,9 @@
 
 Implemented flow: restore or choose one Android folder, scan its SAF document tree,
 classify source items, show results, then open video, image pages, or UTF-8 text. The
-selected root is persisted; scan results themselves exist only in memory.
+selected root is persisted; scan results themselves exist only in memory. Explicit
+Library snapshots and reader progress are now persisted separately; see
+[USER_STATE](USER_STATE.md) for canonical behavior and resume limits.
 
 - `domain/media/media.dart`: pure Dart `Media`, `MediaType`, opaque value `SourceId`,
   and `SourceMediaRef`. New source identifiers do not require changing an enum. `itemId`
@@ -52,7 +54,10 @@ Kotlin `use`. Picker cancellation returns null and preserves existing presentati
 The MVP stores exactly one selected tree URI in Android `SharedPreferences`. On startup,
 the app restores that locator, verifies its persisted read grant, resolves the root document,
 and scans it automatically. Choosing another folder replaces the stored root and releases
-the previous persisted read grant. Scan results are not persisted as a library/database.
+the previous persisted read grant. Scan results are transient, not persisted as a
+library/database. Only explicit Library snapshots are persisted. Old snapshots can
+remain visible after switching roots but become unavailable when their grant is
+released; users can still remove them. Multi-root persistent access remains deferred.
 If the stored grant is missing or a query establishes that the root no longer exists, the
 stored selection is cleared. Transient provider/query failures keep the selection so retry can
 work without reopening the picker. The UI never retries automatically.
@@ -110,13 +115,16 @@ native playback during bootstrap. Windows/iOS scanning is not implemented.
 
 CBZ/ZIP, CBR/RAR, EPUB, PDF; series/season/chapter parsing; canonical identity,
 hashing/deduplication, enrichment, covers/thumbnails; rename recovery, watchers,
-media-library/database persistence, history/progress/resume, downloads, remote providers
-and generic source/engine frameworks.
+history sessions, downloads, remote providers and generic source/engine frameworks.
+Progress/Library persistence and minimal page/text source capabilities are implemented
+in [USER_STATE](USER_STATE.md); canonical identity remains deferred.
 
 ## Device verification checklist
 
-No Android device was connected during implementation. Automated tests do not establish
-real SAF provider behavior, codec support, sound output, seeking or native lifecycle safety.
+The user verified the original local-media walking skeleton on a real Android device.
+The new persistence/resume slice has not been verified on a device. Automated tests do
+not establish real SAF provider behavior, codec support, sound output, seeking or native
+lifecycle safety.
 Use user-created/legal fixtures (not checked into this repository):
 
 ```text
@@ -132,11 +140,20 @@ HikariTest/
 2. Confirm `test` / Anime, `My Manga` / Manga, `sample` / Light Novel.
 3. Fully stop/restart the app and confirm the same root restores and rescans without opening
    the picker again.
-4. Play video; verify sound, pause/resume, seek, rotate, background and back navigation.
+4. Play video; verify sound, pause/resume, seek, rotate and background. From both Local
+   Media and Library, seek to a non-zero position, exit with AppBar Back, reopen and
+   confirm resume; repeat using Android edge/system back with predictive back enabled.
+   Try rapid double-back and cancellation of a gesture; confirm no double exit or reset
+   to zero. Complete playback, reopen, and verify completion/replay behavior.
 5. Read manga pages in 1, 2, 10 order, zoom, navigate back, and leave/reopen the reader.
+   Complete manga, reopen at page zero and leave untouched: completion must remain.
+   Navigate to an earlier nonfinal page: progress becomes active; finish again.
 6. Read/scroll text; repeat with malformed UTF-8, Markdown and an empty text file.
 7. Cancel folder reselection and confirm previous results remain. Then select a different root
-   and confirm it replaces the old selection.
+   and confirm it replaces the old selection and releases its persisted grant. Save an
+   item from the old root to Library first; confirm its snapshot remains visible, opening
+   reports unavailable access, and removal still works. Restart: only the new root rescans;
+   unsaved old scan results do not return. Multi-root access is not supported.
 8. Test empty folder, nested/mixed folders, corrupt images/video, missing/revoked documents,
    and files exceeding reader size limits. Error pages must support retry/back/reselection.
 9. Repeat on an Android 11+ device with scoped-storage restrictions and TalkBack enabled.

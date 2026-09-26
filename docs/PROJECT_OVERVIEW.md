@@ -845,10 +845,10 @@ Các mục sau phải được nghiên cứu khi đến phase tương ứng:
 
 ### Persistence
 
-- Drift/SQLite;
-- Isar;
-- schema migration strategy;
-- backup format.
+Drift/SQLite đã được chọn cho Progress và Library source-keyed; xem
+[ADR-004](decisions/ADR-004-user-state-persistence.md) và
+[USER_STATE](architecture/USER_STATE.md). Migration cho schema tương lai và backup
+format chưa chốt.
 
 ### State management
 
@@ -1020,17 +1020,21 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 - một local root được nhớ qua restart bằng persisted SAF grant + Android-native selection state;
 - model Media + source reference tối thiểu với `SourceId` opaque, chưa có canonical identity;
 - video playback bằng media_kit, image reader và UTF-8 text reader;
-- cần xác minh end-to-end trên thiết bị Android với bộ file thật; chi tiết boundary,
-  giới hạn và checklist tại [LOCAL_MEDIA](architecture/LOCAL_MEDIA.md).
+- local-media skeleton cũ đã được người dùng xác minh end-to-end trên Android;
+  chi tiết boundary và giới hạn tại [LOCAL_MEDIA](architecture/LOCAL_MEDIA.md);
+- Progress typed, Library snapshot độc lập, source capabilities tối thiểu và
+  Drift/SQLite schema v1; cả ba reader có resume. Slice persistence/resume mới có
+  automated tests và Android debug build, chưa xác minh E2E trên thiết bị thật;
+  xem [USER_STATE](architecture/USER_STATE.md).
 
 ### Tiếp theo
 
-Xác minh local-media vertical trên thiết bị, rồi mở rộng domain theo nhu cầu thực tế:
-canonical identity, Progress, Library và source capabilities chưa được slice này giải quyết.
+Xác minh persistence/restart/resume mới trên Android. Canonical identity tiếp tục
+hoãn đến khi có yêu cầu rename reconciliation/dedup thực tế; không mở rộng domain
+chỉ để dự đoán provider tương lai.
 
 ### Chưa bắt đầu
 
-- library/progress persistence;
 - provider engine tổng quát;
 - production player/readers;
 - application layer;
