@@ -11,6 +11,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
+| `architecture/PRESENTATION.md` | View/ViewModel state ownership, UI dependency rules and player surface boundary | Working on feature UI/state or player presentation |
 | `architecture/SOURCES.md` | Capability contracts, SourceRegistry, application open workflows and source extension seam | Adding/refactoring a source or application workflow |
 | `architecture/REMOTE_MANGA.md` | Remote manga hierarchy, MangaDex transport and stable identity | Working on search, chapter selection or remote page delivery |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
@@ -163,6 +164,7 @@ Hikari/
     ├── GIT_WORKFLOW.md
     ├── architecture/
     │   ├── LOCAL_MEDIA.md
+    │   ├── PRESENTATION.md
     │   ├── SOURCES.md
     │   ├── USER_STATE.md
     │   └── REMOTE_MANGA.md
@@ -171,7 +173,8 @@ Hikari/
         ├── ADR-002-foundation-v1.md
         ├── ADR-003-architecture-guardrails.md
         ├── ADR-004-user-state-persistence.md
-        └── ADR-005-application-source-registry.md
+        ├── ADR-005-application-source-registry.md
+        └── ADR-006-presentation-state-and-player-boundary.md
 ```
 
 Future `architecture/` and `roadmap/` documents are created incrementally only when the project has real knowledge or active execution state to store. Completed one-off plans should be removed after durable facts move to canonical architecture/product docs.

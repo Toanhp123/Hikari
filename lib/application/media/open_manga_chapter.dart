@@ -21,11 +21,7 @@ final class MangaChapterOpenTarget {
 /// Prepares a chapter before navigation so stale remote references fail before
 /// the reader route is pushed.
 final class OpenMangaChapter {
-  const OpenMangaChapter({
-    required SourceRegistry sources,
-    required ProgressRepository progressRepository,
-  }) : _sources = sources,
-       _progressRepository = progressRepository;
+  const OpenMangaChapter(this._sources, this._progressRepository);
 
   final SourceRegistry _sources;
   final ProgressRepository _progressRepository;
@@ -34,7 +30,7 @@ final class OpenMangaChapter {
     final source = _sources.requireCapability<MangaPageSource>(
       chapter.source.sourceId,
     );
-    if (source is MediaSourceAvailability && !source.isAvailable) {
+    if (!_isAvailable(source)) {
       throw StateError('Source is unavailable on this device.');
     }
 
@@ -51,4 +47,7 @@ final class OpenMangaChapter {
       progress: progress,
     );
   }
+
+  bool _isAvailable(MediaSource source) =>
+      source is! MediaSourceAvailability || source.isAvailable;
 }

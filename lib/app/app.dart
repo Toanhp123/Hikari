@@ -10,9 +10,9 @@ import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
+import 'package:hikari/features/player/video_surface.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
-import 'package:hikari/infrastructure/playback/local_video.dart';
 
 class HikariApp extends StatefulWidget {
   const HikariApp({super.key, required this.dependencies});
@@ -88,9 +88,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       MangaReaderOpenTarget reader => _buildMangaReaderPage(reader),
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
     };
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => page));
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => page));
   }
 
   Widget _buildVideoPage(VideoOpenTarget target) {
@@ -102,7 +101,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     return PlayerPage(
       title: target.media.title,
       beforeExit: playback.finish,
-      playback: LocalVideo(playback: playback),
+      playback: VideoSurface(
+        changes: playback.changes,
+        controller: () => playback.controller,
+        loading: () => playback.loading,
+        error: () => playback.error,
+      ),
     );
   }
 
@@ -156,6 +160,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final localSource = _dependencies.localMediaSource;
     final libraryRepository = _dependencies.libraryRepository;
+    final canSearchManga = _dependencies.searchManga.options.isNotEmpty;
 
     return MaterialApp(
       title: 'Hikari',
@@ -171,15 +176,17 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           chooseRoot: localSource.chooseRoot,
           library: libraryRepository,
           openMedia: _openMedia,
-          openRemote: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => RemoteMangaSearchPage(
-                sources: _dependencies.mangaSearchSources,
-                openMedia: _openMedia,
-                library: libraryRepository,
-              ),
-            ),
-          ),
+          openRemote: canSearchManga
+              ? () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => RemoteMangaSearchPage(
+                      searchManga: _dependencies.searchManga,
+                      openMedia: _openMedia,
+                      library: libraryRepository,
+                    ),
+                  ),
+                )
+              : null,
           openLibrary: () async {
             await Navigator.of(context).push(
               MaterialPageRoute<void>(

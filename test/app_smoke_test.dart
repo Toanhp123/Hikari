@@ -121,9 +121,7 @@ void main() {
       return null;
     });
 
-    await tester.pumpWidget(
-      HikariApp(dependencies: AppDependencies.create()),
-    );
+    await tester.pumpWidget(HikariApp(dependencies: AppDependencies.create()));
     await tester.pumpAndSettle();
 
     expect(find.text('Local media'), findsOneWidget);

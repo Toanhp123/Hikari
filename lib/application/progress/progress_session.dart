@@ -3,11 +3,11 @@ import 'package:hikari/domain/progress/progress.dart';
 
 /// Progress state bound to one source-scoped media reference.
 final class ProgressSession {
-  ProgressSession._({
-    required ProgressRepository repository,
+  ProgressSession._(
+    this._repository, {
     required this.media,
     required this.initialProgress,
-  }) : _repository = repository;
+  });
 
   final ProgressRepository _repository;
   final SourceMediaRef media;
@@ -16,12 +16,11 @@ final class ProgressSession {
   static Future<ProgressSession> load({
     required ProgressRepository repository,
     required SourceMediaRef media,
-  }) async =>
-      ProgressSession._(
-        repository: repository,
-        media: media,
-        initialProgress: await repository.load(media),
-      );
+  }) async => ProgressSession._(
+    repository,
+    media: media,
+    initialProgress: await repository.load(media),
+  );
 
   Future<void> save(ProgressPosition position, bool completed) =>
       _repository.save(

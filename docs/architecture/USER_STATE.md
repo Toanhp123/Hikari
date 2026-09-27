@@ -58,8 +58,8 @@ native background connection. `AppDependencies` creates the database, repositori
 local/default remote sources, immutable `SourceRegistry`, application workflows and
 video session once, then closes only resources it owns. `main` remains thin. Duplicate
 source IDs fail during composition instead of silently replacing an implementation.
-`OpenMedia`, `OpenMangaChapter` and `ProgressSession` keep source/progress coordination
-out of Flutter widgets while remaining pure Dart. No DI container or dynamic provider/
+`OpenMedia`, `OpenMangaChapter`, `SearchManga` and `ProgressSession` keep
+source/progress/search coordination out of Flutter widgets while remaining pure Dart. No DI container or dynamic provider/
 extension runtime exists. Scan, remote search and Library reuse the same open route;
 Library opens persisted snapshots without rescanning or repeating the original search.
 See [SOURCES](SOURCES.md) for the source/application boundary.
@@ -71,7 +71,7 @@ known duration, clamps incomplete position to current duration, then seeks befor
 playback. Completed entries start at zero. Only the engine completion event marks
 completion; meaningful nonterminal playback clears it. Changed samples write at
 most roughly every five seconds, plus pause/background/close flushes. One app-owned
-LocalVideoSession owns the reusable Player, VideoController, timer and subscriptions.
+MediaKitVideoSession owns the reusable Player, VideoController, timer and subscriptions.
 Each route gets a separate identity and tracker; async continuations check that identity
 and explicit lifecycle phase. Opening/seek events cannot update progress. Restore failure
 shows a playback error without writing the saved record; reopening gets fresh tracking

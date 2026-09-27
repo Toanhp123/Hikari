@@ -74,7 +74,9 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                           ),
                           TextButton(
                             onPressed: () => setState(() {
-                              _chaptersFuture = Future.sync(widget.loadChapters);
+                              _chaptersFuture = Future.sync(
+                                widget.loadChapters,
+                              );
                             }),
                             child: const Text('Try again'),
                           ),

@@ -125,7 +125,10 @@ MediaProgress _mapProgress(ProgressRecord row) {
       ),
       position: position,
       completed: row.completed == 1,
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt, isUtc: true),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+        row.updatedAt,
+        isUtc: true,
+      ),
     );
   } on ArgumentError catch (error) {
     throw FormatException('Invalid stored progress: $error');

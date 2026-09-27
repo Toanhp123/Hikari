@@ -97,6 +97,12 @@ separate future requirements.
 before navigation. This keeps stale remote references from creating a reader route that
 cannot load.
 
+`SearchManga` owns the current search-and-open invariant. It exposes registered
+`MangaSearchSource` implementations only when the same source also has `MangaPageSource`,
+filters unavailable sources, normalizes empty queries and rejects malformed results whose
+media type or `SourceId` does not match the selected source. A search-only capability is
+valid but is not presented as openable content by this workflow.
+
 `ProgressSession` packages the initial persisted record and save operation for one
 `SourceMediaRef`. It is application glue, not a reading-history model.
 
@@ -114,10 +120,10 @@ UserDatabase
   -> SqliteProgressRepository
 
 LocalMediaSource ----\
-                      -> SourceRegistry -> OpenMedia / OpenMangaChapter
+                      -> SourceRegistry -> OpenMedia / OpenMangaChapter / SearchManga
 MangaDexSource ------/
 
-LocalVideoSession -----------------------> presentation composition
+MediaKitVideoSession -----------------------> presentation composition
 ```
 
 Default resources created there are disposed there. Injected resources remain owned by
@@ -133,7 +139,8 @@ For a new source that fits existing contracts:
 3. register the instance at composition;
 4. reuse the existing application open workflow and readers;
 5. add new discovery UI only when the capability is not already surfaced. Registered
-   `MangaSearchSource` implementations already appear in the current source selector.
+   readable `MangaSearchSource` implementations appear through `SearchManga` without a
+   provider-specific branch in app orchestration.
 
 The open workflow should not gain `if (source.id == ...)` branches for such a source.
 Provider-specific parsing, throttling, auth and transport stay with that provider's
@@ -150,7 +157,7 @@ The current boundary is intended to support, without predicting their detailed A
 
 - additional manga sources implementing search/chapters/pages;
 - local manga evolving from direct folders to series/chapter capability;
-- search across registered `MangaSearchSource` implementations through the existing source selector;
+- search across registered readable `MangaSearchSource` implementations through `SearchManga`;
 - Continue Reading/Watching resolving persisted `SourceMediaRef` through the same
   registry/application workflows;
 - an eventual extension runtime that creates source instances before composition.
@@ -159,8 +166,9 @@ The following remain deliberately outside this foundation: canonical content ide
 dedup/metadata reconciliation, dynamic extension installation, extension sandboxing,
 account/auth framework, remote video episode/stream contracts, downloads and sync.
 
-See [ADR-005](../decisions/ADR-005-application-source-registry.md) for the decision and
-trade-offs.
+See [ADR-005](../decisions/ADR-005-application-source-registry.md) for the registry/open
+workflow decision and [ADR-006](../decisions/ADR-006-presentation-state-and-player-boundary.md)
+for the search/presentation boundary refinement.
 
 ## Research references
 

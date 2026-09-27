@@ -14,8 +14,8 @@ Library snapshots and reader progress are now persisted separately; see
 - `infrastructure/local_media/`: platform-channel access, document-entry DTO,
   deterministic classification and filename ordering. Kotlin `LocalMediaChannel`
   owns Android document APIs. Queries and reads run on a worker, not Android's UI thread.
-- `infrastructure/playback/`: media-kit controller, video surface, errors and lifecycle.
-- `features/`: list, player page, manga and text presentation. Constructor callbacks
+- `infrastructure/playback/`: media-kit player/session ownership, errors and lifecycle.
+- `features/`: list, player/video surface, manga and text presentation. Constructor callbacks
   and an injected playback widget keep concrete infrastructure out of features.
 - `application/`: source resolution and media/chapter opening workflows. Local scan itself
   remains a feature-to-source operation because it does not coordinate multiple domains.
@@ -84,12 +84,12 @@ References:
 
 Video uses `media_kit` 1.2.6, `media_kit_video` 2.0.1 and `media_kit_libs_video` 1.0.7.
 App bootstrap initializes media-kit once before any Player construction. One concrete
-app-owned LocalVideoSession per Flutter app/engine lazily constructs one Player and
+app-owned MediaKitVideoSession per Flutter app/engine lazily constructs one Player and
 VideoController at first playback and reuses them across routes. Routes await frozen
 progress persistence and stop/unload, never native Player disposal. Only owner shutdown
 cancels subscriptions/timer and disposes the Player; VideoController cleanup belongs to
-that Player. LocalVideo displays the shared controller and errors only. Native commands
-are serialized; leaving foreground flushes and pauses without closing the session.
+that Player. `features/player/VideoSurface` renders the shared controller/loading/error
+snapshot while the engine/session remains infrastructure. Native commands are serialized; leaving foreground flushes and pauses without closing the session.
 No whole-video cache copy is made. Progress/reset semantics live in [USER_STATE](USER_STATE.md).
 Installed media-kit 1.2.6 `media_native.dart` normalizes Android `content://` to
 `fd://`; its Android provider owns/caches the descriptor, and `Media` finalization

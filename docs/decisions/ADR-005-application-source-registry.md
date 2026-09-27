@@ -43,7 +43,7 @@ operate depends on the current platform/device. Local SAF implements it; applica
 workflows reject unavailable registered sources without knowing Android details.
 
 Add `DirectVideoSource` for the already-proven direct-player path. Local SAF turns its
-source-scoped reference into the locator consumed by `LocalVideoSession`. `OpenMedia`
+source-scoped reference into the locator consumed by `MediaKitVideoSession`. `OpenMedia`
 requires that capability for `MediaType.anime`, so a future remote anime source cannot
 accidentally be treated as a local/direct locator. Rich episode/stream playback remains
 a separate future design problem.
@@ -61,9 +61,10 @@ extension lifecycle are not designed here.
 
 Adding another implementation of **existing** capabilities should not require changing
 `OpenMedia` or `OpenMangaChapter`. The implementation is registered at composition.
-The current remote-manga search screen enumerates registered `MangaSearchSource`
-implementations, so an additional searchable manga source is selectable without a new
-branch in app orchestration.
+The current remote-manga search flow is extended by `SearchManga` (ADR-006), which
+enumerates registered searchable sources that also have a readable-page path. An
+additional source satisfying those existing capabilities becomes selectable without a
+provider-specific branch in app orchestration.
 
 A genuinely new workflow is allowed to change application code. For example, remote
 anime that requires episode discovery and stream selection would first justify new

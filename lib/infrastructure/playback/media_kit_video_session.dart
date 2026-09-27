@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
 import 'package:hikari/infrastructure/playback/src/video_driver.dart';
@@ -10,14 +9,14 @@ import 'package:media_kit_video/media_kit_video.dart';
 enum _Phase { resetting, opening, active, failed, closing, closed }
 
 /// A route's identity and frozen progress, not a native player owner.
-final class LocalVideoPlayback extends ChangeNotifier {
-  LocalVideoPlayback._(
+final class MediaKitVideoPlayback {
+  MediaKitVideoPlayback._(
     this._owner,
     this.locator,
     this.initialProgress,
     this._tracker,
   );
-  final LocalVideoSession _owner;
+  final MediaKitVideoSession _owner;
   final String locator;
   final MediaProgress? initialProgress;
   final VideoProgressTracker _tracker;
@@ -25,20 +24,24 @@ final class LocalVideoPlayback extends ChangeNotifier {
   final _duration = Completer<Duration?>();
   late Future<void> ready;
   Future<void>? _finish;
+  final _changes = StreamController<void>.broadcast(sync: true);
+  Stream<void> get changes => _changes.stream;
   String? error;
   bool get loading => _phase == _Phase.resetting || _phase == _Phase.opening;
   VideoController? get controller => _owner._driver?.controller;
   Future<void> finish() => _finish ??= _owner._finish(this);
-  void _changed() => notifyListeners();
+  void _changed() {
+    if (!_changes.isClosed) _changes.add(null);
+  }
 }
 
 /// One app-owned native player. Route identities fence all async continuations.
-final class LocalVideoSession {
-  LocalVideoSession({VideoDriver Function()? driverFactory})
+final class MediaKitVideoSession {
+  MediaKitVideoSession({VideoDriver Function()? driverFactory})
     : _driverFactory = driverFactory ?? MediaKitVideoDriver.new;
   final VideoDriver Function() _driverFactory;
   VideoDriver? _driver;
-  LocalVideoPlayback? _currentPlayback;
+  MediaKitVideoPlayback? _currentPlayback;
   final _subscriptions = <StreamSubscription<Object?>>[];
   Future<void> _commandQueue = Future<void>.value();
   Future<void>? _shutdown;
@@ -51,7 +54,7 @@ final class LocalVideoSession {
     return result;
   }
 
-  bool _isCurrentPhase(LocalVideoPlayback session, _Phase phase) =>
+  bool _isCurrentPhase(MediaKitVideoPlayback session, _Phase phase) =>
       identical(_currentPlayback, session) && session._phase == phase;
 
   void _initialize() {
@@ -120,7 +123,7 @@ final class LocalVideoSession {
     });
   }
 
-  LocalVideoPlayback open({
+  MediaKitVideoPlayback open({
     required String locator,
     MediaProgress? initialProgress,
     required Future<void> Function(VideoPosition, bool) saveProgress,
@@ -130,7 +133,7 @@ final class LocalVideoSession {
       throw StateError('Finish current playback before opening another.');
     }
     _initialize();
-    final session = LocalVideoPlayback._(
+    final session = MediaKitVideoPlayback._(
       this,
       locator,
       initialProgress,
@@ -147,7 +150,9 @@ final class LocalVideoSession {
         final duration = await session._duration.future.timeout(
           const Duration(seconds: 15),
         );
-        if (duration == null || !_isCurrentPhase(session, _Phase.opening)) return;
+        if (duration == null || !_isCurrentPhase(session, _Phase.opening)) {
+          return;
+        }
         await _driver!.seek(resumeVideo(initialProgress, duration));
         if (!_isCurrentPhase(session, _Phase.opening)) return;
         session._tracker.noteDuration(duration);
@@ -168,7 +173,10 @@ final class LocalVideoSession {
     return session;
   }
 
-  Future<void> _flush(LocalVideoPlayback session, {bool force = true}) async {
+  Future<void> _flush(
+    MediaKitVideoPlayback session, {
+    bool force = true,
+  }) async {
     if (!_isCurrentPhase(session, _Phase.active)) return;
     try {
       await session._tracker.flush(force: force);
@@ -179,7 +187,7 @@ final class LocalVideoSession {
     }
   }
 
-  Future<void> _finish(LocalVideoPlayback session) {
+  Future<void> _finish(MediaKitVideoPlayback session) {
     if (!identical(_currentPlayback, session)) return Future<void>.value();
     session._phase = _Phase.closing;
     if (!session._duration.isCompleted) session._duration.complete(null);
@@ -198,6 +206,7 @@ final class LocalVideoSession {
       } finally {
         session._phase = _Phase.closed;
         if (identical(_currentPlayback, session)) _currentPlayback = null;
+        await session._changes.close();
       }
     });
   }

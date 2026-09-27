@@ -71,9 +71,11 @@ int compareLocalNames(String leftName, String rightName) {
       .map((match) => match[0]!)
       .toList();
 
-  for (var index = 0;
-      index < leftSegments.length && index < rightSegments.length;
-      index++) {
+  for (
+    var index = 0;
+    index < leftSegments.length && index < rightSegments.length;
+    index++
+  ) {
     var leftSegment = leftSegments[index];
     var rightSegment = rightSegments[index];
     if (RegExp(r'^\d').hasMatch(leftSegment) &&

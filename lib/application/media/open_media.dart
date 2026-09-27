@@ -54,11 +54,7 @@ final class NovelReaderOpenTarget extends MediaOpenTarget {
 /// Navigation and widgets stay in presentation. Source-specific details stay
 /// behind the domain source capabilities registered in [SourceRegistry].
 final class OpenMedia {
-  const OpenMedia({
-    required SourceRegistry sources,
-    required ProgressRepository progressRepository,
-  }) : _sources = sources,
-       _progressRepository = progressRepository;
+  const OpenMedia(this._sources, this._progressRepository);
 
   final SourceRegistry _sources;
   final ProgressRepository _progressRepository;
@@ -81,9 +77,8 @@ final class OpenMedia {
     return switch (media.type) {
       MediaType.anime => VideoOpenTarget(
         media,
-        locator: _requireCapability<DirectVideoSource>(
-          source,
-        ).playbackLocator(media.source),
+        locator: _requireCapability<DirectVideoSource>(source)
+            .playbackLocator(media.source),
         progress: progress,
       ),
       MediaType.manga => MangaReaderOpenTarget(

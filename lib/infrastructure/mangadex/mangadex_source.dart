@@ -129,7 +129,9 @@ final class MangaDexSource
             attributes['isUnavailable'] is! bool) {
           throw const FormatException('Invalid availability.');
         }
-        final readable = DateTime.tryParse(_expectText(attributes['readableAt']));
+        final readable = DateTime.tryParse(
+          _expectText(attributes['readableAt']),
+        );
         if (readable == null) {
           throw const FormatException('Invalid readable date.');
         }
