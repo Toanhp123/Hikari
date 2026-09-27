@@ -38,28 +38,28 @@ final class LocalVideoSession {
     : _driverFactory = driverFactory ?? MediaKitVideoDriver.new;
   final VideoDriver Function() _driverFactory;
   VideoDriver? _driver;
-  LocalVideoPlayback? _current;
+  LocalVideoPlayback? _currentPlayback;
   final _subscriptions = <StreamSubscription<Object?>>[];
-  Future<void> _commands = Future<void>.value();
+  Future<void> _commandQueue = Future<void>.value();
   Future<void>? _shutdown;
   Timer? _timer;
-  bool _foreground = true;
+  bool _isForeground = true;
 
-  Future<void> _serialize(Future<void> Function() action) {
-    final result = _commands.then((_) => action());
-    _commands = result.catchError((Object _) {});
+  Future<void> _enqueue(Future<void> Function() action) {
+    final result = _commandQueue.then((_) => action());
+    _commandQueue = result.catchError((Object _) {});
     return result;
   }
 
-  bool _is(LocalVideoPlayback session, _Phase phase) =>
-      identical(_current, session) && session._phase == phase;
+  bool _isCurrentPhase(LocalVideoPlayback session, _Phase phase) =>
+      identical(_currentPlayback, session) && session._phase == phase;
 
   void _initialize() {
     if (_driver != null) return;
     final driver = _driver = _driverFactory();
     _subscriptions.add(
       driver.duration.listen((duration) {
-        final session = _current;
+        final session = _currentPlayback;
         if (session == null) return;
         if (duration == Duration.zero && session._phase == _Phase.resetting) {
           session._phase = _Phase.opening;
@@ -76,7 +76,7 @@ final class LocalVideoSession {
     );
     _subscriptions.add(
       driver.position.listen((position) {
-        final session = _current;
+        final session = _currentPlayback;
         // Zero is also mpv's unload/reset value, not evidence of user playback.
         if (session == null ||
             session._phase != _Phase.active ||
@@ -88,7 +88,7 @@ final class LocalVideoSession {
     );
     _subscriptions.add(
       driver.completed.listen((completed) {
-        final session = _current;
+        final session = _currentPlayback;
         if (session == null || session._phase != _Phase.active || !completed) {
           return;
         }
@@ -98,13 +98,13 @@ final class LocalVideoSession {
     );
     _subscriptions.add(
       driver.playing.listen((playing) {
-        final session = _current;
+        final session = _currentPlayback;
         if (session != null && !playing) unawaited(_flush(session));
       }),
     );
     _subscriptions.add(
       driver.error.listen((message) {
-        final session = _current;
+        final session = _currentPlayback;
         if (session == null ||
             session._phase == _Phase.closing ||
             session._phase == _Phase.closed) {
@@ -115,7 +115,7 @@ final class LocalVideoSession {
       }),
     );
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      final session = _current;
+      final session = _currentPlayback;
       if (session != null) unawaited(_flush(session, force: false));
     });
   }
@@ -126,7 +126,7 @@ final class LocalVideoSession {
     required Future<void> Function(VideoPosition, bool) saveProgress,
   }) {
     if (_shutdown != null) throw StateError('Playback owner is shut down.');
-    if (_current != null) {
+    if (_currentPlayback != null) {
       throw StateError('Finish current playback before opening another.');
     }
     _initialize();
@@ -136,28 +136,28 @@ final class LocalVideoSession {
       initialProgress,
       VideoProgressTracker(saveProgress: saveProgress),
     );
-    _current = session;
-    session.ready = _serialize(() async {
+    _currentPlayback = session;
+    session.ready = _enqueue(() async {
       try {
-        if (!_is(session, _Phase.resetting)) return;
+        if (!_isCurrentPhase(session, _Phase.resetting)) return;
         await _driver!.open(locator);
-        if (!identical(_current, session) || !session.loading) return;
+        if (!identical(_currentPlayback, session) || !session.loading) return;
         // Broadcast distinct streams may suppress a repeated zero after stop.
         if (session._phase == _Phase.resetting) session._phase = _Phase.opening;
         final duration = await session._duration.future.timeout(
           const Duration(seconds: 15),
         );
-        if (duration == null || !_is(session, _Phase.opening)) return;
+        if (duration == null || !_isCurrentPhase(session, _Phase.opening)) return;
         await _driver!.seek(resumeVideo(initialProgress, duration));
-        if (!_is(session, _Phase.opening)) return;
+        if (!_isCurrentPhase(session, _Phase.opening)) return;
         session._tracker.noteDuration(duration);
         session._phase = _Phase.active;
         session._changed();
-        if (_foreground) await _driver!.play();
+        if (_isForeground) await _driver!.play();
       } catch (error) {
-        if (!_is(session, _Phase.resetting) &&
-            !_is(session, _Phase.opening) &&
-            !_is(session, _Phase.active)) {
+        if (!_isCurrentPhase(session, _Phase.resetting) &&
+            !_isCurrentPhase(session, _Phase.opening) &&
+            !_isCurrentPhase(session, _Phase.active)) {
           return;
         }
         session._phase = _Phase.failed;
@@ -169,18 +169,18 @@ final class LocalVideoSession {
   }
 
   Future<void> _flush(LocalVideoPlayback session, {bool force = true}) async {
-    if (!_is(session, _Phase.active)) return;
+    if (!_isCurrentPhase(session, _Phase.active)) return;
     try {
       await session._tracker.flush(force: force);
     } catch (_) {
-      if (!_is(session, _Phase.active)) return;
+      if (!_isCurrentPhase(session, _Phase.active)) return;
       session.error = 'Could not save playback progress.';
       session._changed();
     }
   }
 
   Future<void> _finish(LocalVideoPlayback session) {
-    if (!identical(_current, session)) return Future<void>.value();
+    if (!identical(_currentPlayback, session)) return Future<void>.value();
     session._phase = _Phase.closing;
     if (!session._duration.isCompleted) session._duration.complete(null);
     // Freeze immediately, before any native pause/stop reset can arrive.
@@ -190,38 +190,38 @@ final class LocalVideoSession {
     final saving = saved.catchError((Object error) {
       saveError = error;
     });
-    return _serialize(() async {
+    return _enqueue(() async {
       try {
         await saving;
         await _driver!.stop();
         if (saveError != null) throw saveError!;
       } finally {
         session._phase = _Phase.closed;
-        if (identical(_current, session)) _current = null;
+        if (identical(_currentPlayback, session)) _currentPlayback = null;
       }
     });
   }
 
   Future<void> setForeground(bool foreground) {
-    _foreground = foreground;
-    final session = _current;
+    _isForeground = foreground;
+    final session = _currentPlayback;
     if (foreground || session == null) return Future<void>.value();
     final saving = _flush(session);
-    return _serialize(() async {
+    return _enqueue(() async {
       await saving;
-      if (_is(session, _Phase.active)) await _driver!.pause();
+      if (_isCurrentPhase(session, _Phase.active)) await _driver!.pause();
     });
   }
 
-  Future<void> shutdown() => _shutdown ??= _closeOwner();
+  Future<void> shutdown() => _shutdown ??= _shutdownOwner();
 
-  Future<void> _closeOwner() async {
+  Future<void> _shutdownOwner() async {
     _timer?.cancel();
     try {
-      final current = _current;
+      final current = _currentPlayback;
       if (current != null) await current.finish();
     } finally {
-      await _serialize(() async {
+      await _enqueue(() async {
         for (final subscription in _subscriptions) {
           await subscription.cancel();
         }

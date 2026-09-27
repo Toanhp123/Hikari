@@ -357,11 +357,11 @@ Mục tiêu là Home có thể xây dựng "Continue Watching / Continue Reading
 
 ---
 
-## 5.9 Sources / Providers
+## 5.9 Sources
 
 Hikari không nên buộc domain core phụ thuộc vào một nguồn nội dung duy nhất.
 
-Provider có thể cung cấp một hoặc nhiều capability:
+Trong code Hikari, `MediaSource` có thể cung cấp một hoặc nhiều capability:
 
 ```text
 Search
@@ -374,25 +374,25 @@ Manga Pages
 Novel Content
 ```
 
-Một provider không bắt buộc phải hỗ trợ tất cả.
+Một source không bắt buộc phải hỗ trợ tất cả.
 
 Ví dụ:
 
 ```text
-Provider A
+Source A
 ├── Anime
 └── Video Streams
 
-Provider B
+Source B
 ├── Manga
 └── Manga Pages
 
-Provider C
+Source C
 ├── Novel
 └── Novel Chapters
 ```
 
-Provider architecture là một subsystem quan trọng và sẽ được thiết kế riêng khi đến phase tương ứng.
+Source architecture là một subsystem quan trọng. `MediaSource` là thuật ngữ code-level; "provider" chỉ dùng khi nói về dịch vụ nội dung bên ngoài. Chi tiết hiện tại nằm tại [`architecture/SOURCES.md`](architecture/SOURCES.md).
 
 ---
 
@@ -417,7 +417,7 @@ Chưa quyết định chính thức:
 
 Nguyên tắc hiện tại:
 
-> Core phải có provider contracts đủ sạch để sau này extension runtime chỉ là một cách tạo Provider implementation.
+> Core phải có source contracts đủ sạch để sau này extension runtime chỉ là một cách tạo `MediaSource` implementation.
 
 Không thiết kế toàn bộ app xoay quanh extension ngay từ phiên bản đầu.
 
@@ -505,9 +505,9 @@ Source flow:
 ```text
 User chooses content
       ↓
-Hikari resolves provider
+Hikari resolves source
       ↓
-Provider returns canonical domain data
+Source returns normalized domain data
       ↓
 Player / Reader consumes canonical data
 ```
@@ -526,7 +526,7 @@ lib/
 ├── core/             # cross-cutting primitives thật sự dùng chung
 ├── domain/           # pure Dart business concepts, rules, ports/contracts
 ├── application/      # workflows/use cases điều phối domain contracts
-├── infrastructure/   # DB/HTTP/providers/engines/platform implementations
+├── infrastructure/   # DB/HTTP/sources/engines/platform implementations
 └── features/         # Flutter UI + presentation state theo feature
 ```
 
@@ -594,7 +594,7 @@ future player
 
 ---
 
-### 7.3 Provider không được leak vào UI
+### 7.3 Source implementation không được leak vào UI
 
 Không:
 
@@ -609,9 +609,9 @@ Widget
   ↓
 Application
   ↓
-Provider contract
+Source capability contract
   ↓
-Provider implementation
+Source implementation
 ```
 
 ---
@@ -630,7 +630,7 @@ Hai lớp cần mapper rõ ràng.
 
 Netflix-like UI là định hướng trải nghiệm, không phải kiến trúc core.
 
-Có thể redesign Home mà không thay provider, database hoặc player engine.
+Có thể redesign Home mà không thay source implementation, database hoặc player engine.
 
 ---
 
@@ -674,7 +674,7 @@ Các thành phần có thể thay bởi thư viện, OS hoặc external system n
 ```text
 persistence
 network
-provider implementations
+source implementations
 media engines
 platform adapters
 repository implementations
@@ -688,16 +688,17 @@ Repository implementation không nằm bên trong một data source cụ thể n
 
 Không tạo các bucket chung kiểu `helpers/`, `managers/`, `misc/` hoặc abstraction dự phòng chỉ để “có kiến trúc”.
 
-### 7.10 Source/provider ưu tiên capability-oriented contracts
+### 7.10 Source ưu tiên capability-oriented contracts
 
-Một source có thể cung cấp một hoặc nhiều capability như search, details, episodes, streams, chapters, pages hoặc text content. Domain không mặc định rằng một provider chỉ thuộc đúng một media type.
+Một source có thể cung cấp một hoặc nhiều capability như search, details, episodes, streams, chapters, pages hoặc text content. Domain không mặc định rằng một source chỉ thuộc đúng một media type.
 
 API capability cụ thể vẫn là quyết định của Domain Core; Foundation không scaffold trước interface chưa được requirement chứng minh.
 
 Vertical MangaDex hiện kiểm chứng search → series → chọn chapter → pages bằng các
-capability nhỏ, không tạo provider engine tổng quát. Library lưu series; progress
-lưu chapter, chưa có resume chapter cuối ở cấp series. Chi tiết hiện trạng và giới
-hạn: [Remote manga](architecture/REMOTE_MANGA.md).
+capability nhỏ. `SourceRegistry` + application workflows đã cung cấp điểm cắm chung
+cho source cùng capability mà không tạo dynamic extension runtime. Library lưu
+series; progress lưu chapter, chưa có resume chapter cuối ở cấp series. Chi tiết:
+[Source architecture](architecture/SOURCES.md) và [Remote manga](architecture/REMOTE_MANGA.md).
 
 ---
 
@@ -722,7 +723,7 @@ Hikari được xây theo thứ tự móng → tầng trên, nhưng một vertic
           ↓
 3. Infrastructure Foundation
           ↓
-4. Provider / Source Engine
+4. Source Integration Foundation
           ↓
 5. Media Engines
    ├── Video
@@ -969,9 +970,9 @@ Manga
 Novel
 ```
 
-### Provider / Source
+### Source
 
-Thành phần biết cách tìm và lấy nội dung từ một data source cụ thể.
+`MediaSource` là implementation trong Hikari biết cách tìm/lấy nội dung từ một nguồn cụ thể và chỉ expose các capability mà nó hỗ trợ. "Provider" dùng trong văn cảnh mô tả dịch vụ bên ngoài, không phải một base type song song.
 
 ### Engine
 
@@ -984,7 +985,7 @@ VideoEngine
 MangaReaderEngine
 NovelReaderEngine
 DownloadEngine
-ProviderEngine
+SourceRuntime
 ```
 
 ### Domain Model
@@ -1036,22 +1037,25 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   external chapters vẫn hiển thị nhưng không mở trong Hikari. Source-scoped identity
   hoạt động với cả local SAF và remote UUID mà chưa cần canonical `MediaId`; xem
   [REMOTE_MANGA](architecture/REMOTE_MANGA.md).
+- application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
+  `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
+  thể đăng ký mà không thêm provider-specific branch vào open workflow; dynamic
+  extension runtime vẫn chưa được thiết kế. Xem [SOURCES](architecture/SOURCES.md).
 
 ### Tiếp theo
 
 Xác minh persistence/restart/resume mới và MangaDex live flow trên Android thực:
 search → chapter list → reader → resume → Library → restart. Canonical identity tiếp
 tục hoãn đến khi có yêu cầu rename reconciliation/dedup thực tế. Series-level
-last-chapter resume, additional remote providers và generic provider/extension engine
-chỉ được thiết kế khi requirement thật chứng minh cần.
+last-chapter resume và dynamic extension runtime chỉ được thiết kế khi
+requirement thật chứng minh cần. Source mới dùng capability hiện có có thể đi qua
+registry/application foundation hiện tại mà không cần một engine tổng quát.
 
 ### Chưa bắt đầu
 
-- provider engine tổng quát;
+- dynamic extension runtime;
 - production player/readers;
-- application layer;
-- production UI;
-- extension runtime.
+- production UI.
 
 ---
 
@@ -1075,7 +1079,7 @@ Ví dụ:
 → UI
 
 "Thêm JS extension"
-→ Provider/Extension Engine
+→ Source/Extension Runtime
 ```
 
 Sau đó chỉ nghiên cứu sâu phần liên quan.

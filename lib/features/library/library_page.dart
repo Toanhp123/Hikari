@@ -15,15 +15,15 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-  late Future<List<LibraryEntry>> _entries;
+  late Future<List<LibraryEntry>> _entriesFuture;
   @override
   void initState() {
     super.initState();
-    _entries = widget.repository.loadAll();
+    _entriesFuture = widget.repository.loadAll();
   }
 
-  void _reload() => setState(() {
-    _entries = widget.repository.loadAll();
+  void _reloadLibrary() => setState(() {
+    _entriesFuture = widget.repository.loadAll();
   });
 
   @override
@@ -31,7 +31,7 @@ class _LibraryPageState extends State<LibraryPage> {
     appBar: AppBar(title: const Text('Library')),
     body: SafeArea(
       child: FutureBuilder<List<LibraryEntry>>(
-        future: _entries,
+        future: _entriesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -43,7 +43,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 children: [
                   const Text('Could not load your library.'),
                   TextButton(
-                    onPressed: _reload,
+                    onPressed: _reloadLibrary,
                     child: const Text('Try again'),
                   ),
                 ],
@@ -71,7 +71,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   trailing: LibraryButton(
                     repository: widget.repository,
                     media: media,
-                    onChanged: _reload,
+                    onChanged: _reloadLibrary,
                   ),
                 ),
               );

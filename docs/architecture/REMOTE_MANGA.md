@@ -3,16 +3,18 @@
 ## Scope and boundaries
 
 The current remote slice is an architecture probe, not a generic provider or plugin
-framework. `MediaSearchSource` returns normalized `Media`; `MangaChapterSource`
+framework. The search screen enumerates registered `MangaSearchSource` implementations;
+`MangaSearchSource` returns normalized `Media`; `MangaChapterSource`
 returns provider-neutral chapter metadata; `MangaPageSource` resolves page references
 and bytes for a selected readable. Domain stays pure Dart. HTTP, MangaDex JSON,
 rate limits, UUID validation and MangaDex@Home handling stay in infrastructure.
 
-App composition owns a small `SourceId -> MediaSource` map and routes by capability.
-Duplicate source IDs fail fast. A remote manga series opens the generic chapter list
-before the reader; local manga still opens folder pages directly. Remote navigation is
-independent of Android local scanning. No application service, registry, plugin engine
-or DI framework exists yet.
+Application owns an immutable `SourceRegistry` and resolves sources by stable ID plus
+capability. Duplicate source IDs fail during composition. `OpenMedia` routes a remote
+series to the generic chapter list and `OpenMangaChapter` resolves pages before the
+reader; local manga still opens folder pages directly. Remote navigation is independent
+of Android local scanning. There is no dynamic plugin/extension runtime or DI framework.
+See [SOURCES](SOURCES.md) for the shared source/application boundary.
 
 ## Identity and user state
 
@@ -65,6 +67,8 @@ unnecessary MangaDex@Home requests and consume the provider's endpoint quota.
 
 ## MangaDex@Home transport
 
+`MangaDexClient` owns MangaDex-specific headers, throttling, abort/timeout behavior,
+status handling and response-size caps; it is not a generic network abstraction.
 `GET /at-home/server/{chapterId}` provides a dynamic HTTPS `baseUrl`, chapter hash and
 ordered page filenames. Original `data` quality is used for this slice. One chapter
 session is cached in memory for at most 15 minutes; page refs remain stable across

@@ -45,3 +45,10 @@ Source locators can become orphaned after rename/move/grant revocation. A future
 canonical model can associate these references without redefining Library as
 progress ownership. See [USER_STATE](../architecture/USER_STATE.md) for canonical
 schema, resume behavior, limits and verification boundaries.
+
+## Subsequent decision
+
+On 2026-09-27, the source-resolution/application-workflow portion of composition was
+extended by [ADR-005](ADR-005-application-source-registry.md) after multiple real
+verticals created that requirement. Canonical identity and a dynamic provider/extension
+runtime remain deferred.

@@ -1,5 +1,9 @@
 import 'package:hikari/domain/media/media.dart';
 
+const _pageExtensions = {'jpg', 'jpeg', 'png', 'webp'};
+const _videoExtensions = {'mp4', 'mkv', 'webm', 'm4v'};
+const _textExtensions = {'txt', 'md'};
+
 class LocalEntry {
   const LocalEntry({
     required this.id,
@@ -18,22 +22,24 @@ String _extension(String name) =>
     name.contains('.') ? name.split('.').last.toLowerCase() : '';
 
 bool isPage(LocalEntry entry) =>
-    !entry.isDirectory &&
-    const {'jpg', 'jpeg', 'png', 'webp'}.contains(_extension(entry.name));
+    !entry.isDirectory && _pageExtensions.contains(_extension(entry.name));
+
+MediaType? _classifyEntry(LocalEntry entry, Set<String?> imageParents) {
+  if (entry.isDirectory) {
+    return imageParents.contains(entry.id) ? MediaType.manga : null;
+  }
+
+  final extension = _extension(entry.name);
+  if (_videoExtensions.contains(extension)) return MediaType.anime;
+  if (_textExtensions.contains(extension)) return MediaType.lightNovel;
+  return null;
+}
 
 List<Media> classifyLocalEntries(List<LocalEntry> entries) {
   final imageParents = entries.where(isPage).map((e) => e.parentId).toSet();
   final result = <Media>[];
   for (final entry in entries) {
-    final extension = _extension(entry.name);
-    // ponytail: extension-only MVP assumption; metadata classification is deferred.
-    final type = entry.isDirectory
-        ? (imageParents.contains(entry.id) ? MediaType.manga : null)
-        : const {'mp4', 'mkv', 'webm', 'm4v'}.contains(extension)
-        ? MediaType.anime
-        : const {'txt', 'md'}.contains(extension)
-        ? MediaType.lightNovel
-        : null;
+    final type = _classifyEntry(entry, imageParents);
     if (type == null) continue;
     result.add(
       Media(
@@ -45,29 +51,44 @@ List<Media> classifyLocalEntries(List<LocalEntry> entries) {
       ),
     );
   }
-  result.sort((a, b) {
-    final order = compareLocalNames(a.title, b.title);
-    return order != 0 ? order : a.source.itemId.compareTo(b.source.itemId);
+  result.sort((leftMedia, rightMedia) {
+    final order = compareLocalNames(leftMedia.title, rightMedia.title);
+    return order != 0
+        ? order
+        : leftMedia.source.itemId.compareTo(rightMedia.source.itemId);
   });
   return result;
 }
 
-int compareLocalNames(String a, String b) {
+int compareLocalNames(String leftName, String rightName) {
   final chunks = RegExp(r'\d+|\D+');
-  final left = chunks.allMatches(a.toLowerCase()).map((m) => m[0]!).toList();
-  final right = chunks.allMatches(b.toLowerCase()).map((m) => m[0]!).toList();
-  for (var i = 0; i < left.length && i < right.length; i++) {
-    var x = left[i];
-    var y = right[i];
-    if (RegExp(r'^\d').hasMatch(x) && RegExp(r'^\d').hasMatch(y)) {
-      x = x.replaceFirst(RegExp(r'^0+'), '');
-      y = y.replaceFirst(RegExp(r'^0+'), '');
-      final length = x.length.compareTo(y.length);
-      if (length != 0) return length;
+  final leftSegments = chunks
+      .allMatches(leftName.toLowerCase())
+      .map((match) => match[0]!)
+      .toList();
+  final rightSegments = chunks
+      .allMatches(rightName.toLowerCase())
+      .map((match) => match[0]!)
+      .toList();
+
+  for (var index = 0;
+      index < leftSegments.length && index < rightSegments.length;
+      index++) {
+    var leftSegment = leftSegments[index];
+    var rightSegment = rightSegments[index];
+    if (RegExp(r'^\d').hasMatch(leftSegment) &&
+        RegExp(r'^\d').hasMatch(rightSegment)) {
+      leftSegment = leftSegment.replaceFirst(RegExp(r'^0+'), '');
+      rightSegment = rightSegment.replaceFirst(RegExp(r'^0+'), '');
+      final lengthOrder = leftSegment.length.compareTo(rightSegment.length);
+      if (lengthOrder != 0) return lengthOrder;
     }
-    final order = x.compareTo(y);
-    if (order != 0) return order;
+    final segmentOrder = leftSegment.compareTo(rightSegment);
+    if (segmentOrder != 0) return segmentOrder;
   }
-  final length = left.length.compareTo(right.length);
-  return length != 0 ? length : a.compareTo(b);
+
+  final segmentCountOrder = leftSegments.length.compareTo(rightSegments.length);
+  return segmentCountOrder != 0
+      ? segmentCountOrder
+      : leftName.compareTo(rightName);
 }

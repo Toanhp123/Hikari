@@ -6,7 +6,7 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
-import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
 
 void main() {
   const media = Media(

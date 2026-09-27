@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_page.dart';
 
 class LocalMediaPage extends StatefulWidget {
@@ -15,30 +15,24 @@ class LocalMediaPage extends StatefulWidget {
     this.openRemote,
   });
 
-  final LibraryRepository? library;
-  final Future<void> Function()? openLibrary;
-  final VoidCallback? openRemote;
-
   final Future<List<Media>?> Function() scanSelectedRoot;
   final Future<bool> Function() chooseRoot;
   final void Function(BuildContext, Media) openMedia;
   final bool supported;
+  final LibraryRepository? library;
+  final Future<void> Function()? openLibrary;
+  final VoidCallback? openRemote;
 
   @override
   State<LocalMediaPage> createState() => _LocalMediaPageState();
 }
 
 class _LocalMediaPageState extends State<LocalMediaPage> {
-  List<Media> _results = const [];
-  Object? _error;
-  bool _loading = false;
-  bool _started = false;
-  int _libraryRevision = 0;
-
-  Future<void> _openLibrary() async {
-    await widget.openLibrary?.call();
-    if (mounted) setState(() => _libraryRevision++);
-  }
+  List<Media> _media = const [];
+  Object? _scanError;
+  bool _isScanning = false;
+  bool _hasScanResult = false;
+  int _libraryRefreshKey = 0;
 
   @override
   void initState() {
@@ -46,140 +40,118 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
     if (widget.supported) _scanSelectedRoot();
   }
 
-  Future<void> _scanSelectedRoot() => _load(widget.scanSelectedRoot);
+  Future<void> _openLibrary() async {
+    await widget.openLibrary?.call();
+    if (mounted) setState(() => _libraryRefreshKey++);
+  }
 
-  Future<void> _choose() async {
-    if (_loading) return;
-    final previousError = _error;
+  Future<void> _scanSelectedRoot() => _runScan(widget.scanSelectedRoot);
+
+  Future<void> _chooseRoot() async {
+    if (_isScanning) return;
+    final previousError = _scanError;
     setState(() {
-      _loading = true;
-      _error = null;
+      _isScanning = true;
+      _scanError = null;
     });
+
     try {
       final selected = await widget.chooseRoot();
       if (!mounted) return;
       if (!selected) {
         setState(() {
-          _error = previousError;
-          _loading = false;
+          _scanError = previousError;
+          _isScanning = false;
         });
         return;
       }
 
       setState(() {
-        _results = const [];
-        _started = false;
+        _media = const [];
+        _hasScanResult = false;
       });
-      await _load(widget.scanSelectedRoot, alreadyLoading: true);
+      await _runScan(widget.scanSelectedRoot, scanAlreadyStarted: true);
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error;
-        _loading = false;
+        _scanError = error;
+        _isScanning = false;
       });
     }
   }
 
-  Future<void> _load(
-    Future<List<Media>?> Function() operation, {
-    bool alreadyLoading = false,
+  Future<void> _runScan(
+    Future<List<Media>?> Function() scan, {
+    bool scanAlreadyStarted = false,
   }) async {
-    if (_loading && !alreadyLoading) return;
-    if (!alreadyLoading) {
+    if (_isScanning && !scanAlreadyStarted) return;
+    if (!scanAlreadyStarted) {
       setState(() {
-        _loading = true;
-        _error = null;
+        _isScanning = true;
+        _scanError = null;
       });
     }
+
     try {
-      final results = await operation();
+      final result = await scan();
       if (!mounted) return;
       setState(() {
-        if (results != null) {
-          _results = results;
-          _started = true;
-        } else {
-          _results = const [];
-          _started = false;
-        }
-        _loading = false;
+        _media = result ?? const [];
+        _hasScanResult = result != null;
+        _isScanning = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error;
-        _loading = false;
+        _scanError = error;
+        _isScanning = false;
       });
     }
   }
-
-  String _typeLabel(MediaType type) => switch (type) {
-    MediaType.anime => 'Anime',
-    MediaType.manga => 'Manga',
-    MediaType.lightNovel => 'Light Novel',
-  };
 
   int get _itemCount {
-    if (_loading) return 1;
-    if (_error != null) return 3;
-    if (!_started) return 2;
-    return (_results.isEmpty ? 1 : _results.length) + 1;
+    if (_isScanning) return 1;
+    if (_scanError != null) return 3;
+    if (!_hasScanResult) return 2;
+    return (_media.isEmpty ? 1 : _media.length) + 1;
   }
 
-  Widget _item(BuildContext context, int index) {
-    if (_loading) {
+  Widget _buildListItem(BuildContext context, int index) {
+    if (_isScanning) {
       return const Padding(
         padding: EdgeInsets.all(24),
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    if (_error != null) {
-      return switch (index) {
-        0 => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(
-            child: Text(
-              'Could not scan local media. Try again or choose the folder again.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        1 => TextButton(
-          onPressed: _scanSelectedRoot,
-          child: const Text('Try again'),
-        ),
-        _ => _chooseButton(),
-      };
-    }
-    if (!_started) {
+    if (_scanError != null) return _buildErrorItem(index);
+    if (!_hasScanResult) {
       return index == 0
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(
-                child: Text('Choose a folder to find local media.'),
-              ),
+              child: Center(child: Text('Choose a folder to find local media.')),
             )
-          : _chooseButton();
+          : _buildChooseFolderButton();
     }
-    if (_results.isEmpty) {
+    if (_media.isEmpty) {
       return index == 0
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 48),
               child: Center(child: Text('No local media found.')),
             )
-          : _chooseButton();
+          : _buildChooseFolderButton();
     }
-    if (index == _results.length) return _chooseButton();
-    final media = _results[index];
+    if (index == _media.length) return _buildChooseFolderButton();
+
+    final media = _media[index];
     return Card(
       child: ListTile(
         title: Text(media.title),
-        subtitle: Text(_typeLabel(media.type)),
+        subtitle: Text(_mediaTypeLabel(media.type)),
         onTap: () => widget.openMedia(context, media),
         trailing: widget.library == null
             ? null
             : LibraryButton(
-                key: ValueKey((media.source, _libraryRevision)),
+                key: ValueKey((media.source, _libraryRefreshKey)),
                 repository: widget.library!,
                 media: media,
               ),
@@ -187,56 +159,60 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
     );
   }
 
-  Widget _chooseButton() => OutlinedButton.icon(
-    onPressed: _loading ? null : _choose,
+  Widget _buildErrorItem(int index) => switch (index) {
+    0 => const Padding(
+      padding: EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Text(
+          'Could not scan local media. Try again or choose the folder again.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+    1 => TextButton(
+      onPressed: _scanSelectedRoot,
+      child: const Text('Try again'),
+    ),
+    _ => _buildChooseFolderButton(),
+  };
+
+  Widget _buildChooseFolderButton() => OutlinedButton.icon(
+    onPressed: _isScanning ? null : _chooseRoot,
     icon: const Icon(Icons.folder_open),
     label: const Text('Choose folder'),
+  );
+
+  PreferredSizeWidget _buildAppBar() => AppBar(
+    title: const Text('Local media'),
+    actions: [
+      if (widget.openRemote != null)
+        IconButton(
+          tooltip: 'Search manga',
+          onPressed: widget.openRemote,
+          icon: const Icon(Icons.search),
+        ),
+      if (widget.openLibrary != null)
+        IconButton(
+          tooltip: 'Library',
+          onPressed: _openLibrary,
+          icon: const Icon(Icons.bookmarks_outlined),
+        ),
+    ],
   );
 
   @override
   Widget build(BuildContext context) {
     if (!widget.supported) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Local media'),
-          actions: [
-            if (widget.openRemote != null)
-              IconButton(
-                tooltip: 'Search manga',
-                onPressed: widget.openRemote,
-                icon: const Icon(Icons.search),
-              ),
-            if (widget.openLibrary != null)
-              IconButton(
-                tooltip: 'Library',
-                onPressed: _openLibrary,
-                icon: const Icon(Icons.bookmarks_outlined),
-              ),
-          ],
-        ),
+        appBar: _buildAppBar(),
         body: const Center(
           child: Text('Local media is not supported on this device.'),
         ),
       );
     }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Local media'),
-        actions: [
-          if (widget.openRemote != null)
-            IconButton(
-              tooltip: 'Search manga',
-              onPressed: widget.openRemote,
-              icon: const Icon(Icons.search),
-            ),
-          if (widget.openLibrary != null)
-            IconButton(
-              tooltip: 'Library',
-              onPressed: _openLibrary,
-              icon: const Icon(Icons.bookmarks_outlined),
-            ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _scanSelectedRoot,
@@ -244,10 +220,16 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             itemCount: _itemCount,
-            itemBuilder: _item,
+            itemBuilder: _buildListItem,
           ),
         ),
       ),
     );
   }
 }
+
+String _mediaTypeLabel(MediaType type) => switch (type) {
+  MediaType.anime => 'Anime',
+  MediaType.manga => 'Manga',
+  MediaType.lightNovel => 'Light Novel',
+};

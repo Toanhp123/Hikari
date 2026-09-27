@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
-import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
@@ -12,65 +12,35 @@ import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
-import 'package:hikari/infrastructure/local_media/local_media_source.dart';
-import 'package:hikari/infrastructure/mangadex/mangadex_source.dart';
-import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/playback/local_video.dart';
-import 'package:hikari/infrastructure/playback/local_video_session.dart';
-import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
 
 class HikariApp extends StatefulWidget {
-  const HikariApp({super.key, this.database, this.source, this.remoteSource});
-  final MediaSearchSource? remoteSource;
-  final UserDatabase? database;
-  final LocalMediaSource? source;
+  const HikariApp({super.key, required this.dependencies});
+
+  final AppDependencies dependencies;
+
   @override
   State<HikariApp> createState() => _HikariAppState();
 }
 
 class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
-  final _video = LocalVideoSession();
-  late final UserDatabase _database;
-  late final LibraryRepository _library;
-  late final ProgressRepository _progress;
-  late final LocalMediaSource _local;
-  late final MediaSearchSource _remote;
-  late final Map<SourceId, MediaSource> _sources;
-  MangaDexSource? _ownedRemote;
-  bool _opening = false;
+  late final AppDependencies _dependencies;
+  bool _isOpeningMedia = false;
 
   @override
   void initState() {
     super.initState();
+    _dependencies = widget.dependencies;
     WidgetsBinding.instance.addObserver(this);
-    _database = widget.database ?? UserDatabase();
-    _library = SqliteLibraryRepository(_database);
-    _progress = SqliteProgressRepository(_database);
-    _local = widget.source ?? LocalMediaSource();
-    _remote = widget.remoteSource ?? (_ownedRemote = MangaDexSource());
-    final sources = <SourceId, MediaSource>{};
-    for (final source in <MediaSource>[_local, _remote]) {
-      if (sources.containsKey(source.id)) {
-        throw StateError('Duplicate media source id: ${source.id}.');
-      }
-      sources[source.id] = source;
-    }
-    _sources = sources;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _ownedRemote?.close();
     unawaited(
-      _video
-          .shutdown()
-          .whenComplete(() async {
-            if (widget.database == null) await _database.close();
-          })
-          .catchError((Object error) {
-            FlutterError.reportError(FlutterErrorDetails(exception: error));
-          }),
+      _dependencies.dispose().catchError((Object error) {
+        FlutterError.reportError(FlutterErrorDetails(exception: error));
+      }),
     );
     super.dispose();
   }
@@ -78,83 +48,21 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     unawaited(
-      _video.setForeground(state == AppLifecycleState.resumed).catchError((
-        Object error,
-      ) {
-        FlutterError.reportError(FlutterErrorDetails(exception: error));
-      }),
+      _dependencies.videoSession
+          .setForeground(state == AppLifecycleState.resumed)
+          .catchError((Object error) {
+            FlutterError.reportError(FlutterErrorDetails(exception: error));
+          }),
     );
   }
 
-  Future<void> _open(BuildContext context, Media media) async {
-    if (_opening) return;
-    _opening = true;
+  Future<void> _openMedia(BuildContext context, Media media) async {
+    if (_isOpeningMedia) return;
+    _isOpeningMedia = true;
     try {
-      final source = _sources[media.source.sourceId];
-      if (source == null || (source == _local && !_local.supported)) {
-        throw StateError('Source is unavailable on this device.');
-      }
-      if (media.type == MediaType.manga && source is MangaChapterSource) {
-        if (source is! MangaPageSource) throw StateError('Pages unavailable.');
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => MangaChapterPage(
-              title: media.title,
-              sourceName: source.name,
-              loadChapters: () => source.chapters(media.source),
-              openChapter: (context, chapter) =>
-                  _openChapter(context, source as MangaPageSource, chapter),
-            ),
-          ),
-        );
-        return;
-      }
-      final saved = await _progress.load(media.source);
+      final target = await _dependencies.openMedia.execute(media);
       if (!context.mounted) return;
-      Future<void> save(ProgressPosition position, bool completed) =>
-          _progress.save(
-            MediaProgress(
-              media: media.source,
-              position: position,
-              completed: completed,
-              updatedAt: DateTime.now().toUtc(),
-            ),
-          );
-      final Widget page;
-      switch (media.type) {
-        case MediaType.anime:
-          final playback = _video.open(
-            locator: media.source.itemId,
-            initialProgress: saved,
-            saveProgress: save,
-          );
-          page = PlayerPage(
-            title: media.title,
-            beforeExit: playback.finish,
-            playback: LocalVideo(playback: playback),
-          );
-        case MediaType.manga:
-          if (source is! MangaPageSource) {
-            throw StateError('Pages unavailable.');
-          }
-          page = MangaReaderPage(
-            title: media.title,
-            loadPages: () => source.pages(media.source),
-            readPage: source.readPage,
-            initialProgress: saved,
-            saveProgress: save,
-          );
-        case MediaType.lightNovel:
-          if (source is! NovelTextSource) throw StateError('Text unavailable.');
-          page = NovelReaderPage(
-            title: media.title,
-            loadText: () => source.readText(media.source),
-            initialProgress: saved,
-            saveProgress: save,
-          );
-      }
-      await Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => page));
+      await _pushMediaTarget(context, target);
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -166,77 +74,124 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         );
       }
     } finally {
-      _opening = false;
+      _isOpeningMedia = false;
     }
   }
 
-  Future<void> _openChapter(
+  Future<void> _pushMediaTarget(
     BuildContext context,
-    MangaPageSource source,
+    MediaOpenTarget target,
+  ) async {
+    final page = switch (target) {
+      VideoOpenTarget video => _buildVideoPage(video),
+      MangaSeriesOpenTarget series => _buildMangaSeriesPage(series),
+      MangaReaderOpenTarget reader => _buildMangaReaderPage(reader),
+      NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
+    };
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  Widget _buildVideoPage(VideoOpenTarget target) {
+    final playback = _dependencies.videoSession.open(
+      locator: target.locator,
+      initialProgress: target.progress.initialProgress,
+      saveProgress: target.progress.save,
+    );
+    return PlayerPage(
+      title: target.media.title,
+      beforeExit: playback.finish,
+      playback: LocalVideo(playback: playback),
+    );
+  }
+
+  Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) =>
+      MangaChapterPage(
+        title: target.media.title,
+        sourceName: target.chapterSource.name,
+        loadChapters: () => target.chapterSource.chapters(target.media.source),
+        openChapter: _openMangaChapter,
+      );
+
+  Widget _buildMangaReaderPage(MangaReaderOpenTarget target) => MangaReaderPage(
+    title: target.media.title,
+    loadPages: () => target.pageSource.pages(target.media.source),
+    readPage: target.pageSource.readPage,
+    initialProgress: target.progress.initialProgress,
+    saveProgress: target.progress.save,
+  );
+
+  Widget _buildNovelReaderPage(NovelReaderOpenTarget target) => NovelReaderPage(
+    title: target.media.title,
+    loadText: () => target.textSource.readText(target.media.source),
+    initialProgress: target.progress.initialProgress,
+    saveProgress: target.progress.save,
+  );
+
+  Future<void> _openMangaChapter(
+    BuildContext context,
     MangaChapter chapter,
   ) async {
-    final saved = await _progress.load(chapter.source);
-    // Resolve before navigation so stale remote chapters never open a broken reader.
-    final pages = await source.pages(chapter.source);
+    final target = await _dependencies.openMangaChapter.execute(chapter);
     if (!context.mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => MangaReaderPage(
-          title: chapter.title,
+          title: target.chapter.title,
           credit: [
-            source.name,
-            if (chapter.scanlator != null) chapter.scanlator!,
+            target.source.name,
+            if (target.chapter.scanlator != null) target.chapter.scanlator!,
           ].join(' · '),
-          loadPages: () async => pages,
-          readPage: source.readPage,
-          initialProgress: saved,
-          saveProgress: (position, completed) => _progress.save(
-            MediaProgress(
-              media: chapter.source,
-              position: position,
-              completed: completed,
-              updatedAt: DateTime.now().toUtc(),
-            ),
-          ),
+          loadPages: () async => target.pages,
+          readPage: target.source.readPage,
+          initialProgress: target.progress.initialProgress,
+          saveProgress: target.progress.save,
         ),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Hikari',
-    theme: ThemeData(colorSchemeSeed: Colors.indigo),
-    darkTheme: ThemeData(
-      colorSchemeSeed: Colors.indigo,
-      brightness: Brightness.dark,
-    ),
-    home: Builder(
-      builder: (context) => LocalMediaPage(
-        supported: _local.supported,
-        scanSelectedRoot: _local.scanSelectedRoot,
-        chooseRoot: _local.chooseRoot,
-        library: _library,
-        openMedia: _open,
-        openRemote: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => RemoteMangaSearchPage(
-              sourceName: _remote.name,
-              search: _remote.search,
-              openMedia: _open,
-              library: _library,
+  Widget build(BuildContext context) {
+    final localSource = _dependencies.localMediaSource;
+    final libraryRepository = _dependencies.libraryRepository;
+
+    return MaterialApp(
+      title: 'Hikari',
+      theme: ThemeData(colorSchemeSeed: Colors.indigo),
+      darkTheme: ThemeData(
+        colorSchemeSeed: Colors.indigo,
+        brightness: Brightness.dark,
+      ),
+      home: Builder(
+        builder: (context) => LocalMediaPage(
+          supported: localSource.isAvailable,
+          scanSelectedRoot: localSource.scanSelectedRoot,
+          chooseRoot: localSource.chooseRoot,
+          library: libraryRepository,
+          openMedia: _openMedia,
+          openRemote: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => RemoteMangaSearchPage(
+                sources: _dependencies.mangaSearchSources,
+                openMedia: _openMedia,
+                library: libraryRepository,
+              ),
             ),
           ),
+          openLibrary: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => LibraryPage(
+                  repository: libraryRepository,
+                  openMedia: _openMedia,
+                ),
+              ),
+            );
+          },
         ),
-        openLibrary: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) =>
-                  LibraryPage(repository: _library, openMedia: _open),
-            ),
-          );
-        },
       ),
-    ),
-  );
+    );
+  }
 }

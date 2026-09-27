@@ -11,6 +11,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
+| `architecture/SOURCES.md` | Capability contracts, SourceRegistry, application open workflows and source extension seam | Adding/refactoring a source or application workflow |
 | `architecture/REMOTE_MANGA.md` | Remote manga hierarchy, MangaDex transport and stable identity | Working on search, chapter selection or remote page delivery |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
@@ -44,9 +45,9 @@ Examples:
 "Should Hikari support another media type?"
 → PROJECT_OVERVIEW.md
 
-"How should provider identity work?"
+"How should source identity work?"
 → PROJECT_OVERVIEW.md
-→ relevant domain/provider architecture docs
+→ relevant domain/source architecture docs
 → related ADRs
 
 "Fix a player regression"
@@ -80,11 +81,10 @@ It should not become an API reference or implementation plan.
 
 ```text
 architecture/
-├── DOMAIN.md
-├── PERSISTENCE.md
-├── PROVIDERS.md
-├── PLAYER.md
-└── READERS.md
+├── LOCAL_MEDIA.md
+├── SOURCES.md
+├── USER_STATE.md
+└── REMOTE_MANGA.md
 ```
 
 Create a file only when that subsystem reaches a phase where its architecture is real enough to document.
@@ -163,13 +163,15 @@ Hikari/
     ├── GIT_WORKFLOW.md
     ├── architecture/
     │   ├── LOCAL_MEDIA.md
+    │   ├── SOURCES.md
     │   ├── USER_STATE.md
     │   └── REMOTE_MANGA.md
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
         ├── ADR-002-foundation-v1.md
         ├── ADR-003-architecture-guardrails.md
-        └── ADR-004-user-state-persistence.md
+        ├── ADR-004-user-state-persistence.md
+        └── ADR-005-application-source-registry.md
 ```
 
 Future `architecture/` and `roadmap/` documents are created incrementally only when the project has real knowledge or active execution state to store. Completed one-off plans should be removed after durable facts move to canonical architecture/product docs.

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
+import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
@@ -14,10 +15,11 @@ import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
-import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
 class FakeRemote
-    implements MediaSearchSource, MangaChapterSource, MangaPageSource {
+    implements MangaSearchSource, MangaChapterSource, MangaPageSource {
   @override
   SourceId get id => const SourceId('fake');
   @override
@@ -86,18 +88,87 @@ class _CountingRemote extends FakeRemote {
   }
 }
 
+class _SearchOnlySource implements MangaSearchSource {
+  _SearchOnlySource({
+    required this.id,
+    required this.name,
+    required this.onSearch,
+  });
+
+  @override
+  final SourceId id;
+  @override
+  final String name;
+  final Future<List<Media>> Function(String query) onSearch;
+
+  @override
+  Future<List<Media>> search(String query) => onSearch(query);
+}
+
+class _SecondRemote extends FakeRemote {
+  @override
+  SourceId get id => const SourceId('second');
+
+  @override
+  String get name => 'Second remote';
+
+  @override
+  Future<List<Media>> search(String query) async => [
+    Media(
+      title: 'Second series',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: id, itemId: 'series'),
+    ),
+  ];
+}
+
 void main() {
-  testWidgets('duplicate source ids fail fast during app composition', (
-    tester,
-  ) async {
+  test('duplicate source ids fail fast during app composition', () async {
     final db = UserDatabase(NativeDatabase.memory());
     addTearDown(db.close);
 
-    await tester.pumpWidget(
-      HikariApp(database: db, remoteSource: DuplicateIdRemote()),
+    expect(
+      () => AppDependencies.create(
+        database: db,
+        remoteMangaSource: DuplicateIdRemote(),
+      ),
+      throwsStateError,
     );
+  });
 
-    expect(tester.takeException(), isA<StateError>());
+  testWidgets('registered search sources appear without app orchestration changes', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    final db = UserDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    try {
+      await tester.pumpWidget(
+        HikariApp(
+          dependencies: AppDependencies.create(
+            database: db,
+            remoteMangaSource: FakeRemote(),
+            additionalSources: [_SecondRemote()],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Search manga'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButton<SourceId>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Second remote').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'test');
+      await tester.tap(find.text('Search'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Second series'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('unavailable remote chapter does not open a broken reader', (
@@ -109,7 +180,12 @@ void main() {
 
     try {
       await tester.pumpWidget(
-        HikariApp(database: db, remoteSource: UnavailableRemote()),
+        HikariApp(
+          dependencies: AppDependencies.create(
+            database: db,
+            remoteMangaSource: UnavailableRemote(),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Search manga'));
@@ -142,7 +218,12 @@ void main() {
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final db = UserDatabase(NativeDatabase.memory());
     await tester.pumpWidget(
-      HikariApp(database: db, remoteSource: FakeRemote()),
+      HikariApp(
+        dependencies: AppDependencies.create(
+          database: db,
+          remoteMangaSource: FakeRemote(),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Search manga'));
@@ -180,7 +261,12 @@ void main() {
       ),
     );
     await tester.pumpWidget(
-      HikariApp(database: db, remoteSource: ResumableRemote()),
+      HikariApp(
+        dependencies: AppDependencies.create(
+          database: db,
+          remoteMangaSource: ResumableRemote(),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Search manga'));
@@ -216,7 +302,14 @@ void main() {
         addedAt: DateTime.utc(2026),
       ),
     );
-    await tester.pumpWidget(HikariApp(database: db, remoteSource: remote));
+    await tester.pumpWidget(
+      HikariApp(
+        dependencies: AppDependencies.create(
+          database: db,
+          remoteMangaSource: remote,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
@@ -268,15 +361,20 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: RemoteMangaSearchPage(
-          sourceName: 'Test source',
-          search: (_) async => [
-            const Media(
-              title: 'Series',
-              type: MediaType.manga,
-              source: SourceMediaRef(
-                sourceId: SourceId('fake'),
-                itemId: 'series',
-              ),
+          sources: [
+            _SearchOnlySource(
+              id: const SourceId('fake'),
+              name: 'Test source',
+              onSearch: (_) async => [
+                const Media(
+                  title: 'Series',
+                  type: MediaType.manga,
+                  source: SourceMediaRef(
+                    sourceId: SourceId('fake'),
+                    itemId: 'series',
+                  ),
+                ),
+              ],
             ),
           ],
           openMedia: (_, _) {},
@@ -305,13 +403,18 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: RemoteMangaSearchPage(
-          sourceName: 'Test source',
-          search: (_) {
-            calls++;
-            return calls == 1
-                ? pending.future
-                : Future.error(StateError('offline'));
-          },
+          sources: [
+            _SearchOnlySource(
+              id: const SourceId('test'),
+              name: 'Test source',
+              onSearch: (_) {
+                calls++;
+                return calls == 1
+                    ? pending.future
+                    : Future.error(StateError('offline'));
+              },
+            ),
+          ],
           openMedia: (_, _) {},
         ),
       ),

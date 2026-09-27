@@ -6,7 +6,8 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
-import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
 void main() {
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'item');

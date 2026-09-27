@@ -17,8 +17,10 @@ Library snapshots and reader progress are now persisted separately; see
 - `infrastructure/playback/`: media-kit controller, video surface, errors and lifecycle.
 - `features/`: list, player page, manga and text presentation. Constructor callbacks
   and an injected playback widget keep concrete infrastructure out of features.
-- `app/`: composition and ordinary Flutter navigation. No application use-case layer
-  is needed for these independent operations.
+- `application/`: source resolution and media/chapter opening workflows. Local scan itself
+  remains a feature-to-source operation because it does not coordinate multiple domains.
+- `app/`: composition, lifecycle ownership and ordinary Flutter navigation. Concrete source
+  wiring lives here; content-opening policy does not.
 
 The existing architecture guard is unchanged.
 
@@ -124,7 +126,7 @@ without a chapter-selection screen.
 
 CBZ/ZIP, CBR/RAR, EPUB, PDF; series/season/chapter parsing; canonical identity,
 hashing/deduplication, enrichment, covers/thumbnails; rename recovery, watchers,
-history sessions, downloads, additional remote providers and generic source/engine frameworks.
+history sessions, downloads, additional remote providers and a dynamic extension/provider runtime.
 Progress/Library persistence and minimal page/text source capabilities are implemented
 in [USER_STATE](USER_STATE.md); canonical identity remains deferred.
 

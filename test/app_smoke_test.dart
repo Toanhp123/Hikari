@@ -7,9 +7,11 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
-import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
+import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 
 void main() {
@@ -55,7 +57,9 @@ void main() {
           utf8.encode(List.filled(150, 'Persisted text').join('\n')),
         );
       });
-      await tester.pumpWidget(HikariApp(database: db));
+      await tester.pumpWidget(
+        HikariApp(dependencies: AppDependencies.create(database: db)),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
@@ -98,7 +102,9 @@ void main() {
       expect(call.method, 'read');
       return Uint8List.fromList(const [1, 2, 3]);
     });
-    await tester.pumpWidget(HikariApp(database: db));
+    await tester.pumpWidget(
+      HikariApp(dependencies: AppDependencies.create(database: db)),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
@@ -115,7 +121,9 @@ void main() {
       return null;
     });
 
-    await tester.pumpWidget(const HikariApp());
+    await tester.pumpWidget(
+      HikariApp(dependencies: AppDependencies.create()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Local media'), findsOneWidget);
