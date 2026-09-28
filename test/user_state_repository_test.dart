@@ -68,7 +68,7 @@ void main() {
     final file = File('${directory.path}/state.sqlite');
     final first = UserDatabase(NativeDatabase.createInBackground(file));
     const series = SourceMediaRef(
-      sourceId: SourceId('mangadex'),
+      sourceId: SourceId('remote'),
       itemId: 'series-id',
     );
     try {
@@ -100,11 +100,11 @@ void main() {
 
   test('removing remote series keeps chapter progress', () async {
     const series = SourceMediaRef(
-      sourceId: SourceId('mangadex'),
+      sourceId: SourceId('remote'),
       itemId: 'series-id',
     );
     const chapter = SourceMediaRef(
-      sourceId: SourceId('mangadex'),
+      sourceId: SourceId('remote'),
       itemId: 'chapter-id',
     );
     await library.upsert(

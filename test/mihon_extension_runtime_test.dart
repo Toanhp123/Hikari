@@ -119,26 +119,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'legacy persisted references survive extension absence and reinstall',
+    'opaque persisted references survive extension absence and reinstall',
     () async {
       final db = UserDatabase(NativeDatabase.memory());
       addTearDown(db.close);
       final gateway = _FakeGateway(const [_mangaDex]);
-      const media = Media(
-        title: 'Saved series',
-        type: MediaType.manga,
-        source: SourceMediaRef(
-          sourceId: SourceId('mangadex'),
-          itemId: _mangaId,
-        ),
+      final source =
+          (await MihonExtensionRuntime(gateway: gateway).loadSources()).single
+              as MangaSearchSource;
+      final media = (await source.search('example')).single;
+      final chapter = (await (source as MangaChapterSource).chapters(
+        media.source,
+      )).single;
+      expect(
+        media.source.sourceId,
+        const SourceId('mihon:2499283573021220255'),
       );
-      const chapter = MangaChapter(
-        title: 'Saved chapter',
-        source: SourceMediaRef(
-          sourceId: SourceId('mangadex'),
-          itemId: _chapterId,
-        ),
-      );
+      expect(media.source.itemId, startsWith('mihon-v1:'));
+      expect(chapter.source.itemId, startsWith('mihon-v1:'));
       final progress = SqliteProgressRepository(db);
       final initial = AppDependencies.create(database: db);
       await initial.libraryRepository.upsert(
@@ -231,46 +229,39 @@ void main() {
   );
 
   test(
-    'MangaDex English preserves legacy Hikari identity end to end',
+    'MangaDex uses generic extension identity and references end to end',
     () async {
       final gateway = _FakeGateway(const [_mangaDex]);
       final source =
           (await MihonExtensionRuntime(gateway: gateway).loadSources()).single
               as MangaSearchSource;
 
-      expect(source.id, const SourceId('mangadex'));
+      expect(source.id, const SourceId('mihon:2499283573021220255'));
 
       final search = await source.search('example');
       expect(gateway.searchedSource, _mangaDex.sourceKey);
-      expect(
-        search.single.source,
-        const SourceMediaRef(sourceId: SourceId('mangadex'), itemId: _mangaId),
-      );
+      expect(search.single.source.sourceId, source.id);
+      expect(search.single.source.itemId, startsWith('mihon-v1:'));
 
       final chapterSource = source as MangaChapterSource;
       final chapters = await chapterSource.chapters(search.single.source);
       expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
-      expect(gateway.chapterMangaTitle, isNull);
-      expect(gateway.chapterMangaMemo, isNull);
-      expect(
-        chapters.single.source,
-        const SourceMediaRef(
-          sourceId: SourceId('mangadex'),
-          itemId: _chapterId,
-        ),
-      );
+      expect(gateway.chapterMangaTitle, 'Example');
+      expect(gateway.chapterMangaMemo, '{"seriesId":"123"}');
+      expect(chapters.single.source.sourceId, source.id);
+      expect(chapters.single.source.itemId, startsWith('mihon-v1:'));
       expect(chapters.single.scanlator, 'Group');
 
       final pageSource = source as MangaPageSource;
       final pages = await pageSource.pages(chapters.single.source);
       expect(gateway.pageChapterUrl, '/chapter/$_chapterId');
-      expect(gateway.pageChapterTitle, isNull);
-      expect(gateway.pageChapterNumber, isNull);
-      expect(gateway.pageChapterScanlator, isNull);
-      expect(gateway.pageChapterDateUpload, isNull);
-      expect(gateway.pageChapterMemo, isNull);
+      expect(gateway.pageChapterTitle, 'Chapter 1');
+      expect(gateway.pageChapterNumber, 1);
+      expect(gateway.pageChapterScanlator, 'Group');
+      expect(gateway.pageChapterDateUpload, 123456789);
+      expect(gateway.pageChapterMemo, '{"chapterId":"456"}');
       expect(pages, hasLength(1));
-      expect(pages.single.sourceId, const SourceId('mangadex'));
+      expect(pages.single.sourceId, source.id);
 
       expect(await pageSource.readPage(pages.single), [1, 2, 3]);
       expect(gateway.readPageItem?.index, 0);
@@ -280,7 +271,7 @@ void main() {
     },
   );
 
-  test('non-MangaDex extension references remain opaque', () async {
+  test('extension references preserve opaque continuation state', () async {
     final descriptor = const MihonSourceDescriptor(
       sourceKey: '7',
       name: 'Opaque',
@@ -311,62 +302,6 @@ void main() {
     expect(gateway.pageChapterScanlator, 'Group');
     expect(gateway.pageChapterDateUpload, 123456789);
     expect(gateway.pageChapterMemo, '{"chapterId":"456"}');
-  });
-
-  test(
-    'MangaDex compatibility alias requires the legacy upstream source id',
-    () async {
-      final gateway = _FakeGateway(const [
-        MihonSourceDescriptor(
-          sourceKey: '99',
-          name: 'MangaDex',
-          language: 'en',
-          packageName: 'eu.kanade.tachiyomi.extension.all.mangadex',
-          baseUrl: 'https://mangadex.org',
-        ),
-      ]);
-
-      final source = (await MihonExtensionRuntime(
-        gateway: gateway,
-      ).loadSources()).single;
-
-      expect(source.id, const SourceId('mihon:99'));
-    },
-  );
-
-  test(
-    'MangaDex compatibility alias requires the official package identity',
-    () async {
-      final gateway = _FakeGateway(const [
-        MihonSourceDescriptor(
-          sourceKey: '2499283573021220255',
-          name: 'MangaDex',
-          language: 'en',
-          packageName: 'example.spoofed.mangadex',
-          baseUrl: 'https://mangadex.org',
-        ),
-      ]);
-
-      final source = (await MihonExtensionRuntime(
-        gateway: gateway,
-      ).loadSources()).single;
-
-      expect(source.id, const SourceId('mihon:2499283573021220255'));
-    },
-  );
-
-  test('MangaDex compatibility alias requires English', () async {
-    final gateway = _FakeGateway(const [
-      MihonSourceDescriptor(
-        sourceKey: '2499283573021220255',
-        name: 'MangaDex',
-        language: 'fr',
-        packageName: 'eu.kanade.tachiyomi.extension.all.mangadex',
-        baseUrl: 'https://mangadex.org',
-      ),
-    ]);
-    final sources = await MihonExtensionRuntime(gateway: gateway).loadSources();
-    expect(sources.single.id, const SourceId('mihon:2499283573021220255'));
   });
 
   test('runtime without a platform plugin exposes no sources', () async {

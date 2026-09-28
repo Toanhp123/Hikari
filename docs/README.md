@@ -14,7 +14,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
 | `architecture/PRESENTATION.md` | View/ViewModel state ownership, UI dependency rules and player surface boundary | Working on feature UI/state or player presentation |
 | `architecture/SOURCES.md` | Capability contracts, SourceRegistry, application open workflows and source extension seam | Adding/refactoring a source or application workflow |
-| `architecture/REMOTE_MANGA.md` | Remote manga flow, external-source selection and legacy identity compatibility | Working on search, chapter selection or remote page delivery |
+| `architecture/REMOTE_MANGA.md` | Remote manga flow, external-source selection and generic source references | Working on search, chapter selection or remote page delivery |
 | `architecture/EXTENSIONS.md` | Android extension discovery, trust, ABI host, bridge and runtime limits | Working on installed manga extensions or native compatibility |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |

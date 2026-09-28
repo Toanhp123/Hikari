@@ -22,7 +22,7 @@ With no usable manga search/page source, the existing capability-driven UI hides
 
 Source references remain source-local locators, not canonical content identities.
 
-For ordinary Android extension sources:
+For all Android extension sources, including MangaDex:
 
 ```text
 SourceId = "mihon:<upstream source id>"
@@ -31,23 +31,15 @@ itemId   = opaque extension-owned reference
 
 The opaque reference can include extension-lib `memo` state required to make later chapter/page calls. Domain and persisted user-state code do not parse it.
 
-### MangaDex migration compatibility
+Manga/chapter references use the generic opaque `mihon-v1:` payload described in [EXTENSIONS](EXTENSIONS.md). No legacy MangaDex identity compatibility or UUID translation is retained: the project intentionally accepts a clean app-data reset at this stage instead of migrating pre-refactor Library/Progress rows, per [ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md).
 
-The official English MangaDex extension retains the identity used by historical Hikari Library and Progress rows:
-
-- source: `SourceId('mangadex')`;
-- series: MangaDex manga UUID;
-- chapter: MangaDex chapter UUID.
-
-The alias requires the exact package, upstream English source ID and language documented in [EXTENSIONS](EXTENSIONS.md). Name/base URL alone never grants it. The adapter translates legacy UUIDs to the extension's manga/chapter URL contract; it does not implement MangaDex networking.
-
-Without that extension, saved references encounter the existing generic missing-source error. Rows are not deleted or migrated. Reinstalling the compatible extension and restarting Hikari makes the same references resolvable again. No database schema change is required.
+Without an extension, saved generic references encounter the existing missing-source error. Rows are not deleted or migrated. Reinstalling the compatible extension and restarting Hikari makes those generic references resolvable again. No database schema change is required.
 
 Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Series-level “resume last chapter” remains deferred.
 
 ## Verification boundary
 
-Automated tests cover zero-remote-source composition/UI, generic external-source workflows, extension adaptation, narrow MangaDex identity matching, persisted legacy reference translation, opaque continuation state and malformed references. They do not prove current live provider availability.
+Automated tests cover zero-remote-source composition/UI, generic external-source workflows, extension adaptation, generic MangaDex identity, opaque persisted references across extension absence/reinstall, opaque continuation state and malformed references. They do not prove current live provider availability.
 
 Physical Android verification should cover installed trusted extension discovery, search, series, chapters, pages, reader, progress/Library and restart/reinstall. See the device checklist in [EXTENSIONS](EXTENSIONS.md).
 

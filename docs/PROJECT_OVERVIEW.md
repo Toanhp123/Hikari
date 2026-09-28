@@ -870,7 +870,7 @@ Android manga runtime v1 đã chốt theo [ADR-007](decisions/ADR-007-android-ma
 - chỉ load APK có signing key tin cậy;
 - adapter sang source capabilities hiện có trước khi compose registry;
 - giữ `memo` source-private trong opaque reference;
-- MangaDex English giữ identity cũ để tương thích Library/Progress; provider chỉ đến từ extension đã cài, theo [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
+- mọi source, kể cả MangaDex, dùng identity/reference Mihon chung; chấp nhận reset dữ liệu sạch, không giữ tương thích identity cũ, theo [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
 
 Repository/install/update UI, arbitrary trust, sandbox process và anime/novel extension vẫn chưa chốt.
 
@@ -1021,9 +1021,10 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   xem [USER_STATE](architecture/USER_STATE.md).
 - remote manga: Android dùng runtime extension-lib 1.4/1.6 cho APK manga
   Keiyoushi/Mihon-compatible đã cài; không có provider MangaDex tích hợp hoặc fallback
-  trên Windows/iOS. Không có source phù hợp thì ẩn remote search, app vẫn khởi động. Official
-  English MangaDex extension giữ `SourceId('mangadex')` + UUID cũ để Library/Progress
-  không cần migration. Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
+  trên Windows/iOS. Không có source phù hợp thì ẩn remote search, app vẫn khởi động.
+  MangaDex dùng identity/reference Mihon chung như mọi extension; quyết định reset dữ liệu
+  sạch và bỏ tương thích cũ tại [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
+  Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
   [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
 - application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
   `ProgressSession` và composition root `AppDependencies`. Source cùng capability có

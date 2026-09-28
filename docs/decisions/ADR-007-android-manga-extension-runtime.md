@@ -1,9 +1,9 @@
 # ADR-007: Host compatible manga extensions behind an Android infrastructure boundary
 
-- Status: **Accepted; direct-provider fallback superseded by [ADR-008](ADR-008-external-remote-provider-ownership.md)**
+- Status: **Accepted; direct-provider fallback and MangaDex identity exception superseded by [ADR-008](ADR-008-external-remote-provider-ownership.md)**
 - Date: **2026-09-27**
 
-The fallback clauses below record the original decision, not current behavior. ADR-008 removes the direct provider while retaining the narrow MangaDex identity alias and this Android host decision.
+ADR-008 removes the direct-provider fallback and MangaDex identity exception, accepting a clean app-data reset. This Android host decision remains accepted; current identity mechanics belong in [EXTENSIONS](../architecture/EXTENSIONS.md).
 
 ## Context
 
@@ -23,8 +23,7 @@ Implement an Android-native manga compatibility host for extension-lib 1.4 and 1
 - Kotlin normalizes source/search/chapter/page data across one MethodChannel.
 - Dart adapts each native descriptor into the existing `MangaSearchSource`, `MangaChapterSource` and `MangaPageSource` capabilities.
 - Extension discovery happens before immutable `SourceRegistry` composition; no hot mutable registry is introduced.
-- Non-MangaDex 1.6 source-private `memo` state is encoded inside opaque source references rather than widening the domain model.
-- The official English MangaDex extension maps to the existing `SourceId('mangadex')` and UUID item IDs. The direct Dart MangaDex source is retained as a fallback only when that ID was not supplied by an extension.
+- Source-private `memo` state is encoded inside opaque source references rather than widening the domain model. All sources use the generic identity/reference path per ADR-008.
 - Runtime v1 trusts the current official Keiyoushi repository signing key. Arbitrary third-party trust is not implicit.
 
 ## Security boundary
@@ -37,7 +36,7 @@ The loader uses the installed APK path with delegate-last class loading on Andro
 
 ### Reimplement sources in Dart
 
-Rejected as the primary direction. It preserves Flutter portability but recreates the maintenance burden the extension ecosystem already solves. The existing direct MangaDex source remains only as a compatibility fallback.
+Rejected as the primary direction. It preserves Flutter portability but recreates the maintenance burden the extension ecosystem already solves. The original direct-provider fallback was subsequently removed by ADR-008.
 
 ### Embed/fork Mihon or Katari
 
@@ -59,7 +58,7 @@ Rejected after checking the current Keiyoushi tree. A substantial number of main
 
 - Domain/application contracts remain unchanged; the source registry seam proved sufficient.
 - Android gains access to installed compatible manga extensions without a provider-specific branch in opening workflows.
-- Windows/iOS retain direct MangaDex through the fallback source but do not run Android APK extensions.
+- Windows/iOS do not run Android APK extensions; ADR-008 also removes their original direct-provider fallback.
 - Hikari accepts a native dependency set matching the extension ABI and must review it when the ecosystem changes.
 - Trusted extension code is not sandboxed from Hikari; the signing policy is therefore part of the runtime's security model.
 - Some extensions can still fail when they depend on host features v1 does not implement, especially interactive browser/Cloudflare behavior or preferences UI.

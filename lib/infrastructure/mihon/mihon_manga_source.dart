@@ -120,43 +120,31 @@ final class _MihonReferenceCodec {
 
   final MihonSourceDescriptor _descriptor;
 
-  bool get _isLegacyEnglishMangaDex =>
-      _descriptor.packageName == 'eu.kanade.tachiyomi.extension.all.mangadex' &&
-      _descriptor.sourceKey == _mangaDexEnglishSourceKey &&
-      _descriptor.language.toLowerCase() == 'en';
+  SourceId get sourceId => SourceId('mihon:${_descriptor.sourceKey}');
 
-  SourceId get sourceId => _isLegacyEnglishMangaDex
-      ? const SourceId('mangadex')
-      : SourceId('mihon:${_descriptor.sourceKey}');
+  String mangaFromPlugin(MihonMangaItem item) => _encodeStatefulReference(
+    kind: 'manga',
+    url: item.url,
+    title: item.title,
+    memo: item.memo,
+  );
 
-  String mangaFromPlugin(MihonMangaItem item) => _isLegacyEnglishMangaDex
-      ? _legacyItemId(item.url, '/manga/')
-      : _encodeStatefulReference(
-          kind: 'manga',
-          url: item.url,
-          title: item.title,
-          memo: item.memo,
-        );
+  _PluginReference mangaToPlugin(String itemId) =>
+      _decodeStatefulReference(itemId, expectedKind: 'manga');
 
-  _PluginReference mangaToPlugin(String itemId) => _isLegacyEnglishMangaDex
-      ? _PluginReference(_legacyPluginUrl(itemId, '/manga/'))
-      : _decodeStatefulReference(itemId, expectedKind: 'manga');
+  String chapterFromPlugin(MihonChapterItem chapter) =>
+      _encodeStatefulReference(
+        kind: 'chapter',
+        url: chapter.url,
+        title: chapter.title,
+        scanlator: chapter.scanlator,
+        chapterNumber: chapter.chapterNumber,
+        dateUpload: chapter.dateUpload,
+        memo: chapter.memo,
+      );
 
-  String chapterFromPlugin(MihonChapterItem chapter) => _isLegacyEnglishMangaDex
-      ? _legacyItemId(chapter.url, '/chapter/')
-      : _encodeStatefulReference(
-          kind: 'chapter',
-          url: chapter.url,
-          title: chapter.title,
-          scanlator: chapter.scanlator,
-          chapterNumber: chapter.chapterNumber,
-          dateUpload: chapter.dateUpload,
-          memo: chapter.memo,
-        );
-
-  _PluginReference chapterToPlugin(String itemId) => _isLegacyEnglishMangaDex
-      ? _PluginReference(_legacyPluginUrl(itemId, '/chapter/'))
-      : _decodeStatefulReference(itemId, expectedKind: 'chapter');
+  _PluginReference chapterToPlugin(String itemId) =>
+      _decodeStatefulReference(itemId, expectedKind: 'chapter');
 
   String _encodeStatefulReference({
     required String kind,
@@ -254,16 +242,6 @@ final class _MihonReferenceCodec {
       throw StateError('Invalid extension page reference.');
     }
   }
-
-  String _legacyItemId(String url, String prefix) {
-    final path = Uri.tryParse(url)?.path ?? url;
-    if (!path.startsWith(prefix)) return url;
-    final value = path.substring(prefix.length).split('/').first;
-    return _isUuid(value) ? value : url;
-  }
-
-  String _legacyPluginUrl(String itemId, String prefix) =>
-      _isUuid(itemId) ? '$prefix$itemId' : itemId;
 }
 
 final class _PluginReference {
@@ -284,11 +262,4 @@ final class _PluginReference {
   final int? dateUpload;
 }
 
-const _mangaDexEnglishSourceKey = '2499283573021220255';
 const _statefulReferencePrefix = 'mihon-v1:';
-
-final _uuid = RegExp(
-  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-);
-
-bool _isUuid(String value) => _uuid.hasMatch(value);

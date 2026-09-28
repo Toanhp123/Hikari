@@ -75,25 +75,17 @@ The registry is composed once during bootstrap. There is no hot loading/unloadin
 
 ## Identity and extension state
 
-Upstream source IDs are stable `Long` values. Hikari maps ordinary extension sources to:
+Upstream source IDs are stable `Long` values. Hikari maps every extension source, including MangaDex, to:
 
 ```text
 SourceId("mihon:<upstream-source-id>")
 ```
 
-Source-local URLs remain opaque locators. Extension-lib 1.6 also allows `SManga.memo` and `SChapter.memo` to carry source-private JSON state required by later calls, and some sources read chapter title/number/date/scanlator while resolving pages. Hikari keeps the required continuation state inside an opaque `SourceMediaRef.itemId` payload (`mihon-v1:`) for non-MangaDex 1.6 references. Legacy 1.4 sources have no `memo` field and continue to use their URL-oriented locator contract. This avoids widening the domain model or SQLite schema in runtime v1.
+Source-local URLs remain opaque locators. Extension-lib 1.6 also allows `SManga.memo` and `SChapter.memo` to carry source-private JSON state required by later calls, and some sources read chapter title/number/date/scanlator while resolving pages. Hikari keeps manga/chapter URLs and required continuation state inside an opaque `SourceMediaRef.itemId` payload (`mihon-v1:`) for every source. Extension-lib 1.4 sources use the same payload without `memo`. This avoids widening the domain model or SQLite schema in runtime v1.
 
-That payload is transport state, not a cross-provider canonical identity. If upstream continuation state changes, the opaque item ID can also change; stable generic extension identity is therefore not claimed by v1. MangaDex is handled separately because Hikari already has persisted UUID identity for it.
+That payload is transport state, not a cross-provider canonical identity. If upstream continuation state changes, the opaque item ID can also change; stable generic item identity is therefore not claimed by v1.
 
-### MangaDex compatibility alias
-
-The official English MangaDex extension is a migration exception. When all of these match:
-
-- package `eu.kanade.tachiyomi.extension.all.mangadex`;
-- upstream source ID `2499283573021220255`;
-- language `en`;
-
-Hikari exposes the existing `SourceId('mangadex')` and keeps manga/chapter UUIDs as the existing item IDs. Existing Library and Progress rows therefore continue to resolve through the installed extension without migrating source IDs or changing the database schema. The alias is identity compatibility, not a provider implementation; source name and base URL do not grant it.
+No legacy MangaDex identity compatibility or UUID translation is retained. Hikari intentionally accepts a clean app-data reset at this stage, not migration of pre-refactor Library/Progress rows; see [ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md).
 
 Only installed compatible extensions supply remote providers. If the extension is absent, its source is unavailable and existing generic missing-source handling applies; persisted rows remain intact. Reinstalling it and restarting Hikari restores resolution. Windows/iOS currently have no remote manga runtime or replacement provider. See [ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md) for this change in provider ownership.
 
@@ -120,7 +112,7 @@ These are separate requirements. They should be added only when a tested source 
 
 ## Verification
 
-Automated Dart tests cover source adaptation, capability registration, MangaDex legacy identity, stateful memo round-tripping, malformed references and source ownership. Native loading still requires physical Android verification because package visibility, certificate data, ART class loading and extension network behavior are platform concerns.
+Automated Dart tests cover source adaptation, capability registration, generic MangaDex identity, opaque persisted references across extension absence/reinstall, stateful memo round-tripping, malformed references and source ownership. Native loading still requires physical Android verification because package visibility, certificate data, ART class loading and extension network behavior are platform concerns.
 
 A useful device smoke test is:
 
