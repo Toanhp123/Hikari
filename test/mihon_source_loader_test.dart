@@ -8,8 +8,8 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
-import 'package:hikari/infrastructure/mihon/mihon_extension_gateway.dart';
-import 'package:hikari/infrastructure/mihon/mihon_extension_runtime.dart';
+import 'package:hikari/infrastructure/extensions/mihon/mihon_extension_gateway.dart';
+import 'package:hikari/infrastructure/extensions/mihon/mihon_source_loader.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
@@ -125,7 +125,7 @@ void main() {
       addTearDown(db.close);
       final gateway = _FakeGateway(const [_mangaDex]);
       final source =
-          (await MihonExtensionRuntime(gateway: gateway).loadSources()).single
+          (await MihonSourceLoader(gateway: gateway).loadSources()).single
               as MangaSearchSource;
       final media = (await source.search('example')).single;
       final chapter = (await (source as MangaChapterSource).chapters(
@@ -167,8 +167,7 @@ void main() {
           await absent.dispose();
         }
 
-        final sources = await MihonExtensionRuntime(gateway: gateway)
-            .loadSources();
+        final sources = await MihonSourceLoader(gateway: gateway).loadSources();
         final installed = AppDependencies.create(
           database: db,
           additionalSources: sources,
@@ -203,7 +202,7 @@ void main() {
   );
 
   test(
-    'runtime adapts installed extension sources to Hikari media sources',
+    'source loader adapts installed extension sources to Hikari media sources',
     () async {
       final gateway = _FakeGateway(const [
         MihonSourceDescriptor(
@@ -215,8 +214,7 @@ void main() {
         ),
       ]);
 
-      final sources = await MihonExtensionRuntime(gateway: gateway)
-          .loadSources();
+      final sources = await MihonSourceLoader(gateway: gateway).loadSources();
 
       expect(sources, hasLength(1));
       final source = sources.single;
@@ -233,7 +231,7 @@ void main() {
     () async {
       final gateway = _FakeGateway(const [_mangaDex]);
       final source =
-          (await MihonExtensionRuntime(gateway: gateway).loadSources()).single
+          (await MihonSourceLoader(gateway: gateway).loadSources()).single
               as MangaSearchSource;
 
       expect(source.id, const SourceId('mihon:2499283573021220255'));
@@ -281,7 +279,7 @@ void main() {
     );
     final gateway = _FakeGateway([descriptor]);
     final source =
-        (await MihonExtensionRuntime(gateway: gateway).loadSources()).single
+        (await MihonSourceLoader(gateway: gateway).loadSources()).single
             as MangaSearchSource;
 
     final result = (await source.search('example')).single;
@@ -304,8 +302,8 @@ void main() {
     expect(gateway.pageChapterMemo, '{"chapterId":"456"}');
   });
 
-  test('runtime without a platform plugin exposes no sources', () async {
-    expect(await const MihonExtensionRuntime().loadSources(), isEmpty);
+  test('source loader without a platform plugin exposes no sources', () async {
+    expect(await const MihonSourceLoader().loadSources(), isEmpty);
   });
 
   test('stateful extension references reject malformed payloads', () async {
@@ -319,7 +317,7 @@ void main() {
       ),
     ]);
     final source =
-        (await MihonExtensionRuntime(gateway: gateway).loadSources()).single
+        (await MihonSourceLoader(gateway: gateway).loadSources()).single
             as MangaChapterSource;
 
     await expectLater(
@@ -336,7 +334,7 @@ void main() {
   test('adapter rejects references from another source', () async {
     final gateway = _FakeGateway(const [_mangaDex]);
     final source =
-        (await MihonExtensionRuntime(gateway: gateway).loadSources()).single
+        (await MihonSourceLoader(gateway: gateway).loadSources()).single
             as MangaPageSource;
 
     await expectLater(

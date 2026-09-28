@@ -6,7 +6,7 @@ import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/playback/media_kit_video_session.dart';
-import 'package:hikari/infrastructure/playback/src/video_driver.dart';
+import 'package:hikari/infrastructure/playback/video_driver.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 class FakeVideoDriver implements VideoDriver {

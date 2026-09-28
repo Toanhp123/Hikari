@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
-import 'package:hikari/infrastructure/playback/src/video_driver.dart';
+import 'package:hikari/infrastructure/playback/video_driver.dart';
 import 'package:hikari/infrastructure/playback/video_progress.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 

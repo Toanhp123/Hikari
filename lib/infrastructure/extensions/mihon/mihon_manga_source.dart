@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
-import 'package:hikari/infrastructure/mihon/mihon_extension_gateway.dart';
+import 'package:hikari/infrastructure/extensions/mihon/mihon_extension_gateway.dart';
 
 final class MihonMangaSource
     implements MangaSearchSource, MangaChapterSource, MangaPageSource {

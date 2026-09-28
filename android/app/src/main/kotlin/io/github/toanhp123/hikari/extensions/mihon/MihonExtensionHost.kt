@@ -1,4 +1,4 @@
-package io.github.toanhp123.hikari.extensions
+package io.github.toanhp123.hikari.extensions.mihon
 
 import android.app.Application
 import android.content.Context

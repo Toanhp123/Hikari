@@ -3,7 +3,7 @@ package io.github.toanhp123.hikari
 import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.github.toanhp123.hikari.extensions.MihonExtensionChannel
+import io.github.toanhp123.hikari.extensions.mihon.MihonExtensionChannel
 
 class MainActivity : FlutterActivity() {
     private var localMedia: LocalMediaChannel? = null
