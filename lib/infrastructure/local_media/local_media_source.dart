@@ -3,14 +3,60 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
 import 'package:hikari/infrastructure/local_media/classifier.dart';
+import 'package:hikari/infrastructure/local_media/comic_info.dart';
+import 'package:hikari/infrastructure/reading/epub_publication.dart';
+
+const _materializeLimit = 1024 * 1024 * 1024;
+const _pageReadLimit = 32 * 1024 * 1024;
+const _textReadLimit = 4 * 1024 * 1024;
+
+Future<T> _withMaterialized<T>(
+  Future<String> Function(String locator) materialize,
+  Future<void> Function(String path) deleteMaterialized,
+  LocalArchiveRef ref,
+  Future<T> Function(String path) action,
+) async {
+  final path = await materialize(ref.locator);
+  try {
+    return await action(path);
+  } finally {
+    await deleteMaterialized(path);
+  }
+}
+
+String _opaqueEpubResourceId(LocalArchiveRef publication, String resource) =>
+    LocalArchiveRef(
+      locator: publication.locator,
+      displayName: publication.displayName,
+      entry: resource,
+      format: 'epub',
+    ).encode();
+
+NovelChapterContent _opaqueEpubContent(
+  LocalArchiveRef publication,
+  NovelChapterContent content,
+) => NovelChapterContent(
+  html: content.html,
+  resources: {
+    for (final entry in content.resources.entries)
+      entry.key: SourceMediaRef(
+        sourceId: SourceId.local,
+        itemId: _opaqueEpubResourceId(publication, entry.value.itemId),
+      ),
+  },
+);
 
 class LocalMediaSource
     implements
         DirectVideoSource,
         MangaPageSource,
         NovelTextSource,
+        PublicationSource,
         MediaSourceAvailability {
   @override
   SourceId get id => SourceId.local;
@@ -81,7 +127,95 @@ class LocalMediaSource
   }
 
   @override
+  bool canOpenPublication(SourceMediaRef ref) {
+    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    return ref.sourceId == id &&
+        archive?.isEpub == true &&
+        archive?.entry == null;
+  }
+
+  @override
+  Future<Publication> publication(SourceMediaRef ref) async {
+    final archive = _requireArchive(ref, 'epub');
+    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
+      materialized,
+    ) async {
+      final epub = EpubPublication.open(materialized);
+      try {
+        return await epub.publication(
+          SourceMediaRef(sourceId: SourceId.local, itemId: archive.encode()),
+        );
+      } finally {
+        epub.close();
+      }
+    });
+  }
+
+  @override
+  Future<NovelChapterContent> readSection(
+    SourceMediaRef ref,
+    String resource,
+  ) async {
+    final archive = _requireArchive(ref, 'epub');
+    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
+      materialized,
+    ) async {
+      final epub = EpubPublication.open(materialized);
+      try {
+        final content = await epub.readSection(
+          SourceMediaRef(sourceId: SourceId.local, itemId: archive.encode()),
+          resource,
+        );
+        return _opaqueEpubContent(archive, content);
+      } finally {
+        epub.close();
+      }
+    });
+  }
+
+  @override
+  Future<Uint8List> readResource(SourceMediaRef ref) async {
+    final archive = _requireArchive(ref, 'epub');
+    final resource = archive.entry;
+    if (resource == null) {
+      throw const FormatException('EPUB resource is missing.');
+    }
+    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
+      materialized,
+    ) async {
+      final epub = EpubPublication.open(materialized);
+      try {
+        return await epub.readResource(
+          SourceMediaRef(sourceId: SourceId.local, itemId: resource),
+        );
+      } finally {
+        epub.close();
+      }
+    });
+  }
+
+  LocalArchiveRef _requireArchive(SourceMediaRef ref, String format) {
+    if (ref.sourceId != id) throw ArgumentError('Wrong source.');
+    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    if (archive == null || archive.format != format) {
+      throw const FormatException('Unsupported local publication reference.');
+    }
+    return archive;
+  }
+
+  @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef ref) async {
+    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    if (archive?.isEpub == true) {
+      throw const FormatException('EPUB does not expose manga pages.');
+    }
+    if (archive == null || !archive.isCbz) {
+      return _pagesFolder(ref);
+    }
+    return _pagesArchive(archive);
+  }
+
+  Future<List<SourceMediaRef>> _pagesFolder(SourceMediaRef ref) async {
     final entries = (await _children(ref.itemId)).where(isPage).toList()
       ..sort((a, b) {
         final order = compareLocalNames(a.name, b.name);
@@ -92,14 +226,107 @@ class LocalMediaSource
         .toList();
   }
 
+  Future<List<SourceMediaRef>> _pagesArchive(LocalArchiveRef archive) async {
+    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
+      materialized,
+    ) async {
+      final zip = BoundedArchive.open(materialized);
+      try {
+        final metadata = _readComicInfo(zip);
+        final names = zip.names.where((name) {
+          final extension = name.contains('.')
+              ? name.split('.').last.toLowerCase()
+              : '';
+          return const {'jpg', 'jpeg', 'png', 'webp'}.contains(extension);
+        }).toList();
+        if (metadata?.pageOrder.isNotEmpty == true) {
+          final ordered = <String>[];
+          for (final page in metadata!.pageOrder) {
+            if (page.image < names.length) ordered.add(names[page.image]);
+          }
+          final remaining = names.where((name) => !ordered.contains(name));
+          names
+            ..clear()
+            ..addAll([...ordered, ...remaining]);
+        } else {
+          names.sort(compareLocalNames);
+        }
+        return names
+            .map(
+              (name) => SourceMediaRef(
+                sourceId: SourceId.local,
+                itemId: LocalArchiveRef(
+                  locator: archive.locator,
+                  displayName: archive.displayName,
+                  entry: name,
+                ).encode(),
+              ),
+            )
+            .toList();
+      } finally {
+        zip.close();
+      }
+    });
+  }
+
   @override
-  Future<Uint8List> readPage(SourceMediaRef ref) =>
-      _read(ref, 32 * 1024 * 1024);
+  Future<Uint8List> readPage(SourceMediaRef ref) async {
+    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    if (archive?.isEpub == true) {
+      throw const FormatException('EPUB does not expose manga pages.');
+    }
+    if (archive == null || archive.entry == null) {
+      return _read(ref, _pageReadLimit);
+    }
+    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
+      materialized,
+    ) async {
+      final zip = BoundedArchive.open(materialized);
+      try {
+        return zip.readEntry(archive.entry!);
+      } finally {
+        zip.close();
+      }
+    });
+  }
 
   @override
   Future<String> readText(SourceMediaRef ref) async {
-    final bytes = await _read(ref, 4 * 1024 * 1024);
+    final bytes = await _read(ref, _textReadLimit);
     return compute(_decodeText, bytes);
+  }
+
+  Future<String> _materialize(String locator) async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      'materialize',
+      {'id': locator, 'limit': _materializeLimit},
+    );
+    final path = result?['path'] as String?;
+    if (path == null || path.isEmpty) {
+      throw StateError('Content could not be materialized.');
+    }
+    return path;
+  }
+
+  ComicInfo? _readComicInfo(BoundedArchive zip) {
+    final name = zip.names.firstWhere(
+      (name) =>
+          name.toLowerCase() == 'comicinfo.xml' ||
+          name.toLowerCase().endsWith('/comicinfo.xml'),
+      orElse: () => '',
+    );
+    if (name.isEmpty) return null;
+    try {
+      return ComicInfo.parse(
+        utf8.decode(zip.readEntry(name, maxBytes: 4 * 1024 * 1024)),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _deleteMaterialized(String path) async {
+    await _channel.invokeMethod<void>('deleteMaterialized', {'path': path});
   }
 
   Future<Uint8List> _read(SourceMediaRef ref, int limit) async {

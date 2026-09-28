@@ -49,10 +49,18 @@ void main() {
       file('book.epub'),
     ];
     final items = classifyLocalEntries(entries);
-    expect(items, hasLength(1));
-    expect(items.single.title, 'Pages');
-    expect(items.single.type, MediaType.manga);
-    expect(items.single.source.itemId, 'child');
+    expect(items, hasLength(3));
+    expect(items.where((item) => item.type == MediaType.manga), hasLength(2));
+    expect(items.where((item) => item.type == MediaType.lightNovel), hasLength(1));
+    expect(items.map((item) => item.title), containsAll(['Pages', 'archive', 'book']));
+    expect(
+      items.singleWhere((item) => item.title == 'book').source.itemId,
+      startsWith('hikari-epub:'),
+    );
+    expect(
+      items.singleWhere((item) => item.title == 'Pages').source.itemId,
+      'child',
+    );
   });
 
   test(

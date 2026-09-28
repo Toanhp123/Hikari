@@ -111,7 +111,8 @@ class _RemoteMangaSearchPageState extends State<RemoteMangaSearchPage> {
     RemoteMangaSearchReady(:final results) => ListView.builder(
       itemCount: results.length,
       itemBuilder: (context, index) {
-        final media = results[index];
+        final preview = results[index];
+        final media = preview.media;
         return ListTile(
           key: ValueKey(media.source),
           title: Text(media.title),

@@ -35,6 +35,150 @@ void main() {
     media: Media(title: title, type: MediaType.manga, source: ref),
     addedAt: now,
   );
+  test('version one database migrates rows without resetting them', () async {
+    await db.close();
+    final directory = await Directory.systemTemp.createTemp('hikari-v1-');
+    final file = File('${directory.path}/state.sqlite');
+    final oldRefs = [
+      const SourceMediaRef(sourceId: SourceId.local, itemId: 'video'),
+      const SourceMediaRef(sourceId: SourceId.local, itemId: 'page'),
+      const SourceMediaRef(sourceId: SourceId.local, itemId: 'text'),
+    ];
+    final oldDatabase = UserDatabase(
+      NativeDatabase(
+        file,
+        setup: (database) {
+          database.execute('''
+            CREATE TABLE progress_records (
+              source_id TEXT NOT NULL,
+              item_id TEXT NOT NULL,
+              kind TEXT NOT NULL,
+              position_ms INTEGER,
+              duration_ms INTEGER,
+              page_index INTEGER,
+              page_count INTEGER,
+              text_progression REAL,
+              completed INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL,
+              PRIMARY KEY (source_id, item_id)
+            )
+          ''');
+          database.execute('''
+            CREATE TABLE library_records (
+              source_id TEXT NOT NULL,
+              item_id TEXT NOT NULL,
+              title TEXT NOT NULL,
+              media_type TEXT NOT NULL,
+              added_at INTEGER NOT NULL,
+              PRIMARY KEY (source_id, item_id)
+            )
+          ''');
+          database.execute("""
+            INSERT INTO progress_records
+              (source_id, item_id, kind, position_ms, duration_ms, completed, updated_at)
+            VALUES ('local', 'video', 'video', 10, 20, 0, 100)
+          """);
+          database.execute("""
+            INSERT INTO progress_records
+              (source_id, item_id, kind, page_index, page_count, completed, updated_at)
+            VALUES ('local', 'page', 'page', 1, 3, 1, 101)
+          """);
+          database.execute("""
+            INSERT INTO progress_records
+              (source_id, item_id, kind, text_progression, completed, updated_at)
+            VALUES ('local', 'text', 'text', 0.5, 0, 102)
+          """);
+          database.execute("""
+            INSERT INTO library_records
+              (source_id, item_id, title, media_type, added_at)
+            VALUES ('local', 'old-library', 'Old row', 'manga', 103)
+          """);
+          database.execute('PRAGMA user_version = 1');
+        },
+      ),
+    );
+    try {
+      final oldProgress = SqliteProgressRepository(oldDatabase);
+      final video = (await oldProgress.load(oldRefs[0]))!;
+      final page = (await oldProgress.load(oldRefs[1]))!;
+      final text = (await oldProgress.load(oldRefs[2]))!;
+      expect(
+        (video.position as VideoPosition).position,
+        const Duration(milliseconds: 10),
+      );
+      expect(
+        (video.position as VideoPosition).duration,
+        const Duration(milliseconds: 20),
+      );
+      expect(video.completed, isFalse);
+      expect(
+        video.updatedAt,
+        DateTime.fromMillisecondsSinceEpoch(100, isUtc: true),
+      );
+      expect((page.position as PagePosition).pageIndex, 1);
+      expect((page.position as PagePosition).pageCount, 3);
+      expect(page.completed, isTrue);
+      expect((text.position as TextPosition).progression, 0.5);
+      expect(text.completed, isFalse);
+      final oldLibrary = await SqliteLibraryRepository(oldDatabase).loadAll();
+      expect(oldLibrary.single.media.title, 'Old row');
+      expect(oldLibrary.single.media.type, MediaType.manga);
+      expect(
+        oldLibrary.single.addedAt,
+        DateTime.fromMillisecondsSinceEpoch(103, isUtc: true),
+      );
+      expect(oldLibrary.single.media.source.itemId, 'old-library');
+      final columns = await oldDatabase
+          .customSelect('PRAGMA table_info(progress_records)')
+          .get();
+      expect(
+        columns.map((row) => row.data['name']),
+        contains('document_resource'),
+      );
+    } finally {
+      await oldDatabase.close();
+      await directory.delete(recursive: true);
+    }
+  });
+
+  test('document position roundtrips after file reopen', () async {
+    await db.close();
+    final directory = await Directory.systemTemp.createTemp('hikari-document-');
+    final file = File('${directory.path}/state.sqlite');
+    final first = UserDatabase(NativeDatabase.createInBackground(file));
+    const document = SourceMediaRef(sourceId: SourceId.local, itemId: 'doc');
+    try {
+      await SqliteProgressRepository(first).save(
+        MediaProgress(
+          media: document,
+          position: DocumentPosition(
+            resource: 'chapter.xhtml',
+            progression: 0.25,
+            totalProgression: 1,
+            locator: 'opaque-locator',
+          ),
+          completed: false,
+          updatedAt: now,
+        ),
+      );
+    } finally {
+      await first.close();
+    }
+    final second = UserDatabase(NativeDatabase.createInBackground(file));
+    try {
+      final restored = await SqliteProgressRepository(second).load(document);
+      expect(restored!.position, isA<DocumentPosition>());
+      final position = restored.position as DocumentPosition;
+      expect(position.resource, 'chapter.xhtml');
+      expect(position.progression, 0.25);
+      expect(position.totalProgression, 1);
+      expect(position.locator, 'opaque-locator');
+    } finally {
+      await second.close();
+      await directory.delete(recursive: true);
+    }
+  });
+
   test('all position kinds roundtrip; upsert replaces payload and never infers completion', () async {
     expect(await progress.load(ref), isNull);
     await progress.save(
@@ -250,6 +394,17 @@ void main() {
       );
     },
   );
+  test('document rows reject irrelevant or malformed payloads', () async {
+    await progress.save(record(DocumentPosition(resource: 'chapter')));
+    await db.customStatement('UPDATE progress_records SET page_index = 1');
+    await expectLater(progress.load(ref), throwsA(isA<FormatException>()));
+    await progress.save(record(DocumentPosition(resource: 'chapter')));
+    await db.customStatement(
+      'UPDATE progress_records SET document_progression = 2',
+    );
+    await expectLater(progress.load(ref), throwsA(isA<FormatException>()));
+  });
+
   test(
     'invalid discriminators and inconsistent payloads fail clearly',
     () async {

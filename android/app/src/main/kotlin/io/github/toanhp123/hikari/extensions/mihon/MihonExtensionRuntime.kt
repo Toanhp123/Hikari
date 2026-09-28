@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import dalvik.system.DelegateLastClassLoader
 import dalvik.system.PathClassLoader
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
 import eu.kanade.tachiyomi.source.model.Page
@@ -57,18 +58,39 @@ internal class MihonExtensionRuntime(private val context: Context) {
             .map { it.descriptor.toMap() }
     }
 
-    suspend fun search(sourceKey: String, query: String): List<Map<String, Any?>> {
+    suspend fun search(sourceKey: String, query: String, page: Int): Map<String, Any> {
+        require(page > 0) { "Page must be positive." }
         val loadedSource = requireLoadedSource(sourceKey)
-        return loadedSource.source
-            .getSearchManga(1, query, loadedSource.source.getFilterList())
-            .mangas
-            .map { manga ->
-                mapOf(
-                    "title" to manga.title,
-                    "url" to manga.url,
-                    "memo" to manga.memoOrNull(loadedSource.libraryVersion),
-                )
-            }
+        val result = loadedSource.source
+            .getSearchManga(page, query, loadedSource.source.getFilterList())
+        return mapOf(
+            "items" to result.mangas.map { manga -> manga.toMap(loadedSource.libraryVersion) },
+            "hasNextPage" to result.hasNextPage,
+        )
+    }
+
+    private fun SManga.toMap(libraryVersion: Double): Map<String, Any?> = mapOf(
+        "title" to title,
+        "url" to url,
+        "thumbnailUrl" to thumbnail_url,
+        "summary" to description,
+        "authors" to listOfNotNull(author),
+        "artists" to listOfNotNull(artist),
+        "genres" to genre?.split(",")?.map(String::trim)?.filter(String::isNotEmpty).orEmpty(),
+        "status" to statusName(status),
+        "rawStatus" to statusName(status),
+        "rating" to null,
+        "memo" to memoOrNull(libraryVersion),
+    )
+
+    private fun statusName(status: Int): String? = when (status) {
+        SManga.ONGOING -> "ongoing"
+        SManga.COMPLETED -> "completed"
+        SManga.LICENSED -> "licensed"
+        SManga.PUBLISHING_FINISHED -> "publishingFinished"
+        SManga.CANCELLED -> "cancelled"
+        SManga.ON_HIATUS -> "onHiatus"
+        else -> null
     }
 
     suspend fun chapters(
@@ -76,7 +98,7 @@ internal class MihonExtensionRuntime(private val context: Context) {
         mangaUrl: String,
         mangaTitle: String?,
         mangaMemo: String?,
-    ): List<Map<String, Any?>> {
+    ): Map<String, Any?> {
         val loadedSource = requireLoadedSource(sourceKey)
         val source = loadedSource.source
         val manga = SManga.create().apply {
@@ -84,21 +106,32 @@ internal class MihonExtensionRuntime(private val context: Context) {
             title = mangaTitle ?: mangaUrl
             memo = parseMemo(mangaMemo)
         }
-        return source.getMangaUpdate(
+        val update = source.getMangaUpdate(
             manga = manga,
             chapters = emptyList(),
             fetchDetails = true,
             fetchChapters = true,
-        ).chapters.map { chapter ->
-            mapOf(
-                "title" to chapter.name,
-                "url" to chapter.url,
-                "scanlator" to chapter.scanlator,
-                "chapterNumber" to chapter.chapter_number.toDouble(),
-                "dateUpload" to chapter.date_upload,
-                "memo" to chapter.memoOrNull(loadedSource.libraryVersion),
-            )
-        }
+        )
+        return mapOf(
+            "manga" to update.manga.toMap(loadedSource.libraryVersion),
+            "chapters" to update.chapters.map { chapter ->
+                mapOf(
+                    "title" to chapter.name,
+                    "url" to chapter.url,
+                    "scanlator" to chapter.scanlator,
+                    "chapterNumber" to chapter.chapter_number
+                        .takeUnless { it == -1f }?.toDouble(),
+                    "dateUpload" to chapter.date_upload.takeUnless { it == 0L },
+                    "memo" to chapter.memoOrNull(loadedSource.libraryVersion),
+                )
+            },
+        )
+    }
+
+    suspend fun readArtwork(sourceKey: String, url: String): ByteArray {
+        val source = requireSource(sourceKey)
+        return source.client.newCall(eu.kanade.tachiyomi.network.GET(url, source.headers)).awaitSuccess()
+            .use { response -> response.body.byteStream().use { it.readLimited(MAX_PAGE_BYTES) } }
     }
 
     suspend fun pages(

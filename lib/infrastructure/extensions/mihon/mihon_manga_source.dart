@@ -2,11 +2,16 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/reading.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_extension_gateway.dart';
 
 final class MihonMangaSource
-    implements MangaSearchSource, MangaChapterSource, MangaPageSource {
+    implements
+        MangaSearchSource,
+        MangaSeriesSource,
+        MangaPageSource,
+        ArtworkSource {
   MihonMangaSource({
     required MihonSourceDescriptor descriptor,
     required this._gateway,
@@ -29,47 +34,60 @@ final class MihonMangaSource
   }
 
   @override
-  Future<List<Media>> search(String query) async {
-    final results = await _gateway.search(
+  Future<MangaSearchPage> search(String query, {int page = 1}) async {
+    final result = await _gateway.search(
       sourceKey: _descriptor.sourceKey,
       query: query,
+      page: page,
     );
-    return results
-        .map(
-          (item) => Media(
-            title: item.title,
-            type: MediaType.manga,
-            source: SourceMediaRef(
-              sourceId: id,
-              itemId: _references.mangaFromPlugin(item),
+    return MangaSearchPage(
+      results: result.items
+          .map(
+            (item) => MangaPreview(
+              media: Media(
+                title: item.title,
+                type: MediaType.manga,
+                source: SourceMediaRef(
+                  sourceId: id,
+                  itemId: _references.mangaFromPlugin(item),
+                ),
+              ),
+              metadata: _metadata(item),
             ),
-          ),
-        )
-        .toList(growable: false);
+          )
+          .toList(growable: false),
+      hasNextPage: result.hasNextPage,
+      page: page,
+    );
   }
 
   @override
-  Future<List<MangaChapter>> chapters(SourceMediaRef manga) async {
+  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async {
     _requireOwns(manga);
     final mangaReference = _references.mangaToPlugin(manga.itemId);
-    final chapters = await _gateway.chapters(
+    final result = await _gateway.loadSeries(
       sourceKey: _descriptor.sourceKey,
       mangaUrl: mangaReference.url,
       mangaTitle: mangaReference.title,
       mangaMemo: mangaReference.memo,
     );
-    return chapters
-        .map(
-          (chapter) => MangaChapter(
-            title: chapter.title,
-            source: SourceMediaRef(
-              sourceId: id,
-              itemId: _references.chapterFromPlugin(chapter),
+    return MangaSeriesDetails(
+      metadata: _metadata(result.manga),
+      chapters: result.chapters
+          .map(
+            (chapter) => MangaChapter(
+              title: chapter.title,
+              source: SourceMediaRef(
+                sourceId: id,
+                itemId: _references.chapterFromPlugin(chapter),
+              ),
+              scanlator: chapter.scanlator,
+              chapterNumber: chapter.chapterNumber,
+              dateUpload: chapter.dateUpload,
             ),
-            scanlator: chapter.scanlator,
-          ),
-        )
-        .toList(growable: false);
+          )
+          .toList(growable: false),
+    );
   }
 
   @override
@@ -102,6 +120,49 @@ final class MihonMangaSource
       sourceKey: _descriptor.sourceKey,
       page: _references.decodePage(page.itemId),
     );
+  }
+
+  @override
+  Future<Uint8List> readArtwork(SourceMediaRef artwork) {
+    _requireOwns(artwork);
+    return _gateway.readArtwork(
+      sourceKey: _descriptor.sourceKey,
+      url: _references.artworkToPlugin(artwork.itemId),
+    );
+  }
+
+  MediaMetadata _metadata(MihonMangaItem item) {
+    final cover = item.thumbnailUrl == null
+        ? null
+        : SourceMediaRef(
+            sourceId: id,
+            itemId: _references.artworkFromPlugin(item.thumbnailUrl!),
+          );
+    return MediaMetadata(
+      title: item.title,
+      cover: cover,
+      summary: item.summary,
+      authors: item.authors,
+      artists: item.artists,
+      genres: item.genres,
+      status: _status(item.status),
+      rawStatus: item.rawStatus ?? item.status,
+      rating: item.rating,
+    );
+  }
+
+  PublicationStatus _status(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    return switch (normalized) {
+      'ongoing' => PublicationStatus.ongoing,
+      'completed' => PublicationStatus.completed,
+      'licensed' => PublicationStatus.licensed,
+      'publishing_finished' || 'publishing finished' =>
+        PublicationStatus.publishingFinished,
+      'cancelled' || 'canceled' => PublicationStatus.cancelled,
+      'on_hiatus' || 'on hiatus' || 'hiatus' => PublicationStatus.onHiatus,
+      _ => PublicationStatus.unknown,
+    };
   }
 
   void _requireOwns(SourceMediaRef ref) {
@@ -146,6 +207,18 @@ final class _MihonReferenceCodec {
   _PluginReference chapterToPlugin(String itemId) =>
       _decodeStatefulReference(itemId, expectedKind: 'chapter');
 
+  String artworkFromPlugin(String url) => 'mihon-art-v1:${base64Url.encode(utf8.encode(url))}';
+
+  String artworkToPlugin(String itemId) {
+    const prefix = 'mihon-art-v1:';
+    if (!itemId.startsWith(prefix)) throw StateError('Invalid extension artwork reference.');
+    try {
+      return utf8.decode(base64Url.decode(itemId.substring(prefix.length)));
+    } on FormatException {
+      throw StateError('Invalid extension artwork reference.');
+    }
+  }
+
   String _encodeStatefulReference({
     required String kind,
     required String url,
@@ -171,9 +244,7 @@ final class _MihonReferenceCodec {
     String itemId, {
     required String expectedKind,
   }) {
-    if (!itemId.startsWith(_statefulReferencePrefix)) {
-      return _PluginReference(itemId);
-    }
+    if (!itemId.startsWith(_statefulReferencePrefix)) return _PluginReference(itemId);
     try {
       final encoded = itemId.substring(_statefulReferencePrefix.length);
       final map = jsonDecode(utf8.decode(base64Url.decode(encoded)));

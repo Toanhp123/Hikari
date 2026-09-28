@@ -39,8 +39,10 @@ injection and direct capability checks.
 
 ## Consequences
 
-Code generation and SQLite native assets become build inputs. Schema changes need
-explicit migrations from version 1; no future migration design is scaffolded now.
+Code generation and SQLite native assets become build inputs. Version 2 adds nullable
+format-neutral document-position columns through an explicit Drift migration from
+version 1; existing progress and Library rows remain unchanged. Future schema changes
+still require explicit migrations.
 Source locators can become orphaned after rename/move/grant revocation. A future
 canonical model can associate these references without redefining Library as
 progress ownership. See [USER_STATE](../architecture/USER_STATE.md) for canonical

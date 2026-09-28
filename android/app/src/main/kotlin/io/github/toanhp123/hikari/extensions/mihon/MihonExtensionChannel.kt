@@ -32,12 +32,17 @@ class MihonExtensionChannel(
                     "search" -> runtime.search(
                         sourceKey = call.requiredString("sourceKey"),
                         query = call.requiredString("query"),
+                        page = call.argument<Number>("page")?.toInt() ?: 1,
                     )
                     "chapters" -> runtime.chapters(
                         sourceKey = call.requiredString("sourceKey"),
                         mangaUrl = call.requiredString("mangaUrl"),
                         mangaTitle = call.argument("mangaTitle"),
                         mangaMemo = call.argument("mangaMemo"),
+                    )
+                    "readArtwork" -> runtime.readArtwork(
+                        sourceKey = call.requiredString("sourceKey"),
+                        url = call.requiredString("url"),
                     )
                     "pages" -> runtime.pages(
                         sourceKey = call.requiredString("sourceKey"),

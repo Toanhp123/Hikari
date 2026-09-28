@@ -1,8 +1,9 @@
 import 'package:flutter/services.dart';
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
+import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 
@@ -19,8 +20,47 @@ void main() {
     expect(source, isA<MediaSource>());
     expect(source, isA<MangaPageSource>());
     expect(source, isA<NovelTextSource>());
+    expect(source, isA<PublicationSource>());
     expect(source.id, SourceId.local);
     expect(source.name, isNotEmpty);
+  });
+
+  test('publication capability owns only EPUB archive refs', () {
+    final epub = LocalArchiveRef(
+      locator: 'content://book',
+      displayName: 'book.epub',
+      format: 'epub',
+    ).encode();
+    final epubResource = LocalArchiveRef(
+      locator: 'content://book',
+      displayName: 'book.epub',
+      format: 'epub',
+      entry: 'OPS/chapter.xhtml',
+    ).encode();
+    expect(
+      source.canOpenPublication(
+        SourceMediaRef(sourceId: SourceId.local, itemId: epub),
+      ),
+      isTrue,
+    );
+    expect(
+      source.canOpenPublication(
+        const SourceMediaRef(sourceId: SourceId.local, itemId: 'plain.txt'),
+      ),
+      isFalse,
+    );
+    expect(
+      source.canOpenPublication(
+        SourceMediaRef(sourceId: const SourceId('remote'), itemId: epub),
+      ),
+      isFalse,
+    );
+    expect(
+      source.canOpenPublication(
+        SourceMediaRef(sourceId: SourceId.local, itemId: epubResource),
+      ),
+      isFalse,
+    );
   });
 
   test('missing stored root is a normal null restore result', () async {

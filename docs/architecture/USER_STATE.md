@@ -38,12 +38,18 @@ framework or reconciliation algorithm is introduced now.
 ## Storage and composition
 
 [ADR-004](../decisions/ADR-004-user-state-persistence.md) selects Drift/SQLite.
-`UserDatabase` schema version 1 has two independent tables, each keyed by
+`UserDatabase` schema version 2 has two independent tables, each keyed by
 `(source_id, item_id)`, without foreign keys or cascading ownership:
 
 - `progress_records`: kind, nullable position_ms/duration_ms/page_index/page_count/
-  text_progression, completed integer, updated_at epoch milliseconds.
-- `library_records`: title, media_type, added_at epoch milliseconds. Infrastructure
+  text_progression, document_resource/document_progression/document_total_progression/
+  document_locator, completed integer, updated_at epoch milliseconds.
+- `library_records`: title, media_type, added_at epoch milliseconds.
+
+Version 2 migrates version 1 by adding the four nullable document columns. Existing
+video/page/text progress and Library rows remain unchanged; new document positions use
+format-neutral resource, optional normalized progression values and optional opaque
+locator data. Infrastructure
   maps media types explicitly to stable `anime`, `manga`, `light_novel` values;
   unknown values are rejected, never resolved through Dart enum names.
 

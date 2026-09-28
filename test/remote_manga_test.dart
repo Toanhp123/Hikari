@@ -12,6 +12,7 @@ import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/reading.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
@@ -22,27 +23,27 @@ import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dar
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
 class FakeRemote
-    implements MangaSearchSource, MangaChapterSource, MangaPageSource {
+    implements MangaSearchSource, MangaSeriesSource, MangaPageSource {
   @override
   SourceId get id => const SourceId('fake');
   @override
   String get name => 'Fake remote';
   @override
-  Future<List<Media>> search(String query) async => [
-    const Media(
+  Future<MangaSearchPage> search(String query, {int page = 1}) async => MangaSearchPage(page: page, hasNextPage: false, results: const [
+    MangaPreview(media: Media(
       title: 'Series',
       type: MediaType.manga,
       source: SourceMediaRef(sourceId: SourceId('fake'), itemId: 'series'),
-    ),
-  ];
+    )),
+  ]);
   @override
-  Future<List<MangaChapter>> chapters(SourceMediaRef manga) async => [
+  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async => MangaSeriesDetails(metadata: const MediaMetadata(title: 'Series'), chapters: [
     const MangaChapter(
       title: 'Chapter',
       source: SourceMediaRef(sourceId: SourceId('fake'), itemId: 'chapter'),
       scanlator: 'Group',
     ),
-  ];
+  ]);
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async {
     expect(readable.itemId, 'chapter');
@@ -85,9 +86,9 @@ class _CountingRemote extends FakeRemote {
   final void Function() onSearch;
 
   @override
-  Future<List<Media>> search(String query) async {
+  Future<MangaSearchPage> search(String query, {int page = 1}) async {
     onSearch();
-    return super.search(query);
+    return super.search(query, page: page);
   }
 }
 
@@ -105,7 +106,10 @@ class _DirectSearchSource implements MangaSearchSource, MangaPageSource {
   final Future<List<Media>> Function(String query) onSearch;
 
   @override
-  Future<List<Media>> search(String query) => onSearch(query);
+  Future<MangaSearchPage> search(String query, {int page = 1}) async => MangaSearchPage(
+    results: (await onSearch(query)).map((media) => MangaPreview(media: media)).toList(),
+    page: page, hasNextPage: false,
+  );
 
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
@@ -122,7 +126,7 @@ class _SearchOnlySource implements MangaSearchSource {
   String get name => 'Search only';
 
   @override
-  Future<List<Media>> search(String query) async => const [];
+  Future<MangaSearchPage> search(String query, {int page = 1}) async => MangaSearchPage(results: const [], page: page, hasNextPage: false);
 }
 
 class _SecondRemote extends FakeRemote {
@@ -133,13 +137,13 @@ class _SecondRemote extends FakeRemote {
   String get name => 'Second remote';
 
   @override
-  Future<List<Media>> search(String query) async => [
-    Media(
+  Future<MangaSearchPage> search(String query, {int page = 1}) async => MangaSearchPage(page: page, hasNextPage: false, results: [
+    MangaPreview(media: Media(
       title: 'Second series',
       type: MediaType.manga,
       source: SourceMediaRef(sourceId: id, itemId: 'series'),
-    ),
-  ];
+    )),
+  ]);
 }
 
 void main() {

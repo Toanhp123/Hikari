@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/reading.dart';
 
 abstract interface class MediaSource {
   SourceId get id;
@@ -12,16 +13,16 @@ abstract interface class MediaSourceAvailability implements MediaSource {
 }
 
 abstract interface class MangaSearchSource implements MediaSource {
-  Future<List<Media>> search(String query);
+  Future<MangaSearchPage> search(String query, {int page = 1});
 }
 
-/// A source that can hand the current player a directly playable locator.
-///
-/// Sources that need episode discovery, stream selection, headers, DRM or other
-/// playback policy should introduce a richer capability instead of pretending to
-/// satisfy this direct contract.
+/// A source that resolves one series and its chapters in one provider call.
 abstract interface class DirectVideoSource implements MediaSource {
   String playbackLocator(SourceMediaRef media);
+}
+
+abstract interface class MangaSeriesSource implements MediaSource {
+  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga);
 }
 
 final class MangaChapter {
@@ -29,16 +30,28 @@ final class MangaChapter {
     required this.title,
     required this.source,
     this.scanlator,
+    this.chapterNumber,
+    this.dateUpload,
     this.canReadPages = true,
   });
+
   final String title;
   final SourceMediaRef source;
   final String? scanlator;
+  final double? chapterNumber;
+  final int? dateUpload;
   final bool canReadPages;
 }
 
-abstract interface class MangaChapterSource implements MediaSource {
-  Future<List<MangaChapter>> chapters(SourceMediaRef manga);
+final class MangaSeriesDetails {
+  const MangaSeriesDetails({required this.metadata, required this.chapters});
+
+  final MediaMetadata metadata;
+  final List<MangaChapter> chapters;
+}
+
+abstract interface class ArtworkSource implements MediaSource {
+  Future<Uint8List> readArtwork(SourceMediaRef artwork);
 }
 
 abstract interface class MangaPageSource implements MediaSource {

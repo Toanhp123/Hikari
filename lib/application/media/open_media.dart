@@ -1,6 +1,7 @@
 import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 
@@ -24,7 +25,7 @@ final class VideoOpenTarget extends MediaOpenTarget {
 final class MangaSeriesOpenTarget extends MediaOpenTarget {
   const MangaSeriesOpenTarget(super.media, {required this.chapterSource});
 
-  final MangaChapterSource chapterSource;
+  final MangaSeriesSource chapterSource;
 }
 
 final class MangaReaderOpenTarget extends MediaOpenTarget {
@@ -49,6 +50,17 @@ final class NovelReaderOpenTarget extends MediaOpenTarget {
   final ProgressSession progress;
 }
 
+final class PublicationReaderOpenTarget extends MediaOpenTarget {
+  const PublicationReaderOpenTarget(
+    super.media, {
+    required this.publicationSource,
+    required this.progress,
+  });
+
+  final PublicationSource publicationSource;
+  final ProgressSession progress;
+}
+
 /// Resolves a persisted/scanned [Media] into the capability needed to open it.
 ///
 /// Navigation and widgets stay in presentation. Source-specific details stay
@@ -65,7 +77,7 @@ final class OpenMedia {
       throw StateError('Source is unavailable on this device.');
     }
 
-    if (media.type == MediaType.manga && source is MangaChapterSource) {
+    if (media.type == MediaType.manga && source is MangaSeriesSource) {
       return MangaSeriesOpenTarget(media, chapterSource: source);
     }
 
@@ -73,6 +85,16 @@ final class OpenMedia {
       repository: _progressRepository,
       media: media.source,
     );
+
+    if (media.type == MediaType.lightNovel &&
+        source is PublicationSource &&
+        source.canOpenPublication(media.source)) {
+      return PublicationReaderOpenTarget(
+        media,
+        publicationSource: source,
+        progress: progress,
+      );
+    }
 
     return switch (media.type) {
       MediaType.anime => VideoOpenTarget(

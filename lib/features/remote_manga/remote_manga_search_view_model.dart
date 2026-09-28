@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/reading.dart';
 
 sealed class RemoteMangaSearchUiState {
   const RemoteMangaSearchUiState();
@@ -15,9 +16,11 @@ final class RemoteMangaSearchLoading extends RemoteMangaSearchUiState {
 }
 
 final class RemoteMangaSearchReady extends RemoteMangaSearchUiState {
-  const RemoteMangaSearchReady(this.results);
+  const RemoteMangaSearchReady(this.results, {required this.hasNextPage, required this.page});
 
-  final List<Media> results;
+  final List<MangaPreview> results;
+  final bool hasNextPage;
+  final int page;
 }
 
 final class RemoteMangaSearchFailure extends RemoteMangaSearchUiState {
@@ -66,7 +69,13 @@ final class RemoteMangaSearchViewModel extends ChangeNotifier {
         sourceId: source.id,
         query: query,
       );
-      _publish(RemoteMangaSearchReady(results));
+      _publish(
+        RemoteMangaSearchReady(
+          results.results,
+          hasNextPage: results.hasNextPage,
+          page: results.page,
+        ),
+      );
     } catch (_) {
       _publish(const RemoteMangaSearchFailure());
     }

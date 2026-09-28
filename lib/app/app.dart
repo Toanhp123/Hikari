@@ -9,6 +9,7 @@ import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
+import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/features/player/video_surface.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
@@ -87,6 +88,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       MangaSeriesOpenTarget series => _buildMangaSeriesPage(series),
       MangaReaderOpenTarget reader => _buildMangaReaderPage(reader),
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
+      PublicationReaderOpenTarget publication =>
+        _buildPublicationReaderPage(publication),
     };
     await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => page));
@@ -114,7 +117,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       MangaChapterPage(
         title: target.media.title,
         sourceName: target.chapterSource.name,
-        loadChapters: () => target.chapterSource.chapters(target.media.source),
+        loadChapters: () => target.chapterSource.loadSeries(target.media.source).then((result) => result.chapters),
         openChapter: _openMangaChapter,
       );
 
@@ -132,6 +135,17 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     initialProgress: target.progress.initialProgress,
     saveProgress: target.progress.save,
   );
+
+  Widget _buildPublicationReaderPage(PublicationReaderOpenTarget target) =>
+      PublicationReaderPage(
+        title: target.media.title,
+        publication: target.media.source,
+        source: target.publicationSource,
+        initialProgress: target.progress.initialProgress,
+        saveProgress: target.progress.save,
+      );
+
+
 
   Future<void> _openMangaChapter(
     BuildContext context,

@@ -12,6 +12,10 @@ class ProgressRecords extends Table {
   IntColumn get pageIndex => integer().nullable()();
   IntColumn get pageCount => integer().nullable()();
   RealColumn get textProgression => real().nullable()();
+  TextColumn get documentResource => text().nullable()();
+  RealColumn get documentProgression => real().nullable()();
+  RealColumn get documentTotalProgression => real().nullable()();
+  TextColumn get documentLocator => text().nullable()();
   IntColumn get completed => integer()();
   IntColumn get updatedAt => integer()();
   @override
@@ -33,5 +37,21 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'hikari_user_state'));
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (Migrator m) => m.createAll(),
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await m.addColumn(progressRecords, progressRecords.documentResource);
+        await m.addColumn(progressRecords, progressRecords.documentProgression);
+        await m.addColumn(
+          progressRecords,
+          progressRecords.documentTotalProgression,
+        );
+        await m.addColumn(progressRecords, progressRecords.documentLocator);
+      }
+    },
+  );
 }

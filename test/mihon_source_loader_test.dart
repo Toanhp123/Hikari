@@ -6,6 +6,7 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/reading.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_extension_gateway.dart';
@@ -21,7 +22,10 @@ final class _FakeGateway implements MihonExtensionGateway {
 
   final List<MihonSourceDescriptor> descriptors;
   String? searchedSource;
+  int? searchedPage;
   String? chapterMangaUrl;
+  String? artworkUrl;
+  MihonMangaItem? seriesManga;
   String? chapterMangaTitle;
   String? chapterMangaMemo;
   String? pageChapterUrl;
@@ -36,22 +40,27 @@ final class _FakeGateway implements MihonExtensionGateway {
   Future<List<MihonSourceDescriptor>> listSources() async => descriptors;
 
   @override
-  Future<List<MihonMangaItem>> search({
+  Future<MihonSearchPage> search({
     required String sourceKey,
     required String query,
+    required int page,
   }) async {
     searchedSource = sourceKey;
-    return const [
-      MihonMangaItem(
-        title: 'Example',
-        url: '/manga/$_mangaId',
-        memo: '{"seriesId":"123"}',
-      ),
-    ];
+    searchedPage = page;
+    return const MihonSearchPage(
+      items: [
+        MihonMangaItem(
+          title: 'Example',
+          url: '/manga/$_mangaId',
+          memo: '{"seriesId":"123"}',
+        ),
+      ],
+      hasNextPage: true,
+    );
   }
 
   @override
-  Future<List<MihonChapterItem>> chapters({
+  Future<MihonSeriesResult> loadSeries({
     required String sourceKey,
     required String mangaUrl,
     String? mangaTitle,
@@ -60,16 +69,38 @@ final class _FakeGateway implements MihonExtensionGateway {
     chapterMangaUrl = mangaUrl;
     chapterMangaTitle = mangaTitle;
     chapterMangaMemo = mangaMemo;
-    return const [
-      MihonChapterItem(
-        title: 'Chapter 1',
-        url: '/chapter/$_chapterId',
-        scanlator: 'Group',
-        chapterNumber: 1,
-        dateUpload: 123456789,
-        memo: '{"chapterId":"456"}',
+    return const MihonSeriesResult(
+      manga: MihonMangaItem(
+        title: 'Example details',
+        url: '/manga/$_mangaId',
+        summary: 'Summary',
+        authors: ['Author'],
+        artists: ['Artist'],
+        genres: ['Genre'],
+        status: 'ongoing',
+        rawStatus: 'Ongoing',
+        memo: '{"seriesId":"123"}',
       ),
-    ];
+      chapters: [
+        MihonChapterItem(
+          title: 'Chapter 1',
+          url: '/chapter/$_chapterId',
+          scanlator: 'Group',
+          chapterNumber: 1,
+          dateUpload: 123456789,
+          memo: '{"chapterId":"456"}',
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<Uint8List> readArtwork({
+    required String sourceKey,
+    required String url,
+  }) async {
+    artworkUrl = url;
+    return Uint8List.fromList([4, 5, 6]);
   }
 
   @override
@@ -105,6 +136,7 @@ final class _FakeGateway implements MihonExtensionGateway {
     readPageItem = page;
     return Uint8List.fromList([1, 2, 3]);
   }
+
 }
 
 const _mangaDex = MihonSourceDescriptor(
@@ -127,10 +159,12 @@ void main() {
       final source =
           (await MihonSourceLoader(gateway: gateway).loadSources()).single
               as MangaSearchSource;
-      final media = (await source.search('example')).single;
-      final chapter = (await (source as MangaChapterSource).chapters(
+      final media = (await source.search('example')).results.single.media;
+      final chapter = (await (source as MangaSeriesSource).loadSeries(
         media.source,
-      )).single;
+      )).chapters.single;
+      expect((await source.search('example')).hasNextPage, isTrue);
+      expect(gateway.searchedPage, 1);
       expect(
         media.source.sourceId,
         const SourceId('mihon:2499283573021220255'),
@@ -181,7 +215,7 @@ void main() {
               (await installed.libraryRepository.loadAll()).single.media;
           final target =
               await installed.openMedia.execute(saved) as MangaSeriesOpenTarget;
-          await target.chapterSource.chapters(saved.source);
+          await target.chapterSource.loadSeries(saved.source);
           expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
           final readable = await installed.openMangaChapter.execute(chapter);
           expect(gateway.pageChapterUrl, '/chapter/$_chapterId');
@@ -219,7 +253,7 @@ void main() {
       expect(sources, hasLength(1));
       final source = sources.single;
       expect(source, isA<MangaSearchSource>());
-      expect(source, isA<MangaChapterSource>());
+      expect(source, isA<MangaSeriesSource>());
       expect(source, isA<MangaPageSource>());
       expect(source.id, const SourceId('mihon:42'));
       expect(source.name, 'Example Source [vi]');
@@ -238,20 +272,35 @@ void main() {
 
       final search = await source.search('example');
       expect(gateway.searchedSource, _mangaDex.sourceKey);
-      expect(search.single.source.sourceId, source.id);
-      expect(search.single.source.itemId, startsWith('mihon-v1:'));
+      expect(gateway.searchedPage, 1);
+      final result = search.results.single;
+      expect(result.media.source.sourceId, source.id);
+      expect(result.media.source.itemId, startsWith('mihon-v1:'));
 
-      final chapterSource = source as MangaChapterSource;
-      final chapters = await chapterSource.chapters(search.single.source);
-      expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
-      expect(gateway.chapterMangaTitle, 'Example');
-      expect(gateway.chapterMangaMemo, '{"seriesId":"123"}');
+      final seriesSource = source as MangaSeriesSource;
+      final details = await seriesSource.loadSeries(result.media.source);
+      final chapters = details.chapters;
+      expect(details.metadata.title, 'Example details');
+      expect(details.metadata.authors, ['Author']);
+      expect(details.metadata.status, PublicationStatus.ongoing);
+      expect(details.metadata.rawStatus, 'Ongoing');
+      expect(details.metadata.summary, 'Summary');
+      expect(result.metadata, isNotNull);
+      expect(result.metadata!.title, 'Example');
+      expect(result.media.source.itemId, startsWith('mihon-v1:'));
+      expect(result.media.source.sourceId, source.id);
+      expect(result.media.title, 'Example');
       expect(chapters.single.source.sourceId, source.id);
       expect(chapters.single.source.itemId, startsWith('mihon-v1:'));
       expect(chapters.single.scanlator, 'Group');
+      expect(chapters.single.chapterNumber, 1);
+      expect(chapters.single.dateUpload, 123456789);
 
       final pageSource = source as MangaPageSource;
       final pages = await pageSource.pages(chapters.single.source);
+      expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
+      expect(gateway.chapterMangaTitle, 'Example');
+      expect(gateway.chapterMangaMemo, '{"seriesId":"123"}');
       expect(gateway.pageChapterUrl, '/chapter/$_chapterId');
       expect(gateway.pageChapterTitle, 'Chapter 1');
       expect(gateway.pageChapterNumber, 1);
@@ -260,7 +309,6 @@ void main() {
       expect(gateway.pageChapterMemo, '{"chapterId":"456"}');
       expect(pages, hasLength(1));
       expect(pages.single.sourceId, source.id);
-
       expect(await pageSource.readPage(pages.single), [1, 2, 3]);
       expect(gateway.readPageItem?.index, 0);
       expect(gateway.readPageItem?.url, 'https://example.test/page/0');
@@ -268,6 +316,17 @@ void main() {
       expect(gateway.readPageItem?.uri, isNull);
     },
   );
+
+  test('metadata maps on loaded series', () async {
+    final gateway = _FakeGateway(const [_mangaDex]);
+    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single;
+    final result = await (source as MangaSearchSource).search('example');
+    expect(result.results.single.metadata, isNotNull);
+    final details = await (source as MangaSeriesSource)
+        .loadSeries(result.results.single.media.source);
+    expect(details.metadata.title, 'Example details');
+    expect(details.metadata.authors, ['Author']);
+  });
 
   test('extension references preserve opaque continuation state', () async {
     final descriptor = const MihonSourceDescriptor(
@@ -278,16 +337,14 @@ void main() {
       baseUrl: 'https://opaque.test',
     );
     final gateway = _FakeGateway([descriptor]);
-    final source =
-        (await MihonSourceLoader(gateway: gateway).loadSources()).single
-            as MangaSearchSource;
+    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single
+        as MangaSearchSource;
 
-    final result = (await source.search('example')).single;
-    expect(result.source.itemId, startsWith('mihon-v1:'));
-
-    final chapters = await (source as MangaChapterSource).chapters(
-      result.source,
-    );
+    final result = (await source.search('example')).results.single;
+    expect(result.media.source.itemId, startsWith('mihon-v1:'));
+    final chapters = (await (source as MangaSeriesSource).loadSeries(
+      result.media.source,
+    )).chapters;
     expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
     expect(gateway.chapterMangaTitle, 'Example');
     expect(gateway.chapterMangaMemo, '{"seriesId":"123"}');
@@ -316,12 +373,11 @@ void main() {
         baseUrl: 'https://opaque.test',
       ),
     ]);
-    final source =
-        (await MihonSourceLoader(gateway: gateway).loadSources()).single
-            as MangaChapterSource;
+    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single
+        as MangaSeriesSource;
 
     await expectLater(
-      source.chapters(
+      source.loadSeries(
         const SourceMediaRef(
           sourceId: SourceId('mihon:7'),
           itemId: 'mihon-v1:not-base64',
@@ -333,9 +389,8 @@ void main() {
 
   test('adapter rejects references from another source', () async {
     final gateway = _FakeGateway(const [_mangaDex]);
-    final source =
-        (await MihonSourceLoader(gateway: gateway).loadSources()).single
-            as MangaPageSource;
+    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single
+        as MangaPageSource;
 
     await expectLater(
       source.pages(
