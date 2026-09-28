@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
@@ -70,14 +71,6 @@ class ResumableRemote extends FakeRemote {
 class DuplicateIdRemote extends FakeRemote {
   @override
   SourceId get id => SourceId.local;
-}
-
-class ExtensionMangaDexRemote extends FakeRemote {
-  @override
-  SourceId get id => const SourceId('mangadex');
-
-  @override
-  String get name => 'MangaDex extension';
 }
 
 class UnavailableRemote extends FakeRemote {
@@ -150,6 +143,32 @@ class _SecondRemote extends FakeRemote {
 }
 
 void main() {
+  testWidgets('app boots without remote sources and keeps Library available', (
+    tester,
+  ) async {
+    const channel = MethodChannel('hikari/local_media');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'selectedTree');
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final db = UserDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final dependencies = AppDependencies.create(database: db);
+    addTearDown(dependencies.dispose);
+
+    expect(dependencies.searchManga.options, isEmpty);
+    expect(dependencies.localMediaSource.id, SourceId.local);
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Search manga'), findsNothing);
+    await tester.tap(find.byTooltip('Library'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test('duplicate source ids fail fast during app composition', () async {
     final db = UserDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -157,32 +176,11 @@ void main() {
     expect(
       () => AppDependencies.create(
         database: db,
-        remoteMangaSource: DuplicateIdRemote(),
+        additionalSources: [DuplicateIdRemote()],
       ),
       throwsStateError,
     );
   });
-
-  test(
-    'extension MangaDex replaces the built-in fallback at composition',
-    () async {
-      final db = UserDatabase(NativeDatabase.memory());
-      final dependencies = AppDependencies.create(
-        database: db,
-        additionalSources: [ExtensionMangaDexRemote()],
-      );
-      addTearDown(() async {
-        await dependencies.dispose();
-        await db.close();
-      });
-
-      final mangaDexOptions = dependencies.searchManga.options.where(
-        (option) => option.id == const SourceId('mangadex'),
-      );
-      expect(mangaDexOptions, hasLength(1));
-      expect(mangaDexOptions.single.name, 'MangaDex extension');
-    },
-  );
 
   testWidgets(
     'search-only source is not exposed as an openable manga workflow',
@@ -196,7 +194,7 @@ void main() {
           HikariApp(
             dependencies: AppDependencies.create(
               database: db,
-              remoteMangaSource: _SearchOnlySource(),
+              additionalSources: [_SearchOnlySource()],
             ),
           ),
         );
@@ -221,8 +219,7 @@ void main() {
           HikariApp(
             dependencies: AppDependencies.create(
               database: db,
-              remoteMangaSource: FakeRemote(),
-              additionalSources: [_SecondRemote()],
+              additionalSources: [FakeRemote(), _SecondRemote()],
             ),
           ),
         );
@@ -257,7 +254,7 @@ void main() {
         HikariApp(
           dependencies: AppDependencies.create(
             database: db,
-            remoteMangaSource: UnavailableRemote(),
+            additionalSources: [UnavailableRemote()],
           ),
         ),
       );
@@ -295,7 +292,7 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
-          remoteMangaSource: FakeRemote(),
+          additionalSources: [FakeRemote()],
         ),
       ),
     );
@@ -338,7 +335,7 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
-          remoteMangaSource: ResumableRemote(),
+          additionalSources: [ResumableRemote()],
         ),
       ),
     );
@@ -380,7 +377,7 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
-          remoteMangaSource: remote,
+          additionalSources: [remote],
         ),
       ),
     );

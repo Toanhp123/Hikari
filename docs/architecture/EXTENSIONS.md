@@ -93,9 +93,9 @@ The official English MangaDex extension is a migration exception. When all of th
 - upstream source ID `2499283573021220255`;
 - language `en`;
 
-Hikari exposes the existing `SourceId('mangadex')` and keeps manga/chapter UUIDs as the existing item IDs. Existing Library and Progress rows therefore continue to resolve when the runtime switches from the built-in MangaDex source to the installed extension.
+Hikari exposes the existing `SourceId('mangadex')` and keeps manga/chapter UUIDs as the existing item IDs. Existing Library and Progress rows therefore continue to resolve through the installed extension without migrating source IDs or changing the database schema. The alias is identity compatibility, not a provider implementation; source name and base URL do not grant it.
 
-The built-in Dart MangaDex implementation remains a fallback when no registered extension owns `SourceId('mangadex')`. This preserves current Windows/iOS behavior and Android remote manga when the extension is not installed. If the official extension is present, it takes precedence at composition and the built-in source is not registered.
+Only installed compatible extensions supply remote providers. If the extension is absent, its source is unavailable and existing generic missing-source handling applies; persisted rows remain intact. Reinstalling it and restarting Hikari restores resolution. Windows/iOS currently have no remote manga runtime or replacement provider. See [ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md) for this change in provider ownership.
 
 ## Network behavior
 

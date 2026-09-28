@@ -49,7 +49,7 @@ The current source surface is deliberately small:
 | `MangaPageSource` | Resolve a readable reference into pages and read page bytes |
 | `NovelTextSource` | Read text for a source-scoped media reference |
 
-Capabilities compose. The built-in MangaDex source and Android extension-backed manga sources implement search + chapters + pages. Local SAF implements direct video + pages + text + platform availability. Domain does not know HTTP, SAF, SQLite, extension APKs, MangaDex DTOs or Flutter widgets.
+Capabilities compose. Android extension-backed manga sources implement search + chapters + pages. Local SAF implements direct video + pages + text + platform availability. Domain does not know HTTP, SAF, SQLite, extension APKs, MangaDex DTOs or Flutter widgets.
 
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
 an operation that cannot be expressed by the current contracts.
@@ -103,7 +103,7 @@ valid but is not presented as openable content by this workflow.
 `SourceMediaRef`. It is application glue, not a reading-history model.
 
 Application targets may carry domain capability interfaces to presentation. They must
-not carry `MangaDexSource`, SAF adapters, Drift records, HTTP DTOs or other concrete
+not carry `MihonMangaSource`, SAF adapters, Drift records, HTTP DTOs or other concrete
 infrastructure types.
 
 ## Composition and ownership
@@ -118,10 +118,11 @@ UserDatabase
 LocalMediaSource --------\
                             -> SourceRegistry -> OpenMedia / OpenMangaChapter / SearchManga
 installed extension sources -/
-MangaDex fallback ---------/
 
 MediaKitVideoSession ------------------------> presentation composition
 ```
+
+Platform bootstrap discovers compatible external sources before composition. `additionalSources` is the single generic registration seam beyond the local source. No remote provider is constructed by `AppDependencies`; an empty discovery result is valid and hides remote search through existing capability checks.
 
 Default resources created there are disposed there. Injected resources remain owned by
 the caller where ownership is externally supplied. No service locator or runtime DI
@@ -131,7 +132,7 @@ container is required for the current graph.
 
 For a new source that fits existing contracts:
 
-1. implement the required domain capability interfaces in `infrastructure/`;
+1. adapt the external runtime source to the required domain capabilities in `infrastructure/`; keep provider-specific networking and website behavior in the extension;
 2. give it a stable, unique `SourceId`;
 3. register the instance at composition;
 4. reuse the existing application open workflow and readers;
@@ -140,8 +141,8 @@ For a new source that fits existing contracts:
    provider-specific branch in app orchestration.
 
 The open workflow should not gain `if (source.id == ...)` branches for such a source.
-Provider-specific parsing, throttling, auth and transport stay with that provider's
-infrastructure.
+Provider-specific parsing, throttling, auth and transport stay with the installed
+extension; Hikari infrastructure owns host/runtime adaptation.
 
 If the new source needs a new product workflow, design that requirement explicitly.
 For example, remote anime may eventually require episode and stream capabilities. That

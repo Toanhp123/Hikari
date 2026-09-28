@@ -682,7 +682,7 @@ API capability cụ thể vẫn là quyết định của Domain Core; Foundatio
 Vertical remote manga hiện kiểm chứng search → series → chọn chapter → pages bằng các
 capability nhỏ. Android có runtime nạp extension manga Keiyoushi/Mihon-compatible 1.4/1.6
 đã cài và chuyển chúng thành cùng capability trước khi compose `SourceRegistry`;
-MangaDex built-in vẫn là fallback cross-platform. Library lưu series; progress lưu
+Provider remote do extension đã cài cung cấp; core không còn MangaDex built-in. Library lưu series; progress lưu
 chapter, chưa có resume chapter cuối ở cấp series. Chi tiết: [Source architecture](architecture/SOURCES.md),
 [Extension runtime](architecture/EXTENSIONS.md) và [Remote manga](architecture/REMOTE_MANGA.md).
 
@@ -870,7 +870,7 @@ Android manga runtime v1 đã chốt theo [ADR-007](decisions/ADR-007-android-ma
 - chỉ load APK có signing key tin cậy;
 - adapter sang source capabilities hiện có trước khi compose registry;
 - giữ `memo` source-private trong opaque reference;
-- MangaDex English giữ identity cũ và Dart source làm fallback cross-platform.
+- MangaDex English giữ identity cũ để tương thích Library/Progress; provider chỉ đến từ extension đã cài, theo [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
 
 Repository/install/update UI, arbitrary trust, sandbox process và anime/novel extension vẫn chưa chốt.
 
@@ -1019,8 +1019,9 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Drift/SQLite schema v1; cả ba reader có resume. Slice persistence/resume mới có
   automated tests và Android debug build, chưa xác minh E2E trên thiết bị thật;
   xem [USER_STATE](architecture/USER_STATE.md).
-- remote manga: built-in MangaDex vẫn cung cấp fallback cross-platform; Android có
-  runtime extension-lib 1.4/1.6 cho APK manga Keiyoushi/Mihon-compatible đã cài. Official
+- remote manga: Android dùng runtime extension-lib 1.4/1.6 cho APK manga
+  Keiyoushi/Mihon-compatible đã cài; không có provider MangaDex tích hợp hoặc fallback
+  trên Windows/iOS. Không có source phù hợp thì ẩn remote search, app vẫn khởi động. Official
   English MangaDex extension giữ `SourceId('mangadex')` + UUID cũ để Library/Progress
   không cần migration. Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
   [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
@@ -1032,7 +1033,8 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 
 ### Tiếp theo
 
-Xác minh persistence/restart/resume và extension-backed MangaDex flow trên Android thực:
+Extension-backed MangaDex đã được xác minh E2E trên Android theo xác nhận của người dùng.
+Tiếp tục regression-check persistence/restart/resume và vòng đời extension trên thiết bị thật:
 install trusted APK → restart Hikari → search → chapter list → reader → resume → Library
 → restart. Canonical identity tiếp tục hoãn đến khi có yêu cầu rename reconciliation/dedup
 thực tế. Series-level last-chapter resume và extension repository/install/update UI chỉ

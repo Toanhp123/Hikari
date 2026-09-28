@@ -1,10 +1,17 @@
 import 'dart:typed_data';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/mihon/mihon_extension_gateway.dart';
 import 'package:hikari/infrastructure/mihon/mihon_extension_runtime.dart';
+import 'package:hikari/infrastructure/persistence/user_database.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
 const _mangaId = '11111111-2222-3333-4444-555555555555';
 const _chapterId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -109,6 +116,94 @@ const _mangaDex = MihonSourceDescriptor(
 );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'legacy persisted references survive extension absence and reinstall',
+    () async {
+      final db = UserDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gateway = _FakeGateway(const [_mangaDex]);
+      const media = Media(
+        title: 'Saved series',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('mangadex'),
+          itemId: _mangaId,
+        ),
+      );
+      const chapter = MangaChapter(
+        title: 'Saved chapter',
+        source: SourceMediaRef(
+          sourceId: SourceId('mangadex'),
+          itemId: _chapterId,
+        ),
+      );
+      final progress = SqliteProgressRepository(db);
+      final initial = AppDependencies.create(database: db);
+      await initial.libraryRepository.upsert(
+        LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
+      );
+      await progress.save(
+        MediaProgress(
+          media: chapter.source,
+          position: PagePosition(pageIndex: 0, pageCount: 1),
+          completed: false,
+          updatedAt: DateTime.utc(2026),
+        ),
+      );
+      await initial.dispose();
+
+      for (var installation = 0; installation < 2; installation++) {
+        final absent = AppDependencies.create(database: db);
+        try {
+          expect(absent.searchManga.options, isEmpty);
+          await expectLater(absent.openMedia.execute(media), throwsStateError);
+          await expectLater(
+            absent.openMangaChapter.execute(chapter),
+            throwsStateError,
+          );
+          expect(await absent.libraryRepository.contains(media.source), isTrue);
+          expect(await progress.load(chapter.source), isNotNull);
+        } finally {
+          await absent.dispose();
+        }
+
+        final sources = await MihonExtensionRuntime(gateway: gateway)
+            .loadSources();
+        final installed = AppDependencies.create(
+          database: db,
+          additionalSources: sources,
+        );
+        try {
+          expect(
+            installed.searchManga.options.single.id,
+            media.source.sourceId,
+          );
+          final saved =
+              (await installed.libraryRepository.loadAll()).single.media;
+          final target =
+              await installed.openMedia.execute(saved) as MangaSeriesOpenTarget;
+          await target.chapterSource.chapters(saved.source);
+          expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
+          final readable = await installed.openMangaChapter.execute(chapter);
+          expect(gateway.pageChapterUrl, '/chapter/$_chapterId');
+          expect(readable.progress.initialProgress?.media, chapter.source);
+          final position =
+              readable.progress.initialProgress!.position as PagePosition;
+          expect(position.pageIndex, 0);
+          expect(position.pageCount, 1);
+          expect(
+            await installed.libraryRepository.contains(media.source),
+            isTrue,
+          );
+        } finally {
+          await installed.dispose();
+        }
+      }
+    },
+  );
+
   test(
     'runtime adapts installed extension sources to Hikari media sources',
     () async {
@@ -244,7 +339,7 @@ void main() {
     () async {
       final gateway = _FakeGateway(const [
         MihonSourceDescriptor(
-          sourceKey: '99',
+          sourceKey: '2499283573021220255',
           name: 'MangaDex',
           language: 'en',
           packageName: 'example.spoofed.mangadex',
@@ -256,9 +351,27 @@ void main() {
         gateway: gateway,
       ).loadSources()).single;
 
-      expect(source.id, const SourceId('mihon:99'));
+      expect(source.id, const SourceId('mihon:2499283573021220255'));
     },
   );
+
+  test('MangaDex compatibility alias requires English', () async {
+    final gateway = _FakeGateway(const [
+      MihonSourceDescriptor(
+        sourceKey: '2499283573021220255',
+        name: 'MangaDex',
+        language: 'fr',
+        packageName: 'eu.kanade.tachiyomi.extension.all.mangadex',
+        baseUrl: 'https://mangadex.org',
+      ),
+    ]);
+    final sources = await MihonExtensionRuntime(gateway: gateway).loadSources();
+    expect(sources.single.id, const SourceId('mihon:2499283573021220255'));
+  });
+
+  test('runtime without a platform plugin exposes no sources', () async {
+    expect(await const MihonExtensionRuntime().loadSources(), isEmpty);
+  });
 
   test('stateful extension references reject malformed payloads', () async {
     final gateway = _FakeGateway(const [

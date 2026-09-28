@@ -1,6 +1,6 @@
 # ADR-005: Application workflows and a capability-based source registry
 
-- Status: **Accepted**
+- Status: **Accepted; direct-provider transport decision superseded by [ADR-008](ADR-008-external-remote-provider-ownership.md)**
 - Date: **2026-09-27**
 
 Follow-up: [ADR-007](ADR-007-android-manga-extension-runtime.md) now realizes the extension seam anticipated here while keeping the registry immutable after composition.
@@ -50,7 +50,7 @@ requires that capability for `MediaType.anime`, so a future remote anime source 
 accidentally be treated as a local/direct locator. Rich episode/stream playback remains
 a separate future design problem.
 
-MangaDex keeps implementing the same domain capabilities. Its HTTP policy is moved to
+At this decision's adoption, MangaDex kept implementing the same domain capabilities. Its HTTP policy was moved to
 an infrastructure-local `MangaDexClient`; this is source-specific transport
 separation, not a generic network/provider framework.
 

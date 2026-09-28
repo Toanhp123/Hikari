@@ -8,27 +8,15 @@ Remote manga uses the same domain capabilities regardless of transport:
 - `MangaChapterSource` resolves a series into chapters;
 - `MangaPageSource` resolves a chapter into pages and page bytes.
 
-`SearchManga`, `OpenMedia` and `OpenMangaChapter` operate on those capabilities through the immutable `SourceRegistry`. They do not know whether a source is the built-in Dart MangaDex implementation or an Android extension adapter.
+`SearchManga`, `OpenMedia` and `OpenMangaChapter` operate on those capabilities through the immutable `SourceRegistry`. Provider networking and website behavior belong to installed extensions, not Hikari core.
 
-Android can discover compatible installed manga extensions before composition; see [EXTENSIONS](EXTENSIONS.md). Windows/iOS do not run Android extension APKs.
+## Source selection
 
-## Source selection and fallback
+Platform bootstrap discovers compatible external sources before composition. `AppDependencies` registers the local source and supplied sources through `additionalSources`, then creates the immutable registry and generic application workflows. Duplicate source IDs fail fast.
 
-Hikari still ships the direct Dart `MangaDexSource` so the existing cross-platform remote-manga vertical does not disappear when no extension runtime is available.
+Android can discover trusted installed manga extensions; see [EXTENSIONS](EXTENSIONS.md). Windows/iOS do not run Android extension APKs and currently have no remote manga runtime. Hikari does not construct a replacement provider when discovery returns no sources or fails.
 
-At composition:
-
-```text
-installed sources discovered first
-        |
-        +-- official English MangaDex extension owns SourceId('mangadex')
-        |       -> do not create/register built-in MangaDex
-        |
-        +-- no extension owns SourceId('mangadex')
-                -> register built-in MangaDexSource fallback
-```
-
-Other installed extension sources use their own stable IDs and coexist with the fallback.
+With no usable manga search/page source, the existing capability-driven UI hides remote manga search. The app still boots; existing local media and Library functionality do not depend on a remote provider. Local SAF remains Android-only.
 
 ## Identity and user state
 
@@ -45,41 +33,22 @@ The opaque reference can include extension-lib `memo` state required to make lat
 
 ### MangaDex migration compatibility
 
-The official English MangaDex extension is deliberately exposed as the same identity used by the direct source:
+The official English MangaDex extension retains the identity used by historical Hikari Library and Progress rows:
 
 - source: `SourceId('mangadex')`;
 - series: MangaDex manga UUID;
 - chapter: MangaDex chapter UUID.
 
-This lets existing Library and Progress rows survive switching between the direct source and the extension-backed source. The alias is granted only to the official MangaDex package, its legacy English upstream source ID, and language; a source merely calling itself “MangaDex” does not get that identity.
+The alias requires the exact package, upstream English source ID and language documented in [EXTENSIONS](EXTENSIONS.md). Name/base URL alone never grants it. The adapter translates legacy UUIDs to the extension's manga/chapter URL contract; it does not implement MangaDex networking.
 
-Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Series-level “resume last chapter” is still deferred.
+Without that extension, saved references encounter the existing generic missing-source error. Rows are not deleted or migrated. Reinstalling the compatible extension and restarting Hikari makes the same references resolvable again. No database schema change is required.
 
-## Built-in MangaDex fallback
-
-The direct fallback keeps MangaDex-specific HTTP behavior inside `MangaDexClient`; it is not a generic network layer. Its source implementation remains useful for cross-platform behavior, tests and a no-extension Android fallback.
-
-The extension-backed MangaDex path delegates provider behavior to the installed extension instead. Hikari must not duplicate provider-specific parsing/rate-limit logic in the Dart adapter just to imitate an extension.
+Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Series-level “resume last chapter” remains deferred.
 
 ## Verification boundary
 
-Automated tests cover provider-neutral remote workflows, the direct MangaDex fallback and extension adapter/reference behavior. They do not prove current live provider availability.
+Automated tests cover zero-remote-source composition/UI, generic external-source workflows, extension adaptation, narrow MangaDex identity matching, persisted legacy reference translation, opaque continuation state and malformed references. They do not prove current live provider availability.
 
-Physical Android verification for the extension path should cover:
+Physical Android verification should cover installed trusted extension discovery, search, series, chapters, pages, reader, progress/Library and restart/reinstall. See the device checklist in [EXTENSIONS](EXTENSIONS.md).
 
-```text
-install trusted extension
--> restart Hikari
--> source discovery
--> search
--> series
--> chapter
--> pages
--> reader
--> progress/library
--> process restart
-```
-
-The direct fallback should continue to be exercised by its existing HTTP/fake tests and cross-platform quality gates.
-
-Current deferred work includes series-level last-chapter resume, canonical cross-source identity/dedup, downloads, account sync and a user-facing extension repository/install/update flow.
+[ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md) records why the direct provider was removed. Deferred work includes series-level last-chapter resume, canonical cross-source identity/dedup, downloads, account sync and extension repository/install/update UI.

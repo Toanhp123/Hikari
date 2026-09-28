@@ -1,7 +1,9 @@
 # ADR-007: Host compatible manga extensions behind an Android infrastructure boundary
 
-- Status: **Accepted**
+- Status: **Accepted; direct-provider fallback superseded by [ADR-008](ADR-008-external-remote-provider-ownership.md)**
 - Date: **2026-09-27**
+
+The fallback clauses below record the original decision, not current behavior. ADR-008 removes the direct provider while retaining the narrow MangaDex identity alias and this Android host decision.
 
 ## Context
 
