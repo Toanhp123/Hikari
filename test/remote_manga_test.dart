@@ -72,6 +72,14 @@ class DuplicateIdRemote extends FakeRemote {
   SourceId get id => SourceId.local;
 }
 
+class ExtensionMangaDexRemote extends FakeRemote {
+  @override
+  SourceId get id => const SourceId('mangadex');
+
+  @override
+  String get name => 'MangaDex extension';
+}
+
 class UnavailableRemote extends FakeRemote {
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async {
@@ -154,6 +162,27 @@ void main() {
       throwsStateError,
     );
   });
+
+  test(
+    'extension MangaDex replaces the built-in fallback at composition',
+    () async {
+      final db = UserDatabase(NativeDatabase.memory());
+      final dependencies = AppDependencies.create(
+        database: db,
+        additionalSources: [ExtensionMangaDexRemote()],
+      );
+      addTearDown(() async {
+        await dependencies.dispose();
+        await db.close();
+      });
+
+      final mangaDexOptions = dependencies.searchManga.options.where(
+        (option) => option.id == const SourceId('mangadex'),
+      );
+      expect(mangaDexOptions, hasLength(1));
+      expect(mangaDexOptions.single.name, 'MangaDex extension');
+    },
+  );
 
   testWidgets(
     'search-only source is not exposed as an openable manga workflow',
@@ -393,7 +422,7 @@ void main() {
     expect(find.textContaining('Could not load chapters'), findsOneWidget);
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
-    expect(find.text('No readable English chapters found.'), findsOneWidget);
+    expect(find.text('No readable chapters found.'), findsOneWidget);
     expect(calls, 2);
   });
 

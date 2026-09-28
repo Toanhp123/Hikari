@@ -3,6 +3,7 @@ import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/mangadex/mangadex_source.dart';
@@ -32,16 +33,22 @@ final class AppDependencies {
     Iterable<MediaSource> additionalSources = const [],
   }) {
     final resolvedLocalSource = localMediaSource ?? LocalMediaSource();
-    final ownedMangaDexSource = remoteMangaSource == null
+    final extraSources = additionalSources.toList(growable: false);
+    final hasExtensionMangaDex = extraSources.any(
+      (source) => source.id == const SourceId('mangadex'),
+    );
+    final ownedMangaDexSource =
+        remoteMangaSource == null && !hasExtensionMangaDex
         ? MangaDexSource()
         : null;
-    final resolvedRemoteSource = remoteMangaSource ?? ownedMangaDexSource!;
+    final resolvedRemoteSource = remoteMangaSource ?? ownedMangaDexSource;
+
     late final SourceRegistry sourceRegistry;
     try {
       sourceRegistry = SourceRegistry([
         resolvedLocalSource,
-        resolvedRemoteSource,
-        ...additionalSources,
+        ?resolvedRemoteSource,
+        ...extraSources,
       ]);
     } catch (_) {
       ownedMangaDexSource?.close();

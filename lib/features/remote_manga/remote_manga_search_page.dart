@@ -95,7 +95,7 @@ class _RemoteMangaSearchPageState extends State<RemoteMangaSearchPage> {
 
   Widget _buildResults(RemoteMangaSearchUiState state) => switch (state) {
     RemoteMangaSearchIdle() => const Center(
-      child: Text('Search for an English manga title.'),
+      child: Text('Search for a manga title.'),
     ),
     RemoteMangaSearchLoading() => const Center(
       child: CircularProgressIndicator(),

@@ -126,7 +126,7 @@ without a chapter-selection screen.
 
 CBZ/ZIP, CBR/RAR, EPUB, PDF; series/season/chapter parsing; canonical identity,
 hashing/deduplication, enrichment, covers/thumbnails; rename recovery, watchers,
-history sessions, downloads, additional remote providers and a dynamic extension/provider runtime.
+history sessions, downloads, extension repository/install/update UI and non-manga extension runtimes.
 Progress/Library persistence and minimal page/text source capabilities are implemented
 in [USER_STATE](USER_STATE.md); canonical identity remains deferred.
 

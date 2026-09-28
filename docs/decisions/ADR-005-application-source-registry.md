@@ -3,6 +3,8 @@
 - Status: **Accepted**
 - Date: **2026-09-27**
 
+Follow-up: [ADR-007](ADR-007-android-manga-extension-runtime.md) now realizes the extension seam anticipated here while keeping the registry immutable after composition.
+
 ## Context
 
 The local-media, persisted Library/Progress and MangaDex verticals proved the domain
@@ -110,3 +112,9 @@ exist.
   discovery into domain or presentation.
 - Adding a new kind of media workflow still requires an explicit domain/application
   design decision rather than being hidden behind generic abstractions.
+
+## Follow-up
+
+ADR-007 now realizes the pre-composition discovery seam on Android for trusted manga
+extensions. `SourceRegistry` itself remains immutable; package discovery and ABI
+compatibility stay in infrastructure before composition.

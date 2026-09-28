@@ -32,8 +32,7 @@ classes, but workflow policy does not live there.
 Hikari uses **source** as the code-level term. A `MediaSource` is one registered
 implementation that exposes one or more domain capabilities. **Provider** is reserved
 for prose about an external service (for example MangaDex), not a second abstraction in
-the code. **Extension** means a possible future packaging/distribution mechanism that
-creates source implementations. Do not introduce parallel `Provider`/`Source` base
+the code. **Extension** is the Android packaging/runtime mechanism that can create manga source implementations before registry composition. Extension ABI, trust and class loading remain infrastructure concerns; see [EXTENSIONS](EXTENSIONS.md). Do not introduce parallel `Provider`/`Source` base
 types for the same responsibility.
 
 ## Domain capabilities
@@ -50,9 +49,7 @@ The current source surface is deliberately small:
 | `MangaPageSource` | Resolve a readable reference into pages and read page bytes |
 | `NovelTextSource` | Read text for a source-scoped media reference |
 
-Capabilities compose. MangaDex implements search + chapters + pages. Local SAF
-implements direct video + pages + text + platform availability. Domain does not know HTTP, SAF,
-SQLite, MangaDex DTOs or Flutter widgets.
+Capabilities compose. The built-in MangaDex source and Android extension-backed manga sources implement search + chapters + pages. Local SAF implements direct video + pages + text + platform availability. Domain does not know HTTP, SAF, SQLite, extension APKs, MangaDex DTOs or Flutter widgets.
 
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
 an operation that cannot be expressed by the current contracts.
@@ -69,8 +66,7 @@ It provides three behaviors only:
 3. enumerate registered sources that implement a capability.
 
 Duplicate IDs fail during composition instead of silently replacing an implementation.
-The registry does not install extensions, construct sources, persist configuration,
-manage authentication or own source lifecycles. Those are separate future concerns.
+The registry does not discover/install extensions, construct sources, persist configuration, manage authentication or own source lifecycles. Android extension discovery/construction happens before composition; installation/update UI and hot lifecycle management remain separate concerns.
 
 ## Application workflows
 
@@ -119,11 +115,12 @@ UserDatabase
   -> SqliteLibraryRepository
   -> SqliteProgressRepository
 
-LocalMediaSource ----\
-                      -> SourceRegistry -> OpenMedia / OpenMangaChapter / SearchManga
-MangaDexSource ------/
+LocalMediaSource --------\
+                            -> SourceRegistry -> OpenMedia / OpenMangaChapter / SearchManga
+installed extension sources -/
+MangaDex fallback ---------/
 
-MediaKitVideoSession -----------------------> presentation composition
+MediaKitVideoSession ------------------------> presentation composition
 ```
 
 Default resources created there are disposed there. Injected resources remain owned by
@@ -160,15 +157,15 @@ The current boundary is intended to support, without predicting their detailed A
 - search across registered readable `MangaSearchSource` implementations through `SearchManga`;
 - Continue Reading/Watching resolving persisted `SourceMediaRef` through the same
   registry/application workflows;
-- an eventual extension runtime that creates source instances before composition.
+- additional extension ABI families/adapters that still create normal source instances before composition.
 
 The following remain deliberately outside this foundation: canonical content identity,
-dedup/metadata reconciliation, dynamic extension installation, extension sandboxing,
+dedup/metadata reconciliation, extension repository/install/update UI, process sandboxing,
 account/auth framework, remote video episode/stream contracts, downloads and sync.
 
 See [ADR-005](../decisions/ADR-005-application-source-registry.md) for the registry/open
 workflow decision and [ADR-006](../decisions/ADR-006-presentation-state-and-player-boundary.md)
-for the search/presentation boundary refinement.
+for the search/presentation boundary refinement, and [ADR-007](../decisions/ADR-007-android-manga-extension-runtime.md) for the Android extension host.
 
 ## Research references
 

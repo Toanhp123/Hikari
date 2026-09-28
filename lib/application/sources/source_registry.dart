@@ -3,8 +3,8 @@ import 'package:hikari/domain/media/source.dart';
 
 /// App-wide index of source implementations keyed by their stable source ID.
 ///
-/// Registration is intentionally static for now. A future extension runtime can
-/// produce [MediaSource] instances without changing the application workflows.
+/// The registry is immutable after composition. Platform bootstrap may discover
+/// additional [MediaSource] instances before constructing it.
 final class SourceRegistry {
   SourceRegistry(Iterable<MediaSource> sources) : _sources = _index(sources);
 

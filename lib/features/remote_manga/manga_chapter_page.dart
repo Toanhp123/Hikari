@@ -88,7 +88,7 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                 final chapters = snapshot.data!;
                 if (chapters.isEmpty) {
                   return const Center(
-                    child: Text('No readable English chapters found.'),
+                    child: Text('No readable chapters found.'),
                   );
                 }
                 return ListView.builder(

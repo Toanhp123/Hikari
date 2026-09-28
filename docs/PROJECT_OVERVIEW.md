@@ -398,28 +398,13 @@ Source architecture là một subsystem quan trọng. `MediaSource` là thuật 
 
 ## 5.10 Extensions
 
-### Định hướng
+Android manga extension runtime v1 đã là một subsystem thực, không còn chỉ là mục tiêu dài hạn. Theo [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md), Hikari host APK manga tương thích Mihon/Keiyoushi extension-lib 1.4/1.6 ở Kotlin rồi adapter chúng thành các `MediaSource` capability hiện có trước khi compose `SourceRegistry`.
 
-Extension/plugin system là mục tiêu dài hạn.
+Nguyên tắc vẫn giữ nguyên:
 
-### Chưa chốt
+> Extension runtime chỉ là một cách tạo `MediaSource` implementation; domain/application không phụ thuộc APK, Kotlin ABI hay repository format.
 
-Chưa quyết định chính thức:
-
-- JavaScript runtime nào;
-- extension manifest format;
-- sandbox model;
-- API versioning;
-- compatibility với Mangayomi;
-- compatibility với Mihon/Aniyomi;
-- APK extensions;
-- remote extension repositories.
-
-Nguyên tắc hiện tại:
-
-> Core phải có source contracts đủ sạch để sau này extension runtime chỉ là một cách tạo `MediaSource` implementation.
-
-Không thiết kế toàn bộ app xoay quanh extension ngay từ phiên bản đầu.
+Các phần chưa chốt gồm repository/install/update UI, trust cho repository bên thứ ba, sandbox/process isolation, compatibility ngoài manga (Aniyomi/novel), Mangayomi và một Hikari-native plugin format nếu sau này thật sự cần. Chi tiết runtime hiện tại nằm tại [`architecture/EXTENSIONS.md`](architecture/EXTENSIONS.md).
 
 ---
 
@@ -694,11 +679,12 @@ Một source có thể cung cấp một hoặc nhiều capability như search, d
 
 API capability cụ thể vẫn là quyết định của Domain Core; Foundation không scaffold trước interface chưa được requirement chứng minh.
 
-Vertical MangaDex hiện kiểm chứng search → series → chọn chapter → pages bằng các
-capability nhỏ. `SourceRegistry` + application workflows đã cung cấp điểm cắm chung
-cho source cùng capability mà không tạo dynamic extension runtime. Library lưu
-series; progress lưu chapter, chưa có resume chapter cuối ở cấp series. Chi tiết:
-[Source architecture](architecture/SOURCES.md) và [Remote manga](architecture/REMOTE_MANGA.md).
+Vertical remote manga hiện kiểm chứng search → series → chọn chapter → pages bằng các
+capability nhỏ. Android có runtime nạp extension manga Keiyoushi/Mihon-compatible 1.4/1.6
+đã cài và chuyển chúng thành cùng capability trước khi compose `SourceRegistry`;
+MangaDex built-in vẫn là fallback cross-platform. Library lưu series; progress lưu
+chapter, chưa có resume chapter cuối ở cấp series. Chi tiết: [Source architecture](architecture/SOURCES.md),
+[Extension runtime](architecture/EXTENSIONS.md) và [Remote manga](architecture/REMOTE_MANGA.md).
 
 ---
 
@@ -825,8 +811,7 @@ Một MVP hợp lý cần có:
 
 Không bắt buộc trong MVP:
 
-- plugin marketplace;
-- APK extension compatibility;
+- plugin marketplace/repository install-update UI;
 - Android TV;
 - casting;
 - watch party;
@@ -879,13 +864,15 @@ Lựa chọn engine cho các capability nâng cao vẫn chưa chốt.
 
 ### Extension runtime
 
-- JavaScript engine;
-- security model;
-- compatibility adapters.
+Android manga runtime v1 đã chốt theo [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md):
 
-Quy tắc:
+- host native Kotlin cho extension-lib 1.4 và 1.6;
+- chỉ load APK có signing key tin cậy;
+- adapter sang source capabilities hiện có trước khi compose registry;
+- giữ `memo` source-private trong opaque reference;
+- MangaDex English giữ identity cũ và Dart source làm fallback cross-platform.
 
-> Không chọn công nghệ chỉ vì một project khác đang dùng nó. Chọn khi requirement của phase đã rõ.
+Repository/install/update UI, arbitrary trust, sandbox process và anime/novel extension vẫn chưa chốt.
 
 ---
 
@@ -1032,28 +1019,29 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Drift/SQLite schema v1; cả ba reader có resume. Slice persistence/resume mới có
   automated tests và Android debug build, chưa xác minh E2E trên thiết bị thật;
   xem [USER_STATE](architecture/USER_STATE.md).
-- vertical MangaDex thử nghiệm: title search → series UUID → chapter feed → chapter
-  UUID → MangaDex@Home pages. Library lưu series; page progress lưu theo chapter;
-  external chapters vẫn hiển thị nhưng không mở trong Hikari. Source-scoped identity
-  hoạt động với cả local SAF và remote UUID mà chưa cần canonical `MediaId`; xem
-  [REMOTE_MANGA](architecture/REMOTE_MANGA.md).
+- remote manga: built-in MangaDex vẫn cung cấp fallback cross-platform; Android có
+  runtime extension-lib 1.4/1.6 cho APK manga Keiyoushi/Mihon-compatible đã cài. Official
+  English MangaDex extension giữ `SourceId('mangadex')` + UUID cũ để Library/Progress
+  không cần migration. Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
+  [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
 - application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
   `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
-  thể đăng ký mà không thêm provider-specific branch vào open workflow; dynamic
-  extension runtime vẫn chưa được thiết kế. Xem [SOURCES](architecture/SOURCES.md).
+  thể đăng ký mà không thêm provider-specific branch vào open workflow; Android
+  extension runtime tạo source trước composition mà không thay domain/application.
+  Xem [SOURCES](architecture/SOURCES.md) và [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md).
 
 ### Tiếp theo
 
-Xác minh persistence/restart/resume mới và MangaDex live flow trên Android thực:
-search → chapter list → reader → resume → Library → restart. Canonical identity tiếp
-tục hoãn đến khi có yêu cầu rename reconciliation/dedup thực tế. Series-level
-last-chapter resume và dynamic extension runtime chỉ được thiết kế khi
-requirement thật chứng minh cần. Source mới dùng capability hiện có có thể đi qua
-registry/application foundation hiện tại mà không cần một engine tổng quát.
+Xác minh persistence/restart/resume và extension-backed MangaDex flow trên Android thực:
+install trusted APK → restart Hikari → search → chapter list → reader → resume → Library
+→ restart. Canonical identity tiếp tục hoãn đến khi có yêu cầu rename reconciliation/dedup
+thực tế. Series-level last-chapter resume và extension repository/install/update UI chỉ
+được thiết kế khi requirement thật chứng minh cần. Source mới dùng capability hiện có
+đi qua registry/application foundation hiện tại mà không cần một engine tổng quát.
 
 ### Chưa bắt đầu
 
-- dynamic extension runtime;
+- extension repository/install/update UI và non-manga extension runtime;
 - production player/readers;
 - production UI.
 

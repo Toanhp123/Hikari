@@ -59,8 +59,10 @@ local/default remote sources, immutable `SourceRegistry`, application workflows 
 video session once, then closes only resources it owns. `main` remains thin. Duplicate
 source IDs fail during composition instead of silently replacing an implementation.
 `OpenMedia`, `OpenMangaChapter`, `SearchManga` and `ProgressSession` keep
-source/progress/search coordination out of Flutter widgets while remaining pure Dart. No DI container or dynamic provider/
-extension runtime exists. Scan, remote search and Library reuse the same open route;
+source/progress/search coordination out of Flutter widgets while remaining pure Dart.
+Dart composition stays explicit; the Android extension host uses native Injekt only as
+an ABI-compatibility service locator for loaded extension code. Scan, remote search and
+Library reuse the same open route;
 Library opens persisted snapshots without rescanning or repeating the original search.
 See [SOURCES](SOURCES.md) for the source/application boundary.
 
