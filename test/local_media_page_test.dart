@@ -69,6 +69,30 @@ void main() {
     expect(scans, 1);
   });
 
+  testWidgets('large scans keep media rows lazily rendered', (tester) async {
+    final largeScan = List<Media>.generate(
+      500,
+      (index) => Media(
+        title: 'Item $index',
+        type: MediaType.anime,
+        source: SourceMediaRef(sourceId: SourceId.local, itemId: 'item-$index'),
+      ),
+    );
+
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async => largeScan,
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Item 0'), findsOneWidget);
+    expect(find.text('Item 499'), findsNothing);
+    expect(find.byType(ListTile).evaluate().length, lessThan(500));
+  });
+
   testWidgets('saved root restores results automatically', (tester) async {
     await tester.pumpWidget(
       host(

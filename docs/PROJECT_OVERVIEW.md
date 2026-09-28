@@ -357,11 +357,11 @@ Mục tiêu là Home có thể xây dựng "Continue Watching / Continue Reading
 
 ---
 
-## 5.9 Sources / Providers
+## 5.9 Sources
 
 Hikari không nên buộc domain core phụ thuộc vào một nguồn nội dung duy nhất.
 
-Provider có thể cung cấp một hoặc nhiều capability:
+Trong code Hikari, `MediaSource` có thể cung cấp một hoặc nhiều capability:
 
 ```text
 Search
@@ -374,52 +374,37 @@ Manga Pages
 Novel Content
 ```
 
-Một provider không bắt buộc phải hỗ trợ tất cả.
+Một source không bắt buộc phải hỗ trợ tất cả.
 
 Ví dụ:
 
 ```text
-Provider A
+Source A
 ├── Anime
 └── Video Streams
 
-Provider B
+Source B
 ├── Manga
 └── Manga Pages
 
-Provider C
+Source C
 ├── Novel
 └── Novel Chapters
 ```
 
-Provider architecture là một subsystem quan trọng và sẽ được thiết kế riêng khi đến phase tương ứng.
+Source architecture là một subsystem quan trọng. `MediaSource` là thuật ngữ code-level; "provider" chỉ dùng khi nói về dịch vụ nội dung bên ngoài. Chi tiết hiện tại nằm tại [`architecture/SOURCES.md`](architecture/SOURCES.md).
 
 ---
 
 ## 5.10 Extensions
 
-### Định hướng
+Android manga extension runtime v1 đã là một subsystem thực, không còn chỉ là mục tiêu dài hạn. Theo [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md), Hikari host APK manga tương thích Mihon/Keiyoushi extension-lib 1.4/1.6 ở Kotlin rồi adapter chúng thành các `MediaSource` capability hiện có trước khi compose `SourceRegistry`.
 
-Extension/plugin system là mục tiêu dài hạn.
+Nguyên tắc vẫn giữ nguyên:
 
-### Chưa chốt
+> Extension runtime chỉ là một cách tạo `MediaSource` implementation; domain/application không phụ thuộc APK, Kotlin ABI hay repository format.
 
-Chưa quyết định chính thức:
-
-- JavaScript runtime nào;
-- extension manifest format;
-- sandbox model;
-- API versioning;
-- compatibility với Mangayomi;
-- compatibility với Mihon/Aniyomi;
-- APK extensions;
-- remote extension repositories.
-
-Nguyên tắc hiện tại:
-
-> Core phải có provider contracts đủ sạch để sau này extension runtime chỉ là một cách tạo Provider implementation.
-
-Không thiết kế toàn bộ app xoay quanh extension ngay từ phiên bản đầu.
+Các phần chưa chốt gồm repository/install/update UI, trust cho repository bên thứ ba, sandbox/process isolation, compatibility ngoài manga (Aniyomi/novel), Mangayomi và một Hikari-native plugin format nếu sau này thật sự cần. Chi tiết runtime hiện tại nằm tại [`architecture/EXTENSIONS.md`](architecture/EXTENSIONS.md).
 
 ---
 
@@ -505,9 +490,9 @@ Source flow:
 ```text
 User chooses content
       ↓
-Hikari resolves provider
+Hikari resolves source
       ↓
-Provider returns canonical domain data
+Source returns normalized domain data
       ↓
 Player / Reader consumes canonical data
 ```
@@ -526,7 +511,7 @@ lib/
 ├── core/             # cross-cutting primitives thật sự dùng chung
 ├── domain/           # pure Dart business concepts, rules, ports/contracts
 ├── application/      # workflows/use cases điều phối domain contracts
-├── infrastructure/   # DB/HTTP/providers/engines/platform implementations
+├── infrastructure/   # DB/HTTP/sources/engines/platform implementations
 └── features/         # Flutter UI + presentation state theo feature
 ```
 
@@ -594,7 +579,7 @@ future player
 
 ---
 
-### 7.3 Provider không được leak vào UI
+### 7.3 Source implementation không được leak vào UI
 
 Không:
 
@@ -609,9 +594,9 @@ Widget
   ↓
 Application
   ↓
-Provider contract
+Source capability contract
   ↓
-Provider implementation
+Source implementation
 ```
 
 ---
@@ -630,7 +615,7 @@ Hai lớp cần mapper rõ ràng.
 
 Netflix-like UI là định hướng trải nghiệm, không phải kiến trúc core.
 
-Có thể redesign Home mà không thay provider, database hoặc player engine.
+Có thể redesign Home mà không thay source implementation, database hoặc player engine.
 
 ---
 
@@ -674,7 +659,7 @@ Các thành phần có thể thay bởi thư viện, OS hoặc external system n
 ```text
 persistence
 network
-provider implementations
+source implementations
 media engines
 platform adapters
 repository implementations
@@ -688,16 +673,18 @@ Repository implementation không nằm bên trong một data source cụ thể n
 
 Không tạo các bucket chung kiểu `helpers/`, `managers/`, `misc/` hoặc abstraction dự phòng chỉ để “có kiến trúc”.
 
-### 7.10 Source/provider ưu tiên capability-oriented contracts
+### 7.10 Source ưu tiên capability-oriented contracts
 
-Một source có thể cung cấp một hoặc nhiều capability như search, details, episodes, streams, chapters, pages hoặc text content. Domain không mặc định rằng một provider chỉ thuộc đúng một media type.
+Một source có thể cung cấp một hoặc nhiều capability như search, details, episodes, streams, chapters, pages hoặc text content. Domain không mặc định rằng một source chỉ thuộc đúng một media type.
 
 API capability cụ thể vẫn là quyết định của Domain Core; Foundation không scaffold trước interface chưa được requirement chứng minh.
 
-Vertical MangaDex hiện kiểm chứng search → series → chọn chapter → pages bằng các
-capability nhỏ, không tạo provider engine tổng quát. Library lưu series; progress
-lưu chapter, chưa có resume chapter cuối ở cấp series. Chi tiết hiện trạng và giới
-hạn: [Remote manga](architecture/REMOTE_MANGA.md).
+Vertical remote manga hiện kiểm chứng search → series → chọn chapter → pages bằng các
+capability nhỏ. Android có runtime nạp extension manga Keiyoushi/Mihon-compatible 1.4/1.6
+đã cài và chuyển chúng thành cùng capability trước khi compose `SourceRegistry`;
+Provider remote do extension đã cài cung cấp; core không còn MangaDex built-in. Library lưu series; progress lưu
+chapter, chưa có resume chapter cuối ở cấp series. Chi tiết: [Source architecture](architecture/SOURCES.md),
+[Extension runtime](architecture/EXTENSIONS.md) và [Remote manga](architecture/REMOTE_MANGA.md).
 
 ---
 
@@ -722,7 +709,7 @@ Hikari được xây theo thứ tự móng → tầng trên, nhưng một vertic
           ↓
 3. Infrastructure Foundation
           ↓
-4. Provider / Source Engine
+4. Source Integration Foundation
           ↓
 5. Media Engines
    ├── Video
@@ -824,8 +811,7 @@ Một MVP hợp lý cần có:
 
 Không bắt buộc trong MVP:
 
-- plugin marketplace;
-- APK extension compatibility;
+- plugin marketplace/repository install-update UI;
 - Android TV;
 - casting;
 - watch party;
@@ -878,13 +864,15 @@ Lựa chọn engine cho các capability nâng cao vẫn chưa chốt.
 
 ### Extension runtime
 
-- JavaScript engine;
-- security model;
-- compatibility adapters.
+Android manga runtime v1 đã chốt theo [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md):
 
-Quy tắc:
+- host native Kotlin cho extension-lib 1.4 và 1.6;
+- chỉ load APK có signing key tin cậy;
+- adapter sang source capabilities hiện có trước khi compose registry;
+- giữ `memo` source-private trong opaque reference;
+- mọi source, kể cả MangaDex, dùng identity/reference Mihon chung; chấp nhận reset dữ liệu sạch, không giữ tương thích identity cũ, theo [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
 
-> Không chọn công nghệ chỉ vì một project khác đang dùng nó. Chọn khi requirement của phase đã rõ.
+Repository/install/update UI, arbitrary trust, sandbox process và anime/novel extension vẫn chưa chốt.
 
 ---
 
@@ -969,9 +957,9 @@ Manga
 Novel
 ```
 
-### Provider / Source
+### Source
 
-Thành phần biết cách tìm và lấy nội dung từ một data source cụ thể.
+`MediaSource` là implementation trong Hikari biết cách tìm/lấy nội dung từ một nguồn cụ thể và chỉ expose các capability mà nó hỗ trợ. "Provider" dùng trong văn cảnh mô tả dịch vụ bên ngoài, không phải một base type song song.
 
 ### Engine
 
@@ -984,7 +972,7 @@ VideoEngine
 MangaReaderEngine
 NovelReaderEngine
 DownloadEngine
-ProviderEngine
+SourceRuntime
 ```
 
 ### Domain Model
@@ -1031,27 +1019,34 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Drift/SQLite schema v1; cả ba reader có resume. Slice persistence/resume mới có
   automated tests và Android debug build, chưa xác minh E2E trên thiết bị thật;
   xem [USER_STATE](architecture/USER_STATE.md).
-- vertical MangaDex thử nghiệm: title search → series UUID → chapter feed → chapter
-  UUID → MangaDex@Home pages. Library lưu series; page progress lưu theo chapter;
-  external chapters vẫn hiển thị nhưng không mở trong Hikari. Source-scoped identity
-  hoạt động với cả local SAF và remote UUID mà chưa cần canonical `MediaId`; xem
-  [REMOTE_MANGA](architecture/REMOTE_MANGA.md).
+- remote manga: Android dùng runtime extension-lib 1.4/1.6 cho APK manga
+  Keiyoushi/Mihon-compatible đã cài; không có provider MangaDex tích hợp hoặc fallback
+  trên Windows/iOS. Không có source phù hợp thì ẩn remote search, app vẫn khởi động.
+  MangaDex dùng identity/reference Mihon chung như mọi extension; quyết định reset dữ liệu
+  sạch và bỏ tương thích cũ tại [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
+  Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
+  [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
+- application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
+  `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
+  thể đăng ký mà không thêm provider-specific branch vào open workflow; Android
+  extension runtime tạo source trước composition mà không thay domain/application.
+  Xem [SOURCES](architecture/SOURCES.md) và [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md).
 
 ### Tiếp theo
 
-Xác minh persistence/restart/resume mới và MangaDex live flow trên Android thực:
-search → chapter list → reader → resume → Library → restart. Canonical identity tiếp
-tục hoãn đến khi có yêu cầu rename reconciliation/dedup thực tế. Series-level
-last-chapter resume, additional remote providers và generic provider/extension engine
-chỉ được thiết kế khi requirement thật chứng minh cần.
+Extension-backed MangaDex đã được xác minh E2E trên Android theo xác nhận của người dùng.
+Tiếp tục regression-check persistence/restart/resume và vòng đời extension trên thiết bị thật:
+install trusted APK → restart Hikari → search → chapter list → reader → resume → Library
+→ restart. Canonical identity tiếp tục hoãn đến khi có yêu cầu rename reconciliation/dedup
+thực tế. Series-level last-chapter resume và extension repository/install/update UI chỉ
+được thiết kế khi requirement thật chứng minh cần. Source mới dùng capability hiện có
+đi qua registry/application foundation hiện tại mà không cần một engine tổng quát.
 
 ### Chưa bắt đầu
 
-- provider engine tổng quát;
+- extension repository/install/update UI và non-manga extension runtime;
 - production player/readers;
-- application layer;
-- production UI;
-- extension runtime.
+- production UI.
 
 ---
 
@@ -1075,7 +1070,7 @@ Ví dụ:
 → UI
 
 "Thêm JS extension"
-→ Provider/Extension Engine
+→ Source/Extension Runtime
 ```
 
 Sau đó chỉ nghiên cứu sâu phần liên quan.

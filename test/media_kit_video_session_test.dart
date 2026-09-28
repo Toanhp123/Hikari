@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
-import 'package:hikari/infrastructure/playback/local_video_session.dart';
-import 'package:hikari/infrastructure/playback/src/video_driver.dart';
+import 'package:hikari/infrastructure/playback/media_kit_video_session.dart';
+import 'package:hikari/infrastructure/playback/video_driver.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 class FakeVideoDriver implements VideoDriver {
@@ -90,7 +90,7 @@ class FakeVideoDriver implements VideoDriver {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late FakeVideoDriver driver;
-  late LocalVideoSession owner;
+  late MediaKitVideoSession owner;
   late Map<String, MediaProgress> stored;
   late int creations;
   var widgetTest = false;
@@ -99,7 +99,7 @@ void main() {
     driver = FakeVideoDriver();
     stored = {};
     creations = 0;
-    owner = LocalVideoSession(
+    owner = MediaKitVideoSession(
       driverFactory: () {
         creations++;
         return driver;
@@ -109,7 +109,7 @@ void main() {
   tearDown(() async {
     if (!widgetTest) await owner.shutdown();
   });
-  LocalVideoPlayback open(String id, {bool failSave = false}) => owner.open(
+  MediaKitVideoPlayback open(String id, {bool failSave = false}) => owner.open(
     locator: id,
     initialProgress: stored[id],
     saveProgress: (position, completed) async {
@@ -128,9 +128,9 @@ void main() {
       (tester) async {
         widgetTest = true;
         driver = FakeVideoDriver();
-        owner = LocalVideoSession(driverFactory: () => driver);
+        owner = MediaKitVideoSession(driverFactory: () => driver);
         driver.stopping = Completer<void>();
-        LocalVideoPlayback? playback;
+        MediaKitVideoPlayback? playback;
         await tester.pumpWidget(
           MaterialApp(
             home: Builder(

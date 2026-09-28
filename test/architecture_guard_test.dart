@@ -22,6 +22,11 @@ const _allowed = <String, Set<String>>{
 };
 
 const _pureLayers = {'core', 'domain', 'application'};
+const _allowedInfrastructureFlutterLibraries = {
+  'package:flutter/foundation.dart',
+  'package:flutter/services.dart',
+};
+
 const _platformLibraries = {
   'dart:ffi',
   'dart:html',
@@ -100,6 +105,12 @@ void main() {
         uri: 'package:hikari/application/library/load_library.dart',
       ),
       (
+        sourcePath: 'infrastructure/playback/video_surface.dart',
+        sourceLayer: 'infrastructure',
+        kind: 'import',
+        uri: 'package:flutter/material.dart',
+      ),
+      (
         sourcePath: 'features/library/page.dart',
         sourceLayer: 'features',
         kind: 'export',
@@ -176,6 +187,18 @@ void main() {
         sourceLayer: 'infrastructure',
         kind: 'import',
         uri: 'package:hikari/domain/library/library_repository.dart',
+      ),
+      (
+        sourcePath: 'infrastructure/local_media/channel.dart',
+        sourceLayer: 'infrastructure',
+        kind: 'import',
+        uri: 'package:flutter/services.dart',
+      ),
+      (
+        sourcePath: 'infrastructure/local_media/source.dart',
+        sourceLayer: 'infrastructure',
+        kind: 'import',
+        uri: 'package:flutter/foundation.dart',
       ),
       (
         sourcePath: 'features/library/page.dart',
@@ -286,6 +309,15 @@ String? _checkDependency({
       return '$sourceLayer must stay platform-independent: $kind $uri';
     }
   }
+  if (sourceLayer == 'infrastructure' &&
+      parsed != null &&
+      parsed.scheme == 'package' &&
+      parsed.pathSegments.isNotEmpty &&
+      parsed.pathSegments.first == 'flutter' &&
+      !_allowedInfrastructureFlutterLibraries.contains(uri)) {
+    return 'infrastructure may only use Flutter foundation/services APIs: $kind $uri';
+  }
+
   if (sourceLayer == 'root' && parsed?.scheme == 'package') {
     final package = parsed!.pathSegments.isEmpty
         ? ''

@@ -17,17 +17,17 @@ class MangaChapterPage extends StatefulWidget {
 }
 
 class _MangaChapterPageState extends State<MangaChapterPage> {
-  late Future<List<MangaChapter>> _chapters;
-  bool _opening = false;
+  late Future<List<MangaChapter>> _chaptersFuture;
+  bool _isOpeningChapter = false;
   @override
   void initState() {
     super.initState();
-    _chapters = Future.sync(widget.loadChapters);
+    _chaptersFuture = Future.sync(widget.loadChapters);
   }
 
-  Future<void> _open(MangaChapter chapter) async {
-    if (_opening) return;
-    setState(() => _opening = true);
+  Future<void> _openChapter(MangaChapter chapter) async {
+    if (_isOpeningChapter) return;
+    setState(() => _isOpeningChapter = true);
     try {
       await widget.openChapter(context, chapter);
     } catch (_) {
@@ -41,7 +41,7 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _opening = false);
+      if (mounted) setState(() => _isOpeningChapter = false);
     }
   }
 
@@ -55,10 +55,10 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
             padding: const EdgeInsets.all(16),
             child: Text(widget.sourceName),
           ),
-          if (_opening) const LinearProgressIndicator(),
+          if (_isOpeningChapter) const LinearProgressIndicator(),
           Expanded(
             child: FutureBuilder<List<MangaChapter>>(
-              future: _chapters,
+              future: _chaptersFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
                   return const Center(child: CircularProgressIndicator());
@@ -74,7 +74,9 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                           ),
                           TextButton(
                             onPressed: () => setState(() {
-                              _chapters = Future.sync(widget.loadChapters);
+                              _chaptersFuture = Future.sync(
+                                widget.loadChapters,
+                              );
                             }),
                             child: const Text('Try again'),
                           ),
@@ -86,7 +88,7 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                 final chapters = snapshot.data!;
                 if (chapters.isEmpty) {
                   return const Center(
-                    child: Text('No readable English chapters found.'),
+                    child: Text('No readable chapters found.'),
                   );
                 }
                 return ListView.builder(
@@ -101,8 +103,10 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                       key: ValueKey(chapter.source),
                       title: Text(chapter.title),
                       subtitle: Text(subtitle),
-                      enabled: !_opening && chapter.canReadPages,
-                      onTap: chapter.canReadPages ? () => _open(chapter) : null,
+                      enabled: !_isOpeningChapter && chapter.canReadPages,
+                      onTap: chapter.canReadPages
+                          ? () => _openChapter(chapter)
+                          : null,
                     );
                   },
                 );

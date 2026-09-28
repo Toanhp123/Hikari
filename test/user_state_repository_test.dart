@@ -6,7 +6,8 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
-import 'package:hikari/infrastructure/repositories/user_state_repositories.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
 void main() {
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'item');
@@ -67,7 +68,7 @@ void main() {
     final file = File('${directory.path}/state.sqlite');
     final first = UserDatabase(NativeDatabase.createInBackground(file));
     const series = SourceMediaRef(
-      sourceId: SourceId('mangadex'),
+      sourceId: SourceId('remote'),
       itemId: 'series-id',
     );
     try {
@@ -99,11 +100,11 @@ void main() {
 
   test('removing remote series keeps chapter progress', () async {
     const series = SourceMediaRef(
-      sourceId: SourceId('mangadex'),
+      sourceId: SourceId('remote'),
       itemId: 'series-id',
     );
     const chapter = SourceMediaRef(
-      sourceId: SourceId('mangadex'),
+      sourceId: SourceId('remote'),
       itemId: 'chapter-id',
     );
     await library.upsert(

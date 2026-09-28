@@ -6,15 +6,27 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/classifier.dart';
 
-class LocalMediaSource implements MangaPageSource, NovelTextSource {
+class LocalMediaSource
+    implements
+        DirectVideoSource,
+        MangaPageSource,
+        NovelTextSource,
+        MediaSourceAvailability {
   @override
   SourceId get id => SourceId.local;
   @override
   String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
 
-  bool get supported =>
+  @override
+  bool get isAvailable =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  @override
+  String playbackLocator(SourceMediaRef media) {
+    if (media.sourceId != id) throw ArgumentError('Wrong source.');
+    return media.itemId;
+  }
 
   Future<List<Media>?> scanSelectedRoot() async {
     final root = await _root('selectedTree');

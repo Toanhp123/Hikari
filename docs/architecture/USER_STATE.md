@@ -27,9 +27,10 @@ framework or reconciliation algorithm is introduced now.
 - `LibraryEntry` stores an immutable `Media` snapshot and UTC `addedAt`.
 - Progress repository: load/save/delete. Library repository: upsert/remove/contains/
   loadAll. No watch stream is needed for current explicit refresh UI.
-- `MediaSource` exposes id/name. `MangaPageSource` exposes pages/readPage;
+- `MediaSource` exposes id/name. `DirectVideoSource` exposes the current direct
+  playback locator contract; `MangaPageSource` exposes pages/readPage;
   `NovelTextSource` exposes readText. Local source implements these capabilities.
-  `MediaSearchSource` and `MangaChapterSource` add normalized search and chapter
+  `MangaSearchSource` and `MangaChapterSource` add normalized search and chapter
   discovery; see [REMOTE_MANGA](REMOTE_MANGA.md) for series/chapter identity and
   the deliberately deferred series-level resume. Picker, tree selection and scan
   mechanics stay infrastructure-specific.
@@ -53,13 +54,17 @@ nullable fields belonging to a prior position kind. UTC timestamps use epoch
 milliseconds; domain values never import Drift or Flutter.
 
 Drift Flutter opens `hikari_user_state.sqlite` in application documents and uses a
-native background connection. Root State creates the database, repositories, local
-source and default remote source once, injects consumers, and closes resources it
-owns on disposal. `main` remains thin. Source resolution uses a small in-memory
-`SourceId -> MediaSource` map plus capability type checks; duplicate source IDs fail
-fast instead of silently replacing an existing source. No registry, DI framework or
-provider engine exists. Scan, remote search and Library reuse the same open route;
+native background connection. `AppDependencies` creates the database, repositories,
+local/default remote sources, immutable `SourceRegistry`, application workflows and
+video session once, then closes only resources it owns. `main` remains thin. Duplicate
+source IDs fail during composition instead of silently replacing an implementation.
+`OpenMedia`, `OpenMangaChapter`, `SearchManga` and `ProgressSession` keep
+source/progress/search coordination out of Flutter widgets while remaining pure Dart.
+Dart composition stays explicit; the Android extension host uses native Injekt only as
+an ABI-compatibility service locator for loaded extension code. Scan, remote search and
+Library reuse the same open route;
 Library opens persisted snapshots without rescanning or repeating the original search.
+See [SOURCES](SOURCES.md) for the source/application boundary.
 
 ## Resume and writes
 
@@ -68,7 +73,7 @@ known duration, clamps incomplete position to current duration, then seeks befor
 playback. Completed entries start at zero. Only the engine completion event marks
 completion; meaningful nonterminal playback clears it. Changed samples write at
 most roughly every five seconds, plus pause/background/close flushes. One app-owned
-LocalVideoSession owns the reusable Player, VideoController, timer and subscriptions.
+MediaKitVideoSession owns the reusable Player, VideoController, timer and subscriptions.
 Each route gets a separate identity and tracker; async continuations check that identity
 and explicit lifecycle phase. Opening/seek events cannot update progress. Restore failure
 shows a playback error without writing the saved record; reopening gets fresh tracking

@@ -47,6 +47,7 @@ Additional rules:
 - A new top-level directory under `lib/` is rejected until its boundary is deliberately added to ADR-001 and the guard.
 - Both package URIs and relative URIs are normalized before the dependency matrix is checked.
 - Conditional import/export URIs are checked individually.
+- `infrastructure/` may import only Flutter `foundation.dart`/`services.dart` for platform adapters. Other Flutter libraries are rejected there; presentation belongs in `features/`.
 
 The architecture guard is a structural dependency check, not a semantic proof. Code review still decides whether responsibilities are placed in the correct layer.
 
@@ -84,7 +85,7 @@ Repository settings must protect `dev` and `main` with pull requests and the `Qu
 
 - Architecture violations appear during tests rather than as live IDE diagnostics.
 - The guard lexically recognizes Dart dependency directives; it intentionally does not attempt to become a full Dart parser.
-- Semantic leaks (for example business logic placed in a widget without a forbidden import) still require review.
+- Semantic leaks still require review, but infrastructure can no longer pull in Flutter UI libraries outside the two platform-adapter APIs it currently needs.
 - A future package split can provide stronger compiler-level boundaries if project scale eventually justifies the extra manifests and workspace tooling.
 
 ## Rejected alternatives

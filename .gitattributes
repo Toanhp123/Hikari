@@ -4,3 +4,4 @@
 # Windows command scripts are safest with native CRLF line endings.
 *.bat text eol=crlf
 *.cmd text eol=crlf
+graphify-out/graph.json merge=graphify

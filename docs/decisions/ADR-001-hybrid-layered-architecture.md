@@ -5,9 +5,9 @@
 
 ## Context
 
-Hikari must support several media families, multiple replaceable content providers, persistent progress/library data, multiple playback/reader engines, and Android/Windows/iOS platform integrations without coupling product rules to one framework or implementation.
+Hikari must support several media families, multiple replaceable content sources, persistent progress/library data, multiple playback/reader engines, and Android/Windows/iOS platform integrations without coupling product rules to one framework or implementation.
 
-A purely layer-first tree makes UI features easy to scatter across the repository. A purely feature-first tree makes shared domain concepts, providers, persistence, and engines easy to duplicate or couple to presentation concerns. A full Clean Architecture scaffold for every feature would add substantial ceremony before requirements justify it.
+A purely layer-first tree makes UI features easy to scatter across the repository. A purely feature-first tree makes shared domain concepts, sources, persistence, and engines easy to duplicate or couple to presentation concerns. A full Clean Architecture scaffold for every feature would add substantial ceremony before requirements justify it.
 
 The project therefore needs stable dependency boundaries without creating speculative files, packages, or abstractions.
 
@@ -45,14 +45,14 @@ core may be used only for genuinely cross-cutting primitives.
 Rules:
 
 1. `domain/` is pure Dart and must not import Flutter, database libraries, HTTP clients, media engines, or platform APIs.
-2. Repository/provider/engine contracts belong with the domain concept that needs them, not beside their implementation.
+2. Repository/source/engine contracts belong with the domain concept that needs them, not beside their implementation.
 3. `application/` owns cross-domain workflows and use cases. It can depend on domain contracts but not concrete infrastructure.
-4. `infrastructure/` owns external-system details such as persistence, HTTP, provider implementations, media engines, and platform adapters.
+4. `infrastructure/` owns external-system details such as persistence, HTTP, source implementations, media engines, and platform adapters.
 5. `features/` owns Flutter UI and presentation state, organized by user-facing feature. It can depend on application workflows and domain contracts, but never concrete infrastructure.
 6. `app/` is the composition root. It may know concrete implementations so it can wire the application, but it must not become a business-logic layer.
 7. `core/` is intentionally small. Generic `helpers`, `managers`, or dumping-ground utilities are not accepted without a demonstrated cross-cutting responsibility.
 8. Database records/DTOs are distinct from domain models and are mapped at the infrastructure boundary.
-9. Provider-specific types must not leak into application or UI contracts.
+9. Source-implementation-specific types must not leak into application or UI contracts.
 10. Use cases and value objects are introduced when they enforce real rules or coordinate real workflows, not one-per-operation by default.
 
 ### Repository implementation placement
@@ -70,7 +70,7 @@ infrastructure/
 └── repositories/
 ```
 
-### Source/provider model
+### Source model
 
 A content source can expose one or more capabilities. The source subsystem should favor capability-oriented contracts over assuming each source belongs permanently to exactly one media type. The exact capability API remains a Domain Core decision and is intentionally not scaffolded by this ADR.
 
@@ -79,7 +79,7 @@ A content source can expose one or more capabilities. The source subsystem shoul
 ### Positive
 
 - Domain and application behavior remain testable without Flutter or platform dependencies.
-- Storage, networking, provider runtimes, players, and native integrations can be replaced behind stable contracts.
+- Storage, networking, source runtimes, players, and native integrations can be replaced behind stable contracts.
 - UI remains feature-oriented without forcing shared infrastructure into feature folders.
 - Cross-repository workflows have an explicit home instead of accumulating inside widgets, state objects, or repositories.
 - The repository can grow incrementally instead of starting with a large empty Clean Architecture skeleton.

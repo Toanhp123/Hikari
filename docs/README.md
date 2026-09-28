@@ -9,9 +9,13 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | Document | Canonical responsibility | Read when |
 | --- | --- | --- |
 | `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
+| `AGENT_WORKFLOW.md` | Claude Code skill orchestration for Superpowers, Ponytail, Graphify, and UI UX Pro Max | Non-trivial coding, refactor, debugging, architecture, or UI work |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
-| `architecture/REMOTE_MANGA.md` | Remote manga hierarchy, MangaDex transport and stable identity | Working on search, chapter selection or remote page delivery |
+| `architecture/PRESENTATION.md` | View/ViewModel state ownership, UI dependency rules and player surface boundary | Working on feature UI/state or player presentation |
+| `architecture/SOURCES.md` | Capability contracts, SourceRegistry, application open workflows and source extension seam | Adding/refactoring a source or application workflow |
+| `architecture/REMOTE_MANGA.md` | Remote manga flow, external-source selection and generic source references | Working on search, chapter selection or remote page delivery |
+| `architecture/EXTENSIONS.md` | Android extension discovery, trust, ABI host, bridge and runtime limits | Working on installed manga extensions or native compatibility |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
 | `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing while active tracking needs its own document | Planning or tracking active implementation |
@@ -44,9 +48,9 @@ Examples:
 "Should Hikari support another media type?"
 → PROJECT_OVERVIEW.md
 
-"How should provider identity work?"
+"How should source identity work?"
 → PROJECT_OVERVIEW.md
-→ relevant domain/provider architecture docs
+→ relevant domain/source architecture docs
 → related ADRs
 
 "Fix a player regression"
@@ -80,11 +84,12 @@ It should not become an API reference or implementation plan.
 
 ```text
 architecture/
-├── DOMAIN.md
-├── PERSISTENCE.md
-├── PROVIDERS.md
-├── PLAYER.md
-└── READERS.md
+├── EXTENSIONS.md
+├── LOCAL_MEDIA.md
+├── PRESENTATION.md
+├── REMOTE_MANGA.md
+├── SOURCES.md
+└── USER_STATE.md
 ```
 
 Create a file only when that subsystem reaches a phase where its architecture is real enough to document.
@@ -117,7 +122,10 @@ Roadmap documents may change frequently. They should not become architectural au
 
 Workflow documents describe **how contributors/agents work**, not how Hikari's product behaves.
 
-`GIT_WORKFLOW.md` is currently the canonical workflow document.
+- `AGENT_WORKFLOW.md` owns Claude Code skill routing and orchestration.
+- `GIT_WORKFLOW.md` owns branches, commits, integration, verification policy, and patch/diff handling.
+
+Do not copy installed skill procedures into these documents; record only Hikari-specific routing and constraints.
 
 ## Documentation hygiene
 
@@ -136,21 +144,7 @@ If two documents appear to own the same fact, choose one canonical location and 
 
 ## Agent and skill workflow
 
-Repository instructions should stay small. Task procedures belong to installed skills when those skills already solve the problem.
-
-Preferred routing when available:
-
-```text
-development process     → Superpowers
-simplicity/YAGNI        → Ponytail
-large codebase mapping  → Graphify
-UI/UX/design system     → UI UX Pro Max
-current web research    → Firecrawl
-```
-
-Do not load every skill for every task. Invoke only relevant skills, and do not recreate installed skills inside the repository.
-
-See root `CLAUDE.md` for the complete routing and Definition of Done.
+Root `CLAUDE.md` contains the always-on routing rules. `AGENT_WORKFLOW.md` is the canonical project document for composing Superpowers, Ponytail, Graphify, and UI UX Pro Max. Installed skill procedures remain owned by those skills and should not be copied into Hikari docs.
 
 ## Current structure
 
@@ -160,16 +154,24 @@ Hikari/
 └── docs/
     ├── README.md
     ├── PROJECT_OVERVIEW.md
+    ├── AGENT_WORKFLOW.md
     ├── GIT_WORKFLOW.md
     ├── architecture/
+    │   ├── EXTENSIONS.md
     │   ├── LOCAL_MEDIA.md
-    │   ├── USER_STATE.md
-    │   └── REMOTE_MANGA.md
+    │   ├── PRESENTATION.md
+    │   ├── REMOTE_MANGA.md
+    │   ├── SOURCES.md
+    │   └── USER_STATE.md
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
         ├── ADR-002-foundation-v1.md
         ├── ADR-003-architecture-guardrails.md
-        └── ADR-004-user-state-persistence.md
+        ├── ADR-004-user-state-persistence.md
+        ├── ADR-005-application-source-registry.md
+        ├── ADR-006-presentation-state-and-player-boundary.md
+        ├── ADR-007-android-manga-extension-runtime.md
+        └── ADR-008-external-remote-provider-ownership.md
 ```
 
 Future `architecture/` and `roadmap/` documents are created incrementally only when the project has real knowledge or active execution state to store. Completed one-off plans should be removed after durable facts move to canonical architecture/product docs.

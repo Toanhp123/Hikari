@@ -7,8 +7,21 @@ abstract interface class MediaSource {
   String get name;
 }
 
-abstract interface class MediaSearchSource implements MediaSource {
+abstract interface class MediaSourceAvailability implements MediaSource {
+  bool get isAvailable;
+}
+
+abstract interface class MangaSearchSource implements MediaSource {
   Future<List<Media>> search(String query);
+}
+
+/// A source that can hand the current player a directly playable locator.
+///
+/// Sources that need episode discovery, stream selection, headers, DRM or other
+/// playback policy should introduce a richer capability instead of pretending to
+/// satisfy this direct contract.
+abstract interface class DirectVideoSource implements MediaSource {
+  String playbackLocator(SourceMediaRef media);
 }
 
 final class MangaChapter {

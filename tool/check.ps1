@@ -22,12 +22,15 @@ function Invoke-Step {
 
 Invoke-Step 'Resolve locked dependencies' { fvm flutter pub get --enforce-lockfile }
 Invoke-Step 'Check formatting' {
-    $dartFiles = @(git ls-files -- '*.dart')
+    $dartFiles = @(
+        git ls-files --cached --others --exclude-standard -- '*.dart' |
+            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+    )
     if ($LASTEXITCODE -ne 0) {
-        throw 'Could not enumerate tracked Dart files.'
+        throw 'Could not enumerate workspace Dart files.'
     }
     if ($dartFiles.Count -eq 0) {
-        Write-Host 'No tracked Dart files found.'
+        Write-Host 'No Dart files found.'
         return
     }
 
