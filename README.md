@@ -11,6 +11,7 @@ Start with the smallest document relevant to the task:
 - [`CLAUDE.md`](CLAUDE.md) — agent routing, skill usage, implementation rules, and Definition of Done.
 - [`docs/README.md`](docs/README.md) — documentation map and reading strategy.
 - [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) — product identity, scope, architecture principles, roadmap direction, and open decisions.
+- [`docs/AGENT_WORKFLOW.md`](docs/AGENT_WORKFLOW.md) — Claude Code orchestration for Superpowers, Ponytail, Graphify, and UI UX Pro Max.
 - [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md) — branch, commit, verification, and patch/diff workflow.
 
 Do not treat this README as the project specification; canonical project knowledge lives in `docs/`.

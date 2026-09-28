@@ -9,6 +9,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | Document | Canonical responsibility | Read when |
 | --- | --- | --- |
 | `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
+| `AGENT_WORKFLOW.md` | Claude Code skill orchestration for Superpowers, Ponytail, Graphify, and UI UX Pro Max | Non-trivial coding, refactor, debugging, architecture, or UI work |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
 | `architecture/PRESENTATION.md` | View/ViewModel state ownership, UI dependency rules and player surface boundary | Working on feature UI/state or player presentation |
@@ -121,7 +122,10 @@ Roadmap documents may change frequently. They should not become architectural au
 
 Workflow documents describe **how contributors/agents work**, not how Hikari's product behaves.
 
-`GIT_WORKFLOW.md` is currently the canonical workflow document.
+- `AGENT_WORKFLOW.md` owns Claude Code skill routing and orchestration.
+- `GIT_WORKFLOW.md` owns branches, commits, integration, verification policy, and patch/diff handling.
+
+Do not copy installed skill procedures into these documents; record only Hikari-specific routing and constraints.
 
 ## Documentation hygiene
 
@@ -140,21 +144,7 @@ If two documents appear to own the same fact, choose one canonical location and 
 
 ## Agent and skill workflow
 
-Repository instructions should stay small. Task procedures belong to installed skills when those skills already solve the problem.
-
-Preferred routing when available:
-
-```text
-development process     → Superpowers
-simplicity/YAGNI        → Ponytail
-large codebase mapping  → Graphify
-UI/UX/design system     → UI UX Pro Max
-current web research    → Firecrawl
-```
-
-Do not load every skill for every task. Invoke only relevant skills, and do not recreate installed skills inside the repository.
-
-See root `CLAUDE.md` for the complete routing and Definition of Done.
+Root `CLAUDE.md` contains the always-on routing rules. `AGENT_WORKFLOW.md` is the canonical project document for composing Superpowers, Ponytail, Graphify, and UI UX Pro Max. Installed skill procedures remain owned by those skills and should not be copied into Hikari docs.
 
 ## Current structure
 
@@ -164,6 +154,7 @@ Hikari/
 └── docs/
     ├── README.md
     ├── PROJECT_OVERVIEW.md
+    ├── AGENT_WORKFLOW.md
     ├── GIT_WORKFLOW.md
     ├── architecture/
     │   ├── EXTENSIONS.md
