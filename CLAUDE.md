@@ -11,7 +11,7 @@ This file is a **small always-on routing layer**, not the project specification 
 Use these files by scope:
 
 - `docs/PROJECT_OVERVIEW.md` — product identity, scope, capabilities, architecture principles, roadmap direction, decided vs undecided items.
-- `docs/AGENT_WORKFLOW.md` — how Hikari composes Superpowers, Ponytail, Graphify, and UI UX Pro Max for non-trivial work.
+- `docs/AGENT_WORKFLOW.md` — how Hikari composes Superpowers, Ponytail, Graphify, Firecrawl, and UI UX Pro Max for non-trivial work.
 - `docs/GIT_WORKFLOW.md` — branches, commits, merge policy, verification, patch/diff rules.
 - `docs/README.md` — documentation map and ownership rules.
 - `docs/architecture/` — current subsystem architecture.
@@ -54,14 +54,15 @@ Every changed line should trace to the requested outcome or to cleanup directly 
 
 ## Skill orchestration
 
-Hikari intentionally uses four installed skill families:
+Hikari intentionally uses five installed skill families:
 
 - **Superpowers** — development process and task workflow;
 - **Ponytail** — YAGNI, scope control, dependency restraint, and simplification;
-- **Graphify** — cross-cutting codebase/architecture understanding;
+- **Graphify** — internal repository structure, dependency/call-flow, and blast-radius navigation;
+- **Firecrawl** — external technical, upstream, documentation, and multi-source research;
 - **UI UX Pro Max** — UI/UX design evidence and interface review.
 
-Do **not** invoke all four by default. Invoke only the skills that materially apply, and let the active skill own its internal procedure instead of duplicating it here.
+Do **not** invoke all five by default. Invoke only the skills that materially apply, and let the active skill own its internal procedure instead of duplicating it here.
 
 For non-trivial code, design, refactor, or debugging tasks, read `docs/AGENT_WORKFLOW.md` before making edits.
 
@@ -70,10 +71,19 @@ For non-trivial code, design, refactor, or debugging tasks, read `docs/AGENT_WOR
 When multiple skills apply, use this order:
 
 1. **Superpowers process skill** chooses how the task is approached (`brainstorming`, `systematic-debugging`, planning, etc.).
-2. **Graphify and/or UI UX Pro Max** provide specialized understanding or design evidence when the task needs them.
+2. **Graphify, Firecrawl, and/or UI UX Pro Max** provide specialized repository, external, or interface evidence when the task needs them.
 3. **Ponytail** constrains the proposed solution before implementation.
 4. **Superpowers execution/TDD** carries out the self-reviewed change without an approval pause.
 5. **Review + verification** close the task; Ponytail may run again as a simplification pass after correctness is established.
+
+### Evidence routing gates
+
+Use the specialized evidence route before generic fallback tools when its trigger is met:
+
+- when a current Graphify graph exists and the task involves cross-cutting ownership, dependency/call-flow, architecture, removal of a shared concept, or blast-radius analysis, run a scoped Graphify query before repeated broad `Grep`/`Glob`/raw-file exploration; then verify consequential conclusions in source and tests;
+- when the task needs current external technical/upstream evidence or multi-source web research, use Firecrawl first; prefer developer search for developer evidence, search for discovery, scrape for a known URL, map + scrape for a known site with an unknown page, and crawl only when multiple pages are actually needed;
+- direct targeted `Read`/`Grep` is preferred when the exact owning file/symbol is already known and the task is localized;
+- native web search/fetch is a fallback when Firecrawl is unavailable, fails, or a trivial known-page read is materially simpler. Do not duplicate retrieval when Firecrawl already returned sufficient evidence.
 
 Project/user constraints override optional skill advice. In particular, Hikari's autonomous E2E policy overrides Superpowers approval/checkpoint pauses, while Git and destructive-action restrictions remain binding. Do not let a skill silently create branches, worktrees, commits, pushes, merges, or persistent skill-generated artifacts that are not part of the requested deliverable. A new dependency may be added autonomously only when a verified requirement needs it, Ponytail finds no simpler existing option, and the change is documented and verified.
 
@@ -93,7 +103,8 @@ Examples:
 - Git/branch/commit/PR work → `docs/GIT_WORKFLOW.md`;
 - source/extension work → relevant source/extension architecture docs + ADRs;
 - UI work → relevant product/presentation docs + UI UX Pro Max;
-- broad dependency/call-flow question → Graphify first when a usable graph exists, then targeted source files;
+- broad dependency/call-flow or blast-radius question → Graphify first when a usable graph exists, then targeted source files;
+- external technical/upstream or multi-source research → Firecrawl first, then inspect only the sources needed for the decision;
 - localized change with obvious ownership → targeted files/tests only; do not build a graph or load unrelated docs.
 
 Repository source and tests remain authoritative for current behavior. Graphs, summaries, generated recommendations, and chat history are navigation aids, not substitutes for verifying the actual files.
@@ -151,3 +162,13 @@ Do not commit directly to `main` or `dev` for normal feature work.
 Do not create/switch/delete branches, create worktrees, commit, push, merge, or rewrite history unless the user has asked for that action.
 
 Every code/file modification must be reviewable as a diff/patch.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

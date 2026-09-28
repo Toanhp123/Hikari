@@ -8,12 +8,13 @@ Installed skills remain the authority for their internal procedures **except whe
 
 ## 1. Operating model
 
-Hikari uses four complementary skill families:
+Hikari uses five complementary skill families:
 
 | Skill family | Role in Hikari | Use when | Skip when |
 | --- | --- | --- | --- |
 | **Superpowers** | Primary process framework | feature design, debugging, planning, TDD, execution, review, verification, branch completion | no matching process skill materially applies |
-| **Graphify** | Structural/codebase map | architecture, dependency/call-flow, broad refactors, unfamiliar cross-cutting code | small localized task already understood from targeted files |
+| **Graphify** | Internal repository navigation | architecture, dependency/call-flow, blast radius, broad refactors, unfamiliar cross-cutting code | small localized task already understood from targeted files |
+| **Firecrawl** | External research layer | current technical/upstream research, developer ecosystem evidence, documentation discovery, multi-source web research | repository evidence is sufficient or no external evidence is needed |
 | **UI UX Pro Max** | Design/UX evidence | screen/component design, visual hierarchy, interaction, accessibility, responsive/adaptive behavior | pure domain, persistence, networking, tooling, non-visual work |
 | **Ponytail** | Complexity and scope gate | code changes, refactors, architecture/dependency choices, simplification review | a no-code task where complexity control is irrelevant |
 
@@ -23,7 +24,7 @@ The skills are **not peers to run in parallel by default**. Treat them as layers
 Superpowers process
         ↓
 context/domain evidence
-(Graphify / UI UX Pro Max when relevant)
+(Graphify / Firecrawl / UI UX Pro Max when relevant)
         ↓
 Ponytail scope + complexity gate
         ↓
@@ -123,33 +124,67 @@ Typical routing:
 - Do not stop just because hidden complexity upgrades a Superpowers path. Reclassify, update the design/plan, self-review the new artifact, and keep going unless the new information triggers a real pause condition.
 - A review skill does not replace verification. A verification skill does not replace review.
 
-## 5. Graphify is a map, not evidence of behavior
+## 5. Graphify is the repository navigation layer, not evidence of behavior
 
-Use Graphify before broad raw-file exploration when the task needs architectural or cross-cutting understanding.
+Use Graphify **before** broad raw-file exploration when a current graph exists and the task needs architectural or cross-cutting understanding. The point is to narrow the search surface first, not to replace source verification.
 
 ### Use Graphify when
 
-- ownership is unclear across several directories;
+- ownership is unclear across several directories or layers;
 - tracing dependencies, call flow, or central nodes;
 - planning a broad refactor or architecture change;
 - understanding an unfamiliar subsystem where grep-by-keyword would produce noisy context;
-- checking blast radius before moving/removing a shared abstraction.
+- checking blast radius before moving/removing a shared abstraction or concept.
 
-### Graph-first behavior
+### Graph-first routing gate
 
-If `graphify-out/GRAPH_REPORT.md` or an equivalent current graph exists and the task is cross-cutting:
+If `graphify-out/graph.json`, `graphify-out/GRAPH_REPORT.md`, or an equivalent current graph exists and any trigger above applies, query Graphify **before repeated broad `Grep`/`Glob`/raw-file exploration**.
 
-1. read/query the graph first;
-2. use it to identify the smallest set of likely source files;
-3. verify important conclusions in the actual code/tests before editing.
+Choose the smallest graph operation that fits:
 
-If the graph is stale relative to relevant working-tree changes, update it before relying on it for an architecture conclusion. Do not rebuild a graph for a one-file/localized task solely to satisfy process.
+- `graphify query "<question>"` — broad relationship, ownership, dependency, or blast-radius question;
+- `graphify explain "<concept>"` — understand one concept/node in context;
+- `graphify path "<A>" "<B>"` — trace the connection between two concepts.
 
-Graphify output can contain inferred relationships. Treat it as navigation and hypothesis generation; source code, tests, and accepted docs remain authoritative.
+Then:
 
-Do not add Graphify hooks or generated graph artifacts to the project as a side effect of an unrelated task.
+1. use the graph result to identify the smallest candidate file/symbol set;
+2. inspect those source files/tests directly;
+3. use targeted `Grep` only to verify exact references or stale leftovers;
+4. do not restart repository-wide grep unless the graph is missing, stale, sparse, or insufficient for the question.
 
-## 6. UI UX Pro Max is design evidence, not a replacement for Hikari context
+Direct `Read`/`Grep` is preferred when the exact owning file/symbol is already known and the task is localized. Do not invoke Graphify solely to satisfy ceremony.
+
+If the graph is stale relative to relevant working-tree changes, update it before relying on it for an architecture conclusion when doing so is safe and proportionate. If Graphify is unavailable or its result is insufficient, fall back to targeted source exploration and state the fallback when it affects confidence.
+
+Graphify output can contain inferred relationships. Treat it as navigation and hypothesis generation; source code, tests, and accepted docs remain authoritative. Project-level Graphify integration/hooks may be installed deliberately as a workflow setup task, but unrelated implementation tasks must not mutate hooks or generated graph artifacts as a side effect.
+
+## 6. Firecrawl is the external research layer
+
+Use Firecrawl when a task needs evidence outside the Hikari repository, especially current technical/upstream information or multiple external sources. Do not invoke external research when repository docs, source, and tests already answer the question.
+
+### Use Firecrawl when
+
+- researching a framework, package, API, tool, upstream project, or current best practice;
+- comparing approaches across external projects or documentation;
+- locating relevant pages or documentation when the exact URL is not known;
+- gathering several external sources before making a consequential technical recommendation.
+
+### Firecrawl-first routing
+
+Choose the smallest Firecrawl operation that fits:
+
+- developer search — programming/library/framework questions, upstream repositories, issues, merged PRs, READMEs, and developer documentation;
+- search — broad web discovery or multi-source research when no exact URL is known;
+- scrape — retrieve one known URL;
+- map + scrape — locate the relevant page inside a known site, then read only that page;
+- crawl — collect multiple pages from one site only when the task genuinely needs site-wide or section-wide coverage.
+
+Start search with the actual question and constraints. Reuse content already returned by a search/scrape operation instead of fetching the same page again. Prefer primary/upstream documentation and repository evidence over secondary summaries for consequential technical claims.
+
+Native web search/fetch is a fallback, not the default research route, when Firecrawl is available and the task matches the triggers above. Use the native tools when Firecrawl is unavailable or fails, or when a trivial known-page read is materially simpler. Do not duplicate a Firecrawl research pass with generic web search merely for ceremony.
+
+## 7. UI UX Pro Max is design evidence, not a replacement for Hikari context
 
 Use UI UX Pro Max when the task changes how Hikari looks, feels, moves, or is operated.
 
@@ -172,7 +207,7 @@ Prefer targeted searches/review for the actual problem (layout, typography, inte
 
 After UI implementation, use UI UX Pro Max again when useful as a focused UX/accessibility/consistency review. Visual recommendations still require verification against the actual Flutter implementation and, when available, device/screenshot evidence.
 
-## 7. Ponytail is the complexity gate
+## 8. Ponytail is the complexity gate
 
 Ponytail protects Hikari from speculative code and architecture drift. Use it as a scope/complexity constraint, not as permission to weaken required behavior.
 
@@ -207,7 +242,7 @@ For substantial diffs, refactors, or cleanup tasks, run a simplification review 
 
 Do not use it as a substitute for normal code review. If simplification changes code after tests/review, rerun the relevant verification.
 
-## 8. Task recipes
+## 9. Task recipes
 
 These recipes define orchestration only. Follow the invoked skill's current instructions for the detailed procedure.
 
@@ -219,6 +254,7 @@ Superpowers brainstorming
 relevant docs + targeted code
         ↓
 Graphify if cross-cutting
+Firecrawl if external evidence materially informs the design
 UI UX Pro Max if interface-facing
         ↓
 Ponytail scope gate
@@ -303,7 +339,8 @@ brainstorming
         ↓
 current docs + implementation evidence
         ↓
-Graphify for structure/blast radius
+Graphify for internal structure/blast radius
+Firecrawl when upstream/library/other-project evidence is needed
         ↓
 Ponytail for YAGNI/dependency challenge
         ↓
@@ -318,10 +355,11 @@ Do not implement a speculative architecture merely to make a future option easie
 
 For a localized documentation correction, use direct targeted inspection and self-review. Do not invoke code-oriented skills just to satisfy ceremony. Use the fuller workflow when documentation changes architecture, workflow policy, or project-wide agent behavior.
 
-## 9. Keep context and tool use proportional
+## 10. Keep context and tool use proportional
 
 - Do not read the entire repository or `docs/` tree by default.
 - Do not invoke Graphify when targeted code inspection is already sufficient.
+- Do not invoke Firecrawl when repository evidence is sufficient or no external evidence is needed.
 - Do not run UI UX Pro Max for non-visual work.
 - Do not create plans for obvious one-step edits unless a skill's active procedure requires one; if it does, keep the artifact minimal and do not turn it into an approval pause.
 - Do not launch subagents merely because they are available.
@@ -330,7 +368,7 @@ For a localized documentation correction, use direct targeted inspection and sel
 
 The goal is not maximum process. The goal is the **smallest process that reliably produces a correct, reviewable result**.
 
-## 10. Completion sequence
+## 11. Completion sequence
 
 For a non-trivial file/code task, close in this order:
 
@@ -346,7 +384,7 @@ For a non-trivial file/code task, close in this order:
 
 A green test run does not excuse an out-of-scope diff, and a clean diff does not excuse missing verification.
 
-## 11. When a skill is missing or fails
+## 12. When a skill is missing or fails
 
 If a named skill is unavailable or cannot run:
 
