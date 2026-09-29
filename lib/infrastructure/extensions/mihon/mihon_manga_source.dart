@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import 'package:hikari/infrastructure/persistence/user_database.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/reading.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_extension_gateway.dart';
 

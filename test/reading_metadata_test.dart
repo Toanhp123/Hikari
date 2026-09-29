@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/reading.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 
 void main() {

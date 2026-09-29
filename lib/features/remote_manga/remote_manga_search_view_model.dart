@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/reading.dart';
+import 'package:hikari/domain/media/manga.dart';
 
 sealed class RemoteMangaSearchUiState {
   const RemoteMangaSearchUiState();

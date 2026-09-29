@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'dart:typed_data';
 
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/reading/media_metadata_view.dart';
 
 class MangaChapterPage extends StatefulWidget {

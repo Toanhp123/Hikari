@@ -4,7 +4,9 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
-import 'package:hikari/domain/media/reading.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 
 final class PublicationSection {

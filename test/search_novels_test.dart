@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
-import 'package:hikari/domain/media/reading.dart';
 import 'package:hikari/domain/media/source.dart';
 
 void main() {

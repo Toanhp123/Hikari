@@ -6,7 +6,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
-import 'package:hikari/domain/media/reading.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
 import 'package:hikari/infrastructure/reading/safe_html.dart';
 import 'package:xml/xml.dart';

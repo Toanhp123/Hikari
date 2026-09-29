@@ -1,6 +1,6 @@
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/reading.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/source.dart';
 
 final class MangaSearchOption {

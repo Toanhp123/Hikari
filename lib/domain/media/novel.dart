@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/reading.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 
 final class NovelChapter {
@@ -78,4 +78,8 @@ abstract interface class NovelSeriesSource implements MediaSource {
 abstract interface class NovelChapterSource implements MediaSource {
   Future<NovelChapterContent> chapterContent(SourceMediaRef chapter);
   Future<Uint8List> readResource(SourceMediaRef resource);
+}
+
+abstract interface class NovelTextSource implements MediaSource {
+  Future<String> readText(SourceMediaRef media);
 }

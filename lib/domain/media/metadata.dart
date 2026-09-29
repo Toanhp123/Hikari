@@ -43,22 +43,3 @@ final class MediaMetadata {
   /// Source-declared upper bound; null means the scale is unknown.
   final double? ratingMax;
 }
-
-final class MangaPreview {
-  const MangaPreview({required this.media, this.metadata});
-
-  final Media media;
-  final MediaMetadata? metadata;
-}
-
-final class MangaSearchPage {
-  const MangaSearchPage({
-    required this.results,
-    required this.hasNextPage,
-    required this.page,
-  }) : assert(page > 0);
-
-  final List<MangaPreview> results;
-  final bool hasNextPage;
-  final int page;
-}
