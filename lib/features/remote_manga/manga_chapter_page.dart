@@ -4,21 +4,19 @@ import 'dart:typed_data';
 
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
-import 'package:hikari/features/remote_manga/media_metadata_view.dart';
+import 'package:hikari/features/reading/media_metadata_view.dart';
 
 class MangaChapterPage extends StatefulWidget {
   const MangaChapterPage({
     super.key,
     required this.title,
     required this.sourceName,
-    this.loadChapters,
-    this.loadDetails,
+    required this.loadDetails,
     this.readArtwork,
     required this.openChapter,
   });
   final String title, sourceName;
-  final Future<List<MangaChapter>> Function()? loadChapters;
-  final Future<MangaSeriesDetails> Function()? loadDetails;
+  final Future<MangaSeriesDetails> Function() loadDetails;
   final Future<Uint8List> Function(SourceMediaRef)? readArtwork;
   final Future<void> Function(BuildContext, MangaChapter) openChapter;
   @override
@@ -30,12 +28,9 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
   bool _isOpeningChapter = false;
   MangaSeriesDetails? _details;
   Future<List<MangaChapter>> _load() async {
-    if (widget.loadDetails != null) {
-      final details = await widget.loadDetails!();
-      _details = details;
-      return details.chapters;
-    }
-    return widget.loadChapters!();
+    final details = await widget.loadDetails();
+    _details = details;
+    return details.chapters;
   }
 
   @override
@@ -103,19 +98,15 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                   );
                 }
                 final chapters = snapshot.data!;
-                if (chapters.isEmpty && _details == null) {
-                  return const Center(
-                    child: Text('No readable chapters found.'),
-                  );
-                }
+                final details = _details!;
                 return ListView.builder(
-                  itemCount: chapters.length + (_details == null ? 0 : 1),
+                  itemCount: chapters.length + 1,
                   itemBuilder: (context, index) {
-                    if (_details != null && index == 0) {
+                    if (index == 0) {
                       return Column(
                         children: [
                           MediaMetadataView(
-                            metadata: _details!.metadata,
+                            metadata: details.metadata,
                             sourceName: widget.sourceName,
                             readArtwork: widget.readArtwork,
                           ),
@@ -124,8 +115,7 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                         ],
                       );
                     }
-                    final chapter =
-                        chapters[index - (_details == null ? 0 : 1)];
+                    final chapter = chapters[index - 1];
                     final subtitle = <String>[
                       chapter.scanlator ?? widget.sourceName,
                       if (chapter.chapterNumber != null)

@@ -4,7 +4,7 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/library/library_page.dart';
-import 'package:hikari/features/remote_manga/media_metadata_view.dart';
+import 'package:hikari/features/reading/media_metadata_view.dart';
 
 class NovelChapterPage extends StatefulWidget {
   const NovelChapterPage({

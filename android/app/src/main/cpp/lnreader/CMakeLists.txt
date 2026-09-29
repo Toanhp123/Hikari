@@ -16,7 +16,17 @@ target_include_directories(hikari_quickjs PUBLIC ${quickjs_SOURCE_DIR} ${CMAKE_C
 target_compile_definitions(hikari_quickjs PRIVATE _GNU_SOURCE CONFIG_VERSION="2025-09-13")
 set_target_properties(hikari_quickjs PROPERTIES POSITION_INDEPENDENT_CODE ON C_VISIBILITY_PRESET hidden)
 target_link_libraries(hikari_quickjs PUBLIC m)
-add_library(hikari_lnreader SHARED jni.c)
-target_link_libraries(hikari_lnreader hikari_quickjs)
-add_executable(hikari_runtime_test runtime_test.c)
-target_link_libraries(hikari_runtime_test hikari_quickjs)
+
+if(ANDROID)
+  add_library(hikari_lnreader SHARED jni.c)
+  target_link_libraries(hikari_lnreader hikari_quickjs)
+else()
+  enable_testing()
+  add_executable(hikari_runtime_test runtime_test.c)
+  target_link_libraries(hikari_runtime_test hikari_quickjs)
+  add_test(
+    NAME hikari_runtime_test
+    COMMAND hikari_runtime_test
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/lnreader/host.js"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tool/lnreader/contract.js")
+endif()

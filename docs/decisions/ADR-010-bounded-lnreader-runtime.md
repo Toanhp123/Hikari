@@ -35,11 +35,12 @@ packages actually linked into host.js. Unimplemented modules are rejected.
 No live provider is shipped. An explicitly enabled debug fixture exercises the
 source-to-reader route without claiming production provider support.
 
-Native Android executable tests exercise actual QuickJS timeout, heap/stack
+Host-native CTest execution in CI exercises actual QuickJS timeout, heap/stack
 exhaustion, pending promises, module denial and the actual bundled parser/date/
-fetch/storage/URL contract. Dart tests separately exercise normalized metadata,
-paginated chapters and duplicate rejection. These tests do not substitute for
-real-provider compatibility or comprehensive host-network security tests.
+fetch/storage/URL contract. The Android debug build separately compiles the JNI
+integration against the NDK. Dart tests exercise normalized metadata, paginated
+chapters and duplicate rejection. These tests do not substitute for real-provider
+compatibility or comprehensive host-network security tests.
 
 ## Consequences
 
