@@ -51,11 +51,16 @@ final class SearchManga {
 
     final result = await source.search(normalizedQuery, page: page);
     if (result.page != page) {
-      throw StateError('Manga search source $sourceId returned an invalid page.');
+      throw StateError(
+        'Manga search source $sourceId returned an invalid page.',
+      );
     }
     for (final preview in result.results) {
       final media = preview.media;
-      if (media.type != MediaType.manga || media.source.sourceId != source.id) {
+      if (media.type != MediaType.manga ||
+          media.source.sourceId != source.id ||
+          (preview.metadata?.cover != null &&
+              preview.metadata!.cover!.sourceId != source.id)) {
         throw StateError(
           'Manga search source $sourceId returned an invalid item.',
         );

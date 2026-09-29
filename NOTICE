@@ -1,0 +1,63 @@
+Hikari third-party attribution audit
+
+LNReader compatibility
+----------------------
+The adapter follows LNReader's published PluginBase / PagePlugin interface:
+https://github.com/lnreader/lnreader-plugins/blob/master/src/types/plugin.ts
+LNReader plugins repository is MIT, copyright (c) 2021 Rajarshee Chatterjee.
+No upstream provider plugin is redistributed in this change. The opt-in
+contract fixture was authored for Hikari and is not a live catalogue.
+
+QuickJS 2025-09-13 (upstream archive quickjs-2025-09-13-2.tar.xz)
+https://bellard.org/quickjs/
+Copyright (c) 2017-2021 Fabrice Bellard
+Copyright (c) 2017-2021 Charlie Gordon
+MIT license text ships in android/app/src/main/assets/lnreader/QUICKJS_LICENSE.txt.
+The native source archive is fetched with a pinned SHA-256 by CMake.
+
+Bundled JavaScript
+------------------
+Cheerio 1.0.0 (slim/htmlparser2 parser), Day.js 1.11.13, and their bundled
+transitive dependencies are locked in tool/lnreader/package-lock.json.
+Exact included package versions, copyright notices and full license texts
+are generated from the esbuild input graph into:
+android/app/src/main/assets/lnreader/THIRD_PARTY_LICENSES.txt
+That file ships alongside host.js in the APK. Build-only esbuild is not
+redistributed in the app. boolbase 1.0.0 omits its ISC license file from npm;
+its upstream license is retained at tool/lnreader/licenses/boolbase.txt.
+
+Existing Android manga compatibility host audit boundary
+------------------------------------------------------
+Scope inspected: all 22 Kotlin files under android/app/src/main/kotlin/eu/
+kanade/tachiyomi (AppInfo, network helpers/interceptors, source contracts,
+models and HttpSource). Git introduction is commit
+ ae872dc51d1780839176cf1762cbcb3d2e9a3e4b
+ feat(extensions): add Android manga extension runtime.
+None of these 22 local files contains Copyright/SPDX/Licensed/provenance
+headers. The introducing commit identifies no exact upstream revisions.
+EXTENSIONS.md names Keiyoushi extension-lib and Katari as ABI/reference sources.
+Upstream licenses retrieved 2026-09-29 via Firecrawl:
+- https://raw.githubusercontent.com/keiyoushi/extensions-lib/master/LICENSE
+  Apache License 2.0.
+- https://raw.githubusercontent.com/pa2x2/katari/main/LICENSE
+  Apache License 2.0.
+- https://raw.githubusercontent.com/mihonapp/mihon/main/LICENSE
+  Apache License 2.0.
+These establish project-level license evidence, NOT proof that every local
+file was independently authored or copied from a particular revision.
+Unresolved release action: map each of the 22 files to its actual source
+revision/authorship, retain applicable copyright/NOTICE text, and mark
+modified derived files. Specifically HttpSource.kt, OkHttpExtensions.kt,
+Requests.kt, models/*.kt and network/interceptor/HostInterceptors.kt must
+not be assumed provenance-cleared merely from matching ABI names.
+No license headers were fabricated and no code was rewritten to evade
+possible obligations.
+
+Existing dependency quickjs-java 547f5b1597 is Apache-2.0 (Square, Inc.), with
+MIT QuickJS C code. Existing Mihon/Keiyoushi-compatible host contains ABI
+compatibility implementations; this change does not establish provenance
+or license compliance for every pre-existing compatibility implementation
+or its full transitive Android dependency tree. Do not treat this notice
+as a complete distribution clearance for that pre-existing subsystem.
+See docs/architecture/EXTENSIONS.md for upstream references. No root
+project license is invented or assigned by this audit.

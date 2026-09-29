@@ -1,0 +1,1 @@
+{"name":"hikari-lnreader-host","private":true,"version":"1.0.0","scripts":{"build":"node build.mjs"},"dependencies":{"cheerio":"1.0.0","dayjs":"1.11.13"},"devDependencies":{"esbuild":"0.25.10"}}

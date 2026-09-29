@@ -315,14 +315,18 @@ Map<Object?, Object?> _map(Object? value) {
 
 String _string(Map<Object?, Object?> map, String key) {
   final value = map[key];
-  if (value is! String) throw StateError('Extension runtime returned an invalid $key.');
+  if (value is! String) {
+    throw StateError('Extension runtime returned an invalid $key.');
+  }
   return value;
 }
 
 String? _optionalString(Map<Object?, Object?> map, String key) {
   final value = map[key];
   if (value == null) return null;
-  if (value is! String) throw StateError('Extension runtime returned an invalid $key.');
+  if (value is! String) {
+    throw StateError('Extension runtime returned an invalid $key.');
+  }
   return value;
 }
 
@@ -337,23 +341,30 @@ List<String> _strings(Map<Object?, Object?> map, String key) {
 
 bool _bool(Map<Object?, Object?> map, String key) {
   final value = map[key];
-  if (value is! bool) throw StateError('Extension runtime returned an invalid $key.');
+  if (value is! bool) {
+    throw StateError('Extension runtime returned an invalid $key.');
+  }
   return value;
 }
 
 double? _optionalDouble(Map<Object?, Object?> map, String key) {
   final value = map[key];
   if (value == null) return null;
-  if (value is! num) throw StateError('Extension runtime returned an invalid $key.');
+  if (value is! num) {
+    throw StateError('Extension runtime returned an invalid $key.');
+  }
   return value.toDouble();
 }
 
 int? _optionalInt(Map<Object?, Object?> map, String key) {
   final value = map[key];
   if (value == null) return null;
-  if (value is! int) throw StateError('Extension runtime returned an invalid $key.');
+  if (value is! int) {
+    throw StateError('Extension runtime returned an invalid $key.');
+  }
   return value;
 }
 
-int _int(Map<Object?, Object?> map, String key) => _optionalInt(map, key) ??
+int _int(Map<Object?, Object?> map, String key) =>
+    _optionalInt(map, key) ??
     (throw StateError('Extension runtime returned an invalid $key.'));

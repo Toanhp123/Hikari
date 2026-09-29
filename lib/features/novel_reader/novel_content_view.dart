@@ -12,8 +12,10 @@ class NovelContentView extends StatelessWidget {
     required this.content,
     required this.readResource,
     this.onTapLink,
+    this.htmlKey,
   });
 
+  final GlobalKey<HtmlWidgetState>? htmlKey;
   final NovelChapterContent content;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
   final Future<bool> Function(String)? onTapLink;
@@ -21,6 +23,7 @@ class NovelContentView extends StatelessWidget {
   @override
   Widget build(BuildContext context) => HtmlWidget(
     content.html,
+    key: htmlKey,
     factoryBuilder: _SourceWidgetFactory.new,
     customWidgetBuilder: (element) {
       if (element.localName != 'img') return null;
@@ -50,7 +53,11 @@ class _SourceWidgetFactory extends WidgetFactory {
 }
 
 class _SourceImage extends StatefulWidget {
-  const _SourceImage({required this.resource, required this.readResource, required this.label});
+  const _SourceImage({
+    required this.resource,
+    required this.readResource,
+    required this.label,
+  });
 
   final SourceMediaRef resource;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
@@ -78,16 +85,28 @@ class _SourceImageState extends State<_SourceImage> {
       if (snapshot.hasError) return _error();
       final bytes = snapshot.data;
       if (bytes == null) {
-        return const SizedBox(height: 96, child: Center(child: CircularProgressIndicator()));
+        return const SizedBox(
+          height: 96,
+          child: Center(child: CircularProgressIndicator()),
+        );
       }
-      return Image.memory(bytes, semanticLabel: widget.label, fit: BoxFit.contain,
+      return Image.memory(
+        bytes,
+        semanticLabel: widget.label,
+        fit: BoxFit.contain,
         errorBuilder: (_, _, _) => _error(),
       );
     },
   );
 
-  Widget _error() => Column(mainAxisSize: MainAxisSize.min, children: [
-    const Text('Could not load illustration.'),
-    TextButton(onPressed: () => setState(() => _bytes = _read()), child: const Text('Retry illustration')),
-  ]);
+  Widget _error() => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const Text('Could not load illustration.'),
+      TextButton(
+        onPressed: () => setState(() => _bytes = _read()),
+        child: const Text('Retry illustration'),
+      ),
+    ],
+  );
 }

@@ -6,12 +6,14 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.github.toanhp123.hikari.extensions.mihon.MihonExtensionChannel
 
 class MainActivity : FlutterActivity() {
+    private var lnReader: io.github.toanhp123.hikari.extensions.lnreader.LnReaderChannel? = null
     private var localMedia: LocalMediaChannel? = null
     private var mihonExtensions: MihonExtensionChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
+        lnReader = io.github.toanhp123.hikari.extensions.lnreader.LnReaderChannel(this, messenger)
         localMedia = LocalMediaChannel(this, messenger)
         mihonExtensions = MihonExtensionChannel(this, messenger)
     }
@@ -23,6 +25,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        lnReader?.close()
+        lnReader = null
         localMedia?.close()
         localMedia = null
         mihonExtensions?.close()

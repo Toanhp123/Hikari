@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
@@ -30,6 +31,9 @@ final class PublicationReaderPage extends StatefulWidget {
 final class _PublicationReaderPageState extends State<PublicationReaderPage>
     with WidgetsBindingObserver {
   final _scroll = ScrollController();
+  final _htmlKey = GlobalKey<HtmlWidgetState>();
+  Future<void> _saving = Future.value();
+  int _request = 0;
   Timer? _debounce;
   Publication? _book;
   NovelChapterContent? _content;
@@ -41,6 +45,7 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
   bool _loading = true;
   bool _completed = false;
   (String, double, bool)? _lastSaved;
+  (String, double, bool)? _pendingSave;
 
   @override
   void initState() {
@@ -92,9 +97,15 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
     }
   }
 
-  Future<void> _loadSection(String resource, {bool restore = false}) async {
+  Future<void> _loadSection(
+    String resource, {
+    bool restore = false,
+    String? fragment,
+  }) async {
     final book = _book;
     if (book == null) return;
+    final request = ++_request;
+    _restored = false;
     setState(() {
       _loading = true;
       _error = null;
@@ -102,27 +113,36 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
       _resource = resource;
     });
     try {
-      final content = await widget.source.readSection(widget.publication, resource);
-      if (!mounted || _resource != resource) return;
+      final content = await widget.source.readSection(
+        widget.publication,
+        resource,
+      );
+      if (!mounted || request != _request) return;
       setState(() {
         _content = content;
         _loading = false;
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _resource != resource || !_scroll.hasClients) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted || request != _request || !_scroll.hasClients) return;
         final position = widget.initialProgress?.position;
-        final progression = restore && position is DocumentPosition &&
+        final progression =
+            restore &&
+                position is DocumentPosition &&
                 position.resource == resource
             ? position.progression ?? 0
             : 0;
         _scroll.jumpTo(progression * _scroll.position.maxScrollExtent);
+        if (fragment != null && fragment.isNotEmpty) {
+          await _htmlKey.currentState?.scrollToAnchor(fragment);
+          if (!mounted || request != _request || !_scroll.hasClients) return;
+        }
         _progression = _currentProgression();
         _completed = _index == book.spine.length - 1 && _atEnd();
         _restored = true;
-        _lastSaved = (resource, _progression, _completed);
+        if (restore) _lastSaved = (resource, _progression, _completed);
       });
     } catch (error) {
-      if (!mounted || _resource != resource) return;
+      if (!mounted || request != _request) return;
       setState(() {
         _error = error;
         _loading = false;
@@ -145,47 +165,62 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
 
   bool _atEnd() => _currentProgression() >= 0.999;
 
-  Future<void> _flush() async {
+  Future<void> _flush() {
     _debounce?.cancel();
     final resource = _resource;
-    if (!_restored || resource == null || _content == null) return;
-    final value = (resource, _progression, _completed);
-    if (_lastSaved == value) return;
-    _lastSaved = value;
-    try {
-      await widget.saveProgress?.call(
-        DocumentPosition(resource: resource, progression: _progression),
-        _completed,
-      );
-    } catch (_) {
-      _lastSaved = null;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save reading progress.')),
-        );
-      }
+    if (_restored && resource != null && _content != null) {
+      _pendingSave = (resource, _progression, _completed);
     }
+    final value = _pendingSave;
+    if (value == null) return _saving;
+    final save = widget.saveProgress;
+    return _saving = _saving.then((_) async {
+      if (_lastSaved == value || save == null) return;
+      try {
+        await save(
+          DocumentPosition(resource: value.$1, progression: value.$2),
+          value.$3,
+        );
+        _lastSaved = value;
+        if (_pendingSave == value) _pendingSave = null;
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not save reading progress.')),
+          );
+        }
+      }
+    });
   }
 
-  Future<void> _select(int index) async {
+  Future<void> _select(int index, {String? fragment}) async {
     final book = _book;
     if (book == null || index < 0 || index >= book.spine.length) return;
     await _flush();
+    if (!mounted) return;
+    if (_index == index && _content != null && fragment != null) {
+      await _htmlKey.currentState?.scrollToAnchor(fragment);
+      return;
+    }
     setState(() => _index = index);
-    _restored = false;
-    await _loadSection(book.spine[index].resource);
+    await _loadSection(book.spine[index].resource, fragment: fragment);
   }
 
   Future<bool> _tapLink(String url) async {
+    if (url.startsWith('#')) {
+      return false; // HtmlWidget owns same-document anchors.
+    }
     final uri = Uri.tryParse(url);
     if (uri == null || uri.hasScheme || uri.host.isNotEmpty) return false;
     final book = _book;
     if (book == null) return false;
-    final target = uri.path.isEmpty ? _resource : uri.path;
-    final index = book.spine.indexWhere((section) => section.resource == target);
+    final target = uri.path.isEmpty ? _resource : Uri.decodeComponent(uri.path);
+    final index = book.spine.indexWhere(
+      (section) => section.resource == target,
+    );
     if (index < 0) return false;
-    await _select(index);
-    return false;
+    await _select(index, fragment: uri.hasFragment ? uri.fragment : null);
+    return true;
   }
 
   @override
@@ -252,6 +287,7 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
           constraints: const BoxConstraints(maxWidth: 720),
           child: NovelContentView(
             content: content,
+            htmlKey: _htmlKey,
             readResource: widget.source.readResource,
             onTapLink: _tapLink,
           ),
@@ -261,6 +297,10 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
   }
 
   Future<void> _retry() async {
+    if (_book == null) {
+      await _loadPublication();
+      return;
+    }
     final resource = _resource;
     if (resource != null) await _loadSection(resource);
   }
@@ -280,7 +320,9 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
                 final target = book.spine.indexWhere(
                   (section) => section.resource == link.resource,
                 );
-                if (target >= 0) unawaited(_select(target));
+                if (target >= 0) {
+                  unawaited(_select(target, fragment: link.fragment));
+                }
               },
             );
           },

@@ -1,11 +1,8 @@
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
 
-String _archiveItemId(LocalEntry entry, String format) => LocalArchiveRef(
-  locator: entry.id,
-  displayName: entry.name,
-  format: format,
-).encode();
+String _archiveItemId(LocalEntry entry, String format) =>
+    LocalArchiveRef(locator: entry.id, format: format).encode();
 
 String _mediaTitle(String name) {
   final separator = name.lastIndexOf('.');
@@ -13,8 +10,6 @@ String _mediaTitle(String name) {
 }
 
 String _archiveFormat(String extension) => extension == 'epub' ? 'epub' : 'cbz';
-
-
 
 const _pageExtensions = {'jpg', 'jpeg', 'png', 'webp'};
 const _videoExtensions = {'mp4', 'mkv', 'webm', 'm4v'};

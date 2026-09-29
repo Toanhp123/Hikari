@@ -24,6 +24,7 @@ final class MediaMetadata {
     this.status = PublicationStatus.unknown,
     this.rawStatus,
     this.rating,
+    this.ratingMax,
   });
 
   final String title;
@@ -38,6 +39,9 @@ final class MediaMetadata {
   final PublicationStatus status;
   final String? rawStatus;
   final double? rating;
+
+  /// Source-declared upper bound; null means the scale is unknown.
+  final double? ratingMax;
 }
 
 final class MangaPreview {

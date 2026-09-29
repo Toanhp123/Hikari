@@ -4,8 +4,12 @@ import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html;
 
 /// Reader HTML is inert. Images are resolved by the source, never by a WebView.
-String sanitizeNovelHtml(String input) {
-  if (input.length > _maxHtmlBytes || utf8.encode(input).length > _maxHtmlBytes) {
+String sanitizeNovelHtml(
+  String input, {
+  Set<String> registeredResources = const {},
+}) {
+  if (input.length > _maxHtmlBytes ||
+      utf8.encode(input).length > _maxHtmlBytes) {
     throw const FormatException('Chapter exceeds the reader size limit.');
   }
   final document = html.parseFragment(input);
@@ -31,6 +35,11 @@ String sanitizeNovelHtml(String input) {
     element.attributes.removeWhere((key, value) {
       final name = key.toString().toLowerCase();
       if (!_attributes.contains(name)) return true;
+      if (name == 'src' &&
+          element.localName == 'img' &&
+          registeredResources.contains(value)) {
+        return false;
+      }
       if (name == 'src' || name == 'href') return !_safeResource(value);
       if (name == 'dir') return !{'rtl', 'ltr', 'auto'}.contains(value);
       return false;
@@ -63,7 +72,8 @@ String sanitizeReaderStyle(String input) => input
     .join(';');
 
 bool _safeResource(String value) {
-  if (value.isEmpty || value.length > 8192 ||
+  if (value.isEmpty ||
+      value.length > 8192 ||
       RegExp(r'[\x00-\x20\x7f\\]').hasMatch(value) ||
       value.startsWith('//')) {
     return false;
@@ -75,24 +85,109 @@ bool _safeResource(String value) {
 
 const _maxHtmlBytes = 4 * 1024 * 1024;
 const _discard = {
-  'script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'select',
-  'textarea', 'svg', 'math', 'meta', 'link', 'base', 'style', 'audio', 'video',
-  'source', 'canvas', 'template',
+  'script',
+  'iframe',
+  'object',
+  'embed',
+  'form',
+  'input',
+  'button',
+  'select',
+  'textarea',
+  'svg',
+  'math',
+  'meta',
+  'link',
+  'base',
+  'style',
+  'audio',
+  'video',
+  'source',
+  'canvas',
+  'template',
 };
 const _tags = {
-  'p', 'div', 'span', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'br', 'hr', 'em', 'strong', 'b', 'i', 'u', 's', 'del', 'small', 'sup', 'sub',
-  'blockquote', 'pre', 'code', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'table',
-  'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'img', 'a', 'figure',
-  'figcaption', 'ruby', 'rt', 'rp', 'bdi', 'bdo',
+  'p',
+  'div',
+  'span',
+  'section',
+  'article',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'br',
+  'hr',
+  'em',
+  'strong',
+  'b',
+  'i',
+  'u',
+  's',
+  'del',
+  'small',
+  'sup',
+  'sub',
+  'blockquote',
+  'pre',
+  'code',
+  'ul',
+  'ol',
+  'li',
+  'dl',
+  'dt',
+  'dd',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'td',
+  'th',
+  'caption',
+  'img',
+  'a',
+  'figure',
+  'figcaption',
+  'ruby',
+  'rt',
+  'rp',
+  'bdi',
+  'bdo',
 };
 const _attributes = {
-  'id', 'class', 'title', 'alt', 'src', 'href', 'dir', 'lang', 'style',
-  'colspan', 'rowspan',
+  'id',
+  'class',
+  'title',
+  'alt',
+  'src',
+  'href',
+  'dir',
+  'lang',
+  'style',
+  'colspan',
+  'rowspan',
 };
 const _cssProperties = {
-  'color', 'background-color', 'font-size', 'font-weight', 'font-style',
-  'font-family', 'line-height', 'text-align', 'text-decoration', 'text-indent',
-  'letter-spacing', 'word-spacing', 'direction', 'white-space', 'vertical-align',
-  'margin', 'margin-top', 'margin-bottom', 'padding',
+  'color',
+  'background-color',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'font-family',
+  'line-height',
+  'text-align',
+  'text-decoration',
+  'text-indent',
+  'letter-spacing',
+  'word-spacing',
+  'direction',
+  'white-space',
+  'vertical-align',
+  'margin',
+  'margin-top',
+  'margin-bottom',
+  'padding',
 };

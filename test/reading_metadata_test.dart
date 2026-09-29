@@ -37,13 +37,14 @@ void main() {
       source: SourceMediaRef(sourceId: SourceId('mihon:42'), itemId: 'series'),
     );
     const preview = MangaPreview(media: media);
-    const page = MangaSearchPage(results: [preview], hasNextPage: true, page: 1);
+    const page = MangaSearchPage(
+      results: [preview],
+      hasNextPage: true,
+      page: 1,
+    );
     const chapter = MangaChapter(
       title: 'Chapter 1',
-      source: SourceMediaRef(
-        sourceId: SourceId('mihon:42'),
-        itemId: 'chapter',
-      ),
+      source: SourceMediaRef(sourceId: SourceId('mihon:42'), itemId: 'chapter'),
       chapterNumber: 1,
       dateUpload: 123456789,
     );

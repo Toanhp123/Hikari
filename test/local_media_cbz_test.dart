@@ -33,7 +33,7 @@ void main() {
     final secondSource = File('${file.path}.second')..writeAsBytesSync([4, 5]);
     encoder.addFileSync(source, '10.jpg');
     encoder.addFileSync(secondSource, '11.jpg');
-    encoder.close();
+    encoder.closeSync();
     final zip = BoundedArchive.open(file.path);
     expect(zip.names, ['10.jpg', '11.jpg']);
     expect(zip.readEntry('10.jpg'), [1, 2, 3]);
@@ -42,6 +42,28 @@ void main() {
     zip.close();
     source.deleteSync();
     secondSource.deleteSync();
+    file.deleteSync();
+  });
+
+  test('rejects encrypted central-directory entries before reading pages', () {
+    final file = File(
+      '${Directory.systemTemp.path}/encrypted-${DateTime.now().microsecondsSinceEpoch}.cbz',
+    );
+    final encoder = ZipFileEncoder()..create(file.path);
+    encoder.addArchiveFile(ArchiveFile.string('1.jpg', 'page'));
+    encoder.closeSync();
+    final bytes = file.readAsBytesSync();
+    for (var i = 0; i + 10 < bytes.length; i++) {
+      if (bytes[i] == 0x50 &&
+          bytes[i + 1] == 0x4b &&
+          bytes[i + 2] == 0x01 &&
+          bytes[i + 3] == 0x02) {
+        bytes[i + 8] |= 1;
+        break;
+      }
+    }
+    file.writeAsBytesSync(bytes);
+    expect(() => BoundedArchive.open(file.path), throwsFormatException);
     file.deleteSync();
   });
 

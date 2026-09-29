@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
@@ -26,6 +28,7 @@ final class _FakeGateway implements MihonExtensionGateway {
   String? chapterMangaUrl;
   String? artworkUrl;
   MihonMangaItem? seriesManga;
+  String revision = '1';
   String? chapterMangaTitle;
   String? chapterMangaMemo;
   String? pageChapterUrl;
@@ -47,10 +50,10 @@ final class _FakeGateway implements MihonExtensionGateway {
   }) async {
     searchedSource = sourceKey;
     searchedPage = page;
-    return const MihonSearchPage(
+    return MihonSearchPage(
       items: [
         MihonMangaItem(
-          title: 'Example',
+          title: revision == '1' ? 'Example' : 'Renamed $revision',
           url: '/manga/$_mangaId',
           memo: '{"seriesId":"123"}',
         ),
@@ -69,26 +72,28 @@ final class _FakeGateway implements MihonExtensionGateway {
     chapterMangaUrl = mangaUrl;
     chapterMangaTitle = mangaTitle;
     chapterMangaMemo = mangaMemo;
-    return const MihonSeriesResult(
-      manga: MihonMangaItem(
-        title: 'Example details',
-        url: '/manga/$_mangaId',
-        summary: 'Summary',
-        authors: ['Author'],
-        artists: ['Artist'],
-        genres: ['Genre'],
-        status: 'ongoing',
-        rawStatus: 'Ongoing',
-        memo: '{"seriesId":"123"}',
-      ),
+    return MihonSeriesResult(
+      manga:
+          seriesManga ??
+          const MihonMangaItem(
+            title: 'Example details',
+            url: '/manga/$_mangaId',
+            summary: 'Summary',
+            authors: ['Author'],
+            artists: ['Artist'],
+            genres: ['Genre'],
+            status: 'ongoing',
+            rawStatus: 'Ongoing',
+            memo: '{"seriesId":"123"}',
+          ),
       chapters: [
         MihonChapterItem(
-          title: 'Chapter 1',
+          title: revision == '1' ? 'Chapter 1' : 'Renamed chapter',
           url: '/chapter/$_chapterId',
-          scanlator: 'Group',
-          chapterNumber: 1,
-          dateUpload: 123456789,
-          memo: '{"chapterId":"456"}',
+          scanlator: revision == '1' ? 'Group' : 'New group',
+          chapterNumber: revision == '1' ? 1 : 1.5,
+          dateUpload: revision == '1' ? 123456789 : 987654321,
+          memo: revision == '1' ? '{"chapterId":"456"}' : 'new opaque memo',
         ),
       ],
     );
@@ -136,7 +141,6 @@ final class _FakeGateway implements MihonExtensionGateway {
     readPageItem = page;
     return Uint8List.fromList([1, 2, 3]);
   }
-
 }
 
 const _mangaDex = MihonSourceDescriptor(
@@ -149,15 +153,155 @@ const _mangaDex = MihonSourceDescriptor(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late UserDatabase database;
+  setUp(() {
+    database = UserDatabase(NativeDatabase.memory());
+  });
+  tearDown(() async {
+    await database.close();
+  });
+
+  test('file restart retains updated continuation without search', () async {
+    await database.close();
+    final directory = await Directory.systemTemp.createTemp('mihon-state-');
+    addTearDown(() async {
+      await database.close();
+      await directory.delete(recursive: true);
+    });
+    final file = File('${directory.path}/state.sqlite');
+    database = UserDatabase(NativeDatabase(file));
+    final gateway = _FakeGateway(const [_mangaDex]);
+    var source =
+        (await MihonSourceLoader(
+              gateway: gateway,
+              database: database,
+            ).loadSources()).single
+            as MangaSearchSource;
+    final media = (await source.search('example')).results.single.media;
+    final chapter = (await (source as MangaSeriesSource).loadSeries(
+      media.source,
+    )).chapters.single;
+    gateway.revision = '2';
+    final refreshed = (await source.search('example')).results.single.media;
+    expect(refreshed.source, media.source);
+    final refreshedChapter = (await (source as MangaSeriesSource).loadSeries(
+      media.source,
+    )).chapters.single;
+    expect(refreshedChapter.source, chapter.source);
+    await database.close();
+    database = UserDatabase(NativeDatabase(file));
+    source =
+        (await MihonSourceLoader(
+              gateway: gateway,
+              database: database,
+            ).loadSources()).single
+            as MangaSearchSource;
+    await (source as MangaPageSource).pages(chapter.source);
+    expect(gateway.pageChapterMemo, 'new opaque memo');
+    expect(gateway.pageChapterTitle, 'Renamed chapter');
+    expect(gateway.pageChapterNumber, 1.5);
+    expect(gateway.pageChapterScanlator, 'New group');
+    expect(gateway.pageChapterDateUpload, 987654321);
+    await (source as MangaSeriesSource).loadSeries(media.source);
+    expect(gateway.chapterMangaTitle, 'Example details');
+    expect(gateway.chapterMangaMemo, '{"seriesId":"123"}');
+    await database.close();
+  });
+
+  test('version 2 file migrates identities and preserves unrelated user data', () async {
+    await database.close();
+    final directory = await Directory.systemTemp.createTemp('mihon-migration-');
+    addTearDown(() async {
+      await database.close();
+      await directory.delete(recursive: true);
+    });
+    final file = File('${directory.path}/state.sqlite');
+    database = UserDatabase(NativeDatabase(file));
+    final oldId =
+        'mihon-v1:${base64Url.encode(utf8.encode(jsonEncode({'kind': 'chapter', 'url': '/chapter/$_chapterId', 'title': 'Old chapter', 'memo': 'opaque memo', 'scanlator': 'Original group', 'chapterNumber': 1.5, 'dateUpload': 123})))}';
+    final ref = SourceMediaRef(
+      sourceId: const SourceId('mihon:2499283573021220255'),
+      itemId: oldId,
+    );
+    final malformedIds = [
+      for (final url in ['', '   '])
+        for (final title in ['First', 'Second'])
+          'mihon-v1:${base64Url.encode(utf8.encode(jsonEncode({'kind': 'chapter', 'url': url, 'title': title})))}',
+    ];
+    final progress = SqliteProgressRepository(database);
+    for (final target in [
+      ref,
+      ...malformedIds.map(
+        (itemId) => SourceMediaRef(sourceId: ref.sourceId, itemId: itemId),
+      ),
+      const SourceMediaRef(sourceId: SourceId.local, itemId: 'local'),
+    ]) {
+      await progress.save(
+        MediaProgress(
+          media: target,
+          position: PagePosition(pageIndex: 2, pageCount: 5),
+          completed: false,
+          updatedAt: DateTime.utc(2026),
+        ),
+      );
+    }
+    await database.customStatement('DROP TABLE mihon_continuation_records');
+    await database.customStatement('PRAGMA user_version = 2');
+    await database.close();
+    database = UserDatabase(NativeDatabase(file));
+    final rows = await database.select(database.progressRecords).get();
+    expect(rows, hasLength(2 + malformedIds.length));
+    for (final itemId in malformedIds) {
+      final preserved = rows.singleWhere((row) => row.itemId == itemId);
+      expect(preserved.pageIndex, 2);
+      expect(preserved.pageCount, 5);
+    }
+    final migrated = rows.singleWhere(
+      (row) => row.itemId.startsWith('mihon-v2:'),
+    );
+    expect(migrated.itemId, startsWith('mihon-v2:'));
+    expect(migrated.pageIndex, 2);
+    expect(migrated.pageCount, 5);
+    expect(rows.singleWhere((row) => row.sourceId == 'local').itemId, 'local');
+    final gateway = _FakeGateway(const [_mangaDex]);
+    final source = (await MihonSourceLoader(
+      gateway: gateway,
+      database: database,
+    ).loadSources()).single;
+    await (source as MangaPageSource).pages(
+      SourceMediaRef(sourceId: ref.sourceId, itemId: migrated.itemId),
+    );
+    expect(gateway.pageChapterTitle, 'Old chapter');
+    expect(gateway.pageChapterMemo, 'opaque memo');
+    expect(gateway.pageChapterNumber, 1.5);
+    expect(gateway.pageChapterScanlator, 'Original group');
+    await database.close();
+  });
+
+  test('series identity ignores mutable provider title', () async {
+    final gateway = _FakeGateway(const [_mangaDex]);
+    final source =
+        (await MihonSourceLoader(
+              gateway: gateway,
+              database: database,
+            ).loadSources()).single
+            as MangaSearchSource;
+    final first = (await source.search('example')).results.single.media.source;
+    gateway.revision = '2';
+    final second = (await source.search('example')).results.single.media.source;
+    expect(second, first);
+  });
 
   test(
     'opaque persisted references survive extension absence and reinstall',
     () async {
-      final db = UserDatabase(NativeDatabase.memory());
-      addTearDown(db.close);
+      final db = database;
       final gateway = _FakeGateway(const [_mangaDex]);
       final source =
-          (await MihonSourceLoader(gateway: gateway).loadSources()).single
+          (await MihonSourceLoader(
+                gateway: gateway,
+                database: database,
+              ).loadSources()).single
               as MangaSearchSource;
       final media = (await source.search('example')).results.single.media;
       final chapter = (await (source as MangaSeriesSource).loadSeries(
@@ -169,8 +313,8 @@ void main() {
         media.source.sourceId,
         const SourceId('mihon:2499283573021220255'),
       );
-      expect(media.source.itemId, startsWith('mihon-v1:'));
-      expect(chapter.source.itemId, startsWith('mihon-v1:'));
+      expect(media.source.itemId, startsWith('mihon-v2:'));
+      expect(chapter.source.itemId, startsWith('mihon-v2:'));
       final progress = SqliteProgressRepository(db);
       final initial = AppDependencies.create(database: db);
       await initial.libraryRepository.upsert(
@@ -201,7 +345,10 @@ void main() {
           await absent.dispose();
         }
 
-        final sources = await MihonSourceLoader(gateway: gateway).loadSources();
+        final sources = await MihonSourceLoader(
+          gateway: gateway,
+          database: database,
+        ).loadSources();
         final installed = AppDependencies.create(
           database: db,
           additionalSources: sources,
@@ -248,7 +395,10 @@ void main() {
         ),
       ]);
 
-      final sources = await MihonSourceLoader(gateway: gateway).loadSources();
+      final sources = await MihonSourceLoader(
+        gateway: gateway,
+        database: database,
+      ).loadSources();
 
       expect(sources, hasLength(1));
       final source = sources.single;
@@ -265,7 +415,10 @@ void main() {
     () async {
       final gateway = _FakeGateway(const [_mangaDex]);
       final source =
-          (await MihonSourceLoader(gateway: gateway).loadSources()).single
+          (await MihonSourceLoader(
+                gateway: gateway,
+                database: database,
+              ).loadSources()).single
               as MangaSearchSource;
 
       expect(source.id, const SourceId('mihon:2499283573021220255'));
@@ -275,7 +428,7 @@ void main() {
       expect(gateway.searchedPage, 1);
       final result = search.results.single;
       expect(result.media.source.sourceId, source.id);
-      expect(result.media.source.itemId, startsWith('mihon-v1:'));
+      expect(result.media.source.itemId, startsWith('mihon-v2:'));
 
       final seriesSource = source as MangaSeriesSource;
       final details = await seriesSource.loadSeries(result.media.source);
@@ -287,11 +440,11 @@ void main() {
       expect(details.metadata.summary, 'Summary');
       expect(result.metadata, isNotNull);
       expect(result.metadata!.title, 'Example');
-      expect(result.media.source.itemId, startsWith('mihon-v1:'));
+      expect(result.media.source.itemId, startsWith('mihon-v2:'));
       expect(result.media.source.sourceId, source.id);
       expect(result.media.title, 'Example');
       expect(chapters.single.source.sourceId, source.id);
-      expect(chapters.single.source.itemId, startsWith('mihon-v1:'));
+      expect(chapters.single.source.itemId, startsWith('mihon-v2:'));
       expect(chapters.single.scanlator, 'Group');
       expect(chapters.single.chapterNumber, 1);
       expect(chapters.single.dateUpload, 123456789);
@@ -317,13 +470,51 @@ void main() {
     },
   );
 
+  test('native camelcase status normalizes without losing metadata', () async {
+    final gateway = _FakeGateway(const [_mangaDex]);
+    final source = (await MihonSourceLoader(
+      gateway: gateway,
+      database: database,
+    ).loadSources()).single;
+    for (final (status, expected) in [
+      ('publishingFinished', PublicationStatus.publishingFinished),
+      ('onHiatus', PublicationStatus.onHiatus),
+    ]) {
+      gateway.seriesManga = MihonMangaItem(
+        title: 'Title',
+        url: '/manga/$_mangaId',
+        status: status,
+        rawStatus: 'native original',
+        authors: ['Author'],
+        artists: ['Artist'],
+        genres: ['Genre'],
+        rating: 8.5,
+      );
+      final details = await (source as MangaSeriesSource).loadSeries(
+        (await (source as MangaSearchSource).search('example'))
+            .results
+            .single
+            .media
+            .source,
+      );
+      expect(details.metadata.status, expected);
+      expect(details.metadata.rawStatus, 'native original');
+      expect(details.metadata.artists, ['Artist']);
+      expect(details.metadata.rating, 8.5);
+    }
+  });
+
   test('metadata maps on loaded series', () async {
     final gateway = _FakeGateway(const [_mangaDex]);
-    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single;
+    final source = (await MihonSourceLoader(
+      gateway: gateway,
+      database: database,
+    ).loadSources()).single;
     final result = await (source as MangaSearchSource).search('example');
     expect(result.results.single.metadata, isNotNull);
-    final details = await (source as MangaSeriesSource)
-        .loadSeries(result.results.single.media.source);
+    final details = await (source as MangaSeriesSource).loadSeries(
+      result.results.single.media.source,
+    );
     expect(details.metadata.title, 'Example details');
     expect(details.metadata.authors, ['Author']);
   });
@@ -337,18 +528,22 @@ void main() {
       baseUrl: 'https://opaque.test',
     );
     final gateway = _FakeGateway([descriptor]);
-    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single
-        as MangaSearchSource;
+    final source =
+        (await MihonSourceLoader(
+              gateway: gateway,
+              database: database,
+            ).loadSources()).single
+            as MangaSearchSource;
 
     final result = (await source.search('example')).results.single;
-    expect(result.media.source.itemId, startsWith('mihon-v1:'));
+    expect(result.media.source.itemId, startsWith('mihon-v2:'));
     final chapters = (await (source as MangaSeriesSource).loadSeries(
       result.media.source,
     )).chapters;
     expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
     expect(gateway.chapterMangaTitle, 'Example');
     expect(gateway.chapterMangaMemo, '{"seriesId":"123"}');
-    expect(chapters.single.source.itemId, startsWith('mihon-v1:'));
+    expect(chapters.single.source.itemId, startsWith('mihon-v2:'));
 
     await (source as MangaPageSource).pages(chapters.single.source);
     expect(gateway.pageChapterUrl, '/chapter/$_chapterId');
@@ -360,7 +555,7 @@ void main() {
   });
 
   test('source loader without a platform plugin exposes no sources', () async {
-    expect(await const MihonSourceLoader().loadSources(), isEmpty);
+    expect(await MihonSourceLoader(database: database).loadSources(), isEmpty);
   });
 
   test('stateful extension references reject malformed payloads', () async {
@@ -373,8 +568,12 @@ void main() {
         baseUrl: 'https://opaque.test',
       ),
     ]);
-    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single
-        as MangaSeriesSource;
+    final source =
+        (await MihonSourceLoader(
+              gateway: gateway,
+              database: database,
+            ).loadSources()).single
+            as MangaSeriesSource;
 
     await expectLater(
       source.loadSeries(
@@ -387,10 +586,87 @@ void main() {
     );
   });
 
+  test('stable references reject missing or corrupt continuation', () async {
+    final gateway = _FakeGateway(const [_mangaDex]);
+    final source = (await MihonSourceLoader(
+      gateway: gateway,
+      database: database,
+    ).loadSources()).single;
+    final media = (await (source as MangaSearchSource).search('example'))
+        .results
+        .single
+        .media;
+    await database.customStatement(
+      'UPDATE mihon_continuation_records SET payload = ?',
+      ['broken'],
+    );
+    await expectLater(
+      (source as MangaSeriesSource).loadSeries(media.source),
+      throwsStateError,
+    );
+    await database.delete(database.mihonContinuationRecords).go();
+    await expectLater(
+      (source as MangaSeriesSource).loadSeries(media.source),
+      throwsStateError,
+    );
+  });
+
+  test(
+    'continuation cannot redirect stable identity or change resource kind',
+    () async {
+      final gateway = _FakeGateway(const [_mangaDex]);
+      final source = (await MihonSourceLoader(
+        gateway: gateway,
+        database: database,
+      ).loadSources()).single;
+      final media = (await (source as MangaSearchSource).search('example'))
+          .results
+          .single
+          .media;
+      for (final state in [
+        {'kind': 'manga', 'url': '/different'},
+        {'kind': 'chapter', 'url': '/manga/$_mangaId'},
+        {'kind': 'manga', 'url': ''},
+      ]) {
+        final payload =
+            'mihon-v1:${base64Url.encode(utf8.encode(jsonEncode(state)))}';
+        await database.customStatement(
+          'UPDATE mihon_continuation_records SET payload = ?',
+          [payload],
+        );
+        await expectLater(
+          (source as MangaSeriesSource).loadSeries(media.source),
+          throwsStateError,
+        );
+      }
+      for (final itemId in ['raw-url', 'mihon-v2:not-base64']) {
+        await expectLater(
+          (source as MangaSeriesSource).loadSeries(
+            SourceMediaRef(sourceId: media.source.sourceId, itemId: itemId),
+          ),
+          throwsStateError,
+        );
+      }
+      await source.search('example');
+      gateway.seriesManga = const MihonMangaItem(
+        title: 'Different',
+        url: '/different',
+      );
+      await expectLater(
+        (source as MangaSeriesSource).loadSeries(media.source),
+        throwsStateError,
+      );
+    },
+  );
+
   test('adapter rejects references from another source', () async {
     final gateway = _FakeGateway(const [_mangaDex]);
-    final source = (await MihonSourceLoader(gateway: gateway).loadSources()).single
-        as MangaPageSource;
+    final source =
+        (await MihonSourceLoader(
+              gateway: gateway,
+              database: database,
+            ).loadSources()).single
+            as MangaPageSource;
 
     await expectLater(
       source.pages(

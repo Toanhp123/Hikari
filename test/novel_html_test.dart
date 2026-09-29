@@ -22,8 +22,18 @@ void main() {
       '<meta http-equiv="refresh" content="0;url=https://evil.test">',
     );
     for (final forbidden in [
-      '<script', '<iframe', '<object', '<form', '<input', '<svg', '<meta',
-      'onclick', 'onerror', 'javascript:', 'file:', 'secret()',
+      '<script',
+      '<iframe',
+      '<object',
+      '<form',
+      '<input',
+      '<svg',
+      '<meta',
+      'onclick',
+      'onerror',
+      'javascript:',
+      'file:',
+      'secret()',
     ]) {
       expect(content, isNot(contains(forbidden)));
     }
@@ -31,8 +41,10 @@ void main() {
   });
 
   test('rejects oversized input rather than truncating content', () {
-    expect(() => sanitizeNovelHtml('x' * (4 * 1024 * 1024 + 1)),
-        throwsFormatException);
+    expect(
+      () => sanitizeNovelHtml('x' * (4 * 1024 * 1024 + 1)),
+      throwsFormatException,
+    );
   });
 
   test('strips network-bearing CSS and retains safe typography', () {
@@ -47,16 +59,19 @@ void main() {
     expect(content, isNot(contains('display')));
   });
 
-  test('keeps internal links but rejects encoded and protocol-relative URLs', () {
-    final content = sanitizeNovelHtml(
-      '<a href="#section">Section</a><a href="chapter2.xhtml#next">Next</a>'
-      '<a href="java&#x09;script:alert(1)">Bad</a>'
-      '<img src="//evil.test/image"><img src="data:image/svg+xml,evil">',
-    );
-    expect(content, contains('href="#section"'));
-    expect(content, contains('href="chapter2.xhtml#next"'));
-    expect(content, isNot(contains('alert')));
-    expect(content, isNot(contains('//evil')));
-    expect(content, isNot(contains('data:')));
-  });
+  test(
+    'keeps internal links but rejects encoded and protocol-relative URLs',
+    () {
+      final content = sanitizeNovelHtml(
+        '<a href="#section">Section</a><a href="chapter2.xhtml#next">Next</a>'
+        '<a href="java&#x09;script:alert(1)">Bad</a>'
+        '<img src="//evil.test/image"><img src="data:image/svg+xml,evil">',
+      );
+      expect(content, contains('href="#section"'));
+      expect(content, contains('href="chapter2.xhtml#next"'));
+      expect(content, isNot(contains('alert')));
+      expect(content, isNot(contains('//evil')));
+      expect(content, isNot(contains('data:')));
+    },
+  );
 }

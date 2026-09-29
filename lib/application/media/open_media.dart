@@ -2,6 +2,7 @@ import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/publication.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 
@@ -26,6 +27,18 @@ final class MangaSeriesOpenTarget extends MediaOpenTarget {
   const MangaSeriesOpenTarget(super.media, {required this.chapterSource});
 
   final MangaSeriesSource chapterSource;
+
+  Future<MangaSeriesDetails> loadDetails() async {
+    final details = await chapterSource.loadSeries(media.source);
+    if (details.chapters.any(
+          (chapter) => chapter.source.sourceId != chapterSource.id,
+        ) ||
+        (details.metadata.cover != null &&
+            details.metadata.cover!.sourceId != chapterSource.id)) {
+      throw StateError('Manga source returned foreign references.');
+    }
+    return details;
+  }
 }
 
 final class MangaReaderOpenTarget extends MediaOpenTarget {
@@ -37,6 +50,24 @@ final class MangaReaderOpenTarget extends MediaOpenTarget {
 
   final MangaPageSource pageSource;
   final ProgressSession progress;
+}
+
+final class NovelSeriesOpenTarget extends MediaOpenTarget {
+  const NovelSeriesOpenTarget(super.media, {required this.source});
+
+  final NovelSeriesSource source;
+
+  Future<NovelDetails> loadDetails() async {
+    final details = await source.novelDetails(media.source);
+    if (details.chapters.any(
+          (chapter) => chapter.source.sourceId != source.id,
+        ) ||
+        (details.metadata.cover != null &&
+            details.metadata.cover!.sourceId != source.id)) {
+      throw StateError('Novel source returned foreign references.');
+    }
+    return details;
+  }
 }
 
 final class NovelReaderOpenTarget extends MediaOpenTarget {
@@ -79,6 +110,12 @@ final class OpenMedia {
 
     if (media.type == MediaType.manga && source is MangaSeriesSource) {
       return MangaSeriesOpenTarget(media, chapterSource: source);
+    }
+
+    if (media.type == MediaType.lightNovel &&
+        source is NovelSeriesSource &&
+        source is NovelChapterSource) {
+      return NovelSeriesOpenTarget(media, source: source);
     }
 
     final progress = await ProgressSession.load(

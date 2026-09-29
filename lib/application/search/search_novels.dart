@@ -16,7 +16,8 @@ final class SearchNovels {
   final SourceRegistry _sources;
 
   List<NovelSearchOption> get options => List.unmodifiable(
-    _sources.withCapability<NovelSearchSource>()
+    _sources
+        .withCapability<NovelSearchSource>()
         .where(_canOpen)
         .where(_isAvailable)
         .map((source) => NovelSearchOption(id: source.id, name: source.name)),
@@ -37,11 +38,17 @@ final class SearchNovels {
       throw StateError('Novel source $sourceId cannot open search results.');
     }
     final result = await source.searchNovels(normalizedQuery, page: page);
-    if (result.page != page || result.results.any((preview) =>
-      preview.media.type != MediaType.lightNovel ||
-      preview.media.source.sourceId != sourceId ||
-      (preview.metadata.cover != null && preview.metadata.cover!.sourceId != sourceId))) {
-      throw StateError('Novel source $sourceId returned an invalid search page.');
+    if (result.page != page ||
+        result.results.any(
+          (preview) =>
+              preview.media.type != MediaType.lightNovel ||
+              preview.media.source.sourceId != sourceId ||
+              (preview.metadata.cover != null &&
+                  preview.metadata.cover!.sourceId != sourceId),
+        )) {
+      throw StateError(
+        'Novel source $sourceId returned an invalid search page.',
+      );
     }
     return result;
   }

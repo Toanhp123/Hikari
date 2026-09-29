@@ -14,6 +14,7 @@ class LocalMediaPage extends StatefulWidget {
     this.library,
     this.openLibrary,
     this.openRemote,
+    this.openNovels,
   });
 
   final Future<List<Media>?> Function() scanSelectedRoot;
@@ -23,6 +24,7 @@ class LocalMediaPage extends StatefulWidget {
   final LibraryRepository? library;
   final Future<void> Function()? openLibrary;
   final VoidCallback? openRemote;
+  final VoidCallback? openNovels;
 
   @override
   State<LocalMediaPage> createState() => _LocalMediaPageState();
@@ -61,6 +63,12 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
           tooltip: 'Search manga',
           onPressed: widget.openRemote,
           icon: const Icon(Icons.search),
+        ),
+      if (widget.openNovels != null)
+        IconButton(
+          tooltip: 'Search novels',
+          onPressed: widget.openNovels,
+          icon: const Icon(Icons.menu_book),
         ),
       if (widget.openLibrary != null)
         IconButton(

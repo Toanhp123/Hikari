@@ -30,17 +30,25 @@ final class EpubPublication implements PublicationSource {
     try {
       final names = archive.names.toSet();
       if (names.any((name) => name.toLowerCase() == 'meta-inf/rights.xml') ||
-          names.any((name) => name.toLowerCase() == 'meta-inf/encryption.xml')) {
-        throw const FormatException('Encrypted or DRM-protected EPUB is unsupported.');
+          names.any(
+            (name) => name.toLowerCase() == 'meta-inf/encryption.xml',
+          )) {
+        throw const FormatException(
+          'Encrypted or DRM-protected EPUB is unsupported.',
+        );
       }
       final containerName = _find(names, 'META-INF/container.xml');
       if (containerName == null) {
         throw const FormatException('EPUB container.xml is missing.');
       }
       final container = _xml(archive.readEntry(containerName));
-      final rootfile = container.findAllElements('rootfile').firstWhereOrNull(
-        (node) => (node.getAttribute('media-type') ?? '') == 'application/oebps-package+xml',
-      );
+      final rootfile = container
+          .findAllElements('rootfile')
+          .firstWhereOrNull(
+            (node) =>
+                (node.getAttribute('media-type') ?? '') ==
+                'application/oebps-package+xml',
+          );
       if (rootfile == null) {
         throw const FormatException('EPUB package rootfile is missing.');
       }
@@ -52,7 +60,9 @@ final class EpubPublication implements PublicationSource {
       final packageDir = _directory(rootfilePath);
       final manifest = <String, _ManifestItem>{};
       final manifestNode = package.findAllElements('manifest').firstOrNull;
-      if (manifestNode == null) throw const FormatException('EPUB manifest is missing.');
+      if (manifestNode == null) {
+        throw const FormatException('EPUB manifest is missing.');
+      }
       for (final item in manifestNode.findElements('item')) {
         final id = item.getAttribute('id');
         final href = item.getAttribute('href');
@@ -62,16 +72,26 @@ final class EpubPublication implements PublicationSource {
         }
         final resource = _resolve(packageDir, href);
         if (resource == null || !names.contains(resource)) {
-          throw const FormatException('EPUB manifest path is unsafe or missing.');
+          throw const FormatException(
+            'EPUB manifest path is unsafe or missing.',
+          );
         }
         final properties = (item.getAttribute('properties') ?? '')
             .split(RegExp(r'\s+'))
             .where((value) => value.isNotEmpty)
             .toSet();
+        if (manifest.containsKey(id) ||
+            manifest.values.any((item) => item.resource == resource)) {
+          throw const FormatException(
+            'EPUB manifest contains duplicate items.',
+          );
+        }
         manifest[id] = _ManifestItem(resource, mediaType, properties);
       }
       final spineNode = package.findAllElements('spine').firstOrNull;
-      if (spineNode == null) throw const FormatException('EPUB spine is missing.');
+      if (spineNode == null) {
+        throw const FormatException('EPUB spine is missing.');
+      }
       final spine = <PublicationSection>[];
       for (final itemref in spineNode.findElements('itemref')) {
         final idref = itemref.getAttribute('idref');
@@ -79,24 +99,50 @@ final class EpubPublication implements PublicationSource {
         if (item == null || !_isDocument(item.mediaType)) {
           throw const FormatException('EPUB spine item is malformed.');
         }
-        spine.add(PublicationSection(
-          resource: item.resource,
-          title: item.resource.split('/').last,
-        ));
+        if (spine.any((section) => section.resource == item.resource)) {
+          throw const FormatException(
+            'Repeated EPUB spine resources are unsupported.',
+          );
+        }
+        spine.add(
+          PublicationSection(
+            resource: item.resource,
+            title: item.resource.split('/').last,
+          ),
+        );
       }
       if (spine.isEmpty) throw const FormatException('EPUB spine is empty.');
       final metadata = _metadata(package);
-      final nav = manifest.values.where((item) => item.properties.contains('nav')).firstOrNull;
+      final nav = manifest.values
+          .where((item) => item.properties.contains('nav'))
+          .firstOrNull;
       final toc = nav == null
           ? _readNcx(archive, package, manifest, packageDir)
           : _readNav(archive, nav.resource, packageDir);
+      if (toc.any(
+        (link) => !spine.any((section) => section.resource == link.resource),
+      )) {
+        throw const FormatException(
+          'EPUB navigation target is missing from spine.',
+        );
+      }
       final resources = manifest.values
           .where((item) => !_isDocument(item.mediaType))
-          .map((item) => PublicationResource(resource: item.resource, mediaType: item.mediaType))
+          .map(
+            (item) => PublicationResource(
+              resource: item.resource,
+              mediaType: item.mediaType,
+            ),
+          )
           .toList();
       return EpubPublication._(
         archive,
-        Publication(metadata: metadata, spine: spine, toc: toc, resources: resources),
+        Publication(
+          metadata: metadata,
+          spine: spine,
+          toc: toc,
+          resources: resources,
+        ),
         manifest,
       );
     } catch (_) {
@@ -114,18 +160,27 @@ final class EpubPublication implements PublicationSource {
   @override
   Future<Publication> publication(SourceMediaRef publication) async {
     _checkRef(publication);
+    _checkOpen();
     return _publication;
   }
 
   @override
-  Future<NovelChapterContent> readSection(SourceMediaRef publication, String resource) async {
+  Future<NovelChapterContent> readSection(
+    SourceMediaRef publication,
+    String resource,
+  ) async {
     _checkRef(publication);
     _checkOpen();
-    final item = _manifest.values.where((item) => item.resource == resource).firstOrNull;
+    final item = _manifest.values
+        .where((item) => item.resource == resource)
+        .firstOrNull;
     if (item == null || !_isDocument(item.mediaType)) {
       throw const FormatException('EPUB chapter resource is unknown.');
     }
-    final source = utf8.decode(_archive.readEntry(resource), allowMalformed: true);
+    final source = utf8.decode(
+      _archive.readEntry(resource),
+      allowMalformed: true,
+    );
     final document = html_parser.parse(source);
     _applyLinkedStyles(document, resource);
     final resources = <String, SourceMediaRef>{};
@@ -134,11 +189,15 @@ final class EpubPublication implements PublicationSource {
           ? 'href'
           : 'src';
       final value = element.attributes[attribute];
-      if (value == null || value.startsWith('#')) continue;
+      if (value == null) continue;
+      if (value.startsWith('#') && element.localName == 'a') continue;
       final uri = Uri.tryParse(value);
       final resolved = _resolve(_directory(resource), value);
       if (resolved == null) {
-        if (uri?.hasScheme == true) continue;
+        if (uri?.scheme == 'http' || uri?.scheme == 'https') {
+          element.attributes.remove(attribute);
+          continue;
+        }
         throw const FormatException('EPUB resource path escapes archive root.');
       }
       final target = _manifest.values
@@ -148,6 +207,10 @@ final class EpubPublication implements PublicationSource {
         if (target == null || !_isDocument(target.mediaType)) {
           throw const FormatException('EPUB link target is unknown.');
         }
+        element.attributes[attribute] = Uri(
+          path: target.resource,
+          fragment: uri!.hasFragment ? uri.fragment : null,
+        ).toString();
         continue;
       }
       if (target == null || !_isResource(target.mediaType)) {
@@ -162,7 +225,10 @@ final class EpubPublication implements PublicationSource {
       );
     }
     return NovelChapterContent(
-      html: sanitizeNovelHtml(document.body?.innerHtml ?? document.outerHtml),
+      html: sanitizeNovelHtml(
+        document.body?.innerHtml ?? document.outerHtml,
+        registeredResources: resources.keys.toSet(),
+      ),
       resources: resources,
     );
   }
@@ -171,11 +237,18 @@ final class EpubPublication implements PublicationSource {
     final links = document.querySelectorAll('link[rel="stylesheet"]');
     for (final link in links) {
       final href = link.attributes['href'];
-      final stylesheet = href == null ? null : _resolve(_directory(resource), href);
+      final stylesheet = href == null
+          ? null
+          : _resolve(_directory(resource), href);
       if (stylesheet == null) continue;
-      final item = _manifest.values.where((item) => item.resource == stylesheet).firstOrNull;
+      final item = _manifest.values
+          .where((item) => item.resource == stylesheet)
+          .firstOrNull;
       if (item == null || item.mediaType != 'text/css') continue;
-      final css = utf8.decode(_archive.readEntry(stylesheet, maxBytes: 256 * 1024), allowMalformed: true);
+      final css = utf8.decode(
+        _archive.readEntry(stylesheet, maxBytes: 256 * 1024),
+        allowMalformed: true,
+      );
       _applySafeStyles(document, css);
     }
   }
@@ -189,11 +262,16 @@ final class EpubPublication implements PublicationSource {
       if (brace < 1) continue;
       final selector = rule.substring(0, brace).trim();
       final declarations = rule.substring(brace + 1);
-      if (selector.isEmpty || selector.contains('@') ||
-          selector.contains(':') || selector.contains('[') ||
-          selector.contains(']') || selector.contains(',') ||
-          selector.contains('>') || selector.contains('+') ||
-          selector.contains('~') || selector.length > 128) {
+      if (selector.isEmpty ||
+          selector.contains('@') ||
+          selector.contains(':') ||
+          selector.contains('[') ||
+          selector.contains(']') ||
+          selector.contains(',') ||
+          selector.contains('>') ||
+          selector.contains('+') ||
+          selector.contains('~') ||
+          selector.length > 128) {
         continue;
       }
       final safe = sanitizeReaderStyle(declarations);
@@ -210,8 +288,12 @@ final class EpubPublication implements PublicationSource {
   @override
   Future<Uint8List> readResource(SourceMediaRef resource) async {
     _checkOpen();
-    if (resource.sourceId != SourceId.local) throw ArgumentError('Wrong source.');
-    final item = _manifest.values.where((item) => item.resource == resource.itemId).firstOrNull;
+    if (resource.sourceId != SourceId.local) {
+      throw ArgumentError('Wrong source.');
+    }
+    final item = _manifest.values
+        .where((item) => item.resource == resource.itemId)
+        .firstOrNull;
     if (item == null || !_isResource(item.mediaType)) {
       throw const FormatException('EPUB resource is unknown.');
     }
@@ -234,36 +316,65 @@ final class EpubPublication implements PublicationSource {
 }
 
 final class _ManifestItem {
-  const _ManifestItem(this.resource, this.mediaType, [this.properties = const {}]);
+  const _ManifestItem(
+    this.resource,
+    this.mediaType, [
+    this.properties = const {},
+  ]);
   final String resource;
   final String mediaType;
   final Set<String> properties;
 }
 
-bool _isDocument(String type) => type == 'application/xhtml+xml' || type == 'text/html';
-bool _isResource(String type) => type.startsWith('image/') || type == 'text/css' || type == 'font/otf' || type == 'font/ttf';
-String _directory(String path) => path.contains('/') ? path.substring(0, path.lastIndexOf('/') + 1) : '';
-String? _find(Set<String> names, String wanted) => names.firstWhereOrNull((name) => name.toLowerCase() == wanted.toLowerCase());
+bool _isDocument(String type) =>
+    type == 'application/xhtml+xml' || type == 'text/html';
+bool _isResource(String type) =>
+    type.startsWith('image/') ||
+    type == 'text/css' ||
+    type == 'font/otf' ||
+    type == 'font/ttf';
+String _directory(String path) =>
+    path.contains('/') ? path.substring(0, path.lastIndexOf('/') + 1) : '';
+String? _find(Set<String> names, String wanted) => names.firstWhereOrNull(
+  (name) => name.toLowerCase() == wanted.toLowerCase(),
+);
 
 String? _resolve(String base, String? raw) {
-  if (raw == null || raw.isEmpty) return null;
+  if (raw == null ||
+      raw.isEmpty ||
+      RegExp(r'[\x00-\x20\x7f\\]').hasMatch(raw)) {
+    return null;
+  }
   final uri = Uri.tryParse(raw);
-  if (uri == null || uri.hasScheme || uri.host.isNotEmpty || raw.startsWith('/')) return null;
+  if (uri == null ||
+      uri.hasScheme ||
+      uri.hasAuthority ||
+      uri.hasQuery ||
+      raw.startsWith('/')) {
+    return null;
+  }
   final parts = [...base.split('/').where((part) => part.isNotEmpty)];
-  for (final part in uri.path.split('/')) {
-    if (part.isEmpty || part == '.') continue;
-    if (part == '..') {
-      if (parts.isEmpty) return null;
-      parts.removeLast();
-    } else {
-      parts.add(Uri.decodeComponent(part));
+  try {
+    for (final encoded in uri.path.split('/')) {
+      final part = Uri.decodeComponent(encoded);
+      if (RegExp(r'[/\\:\x00-\x1f\x7f]').hasMatch(part)) return null;
+      if (part.isEmpty || part == '.') continue;
+      if (part == '..') {
+        if (parts.isEmpty) return null;
+        parts.removeLast();
+      } else {
+        parts.add(part);
+      }
     }
+  } on FormatException {
+    return null;
   }
   final result = parts.join('/');
   return result.isEmpty ? null : result;
 }
 
-XmlDocument _xml(Uint8List bytes) => XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
+XmlDocument _xml(Uint8List bytes) =>
+    XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
 MediaMetadata _metadata(XmlDocument package) {
   final elements = package.descendants.whereType<XmlElement>();
   String? value(String name) => elements
@@ -288,32 +399,93 @@ MediaMetadata _metadata(XmlDocument package) {
   );
 }
 
-List<PublicationLink> _readNav(BoundedArchive archive, String resource, String base) {
-  final document = html_parser.parse(utf8.decode(archive.readEntry(resource), allowMalformed: true));
+List<PublicationLink> _readNav(
+  BoundedArchive archive,
+  String resource,
+  String base,
+) {
+  final document = html_parser.parse(
+    utf8.decode(archive.readEntry(resource), allowMalformed: true),
+  );
   final links = <PublicationLink>[];
-  for (final anchor in document.querySelectorAll('nav a')) {
+  final navs = document.querySelectorAll('nav');
+  final toc = navs
+      .where(
+        (nav) => nav.attributes.entries.any(
+          (attribute) =>
+              attribute.key.toString().endsWith('type') &&
+              attribute.value.split(RegExp(r'\s+')).contains('toc'),
+        ),
+      )
+      .firstOrNull;
+  // Older exports omit epub:type on their sole navigation element.
+  final navigation = toc ?? (navs.length == 1 ? navs.single : null);
+  if (navigation == null) {
+    throw const FormatException('EPUB table of contents is missing.');
+  }
+  for (final anchor in navigation.querySelectorAll('a')) {
     final href = anchor.attributes['href'];
     final target = href == null ? null : _resolve(_directory(resource), href);
-    if (target == null) continue;
+    if (target == null) {
+      throw const FormatException('EPUB navigation path is unsafe.');
+    }
     final uri = Uri.parse(href!);
-    links.add(PublicationLink(label: anchor.text.trim(), resource: target, fragment: uri.fragment.isEmpty ? null : uri.fragment));
+    links.add(
+      PublicationLink(
+        label: anchor.text.trim(),
+        resource: target,
+        fragment: uri.fragment.isEmpty ? null : uri.fragment,
+      ),
+    );
   }
   return links;
 }
 
-List<PublicationLink> _readNcx(BoundedArchive archive, XmlDocument package, Map<String, _ManifestItem> manifest, String base) {
-  final item = manifest.values.where((item) => item.mediaType == 'application/x-dtbncx+xml').firstOrNull;
+List<PublicationLink> _readNcx(
+  BoundedArchive archive,
+  XmlDocument package,
+  Map<String, _ManifestItem> manifest,
+  String base,
+) {
+  final tocId = package
+      .findAllElements('spine')
+      .firstOrNull
+      ?.getAttribute('toc');
+  final item = tocId == null
+      ? manifest.values
+            .where((item) => item.mediaType == 'application/x-dtbncx+xml')
+            .firstOrNull
+      : manifest[tocId];
+  if (tocId != null && item?.mediaType != 'application/x-dtbncx+xml') {
+    throw const FormatException('EPUB NCX reference is invalid.');
+  }
   if (item == null) return const [];
   final document = _xml(archive.readEntry(item.resource));
-  return document.findAllElements('navPoint').map((point) {
-    final label = point.findAllElements('text').firstOrNull?.innerText.trim() ?? '';
-    final src = point.findAllElements('content').firstOrNull?.getAttribute('src');
-    if (src == null) return null;
-    final target = _resolve(_directory(item.resource), src);
-    if (target == null) return null;
-    final uri = Uri.parse(src);
-    return PublicationLink(label: label, resource: target, fragment: uri.fragment.isEmpty ? null : uri.fragment);
-  }).whereType<PublicationLink>().toList();
+  return document
+      .findAllElements('navPoint')
+      .map((point) {
+        final label =
+            point.findAllElements('text').firstOrNull?.innerText.trim() ?? '';
+        final src = point
+            .findAllElements('content')
+            .firstOrNull
+            ?.getAttribute('src');
+        if (src == null) {
+          throw const FormatException('EPUB NCX target is missing.');
+        }
+        final target = _resolve(_directory(item.resource), src);
+        if (target == null) {
+          throw const FormatException('EPUB navigation path is unsafe.');
+        }
+        final uri = Uri.parse(src);
+        return PublicationLink(
+          label: label,
+          resource: target,
+          fragment: uri.fragment.isEmpty ? null : uri.fragment,
+        );
+      })
+      .whereType<PublicationLink>()
+      .toList();
 }
 
 extension _FirstOrNull<T> on Iterable<T> {

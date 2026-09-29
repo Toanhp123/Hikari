@@ -1228,6 +1228,280 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
   }
 }
 
+class $MihonContinuationRecordsTable extends MihonContinuationRecords
+    with TableInfo<$MihonContinuationRecordsTable, MihonContinuationRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MihonContinuationRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [sourceId, itemId, payload];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'mihon_continuation_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MihonContinuationRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sourceId, itemId};
+  @override
+  MihonContinuationRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MihonContinuationRecord(
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+    );
+  }
+
+  @override
+  $MihonContinuationRecordsTable createAlias(String alias) {
+    return $MihonContinuationRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class MihonContinuationRecord extends DataClass
+    implements Insertable<MihonContinuationRecord> {
+  final String sourceId;
+  final String itemId;
+  final String payload;
+  const MihonContinuationRecord({
+    required this.sourceId,
+    required this.itemId,
+    required this.payload,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source_id'] = Variable<String>(sourceId);
+    map['item_id'] = Variable<String>(itemId);
+    map['payload'] = Variable<String>(payload);
+    return map;
+  }
+
+  MihonContinuationRecordsCompanion toCompanion(bool nullToAbsent) {
+    return MihonContinuationRecordsCompanion(
+      sourceId: Value(sourceId),
+      itemId: Value(itemId),
+      payload: Value(payload),
+    );
+  }
+
+  factory MihonContinuationRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MihonContinuationRecord(
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      payload: serializer.fromJson<String>(json['payload']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sourceId': serializer.toJson<String>(sourceId),
+      'itemId': serializer.toJson<String>(itemId),
+      'payload': serializer.toJson<String>(payload),
+    };
+  }
+
+  MihonContinuationRecord copyWith({
+    String? sourceId,
+    String? itemId,
+    String? payload,
+  }) => MihonContinuationRecord(
+    sourceId: sourceId ?? this.sourceId,
+    itemId: itemId ?? this.itemId,
+    payload: payload ?? this.payload,
+  );
+  MihonContinuationRecord copyWithCompanion(
+    MihonContinuationRecordsCompanion data,
+  ) {
+    return MihonContinuationRecord(
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      payload: data.payload.present ? data.payload.value : this.payload,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MihonContinuationRecord(')
+          ..write('sourceId: $sourceId, ')
+          ..write('itemId: $itemId, ')
+          ..write('payload: $payload')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(sourceId, itemId, payload);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MihonContinuationRecord &&
+          other.sourceId == this.sourceId &&
+          other.itemId == this.itemId &&
+          other.payload == this.payload);
+}
+
+class MihonContinuationRecordsCompanion
+    extends UpdateCompanion<MihonContinuationRecord> {
+  final Value<String> sourceId;
+  final Value<String> itemId;
+  final Value<String> payload;
+  final Value<int> rowid;
+  const MihonContinuationRecordsCompanion({
+    this.sourceId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MihonContinuationRecordsCompanion.insert({
+    required String sourceId,
+    required String itemId,
+    required String payload,
+    this.rowid = const Value.absent(),
+  }) : sourceId = Value(sourceId),
+       itemId = Value(itemId),
+       payload = Value(payload);
+  static Insertable<MihonContinuationRecord> custom({
+    Expression<String>? sourceId,
+    Expression<String>? itemId,
+    Expression<String>? payload,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sourceId != null) 'source_id': sourceId,
+      if (itemId != null) 'item_id': itemId,
+      if (payload != null) 'payload': payload,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MihonContinuationRecordsCompanion copyWith({
+    Value<String>? sourceId,
+    Value<String>? itemId,
+    Value<String>? payload,
+    Value<int>? rowid,
+  }) {
+    return MihonContinuationRecordsCompanion(
+      sourceId: sourceId ?? this.sourceId,
+      itemId: itemId ?? this.itemId,
+      payload: payload ?? this.payload,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MihonContinuationRecordsCompanion(')
+          ..write('sourceId: $sourceId, ')
+          ..write('itemId: $itemId, ')
+          ..write('payload: $payload, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$UserDatabase extends GeneratedDatabase {
   _$UserDatabase(QueryExecutor e) : super(e);
   $UserDatabaseManager get managers => $UserDatabaseManager(this);
@@ -1235,6 +1509,8 @@ abstract class _$UserDatabase extends GeneratedDatabase {
     this,
   );
   late final $LibraryRecordsTable libraryRecords = $LibraryRecordsTable(this);
+  late final $MihonContinuationRecordsTable mihonContinuationRecords =
+      $MihonContinuationRecordsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1242,6 +1518,7 @@ abstract class _$UserDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     progressRecords,
     libraryRecords,
+    mihonContinuationRecords,
   ];
 }
 
@@ -1856,6 +2133,199 @@ typedef $$LibraryRecordsTableProcessedTableManager =
       LibraryRecord,
       PrefetchHooks Function()
     >;
+typedef $$MihonContinuationRecordsTableCreateCompanionBuilder =
+    MihonContinuationRecordsCompanion Function({
+      required String sourceId,
+      required String itemId,
+      required String payload,
+      Value<int> rowid,
+    });
+typedef $$MihonContinuationRecordsTableUpdateCompanionBuilder =
+    MihonContinuationRecordsCompanion Function({
+      Value<String> sourceId,
+      Value<String> itemId,
+      Value<String> payload,
+      Value<int> rowid,
+    });
+
+class $$MihonContinuationRecordsTableFilterComposer
+    extends Composer<_$UserDatabase, $MihonContinuationRecordsTable> {
+  $$MihonContinuationRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MihonContinuationRecordsTableOrderingComposer
+    extends Composer<_$UserDatabase, $MihonContinuationRecordsTable> {
+  $$MihonContinuationRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MihonContinuationRecordsTableAnnotationComposer
+    extends Composer<_$UserDatabase, $MihonContinuationRecordsTable> {
+  $$MihonContinuationRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+}
+
+class $$MihonContinuationRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$UserDatabase,
+          $MihonContinuationRecordsTable,
+          MihonContinuationRecord,
+          $$MihonContinuationRecordsTableFilterComposer,
+          $$MihonContinuationRecordsTableOrderingComposer,
+          $$MihonContinuationRecordsTableAnnotationComposer,
+          $$MihonContinuationRecordsTableCreateCompanionBuilder,
+          $$MihonContinuationRecordsTableUpdateCompanionBuilder,
+          (
+            MihonContinuationRecord,
+            BaseReferences<
+              _$UserDatabase,
+              $MihonContinuationRecordsTable,
+              MihonContinuationRecord
+            >,
+          ),
+          MihonContinuationRecord,
+          PrefetchHooks Function()
+        > {
+  $$MihonContinuationRecordsTableTableManager(
+    _$UserDatabase db,
+    $MihonContinuationRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MihonContinuationRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$MihonContinuationRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$MihonContinuationRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> sourceId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MihonContinuationRecordsCompanion(
+                sourceId: sourceId,
+                itemId: itemId,
+                payload: payload,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sourceId,
+                required String itemId,
+                required String payload,
+                Value<int> rowid = const Value.absent(),
+              }) => MihonContinuationRecordsCompanion.insert(
+                sourceId: sourceId,
+                itemId: itemId,
+                payload: payload,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $MihonContinuationRecordsTable,
+                    MihonContinuationRecord
+                  >(table),
+                  BaseReferences<
+                    _$UserDatabase,
+                    $MihonContinuationRecordsTable,
+                    MihonContinuationRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MihonContinuationRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$UserDatabase,
+      $MihonContinuationRecordsTable,
+      MihonContinuationRecord,
+      $$MihonContinuationRecordsTableFilterComposer,
+      $$MihonContinuationRecordsTableOrderingComposer,
+      $$MihonContinuationRecordsTableAnnotationComposer,
+      $$MihonContinuationRecordsTableCreateCompanionBuilder,
+      $$MihonContinuationRecordsTableUpdateCompanionBuilder,
+      (
+        MihonContinuationRecord,
+        BaseReferences<
+          _$UserDatabase,
+          $MihonContinuationRecordsTable,
+          MihonContinuationRecord
+        >,
+      ),
+      MihonContinuationRecord,
+      PrefetchHooks Function()
+    >;
 
 class $UserDatabaseManager {
   final _$UserDatabase _db;
@@ -1864,4 +2334,9 @@ class $UserDatabaseManager {
       $$ProgressRecordsTableTableManager(_db, _db.progressRecords);
   $$LibraryRecordsTableTableManager get libraryRecords =>
       $$LibraryRecordsTableTableManager(_db, _db.libraryRecords);
+  $$MihonContinuationRecordsTableTableManager get mihonContinuationRecords =>
+      $$MihonContinuationRecordsTableTableManager(
+        _db,
+        _db.mihonContinuationRecords,
+      );
 }

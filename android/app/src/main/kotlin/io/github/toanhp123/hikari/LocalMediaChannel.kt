@@ -23,6 +23,13 @@ class LocalMediaChannel(private val activity: Activity, messenger: BinaryMesseng
     private var closed = false
 
     init {
+        // Serialized before reads: stale copies (including interrupted .part files)
+        // belong to the previous engine, never to a live reader in this engine.
+        worker.execute {
+            File(activity.cacheDir, "local_media").listFiles()?.forEach { file ->
+                runCatching { deleteMaterialized(file.absolutePath) }
+            }
+        }
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "pickTree" -> openPicker(result)

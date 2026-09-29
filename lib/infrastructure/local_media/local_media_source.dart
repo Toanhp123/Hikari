@@ -7,6 +7,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
+import 'package:hikari/infrastructure/local_media/archive_materializations.dart';
 import 'package:hikari/infrastructure/local_media/classifier.dart';
 import 'package:hikari/infrastructure/local_media/comic_info.dart';
 import 'package:hikari/infrastructure/reading/epub_publication.dart';
@@ -15,24 +16,9 @@ const _materializeLimit = 1024 * 1024 * 1024;
 const _pageReadLimit = 32 * 1024 * 1024;
 const _textReadLimit = 4 * 1024 * 1024;
 
-Future<T> _withMaterialized<T>(
-  Future<String> Function(String locator) materialize,
-  Future<void> Function(String path) deleteMaterialized,
-  LocalArchiveRef ref,
-  Future<T> Function(String path) action,
-) async {
-  final path = await materialize(ref.locator);
-  try {
-    return await action(path);
-  } finally {
-    await deleteMaterialized(path);
-  }
-}
-
 String _opaqueEpubResourceId(LocalArchiveRef publication, String resource) =>
     LocalArchiveRef(
       locator: publication.locator,
-      displayName: publication.displayName,
       entry: resource,
       format: 'epub',
     ).encode();
@@ -63,6 +49,31 @@ class LocalMediaSource
   @override
   String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
+  late final _copies = ArchiveMaterializations(
+    _materialize,
+    _deleteMaterialized,
+  );
+
+  Future<void> retainArchive(SourceMediaRef ref) async {
+    final archive = _archiveRef(ref);
+    if (archive != null) _copies.retain(archive.locator);
+  }
+
+  Future<void> releaseArchive(SourceMediaRef ref) async {
+    final archive = _archiveRef(ref);
+    if (archive != null) await _copies.release(archive.locator);
+  }
+
+  Future<void> close() => _copies.close();
+
+  LocalArchiveRef? _archiveRef(SourceMediaRef ref) {
+    if (ref.sourceId != id) throw ArgumentError('Wrong source.');
+    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    if (archive == null && ref.itemId.startsWith('hikari-')) {
+      throw const FormatException('Invalid local archive reference.');
+    }
+    return archive;
+  }
 
   @override
   bool get isAvailable =>
@@ -137,9 +148,10 @@ class LocalMediaSource
   @override
   Future<Publication> publication(SourceMediaRef ref) async {
     final archive = _requireArchive(ref, 'epub');
-    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
-      materialized,
-    ) async {
+    if (archive.entry != null) {
+      throw const FormatException('EPUB publication reference expected.');
+    }
+    return _copies.read(archive.locator, (materialized) async {
       final epub = EpubPublication.open(materialized);
       try {
         return await epub.publication(
@@ -157,9 +169,10 @@ class LocalMediaSource
     String resource,
   ) async {
     final archive = _requireArchive(ref, 'epub');
-    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
-      materialized,
-    ) async {
+    if (archive.entry != null) {
+      throw const FormatException('EPUB publication reference expected.');
+    }
+    return _copies.read(archive.locator, (materialized) async {
       final epub = EpubPublication.open(materialized);
       try {
         final content = await epub.readSection(
@@ -180,9 +193,7 @@ class LocalMediaSource
     if (resource == null) {
       throw const FormatException('EPUB resource is missing.');
     }
-    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
-      materialized,
-    ) async {
+    return _copies.read(archive.locator, (materialized) async {
       final epub = EpubPublication.open(materialized);
       try {
         return await epub.readResource(
@@ -196,7 +207,7 @@ class LocalMediaSource
 
   LocalArchiveRef _requireArchive(SourceMediaRef ref, String format) {
     if (ref.sourceId != id) throw ArgumentError('Wrong source.');
-    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    final archive = _archiveRef(ref);
     if (archive == null || archive.format != format) {
       throw const FormatException('Unsupported local publication reference.');
     }
@@ -205,12 +216,15 @@ class LocalMediaSource
 
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef ref) async {
-    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    final archive = _archiveRef(ref);
     if (archive?.isEpub == true) {
       throw const FormatException('EPUB does not expose manga pages.');
     }
     if (archive == null || !archive.isCbz) {
       return _pagesFolder(ref);
+    }
+    if (archive.entry != null) {
+      throw const FormatException('CBZ publication reference expected.');
     }
     return _pagesArchive(archive);
   }
@@ -227,9 +241,7 @@ class LocalMediaSource
   }
 
   Future<List<SourceMediaRef>> _pagesArchive(LocalArchiveRef archive) async {
-    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
-      materialized,
-    ) async {
+    return _copies.read(archive.locator, (materialized) async {
       final zip = BoundedArchive.open(materialized);
       try {
         final metadata = _readComicInfo(zip);
@@ -257,7 +269,6 @@ class LocalMediaSource
                 sourceId: SourceId.local,
                 itemId: LocalArchiveRef(
                   locator: archive.locator,
-                  displayName: archive.displayName,
                   entry: name,
                 ).encode(),
               ),
@@ -271,16 +282,15 @@ class LocalMediaSource
 
   @override
   Future<Uint8List> readPage(SourceMediaRef ref) async {
-    final archive = LocalArchiveRef.tryDecode(ref.itemId);
+    final archive = _archiveRef(ref);
     if (archive?.isEpub == true) {
       throw const FormatException('EPUB does not expose manga pages.');
     }
-    if (archive == null || archive.entry == null) {
-      return _read(ref, _pageReadLimit);
+    if (archive == null) return _read(ref, _pageReadLimit);
+    if (archive.entry == null) {
+      throw const FormatException('CBZ page entry is missing.');
     }
-    return _withMaterialized(_materialize, _deleteMaterialized, archive, (
-      materialized,
-    ) async {
+    return _copies.read(archive.locator, (materialized) async {
       final zip = BoundedArchive.open(materialized);
       try {
         return zip.readEntry(archive.entry!);
@@ -326,10 +336,16 @@ class LocalMediaSource
   }
 
   Future<void> _deleteMaterialized(String path) async {
-    await _channel.invokeMethod<void>('deleteMaterialized', {'path': path});
+    final deleted = await _channel.invokeMethod<bool>('deleteMaterialized', {
+      'path': path,
+    });
+    if (deleted != true) {
+      throw StateError('Materialized archive could not be deleted.');
+    }
   }
 
   Future<Uint8List> _read(SourceMediaRef ref, int limit) async {
+    if (ref.sourceId != id) throw ArgumentError('Wrong source.');
     final bytes = await _channel.invokeMethod<Uint8List>('read', {
       'id': ref.itemId,
       'limit': limit,

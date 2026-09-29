@@ -1,0 +1,1 @@
+{"id":"hikari-contract","name":"LNReader contract fixture (not a live provider)","site":"https://example.org/","bundle":"contract.js","origins":["https://example.org:443"],"imageRequestInit":{"headers":{"Referer":"https://example.org/"}}}

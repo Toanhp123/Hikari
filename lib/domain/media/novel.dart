@@ -42,6 +42,7 @@ final class NovelSearchPage {
   }
   final List<NovelPreview> results;
   final int page;
+
   /// Null means the upstream contract does not report whether another page exists.
   final bool? hasNextPage;
 }
@@ -50,6 +51,7 @@ final class NovelDetails {
   NovelDetails({required this.metadata, required List<NovelChapter> chapters})
     : chapters = List.unmodifiable(chapters);
   final MediaMetadata metadata;
+
   /// Complete list in source order, including all source chapter-list pages.
   final List<NovelChapter> chapters;
 }

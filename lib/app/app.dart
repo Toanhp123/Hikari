@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/features/remote_novel/novel_chapter_page.dart';
+import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
@@ -60,7 +63,13 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Future<void> _openMedia(BuildContext context, Media media) async {
     if (_isOpeningMedia) return;
     _isOpeningMedia = true;
+    final local = media.source.sourceId == _dependencies.localMediaSource.id;
+    var retained = false;
     try {
+      if (local) {
+        await _dependencies.localMediaSource.retainArchive(media.source);
+        retained = true;
+      }
       final target = await _dependencies.openMedia.execute(media);
       if (!context.mounted) return;
       await _pushMediaTarget(context, target);
@@ -76,6 +85,24 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       }
     } finally {
       _isOpeningMedia = false;
+      if (retained) {
+        try {
+          await _dependencies.localMediaSource.releaseArchive(media.source);
+        } catch (error, stackTrace) {
+          FlutterError.reportError(
+            FlutterErrorDetails(exception: error, stack: stackTrace),
+          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Could not clean up temporary reading files. Restart to retry cleanup.',
+                ),
+              ),
+            );
+          }
+        }
+      }
     }
   }
 
@@ -88,8 +115,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       MangaSeriesOpenTarget series => _buildMangaSeriesPage(series),
       MangaReaderOpenTarget reader => _buildMangaReaderPage(reader),
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
-      PublicationReaderOpenTarget publication =>
-        _buildPublicationReaderPage(publication),
+      NovelSeriesOpenTarget novel => NovelChapterPage(
+        target: novel,
+        openChapter: _openNovelChapter,
+        library: _dependencies.libraryRepository,
+      ),
+      PublicationReaderOpenTarget publication => _buildPublicationReaderPage(
+        publication,
+      ),
     };
     await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => page));
@@ -117,7 +150,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       MangaChapterPage(
         title: target.media.title,
         sourceName: target.chapterSource.name,
-        loadChapters: () => target.chapterSource.loadSeries(target.media.source).then((result) => result.chapters),
+        loadDetails: target.loadDetails,
+        readArtwork: target.chapterSource is ArtworkSource
+            ? (target.chapterSource as ArtworkSource).readArtwork
+            : null,
         openChapter: _openMangaChapter,
       );
 
@@ -145,7 +181,24 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         saveProgress: target.progress.save,
       );
 
-
+  Future<void> _openNovelChapter(
+    BuildContext context,
+    NovelChapter chapter,
+  ) async {
+    final target = await _dependencies.openNovelChapter.execute(chapter);
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NovelReaderPage(
+          title: chapter.title,
+          loadContent: () async => target.content,
+          readResource: target.source.readResource,
+          initialProgress: target.progress.initialProgress,
+          saveProgress: target.progress.save,
+        ),
+      ),
+    );
+  }
 
   Future<void> _openMangaChapter(
     BuildContext context,
@@ -201,6 +254,17 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                   ),
                 )
               : null,
+          openNovels: _dependencies.searchNovels.options.isEmpty
+              ? null
+              : () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => RemoteNovelSearchPage(
+                      searchNovels: _dependencies.searchNovels,
+                      openMedia: _openMedia,
+                      library: libraryRepository,
+                    ),
+                  ),
+                ),
           openLibrary: () async {
             await Navigator.of(context).push(
               MaterialPageRoute<void>(

@@ -39,6 +39,9 @@ final class OpenMangaChapter {
       media: chapter.source,
     );
     final pages = await source.pages(chapter.source);
+    if (pages.any((page) => page.sourceId != source.id)) {
+      throw StateError('Manga source returned foreign page references.');
+    }
 
     return MangaChapterOpenTarget(
       chapter: chapter,

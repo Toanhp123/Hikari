@@ -53,7 +53,7 @@ class _RemoteMangaSearchPageState extends State<RemoteMangaSearchPage> {
                     if (_viewModel.sources.length > 1) _buildSourcePicker(),
                     TextField(
                       controller: _queryController,
-                      enabled: _viewModel.state is! RemoteMangaSearchLoading,
+                      enabled: true,
                       textInputAction: TextInputAction.search,
                       onSubmitted: _viewModel.search,
                       decoration: InputDecoration(
@@ -84,9 +84,7 @@ class _RemoteMangaSearchPageState extends State<RemoteMangaSearchPage> {
   Widget _buildSourcePicker() => DropdownButton<SourceId>(
     value: _viewModel.selectedSource!.id,
     isExpanded: true,
-    onChanged: _viewModel.state is RemoteMangaSearchLoading
-        ? null
-        : _viewModel.selectSource,
+    onChanged: _viewModel.selectSource,
     items: [
       for (final source in _viewModel.sources)
         DropdownMenuItem(value: source.id, child: Text(source.name)),
@@ -100,29 +98,55 @@ class _RemoteMangaSearchPageState extends State<RemoteMangaSearchPage> {
     RemoteMangaSearchLoading() => const Center(
       child: CircularProgressIndicator(),
     ),
-    RemoteMangaSearchFailure() => const Center(
-      child: Text(
-        'Could not search. Check source access or rate limits and try again.',
+    RemoteMangaSearchFailure() => Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Could not search. Check source access or rate limits and try again.',
+          ),
+          TextButton(
+            onPressed: _viewModel.retry,
+            child: const Text('Try again'),
+          ),
+        ],
       ),
     ),
-    RemoteMangaSearchReady(:final results) when results.isEmpty => const Center(
-      child: Text('No manga found.'),
-    ),
-    RemoteMangaSearchReady(:final results) => ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final preview = results[index];
-        final media = preview.media;
-        return ListTile(
-          key: ValueKey(media.source),
-          title: Text(media.title),
-          subtitle: Text(_viewModel.selectedSource!.name),
-          onTap: () => widget.openMedia(context, media),
-          trailing: widget.library == null
-              ? null
-              : LibraryButton(repository: widget.library!, media: media),
-        );
-      },
-    ),
+    RemoteMangaSearchReady(
+      :final results,
+      :final hasNextPage,
+      :final loadingMore,
+      :final pageFailed,
+    ) =>
+      ListView.builder(
+        itemCount: results.length + 1,
+        itemBuilder: (context, index) {
+          if (index == results.length) {
+            return Column(
+              children: [
+                if (results.isEmpty) const Text('No manga found.'),
+                if (loadingMore)
+                  const Center(child: CircularProgressIndicator())
+                else if (hasNextPage)
+                  TextButton(
+                    onPressed: _viewModel.loadMore,
+                    child: Text(pageFailed ? 'Retry next page' : 'Load more'),
+                  ),
+              ],
+            );
+          }
+          final preview = results[index];
+          final media = preview.media;
+          return ListTile(
+            key: ValueKey(media.source),
+            title: Text(media.title),
+            subtitle: Text(_viewModel.selectedSource!.name),
+            onTap: () => widget.openMedia(context, media),
+            trailing: widget.library == null
+                ? null
+                : LibraryButton(repository: widget.library!, media: media),
+          );
+        },
+      ),
   };
 }

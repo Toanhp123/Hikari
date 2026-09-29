@@ -30,7 +30,7 @@ framework or reconciliation algorithm is introduced now.
 - `MediaSource` exposes id/name. `DirectVideoSource` exposes the current direct
   playback locator contract; `MangaPageSource` exposes pages/readPage;
   `NovelTextSource` exposes readText. Local source implements these capabilities.
-  `MangaSearchSource` and `MangaChapterSource` add normalized search and chapter
+  `MangaSearchSource` and `MangaSeriesSource` add normalized search and chapter
   discovery; see [REMOTE_MANGA](REMOTE_MANGA.md) for series/chapter identity and
   the deliberately deferred series-level resume. Picker, tree selection and scan
   mechanics stay infrastructure-specific.
@@ -38,13 +38,22 @@ framework or reconciliation algorithm is introduced now.
 ## Storage and composition
 
 [ADR-004](../decisions/ADR-004-user-state-persistence.md) selects Drift/SQLite.
-`UserDatabase` schema version 2 has two independent tables, each keyed by
+`UserDatabase` schema version 3 has independent tables, each keyed by
 `(source_id, item_id)`, without foreign keys or cascading ownership:
 
 - `progress_records`: kind, nullable position_ms/duration_ms/page_index/page_count/
   text_progression, document_resource/document_progression/document_total_progression/
   document_locator, completed integer, updated_at epoch milliseconds.
 - `library_records`: title, media_type, added_at epoch milliseconds.
+- `mihon_continuation_records`: source-private encoded payload including memo,
+  title and chapter fields. This is neither Library membership nor progress.
+
+Version 3 adds continuation storage and migrates valid `mihon-v1:` manga/chapter
+references to stable kind-plus-URL `mihon-v2:` keys, retaining their continuation.
+Duplicate old keys coalesce to latest progress and earliest Library membership;
+item ID breaks timestamp ties deterministically. Malformed/unrecognized references
+and unrelated local/provider rows remain unchanged. See
+[ADR-009](../decisions/ADR-009-stable-source-identities.md).
 
 Version 2 migrates version 1 by adding the four nullable document columns. Existing
 video/page/text progress and Library rows remain unchanged; new document positions use

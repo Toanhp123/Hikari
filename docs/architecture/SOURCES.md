@@ -45,11 +45,16 @@ The current source surface is deliberately small:
 | `MediaSourceAvailability` | Whether a registered source can operate on this device/platform |
 | `MangaSearchSource` | Search and return normalized `Media` |
 | `DirectVideoSource` | Turn a source-scoped video reference into a locator accepted by the current direct player path |
-| `MangaChapterSource` | Resolve a manga series into provider-neutral chapters |
+| `MangaSeriesSource` | Resolve normalized series metadata and provider-neutral chapters |
 | `MangaPageSource` | Resolve a readable reference into pages and read page bytes |
-| `NovelTextSource` | Read text for a source-scoped media reference |
+| `ArtworkSource` | Read source-owned cover bytes without ambient network loading |
+| `NovelTextSource` | Read plain text for a source-scoped media reference |
+| `NovelSearchSource` | Return normalized novel previews and pagination information |
+| `NovelSeriesSource` | Resolve novel metadata and the complete chapter list |
+| `NovelChapterSource` | Read rich chapter HTML and registered source-owned resources |
+| `PublicationSource` | Load a publication spine/TOC, sections and registered resources |
 
-Capabilities compose. Android extension-backed manga sources implement search + chapters + pages. Local SAF implements direct video + pages + text + platform availability. Domain does not know HTTP, SAF, SQLite, extension APKs, MangaDex DTOs or Flutter widgets.
+Capabilities compose. Android extension-backed manga sources implement search + series + pages + artwork. Local SAF implements direct video + pages + text + publications + platform availability. Remote novels use search + series + rich chapters. Domain does not know HTTP, SAF, SQLite, extension APKs, plugin JavaScript or Flutter widgets.
 
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
 an operation that cannot be expressed by the current contracts.
@@ -81,26 +86,37 @@ Media
   -> return provider-neutral MediaOpenTarget
 ```
 
-A manga source that also exposes `MangaChapterSource` produces a series target; progress
-is deliberately not loaded for the series because current remote progress belongs to a
-selected chapter. A direct manga source produces a reader target. Novel content
-requires `NovelTextSource`. Video requires `DirectVideoSource`, which makes the existing
-local locator/player assumption explicit instead of treating every future anime source
-as directly playable. Episode discovery, stream selection, headers and DRM remain
-separate future requirements.
+A manga source that exposes `MangaSeriesSource` produces a series target; progress
+belongs to the selected chapter. A direct manga source produces a reader target.
+Light novels are capability-routed: `PublicationSource` supplies a local EPUB,
+`NovelSeriesSource` supplies a remote chapter-based series, and `NovelTextSource`
+supplies plain text. Rich remote chapters do not require a plain-text capability.
+Video requires `DirectVideoSource`, which makes the existing local locator/player
+assumption explicit instead of treating every future anime source as directly playable.
+Episode discovery, stream selection, headers and DRM remain separate future requirements.
 
 `OpenMangaChapter` resolves `MangaPageSource`, loads chapter progress and resolves pages
-before navigation. This keeps stale remote references from creating a reader route that
-cannot load.
+before navigation. `OpenNovelChapter` does the equivalent for `NovelChapterSource`,
+returning rich HTML with registered resources rather than coercing it to plain text.
+This keeps invalid chapter references from creating a reader route that cannot load.
 
-`SearchManga` owns the current search-and-open invariant. It exposes registered
-`MangaSearchSource` implementations only when the same source also has `MangaPageSource`,
-filters unavailable sources, normalizes empty queries and rejects malformed results whose
-media type or `SourceId` does not match the selected source. A search-only capability is
-valid but is not presented as openable content by this workflow.
+`SearchManga` and `SearchNovels` own search-and-open invariants. They expose only
+registered, available sources with the capabilities needed to open returned content,
+normalize empty queries and reject malformed results whose media type or `SourceId`
+does not match the selected source. A search-only capability is valid but is not
+presented as openable content by these workflows. Search pages retain source pagination
+information; presentation owns the current query, selected source and in-flight generation,
+so an old response cannot append to a new search.
 
 `ProgressSession` packages the initial persisted record and save operation for one
 `SourceMediaRef`. It is application glue, not a reading-history model.
+
+A stable source reference is **not** canonical cross-provider content identity. Its key
+must not contain mutable display metadata or private continuation payloads. Sources own
+any state required to call their provider again; UI and application workflows do not
+interpret that state. Library snapshots survive source absence and remain removable.
+Canonical identity, cross-provider reconciliation and SAF rename/move reconciliation
+remain outside this scope.
 
 Application targets may carry domain capability interfaces to presentation. They must
 not carry `MihonMangaSource`, SAF adapters, Drift records, HTTP DTOs or other concrete
@@ -116,7 +132,7 @@ UserDatabase
   -> SqliteProgressRepository
 
 LocalMediaSource --------\
-                            -> SourceRegistry -> OpenMedia / OpenMangaChapter / SearchManga
+                            -> SourceRegistry -> OpenMedia / chapter-open / search workflows
 installed extension sources -/
 
 MediaKitVideoSession ------------------------> presentation composition

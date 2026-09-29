@@ -1,4 +1,9 @@
 import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/features/novel_reader/novel_content_view.dart';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -8,16 +13,21 @@ class NovelReaderPage extends StatefulWidget {
   const NovelReaderPage({
     super.key,
     required this.title,
-    required this.loadText,
+    this.loadText,
+    this.loadContent,
+    this.readResource,
     this.initialProgress,
     this.saveProgress,
-  });
+  }) : assert((loadText != null) != (loadContent != null)),
+       assert(loadContent == null || readResource != null);
 
   final MediaProgress? initialProgress;
   final Future<void> Function(ProgressPosition, bool)? saveProgress;
 
   final String title;
-  final Future<String> Function() loadText;
+  final Future<String> Function()? loadText;
+  final Future<NovelChapterContent> Function()? loadContent;
+  final Future<Uint8List> Function(SourceMediaRef)? readResource;
 
   @override
   State<NovelReaderPage> createState() => _NovelReaderPageState();
@@ -77,6 +87,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   }
 
   String? _text;
+  NovelChapterContent? _content;
   Object? _error;
   bool _loading = true;
 
@@ -94,10 +105,12 @@ class _NovelReaderPageState extends State<NovelReaderPage>
       _error = null;
     });
     try {
-      final text = await widget.loadText();
+      final text = await widget.loadText?.call();
+      final content = await widget.loadContent?.call();
       if (!mounted) return;
       setState(() {
         _text = text;
+        _content = content;
         _loading = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -151,11 +164,16 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 720),
-                    child: SelectableText(
-                      _text ?? '',
-                      style: Theme.of(context).textTheme.bodyLarge
-                          ?.copyWith(height: 1.6),
-                    ),
+                    child: _content != null
+                        ? NovelContentView(
+                            content: _content!,
+                            readResource: widget.readResource!,
+                          )
+                        : SelectableText(
+                            _text ?? '',
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(height: 1.6),
+                          ),
                   ),
                 ),
               ),

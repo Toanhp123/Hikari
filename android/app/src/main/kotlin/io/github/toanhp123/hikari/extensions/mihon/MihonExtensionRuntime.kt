@@ -78,7 +78,7 @@ internal class MihonExtensionRuntime(private val context: Context) {
         "artists" to listOfNotNull(artist),
         "genres" to genre?.split(",")?.map(String::trim)?.filter(String::isNotEmpty).orEmpty(),
         "status" to statusName(status),
-        "rawStatus" to statusName(status),
+        "rawStatus" to status.toString(),
         "rating" to null,
         "memo" to memoOrNull(libraryVersion),
     )

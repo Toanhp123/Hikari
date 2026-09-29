@@ -11,13 +11,11 @@ const maxArchiveCompressedBytes = 1024 * 1024 * 1024;
 final class LocalArchiveRef {
   const LocalArchiveRef({
     required this.locator,
-    required this.displayName,
     this.entry,
     this.format = 'cbz',
   });
 
   final String locator;
-  final String displayName;
   final String? entry;
   final String format;
 
@@ -26,14 +24,31 @@ final class LocalArchiveRef {
 
   String encode() {
     if (!isCbz && !isEpub) throw ArgumentError.value(format, 'format');
+    if (!_validLocator(locator) || (entry != null && !_validEntry(entry!))) {
+      throw const FormatException('Invalid local archive reference.');
+    }
     final prefix = 'hikari-$format:';
     final payload = jsonEncode({
       'locator': locator,
-      'displayName': displayName,
       if (entry != null) 'entry': entry,
     });
     return '$prefix${base64Url.encode(utf8.encode(payload))}';
   }
+
+  static bool _validLocator(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null &&
+        uri.scheme == 'content' &&
+        uri.host.isNotEmpty &&
+        !RegExp(r'[\x00-\x20\x7f]').hasMatch(value);
+  }
+
+  static bool _validEntry(String value) =>
+      value.isNotEmpty &&
+      !RegExp(r'[\x00-\x1f\x7f\\:]').hasMatch(value) &&
+      value
+          .split('/')
+          .every((part) => part.isNotEmpty && part != '.' && part != '..');
 
   static LocalArchiveRef? tryDecode(String value) {
     final separator = value.indexOf(':');
@@ -45,21 +60,17 @@ final class LocalArchiveRef {
         utf8.decode(base64Url.decode(value.substring(separator + 1))),
       ) as Map<String, dynamic>;
       final locator = decoded['locator'] as String?;
-      final displayName = decoded['displayName'] as String?;
       final entry = decoded['entry'] as String?;
-      if (locator == null ||
-          displayName == null ||
-          locator.isEmpty ||
-          displayName.isEmpty) {
+      if (decoded.keys.any((key) => key != 'locator' && key != 'entry') ||
+          locator == null ||
+          !_validLocator(locator) ||
+          (entry != null && !_validEntry(entry))) {
         return null;
       }
-      return LocalArchiveRef(
-        locator: locator,
-        displayName: displayName,
-        entry: entry,
-        format: format,
-      );
-    } catch (_) {
+      return LocalArchiveRef(locator: locator, entry: entry, format: format);
+    } on FormatException {
+      return null;
+    } on TypeError {
       return null;
     }
   }
@@ -89,12 +100,16 @@ final class BoundedArchive {
 
     final input = InputFileStream(path);
     final entries = <ArchiveFile>[];
-    ZipDecoder().decodeStream(input, callback: entries.add);
-    if (entries.length != headerCount) {
+    try {
+      ZipDecoder().decodeStream(input, callback: entries.add);
+      if (entries.length != headerCount) {
+        throw const FormatException('Truncated ZIP central directory.');
+      }
+      return BoundedArchive._(input, entries);
+    } catch (_) {
       input.closeSync();
-      throw const FormatException('Truncated ZIP central directory.');
+      rethrow;
     }
-    return BoundedArchive._(input, entries);
   }
 
   List<String> get names => List.unmodifiable(
@@ -149,6 +164,9 @@ final class BoundedArchive {
     var total = 0;
     var compressed = 0;
     for (final header in headers) {
+      if (header.generalPurposeBitFlag & 1 != 0) {
+        throw const FormatException('Encrypted ZIP archives are unsupported.');
+      }
       final normalized = _safeName(header.filename);
       if (!names.add(normalized)) {
         throw const FormatException('ZIP contains duplicate entries.');
