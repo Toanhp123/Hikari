@@ -50,10 +50,7 @@ class LocalMediaSource
   @override
   String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
-  late final _copies = ArchiveCopyPool(
-    _materialize,
-    _deleteMaterialized,
-  );
+  late final _copies = ArchiveCopyPool(_materialize, _deleteMaterialized);
 
   Future<void> retainArchive(SourceMediaRef ref) async {
     final archive = _archiveRef(ref);

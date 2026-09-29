@@ -281,9 +281,7 @@ void main() {
     addTearDown(model.dispose);
     final old = model.search('old');
     await model.search(' ');
-    pending.complete(
-      MangaSearchPage(results: [], hasNextPage: false, page: 1),
-    );
+    pending.complete(MangaSearchPage(results: [], hasNextPage: false, page: 1));
     await old;
     expect(model.state, isA<RemoteMangaSearchIdle>());
   });

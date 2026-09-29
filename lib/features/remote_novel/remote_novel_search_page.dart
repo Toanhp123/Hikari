@@ -135,10 +135,7 @@ class _RemoteNovelSearchPageState extends State<RemoteNovelSearchPage> {
         onTap: () => widget.openMedia(context, preview.media),
         trailing: widget.library == null
             ? null
-            : LibraryButton(
-                repository: widget.library!,
-                media: preview.media,
-              ),
+            : LibraryButton(repository: widget.library!, media: preview.media),
       );
     },
   );

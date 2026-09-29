@@ -21,7 +21,7 @@ class LocalEntry {
     required this.id,
     required this.parentId,
     required this.name,
-    required this.isDirectory
+    required this.isDirectory,
   });
 
   final String id;

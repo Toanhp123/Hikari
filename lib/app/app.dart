@@ -147,16 +147,15 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) =>
-      MangaSeriesPage(
-        title: target.media.title,
-        sourceName: target.seriesSource.name,
-        loadDetails: target.loadDetails,
-        readArtwork: target.seriesSource is ArtworkSource
-            ? (target.seriesSource as ArtworkSource).readArtwork
-            : null,
-        openChapter: _openMangaChapter,
-      );
+  Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) => MangaSeriesPage(
+    title: target.media.title,
+    sourceName: target.seriesSource.name,
+    loadDetails: target.loadDetails,
+    readArtwork: target.seriesSource is ArtworkSource
+        ? (target.seriesSource as ArtworkSource).readArtwork
+        : null,
+    openChapter: _openMangaChapter,
+  );
 
   Widget _buildMangaReaderPage(MangaReaderOpenTarget target) => MangaReaderPage(
     title: target.media.title,
