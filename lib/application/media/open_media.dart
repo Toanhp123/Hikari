@@ -25,17 +25,17 @@ final class VideoOpenTarget extends MediaOpenTarget {
 }
 
 final class MangaSeriesOpenTarget extends MediaOpenTarget {
-  const MangaSeriesOpenTarget(super.media, {required this.chapterSource});
+  const MangaSeriesOpenTarget(super.media, {required this.seriesSource});
 
-  final MangaSeriesSource chapterSource;
+  final MangaSeriesSource seriesSource;
 
   Future<MangaSeriesDetails> loadDetails() async {
-    final details = await chapterSource.loadSeries(media.source);
+    final details = await seriesSource.loadDetails(media.source);
     if (details.chapters.any(
-          (chapter) => chapter.source.sourceId != chapterSource.id,
+          (chapter) => chapter.source.sourceId != seriesSource.id,
         ) ||
         (details.metadata.cover != null &&
-            details.metadata.cover!.sourceId != chapterSource.id)) {
+            details.metadata.cover!.sourceId != seriesSource.id)) {
       throw StateError('Manga source returned foreign references.');
     }
     return details;
@@ -59,7 +59,7 @@ final class NovelSeriesOpenTarget extends MediaOpenTarget {
   final NovelSeriesSource source;
 
   Future<NovelDetails> loadDetails() async {
-    final details = await source.novelDetails(media.source);
+    final details = await source.loadDetails(media.source);
     if (details.chapters.any(
           (chapter) => chapter.source.sourceId != source.id,
         ) ||
@@ -110,7 +110,7 @@ final class OpenMedia {
     }
 
     if (media.type == MediaType.manga && source is MangaSeriesSource) {
-      return MangaSeriesOpenTarget(media, chapterSource: source);
+      return MangaSeriesOpenTarget(media, seriesSource: source);
     }
 
     if (media.type == MediaType.lightNovel &&

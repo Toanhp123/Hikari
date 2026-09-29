@@ -1,8 +1,8 @@
 import 'dart:async';
 
 /// Source-owned temporary copies. Reads hold a lease even if their reader exits.
-final class ArchiveMaterializations {
-  ArchiveMaterializations(this.materialize, this.delete);
+final class ArchiveCopyPool {
+  ArchiveCopyPool(this.materialize, this.delete);
 
   final Future<String> Function(String) materialize;
   final Future<void> Function(String) delete;

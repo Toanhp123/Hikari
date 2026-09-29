@@ -38,11 +38,13 @@ starts from loading and never restores stale results if the new scan fails. The 
 renders the state and owns only route/UI concerns such as refreshing Library buttons
 after returning from another route.
 
-### Remote manga search
+### Remote search
 
-`RemoteMangaSearchViewModel` owns selected source, loading/failure state and search
-results. It calls the pure `SearchManga` application workflow rather than invoking a
-concrete source directly. Switching sources clears stale results. Search input is
+`RemoteMangaSearchViewModel` and `RemoteNovelSearchViewModel` own selected source,
+loading/failure state and search results through sealed UI states. They call the pure
+application search workflows rather than invoking concrete sources directly. Switching
+sources clears stale results, stale asynchronous completions are discarded, and
+pagination state cannot form contradictory boolean combinations. Search input is
 normalized before execution and failures remain presentation state instead of leaking
 source exceptions into widgets.
 

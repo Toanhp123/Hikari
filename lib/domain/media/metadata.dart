@@ -11,21 +11,24 @@ enum PublicationStatus {
 }
 
 final class MediaMetadata {
-  const MediaMetadata({
+  MediaMetadata({
     required this.title,
     this.cover,
     this.summary,
-    this.authors = const [],
-    this.artists = const [],
-    this.genres = const [],
-    this.tags = const [],
+    List<String> authors = const [],
+    List<String> artists = const [],
+    List<String> genres = const [],
+    List<String> tags = const [],
     this.language,
     this.publisher,
     this.status = PublicationStatus.unknown,
     this.rawStatus,
     this.rating,
     this.ratingMax,
-  });
+  }) : authors = List.unmodifiable(authors),
+       artists = List.unmodifiable(artists),
+       genres = List.unmodifiable(genres),
+       tags = List.unmodifiable(tags);
 
   final String title;
   final SourceMediaRef? cover;

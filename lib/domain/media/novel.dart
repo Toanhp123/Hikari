@@ -68,11 +68,11 @@ final class NovelChapterContent {
 }
 
 abstract interface class NovelSearchSource implements MediaSource {
-  Future<NovelSearchPage> searchNovels(String query, {int page = 1});
+  Future<NovelSearchPage> search(String query, {int page = 1});
 }
 
 abstract interface class NovelSeriesSource implements MediaSource {
-  Future<NovelDetails> novelDetails(SourceMediaRef novel);
+  Future<NovelDetails> loadDetails(SourceMediaRef novel);
 }
 
 abstract interface class NovelChapterSource implements MediaSource {

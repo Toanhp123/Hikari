@@ -62,9 +62,9 @@ void main() {
         channel,
         site: 'https://example.org/',
       );
-      final search = await source.searchNovels('query');
+      final search = await source.search('query');
       expect(search.hasNextPage, isNull);
-      final details = await source.novelDetails(
+      final details = await source.loadDetails(
         search.results.single.media.source,
       );
       expect(details.chapters.length, 2);
@@ -87,7 +87,7 @@ void main() {
       expect(content.html, isNot(contains('javascript:')));
       duplicate = true;
       await expectLater(
-        source.novelDetails(search.results.single.media.source),
+        source.loadDetails(search.results.single.media.source),
         throwsFormatException,
       );
     },

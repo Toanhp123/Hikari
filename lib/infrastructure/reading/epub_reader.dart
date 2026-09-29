@@ -11,21 +11,15 @@ import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
 import 'package:hikari/infrastructure/reading/safe_html.dart';
 import 'package:xml/xml.dart';
 
-final class EpubPublication implements PublicationSource {
-  EpubPublication._(this._archive, this._publication, this._manifest);
+final class EpubReader {
+  EpubReader._(this._archive, this._publication, this._manifest);
 
   final BoundedArchive _archive;
   final Publication _publication;
   final Map<String, _ManifestItem> _manifest;
   bool _closed = false;
 
-  @override
-  SourceId get id => SourceId.local;
-
-  @override
-  String get name => 'EPUB publication';
-
-  static EpubPublication open(String materializedPath) {
+  static EpubReader open(String materializedPath) {
     final archive = BoundedArchive.open(materializedPath);
     try {
       final names = archive.names.toSet();
@@ -135,7 +129,7 @@ final class EpubPublication implements PublicationSource {
             ),
           )
           .toList();
-      return EpubPublication._(
+      return EpubReader._(
         archive,
         Publication(
           metadata: metadata,
@@ -151,25 +145,12 @@ final class EpubPublication implements PublicationSource {
     }
   }
 
-  @override
-  bool canOpenPublication(SourceMediaRef publication) =>
-      publication.sourceId == SourceId.local &&
-      LocalArchiveRef.tryDecode(publication.itemId)?.isEpub == true &&
-      LocalArchiveRef.tryDecode(publication.itemId)?.entry == null;
-
-  @override
-  Future<Publication> publication(SourceMediaRef publication) async {
-    _checkRef(publication);
+  Future<Publication> loadPublication() async {
     _checkOpen();
     return _publication;
   }
 
-  @override
-  Future<NovelChapterContent> readSection(
-    SourceMediaRef publication,
-    String resource,
-  ) async {
-    _checkRef(publication);
+  Future<NovelChapterContent> readSection(String resource) async {
     _checkOpen();
     final item = _manifest.values
         .where((item) => item.resource == resource)
@@ -285,7 +266,6 @@ final class EpubPublication implements PublicationSource {
     }
   }
 
-  @override
   Future<Uint8List> readResource(SourceMediaRef resource) async {
     _checkOpen();
     if (resource.sourceId != SourceId.local) {
@@ -308,10 +288,6 @@ final class EpubPublication implements PublicationSource {
 
   void _checkOpen() {
     if (_closed) throw StateError('Publication is closed.');
-  }
-
-  void _checkRef(SourceMediaRef ref) {
-    if (ref.sourceId != SourceId.local) throw ArgumentError('Wrong source.');
   }
 }
 

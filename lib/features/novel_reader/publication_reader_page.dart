@@ -75,7 +75,7 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
       _error = null;
     });
     try {
-      final book = await widget.source.publication(widget.publication);
+      final book = await widget.source.loadPublication(widget.publication);
       if (!mounted) return;
       final position = widget.initialProgress?.position;
       final requested = position is DocumentPosition ? position.resource : null;

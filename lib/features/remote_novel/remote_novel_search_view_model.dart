@@ -3,99 +3,152 @@ import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 
+sealed class RemoteNovelSearchUiState {
+  const RemoteNovelSearchUiState();
+}
+
+final class RemoteNovelSearchIdle extends RemoteNovelSearchUiState {
+  const RemoteNovelSearchIdle();
+}
+
+final class RemoteNovelSearchLoading extends RemoteNovelSearchUiState {
+  const RemoteNovelSearchLoading();
+}
+
+final class RemoteNovelSearchReady extends RemoteNovelSearchUiState {
+  const RemoteNovelSearchReady(
+    this.results, {
+    required this.hasNextPage,
+    required this.page,
+    this.loadingMore = false,
+    this.pageFailed = false,
+  });
+
+  final List<NovelPreview> results;
+  final bool? hasNextPage;
+  final int page;
+  final bool loadingMore;
+  final bool pageFailed;
+}
+
+final class RemoteNovelSearchFailure extends RemoteNovelSearchUiState {
+  const RemoteNovelSearchFailure();
+}
+
 final class RemoteNovelSearchViewModel extends ChangeNotifier {
-  RemoteNovelSearchViewModel(this.searchNovels)
-    : sources = searchNovels.options {
-    selectedSource = sources.isEmpty ? null : sources.first;
+  RemoteNovelSearchViewModel(this._searchNovels)
+    : sources = _searchNovels.options {
+    _selectedSource = sources.isEmpty ? null : sources.first;
   }
-  final SearchNovels searchNovels;
+
+  final SearchNovels _searchNovels;
   final List<NovelSearchOption> sources;
-  NovelSearchOption? selectedSource;
-  List<NovelPreview> results = const [];
-  bool loading = false, loadingMore = false, failed = false, pageFailed = false;
-  bool searched = false;
-  bool? hasNextPage = false;
-  int page = 0;
+  NovelSearchOption? _selectedSource;
+  NovelSearchOption? get selectedSource => _selectedSource;
+
+  RemoteNovelSearchUiState _state = const RemoteNovelSearchIdle();
+  RemoteNovelSearchUiState get state => _state;
+
   int _generation = 0;
   bool _disposed = false;
   String _query = '';
 
   void selectSource(SourceId? id) {
-    if (id == null || id == selectedSource?.id) return;
-    selectedSource = sources.firstWhere((source) => source.id == id);
+    if (id == null || id == _selectedSource?.id) return;
+    _selectedSource = sources.firstWhere((source) => source.id == id);
     _generation++;
-    results = const [];
-    loading = loadingMore = failed = pageFailed = searched = false;
-    hasNextPage = false;
-    page = 0;
-    _notify();
+    _query = '';
+    _publish(const RemoteNovelSearchIdle());
   }
 
   Future<void> search(String query) async {
-    if (selectedSource == null) return;
-    if (query.trim().isEmpty) {
+    final source = _selectedSource;
+    if (source == null) return;
+    final normalized = query.trim();
+    if (normalized.isEmpty) {
       _generation++;
       _query = '';
-      results = const [];
-      loading = loadingMore = failed = pageFailed = searched = false;
-      page = 0;
-      hasNextPage = false;
-      _notify();
+      _publish(const RemoteNovelSearchIdle());
       return;
     }
-    _query = query.trim();
+
+    _query = normalized;
     final generation = ++_generation;
-    results = const [];
-    loading = true;
-    loadingMore = failed = pageFailed = false;
-    searched = true;
-    page = 0;
-    hasNextPage = false;
-    _notify();
-    await _load(generation, 1);
+    _publish(const RemoteNovelSearchLoading());
+    try {
+      final result = await _searchNovels.execute(
+        sourceId: source.id,
+        query: _query,
+      );
+      if (generation != _generation) return;
+      _publish(
+        RemoteNovelSearchReady(
+          result.results,
+          hasNextPage: result.results.isEmpty ? false : result.hasNextPage,
+          page: result.page,
+        ),
+      );
+    } catch (_) {
+      if (generation == _generation) {
+        _publish(const RemoteNovelSearchFailure());
+      }
+    }
   }
 
   Future<void> retry() => search(_query);
+
   Future<void> loadMore() async {
-    if (loading || loadingMore || !searched || failed || hasNextPage == false) {
+    final previous = _state;
+    if (previous is! RemoteNovelSearchReady ||
+        previous.hasNextPage == false ||
+        previous.loadingMore) {
       return;
     }
-    loadingMore = true;
-    pageFailed = false;
-    _notify();
-    await _load(_generation, page + 1);
-  }
 
-  Future<void> _load(int generation, int requestedPage) async {
+    final generation = _generation;
+    _publish(
+      RemoteNovelSearchReady(
+        previous.results,
+        hasNextPage: previous.hasNextPage,
+        page: previous.page,
+        loadingMore: true,
+      ),
+    );
     try {
-      final result = await searchNovels.execute(
-        sourceId: selectedSource!.id,
+      final result = await _searchNovels.execute(
+        sourceId: _selectedSource!.id,
         query: _query,
-        page: requestedPage,
+        page: previous.page + 1,
       );
-      if (generation != _generation || _disposed) return;
-      final seen = results.map((item) => item.media.source).toSet();
-      results = List.unmodifiable([
-        ...results,
-        ...result.results.where((item) => seen.add(item.media.source)),
-      ]);
-      page = result.page;
-      hasNextPage = result.results.isEmpty ? false : result.hasNextPage;
+      if (generation != _generation) return;
+      final seen = previous.results.map((item) => item.media.source).toSet();
+      _publish(
+        RemoteNovelSearchReady(
+          List.unmodifiable([
+            ...previous.results,
+            ...result.results.where((item) => seen.add(item.media.source)),
+          ]),
+          hasNextPage: result.results.isEmpty ? false : result.hasNextPage,
+          page: result.page,
+        ),
+      );
     } catch (_) {
-      if (generation != _generation || _disposed) return;
-      if (requestedPage == 1) {
-        failed = true;
-      } else {
-        pageFailed = true;
-      }
+      if (generation != _generation) return;
+      _publish(
+        RemoteNovelSearchReady(
+          previous.results,
+          hasNextPage: previous.hasNextPage,
+          page: previous.page,
+          pageFailed: true,
+        ),
+      );
     }
-    if (generation != _generation || _disposed) return;
-    loading = loadingMore = false;
-    _notify();
   }
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
+  void _publish(RemoteNovelSearchUiState state) {
+    if (_disposed) return;
+    _state = state;
+    notifyListeners();
   }
 
   @override

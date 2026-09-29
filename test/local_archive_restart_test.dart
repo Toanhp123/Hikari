@@ -159,7 +159,7 @@ void main() {
     await fixture.writeAsBytes(ZipEncoder().encode(archive));
     final media = _media('Book.epub');
     await source.retainArchive(media.source);
-    final publication = await source.publication(media.source);
+    final publication = await source.loadPublication(media.source);
     final resource = publication.spine[1].resource;
     final content = await source.readSection(media.source, resource);
     final imageRef = content.resources.values.single;
@@ -193,7 +193,7 @@ void main() {
     expect(position.locator, 'opaque-reader-locator');
     expect(progress.completed, isFalse);
     await source.retainArchive(saved.source);
-    final reopened = await source.publication(saved.source);
+    final reopened = await source.loadPublication(saved.source);
     expect(reopened.spine[1].resource, position.resource);
     final restored = await source.readSection(saved.source, position.resource);
     expect(restored.html, contains('Second section'));

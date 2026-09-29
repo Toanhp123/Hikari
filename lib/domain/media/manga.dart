@@ -12,11 +12,13 @@ final class MangaPreview {
 }
 
 final class MangaSearchPage {
-  const MangaSearchPage({
-    required this.results,
+  MangaSearchPage({
+    required List<MangaPreview> results,
     required this.hasNextPage,
     required this.page,
-  }) : assert(page > 0);
+  }) : results = List.unmodifiable(results) {
+    if (page < 1) throw ArgumentError.value(page, 'page');
+  }
 
   final List<MangaPreview> results;
   final bool hasNextPage;
@@ -24,25 +26,32 @@ final class MangaSearchPage {
 }
 
 final class MangaChapter {
-  const MangaChapter({
+  MangaChapter({
     required this.title,
     required this.source,
     this.scanlator,
     this.chapterNumber,
-    this.dateUpload,
+    this.uploadedAt,
     this.canReadPages = true,
-  });
+  }) {
+    if (chapterNumber != null && !chapterNumber!.isFinite) {
+      throw ArgumentError.value(chapterNumber, 'chapterNumber');
+    }
+  }
 
   final String title;
   final SourceMediaRef source;
   final String? scanlator;
   final double? chapterNumber;
-  final int? dateUpload;
+  final DateTime? uploadedAt;
   final bool canReadPages;
 }
 
 final class MangaSeriesDetails {
-  const MangaSeriesDetails({required this.metadata, required this.chapters});
+  MangaSeriesDetails({
+    required this.metadata,
+    required List<MangaChapter> chapters,
+  }) : chapters = List.unmodifiable(chapters);
 
   final MediaMetadata metadata;
   final List<MangaChapter> chapters;
@@ -53,7 +62,7 @@ abstract interface class MangaSearchSource implements MediaSource {
 }
 
 abstract interface class MangaSeriesSource implements MediaSource {
-  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga);
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga);
 }
 
 abstract interface class MangaPageSource implements MediaSource {

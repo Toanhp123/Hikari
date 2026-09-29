@@ -18,9 +18,9 @@ final class NovelChapterOpenTarget {
 }
 
 final class OpenNovelChapter {
-  const OpenNovelChapter(this._sources, this._progress);
+  const OpenNovelChapter(this._sources, this._progressRepository);
   final SourceRegistry _sources;
-  final ProgressRepository _progress;
+  final ProgressRepository _progressRepository;
 
   Future<NovelChapterOpenTarget> execute(NovelChapter chapter) async {
     final source = _sources.requireCapability<NovelChapterSource>(
@@ -39,7 +39,7 @@ final class OpenNovelChapter {
       source: source,
       content: content,
       progress: await ProgressSession.load(
-        repository: _progress,
+        repository: _progressRepository,
         media: chapter.source,
       ),
     );

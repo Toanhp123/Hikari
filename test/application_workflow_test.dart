@@ -54,9 +54,9 @@ class _PublicationSource implements PublicationSource, NovelTextSource {
   @override
   bool canOpenPublication(SourceMediaRef publication) => canOpen;
   @override
-  Future<Publication> publication(SourceMediaRef publication) async =>
+  Future<Publication> loadPublication(SourceMediaRef publication) async =>
       Publication(
-        metadata: const MediaMetadata(title: 'Book'),
+        metadata: MediaMetadata(title: 'Book'),
         spine: const [
           PublicationSection(resource: 'chapter.xhtml', title: 'Chapter'),
         ],
@@ -89,10 +89,10 @@ class _MangaSource
   String get name => 'Manga source';
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(results: const [], hasNextPage: false, page: page);
+      MangaSearchPage(results: [], hasNextPage: false, page: page);
   @override
-  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async =>
-      const MangaSeriesDetails(
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
+      MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
         chapters: [],
       );
@@ -111,7 +111,7 @@ class _SearchOnlySource implements MangaSearchSource {
   String get name => 'Search only';
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(results: const [], hasNextPage: false, page: page);
+      MangaSearchPage(results: [], hasNextPage: false, page: page);
 }
 
 class _InvalidSearchSource implements MangaSearchSource, MangaPageSource {
@@ -122,7 +122,7 @@ class _InvalidSearchSource implements MangaSearchSource, MangaPageSource {
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
       MangaSearchPage(
-        results: const [
+        results: [
           MangaPreview(
             media: Media(
               title: 'Wrong source',
@@ -154,7 +154,7 @@ class _ForeignMangaSource extends _MangaSource {
               type: MediaType.manga,
               source: SourceMediaRef(sourceId: id, itemId: 'series'),
             ),
-            metadata: const MediaMetadata(
+            metadata: MediaMetadata(
               title: 'Series',
               cover: SourceMediaRef(
                 sourceId: SourceId('foreign'),
@@ -171,8 +171,8 @@ class _ForeignMangaSource extends _MangaSource {
     const SourceMediaRef(sourceId: SourceId('foreign'), itemId: 'page'),
   ];
   @override
-  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async =>
-      const MangaSeriesDetails(
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
+      MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
         chapters: [
           MangaChapter(
@@ -204,8 +204,8 @@ class _RichNovelSource implements NovelSeriesSource, NovelChapterSource {
   @override
   String get name => 'Rich novel';
   @override
-  Future<NovelDetails> novelDetails(SourceMediaRef novel) async => NovelDetails(
-    metadata: const MediaMetadata(title: 'Rich book'),
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
+    metadata: MediaMetadata(title: 'Rich book'),
     chapters: [],
   );
   @override
@@ -371,7 +371,7 @@ void main() {
 
   test('series open defers progress until chapter selected', () async {
     const series = SourceMediaRef(sourceId: _mangaSourceId, itemId: 'series');
-    const chapter = MangaChapter(
+    final chapter = MangaChapter(
       title: 'Chapter 1',
       source: SourceMediaRef(sourceId: _mangaSourceId, itemId: 'chapter'),
     );
@@ -395,7 +395,7 @@ void main() {
   });
 
   test('open chapter rejects unavailable source', () async {
-    const chapter = MangaChapter(
+    final chapter = MangaChapter(
       title: 'Unavailable chapter',
       source: SourceMediaRef(sourceId: _mangaSourceId, itemId: 'chapter'),
     );

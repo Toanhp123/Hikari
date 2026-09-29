@@ -8,10 +8,10 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
-import 'package:hikari/infrastructure/local_media/archive_materializations.dart';
+import 'package:hikari/infrastructure/local_media/archive_copy_pool.dart';
 import 'package:hikari/infrastructure/local_media/classifier.dart';
 import 'package:hikari/infrastructure/local_media/comic_info.dart';
-import 'package:hikari/infrastructure/reading/epub_publication.dart';
+import 'package:hikari/infrastructure/reading/epub_reader.dart';
 
 const _materializeLimit = 1024 * 1024 * 1024;
 const _pageReadLimit = 32 * 1024 * 1024;
@@ -50,7 +50,7 @@ class LocalMediaSource
   @override
   String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
-  late final _copies = ArchiveMaterializations(
+  late final _copies = ArchiveCopyPool(
     _materialize,
     _deleteMaterialized,
   );
@@ -147,17 +147,15 @@ class LocalMediaSource
   }
 
   @override
-  Future<Publication> publication(SourceMediaRef ref) async {
+  Future<Publication> loadPublication(SourceMediaRef ref) async {
     final archive = _requireArchive(ref, 'epub');
     if (archive.entry != null) {
       throw const FormatException('EPUB publication reference expected.');
     }
     return _copies.read(archive.locator, (materialized) async {
-      final epub = EpubPublication.open(materialized);
+      final epub = EpubReader.open(materialized);
       try {
-        return await epub.publication(
-          SourceMediaRef(sourceId: SourceId.local, itemId: archive.encode()),
-        );
+        return await epub.loadPublication();
       } finally {
         epub.close();
       }
@@ -174,12 +172,9 @@ class LocalMediaSource
       throw const FormatException('EPUB publication reference expected.');
     }
     return _copies.read(archive.locator, (materialized) async {
-      final epub = EpubPublication.open(materialized);
+      final epub = EpubReader.open(materialized);
       try {
-        final content = await epub.readSection(
-          SourceMediaRef(sourceId: SourceId.local, itemId: archive.encode()),
-          resource,
-        );
+        final content = await epub.readSection(resource);
         return _opaqueEpubContent(archive, content);
       } finally {
         epub.close();
@@ -195,7 +190,7 @@ class LocalMediaSource
       throw const FormatException('EPUB resource is missing.');
     }
     return _copies.read(archive.locator, (materialized) async {
-      final epub = EpubPublication.open(materialized);
+      final epub = EpubReader.open(materialized);
       try {
         return await epub.readResource(
           SourceMediaRef(sourceId: SourceId.local, itemId: resource),

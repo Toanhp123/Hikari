@@ -6,7 +6,7 @@ import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
-import 'package:hikari/features/remote_novel/novel_chapter_page.dart';
+import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/library/library_page.dart';
@@ -16,7 +16,7 @@ import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/features/player/video_surface.dart';
-import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
+import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
 
 class HikariApp extends StatefulWidget {
@@ -116,7 +116,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       MangaSeriesOpenTarget series => _buildMangaSeriesPage(series),
       MangaReaderOpenTarget reader => _buildMangaReaderPage(reader),
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
-      NovelSeriesOpenTarget novel => NovelChapterPage(
+      NovelSeriesOpenTarget novel => NovelSeriesPage(
         target: novel,
         openChapter: _openNovelChapter,
         library: _dependencies.libraryRepository,
@@ -148,12 +148,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   }
 
   Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) =>
-      MangaChapterPage(
+      MangaSeriesPage(
         title: target.media.title,
-        sourceName: target.chapterSource.name,
+        sourceName: target.seriesSource.name,
         loadDetails: target.loadDetails,
-        readArtwork: target.chapterSource is ArtworkSource
-            ? (target.chapterSource as ArtworkSource).readArtwork
+        readArtwork: target.seriesSource is ArtworkSource
+            ? (target.seriesSource as ArtworkSource).readArtwork
             : null,
         openChapter: _openMangaChapter,
       );

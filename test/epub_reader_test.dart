@@ -9,7 +9,7 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/infrastructure/reading/epub_publication.dart';
+import 'package:hikari/infrastructure/reading/epub_reader.dart';
 
 void main() {
   testWidgets('EPUB sanitized image reaches publication resource reader', (
@@ -21,15 +21,12 @@ void main() {
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=',
       ),
     );
-    final epub = EpubPublication.open(file.path);
+    final epub = EpubReader.open(file.path);
     addTearDown(() {
       epub.close();
       file.deleteSync();
     });
-    final content = await epub.readSection(
-      const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-      'OPS/ch1.xhtml',
-    );
+    final content = await epub.readSection('OPS/ch1.xhtml');
     final reads = <SourceMediaRef>[];
     await tester.pumpWidget(
       MaterialApp(
@@ -51,10 +48,8 @@ void main() {
 
   test('selects TOC rather than landmarks outside spine', () async {
     final file = _epubFile(nav: true, multipleNav: true);
-    final epub = EpubPublication.open(file.path);
-    final book = await epub.publication(
-      const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-    );
+    final epub = EpubReader.open(file.path);
+    final book = await epub.loadPublication();
     expect(book.toc.single.label, 'Chapter 1');
     epub.close();
     file.deleteSync();
@@ -62,15 +57,12 @@ void main() {
 
   test('canonicalizes chapter links and rejects encoded traversal', () async {
     final file = _epubFile(nav: true, link: 'ch1.xhtml#start');
-    final epub = EpubPublication.open(file.path);
+    final epub = EpubReader.open(file.path);
     addTearDown(() {
       epub.close();
       file.deleteSync();
     });
-    final content = await epub.readSection(
-      const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-      'OPS/ch1.xhtml',
-    );
+    final content = await epub.readSection('OPS/ch1.xhtml');
     expect(content.html, contains('href="OPS/ch1.xhtml#start"'));
     for (final link in [
       '%2e%2e/%2e%2e/private',
@@ -80,12 +72,9 @@ void main() {
       '%5cprivate',
     ]) {
       final unsafeFile = _epubFile(nav: true, link: link);
-      final unsafe = EpubPublication.open(unsafeFile.path);
+      final unsafe = EpubReader.open(unsafeFile.path);
       await expectLater(
-        unsafe.readSection(
-          const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-          'OPS/ch1.xhtml',
-        ),
+        unsafe.readSection('OPS/ch1.xhtml'),
         throwsFormatException,
       );
       unsafe.close();
@@ -94,11 +83,9 @@ void main() {
   });
   test('parses EPUB metadata spine nav and reads resources lazily', () async {
     final file = _epubFile(nav: true, stylesheet: true, unicode: true);
-    final epub = EpubPublication.open(file.path);
+    final epub = EpubReader.open(file.path);
     try {
-      final publication = await epub.publication(
-        const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-      );
+      final publication = await epub.loadPublication();
       expect(publication.metadata.title, 'Book');
       expect(publication.metadata.authors, ['Author']);
       expect(publication.spine.map((section) => section.resource), [
@@ -107,10 +94,7 @@ void main() {
       expect(publication.toc.single.label, 'Chapter 1');
       expect(publication.toc.single.fragment, 'start');
 
-      final content = await epub.readSection(
-        const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-        'OPS/ch1.xhtml',
-      );
+      final content = await epub.readSection('OPS/ch1.xhtml');
       expect(content.html, contains('章一'));
       expect(content.html, contains('color: #123'));
       expect(content.html, contains('font-size: 18px'));
@@ -159,11 +143,9 @@ void main() {
 
   test('supports NCX fallback and valid parent-relative links', () async {
     final file = _epubFile(nav: false);
-    final epub = EpubPublication.open(file.path);
+    final epub = EpubReader.open(file.path);
     try {
-      final publication = await epub.publication(
-        const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-      );
+      final publication = await epub.loadPublication();
       expect(publication.toc.single.label, 'Chapter 1');
       expect(publication.toc.single.resource, 'OPS/ch1.xhtml');
     } finally {
@@ -175,19 +157,16 @@ void main() {
   test('rejects encrypted EPUBs and unsafe links', () {
     final encrypted = _epubFile(nav: true, encrypted: true);
     expect(
-      () => EpubPublication.open(encrypted.path),
+      () => EpubReader.open(encrypted.path),
       throwsA(isA<FormatException>()),
     );
     encrypted.deleteSync();
 
     final unsafe = _epubFile(nav: true, unsafeLink: true);
-    final epub = EpubPublication.open(unsafe.path);
+    final epub = EpubReader.open(unsafe.path);
     try {
       expect(
-        () => epub.readSection(
-          const SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
-          'OPS/ch1.xhtml',
-        ),
+        () => epub.readSection('OPS/ch1.xhtml'),
         throwsA(isA<FormatException>()),
       );
     } finally {

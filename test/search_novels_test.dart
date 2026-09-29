@@ -87,7 +87,7 @@ class _Source
   bool wrongPage = false;
 
   @override
-  Future<NovelSearchPage> searchNovels(String query, {int page = 1}) async {
+  Future<NovelSearchPage> search(String query, {int page = 1}) async {
     this.query = query;
     this.page = page;
     return NovelSearchPage(
@@ -101,7 +101,7 @@ class _Source
               itemId: 'book',
             ),
           ),
-          metadata: const MediaMetadata(title: 'Title'),
+          metadata: MediaMetadata(title: 'Title'),
         ),
       ],
       page: wrongPage ? page + 1 : page,
@@ -110,7 +110,7 @@ class _Source
   }
 
   @override
-  Future<NovelDetails> novelDetails(SourceMediaRef novel) =>
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) =>
       throw UnimplementedError();
   @override
   Future<NovelChapterContent> chapterContent(SourceMediaRef chapter) =>

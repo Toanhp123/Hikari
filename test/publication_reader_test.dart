@@ -337,13 +337,13 @@ final class _FakePublicationSource implements PublicationSource {
   bool canOpenPublication(SourceMediaRef publication) => true;
 
   @override
-  Future<Publication> publication(SourceMediaRef publication) async {
+  Future<Publication> loadPublication(SourceMediaRef publication) async {
     if (failPublicationOnce) {
       failPublicationOnce = false;
       throw StateError('book unavailable');
     }
     return Publication(
-      metadata: const MediaMetadata(title: 'Book'),
+      metadata: MediaMetadata(title: 'Book'),
       spine: sections,
       toc: sections
           .map(

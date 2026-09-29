@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/features/library/library_page.dart';
+import 'package:hikari/features/library/library_button.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_view_model.dart';
 
 class RemoteMangaSearchPage extends StatefulWidget {

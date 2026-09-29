@@ -16,7 +16,7 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
-import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
+import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_view_model.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
@@ -35,7 +35,7 @@ class FakeRemote
       MangaSearchPage(
         page: page,
         hasNextPage: false,
-        results: const [
+        results: [
           MangaPreview(
             media: Media(
               title: 'Series',
@@ -49,11 +49,11 @@ class FakeRemote
         ],
       );
   @override
-  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async =>
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
       MangaSeriesDetails(
-        metadata: const MediaMetadata(title: 'Series'),
+        metadata: MediaMetadata(title: 'Series'),
         chapters: [
-          const MangaChapter(
+          MangaChapter(
             title: 'Chapter',
             source: SourceMediaRef(
               sourceId: SourceId('fake'),
@@ -150,7 +150,7 @@ class _SearchOnlySource implements MangaSearchSource {
 
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(results: const [], page: page, hasNextPage: false);
+      MangaSearchPage(results: [], page: page, hasNextPage: false);
 }
 
 class _SecondRemote extends FakeRemote {
@@ -282,7 +282,7 @@ void main() {
     final old = model.search('old');
     await model.search(' ');
     pending.complete(
-      const MangaSearchPage(results: [], hasNextPage: false, page: 1),
+      MangaSearchPage(results: [], hasNextPage: false, page: 1),
     );
     await old;
     expect(model.state, isA<RemoteMangaSearchIdle>());
@@ -413,7 +413,7 @@ void main() {
       await tester.tap(find.text('Chapter'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(MangaChapterPage), findsOneWidget);
+      expect(find.byType(MangaSeriesPage), findsOneWidget);
       expect(find.byType(MangaReaderPage), findsNothing);
       expect(
         find.text(
@@ -448,7 +448,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Series'));
     await tester.pumpAndSettle();
-    expect(find.byType(MangaChapterPage), findsOneWidget);
+    expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.byType(MangaReaderPage), findsNothing);
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
@@ -530,7 +530,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Series'));
     await tester.pumpAndSettle();
-    expect(find.byType(MangaChapterPage), findsOneWidget);
+    expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.text('Chapter'), findsOneWidget);
     expect(searches, 0);
     await tester.pumpWidget(const SizedBox());
@@ -545,7 +545,7 @@ void main() {
     var calls = 0;
     await tester.pumpWidget(
       MaterialApp(
-        home: MangaChapterPage(
+        home: MangaSeriesPage(
           title: 'Series',
           sourceName: 'Test source',
           loadDetails: () {
@@ -553,7 +553,7 @@ void main() {
             return calls == 1
                 ? pending.future
                 : Future.value(
-                    const MangaSeriesDetails(
+                    MangaSeriesDetails(
                       metadata: MediaMetadata(title: 'Series'),
                       chapters: [],
                     ),
@@ -654,10 +654,10 @@ void main() {
     var opens = 0;
     await tester.pumpWidget(
       MaterialApp(
-        home: MangaChapterPage(
+        home: MangaSeriesPage(
           title: 'Series',
           sourceName: 'Test source',
-          loadDetails: () async => const MangaSeriesDetails(
+          loadDetails: () async => MangaSeriesDetails(
             metadata: MediaMetadata(title: 'Series'),
             chapters: [
               MangaChapter(
@@ -693,10 +693,10 @@ void main() {
     MangaChapter? selected;
     await tester.pumpWidget(
       MaterialApp(
-        home: MangaChapterPage(
+        home: MangaSeriesPage(
           title: 'Series',
           sourceName: 'Test source',
-          loadDetails: () async => const MangaSeriesDetails(
+          loadDetails: () async => MangaSeriesDetails(
             metadata: MediaMetadata(title: 'Series'),
             chapters: [
               MangaChapter(title: 'Chapter 1', source: ref, scanlator: 'Group'),

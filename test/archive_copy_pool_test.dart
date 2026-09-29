@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/infrastructure/local_media/archive_materializations.dart';
+import 'package:hikari/infrastructure/local_media/archive_copy_pool.dart';
 
 void main() {
   test(
@@ -9,7 +9,7 @@ void main() {
     () async {
       var copies = 0;
       final deleted = <String>[];
-      final manager = ArchiveMaterializations(
+      final manager = ArchiveCopyPool(
         (_) async => 'copy-${++copies}',
         (path) async => deleted.add(path),
       );
@@ -38,7 +38,7 @@ void main() {
       final reading = Completer<void>();
       final done = Completer<void>();
       final deleted = <String>[];
-      final manager = ArchiveMaterializations(
+      final manager = ArchiveCopyPool(
         (_) async => 'copy',
         (p) async => deleted.add(p),
       );
@@ -65,7 +65,7 @@ void main() {
   test('close attempts all deletions and retries failed cleanup', () async {
     final attempts = <String>[];
     var fail = true;
-    final manager = ArchiveMaterializations((name) async => name, (path) async {
+    final manager = ArchiveCopyPool((name) async => name, (path) async {
       attempts.add(path);
       if (path == 'a' && fail) throw StateError('delete failed');
     });
@@ -82,7 +82,7 @@ void main() {
 
   test('copy and action failures do not poison subsequent reads', () async {
     var copies = 0;
-    final manager = ArchiveMaterializations((_) async {
+    final manager = ArchiveCopyPool((_) async {
       if (++copies == 1) throw StateError('copy failed');
       return 'copy';
     }, (_) async {});
