@@ -541,16 +541,23 @@ void main() {
   testWidgets('chapter loading error retry and empty states are visible', (
     tester,
   ) async {
-    final pending = Completer<List<MangaChapter>>();
+    final pending = Completer<MangaSeriesDetails>();
     var calls = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: MangaChapterPage(
           title: 'Series',
           sourceName: 'Test source',
-          loadChapters: () {
+          loadDetails: () {
             calls++;
-            return calls == 1 ? pending.future : Future.value([]);
+            return calls == 1
+                ? pending.future
+                : Future.value(
+                    const MangaSeriesDetails(
+                      metadata: MediaMetadata(title: 'Series'),
+                      chapters: [],
+                    ),
+                  );
           },
           openChapter: (_, _) async {},
         ),
@@ -650,17 +657,20 @@ void main() {
         home: MangaChapterPage(
           title: 'Series',
           sourceName: 'Test source',
-          loadChapters: () async => [
-            const MangaChapter(
-              title: 'External chapter',
-              source: SourceMediaRef(
-                sourceId: SourceId('fake'),
-                itemId: 'external',
+          loadDetails: () async => const MangaSeriesDetails(
+            metadata: MediaMetadata(title: 'Series'),
+            chapters: [
+              MangaChapter(
+                title: 'External chapter',
+                source: SourceMediaRef(
+                  sourceId: SourceId('fake'),
+                  itemId: 'external',
+                ),
+                scanlator: 'External group',
+                canReadPages: false,
               ),
-              scanlator: 'External group',
-              canReadPages: false,
-            ),
-          ],
+            ],
+          ),
           openChapter: (_, _) async {
             opens++;
           },
@@ -686,13 +696,12 @@ void main() {
         home: MangaChapterPage(
           title: 'Series',
           sourceName: 'Test source',
-          loadChapters: () async => [
-            const MangaChapter(
-              title: 'Chapter 1',
-              source: ref,
-              scanlator: 'Group',
-            ),
-          ],
+          loadDetails: () async => const MangaSeriesDetails(
+            metadata: MediaMetadata(title: 'Series'),
+            chapters: [
+              MangaChapter(title: 'Chapter 1', source: ref, scanlator: 'Group'),
+            ],
+          ),
           openChapter: (_, chapter) async {
             selected = chapter;
           },

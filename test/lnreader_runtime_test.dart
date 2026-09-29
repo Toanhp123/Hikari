@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/infrastructure/extensions/lnreader/lnreader_source_loader.dart';
+import 'package:hikari/infrastructure/extensions/lnreader/lnreader_novel_source.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

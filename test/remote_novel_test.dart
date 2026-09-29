@@ -17,7 +17,7 @@ import 'package:hikari/domain/progress/progress.dart' as progress;
 import 'package:hikari/features/novel_reader/novel_content_view.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/remote_novel/remote_novel_search_view_model.dart';
-import 'package:hikari/features/remote_manga/media_metadata_view.dart';
+import 'package:hikari/features/reading/media_metadata_view.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
