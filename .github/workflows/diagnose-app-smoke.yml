@@ -1,0 +1,35 @@
+name: Diagnose app smoke cases
+
+on:
+  push:
+    branches:
+      - verify/ui-state-performance-refactor
+
+permissions:
+  contents: read
+
+jobs:
+  case:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    strategy:
+      fail-fast: false
+      matrix:
+        name:
+          - persisted Library opens text through shared route without scan results
+          - persisted local manga opens direct reader route
+          - boots the Hikari app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version-file: .fvmrc
+          cache: true
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Run isolated smoke case
+        run: flutter test test/app_smoke_test.dart -r expanded --plain-name "${{ matrix.name }}"
