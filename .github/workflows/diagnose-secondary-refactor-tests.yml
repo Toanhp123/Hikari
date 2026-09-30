@@ -1,0 +1,41 @@
+name: Diagnose secondary refactor tests
+
+on:
+  push:
+    branches:
+      - verify/ui-state-performance-refactor
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    name: ${{ matrix.file }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        file:
+          - test/app_smoke_test.dart
+          - test/architecture_guard_test.dart
+          - test/components_test.dart
+          - test/media_details_page_test.dart
+          - test/media_poster_test.dart
+          - test/navigation_shell_test.dart
+          - test/novel_content_view_test.dart
+          - test/settings_page_test.dart
+          - test/video_exit_test.dart
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version-file: .fvmrc
+          cache: true
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Run targeted test
+        run: flutter test "${{ matrix.file }}" -r expanded
