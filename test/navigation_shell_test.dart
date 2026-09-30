@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/features/shell/app_navigation_shell.dart';
 
 void main() {
   testWidgets('AppNavigationShell switches tabs on compact screen', (
@@ -65,4 +65,32 @@ void main() {
       expect(find.text('Library View'), findsOneWidget);
     },
   );
+  testWidgets('AppNavigationController switches tabs from app composition', (
+    tester,
+  ) async {
+    final controller = AppNavigationController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: AppNavigationShell(
+          controller: controller,
+          tabs: const [
+            Text('Home View'),
+            Text('Search View'),
+            Text('Library View'),
+            Text('Settings View'),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('Home View'), findsOneWidget);
+
+    controller.selectTab(AppTab.library);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Library View'), findsOneWidget);
+  });
 }

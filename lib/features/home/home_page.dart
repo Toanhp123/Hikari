@@ -9,7 +9,6 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/home_view_model.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
-import 'package:hikari/features/shell/app_navigation_shell.dart';
 
 enum HomeFilterType {
   all('All'),
@@ -81,22 +80,6 @@ class _HomePageState extends State<HomePage> {
         .toList(growable: false);
   }
 
-  void _navigateToSearch(BuildContext context) {
-    if (widget.onNavigateToSearch != null) {
-      widget.onNavigateToSearch!();
-      return;
-    }
-    AppNavigationScope.of(context)?.selectTab(AppTab.search.index);
-  }
-
-  void _navigateToLibrary(BuildContext context) {
-    if (widget.onNavigateToLibrary != null) {
-      widget.onNavigateToLibrary!();
-      return;
-    }
-    AppNavigationScope.of(context)?.selectTab(AppTab.library.index);
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -133,7 +116,7 @@ class _HomePageState extends State<HomePage> {
                     child: ContinueShelf(
                       items: widget.continueItems,
                       onOpenMedia: widget.openMedia,
-                      onSeeAll: () => _navigateToLibrary(context),
+                      onSeeAll: widget.onNavigateToLibrary,
                     ),
                   ),
                 ),
@@ -221,7 +204,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               IconButton(
                 tooltip: 'Search',
-                onPressed: () => _navigateToSearch(context),
+                onPressed: widget.onNavigateToSearch,
                 icon: Icon(Icons.search_rounded, color: colors.textPrimary),
               ),
               if (widget.openRemoteManga != null)
@@ -370,8 +353,8 @@ class _HomePageState extends State<HomePage> {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: context.responsiveGridColumns,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: HikariBreakpoints.posterGridMaxExtent,
           crossAxisSpacing: HikariSpacing.md,
           mainAxisSpacing: HikariSpacing.md,
           childAspectRatio: 2 / 3,

@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/features/reading/media_metadata_view.dart';
+import 'package:hikari/features/remote_manga/manga_series_view_model.dart';
 
 class MangaSeriesPage extends StatefulWidget {
   const MangaSeriesPage({
@@ -24,19 +26,21 @@ class MangaSeriesPage extends StatefulWidget {
 }
 
 class _MangaSeriesPageState extends State<MangaSeriesPage> {
-  late Future<List<MangaChapter>> _chaptersFuture;
+  late final MangaSeriesViewModel _viewModel = MangaSeriesViewModel(
+    widget.loadDetails,
+  );
   bool _isOpeningChapter = false;
-  MangaSeriesDetails? _details;
-  Future<List<MangaChapter>> _load() async {
-    final details = await widget.loadDetails();
-    _details = details;
-    return details.chapters;
-  }
 
   @override
   void initState() {
     super.initState();
-    _chaptersFuture = Future.sync(_load);
+    unawaited(_viewModel.load());
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
   }
 
   Future<void> _openChapter(MangaChapter chapter) async {
@@ -71,13 +75,14 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
           ),
           if (_isOpeningChapter) const LinearProgressIndicator(),
           Expanded(
-            child: FutureBuilder<List<MangaChapter>>(
-              future: _chaptersFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) {
+                final state = _viewModel.state;
+                if (state is MangaSeriesLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.hasError) {
+                if (state is MangaSeriesFailure) {
                   return Center(
                     child: SingleChildScrollView(
                       child: Column(
@@ -87,9 +92,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
                             'Could not load chapters. Check source access or rate limits.',
                           ),
                           TextButton(
-                            onPressed: () => setState(() {
-                              _chaptersFuture = Future.sync(_load);
-                            }),
+                            onPressed: _viewModel.load,
                             child: const Text('Try again'),
                           ),
                         ],
@@ -97,8 +100,9 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
                     ),
                   );
                 }
-                final chapters = snapshot.data!;
-                final details = _details!;
+                final ready = state as MangaSeriesReady;
+                final chapters = ready.details.chapters;
+                final details = ready.details;
                 return ListView.builder(
                   itemCount: chapters.length + 1,
                   itemBuilder: (context, index) {

@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/library/library_button.dart';
-import 'package:hikari/features/reading/media_metadata_view.dart';
+import 'package:hikari/features/remote_novel/novel_series_view_model.dart';
 
 class NovelSeriesPage extends StatefulWidget {
   const NovelSeriesPage({
@@ -21,8 +24,23 @@ class NovelSeriesPage extends StatefulWidget {
 }
 
 class _NovelSeriesPageState extends State<NovelSeriesPage> {
-  late Future<NovelDetails> _details = widget.target.loadDetails();
+  late final NovelSeriesViewModel _viewModel = NovelSeriesViewModel(
+    widget.target.loadDetails,
+  );
   bool _opening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_viewModel.load());
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
   Future<void> _open(NovelChapter chapter) async {
     if (_opening) return;
     setState(() => _opening = true);
@@ -56,28 +74,28 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
       ],
     ),
     body: SafeArea(
-      child: FutureBuilder<NovelDetails>(
-        future: _details,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+      child: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) {
+          final state = _viewModel.state;
+          if (state is NovelSeriesLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
+          if (state is NovelSeriesFailure) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Could not load novel details.'),
                   TextButton(
-                    onPressed: () =>
-                        setState(() => _details = widget.target.loadDetails()),
+                    onPressed: _viewModel.load,
                     child: const Text('Try again'),
                   ),
                 ],
               ),
             );
           }
-          final details = snapshot.data!;
+          final details = (state as NovelSeriesReady).details;
           final source = widget.target.source;
           return ListView.builder(
             itemCount: details.chapters.length + 1,

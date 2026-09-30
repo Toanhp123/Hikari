@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -21,7 +22,6 @@ import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
 import 'package:hikari/features/search/unified_search_page.dart';
 import 'package:hikari/features/settings/settings_page.dart';
-import 'package:hikari/features/shell/app_navigation_shell.dart';
 
 class HikariApp extends StatefulWidget {
   const HikariApp({super.key, required this.dependencies});
@@ -34,6 +34,7 @@ class HikariApp extends StatefulWidget {
 
 class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   late final AppDependencies _dependencies;
+  final _navigationController = AppNavigationController();
   bool _isOpeningMedia = false;
   bool _isOled = false;
   Color? _accentColor;
@@ -48,6 +49,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _navigationController.dispose();
     unawaited(
       _dependencies.dispose().catchError((Object error) {
         FlutterError.reportError(FlutterErrorDetails(exception: error));
@@ -239,10 +241,15 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       ),
       home: Builder(
         builder: (context) => AppNavigationShell(
+          controller: _navigationController,
           tabs: [
             HomePage(
               openMedia: _openMedia,
               library: libraryRepository,
+              onNavigateToSearch: () =>
+                  _navigationController.selectTab(AppTab.search),
+              onNavigateToLibrary: () =>
+                  _navigationController.selectTab(AppTab.library),
               showLocalMediaPrompt: localSource.isAvailable,
               onChooseFolder: () async => await localSource.chooseRoot(),
               openRemoteManga: canSearchManga

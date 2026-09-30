@@ -14,6 +14,9 @@ abstract final class HikariBreakpoints {
 
   /// Max content width constraint on wide screens to prevent stretched reading/watching UI
   static const double maxContentWidth = 1440.0;
+
+  /// Maximum poster width used by adaptive media grids.
+  static const double posterGridMaxExtent = 200.0;
 }
 
 /// Responsive extensions on [BuildContext]
@@ -26,14 +29,4 @@ extension HikariResponsiveContext on BuildContext {
       screenWidth >= HikariBreakpoints.mediumMin &&
       screenWidth <= HikariBreakpoints.mediumMax;
   bool get isExpanded => screenWidth >= HikariBreakpoints.expandedMin;
-
-  /// Optimal poster grid column count based on width
-  int get responsiveGridColumns {
-    final width = screenWidth;
-    if (width < 380) return 2;
-    if (width < 600) return 3;
-    if (width < 900) return 4;
-    if (width < 1200) return 5;
-    return 6;
-  }
 }

@@ -175,8 +175,8 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
     return GridView.builder(
       padding: const EdgeInsets.all(HikariSpacing.lg),
       physics: const BouncingScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: context.responsiveGridColumns,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: HikariBreakpoints.posterGridMaxExtent,
         crossAxisSpacing: HikariSpacing.md,
         mainAxisSpacing: HikariSpacing.md,
         childAspectRatio: 2 / 3,

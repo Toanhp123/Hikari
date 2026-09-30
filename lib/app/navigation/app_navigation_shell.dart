@@ -31,24 +31,19 @@ enum AppTab {
   };
 }
 
-/// Allows descendant widgets to programmatically read or change the selected tab.
-class AppNavigationScope extends InheritedWidget {
-  const AppNavigationScope({
-    super.key,
-    required this.currentIndex,
-    required this.selectTab,
-    required super.child,
-  });
+/// App-owned navigation state shared with the root composition layer.
+final class AppNavigationController extends ChangeNotifier {
+  AppNavigationController({AppTab initialTab = AppTab.home})
+    : _currentTab = initialTab;
 
-  final int currentIndex;
-  final void Function(int) selectTab;
+  AppTab _currentTab;
+  AppTab get currentTab => _currentTab;
 
-  static AppNavigationScope? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppNavigationScope>();
-
-  @override
-  bool updateShouldNotify(AppNavigationScope oldWidget) =>
-      currentIndex != oldWidget.currentIndex;
+  void selectTab(AppTab tab) {
+    if (_currentTab == tab) return;
+    _currentTab = tab;
+    notifyListeners();
+  }
 }
 
 /// Adaptive Navigation Shell supporting Glassmorphism Bottom Nav (< 600dp)
@@ -58,11 +53,13 @@ class AppNavigationShell extends StatefulWidget {
     super.key,
     required this.tabs,
     this.initialIndex = 0,
+    this.controller,
     this.onTabChanged,
   });
 
   final List<Widget> tabs;
   final int initialIndex;
+  final AppNavigationController? controller;
   final ValueChanged<int>? onTabChanged;
 
   @override
@@ -70,23 +67,42 @@ class AppNavigationShell extends StatefulWidget {
 }
 
 class _AppNavigationShellState extends State<AppNavigationShell> {
+  late final AppNavigationController _controller;
+  late final bool _ownsController;
   late int _currentIndex;
   late final Set<int> _loadedIndices;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    _ownsController = widget.controller == null;
+    _controller =
+        widget.controller ??
+        AppNavigationController(initialTab: AppTab.values[widget.initialIndex]);
+    _currentIndex = _controller.currentTab.index;
     _loadedIndices = {_currentIndex};
+    _controller.addListener(_handleControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_handleControllerChanged);
+    if (_ownsController) _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleControllerChanged() {
+    final nextIndex = _controller.currentTab.index;
+    if (_currentIndex == nextIndex) return;
+    setState(() {
+      _currentIndex = nextIndex;
+      _loadedIndices.add(nextIndex);
+    });
+    widget.onTabChanged?.call(nextIndex);
   }
 
   void _selectTab(int index) {
-    if (_currentIndex == index) return;
-    setState(() {
-      _currentIndex = index;
-      _loadedIndices.add(index);
-    });
-    widget.onTabChanged?.call(index);
+    _controller.selectTab(AppTab.values[index]);
   }
 
   @override
@@ -120,11 +136,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
             ),
           );
 
-    return AppNavigationScope(
-      currentIndex: _currentIndex,
-      selectTab: _selectTab,
-      child: shell,
-    );
+    return shell;
   }
 
   Widget _buildGlassmorphicBottomBar(BuildContext context) {
