@@ -1,0 +1,37 @@
+name: Targeted refactor tests
+
+on:
+  push:
+    branches:
+      - verify/ui-state-targeted-tests
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - test/media_kit_video_session_test.dart
+          - test/library_page_test.dart
+          - test/home_page_test.dart
+          - test/unified_search_view_model_test.dart
+          - test/unified_search_page_test.dart
+          - test/readers_test.dart
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version-file: .fvmrc
+          cache: true
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Run targeted test
+        run: flutter test "${{ matrix.test }}" -r expanded
