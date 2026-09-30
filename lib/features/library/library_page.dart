@@ -7,237 +7,155 @@ import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_button.dart';
+import 'package:hikari/features/library/library_view_model.dart';
 
-enum LibraryViewMode { grid, list }
-
-enum LibrarySortOption {
-  recent('Recently Added'),
-  title('Title (A-Z)');
-
-  const LibrarySortOption(this.label);
-  final String label;
-}
-
-enum LibraryCategoryTab {
-  all('All'),
-  inProgress('In Progress'),
-  completed('Completed'),
-  favorites('Favorites');
-
-  const LibraryCategoryTab(this.label);
-  final String label;
-}
-
-/// Upgraded Library screen supporting category tabs, Grid/List view toggle,
-/// media type filters, and sorting.
 class LibraryPage extends StatefulWidget {
   const LibraryPage({
     super.key,
     required this.repository,
     required this.openMedia,
-    this.onOpenDetails,
   });
 
   final LibraryRepository repository;
   final void Function(BuildContext, Media) openMedia;
-  final void Function(BuildContext, Media)? onOpenDetails;
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-  late Future<List<LibraryEntry>> _entriesFuture;
-  LibraryViewMode _viewMode = LibraryViewMode.grid;
-  LibraryCategoryTab _selectedTab = LibraryCategoryTab.all;
-  MediaType? _selectedMediaType;
-  final LibrarySortOption _sortOption = LibrarySortOption.recent;
+  late final LibraryViewModel _model = LibraryViewModel(widget.repository);
 
   @override
-  void initState() {
-    super.initState();
-    _reloadLibrary();
-  }
-
-  void _reloadLibrary() => setState(() {
-    _entriesFuture = widget.repository.loadAll();
-  });
-
-  List<LibraryEntry> _filterAndSortEntries(List<LibraryEntry> entries) {
-    var filtered = entries.where((e) {
-      if (_selectedMediaType != null && e.media.type != _selectedMediaType) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    if (_sortOption == LibrarySortOption.title) {
-      filtered.sort((a, b) => a.media.title.compareTo(b.media.title));
-    } else {
-      filtered.sort((a, b) => b.addedAt.compareTo(a.addedAt));
-    }
-
-    return filtered;
+  void dispose() {
+    _model.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
 
-    return HikariScaffold(
-      useSafeArea: true,
-      appBar: AppBar(
-        title: Text(
-          'Library',
-          style: HikariTypography.titleLarge.copyWith(
-            color: colors.textPrimary,
-            fontWeight: FontWeight.w700,
+    return ListenableBuilder(
+      listenable: _model,
+      builder: (context, _) {
+        final state = _model.state;
+        return HikariScaffold(
+          useSafeArea: true,
+          appBar: AppBar(
+            title: Text(
+              'Library',
+              style: HikariTypography.titleLarge.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            actions: [
+              HikariIconButton(
+                icon: Icon(
+                  state.viewMode == LibraryViewMode.grid
+                      ? Icons.view_list_rounded
+                      : Icons.grid_view_rounded,
+                ),
+                tooltip: state.viewMode == LibraryViewMode.grid
+                    ? 'Switch to list view'
+                    : 'Switch to grid view',
+                onPressed: _model.toggleViewMode,
+              ),
+              const SizedBox(width: HikariSpacing.xs),
+            ],
+          ),
+          body: _buildBody(context, state, colors),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    LibraryUiState state,
+    HikariColors colors,
+  ) {
+    if (state.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Could not load your library.'),
+            const SizedBox(height: HikariSpacing.sm),
+            TextButton(
+              onPressed: _model.reload,
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (state.entries.isEmpty) {
+      return const Center(
+        child: Text('Your library is empty.', style: TextStyle(fontSize: 14)),
+      );
+    }
+
+    final entries = state.visibleEntries;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: HikariSpacing.lg,
+            vertical: HikariSpacing.xs,
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                HikariChip(
+                  label: 'All Types',
+                  isSelected: state.mediaType == null,
+                  onTap: () => _model.selectMediaType(null),
+                ),
+                const SizedBox(width: HikariSpacing.xs),
+                HikariChip(
+                  label: 'Anime',
+                  customBadgeColor: colors.badgeVideo,
+                  isSelected: state.mediaType == MediaType.anime,
+                  onTap: () => _model.selectMediaType(MediaType.anime),
+                ),
+                const SizedBox(width: HikariSpacing.xs),
+                HikariChip(
+                  label: 'Manga',
+                  customBadgeColor: colors.badgeManga,
+                  isSelected: state.mediaType == MediaType.manga,
+                  onTap: () => _model.selectMediaType(MediaType.manga),
+                ),
+                const SizedBox(width: HikariSpacing.xs),
+                HikariChip(
+                  label: 'Novel',
+                  customBadgeColor: colors.badgeNovel,
+                  isSelected: state.mediaType == MediaType.lightNovel,
+                  onTap: () => _model.selectMediaType(MediaType.lightNovel),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          HikariIconButton(
-            icon: Icon(
-              _viewMode == LibraryViewMode.grid
-                  ? Icons.view_list_rounded
-                  : Icons.grid_view_rounded,
-            ),
-            tooltip: _viewMode == LibraryViewMode.grid
-                ? 'Switch to list view'
-                : 'Switch to grid view',
-            onPressed: () => setState(() {
-              _viewMode = _viewMode == LibraryViewMode.grid
-                  ? LibraryViewMode.list
-                  : LibraryViewMode.grid;
-            }),
-          ),
-          const SizedBox(width: HikariSpacing.xs),
-        ],
-      ),
-      body: FutureBuilder<List<LibraryEntry>>(
-        future: _entriesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Could not load your library.'),
-                  const SizedBox(height: HikariSpacing.sm),
-                  TextButton(
-                    onPressed: _reloadLibrary,
-                    child: const Text('Try again'),
+        const SizedBox(height: HikariSpacing.sm),
+        Expanded(
+          child: entries.isEmpty
+              ? Center(
+                  child: Text(
+                    'No items match the selected media type.',
+                    style: TextStyle(color: colors.textMuted),
                   ),
-                ],
-              ),
-            );
-          }
-
-          final allEntries = snapshot.data ?? [];
-          if (allEntries.isEmpty) {
-            return const Center(
-              child: Text(
-                'Your library is empty.',
-                style: TextStyle(fontSize: 14),
-              ),
-            );
-          }
-
-          final displayEntries = _filterAndSortEntries(allEntries);
-
-          return Column(
-            children: [
-              // Filter and Category Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: HikariSpacing.lg,
-                  vertical: HikariSpacing.xs,
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      // Category Tabs
-                      ...LibraryCategoryTab.values.map((tab) {
-                        return Padding(
-                          padding: const EdgeInsets.only(
-                            right: HikariSpacing.xs,
-                          ),
-                          child: HikariChip(
-                            label: tab.label,
-                            isSelected: _selectedTab == tab,
-                            onTap: () => setState(() => _selectedTab = tab),
-                          ),
-                        );
-                      }),
-                      const SizedBox(width: HikariSpacing.sm),
-                      // Media Type Filter Chips
-                      HikariChip(
-                        label: 'All Types',
-                        isSelected: _selectedMediaType == null,
-                        onTap: () => setState(() => _selectedMediaType = null),
-                      ),
-                      const SizedBox(width: HikariSpacing.xs),
-                      HikariChip(
-                        label: 'Anime',
-                        customBadgeColor: colors.badgeVideo,
-                        isSelected: _selectedMediaType == MediaType.anime,
-                        onTap: () => setState(
-                          () => _selectedMediaType =
-                              _selectedMediaType == MediaType.anime
-                              ? null
-                              : MediaType.anime,
-                        ),
-                      ),
-                      const SizedBox(width: HikariSpacing.xs),
-                      HikariChip(
-                        label: 'Manga',
-                        customBadgeColor: colors.badgeManga,
-                        isSelected: _selectedMediaType == MediaType.manga,
-                        onTap: () => setState(
-                          () => _selectedMediaType =
-                              _selectedMediaType == MediaType.manga
-                              ? null
-                              : MediaType.manga,
-                        ),
-                      ),
-                      const SizedBox(width: HikariSpacing.xs),
-                      HikariChip(
-                        label: 'Novel',
-                        customBadgeColor: colors.badgeNovel,
-                        isSelected: _selectedMediaType == MediaType.lightNovel,
-                        onTap: () => setState(
-                          () => _selectedMediaType =
-                              _selectedMediaType == MediaType.lightNovel
-                              ? null
-                              : MediaType.lightNovel,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: HikariSpacing.sm),
-
-              // Content View (Grid or List)
-              Expanded(
-                child: displayEntries.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No items match selected filter.',
-                          style: TextStyle(color: colors.textMuted),
-                        ),
-                      )
-                    : _viewMode == LibraryViewMode.grid
-                    ? _buildGridView(context, displayEntries)
-                    : _buildListView(context, displayEntries),
-              ),
-            ],
-          );
-        },
-      ),
+                )
+              : state.viewMode == LibraryViewMode.grid
+              ? _buildGridView(context, entries)
+              : _buildListView(context, entries),
+        ),
+      ],
     );
   }
 
@@ -256,16 +174,16 @@ class _LibraryPageState extends State<LibraryPage> {
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final media = entries[index].media;
-        final badgeColor = media.type == MediaType.anime
-            ? colors.badgeVideo
-            : media.type == MediaType.manga
-            ? colors.badgeManga
-            : colors.badgeNovel;
-        final badgeText = media.type == MediaType.anime
-            ? 'ANIME'
-            : media.type == MediaType.manga
-            ? 'MANGA'
-            : 'NOVEL';
+        final badgeColor = switch (media.type) {
+          MediaType.anime => colors.badgeVideo,
+          MediaType.manga => colors.badgeManga,
+          MediaType.lightNovel => colors.badgeNovel,
+        };
+        final badgeText = switch (media.type) {
+          MediaType.anime => 'ANIME',
+          MediaType.manga => 'MANGA',
+          MediaType.lightNovel => 'NOVEL',
+        };
 
         return Stack(
           children: [
@@ -273,13 +191,7 @@ class _LibraryPageState extends State<LibraryPage> {
               title: media.title,
               badgeText: badgeText,
               badgeColor: badgeColor,
-              onTap: () {
-                if (widget.onOpenDetails != null) {
-                  widget.onOpenDetails!(context, media);
-                } else {
-                  widget.openMedia(context, media);
-                }
-              },
+              onTap: () => widget.openMedia(context, media),
             ),
             Positioned(
               top: 4,
@@ -287,7 +199,7 @@ class _LibraryPageState extends State<LibraryPage> {
               child: LibraryButton(
                 repository: widget.repository,
                 media: media,
-                onChanged: _reloadLibrary,
+                onChanged: _model.repositoryChanged,
               ),
             ),
           ],
@@ -331,7 +243,7 @@ class _LibraryPageState extends State<LibraryPage> {
             trailing: LibraryButton(
               repository: widget.repository,
               media: media,
-              onChanged: _reloadLibrary,
+              onChanged: _model.repositoryChanged,
             ),
           ),
         );

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:hikari/domain/playback/video_playback.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
 import 'package:hikari/infrastructure/playback/video_driver.dart';
@@ -9,7 +10,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 enum _Phase { resetting, opening, active, failed, closing, closed }
 
 /// A route's identity and frozen progress, not a native player owner.
-final class MediaKitVideoPlayback {
+final class MediaKitVideoPlayback implements VideoPlaybackControls {
   MediaKitVideoPlayback._(
     this._owner,
     this.locator,
@@ -24,14 +25,40 @@ final class MediaKitVideoPlayback {
   final _duration = Completer<Duration?>();
   late Future<void> ready;
   Future<void>? _finish;
-  final _changes = StreamController<void>.broadcast(sync: true);
-  Stream<void> get changes => _changes.stream;
+  final _surfaceChanges = StreamController<void>.broadcast(sync: true);
+  final _controlChanges = StreamController<void>.broadcast(sync: true);
+  @override
+  Stream<void> get changes => _controlChanges.stream;
+  Stream<void> get surfaceChanges => _surfaceChanges.stream;
   String? error;
   bool get loading => _phase == _Phase.resetting || _phase == _Phase.opening;
   VideoController? get controller => _owner._driver?.controller;
+
+  bool _playing = false;
+  Duration _position = Duration.zero;
+  Duration _playbackDuration = Duration.zero;
+
+  @override
+  bool get playing => _playing;
+  @override
+  Duration get position => _position;
+  @override
+  Duration get duration => _playbackDuration;
+
+  @override
+  Future<void> play() => _owner._setPlaying(this, true);
+  @override
+  Future<void> pause() => _owner._setPlaying(this, false);
+  @override
+  Future<void> seek(Duration position) => _owner._seek(this, position);
+
   Future<void> finish() => _finish ??= _owner._finish(this);
-  void _changed() {
-    if (!_changes.isClosed) _changes.add(null);
+  void _surfaceChanged() {
+    if (!_surfaceChanges.isClosed) _surfaceChanges.add(null);
+  }
+
+  void _controlsChanged() {
+    if (!_controlChanges.isClosed) _controlChanges.add(null);
   }
 }
 
@@ -73,7 +100,9 @@ final class MediaKitVideoSession {
             !session._duration.isCompleted) {
           session._duration.complete(duration);
         } else if (session._phase == _Phase.active) {
+          session._playbackDuration = duration;
           session._tracker.noteDuration(duration);
+          session._controlsChanged();
         }
       }),
     );
@@ -86,7 +115,9 @@ final class MediaKitVideoSession {
             position <= Duration.zero) {
           return;
         }
+        session._position = position;
         session._tracker.notePosition(position, session._tracker.duration);
+        session._controlsChanged();
       }),
     );
     _subscriptions.add(
@@ -102,7 +133,10 @@ final class MediaKitVideoSession {
     _subscriptions.add(
       driver.playing.listen((playing) {
         final session = _currentPlayback;
-        if (session != null && !playing) unawaited(_flush(session));
+        if (session == null) return;
+        session._playing = playing;
+        session._controlsChanged();
+        if (!playing) unawaited(_flush(session));
       }),
     );
     _subscriptions.add(
@@ -114,7 +148,7 @@ final class MediaKitVideoSession {
           return;
         }
         session.error = message;
-        session._changed();
+        session._surfaceChanged();
       }),
     );
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -153,11 +187,15 @@ final class MediaKitVideoSession {
         if (duration == null || !_isCurrentPhase(session, _Phase.opening)) {
           return;
         }
-        await _driver!.seek(resumeVideo(initialProgress, duration));
+        final initialPosition = resumeVideo(initialProgress, duration);
+        await _driver!.seek(initialPosition);
         if (!_isCurrentPhase(session, _Phase.opening)) return;
+        session._playbackDuration = duration;
+        session._position = initialPosition;
         session._tracker.noteDuration(duration);
         session._phase = _Phase.active;
-        session._changed();
+        session._surfaceChanged();
+        session._controlsChanged();
         if (_isForeground) await _driver!.play();
       } catch (error) {
         if (!_isCurrentPhase(session, _Phase.resetting) &&
@@ -167,7 +205,7 @@ final class MediaKitVideoSession {
         }
         session._phase = _Phase.failed;
         session.error = error.toString();
-        session._changed();
+        session._surfaceChanged();
       }
     });
     return session;
@@ -183,7 +221,7 @@ final class MediaKitVideoSession {
     } catch (_) {
       if (!_isCurrentPhase(session, _Phase.active)) return;
       session.error = 'Could not save playback progress.';
-      session._changed();
+      session._surfaceChanged();
     }
   }
 
@@ -206,8 +244,39 @@ final class MediaKitVideoSession {
       } finally {
         session._phase = _Phase.closed;
         if (identical(_currentPlayback, session)) _currentPlayback = null;
-        await session._changes.close();
+        await session._surfaceChanges.close();
+        await session._controlChanges.close();
       }
+    });
+  }
+
+  Future<void> _setPlaying(MediaKitVideoPlayback session, bool playing) {
+    return _enqueue(() async {
+      if (!_isCurrentPhase(session, _Phase.active)) return;
+      if (playing) {
+        await _driver!.play();
+      } else {
+        await _driver!.pause();
+      }
+    });
+  }
+
+  Future<void> _seek(MediaKitVideoPlayback session, Duration position) {
+    return _enqueue(() async {
+      if (!_isCurrentPhase(session, _Phase.active)) return;
+      final duration = session._playbackDuration;
+      final target = duration > Duration.zero
+          ? Duration(
+              microseconds: position.inMicroseconds.clamp(
+                0,
+                duration.inMicroseconds,
+              ),
+            )
+          : Duration.zero;
+      await _driver!.seek(target);
+      if (!_isCurrentPhase(session, _Phase.active)) return;
+      session._position = target;
+      session._controlsChanged();
     });
   }
 
