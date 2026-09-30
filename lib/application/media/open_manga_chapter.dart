@@ -1,5 +1,6 @@
 import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -39,6 +40,9 @@ final class OpenMangaChapter {
       media: chapter.source,
     );
     final pages = await source.pages(chapter.source);
+    if (pages.any((page) => page.sourceId != source.id)) {
+      throw StateError('Manga source returned foreign page references.');
+    }
 
     return MangaChapterOpenTarget(
       chapter: chapter,

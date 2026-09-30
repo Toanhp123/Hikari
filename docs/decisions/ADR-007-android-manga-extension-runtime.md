@@ -5,6 +5,8 @@
 
 ADR-008 removes the direct-provider fallback and MangaDex identity exception, accepting a clean app-data reset. This Android host decision remains accepted; current identity mechanics belong in [EXTENSIONS](../architecture/EXTENSIONS.md).
 
+ADR-009 supersedes the historical mutable-reference choice below: [stable source identities](ADR-009-stable-source-identities.md) separate persisted continuation from identity. Current series metadata uses `MangaSeriesSource` rather than the original chapter-only capability.
+
 ## Context
 
 ADR-005 intentionally created an immutable `SourceRegistry` and capability contracts before choosing a plugin mechanism. Hikari now has a real consumer for that seam: reuse the existing Mihon/Keiyoushi manga extension ecosystem without teaching domain/application code about APKs, Kotlin source APIs or provider-specific transport.

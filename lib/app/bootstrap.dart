@@ -3,23 +3,41 @@ import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_source_loader.dart';
+import 'package:hikari/infrastructure/extensions/lnreader/lnreader_source_loader.dart';
+import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:media_kit/media_kit.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-
-  var extensionSources = const <MediaSource>[];
+  final database = UserDatabase();
+  final extensionSources = <MediaSource>[];
   try {
-    extensionSources = await const MihonSourceLoader().loadSources();
+    extensionSources.addAll(
+      await MihonSourceLoader(database: database).loadSources(),
+    );
   } catch (error, stackTrace) {
     debugPrint('Could not load Mihon extensions: $error');
     debugPrintStack(stackTrace: stackTrace);
   }
-
-  runApp(
-    HikariApp(
-      dependencies: AppDependencies.create(additionalSources: extensionSources),
-    ),
-  );
+  try {
+    extensionSources.addAll(await const LnReaderSourceLoader().loadSources());
+  } catch (error, stackTrace) {
+    debugPrint('Could not load novel extensions: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+  try {
+    runApp(
+      HikariApp(
+        dependencies: AppDependencies.create(
+          database: database,
+          ownsDatabase: true,
+          additionalSources: extensionSources,
+        ),
+      ),
+    );
+  } catch (_) {
+    await database.close();
+    rethrow;
+  }
 }

@@ -1,4 +1,4 @@
-package io.github.toanhp123.hikari
+package io.github.toanhp123.hikari.localmedia
 
 import android.app.Activity
 import android.content.Context
@@ -8,6 +8,8 @@ import android.provider.DocumentsContract
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.UUID
 import java.util.concurrent.Executors
 
 private class MissingTreeException : IllegalStateException("Folder is no longer available.")
@@ -21,11 +23,27 @@ class LocalMediaChannel(private val activity: Activity, messenger: BinaryMesseng
     private var closed = false
 
     init {
+        // Serialized before reads: stale copies (including interrupted .part files)
+        // belong to the previous engine, never to a live reader in this engine.
+        worker.execute {
+            File(activity.cacheDir, "local_media").listFiles()?.forEach { file ->
+                runCatching { deleteMaterialized(file.absolutePath) }
+            }
+        }
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "pickTree" -> openPicker(result)
                 "selectedTree" -> background(result) { selectedTree() }
                 "children" -> background(result) { children(Uri.parse(call.arguments as String)) }
+                "materialize" -> background(result) {
+                    val id = call.argument<String>("id") ?: error("Missing document identifier.")
+                    val limit = call.argument<Int>("limit") ?: error("Missing materialization limit.")
+                    materialize(Uri.parse(id), limit)
+                }
+                "deleteMaterialized" -> background(result) {
+                    val path = call.argument<String>("path") ?: error("Missing materialized path.")
+                    deleteMaterialized(path)
+                }
                 "read" -> background(result) {
                     val id = call.argument<String>("id") ?: error("Missing document identifier.")
                     val limit = call.argument<Int>("limit") ?: error("Missing read limit.")
@@ -181,6 +199,45 @@ class LocalMediaChannel(private val activity: Activity, messenger: BinaryMesseng
         } catch (_: SecurityException) {
             // The grant disappeared between inspection and release.
         }
+    }
+
+    private fun materialize(uri: Uri, limit: Int): Map<String, Any> {
+        require(limit in 1..(1024 * 1024 * 1024)) { "Invalid materialization limit." }
+        val directory = File(activity.cacheDir, "local_media")
+        require(directory.mkdirs() || directory.isDirectory) { "Cache directory unavailable." }
+        val target = File(directory, "${UUID.randomUUID()}.part")
+        try {
+            activity.contentResolver.openInputStream(uri).use { input ->
+                requireNotNull(input) { "Document could not be opened." }
+                target.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        require(total <= limit) { "Content exceeds materialization limit." }
+                        output.write(buffer, 0, count)
+                    }
+                    output.flush()
+                }
+            }
+            val finalFile = File(directory, target.name.removeSuffix(".part"))
+            if (!target.renameTo(finalFile)) {
+                throw IllegalStateException("Materialized content could not be finalized.")
+            }
+            return mapOf("path" to finalFile.absolutePath, "size" to finalFile.length())
+        } catch (error: Exception) {
+            target.delete()
+            throw error
+        }
+    }
+
+    private fun deleteMaterialized(path: String): Boolean {
+        val directory = File(activity.cacheDir, "local_media").canonicalFile
+        val target = File(path).canonicalFile
+        require(target.parentFile == directory) { "Invalid materialized path." }
+        return !target.exists() || target.delete()
     }
 
     private fun children(parent: Uri): List<Map<String, Any>> {

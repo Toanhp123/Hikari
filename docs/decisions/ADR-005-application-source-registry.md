@@ -44,6 +44,13 @@ Add the pure domain capability `MediaSourceAvailability` for a source whose abil
 operate depends on the current platform/device. Local SAF implements it; application
 workflows reject unavailable registered sources without knowing Android details.
 
+Follow-up (2026-09-30): archive-backed CBZ/EPUB proved one additional lifecycle need.
+`MediaOpenLeaseSource` lets a source retain an opaque resource while opened media is in
+use. `OpenMedia` acquires the optional lease only after the requested open capability is
+validated, and the provider-neutral `MediaOpenTarget` owns its release. The app therefore
+does not branch on `LocalMediaSource` or archive formats, while `SourceRegistry` remains
+an immutable index rather than a source lifecycle manager.
+
 Add `DirectVideoSource` for the already-proven direct-player path. Local SAF turns its
 source-scoped reference into the locator consumed by `MediaKitVideoSession`. `OpenMedia`
 requires that capability for `MediaType.anime`, so a future remote anime source cannot

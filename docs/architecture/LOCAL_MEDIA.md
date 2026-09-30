@@ -12,7 +12,7 @@ Library snapshots and reader progress are now persisted separately; see
   and `SourceMediaRef`. New source identifiers do not require changing an enum. `itemId`
   is opaque to domain; there is no canonical `MediaId`.
 - `infrastructure/local_media/`: platform-channel access, document-entry DTO,
-  deterministic classification and filename ordering. Kotlin `LocalMediaChannel`
+  deterministic classification and filename ordering. Kotlin `localmedia/LocalMediaChannel`
   owns Android document APIs. Queries and reads run on a worker, not Android's UI thread.
 - `infrastructure/playback/`: media-kit player/session ownership, errors and lifecycle.
 - `features/`: list, player/video surface, manga and text presentation. Constructor callbacks
@@ -35,6 +35,13 @@ The selected root can itself be a manga directory.
 | `.mp4`, `.mkv`, `.webm`, `.m4v` file | Anime | Filename without final extension |
 | Directory with direct `.jpg`, `.jpeg`, `.png`, `.webp` children | Manga | Directory display name |
 | `.txt`, `.md` file | Light Novel | Filename without final extension |
+| `.cbz` file | Manga | Filename without final extension |
+| `.epub` file | Light Novel | Filename without final extension |
+
+CBZ/EPUB opaque identity encodes SAF locator plus format, never display name.
+Entry references additionally encode archive entry path. Renaming with an unchanged
+locator preserves identity; changed locators are not reconciled. These unreleased
+references have no legacy-name migration.
 
 Extensions are case-insensitive. Images never become individual media items.
 A parent containing only a nested manga directory is not itself manga. Mixed-content
@@ -122,11 +129,35 @@ platforms; its independent capability-based route is documented in
 [REMOTE_MANGA](REMOTE_MANGA.md). Local manga still opens folder pages directly,
 without a chapter-selection screen.
 
+## Archive readers
+
+CBZ pages and EPUB sections/resources use one bounded source-owned temporary copy
+per retained locator. `LocalMediaSource` exposes the generic `MediaOpenLeaseSource`
+capability for archive-backed references; `OpenMedia` attaches that lease to the
+provider-neutral open target and app navigation releases the target without knowing the
+local source or archive format. Concurrent reads coalesce copying; separate reader
+owners retain independently. Lease release deletes idle copies, active reads retain
+their copy until finished, and app shutdown rejects new reads and drains active work.
+Unretained single operations clean up immediately. No decoded pages are held by this manager. Native
+startup removes stale owned cache files, including interrupted `.part` copies; deletion
+validates the canonical parent directory. SAF copy size, ZIP entry/count/expanded-size,
+CRC, symlink and EPUB encryption checks remain enforced.
+
+EPUB parses OPF spine and nav/NCX, sanitizes markup/CSS, and registers image tokens
+before passing content to the inert renderer. Only registered image references reach
+`PublicationSource.readResource`; network/file/data/asset providers remain disabled.
+Chapter links are canonical archive-relative paths with fragments; same-section anchors
+and TOC fragments scroll in the renderer. Missing anchors are harmless. Successful
+section changes stay dirty until serialized progress writes succeed, including immediate
+exit; failed section loads never replace saved progress. Untouched restored sections do
+not emit redundant writes. Document restoration is approximate scroll progression, not
+layout-independent pagination.
+
 ## Deferred
 
-CBZ/ZIP, CBR/RAR, EPUB, PDF; series/season/chapter parsing; canonical identity,
+Generic ZIP discovery, CBR/RAR, PDF; series/season/chapter parsing; canonical identity,
 hashing/deduplication, enrichment, covers/thumbnails; rename recovery, watchers,
-history sessions, downloads, extension repository/install/update UI and non-manga extension runtimes.
+history sessions, downloads, extension repository/install/update UI and additional extension ABI families.
 Progress/Library persistence and minimal page/text source capabilities are implemented
 in [USER_STATE](USER_STATE.md); canonical identity remains deferred.
 

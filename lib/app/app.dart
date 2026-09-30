@@ -2,17 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
+import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/features/player/video_surface.dart';
-import 'package:hikari/features/remote_manga/manga_chapter_page.dart';
+import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
+import 'package:hikari/features/remote_novel/novel_series_page.dart';
+import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
+import 'package:hikari/features/search/unified_search_page.dart';
+import 'package:hikari/features/settings/settings_page.dart';
 
 class HikariApp extends StatefulWidget {
   const HikariApp({super.key, required this.dependencies});
@@ -25,7 +35,24 @@ class HikariApp extends StatefulWidget {
 
 class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   late final AppDependencies _dependencies;
+  final _navigationController = AppNavigationController();
   bool _isOpeningMedia = false;
+  bool _isOled = false;
+  Color? _accentColor;
+  int _localCatalogRevision = 0;
+  int _localPageRevision = 0;
+
+  Future<bool> _chooseLocalRoot({bool fromSettings = false}) async {
+    final selected = await _dependencies.localMediaSource.chooseRoot();
+    if (selected && mounted) {
+      setState(() {
+        _localCatalogRevision++;
+        // Local already scans its own selection; only external changes refresh it.
+        if (fromSettings) _localPageRevision++;
+      });
+    }
+    return selected;
+  }
 
   @override
   void initState() {
@@ -37,6 +64,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _navigationController.dispose();
     unawaited(
       _dependencies.dispose().catchError((Object error) {
         FlutterError.reportError(FlutterErrorDetails(exception: error));
@@ -59,8 +87,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Future<void> _openMedia(BuildContext context, Media media) async {
     if (_isOpeningMedia) return;
     _isOpeningMedia = true;
+    MediaOpenTarget? target;
     try {
-      final target = await _dependencies.openMedia.execute(media);
+      target = await _dependencies.openMedia.execute(media);
       if (!context.mounted) return;
       await _pushMediaTarget(context, target);
     } catch (_) {
@@ -75,6 +104,22 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       }
     } finally {
       _isOpeningMedia = false;
+      try {
+        await target?.release();
+      } catch (error, stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(exception: error, stack: stackTrace),
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Could not clean up temporary reading files. Restart to retry cleanup.',
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -87,6 +132,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       MangaSeriesOpenTarget series => _buildMangaSeriesPage(series),
       MangaReaderOpenTarget reader => _buildMangaReaderPage(reader),
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
+      NovelSeriesOpenTarget novel => NovelSeriesPage(
+        target: novel,
+        openChapter: _openNovelChapter,
+        library: _dependencies.libraryRepository,
+      ),
+      PublicationReaderOpenTarget publication => _buildPublicationReaderPage(
+        publication,
+      ),
     };
     await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => page));
@@ -100,9 +153,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
     return PlayerPage(
       title: target.media.title,
+      controls: playback,
       beforeExit: playback.finish,
       playback: VideoSurface(
-        changes: playback.changes,
+        changes: playback.surfaceChanges,
         controller: () => playback.controller,
         loading: () => playback.loading,
         error: () => playback.error,
@@ -110,13 +164,15 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) =>
-      MangaChapterPage(
-        title: target.media.title,
-        sourceName: target.chapterSource.name,
-        loadChapters: () => target.chapterSource.chapters(target.media.source),
-        openChapter: _openMangaChapter,
-      );
+  Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) => MangaSeriesPage(
+    title: target.media.title,
+    sourceName: target.seriesSource.name,
+    loadDetails: target.loadDetails,
+    readArtwork: target.seriesSource is ArtworkSource
+        ? (target.seriesSource as ArtworkSource).readArtwork
+        : null,
+    openChapter: _openMangaChapter,
+  );
 
   Widget _buildMangaReaderPage(MangaReaderOpenTarget target) => MangaReaderPage(
     title: target.media.title,
@@ -132,6 +188,34 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     initialProgress: target.progress.initialProgress,
     saveProgress: target.progress.save,
   );
+
+  Widget _buildPublicationReaderPage(PublicationReaderOpenTarget target) =>
+      PublicationReaderPage(
+        title: target.media.title,
+        publication: target.media.source,
+        source: target.publicationSource,
+        initialProgress: target.progress.initialProgress,
+        saveProgress: target.progress.save,
+      );
+
+  Future<void> _openNovelChapter(
+    BuildContext context,
+    NovelChapter chapter,
+  ) async {
+    final target = await _dependencies.openNovelChapter.execute(chapter);
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NovelReaderPage(
+          title: chapter.title,
+          loadContent: () async => target.content,
+          readResource: target.source.readResource,
+          initialProgress: target.progress.initialProgress,
+          saveProgress: target.progress.save,
+        ),
+      ),
+    );
+  }
 
   Future<void> _openMangaChapter(
     BuildContext context,
@@ -161,41 +245,80 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     final localSource = _dependencies.localMediaSource;
     final libraryRepository = _dependencies.libraryRepository;
     final canSearchManga = _dependencies.searchManga.options.isNotEmpty;
+    final canSearchNovels = _dependencies.searchNovels.options.isNotEmpty;
 
     return MaterialApp(
       title: 'Hikari',
-      theme: ThemeData(colorSchemeSeed: Colors.indigo),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        brightness: Brightness.dark,
+      theme: HikariTheme.darkTheme(oled: _isOled, accentColor: _accentColor),
+      darkTheme: HikariTheme.darkTheme(
+        oled: _isOled,
+        accentColor: _accentColor,
       ),
       home: Builder(
-        builder: (context) => LocalMediaPage(
-          supported: localSource.isAvailable,
-          scanSelectedRoot: localSource.scanSelectedRoot,
-          chooseRoot: localSource.chooseRoot,
-          library: libraryRepository,
-          openMedia: _openMedia,
-          openRemote: canSearchManga
-              ? () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => RemoteMangaSearchPage(
-                      searchManga: _dependencies.searchManga,
-                      openMedia: _openMedia,
-                      library: libraryRepository,
-                    ),
-                  ),
-                )
-              : null,
-          openLibrary: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => LibraryPage(
-                  repository: libraryRepository,
-                  openMedia: _openMedia,
-                ),
-              ),
-            );
+        builder: (context) => AppNavigationShell(
+          controller: _navigationController,
+          tabs: {
+            AppTab.home: HomePage(
+              openMedia: _openMedia,
+              library: libraryRepository,
+              onNavigateToSearch: () =>
+                  _navigationController.selectTab(AppTab.search),
+              onNavigateToLibrary: () =>
+                  _navigationController.selectTab(AppTab.library),
+              showLocalMediaPrompt: localSource.isAvailable,
+              onNavigateToLocal: () =>
+                  _navigationController.selectTab(AppTab.local),
+              openRemoteManga: canSearchManga
+                  ? () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => RemoteMangaSearchPage(
+                          searchManga: _dependencies.searchManga,
+                          openMedia: _openMedia,
+                          library: libraryRepository,
+                        ),
+                      ),
+                    )
+                  : null,
+              openRemoteNovels: canSearchNovels
+                  ? () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => RemoteNovelSearchPage(
+                          searchNovels: _dependencies.searchNovels,
+                          openMedia: _openMedia,
+                          library: libraryRepository,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            AppTab.search: UnifiedSearchPage(
+              openMedia: _openMedia,
+              library: libraryRepository,
+              searchManga: _dependencies.searchManga,
+              searchNovels: _dependencies.searchNovels,
+              scanLocalMedia: localSource.scanSelectedRoot,
+              catalogRevision: _localCatalogRevision,
+            ),
+            AppTab.local: LocalMediaPage(
+              scanSelectedRoot: localSource.scanSelectedRoot,
+              chooseRoot: _chooseLocalRoot,
+              openMedia: _openMedia,
+              library: libraryRepository,
+              supported: localSource.isAvailable,
+              catalogRevision: _localPageRevision,
+            ),
+            AppTab.library: LibraryPage(
+              repository: libraryRepository,
+              openMedia: _openMedia,
+            ),
+            AppTab.settings: SettingsPage(
+              isOled: _isOled,
+              onToggleOled: (value) => setState(() => _isOled = value),
+              onSelectAccent: (value) => setState(() => _accentColor = value),
+              onChooseLocalFolder: localSource.isAvailable
+                  ? () => _chooseLocalRoot(fromSettings: true)
+                  : null,
+            ),
           },
         ),
       ),

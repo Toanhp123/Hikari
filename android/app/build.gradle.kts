@@ -15,6 +15,18 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/lnreader/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    // Explicit debug-only fixture opt-in; never included in a release APK.
+    if (providers.gradleProperty("lnreaderContractFixture").orNull == "true") {
+        sourceSets.getByName("debug").assets.srcDir("../../tool/lnreader/fixtures")
+    }
+
     buildFeatures {
         buildConfig = true
     }

@@ -1,4 +1,4 @@
-# Android manga extension runtime
+# Android extension runtimes
 
 ## Scope
 
@@ -20,7 +20,7 @@ MethodChannel gateway
 MihonMangaSource
         |
         v
-MangaSearchSource + MangaChapterSource + MangaPageSource
+MangaSearchSource + MangaSeriesSource + MangaPageSource
         |
         v
 SourceRegistry / existing application workflows
@@ -81,9 +81,9 @@ Upstream source IDs are stable `Long` values. Hikari maps every extension source
 SourceId("mihon:<upstream-source-id>")
 ```
 
-Source-local URLs remain opaque locators. Extension-lib 1.6 also allows `SManga.memo` and `SChapter.memo` to carry source-private JSON state required by later calls, and some sources read chapter title/number/date/scanlator while resolving pages. Hikari keeps manga/chapter URLs and required continuation state inside an opaque `SourceMediaRef.itemId` payload (`mihon-v1:`) for every source. Extension-lib 1.4 sources use the same payload without `memo`. This avoids widening the domain model or SQLite schema in runtime v1.
+Source-local URLs remain opaque locators. Manga/chapter identities now use `mihon-v2:` resource-kind plus URL only. Extension-lib 1.6 `SManga.memo` / `SChapter.memo`, title and chapter number/date/scanlator remain provider continuation, persisted separately before references are returned. Extension-lib 1.4 uses the same storage without memo. See [REMOTE_MANGA](REMOTE_MANGA.md), [USER_STATE](USER_STATE.md), and [ADR-009](../decisions/ADR-009-stable-source-identities.md) for migration and restart contracts.
 
-That payload is transport state, not a cross-provider canonical identity. If upstream continuation state changes, the opaque item ID can also change; stable generic item identity is therefore not claimed by v1.
+Normalized publication status includes native `publishingFinished` and `onHiatus`; raw status preserves the original numeric extension status code as text, including unknown codes.
 
 No legacy MangaDex identity compatibility or UUID translation is retained. Hikari intentionally accepts a clean app-data reset at this stage, not migration of pre-refactor Library/Progress rows; see [ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md).
 
@@ -125,6 +125,49 @@ A useful device smoke test is:
 6. restart Hikari and repeat open/resume
 7. update/reinstall the extension, restart Hikari, and verify identity remains stable
 ```
+
+## Android novel runtime
+
+LNReader-compatible reviewed bundles use a **separate resource-bounded QuickJS
+runtime**, not the unrestricted manga compatibility wrapper. See
+[ADR-010](../decisions/ADR-010-bounded-lnreader-runtime.md) for trust boundaries,
+limits and reproducible packaging. `LnReaderSourceLoader` registers normalized
+`NovelSearchSource`, `NovelSeriesSource`, `NovelChapterSource` and `ArtworkSource`
+capabilities. Stable references contain source ID, entity kind and original path;
+provider metadata never changes identity. HTML is sanitized, images become
+source-owned resource references, and image requests use the plugin export's
+`imageRequestInit`.
+
+Supported calls: `searchNovels(term, page)`, `parseNovel(path)`,
+`parseChapter(path)` and optional `parsePage(path, pageString)`. The upstream
+`SourcePage` contract is `{ chapters: [...] }`; `parseNovel` supplies its first
+page, including when that first page is empty; aggregation starts at page 2.
+Aggregation allows at most 100 pages / 50,000 chapters and rejects duplicate
+chapter paths rather than silently dropping data. Search pagination remains
+unknown because upstream returns an array, not a next-page flag. Ratings retain
+upstream's documented 0–5 scale; release labels and scanlator lists are retained.
+
+Tested module whitelist: `cheerio` (real slim/htmlparser2 build), `dayjs`,
+`@libs/fetch` (`fetchApi`, `fetchText`), `@libs/storage`, `@libs/url`
+(`absoluteUrl(base, path)`). This is a bounded compatibility subset, not a claim
+that every upstream import alias or browser API is supported. Unsupported
+modules fail explicitly. Host requests support GET/HEAD/POST/PUT/PATCH/DELETE,
+64 KiB request bodies, selected headers, response Content-Type charset,
+1 MiB response bodies and source-manifest HTTPS origins. Redirects are disabled;
+plugins requiring redirects, WebViews/challenges, arbitrary modules or other
+header names are unsupported. Persistent storage is source-namespaced, bounded
+to 128 keys and 64 KiB. No arbitrary script arrives through MethodChannel.
+
+No live novel provider ships by default. Build the authored debug fixture using
+`android/gradlew.bat -p android :app:assembleDebug -PlnreaderContractFixture=true`.
+Its source ID is `lnreader:hikari-contract`; name explicitly identifies it as a
+fixture. The Gradle property adds fixture assets only to debug, never release.
+Without the property, no fixture source is registered. Normal provider discovery
+reads reviewed APK `lnreader/plugins/*.json` manifests and corresponding bundles.
+Windows/iOS have no novel runtime. Missing sources preserve persisted rows.
+
+License inventory and its remaining pre-existing manga-host audit boundary are
+recorded in root `NOTICE`; full notices for shipped JS/native code are APK assets.
 
 ## Upstream references
 

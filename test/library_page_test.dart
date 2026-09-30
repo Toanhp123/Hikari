@@ -60,44 +60,13 @@ void main() {
       expect(await library.contains(media.source), isFalse);
       await tester.pumpAndSettle();
       expect(find.text('Your library is empty.'), findsOneWidget);
+
+      // LibraryPage owns a live Drift watch; dispose it before closing the
+      // in-memory database in tearDown.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
     },
   );
-  testWidgets('scan refreshes membership after returning from Library', (
-    tester,
-  ) async {
-    await library.upsert(
-      LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => LocalMediaPage(
-            library: library,
-            scanSelectedRoot: () async => [media],
-            chooseRoot: () async => false,
-            openMedia: (_, _) {},
-            openLibrary: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      LibraryPage(repository: library, openMedia: (_, _) {}),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Library'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Remove from library'));
-    await tester.pumpAndSettle();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Add to library'), findsOneWidget);
-    expect(find.byTooltip('Remove from library'), findsNothing);
-  });
   testWidgets('scan result toggles persisted library membership', (
     tester,
   ) async {
@@ -118,5 +87,31 @@ void main() {
     await tester.tap(find.byTooltip('Remove from library'));
     await tester.pumpAndSettle();
     expect(await library.contains(media.source), isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('reactive repository updates an already mounted LibraryPage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LibraryPage(repository: library, openMedia: (_, _) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Your library is empty.'), findsOneWidget);
+
+    await library.upsert(
+      LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saved book'), findsOneWidget);
+
+    // Dispose the page before the database tearDown closes Drift so the
+    // reactive watch subscription is cancelled deterministically.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
   });
 }

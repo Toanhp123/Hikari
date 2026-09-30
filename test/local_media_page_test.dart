@@ -24,6 +24,7 @@ void main() {
     required Future<bool> Function() chooseRoot,
     required void Function(BuildContext, Media) openMedia,
     bool supported = true,
+    int catalogRevision = 0,
   }) {
     return MaterialApp(
       home: LocalMediaPage(
@@ -31,6 +32,7 @@ void main() {
         chooseRoot: chooseRoot,
         openMedia: openMedia,
         supported: supported,
+        catalogRevision: catalogRevision,
       ),
     );
   }
@@ -68,6 +70,55 @@ void main() {
     await tester.pumpAndSettle();
     expect(scans, 1);
   });
+
+  testWidgets('root revision replaces even an in-flight restored scan', (
+    tester,
+  ) async {
+    final old = Completer<List<Media>?>();
+    var scans = 0;
+    Future<List<Media>?> scan() =>
+        ++scans == 1 ? old.future : Future.value([replacement]);
+    Widget page(int revision) => host(
+      scanSelectedRoot: scan,
+      chooseRoot: () async => false,
+      openMedia: (_, _) {},
+      catalogRevision: revision,
+    );
+    await tester.pumpWidget(page(0));
+    await tester.pumpWidget(page(1));
+    await tester.pumpAndSettle();
+    expect(find.text('Chapter one'), findsOneWidget);
+    old.complete([media]);
+    await tester.pumpAndSettle();
+    expect(find.text('Spirited Away'), findsNothing);
+    expect(scans, 2);
+  });
+
+  for (final size in [const Size(375, 812), const Size(812, 375)]) {
+    testWidgets('Local no-root fits $size with large text', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(1.6)),
+            child: child!,
+          ),
+          home: LocalMediaPage(
+            scanSelectedRoot: () async => null,
+            chooseRoot: () async => false,
+            openMedia: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Choose folder'), findsOneWidget);
+    });
+  }
 
   testWidgets('large scans keep media rows lazily rendered', (tester) async {
     final largeScan = List<Media>.generate(
@@ -199,7 +250,7 @@ void main() {
 
     expect(scans, 1);
     expect(find.textContaining('Could not scan local media.'), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('Try Again'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
 
     await tester.pump();
@@ -268,7 +319,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Could not scan local media.'), findsOneWidget);
 
-    await tester.tap(find.text('Try again'));
+    await tester.tap(find.text('Try Again'));
     await tester.pumpAndSettle();
 
     expect(scans, 3);

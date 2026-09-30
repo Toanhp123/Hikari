@@ -39,6 +39,20 @@ final class SqliteProgressRepository implements ProgressRepository {
         );
       case TextPosition(:final progression):
         await _upsert(progress, kind: 'text', progression: progression);
+      case DocumentPosition(
+        :final resource,
+        :final progression,
+        :final totalProgression,
+        :final locator,
+      ):
+        await _upsert(
+          progress,
+          kind: 'document',
+          documentResource: resource,
+          documentProgression: progression,
+          documentTotalProgression: totalProgression,
+          documentLocator: locator,
+        );
     }
   }
 
@@ -50,6 +64,10 @@ final class SqliteProgressRepository implements ProgressRepository {
     int? pageIndex,
     int? pageCount,
     double? progression,
+    String? documentResource,
+    double? documentProgression,
+    double? documentTotalProgression,
+    String? documentLocator,
   }) async {
     await _database
         .into(_database.progressRecords)
@@ -63,6 +81,10 @@ final class SqliteProgressRepository implements ProgressRepository {
             pageIndex: Value(pageIndex),
             pageCount: Value(pageCount),
             textProgression: Value(progression),
+            documentResource: Value(documentResource),
+            documentProgression: Value(documentProgression),
+            documentTotalProgression: Value(documentTotalProgression),
+            documentLocator: Value(documentLocator),
             completed: progress.completed ? 1 : 0,
             updatedAt: progress.updatedAt.millisecondsSinceEpoch,
           ),
@@ -92,7 +114,11 @@ MediaProgress _mapProgress(ProgressRecord row) {
         row.durationMs != null &&
         row.pageIndex == null &&
         row.pageCount == null &&
-        row.textProgression == null) {
+        row.textProgression == null &&
+        row.documentResource == null &&
+        row.documentProgression == null &&
+        row.documentTotalProgression == null &&
+        row.documentLocator == null) {
       position = VideoPosition(
         position: Duration(milliseconds: row.positionMs!),
         duration: Duration(milliseconds: row.durationMs!),
@@ -102,7 +128,11 @@ MediaProgress _mapProgress(ProgressRecord row) {
         row.pageCount != null &&
         row.positionMs == null &&
         row.durationMs == null &&
-        row.textProgression == null) {
+        row.textProgression == null &&
+        row.documentResource == null &&
+        row.documentProgression == null &&
+        row.documentTotalProgression == null &&
+        row.documentLocator == null) {
       position = PagePosition(
         pageIndex: row.pageIndex!,
         pageCount: row.pageCount!,
@@ -112,8 +142,25 @@ MediaProgress _mapProgress(ProgressRecord row) {
         row.positionMs == null &&
         row.durationMs == null &&
         row.pageIndex == null &&
-        row.pageCount == null) {
+        row.pageCount == null &&
+        row.documentResource == null &&
+        row.documentProgression == null &&
+        row.documentTotalProgression == null &&
+        row.documentLocator == null) {
       position = TextPosition(progression: row.textProgression!);
+    } else if (row.kind == 'document' &&
+        row.documentResource != null &&
+        row.positionMs == null &&
+        row.durationMs == null &&
+        row.pageIndex == null &&
+        row.pageCount == null &&
+        row.textProgression == null) {
+      position = DocumentPosition(
+        resource: row.documentResource!,
+        progression: row.documentProgression,
+        totalProgression: row.documentTotalProgression,
+        locator: row.documentLocator,
+      );
     } else {
       throw const FormatException('Invalid progress discriminator or payload.');
     }

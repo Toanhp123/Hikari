@@ -1,28 +1,46 @@
-import 'package:flutter/material.dart';
-import 'package:hikari/domain/media/source.dart';
+import 'dart:async';
+import 'dart:typed_data';
 
-class MangaChapterPage extends StatefulWidget {
-  const MangaChapterPage({
+import 'package:flutter/material.dart';
+
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/features/remote_manga/manga_series_view_model.dart';
+
+class MangaSeriesPage extends StatefulWidget {
+  const MangaSeriesPage({
     super.key,
     required this.title,
     required this.sourceName,
-    required this.loadChapters,
+    required this.loadDetails,
+    this.readArtwork,
     required this.openChapter,
   });
   final String title, sourceName;
-  final Future<List<MangaChapter>> Function() loadChapters;
+  final Future<MangaSeriesDetails> Function() loadDetails;
+  final Future<Uint8List> Function(SourceMediaRef)? readArtwork;
   final Future<void> Function(BuildContext, MangaChapter) openChapter;
   @override
-  State<MangaChapterPage> createState() => _MangaChapterPageState();
+  State<MangaSeriesPage> createState() => _MangaSeriesPageState();
 }
 
-class _MangaChapterPageState extends State<MangaChapterPage> {
-  late Future<List<MangaChapter>> _chaptersFuture;
+class _MangaSeriesPageState extends State<MangaSeriesPage> {
+  late final MangaSeriesViewModel _viewModel = MangaSeriesViewModel(
+    widget.loadDetails,
+  );
   bool _isOpeningChapter = false;
+
   @override
   void initState() {
     super.initState();
-    _chaptersFuture = Future.sync(widget.loadChapters);
+    unawaited(_viewModel.load());
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
   }
 
   Future<void> _openChapter(MangaChapter chapter) async {
@@ -57,13 +75,14 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
           ),
           if (_isOpeningChapter) const LinearProgressIndicator(),
           Expanded(
-            child: FutureBuilder<List<MangaChapter>>(
-              future: _chaptersFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) {
+                final state = _viewModel.state;
+                if (state is MangaSeriesLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.hasError) {
+                if (state is MangaSeriesFailure) {
                   return Center(
                     child: SingleChildScrollView(
                       child: Column(
@@ -73,11 +92,7 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                             'Could not load chapters. Check source access or rate limits.',
                           ),
                           TextButton(
-                            onPressed: () => setState(() {
-                              _chaptersFuture = Future.sync(
-                                widget.loadChapters,
-                              );
-                            }),
+                            onPressed: _viewModel.load,
                             child: const Text('Try again'),
                           ),
                         ],
@@ -85,18 +100,32 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                     ),
                   );
                 }
-                final chapters = snapshot.data!;
-                if (chapters.isEmpty) {
-                  return const Center(
-                    child: Text('No readable chapters found.'),
-                  );
-                }
+                final ready = state as MangaSeriesReady;
+                final chapters = ready.details.chapters;
+                final details = ready.details;
                 return ListView.builder(
-                  itemCount: chapters.length,
+                  itemCount: chapters.length + 1,
                   itemBuilder: (context, index) {
-                    final chapter = chapters[index];
+                    if (index == 0) {
+                      return Column(
+                        children: [
+                          MediaMetadataView(
+                            metadata: details.metadata,
+                            sourceName: widget.sourceName,
+                            readArtwork: widget.readArtwork,
+                          ),
+                          if (chapters.isEmpty)
+                            const Text('No readable chapters found.'),
+                        ],
+                      );
+                    }
+                    final chapter = chapters[index - 1];
                     final subtitle = <String>[
                       chapter.scanlator ?? widget.sourceName,
+                      if (chapter.chapterNumber != null)
+                        'Chapter ${chapter.chapterNumber}',
+                      if (chapter.uploadedAt != null)
+                        chapter.uploadedAt!.toIso8601String().split('T').first,
                       if (!chapter.canReadPages) 'Not readable in Hikari',
                     ].join(' · ');
                     return ListTile(

@@ -51,15 +51,13 @@ void main() {
       final calls = <String>[];
       messenger.setMockMethodCallHandler(channel, (call) async {
         calls.add(call.method);
-        if (call.method == 'selectedTree') return null;
         expect(call.method, 'read');
         return Uint8List.fromList(
           utf8.encode(List.filled(150, 'Persisted text').join('\n')),
         );
       });
-      await tester.pumpWidget(
-        HikariApp(dependencies: AppDependencies.create(database: db)),
-      );
+      final dependencies = AppDependencies.create(database: db);
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
@@ -76,8 +74,11 @@ void main() {
         scroll.offset / scroll.position.maxScrollExtent,
         closeTo(0.6, 0.001),
       );
-      expect(calls, ['selectedTree', 'read']);
+      expect(calls, ['read']);
       await tester.pumpWidget(const SizedBox());
+      // Advance fake time so Drift's deferred stream disposal can finish.
+      await tester.pump(Duration.zero);
+      await dependencies.dispose();
       await db.close();
     },
   );
@@ -98,13 +99,11 @@ void main() {
       ),
     );
     messenger.setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'selectedTree') return null;
-      expect(call.method, 'read');
-      return Uint8List.fromList(const [1, 2, 3]);
+      expect(call.method, 'children');
+      return <Object?>[];
     });
-    await tester.pumpWidget(
-      HikariApp(dependencies: AppDependencies.create(database: db)),
-    );
+    final dependencies = AppDependencies.create(database: db);
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
@@ -112,8 +111,121 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MangaReaderPage), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
     await db.close();
   });
+
+  testWidgets(
+    'Settings and Local root changes refresh cached Local and Search',
+    (tester) async {
+      final db = UserDatabase(NativeDatabase.memory());
+      var root = 0;
+      var cancel = false;
+      var picks = 0;
+      var scans = 0;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        switch (call.method) {
+          case 'pickTree':
+            picks++;
+            if (cancel) return null;
+            root++;
+            return {'id': 'root-$root', 'name': 'Root'};
+          case 'selectedTree':
+            scans++;
+            return {'id': 'root-$root', 'name': 'Root'};
+          case 'children':
+            return [
+              {
+                'id': 'book-$root',
+                'name': 'Book $root.txt',
+                'isDirectory': false,
+              },
+            ];
+          case 'read':
+            return Uint8List.fromList(utf8.encode('Local reading content'));
+        }
+        throw StateError(call.method);
+      });
+      final dependencies = AppDependencies.create(database: db);
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open Local'));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Book 0'), findsOneWidget);
+      expect(picks, 0);
+      await tester.tap(find.byTooltip('Search'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Book');
+      await tester.pump(const Duration(seconds: 1));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Book 0'), findsOneWidget);
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Local Media Folder'));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Local'));
+      await tester.pumpAndSettle();
+      expect(find.text('Book 1'), findsOneWidget);
+      expect(find.text('Book 0'), findsNothing);
+      await tester.tap(find.text('Choose folder'));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Book 2'), findsOneWidget);
+      expect(scans, 6); // One scan per mounted Local/Search page per root.
+      await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Local'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Add to library'), findsOneWidget);
+      expect(find.byTooltip('Remove from library'), findsNothing);
+      expect(scans, 6); // Membership updates do not rescan the folder.
+      cancel = true;
+      await tester.tap(find.text('Choose folder'));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Book 2'), findsOneWidget);
+      await tester.tap(find.byTooltip('Search'));
+      await tester.pumpAndSettle();
+      expect(find.text('Book 2'), findsOneWidget);
+      expect(find.text('Book 0'), findsNothing);
+      await tester.tap(find.byTooltip('Local'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Book 2'));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Local reading content'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(Duration.zero);
+      await dependencies.dispose();
+      await db.close();
+    },
+  );
 
   testWidgets('boots the Hikari app', (tester) async {
     messenger.setMockMethodCallHandler(channel, (call) async {
@@ -121,10 +233,24 @@ void main() {
       return null;
     });
 
-    await tester.pumpWidget(HikariApp(dependencies: AppDependencies.create()));
+    final db = UserDatabase(NativeDatabase.memory());
+    final dependencies = AppDependencies.create(
+      database: db,
+      ownsDatabase: true,
+    );
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
     expect(find.text('Local media'), findsOneWidget);
+    expect(find.text('Open Local'), findsOneWidget);
+    await tester.tap(find.text('Open Local'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose a folder to find local media.'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
   });
 }

@@ -17,11 +17,38 @@ final class MihonSourceDescriptor {
 }
 
 final class MihonMangaItem {
-  const MihonMangaItem({required this.title, required this.url, this.memo});
+  const MihonMangaItem({
+    required this.title,
+    required this.url,
+    this.thumbnailUrl,
+    this.summary,
+    this.authors = const [],
+    this.artists = const [],
+    this.genres = const [],
+    this.status,
+    this.rawStatus,
+    this.rating,
+    this.memo,
+  });
 
   final String title;
   final String url;
+  final String? thumbnailUrl;
+  final String? summary;
+  final List<String> authors;
+  final List<String> artists;
+  final List<String> genres;
+  final String? status;
+  final String? rawStatus;
+  final double? rating;
   final String? memo;
+}
+
+final class MihonSearchPage {
+  const MihonSearchPage({required this.items, required this.hasNextPage});
+
+  final List<MihonMangaItem> items;
+  final bool hasNextPage;
 }
 
 final class MihonChapterItem {
@@ -29,17 +56,24 @@ final class MihonChapterItem {
     required this.title,
     required this.url,
     this.scanlator,
-    this.chapterNumber = -1,
-    this.dateUpload = 0,
+    this.chapterNumber,
+    this.dateUpload,
     this.memo,
   });
 
   final String title;
   final String url;
   final String? scanlator;
-  final double chapterNumber;
-  final int dateUpload;
+  final double? chapterNumber;
+  final int? dateUpload;
   final String? memo;
+}
+
+final class MihonSeriesResult {
+  const MihonSeriesResult({required this.manga, required this.chapters});
+
+  final MihonMangaItem manga;
+  final List<MihonChapterItem> chapters;
 }
 
 final class MihonPageItem {
@@ -59,12 +93,13 @@ final class MihonPageItem {
 abstract interface class MihonExtensionGateway {
   Future<List<MihonSourceDescriptor>> listSources();
 
-  Future<List<MihonMangaItem>> search({
+  Future<MihonSearchPage> search({
     required String sourceKey,
     required String query,
+    required int page,
   });
 
-  Future<List<MihonChapterItem>> chapters({
+  Future<MihonSeriesResult> loadSeries({
     required String sourceKey,
     required String mangaUrl,
     String? mangaTitle,
@@ -84,6 +119,11 @@ abstract interface class MihonExtensionGateway {
   Future<Uint8List> readPage({
     required String sourceKey,
     required MihonPageItem page,
+  });
+
+  Future<Uint8List> readArtwork({
+    required String sourceKey,
+    required String url,
   });
 }
 
@@ -116,52 +156,49 @@ final class MethodChannelMihonExtensionGateway
   }
 
   @override
-  Future<List<MihonMangaItem>> search({
+  Future<MihonSearchPage> search({
     required String sourceKey,
     required String query,
+    required int page,
   }) async {
-    final rows = await _list('search', {
+    final raw = await _channel.invokeMethod<Object?>('search', {
       'sourceKey': sourceKey,
       'query': query,
+      'page': page,
     });
-    return rows
-        .map((row) {
-          final map = _map(row);
-          return MihonMangaItem(
-            title: _string(map, 'title'),
-            url: _string(map, 'url'),
-            memo: _optionalString(map, 'memo'),
-          );
-        })
-        .toList(growable: false);
+    final map = _map(raw);
+    final rows = map['items'];
+    if (rows is! List<Object?>) {
+      throw StateError('Extension runtime returned invalid search items.');
+    }
+    return MihonSearchPage(
+      items: rows.map(_manga).toList(growable: false),
+      hasNextPage: _bool(map, 'hasNextPage'),
+    );
   }
 
   @override
-  Future<List<MihonChapterItem>> chapters({
+  Future<MihonSeriesResult> loadSeries({
     required String sourceKey,
     required String mangaUrl,
     String? mangaTitle,
     String? mangaMemo,
   }) async {
-    final rows = await _list('chapters', {
+    final raw = await _channel.invokeMethod<Object?>('chapters', {
       'sourceKey': sourceKey,
       'mangaUrl': mangaUrl,
       'mangaTitle': mangaTitle,
       'mangaMemo': mangaMemo,
     });
-    return rows
-        .map((row) {
-          final map = _map(row);
-          return MihonChapterItem(
-            title: _string(map, 'title'),
-            url: _string(map, 'url'),
-            scanlator: _optionalString(map, 'scanlator'),
-            chapterNumber: _double(map, 'chapterNumber'),
-            dateUpload: _int(map, 'dateUpload'),
-            memo: _optionalString(map, 'memo'),
-          );
-        })
-        .toList(growable: false);
+    final map = _map(raw);
+    final rows = map['chapters'];
+    if (rows is! List<Object?>) {
+      throw StateError('Extension runtime returned invalid chapters.');
+    }
+    return MihonSeriesResult(
+      manga: _manga(map['manga']),
+      chapters: rows.map(_chapter).toList(growable: false),
+    );
   }
 
   @override
@@ -183,17 +220,7 @@ final class MethodChannelMihonExtensionGateway
       'chapterDateUpload': chapterDateUpload,
       'chapterMemo': chapterMemo,
     });
-    return rows
-        .map((row) {
-          final map = _map(row);
-          return MihonPageItem(
-            index: _int(map, 'index'),
-            url: _string(map, 'url'),
-            imageUrl: _optionalString(map, 'imageUrl'),
-            uri: _optionalString(map, 'uri'),
-          );
-        })
-        .toList(growable: false);
+    return rows.map(_page).toList(growable: false);
   }
 
   @override
@@ -214,6 +241,19 @@ final class MethodChannelMihonExtensionGateway
     return bytes;
   }
 
+  @override
+  Future<Uint8List> readArtwork({
+    required String sourceKey,
+    required String url,
+  }) async {
+    final bytes = await _channel.invokeMethod<Uint8List>('readArtwork', {
+      'sourceKey': sourceKey,
+      'url': url,
+    });
+    if (bytes == null) throw StateError('Extension artwork returned no bytes.');
+    return bytes;
+  }
+
   Future<List<Object?>> _list(
     String method,
     Map<String, Object?> arguments,
@@ -222,6 +262,48 @@ final class MethodChannelMihonExtensionGateway
     if (rows == null) throw StateError('Extension runtime returned no result.');
     return rows;
   }
+}
+
+MihonMangaItem _manga(Object? value) {
+  final map = _map(value);
+  final authors = _strings(map, 'authors');
+  final artists = _strings(map, 'artists');
+  final genres = _strings(map, 'genres');
+  return MihonMangaItem(
+    title: _string(map, 'title'),
+    url: _string(map, 'url'),
+    thumbnailUrl: _optionalString(map, 'thumbnailUrl'),
+    summary: _optionalString(map, 'summary'),
+    authors: authors,
+    artists: artists,
+    genres: genres,
+    status: _optionalString(map, 'status'),
+    rawStatus: _optionalString(map, 'rawStatus'),
+    rating: _optionalDouble(map, 'rating'),
+    memo: _optionalString(map, 'memo'),
+  );
+}
+
+MihonChapterItem _chapter(Object? value) {
+  final map = _map(value);
+  return MihonChapterItem(
+    title: _string(map, 'title'),
+    url: _string(map, 'url'),
+    scanlator: _optionalString(map, 'scanlator'),
+    chapterNumber: _optionalDouble(map, 'chapterNumber'),
+    dateUpload: _optionalInt(map, 'dateUpload'),
+    memo: _optionalString(map, 'memo'),
+  );
+}
+
+MihonPageItem _page(Object? value) {
+  final map = _map(value);
+  return MihonPageItem(
+    index: _int(map, 'index'),
+    url: _string(map, 'url'),
+    imageUrl: _optionalString(map, 'imageUrl'),
+    uri: _optionalString(map, 'uri'),
+  );
 }
 
 Map<Object?, Object?> _map(Object? value) {
@@ -248,18 +330,41 @@ String? _optionalString(Map<Object?, Object?> map, String key) {
   return value;
 }
 
-double _double(Map<Object?, Object?> map, String key) {
+List<String> _strings(Map<Object?, Object?> map, String key) {
   final value = map[key];
+  if (value == null) return const [];
+  if (value is! List<Object?> || value.any((item) => item is! String)) {
+    throw StateError('Extension runtime returned an invalid $key.');
+  }
+  return value.cast<String>().toList(growable: false);
+}
+
+bool _bool(Map<Object?, Object?> map, String key) {
+  final value = map[key];
+  if (value is! bool) {
+    throw StateError('Extension runtime returned an invalid $key.');
+  }
+  return value;
+}
+
+double? _optionalDouble(Map<Object?, Object?> map, String key) {
+  final value = map[key];
+  if (value == null) return null;
   if (value is! num) {
     throw StateError('Extension runtime returned an invalid $key.');
   }
   return value.toDouble();
 }
 
-int _int(Map<Object?, Object?> map, String key) {
+int? _optionalInt(Map<Object?, Object?> map, String key) {
   final value = map[key];
+  if (value == null) return null;
   if (value is! int) {
     throw StateError('Extension runtime returned an invalid $key.');
   }
   return value;
 }
+
+int _int(Map<Object?, Object?> map, String key) =>
+    _optionalInt(map, key) ??
+    (throw StateError('Extension runtime returned an invalid $key.'));
