@@ -1,6 +1,3 @@
-diff --git a/lib/app/app.dart b/lib/app/app.dart
---- a/lib/app/app.dart
-+++ b/lib/app/app.dart
 @@ -3,22 +3,21 @@ import 'dart:async';
  import 'package:flutter/material.dart';
  import 'package:hikari/app/app_dependencies.dart';
@@ -26,19 +23,7 @@ diff --git a/lib/app/app.dart b/lib/app/app.dart
  import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
  import 'package:hikari/features/search/unified_search_page.dart';
  import 'package:hikari/features/settings/settings_page.dart';
-@@ -125,8 +124,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
-         publication,
-       ),
-     };
--    await Navigator.of(context)
--        .push(MaterialPageRoute<void>(builder: (_) => page));
-+    await Navigator.of(context).push(
-+      MaterialPageRoute<void>(builder: (_) => page),
-+    );
-   }
- 
-   Widget _buildVideoPage(VideoOpenTarget target) {
-@@ -137,9 +137,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+@@ -137,9 +136,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
      );
      return PlayerPage(
        title: target.media.title,
@@ -50,7 +35,7 @@ diff --git a/lib/app/app.dart b/lib/app/app.dart
          controller: () => playback.controller,
          loading: () => playback.loading,
          error: () => playback.error,
-@@ -223,18 +224,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+@@ -223,18 +223,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
      );
    }
  
@@ -69,7 +54,7 @@ diff --git a/lib/app/app.dart b/lib/app/app.dart
    @override
    Widget build(BuildContext context) {
      final localSource = _dependencies.localMediaSource;
-@@ -255,9 +244,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+@@ -255,9 +243,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
              HomePage(
                openMedia: _openMedia,
                library: libraryRepository,
@@ -79,7 +64,7 @@ diff --git a/lib/app/app.dart b/lib/app/app.dart
                onChooseFolder: () async => await localSource.chooseRoot(),
                openRemoteManga: canSearchManga
                    ? () => Navigator.of(context).push(
-@@ -288,13 +275,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+@@ -288,13 +274,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                searchManga: _dependencies.searchManga,
                searchNovels: _dependencies.searchNovels,
                scanLocalMedia: localSource.scanSelectedRoot,
@@ -95,9 +80,6 @@ diff --git a/lib/app/app.dart b/lib/app/app.dart
                onChooseLocalFolder: localSource.chooseRoot,
              ),
            ],
-diff --git a/lib/core/ui/patterns/media_poster.dart b/lib/core/ui/patterns/media_poster.dart
---- a/lib/core/ui/patterns/media_poster.dart
-+++ b/lib/core/ui/patterns/media_poster.dart
 @@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
  import 'package:hikari/app/theme/hikari_theme.dart';
  import 'package:hikari/core/ui/patterns/media_progress.dart';
@@ -483,9 +465,6 @@ diff --git a/lib/core/ui/patterns/media_poster.dart b/lib/core/ui/patterns/media
        decoration: BoxDecoration(
          gradient: LinearGradient(
            begin: Alignment.topLeft,
-diff --git a/lib/domain/library/library.dart b/lib/domain/library/library.dart
---- a/lib/domain/library/library.dart
-+++ b/lib/domain/library/library.dart
 @@ -3,6 +3,7 @@ import 'package:hikari/domain/media/media.dart';
  final class LibraryEntry {
    LibraryEntry({required this.media, required DateTime addedAt})
@@ -507,9 +486,6 @@ diff --git a/lib/domain/library/library.dart b/lib/domain/library/library.dart
 +    implements LibraryRepository {
 +  Stream<List<LibraryEntry>> watchAll();
 +}
-diff --git a/lib/domain/playback/video_playback.dart b/lib/domain/playback/video_playback.dart
---- a/lib/domain/playback/video_playback.dart
-+++ b/lib/domain/playback/video_playback.dart
 @@ -0,0 +1,14 @@
 +/// Platform-independent controls exposed by an active video playback.
 +///
@@ -525,9 +501,6 @@ diff --git a/lib/domain/playback/video_playback.dart b/lib/domain/playback/video
 +  Future<void> pause();
 +  Future<void> seek(Duration position);
 +}
-diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
---- a/lib/features/home/home_page.dart
-+++ b/lib/features/home/home_page.dart
 @@ -1,5 +1,3 @@
 -import 'dart:async';
 -
@@ -577,7 +550,7 @@ diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
      this.onChooseFolder,
      this.openRemoteManga,
      this.openRemoteNovels,
-@@ -49,495 +46,360 @@ class HomePage extends StatefulWidget {
+@@ -49,495 +46,357 @@ class HomePage extends StatefulWidget {
    final List<FeaturedHeroItem> featuredItems;
    final List<ContinueReadingItem> continueItems;
    final List<Media> trendingItems;
@@ -766,20 +739,28 @@ diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
 -        : HomePage._defaultTrendingItems;
 -    if (_selectedFilter == HomeFilterType.all) return base;
 -    return base.where((item) {
-+  List<Media> _filteredItems(List<Media> items) {
-+    if (_selectedFilter == HomeFilterType.all) return items;
-+    return items.where((item) {
-       return switch (_selectedFilter) {
-         HomeFilterType.all => true,
-         HomeFilterType.anime => item.type == MediaType.anime,
-         HomeFilterType.manga => item.type == MediaType.manga,
-         HomeFilterType.novel => item.type == MediaType.lightNovel,
+-      return switch (_selectedFilter) {
+-        HomeFilterType.all => true,
+-        HomeFilterType.anime => item.type == MediaType.anime,
+-        HomeFilterType.manga => item.type == MediaType.manga,
+-        HomeFilterType.novel => item.type == MediaType.lightNovel,
 -        HomeFilterType.movies =>
 -          item.type == MediaType.anime &&
 -              (item.title.contains('Movie') || item.title == 'Perfect Blue'),
-       };
+-      };
 -    }).toList();
-+    }).toList(growable: false);
++  List<Media> _filteredItems(List<Media> items) {
++    if (_selectedFilter == HomeFilterType.all) return items;
++    return items
++        .where((item) {
++          return switch (_selectedFilter) {
++            HomeFilterType.all => true,
++            HomeFilterType.anime => item.type == MediaType.anime,
++            HomeFilterType.manga => item.type == MediaType.manga,
++            HomeFilterType.novel => item.type == MediaType.lightNovel,
++          };
++        })
++        .toList(growable: false);
    }
  
    void _navigateToSearch(BuildContext context) {
@@ -811,9 +792,7 @@ diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
 +        final colors = context.hikariColors;
 +        final state = _model.state;
 +        final usesBrowseFeed = widget.trendingItems.isNotEmpty;
-+        final feed = usesBrowseFeed
-+            ? widget.trendingItems
-+            : state.libraryItems;
++        final feed = usesBrowseFeed ? widget.trendingItems : state.libraryItems;
 +        final filteredFeed = _filteredItems(feed);
  
 -    return HikariScaffold(
@@ -1004,6 +983,8 @@ diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
 -                            variant: HikariButtonVariant.secondary,
 -                            onPressed: widget.onChooseFolder,
 -                          ),
+-                        ),
+-                      ],
 +                    padding: const EdgeInsets.all(HikariSpacing.xl),
 +                    child: Center(
 +                      child: Text(
@@ -1011,11 +992,7 @@ diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
 +                            ? 'Add media to your Library to populate Home.'
 +                            : 'Could not load recent Library items.',
 +                        textAlign: TextAlign.center,
-+                        style: TextStyle(
-+                          color: colors.textMuted,
-+                          fontSize: 13,
-                         ),
--                      ],
++                        style: TextStyle(color: colors.textMuted, fontSize: 13),
 +                      ),
                      ),
                    ),
@@ -1361,10 +1338,7 @@ diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
 +    );
 +  }
  }
-diff --git a/lib/features/home/home_view_model.dart b/lib/features/home/home_view_model.dart
---- a/lib/features/home/home_view_model.dart
-+++ b/lib/features/home/home_view_model.dart
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,104 @@
 +import 'dart:async';
 +
 +import 'package:flutter/foundation.dart';
@@ -1392,9 +1366,10 @@ diff --git a/lib/features/home/home_view_model.dart b/lib/features/home/home_vie
 +    if (repository is ObservableLibraryRepository) {
 +      _state = const HomeUiState(loading: true);
 +      _subscription = repository.watchAll().listen(
-+        _acceptEntries,
-+        onError: _acceptError,
++        _acceptStreamEntries,
++        onError: _acceptStreamError,
 +      );
++      unawaited(_loadInitialSnapshot());
 +    } else {
 +      unawaited(reload());
 +    }
@@ -1406,16 +1381,26 @@ diff --git a/lib/features/home/home_view_model.dart b/lib/features/home/home_vie
 +  HomeUiState _state = const HomeUiState();
 +  HomeUiState get state => _state;
 +  bool _disposed = false;
++  int _streamRevision = 0;
++
++  Future<void> _loadInitialSnapshot() async {
++    final repository = _repository;
++    if (repository == null) return;
++    final revision = _streamRevision;
++    try {
++      final entries = await repository.loadAll();
++      if (_disposed || _streamRevision != revision) return;
++      _acceptEntries(entries);
++    } catch (error) {
++      if (_disposed || _streamRevision != revision) return;
++      _acceptError(error);
++    }
++  }
 +
 +  Future<void> reload() async {
 +    final repository = _repository;
 +    if (repository == null || _disposed) return;
-+    _publish(
-+      HomeUiState(
-+        loading: true,
-+        libraryItems: _state.libraryItems,
-+      ),
-+    );
++    _publish(HomeUiState(loading: true, libraryItems: _state.libraryItems));
 +    try {
 +      _acceptEntries(await repository.loadAll());
 +    } catch (error) {
@@ -1423,23 +1408,26 @@ diff --git a/lib/features/home/home_view_model.dart b/lib/features/home/home_vie
 +    }
 +  }
 +
++  void _acceptStreamEntries(List<LibraryEntry> entries) {
++    _streamRevision++;
++    _acceptEntries(entries);
++  }
++
++  void _acceptStreamError(Object error) {
++    _streamRevision++;
++    _acceptError(error);
++  }
++
 +  void _acceptEntries(List<LibraryEntry> entries) {
 +    _publish(
 +      HomeUiState(
-+        libraryItems: List.unmodifiable(
-+          entries.map((entry) => entry.media),
-+        ),
++        libraryItems: List.unmodifiable(entries.map((entry) => entry.media)),
 +      ),
 +    );
 +  }
 +
 +  void _acceptError(Object error) {
-+    _publish(
-+      HomeUiState(
-+        libraryItems: _state.libraryItems,
-+        error: error,
-+      ),
-+    );
++    _publish(HomeUiState(libraryItems: _state.libraryItems, error: error));
 +  }
 +
 +  void _publish(HomeUiState state) {
@@ -1455,10 +1443,7 @@ diff --git a/lib/features/home/home_view_model.dart b/lib/features/home/home_vie
 +    super.dispose();
 +  }
 +}
-diff --git a/lib/features/library/library_page.dart b/lib/features/library/library_page.dart
---- a/lib/features/library/library_page.dart
-+++ b/lib/features/library/library_page.dart
-@@ -7,237 +7,152 @@ import 'package:hikari/core/ui/patterns/media_poster.dart';
+@@ -7,237 +7,155 @@ import 'package:hikari/core/ui/patterns/media_poster.dart';
  import 'package:hikari/domain/library/library.dart';
  import 'package:hikari/domain/media/media.dart';
  import 'package:hikari/features/library/library_button.dart';
@@ -1653,7 +1638,10 @@ diff --git a/lib/features/library/library_page.dart b/lib/features/library/libra
 +          children: [
 +            const Text('Could not load your library.'),
 +            const SizedBox(height: HikariSpacing.sm),
-+            TextButton(onPressed: _model.reload, child: const Text('Try again')),
++            TextButton(
++              onPressed: _model.reload,
++              child: const Text('Try again'),
++            ),
 +          ],
 +        ),
 +      );
@@ -1812,7 +1800,7 @@ diff --git a/lib/features/library/library_page.dart b/lib/features/library/libra
      );
    }
  
-@@ -256,38 +171,32 @@ class _LibraryPageState extends State<LibraryPage> {
+@@ -256,38 +174,32 @@ class _LibraryPageState extends State<LibraryPage> {
        itemCount: entries.length,
        itemBuilder: (context, index) {
          final media = entries[index].media;
@@ -1863,24 +1851,7 @@ diff --git a/lib/features/library/library_page.dart b/lib/features/library/libra
                ),
              ),
            ],
-@@ -322,16 +231,19 @@ class _LibraryPageState extends State<LibraryPage> {
-                 color: colors.textPrimary,
-               ),
-             ),
--            subtitle: Text(switch (media.type) {
--              MediaType.anime => 'Anime',
--              MediaType.manga => 'Manga',
--              MediaType.lightNovel => 'Light Novel',
--            }, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-+            subtitle: Text(
-+              switch (media.type) {
-+                MediaType.anime => 'Anime',
-+                MediaType.manga => 'Manga',
-+                MediaType.lightNovel => 'Light Novel',
-+              },
-+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
-+            ),
-             onTap: () => widget.openMedia(context, media),
+@@ -331,7 +243,7 @@ class _LibraryPageState extends State<LibraryPage> {
              trailing: LibraryButton(
                repository: widget.repository,
                media: media,
@@ -1889,10 +1860,7 @@ diff --git a/lib/features/library/library_page.dart b/lib/features/library/libra
              ),
            ),
          );
-diff --git a/lib/features/library/library_view_model.dart b/lib/features/library/library_view_model.dart
---- a/lib/features/library/library_view_model.dart
-+++ b/lib/features/library/library_view_model.dart
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,161 @@
 +import 'dart:async';
 +
 +import 'package:flutter/foundation.dart';
@@ -1949,11 +1917,12 @@ diff --git a/lib/features/library/library_view_model.dart b/lib/features/library
 +    final repository = _repository;
 +    if (repository is ObservableLibraryRepository) {
 +      _subscription = repository.watchAll().listen(
-+        _acceptEntries,
-+        onError: _acceptError,
++        _acceptStreamEntries,
++        onError: _acceptStreamError,
 +      );
++      unawaited(_loadInitialSnapshot());
 +    } else {
-+      reload();
++      unawaited(reload());
 +    }
 +  }
 +
@@ -1963,6 +1932,19 @@ diff --git a/lib/features/library/library_view_model.dart b/lib/features/library
 +  LibraryUiState _state = const LibraryUiState();
 +  LibraryUiState get state => _state;
 +  bool _disposed = false;
++  int _streamRevision = 0;
++
++  Future<void> _loadInitialSnapshot() async {
++    final revision = _streamRevision;
++    try {
++      final entries = await _repository.loadAll();
++      if (_disposed || _streamRevision != revision) return;
++      _acceptEntries(entries);
++    } catch (error) {
++      if (_disposed || _streamRevision != revision) return;
++      _acceptError(error);
++    }
++  }
 +
 +  Future<void> reload() async {
 +    if (_disposed) return;
@@ -2003,6 +1985,16 @@ diff --git a/lib/features/library/library_view_model.dart b/lib/features/library
 +    );
 +  }
 +
++  void _acceptStreamEntries(List<LibraryEntry> entries) {
++    _streamRevision++;
++    _acceptEntries(entries);
++  }
++
++  void _acceptStreamError(Object error) {
++    _streamRevision++;
++    _acceptError(error);
++  }
++
 +  void _acceptEntries(List<LibraryEntry> entries) {
 +    _publish(
 +      _state.copyWith(
@@ -2030,9 +2022,6 @@ diff --git a/lib/features/library/library_view_model.dart b/lib/features/library
 +    super.dispose();
 +  }
 +}
-diff --git a/lib/features/manga_reader/manga_reader_page.dart b/lib/features/manga_reader/manga_reader_page.dart
---- a/lib/features/manga_reader/manga_reader_page.dart
-+++ b/lib/features/manga_reader/manga_reader_page.dart
 @@ -9,17 +9,7 @@ import 'package:hikari/domain/media/media.dart';
  import 'package:hikari/domain/progress/progress.dart';
  import 'package:hikari/domain/progress/resume.dart';
@@ -2186,7 +2175,7 @@ diff --git a/lib/features/manga_reader/manga_reader_page.dart b/lib/features/man
    Widget _failure(String message) => Center(
      child: SingleChildScrollView(
        child: Column(
-@@ -344,11 +285,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+@@ -344,11 +285,6 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                              ],
                            ),
                          ),
@@ -2195,11 +2184,10 @@ diff --git a/lib/features/manga_reader/manga_reader_page.dart b/lib/features/man
 -                          tooltip: 'Settings',
 -                          onPressed: _showSettingsModal,
 -                        ),
-+
                        ],
                      ),
                    ),
-@@ -417,15 +354,30 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+@@ -417,15 +353,24 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                                        ),
                                      ),
                                      child: Slider(
@@ -2217,26 +2205,17 @@ diff --git a/lib/features/manga_reader/manga_reader_page.dart b/lib/features/man
 +                                      onChanged: _loading
 +                                          ? null
 +                                          : (value) {
-+                                              setState(
-+                                                () => _dragPage = value,
-+                                              );
++                                              setState(() => _dragPage = value);
 +                                            },
 +                                      onChangeEnd: _loading
 +                                          ? null
 +                                          : (value) {
-+                                              setState(
-+                                                () => _dragPage = null,
-+                                              );
-+                                              _jumpToPage(
-+                                                value.round() - 1,
-+                                              );
++                                              setState(() => _dragPage = null);
++                                              _jumpToPage(value.round() - 1);
 +                                            },
                                      ),
                                    ),
                                  ],
-diff --git a/lib/features/novel_reader/novel_content_view.dart b/lib/features/novel_reader/novel_content_view.dart
---- a/lib/features/novel_reader/novel_content_view.dart
-+++ b/lib/features/novel_reader/novel_content_view.dart
 @@ -13,12 +13,14 @@ class NovelContentView extends StatelessWidget {
      required this.readResource,
      this.onTapLink,
@@ -2263,9 +2242,6 @@ diff --git a/lib/features/novel_reader/novel_content_view.dart b/lib/features/no
    );
  }
  
-diff --git a/lib/features/novel_reader/novel_reader_page.dart b/lib/features/novel_reader/novel_reader_page.dart
---- a/lib/features/novel_reader/novel_reader_page.dart
-+++ b/lib/features/novel_reader/novel_reader_page.dart
 @@ -60,6 +60,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
    double _position = 0;
    bool _completed = false;
@@ -2360,7 +2336,7 @@ diff --git a/lib/features/novel_reader/novel_reader_page.dart b/lib/features/nov
 -                        color: _readerTheme.fg.withValues(alpha: 0.6),
 +                      const SizedBox(width: HikariSpacing.sm),
 +                      Text(
-+                        (progress * 100).toInt().toString() + '%',
++                        '${(progress * 100).toInt()}%',
 +                        style: TextStyle(
 +                          fontSize: 10,
 +                          fontWeight: FontWeight.w600,
@@ -2374,9 +2350,6 @@ diff --git a/lib/features/novel_reader/novel_reader_page.dart b/lib/features/nov
                  ),
                ),
            ],
-diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_page.dart
---- a/lib/features/player/player_page.dart
-+++ b/lib/features/player/player_page.dart
 @@ -1,23 +1,24 @@
  import 'dart:async';
 -import 'dart:ui';
@@ -2405,7 +2378,7 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
    final Future<void> Function()? beforeExit;
    final VoidCallback? onNextEpisode;
  
-@@ -30,110 +31,89 @@ class _PlayerPageState extends State<PlayerPage> {
+@@ -30,110 +31,88 @@ class _PlayerPageState extends State<PlayerPage> {
    bool _canPop = false;
    bool _showControls = true;
    Timer? _hideTimer;
@@ -2500,8 +2473,7 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
 +    try {
 +      await controls.seek(
 +        Duration(
-+          microseconds:
-+              (controls.duration.inMicroseconds * progress).round(),
++          microseconds: (controls.duration.inMicroseconds * progress).round(),
 +        ),
        );
 -      _currentPosition = Duration(seconds: newSeconds);
@@ -2571,13 +2543,13 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
 -    });
 +  void _showPlaybackError() {
 +    if (!mounted) return;
-+    ScaffoldMessenger.of(context).showSnackBar(
-+      const SnackBar(content: Text('Could not update playback.')),
-+    );
++    ScaffoldMessenger.of(
++      context,
++    ).showSnackBar(const SnackBar(content: Text('Could not update playback.')));
    }
  
    Future<void> _exit() async {
-@@ -151,7 +131,6 @@ class _PlayerPageState extends State<PlayerPage> {
+@@ -151,7 +130,6 @@ class _PlayerPageState extends State<PlayerPage> {
      }
      if (!mounted) return;
      setState(() => _canPop = true);
@@ -2585,7 +2557,7 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
      WidgetsBinding.instance.addPostFrameCallback((_) {
        if (mounted && ModalRoute.of(context)!.isCurrent) {
          Navigator.of(context).pop();
-@@ -162,21 +141,26 @@ class _PlayerPageState extends State<PlayerPage> {
+@@ -162,21 +140,26 @@ class _PlayerPageState extends State<PlayerPage> {
    @override
    void dispose() {
      _hideTimer?.cancel();
@@ -2599,15 +2571,14 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
 -  String _formatDuration(Duration d) {
 -    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
 -    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
--    return '$minutes:$seconds';
 +  String _formatDuration(Duration duration) {
 +    final hours = duration.inHours;
 +    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
 +    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
 +    if (hours > 0) {
-+      return hours.toString() + ':' + minutes + ':' + seconds;
++      return '$hours:$minutes:$seconds';
 +    }
-+    return minutes + ':' + seconds;
+     return '$minutes:$seconds';
    }
  
    @override
@@ -2617,7 +2588,7 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
  
      return PopScope<void>(
        canPop: _canPop,
-@@ -185,177 +169,141 @@ class _PlayerPageState extends State<PlayerPage> {
+@@ -185,177 +168,139 @@ class _PlayerPageState extends State<PlayerPage> {
        },
        child: Scaffold(
          backgroundColor: Colors.black,
@@ -2768,9 +2739,7 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
 -                              ? Icons.pause_rounded
 -                              : Icons.play_arrow_rounded,
 +                      Text(
-+                        _formatDuration(controls.position) +
-+                            ' / ' +
-+                            _formatDuration(duration),
++                        '${_formatDuration(controls.position)} / ${_formatDuration(duration)}',
 +                        style: TextStyle(
 +                          fontSize: 12,
 +                          color: colors.textSecondary,
@@ -2908,9 +2877,6 @@ diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_p
      );
    }
  }
-diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/unified_search_page.dart
---- a/lib/features/search/unified_search_page.dart
-+++ b/lib/features/search/unified_search_page.dart
 @@ -1,5 +1,3 @@
 -import 'dart:async';
 -
@@ -2955,7 +2921,7 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
    final String initialQuery;
  
    @override
-@@ -49,301 +37,195 @@ class UnifiedSearchPage extends StatefulWidget {
+@@ -49,301 +37,189 @@ class UnifiedSearchPage extends StatefulWidget {
  
  class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
    late final TextEditingController _searchController;
@@ -3112,21 +3078,7 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 -                  controller: _searchController,
 -                  initialQuery: _currentQuery,
 -                  onChanged: (q) => _executeSearch(q),
-+    return ListenableBuilder(
-+      listenable: _model,
-+      builder: (context, _) {
-+        final state = _model.state;
-+        return HikariScaffold(
-+          useSafeArea: true,
-+          body: Column(
-+            children: [
-+              Padding(
-+                padding: const EdgeInsets.fromLTRB(
-+                  HikariSpacing.lg,
-+                  HikariSpacing.md,
-+                  HikariSpacing.lg,
-+                  HikariSpacing.sm,
-                 ),
+-                ),
 -                const SizedBox(height: HikariSpacing.sm),
 -                SingleChildScrollView(
 -                  scrollDirection: Axis.horizontal,
@@ -3147,7 +3099,21 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 -                      );
 -                    }).toList(),
 -                  ),
--                ),
++    return ListenableBuilder(
++      listenable: _model,
++      builder: (context, _) {
++        final state = _model.state;
++        return HikariScaffold(
++          useSafeArea: true,
++          body: Column(
++            children: [
++              Padding(
++                padding: const EdgeInsets.fromLTRB(
++                  HikariSpacing.lg,
++                  HikariSpacing.md,
++                  HikariSpacing.lg,
++                  HikariSpacing.sm,
+                 ),
 -              ],
 -            ),
 -          ),
@@ -3192,6 +3158,11 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 +                          return Padding(
 +                            padding: const EdgeInsets.only(
 +                              right: HikariSpacing.sm,
++                            ),
++                            child: HikariChip(
++                              label: filter.label,
++                              isSelected: state.filter == filter,
++                              onTap: () => _model.selectFilter(filter),
                              ),
 -                          ),
 -                          const SizedBox(height: HikariSpacing.sm),
@@ -3235,11 +3206,6 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 -                                    .toList(),
 -                          ),
 -                        ],
-+                            child: HikariChip(
-+                              label: filter.label,
-+                              isSelected: state.filter == filter,
-+                              onTap: () => _model.selectFilter(filter),
-+                            ),
 +                          );
 +                        }).toList(),
                        ),
@@ -3275,6 +3241,10 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 +                  padding: const EdgeInsets.symmetric(
 +                    horizontal: HikariSpacing.lg,
 +                    vertical: HikariSpacing.xs,
++                  ),
++                  child: Text(
++                    'Some configured sources could not be searched.',
++                    style: TextStyle(color: colors.warning, fontSize: 12),
                    ),
 -                  itemCount: displayItems.length,
 -                  itemBuilder: (context, index) {
@@ -3289,13 +3259,6 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 -                        : item.type == MediaType.manga
 -                        ? 'MANGA'
 -                        : 'NOVEL';
-+                  child: Text(
-+                    'Some configured sources could not be searched.',
-+                    style: TextStyle(
-+                      color: colors.warning,
-+                      fontSize: 12,
-+                    ),
-+                  ),
 +                ),
 +              Expanded(child: _buildBody(context, state, colors)),
 +            ],
@@ -3338,7 +3301,7 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 +      emptyTitle: state.query.isEmpty ? 'Explore & Search' : 'No results found',
 +      emptyMessage: state.query.isEmpty
 +          ? 'Type a title above to search your configured media sources.'
-+          : 'No matches found for "' + state.query + '".',
++          : 'No matches found for "${state.query}".',
 +      emptyIcon: state.query.isEmpty
 +          ? Icons.search_rounded
 +          : Icons.search_off_rounded,
@@ -3409,10 +3372,7 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
 +              Positioned(
 +                top: HikariSpacing.xs,
 +                right: HikariSpacing.xs,
-+                child: LibraryButton(
-+                  repository: widget.library!,
-+                  media: media,
-+                ),
++                child: LibraryButton(repository: widget.library!, media: media),
 +              ),
 +          ],
 +        );
@@ -3420,10 +3380,7 @@ diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/
      );
    }
  }
-diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/search/unified_search_view_model.dart
---- a/lib/features/search/unified_search_view_model.dart
-+++ b/lib/features/search/unified_search_view_model.dart
-@@ -0,0 +1,301 @@
+@@ -0,0 +1,315 @@
 +import 'package:flutter/foundation.dart';
 +import 'package:hikari/application/search/search_manga.dart';
 +import 'package:hikari/application/search/search_novels.dart';
@@ -3474,15 +3431,17 @@ diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/s
 +
 +  List<UnifiedSearchResult> get visibleResults {
 +    if (filter == SearchMediaTypeFilter.all) return results;
-+    return results.where((result) {
-+      return switch (filter) {
-+        SearchMediaTypeFilter.all => true,
-+        SearchMediaTypeFilter.anime => result.media.type == MediaType.anime,
-+        SearchMediaTypeFilter.manga => result.media.type == MediaType.manga,
-+        SearchMediaTypeFilter.novel =>
-+          result.media.type == MediaType.lightNovel,
-+      };
-+    }).toList(growable: false);
++    return results
++        .where((result) {
++          return switch (filter) {
++            SearchMediaTypeFilter.all => true,
++            SearchMediaTypeFilter.anime => result.media.type == MediaType.anime,
++            SearchMediaTypeFilter.manga => result.media.type == MediaType.manga,
++            SearchMediaTypeFilter.novel =>
++              result.media.type == MediaType.lightNovel,
++          };
++        })
++        .toList(growable: false);
 +  }
 +
 +  UnifiedSearchUiState copyWith({
@@ -3507,15 +3466,26 @@ diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/s
 +
 +/// Owns unified-search state and fans one query out to configured sources.
 +final class UnifiedSearchViewModel extends ChangeNotifier {
-+  UnifiedSearchViewModel({
++  factory UnifiedSearchViewModel({
 +    SearchManga? searchManga,
 +    SearchNovels? searchNovels,
 +    Future<List<Media>?> Function()? scanLocalMedia,
 +    String initialQuery = '',
-+  }) : _searchManga = searchManga,
-+       _searchNovels = searchNovels,
-+       _scanLocalMedia = scanLocalMedia,
-+       _state = UnifiedSearchUiState(query: initialQuery.trim());
++  }) {
++    return UnifiedSearchViewModel._(
++      searchManga,
++      searchNovels,
++      scanLocalMedia,
++      initialQuery,
++    );
++  }
++
++  UnifiedSearchViewModel._(
++    this._searchManga,
++    this._searchNovels,
++    this._scanLocalMedia,
++    String initialQuery,
++  ) : _state = UnifiedSearchUiState(query: initialQuery.trim());
 +
 +  final SearchManga? _searchManga;
 +  final SearchNovels? _searchNovels;
@@ -3580,9 +3550,7 @@ diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/s
 +    if (_disposed || generation != _generation) return;
 +
 +    final failedSourceCount = batches.where((batch) => batch.failed).length;
-+    final results = _deduplicate(
-+      batches.expand((batch) => batch.results),
-+    );
++    final results = _deduplicate(batches.expand((batch) => batch.results));
 +
 +    if (results.isEmpty && failedSourceCount == batches.length) {
 +      _publish(
@@ -3661,29 +3629,32 @@ diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/s
 +      final catalog = await _localCatalog();
 +      final normalized = query.toLowerCase();
 +      return catalog
-+          .where(
-+            (media) => media.title.toLowerCase().contains(normalized),
-+          )
++          .where((media) => media.title.toLowerCase().contains(normalized))
 +          .map(
-+            (media) => UnifiedSearchResult(
-+              media: media,
-+              sourceName: 'Local media',
-+            ),
++            (media) =>
++                UnifiedSearchResult(media: media, sourceName: 'Local media'),
 +          )
 +          .toList(growable: false);
 +    });
 +  }
 +
 +  Future<List<Media>> _localCatalog() {
-+    return _localCatalogFuture ??= () async {
-+      try {
-+        final media = await _scanLocalMedia!.call();
-+        return List.unmodifiable(media ?? const <Media>[]);
-+      } catch (_) {
-+        _localCatalogFuture = null;
-+        rethrow;
-+      }
-+    }();
++    final cached = _localCatalogFuture;
++    if (cached != null) return cached;
++
++    final future = _loadLocalCatalog();
++    _localCatalogFuture = future;
++    return future;
++  }
++
++  Future<List<Media>> _loadLocalCatalog() async {
++    try {
++      final media = await _scanLocalMedia!.call();
++      return List<Media>.unmodifiable(media ?? const <Media>[]);
++    } catch (_) {
++      _localCatalogFuture = null;
++      rethrow;
++    }
 +  }
 +
 +  Future<_SearchBatch> _guardSource(
@@ -3725,9 +3696,6 @@ diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/s
 +  final List<UnifiedSearchResult> results;
 +  final bool failed;
 +}
-diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
---- a/lib/features/settings/settings_page.dart
-+++ b/lib/features/settings/settings_page.dart
 @@ -3,21 +3,26 @@ import 'package:hikari/app/theme/hikari_theme.dart';
  import 'package:hikari/core/ui/components/hikari_button.dart';
  import 'package:hikari/core/ui/components/hikari_scaffold.dart';
@@ -3777,7 +3745,7 @@ diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/se
    ];
  
    @override
-@@ -43,30 +47,32 @@ class _SettingsPageState extends State<SettingsPage> {
+@@ -43,30 +47,31 @@ class _SettingsPageState extends State<SettingsPage> {
      _isOled = widget.isOled;
    }
  
@@ -3811,9 +3779,8 @@ diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/se
 -      }
 +      await clearCache();
 +      if (!mounted) return;
-+      ScaffoldMessenger.of(
-+        context,
-+      ).showSnackBar(const SnackBar(content: Text('Cache cleared.')));
++      ScaffoldMessenger.of(context)
++          .showSnackBar(const SnackBar(content: Text('Cache cleared.')));
      } catch (_) {
 -      if (mounted) {
 -        setState(() => _isClearingCache = false);
@@ -3830,7 +3797,7 @@ diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/se
      }
    }
  
-@@ -88,149 +94,143 @@ class _SettingsPageState extends State<SettingsPage> {
+@@ -88,149 +93,140 @@ class _SettingsPageState extends State<SettingsPage> {
        body: ListView(
          padding: const EdgeInsets.all(HikariSpacing.lg),
          children: [
@@ -3959,10 +3926,7 @@ diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/se
 +                      const SizedBox(height: HikariSpacing.xs),
 +                      Text(
 +                        'Appearance preferences currently apply to this app session.',
-+                        style: TextStyle(
-+                          fontSize: 11,
-+                          color: colors.textMuted,
-+                        ),
++                        style: TextStyle(fontSize: 11, color: colors.textMuted),
 +                      ),
 +                    ],
 +                  ),
@@ -4090,9 +4054,6 @@ diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/se
                    style: TextStyle(fontSize: 12),
                  ),
                ),
-diff --git a/lib/infrastructure/playback/media_kit_video_session.dart b/lib/infrastructure/playback/media_kit_video_session.dart
---- a/lib/infrastructure/playback/media_kit_video_session.dart
-+++ b/lib/infrastructure/playback/media_kit_video_session.dart
 @@ -1,5 +1,6 @@
  import 'dart:async';
  
@@ -4231,7 +4192,7 @@ diff --git a/lib/infrastructure/playback/media_kit_video_session.dart b/lib/infr
      }
    }
  
-@@ -206,11 +244,48 @@ final class MediaKitVideoSession {
+@@ -206,11 +244,42 @@ final class MediaKitVideoSession {
        } finally {
          session._phase = _Phase.closed;
          if (identical(_currentPlayback, session)) _currentPlayback = null;
@@ -4242,10 +4203,7 @@ diff --git a/lib/infrastructure/playback/media_kit_video_session.dart b/lib/infr
      });
    }
  
-+  Future<void> _setPlaying(
-+    MediaKitVideoPlayback session,
-+    bool playing,
-+  ) {
++  Future<void> _setPlaying(MediaKitVideoPlayback session, bool playing) {
 +    return _enqueue(() async {
 +      if (!_isCurrentPhase(session, _Phase.active)) return;
 +      if (playing) {
@@ -4256,10 +4214,7 @@ diff --git a/lib/infrastructure/playback/media_kit_video_session.dart b/lib/infr
 +    });
 +  }
 +
-+  Future<void> _seek(
-+    MediaKitVideoPlayback session,
-+    Duration position,
-+  ) {
++  Future<void> _seek(MediaKitVideoPlayback session, Duration position) {
 +    return _enqueue(() async {
 +      if (!_isCurrentPhase(session, _Phase.active)) return;
 +      final duration = session._playbackDuration;
@@ -4281,9 +4236,6 @@ diff --git a/lib/infrastructure/playback/media_kit_video_session.dart b/lib/infr
    Future<void> setForeground(bool foreground) {
      _isForeground = foreground;
      final session = _currentPlayback;
-diff --git a/lib/infrastructure/repositories/sqlite_library_repository.dart b/lib/infrastructure/repositories/sqlite_library_repository.dart
---- a/lib/infrastructure/repositories/sqlite_library_repository.dart
-+++ b/lib/infrastructure/repositories/sqlite_library_repository.dart
 @@ -3,7 +3,7 @@ import 'package:hikari/domain/library/library.dart';
  import 'package:hikari/domain/media/media.dart';
  import 'package:hikari/infrastructure/persistence/user_database.dart';
@@ -4318,10 +4270,65 @@ diff --git a/lib/infrastructure/repositories/sqlite_library_repository.dart b/li
    }
  }
  
-diff --git a/test/home_page_test.dart b/test/home_page_test.dart
---- a/test/home_page_test.dart
-+++ b/test/home_page_test.dart
-@@ -65,4 +65,23 @@ void main() {
+@@ -57,9 +57,8 @@ void main() {
+           utf8.encode(List.filled(150, 'Persisted text').join('\n')),
+         );
+       });
+-      await tester.pumpWidget(
+-        HikariApp(dependencies: AppDependencies.create(database: db)),
+-      );
++      final dependencies = AppDependencies.create(database: db);
++      await tester.pumpWidget(HikariApp(dependencies: dependencies));
+       await tester.pumpAndSettle();
+       await tester.tap(find.byTooltip('Library'));
+       await tester.pumpAndSettle();
+@@ -78,6 +77,7 @@ void main() {
+       );
+       expect(calls, ['selectedTree', 'read']);
+       await tester.pumpWidget(const SizedBox());
++      await tester.pump();
+       await db.close();
+     },
+   );
+@@ -102,16 +102,17 @@ void main() {
+       expect(call.method, 'read');
+       return Uint8List.fromList(const [1, 2, 3]);
+     });
+-    await tester.pumpWidget(
+-      HikariApp(dependencies: AppDependencies.create(database: db)),
+-    );
++    final dependencies = AppDependencies.create(database: db);
++    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+     await tester.pumpAndSettle();
+     await tester.tap(find.byTooltip('Library'));
+     await tester.pumpAndSettle();
+     await tester.tap(find.text('Saved manga'));
+     await tester.pumpAndSettle();
+     expect(find.byType(MangaReaderPage), findsOneWidget);
+     await tester.pumpWidget(const SizedBox());
++    await tester.pump();
++    await dependencies.dispose();
+     await db.close();
+   });
+ 
+@@ -121,10 +122,15 @@ void main() {
+       return null;
+     });
+ 
+-    await tester.pumpWidget(HikariApp(dependencies: AppDependencies.create()));
++    final dependencies = AppDependencies.create();
++    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+     await tester.pumpAndSettle();
+ 
+     expect(find.text('Local media'), findsOneWidget);
+     expect(find.text('Choose folder'), findsOneWidget);
++
++    await tester.pumpWidget(const SizedBox());
++    await tester.pump();
++    await dependencies.dispose();
+   });
+ }
+@@ -65,4 +65,19 @@ void main() {
      await tester.pumpAndSettle();
      expect(find.text('One Piece'), findsWidgets);
    });
@@ -4338,17 +4345,22 @@ diff --git a/test/home_page_test.dart b/test/home_page_test.dart
 +
 +    expect(find.text('Attack on Titan'), findsNothing);
 +    expect(find.text('Demon Slayer'), findsNothing);
-+    expect(
-+      find.textContaining('Add media to your Library'),
-+      findsOneWidget,
-+    );
++    expect(find.textContaining('Add media to your Library'), findsOneWidget);
 +  });
-+
  }
-diff --git a/test/library_page_test.dart b/test/library_page_test.dart
---- a/test/library_page_test.dart
-+++ b/test/library_page_test.dart
-@@ -119,4 +119,24 @@ void main() {
+@@ -60,6 +60,11 @@ void main() {
+       expect(await library.contains(media.source), isFalse);
+       await tester.pumpAndSettle();
+       expect(find.text('Your library is empty.'), findsOneWidget);
++
++      // LibraryPage owns a live Drift watch; dispose it before closing the
++      // in-memory database in tearDown.
++      await tester.pumpWidget(const SizedBox());
++      await tester.pumpAndSettle();
+     },
+   );
+   testWidgets('scan refreshes membership after returning from Library', (
+@@ -119,4 +124,28 @@ void main() {
      await tester.pumpAndSettle();
      expect(await library.contains(media.source), isFalse);
    });
@@ -4370,43 +4382,43 @@ diff --git a/test/library_page_test.dart b/test/library_page_test.dart
 +    await tester.pumpAndSettle();
 +
 +    expect(find.text('Saved book'), findsOneWidget);
-+  });
 +
++    // Dispose the page before the database tearDown closes Drift so the
++    // reactive watch subscription is cancelled deterministically.
++    await tester.pumpWidget(const SizedBox());
++    await tester.pumpAndSettle();
++  });
  }
-diff --git a/test/media_kit_video_session_test.dart b/test/media_kit_video_session_test.dart
---- a/test/media_kit_video_session_test.dart
-+++ b/test/media_kit_video_session_test.dart
-@@ -311,4 +311,27 @@ void main() {
+@@ -311,4 +311,29 @@ void main() {
        await b.finish();
      },
    );
-+  test('playback controls expose real playing position duration and seek', () async {
-+    final playback = open('A');
-+    await playback.ready;
++  test(
++    'playback controls expose real playing position duration and seek',
++    () async {
++      final playback = open('A');
++      await playback.ready;
 +
-+    expect(playback.duration, const Duration(seconds: 100));
-+    expect(playback.playing, isTrue);
++      expect(playback.duration, const Duration(seconds: 100));
++      expect(playback.playing, isTrue);
 +
-+    await playback.pause();
-+    expect(playback.playing, isFalse);
++      await playback.pause();
++      expect(playback.playing, isFalse);
 +
-+    await playback.seek(const Duration(seconds: 25));
-+    expect(playback.position, const Duration(seconds: 25));
-+    expect(driver.seeks.last, const Duration(seconds: 25));
++      await playback.seek(const Duration(seconds: 25));
++      expect(playback.position, const Duration(seconds: 25));
++      expect(driver.seeks.last, const Duration(seconds: 25));
 +
-+    await playback.seek(const Duration(seconds: 999));
-+    expect(playback.position, const Duration(seconds: 100));
-+    expect(driver.seeks.last, const Duration(seconds: 100));
++      await playback.seek(const Duration(seconds: 999));
++      expect(playback.position, const Duration(seconds: 100));
++      expect(driver.seeks.last, const Duration(seconds: 100));
 +
-+    await playback.play();
-+    expect(playback.playing, isTrue);
-+    await playback.finish();
-+  });
-+
++      await playback.play();
++      expect(playback.playing, isTrue);
++      await playback.finish();
++    },
++  );
  }
-diff --git a/test/settings_page_test.dart b/test/settings_page_test.dart
---- a/test/settings_page_test.dart
-+++ b/test/settings_page_test.dart
 @@ -34,6 +34,6 @@ void main() {
      await tester.tap(find.text('Clear'));
      await tester.pumpAndSettle();
@@ -4415,10 +4427,7 @@ diff --git a/test/settings_page_test.dart b/test/settings_page_test.dart
 +    expect(find.text('Cache cleared.'), findsOneWidget);
    });
  }
-diff --git a/test/unified_search_view_model_test.dart b/test/unified_search_view_model_test.dart
---- a/test/unified_search_view_model_test.dart
-+++ b/test/unified_search_view_model_test.dart
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,64 @@
 +import 'package:flutter_test/flutter_test.dart';
 +import 'package:hikari/domain/media/media.dart';
 +import 'package:hikari/features/search/unified_search_view_model.dart';
@@ -4430,23 +4439,26 @@ diff --git a/test/unified_search_view_model_test.dart b/test/unified_search_view
 +    source: SourceMediaRef(sourceId: SourceId.local, itemId: 'solo'),
 +  );
 +
-+  test('local catalog scans once across queries in one view-model session', () async {
-+    var scans = 0;
-+    final model = UnifiedSearchViewModel(
-+      scanLocalMedia: () async {
-+        scans++;
-+        return const [media];
-+      },
-+    );
-+    addTearDown(model.dispose);
++  test(
++    'local catalog scans once across queries in one view-model session',
++    () async {
++      var scans = 0;
++      final model = UnifiedSearchViewModel(
++        scanLocalMedia: () async {
++          scans++;
++          return const [media];
++        },
++      );
++      addTearDown(model.dispose);
 +
-+    await model.search('Solo');
-+    expect(model.state.visibleResults.single.media, media);
++      await model.search('Solo');
++      expect(model.state.visibleResults.single.media, media);
 +
-+    await model.search('Leveling');
-+    expect(model.state.visibleResults.single.media, media);
-+    expect(scans, 1);
-+  });
++      await model.search('Leveling');
++      expect(model.state.visibleResults.single.media, media);
++      expect(scans, 1);
++    },
++  );
 +
 +  test('refreshLocalCatalog invalidates the cached SAF scan', () async {
 +    var scans = 0;
@@ -4464,16 +4476,19 @@ diff --git a/test/unified_search_view_model_test.dart b/test/unified_search_view
 +    expect(scans, 2);
 +  });
 +
-+  test('media type filters are presentation-only over fetched results', () async {
-+    final model = UnifiedSearchViewModel(
-+      scanLocalMedia: () async => const [media],
-+    );
-+    addTearDown(model.dispose);
++  test(
++    'media type filters are presentation-only over fetched results',
++    () async {
++      final model = UnifiedSearchViewModel(
++        scanLocalMedia: () async => const [media],
++      );
++      addTearDown(model.dispose);
 +
-+    await model.search('Solo');
-+    model.selectFilter(SearchMediaTypeFilter.manga);
++      await model.search('Solo');
++      model.selectFilter(SearchMediaTypeFilter.manga);
 +
-+    expect(model.state.results, hasLength(1));
-+    expect(model.state.visibleResults, isEmpty);
-+  });
++      expect(model.state.results, hasLength(1));
++      expect(model.state.visibleResults, isEmpty);
++    },
++  );
 +}
