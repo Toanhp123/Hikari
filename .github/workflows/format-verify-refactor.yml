@@ -1,0 +1,39 @@
+name: Format verify refactor
+
+on:
+  push:
+    branches:
+      - verify/ui-state-performance-refactor
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: Format changed Dart files
+        run: |
+          dart format             lib/app/app.dart             lib/features/home/home_page.dart             lib/features/home/home_view_model.dart             lib/features/library/library_page.dart             lib/features/manga_reader/manga_reader_page.dart             lib/features/player/player_page.dart             lib/features/search/unified_search_page.dart             lib/features/search/unified_search_view_model.dart             lib/features/settings/settings_page.dart             lib/infrastructure/playback/media_kit_video_session.dart             test/home_page_test.dart             test/library_page_test.dart             test/media_kit_video_session_test.dart             test/unified_search_view_model_test.dart
+
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             lib/app/app.dart             lib/features/home/home_page.dart             lib/features/home/home_view_model.dart             lib/features/library/library_page.dart             lib/features/manga_reader/manga_reader_page.dart             lib/features/player/player_page.dart             lib/features/search/unified_search_page.dart             lib/features/search/unified_search_view_model.dart             lib/features/settings/settings_page.dart             lib/infrastructure/playback/media_kit_video_session.dart             test/home_page_test.dart             test/library_page_test.dart             test/media_kit_video_session_test.dart             test/unified_search_view_model_test.dart
+          git commit -m "style: format ui refactor"
+          git push
