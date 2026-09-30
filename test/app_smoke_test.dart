@@ -78,6 +78,7 @@ void main() {
       );
       expect(calls, ['selectedTree', 'read']);
       await tester.pumpWidget(const SizedBox());
+      await tester.pump();
       await db.close();
     },
   );
