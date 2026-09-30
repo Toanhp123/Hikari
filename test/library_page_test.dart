@@ -60,6 +60,11 @@ void main() {
       expect(await library.contains(media.source), isFalse);
       await tester.pumpAndSettle();
       expect(find.text('Your library is empty.'), findsOneWidget);
+
+      // LibraryPage owns a live Drift watch; dispose it before closing the
+      // in-memory database in tearDown.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
     },
   );
   testWidgets('scan refreshes membership after returning from Library', (
