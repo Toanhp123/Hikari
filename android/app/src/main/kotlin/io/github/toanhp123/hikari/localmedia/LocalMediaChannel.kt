@@ -1,4 +1,4 @@
-package io.github.toanhp123.hikari
+package io.github.toanhp123.hikari.localmedia
 
 import android.app.Activity
 import android.content.Context

@@ -15,7 +15,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: NovelContentView(
-            content: NovelChapterContent(
+            content: RichReadingContent(
               html: '<p>Hello reader</p><img src="https://private.test/a">',
             ),
             readResource: (_) async {
@@ -44,7 +44,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: NovelContentView(
-            content: NovelChapterContent(
+            content: RichReadingContent(
               html: '<img src="illustration" alt="Map">',
               resources: {'illustration': ref},
             ),

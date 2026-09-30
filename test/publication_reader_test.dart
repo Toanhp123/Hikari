@@ -337,13 +337,13 @@ final class _FakePublicationSource implements PublicationSource {
   bool canOpenPublication(SourceMediaRef publication) => true;
 
   @override
-  Future<Publication> publication(SourceMediaRef publication) async {
+  Future<Publication> loadPublication(SourceMediaRef publication) async {
     if (failPublicationOnce) {
       failPublicationOnce = false;
       throw StateError('book unavailable');
     }
     return Publication(
-      metadata: const MediaMetadata(title: 'Book'),
+      metadata: MediaMetadata(title: 'Book'),
       spine: sections,
       toc: sections
           .map(
@@ -358,13 +358,13 @@ final class _FakePublicationSource implements PublicationSource {
   }
 
   @override
-  Future<NovelChapterContent> readSection(
+  Future<RichReadingContent> readSection(
     SourceMediaRef publication,
     String resource,
   ) async {
     readSections.add(resource);
     if (resource == failResource) throw StateError('section unavailable');
-    return NovelChapterContent(
+    return RichReadingContent(
       html: html ?? '<p>${resource.replaceAll('.xhtml', '')} content</p>',
     );
   }

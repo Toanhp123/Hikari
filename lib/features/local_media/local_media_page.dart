@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/features/library/library_page.dart';
+import 'package:hikari/features/library/library_button.dart';
 import 'package:hikari/features/local_media/local_media_view_model.dart';
 
 class LocalMediaPage extends StatefulWidget {

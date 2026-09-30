@@ -26,7 +26,7 @@ class NovelReaderPage extends StatefulWidget {
 
   final String title;
   final Future<String> Function()? loadText;
-  final Future<NovelChapterContent> Function()? loadContent;
+  final Future<RichReadingContent> Function()? loadContent;
   final Future<Uint8List> Function(SourceMediaRef)? readResource;
 
   @override
@@ -87,7 +87,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   }
 
   String? _text;
-  NovelChapterContent? _content;
+  RichReadingContent? _content;
   Object? _error;
   bool _loading = true;
 

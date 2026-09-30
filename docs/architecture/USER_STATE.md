@@ -29,11 +29,13 @@ framework or reconciliation algorithm is introduced now.
   loadAll. No watch stream is needed for current explicit refresh UI.
 - `MediaSource` exposes id/name. `DirectVideoSource` exposes the current direct
   playback locator contract; `MangaPageSource` exposes pages/readPage;
-  `NovelTextSource` exposes readText. Local source implements these capabilities.
-  `MangaSearchSource` and `MangaSeriesSource` add normalized search and chapter
-  discovery; see [REMOTE_MANGA](REMOTE_MANGA.md) for series/chapter identity and
-  the deliberately deferred series-level resume. Picker, tree selection and scan
-  mechanics stay infrastructure-specific.
+  `NovelTextSource` exposes plain text; `PublicationSource` exposes local publication
+  sections/resources; `NovelChapterSource` exposes rich remote chapter content.
+  `MediaOpenLeaseSource` optionally retains source-owned route resources without
+  exposing the concrete source to presentation. `MangaSearchSource`,
+  `MangaSeriesSource`, `NovelSearchSource` and `NovelSeriesSource` add normalized
+  discovery. See [SOURCES](SOURCES.md) for the complete capability boundary.
+  Picker, tree selection and scan mechanics stay infrastructure-specific.
 
 ## Storage and composition
 
@@ -70,11 +72,12 @@ milliseconds; domain values never import Drift or Flutter.
 
 Drift Flutter opens `hikari_user_state.sqlite` in application documents and uses a
 native background connection. `AppDependencies` creates the database, repositories,
-local/default remote sources, immutable `SourceRegistry`, application workflows and
+local source, discovered external sources, immutable `SourceRegistry`, application workflows and
 video session once, then closes only resources it owns. `main` remains thin. Duplicate
 source IDs fail during composition instead of silently replacing an implementation.
-`OpenMedia`, `OpenMangaChapter`, `SearchManga` and `ProgressSession` keep
-source/progress/search coordination out of Flutter widgets while remaining pure Dart.
+`OpenMedia`, `OpenMangaChapter`, `OpenNovelChapter`, `SearchManga`, `SearchNovels` and
+`ProgressSession` keep source/progress/search coordination out of Flutter widgets while
+remaining pure Dart.
 Dart composition stays explicit; the Android extension host uses native Injekt only as
 an ABI-compatibility service locator for loaded extension code. Scan, remote search and
 Library reuse the same open route;
@@ -120,11 +123,16 @@ completion and the final page completes it again. Initial rendering alone does n
 clear a completed record.
 One bounded decoded image remains the cache ceiling from LOCAL_MEDIA.
 
-Novel restores normalized scroll after text and layout are available. Scroll saves
-are debounced 500 ms, with background and final leave flushes. Completion requires
-actual scroll end with 0.5 logical-pixel tolerance; no scroll extent does not imply
-completion. A completed reopen starts at the top. This is a temporary plain-text
-scroll locator, not EPUB/chapter/CFI support. Empty content never auto-completes.
+Plain-text and rich remote novel chapters restore normalized scroll after content and
+layout are available. Scroll saves are debounced 500 ms, with background and final
+leave flushes. Completion requires actual scroll end with 0.5 logical-pixel tolerance;
+no scroll extent does not imply completion. A completed reopen starts at the top.
+
+EPUB publications persist `DocumentPosition`: the current spine resource plus an
+approximate normalized progression (and optional format-neutral locator fields).
+Section changes are serialized before navigation/exit, and completion is reached only
+at the end of the last spine section. This is deliberately not a CFI or
+layout-independent pagination model. Empty content never auto-completes.
 
 Persistence errors surface in UI; unreadable content does not overwrite progress.
 Lifecycle flush is best-effort: an abrupt process kill can lose the latest unsaved

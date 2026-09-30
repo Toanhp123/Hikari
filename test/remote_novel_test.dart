@@ -39,21 +39,21 @@ class FakeNovel
           type: MediaType.lightNovel,
           source: ref('series$page'),
         ),
-        metadata: const MediaMetadata(title: 'Novel', authors: ['Author']),
+        metadata: MediaMetadata(title: 'Novel', authors: ['Author']),
       ),
     ],
     page: page,
     hasNextPage: next,
   );
   @override
-  Future<NovelSearchPage> searchNovels(String query, {int page = 1}) async {
+  Future<NovelSearchPage> search(String query, {int page = 1}) async {
     searches++;
     return respond == null ? this.page(page) : respond!(query, page);
   }
 
   @override
-  Future<NovelDetails> novelDetails(SourceMediaRef novel) async => NovelDetails(
-    metadata: const MediaMetadata(
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
+    metadata: MediaMetadata(
       title: 'Novel',
       summary: 'Real summary',
       authors: ['Author'],
@@ -70,9 +70,9 @@ class FakeNovel
     ],
   );
   @override
-  Future<NovelChapterContent> chapterContent(
+  Future<RichReadingContent> chapterContent(
     SourceMediaRef chapter,
-  ) async => NovelChapterContent(
+  ) async => RichReadingContent(
     html:
         '<h2>Rich heading</h2>${List.generate(70, (i) => '<p>Paragraph $i with text for reading progress.</p>').join()}',
   );
@@ -82,16 +82,16 @@ class FakeNovel
 
 class _ForeignNovel extends FakeNovel {
   @override
-  Future<NovelDetails> novelDetails(SourceMediaRef novel) async => NovelDetails(
-    metadata: const MediaMetadata(
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
+    metadata: MediaMetadata(
       title: 'Foreign',
       cover: SourceMediaRef(sourceId: SourceId('foreign'), itemId: 'cover'),
     ),
     chapters: [],
   );
   @override
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter) async =>
-      NovelChapterContent(
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async =>
+      RichReadingContent(
         html: '<p>Content</p>',
         resources: {
           'image': const SourceMediaRef(
@@ -113,11 +113,11 @@ void main() {
           ),
         ),
       );
-      await show(const MediaMetadata(title: 'Book', rating: 4.5, ratingMax: 5));
+      await show(MediaMetadata(title: 'Book', rating: 4.5, ratingMax: 5));
       expect(find.text('Rating: 4.5 / 5.0'), findsOneWidget);
-      await show(const MediaMetadata(title: 'Book', rating: 4.5));
+      await show(MediaMetadata(title: 'Book', rating: 4.5));
       expect(find.text('Rating: 4.5'), findsOneWidget);
-      await show(const MediaMetadata(title: 'Book'));
+      await show(MediaMetadata(title: 'Book'));
       expect(find.textContaining('Rating:'), findsNothing);
     },
   );
@@ -160,15 +160,19 @@ void main() {
       );
       addTearDown(model.dispose);
       await model.search(' title ');
-      expect(model.hasNextPage, isNull);
+      var state = model.state as RemoteNovelSearchReady;
+      expect(state.hasNextPage, isNull);
       await model.loadMore();
-      expect(model.results, hasLength(1));
-      expect(model.pageFailed, isTrue);
-      expect(model.page, 1);
+      state = model.state as RemoteNovelSearchReady;
+      expect(state.results, hasLength(1));
+      expect(state.pageFailed, isTrue);
+      expect(state.page, 1);
       await model.loadMore();
-      expect(model.results, hasLength(2));
+      state = model.state as RemoteNovelSearchReady;
+      expect(state.results, hasLength(2));
       await model.loadMore();
-      expect(model.hasNextPage, false);
+      state = model.state as RemoteNovelSearchReady;
+      expect(state.hasNextPage, false);
       final count = source.searches;
       await model.loadMore();
       expect(source.searches, count);
@@ -189,7 +193,8 @@ void main() {
       await model.search('new');
       pending.complete(source.page(1));
       await old;
-      expect(model.results.single.media.source.sourceId, second.id);
+      final state = model.state as RemoteNovelSearchReady;
+      expect(state.results.single.media.source.sourceId, second.id);
       model.dispose();
     },
   );
@@ -205,9 +210,7 @@ void main() {
     await model.search(' ');
     pending.complete(source.page(1));
     await old;
-    expect(model.results, isEmpty);
-    expect(model.searched, false);
-    expect(model.loading, false);
+    expect(model.state, isA<RemoteNovelSearchIdle>());
   });
   testWidgets('novel search details rich reader library and file restart', (
     tester,

@@ -4,6 +4,7 @@ import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.github.toanhp123.hikari.extensions.mihon.MihonExtensionChannel
+import io.github.toanhp123.hikari.localmedia.LocalMediaChannel
 
 class MainActivity : FlutterActivity() {
     private var lnReader: io.github.toanhp123.hikari.extensions.lnreader.LnReaderChannel? = null

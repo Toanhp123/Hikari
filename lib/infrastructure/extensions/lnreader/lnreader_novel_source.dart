@@ -107,7 +107,7 @@ class LnReaderNovelSource
     },
   );
   @override
-  Future<NovelSearchPage> searchNovels(String query, {int page = 1}) async {
+  Future<NovelSearchPage> search(String query, {int page = 1}) async {
     if (page < 1) throw ArgumentError.value(page);
     final rows = (await _invoke('searchNovels', [query, page])) as List;
     return NovelSearchPage(
@@ -129,7 +129,7 @@ class LnReaderNovelSource
   }
 
   @override
-  Future<NovelDetails> novelDetails(SourceMediaRef novel) async {
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async {
     final path = _path(novel, 'novel');
     final row = Map<String, dynamic>.from(
       await _invoke('parseNovel', [path]) as Map,
@@ -168,7 +168,7 @@ class LnReaderNovelSource
   }
 
   @override
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter) async {
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async {
     final path = _path(chapter, 'chapter');
     final document = html.parseFragment(
       await _invoke('parseChapter', [path]) as String,
@@ -184,7 +184,7 @@ class LnReaderNovelSource
         image.remove();
       }
     }
-    return NovelChapterContent(
+    return RichReadingContent(
       html: sanitizeNovelHtml(
         document.outerHtml,
         registeredResources: resources.keys.toSet(),

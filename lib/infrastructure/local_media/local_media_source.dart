@@ -8,10 +8,10 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
-import 'package:hikari/infrastructure/local_media/archive_materializations.dart';
+import 'package:hikari/infrastructure/local_media/archive_copy_pool.dart';
 import 'package:hikari/infrastructure/local_media/classifier.dart';
 import 'package:hikari/infrastructure/local_media/comic_info.dart';
-import 'package:hikari/infrastructure/reading/epub_publication.dart';
+import 'package:hikari/infrastructure/reading/epub_reader.dart';
 
 const _materializeLimit = 1024 * 1024 * 1024;
 const _pageReadLimit = 32 * 1024 * 1024;
@@ -24,10 +24,10 @@ String _opaqueEpubResourceId(LocalArchiveRef publication, String resource) =>
       format: 'epub',
     ).encode();
 
-NovelChapterContent _opaqueEpubContent(
+RichReadingContent _opaqueEpubContent(
   LocalArchiveRef publication,
-  NovelChapterContent content,
-) => NovelChapterContent(
+  RichReadingContent content,
+) => RichReadingContent(
   html: content.html,
   resources: {
     for (final entry in content.resources.entries)
@@ -44,25 +44,21 @@ class LocalMediaSource
         MangaPageSource,
         NovelTextSource,
         PublicationSource,
-        MediaSourceAvailability {
+        MediaSourceAvailability,
+        MediaOpenLeaseSource {
   @override
   SourceId get id => SourceId.local;
   @override
   String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
-  late final _copies = ArchiveMaterializations(
-    _materialize,
-    _deleteMaterialized,
-  );
+  late final _copies = ArchiveCopyPool(_materialize, _deleteMaterialized);
 
-  Future<void> retainArchive(SourceMediaRef ref) async {
+  @override
+  MediaOpenLease? acquireOpenLease(SourceMediaRef ref) {
     final archive = _archiveRef(ref);
-    if (archive != null) _copies.retain(archive.locator);
-  }
-
-  Future<void> releaseArchive(SourceMediaRef ref) async {
-    final archive = _archiveRef(ref);
-    if (archive != null) await _copies.release(archive.locator);
+    if (archive == null) return null;
+    _copies.retain(archive.locator);
+    return _LocalArchiveLease(_copies, archive.locator);
   }
 
   Future<void> close() => _copies.close();
@@ -147,17 +143,15 @@ class LocalMediaSource
   }
 
   @override
-  Future<Publication> publication(SourceMediaRef ref) async {
+  Future<Publication> loadPublication(SourceMediaRef ref) async {
     final archive = _requireArchive(ref, 'epub');
     if (archive.entry != null) {
       throw const FormatException('EPUB publication reference expected.');
     }
     return _copies.read(archive.locator, (materialized) async {
-      final epub = EpubPublication.open(materialized);
+      final epub = EpubReader.open(materialized);
       try {
-        return await epub.publication(
-          SourceMediaRef(sourceId: SourceId.local, itemId: archive.encode()),
-        );
+        return await epub.loadPublication();
       } finally {
         epub.close();
       }
@@ -165,7 +159,7 @@ class LocalMediaSource
   }
 
   @override
-  Future<NovelChapterContent> readSection(
+  Future<RichReadingContent> readSection(
     SourceMediaRef ref,
     String resource,
   ) async {
@@ -174,12 +168,9 @@ class LocalMediaSource
       throw const FormatException('EPUB publication reference expected.');
     }
     return _copies.read(archive.locator, (materialized) async {
-      final epub = EpubPublication.open(materialized);
+      final epub = EpubReader.open(materialized);
       try {
-        final content = await epub.readSection(
-          SourceMediaRef(sourceId: SourceId.local, itemId: archive.encode()),
-          resource,
-        );
+        final content = await epub.readSection(resource);
         return _opaqueEpubContent(archive, content);
       } finally {
         epub.close();
@@ -195,7 +186,7 @@ class LocalMediaSource
       throw const FormatException('EPUB resource is missing.');
     }
     return _copies.read(archive.locator, (materialized) async {
-      final epub = EpubPublication.open(materialized);
+      final epub = EpubReader.open(materialized);
       try {
         return await epub.readResource(
           SourceMediaRef(sourceId: SourceId.local, itemId: resource),
@@ -353,6 +344,21 @@ class LocalMediaSource
     });
     if (bytes == null) throw StateError('Content could not be read.');
     return bytes;
+  }
+}
+
+final class _LocalArchiveLease implements MediaOpenLease {
+  _LocalArchiveLease(this._copies, this._locator);
+
+  ArchiveCopyPool? _copies;
+  final String _locator;
+
+  @override
+  Future<void> release() async {
+    final copies = _copies;
+    if (copies == null) return;
+    _copies = null;
+    await copies.release(_locator);
   }
 }
 

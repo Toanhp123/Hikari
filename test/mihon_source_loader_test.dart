@@ -178,13 +178,13 @@ void main() {
             ).loadSources()).single
             as MangaSearchSource;
     final media = (await source.search('example')).results.single.media;
-    final chapter = (await (source as MangaSeriesSource).loadSeries(
+    final chapter = (await (source as MangaSeriesSource).loadDetails(
       media.source,
     )).chapters.single;
     gateway.revision = '2';
     final refreshed = (await source.search('example')).results.single.media;
     expect(refreshed.source, media.source);
-    final refreshedChapter = (await (source as MangaSeriesSource).loadSeries(
+    final refreshedChapter = (await (source as MangaSeriesSource).loadDetails(
       media.source,
     )).chapters.single;
     expect(refreshedChapter.source, chapter.source);
@@ -202,7 +202,7 @@ void main() {
     expect(gateway.pageChapterNumber, 1.5);
     expect(gateway.pageChapterScanlator, 'New group');
     expect(gateway.pageChapterDateUpload, 987654321);
-    await (source as MangaSeriesSource).loadSeries(media.source);
+    await (source as MangaSeriesSource).loadDetails(media.source);
     expect(gateway.chapterMangaTitle, 'Example details');
     expect(gateway.chapterMangaMemo, '{"seriesId":"123"}');
     await database.close();
@@ -304,7 +304,7 @@ void main() {
               ).loadSources()).single
               as MangaSearchSource;
       final media = (await source.search('example')).results.single.media;
-      final chapter = (await (source as MangaSeriesSource).loadSeries(
+      final chapter = (await (source as MangaSeriesSource).loadDetails(
         media.source,
       )).chapters.single;
       expect((await source.search('example')).hasNextPage, isTrue);
@@ -362,7 +362,7 @@ void main() {
               (await installed.libraryRepository.loadAll()).single.media;
           final target =
               await installed.openMedia.execute(saved) as MangaSeriesOpenTarget;
-          await target.chapterSource.loadSeries(saved.source);
+          await target.seriesSource.loadDetails(saved.source);
           expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
           final readable = await installed.openMangaChapter.execute(chapter);
           expect(gateway.pageChapterUrl, '/chapter/$_chapterId');
@@ -431,7 +431,7 @@ void main() {
       expect(result.media.source.itemId, startsWith('mihon-v2:'));
 
       final seriesSource = source as MangaSeriesSource;
-      final details = await seriesSource.loadSeries(result.media.source);
+      final details = await seriesSource.loadDetails(result.media.source);
       final chapters = details.chapters;
       expect(details.metadata.title, 'Example details');
       expect(details.metadata.authors, ['Author']);
@@ -447,7 +447,7 @@ void main() {
       expect(chapters.single.source.itemId, startsWith('mihon-v2:'));
       expect(chapters.single.scanlator, 'Group');
       expect(chapters.single.chapterNumber, 1);
-      expect(chapters.single.dateUpload, 123456789);
+      expect(chapters.single.uploadedAt?.millisecondsSinceEpoch, 123456789);
 
       final pageSource = source as MangaPageSource;
       final pages = await pageSource.pages(chapters.single.source);
@@ -490,7 +490,7 @@ void main() {
         genres: ['Genre'],
         rating: 8.5,
       );
-      final details = await (source as MangaSeriesSource).loadSeries(
+      final details = await (source as MangaSeriesSource).loadDetails(
         (await (source as MangaSearchSource).search('example'))
             .results
             .single
@@ -512,7 +512,7 @@ void main() {
     ).loadSources()).single;
     final result = await (source as MangaSearchSource).search('example');
     expect(result.results.single.metadata, isNotNull);
-    final details = await (source as MangaSeriesSource).loadSeries(
+    final details = await (source as MangaSeriesSource).loadDetails(
       result.results.single.media.source,
     );
     expect(details.metadata.title, 'Example details');
@@ -537,7 +537,7 @@ void main() {
 
     final result = (await source.search('example')).results.single;
     expect(result.media.source.itemId, startsWith('mihon-v2:'));
-    final chapters = (await (source as MangaSeriesSource).loadSeries(
+    final chapters = (await (source as MangaSeriesSource).loadDetails(
       result.media.source,
     )).chapters;
     expect(gateway.chapterMangaUrl, '/manga/$_mangaId');
@@ -576,7 +576,7 @@ void main() {
             as MangaSeriesSource;
 
     await expectLater(
-      source.loadSeries(
+      source.loadDetails(
         const SourceMediaRef(
           sourceId: SourceId('mihon:7'),
           itemId: 'mihon-v1:not-base64',
@@ -601,12 +601,12 @@ void main() {
       ['broken'],
     );
     await expectLater(
-      (source as MangaSeriesSource).loadSeries(media.source),
+      (source as MangaSeriesSource).loadDetails(media.source),
       throwsStateError,
     );
     await database.delete(database.mihonContinuationRecords).go();
     await expectLater(
-      (source as MangaSeriesSource).loadSeries(media.source),
+      (source as MangaSeriesSource).loadDetails(media.source),
       throwsStateError,
     );
   });
@@ -635,13 +635,13 @@ void main() {
           [payload],
         );
         await expectLater(
-          (source as MangaSeriesSource).loadSeries(media.source),
+          (source as MangaSeriesSource).loadDetails(media.source),
           throwsStateError,
         );
       }
       for (final itemId in ['raw-url', 'mihon-v2:not-base64']) {
         await expectLater(
-          (source as MangaSeriesSource).loadSeries(
+          (source as MangaSeriesSource).loadDetails(
             SourceMediaRef(sourceId: media.source.sourceId, itemId: itemId),
           ),
           throwsStateError,
@@ -653,7 +653,7 @@ void main() {
         url: '/different',
       );
       await expectLater(
-        (source as MangaSeriesSource).loadSeries(media.source),
+        (source as MangaSeriesSource).loadDetails(media.source),
         throwsStateError,
       );
     },

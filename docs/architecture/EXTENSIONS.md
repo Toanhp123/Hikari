@@ -1,4 +1,4 @@
-# Android manga extension runtime
+# Android extension runtimes
 
 ## Scope
 

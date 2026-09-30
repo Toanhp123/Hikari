@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/features/library/library_page.dart';
+import 'package:hikari/features/library/library_button.dart';
 import 'package:hikari/features/remote_novel/remote_novel_search_view_model.dart';
 
 class RemoteNovelSearchPage extends StatefulWidget {
@@ -12,9 +12,11 @@ class RemoteNovelSearchPage extends StatefulWidget {
     required this.openMedia,
     this.library,
   });
+
   final SearchNovels searchNovels;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+
   @override
   State<RemoteNovelSearchPage> createState() => _RemoteNovelSearchPageState();
 }
@@ -22,6 +24,7 @@ class RemoteNovelSearchPage extends StatefulWidget {
 class _RemoteNovelSearchPageState extends State<RemoteNovelSearchPage> {
   final _query = TextEditingController();
   late final _model = RemoteNovelSearchViewModel(widget.searchNovels);
+
   @override
   void dispose() {
     _query.dispose();
@@ -43,19 +46,7 @@ class _RemoteNovelSearchPageState extends State<RemoteNovelSearchPage> {
                 )
               : Column(
                   children: [
-                    if (_model.sources.length > 1)
-                      DropdownButton<SourceId>(
-                        value: _model.selectedSource!.id,
-                        isExpanded: true,
-                        onChanged: _model.selectSource,
-                        items: [
-                          for (final source in _model.sources)
-                            DropdownMenuItem(
-                              value: source.id,
-                              child: Text(source.name),
-                            ),
-                        ],
-                      ),
+                    if (_model.sources.length > 1) _buildSourcePicker(),
                     TextField(
                       controller: _query,
                       textInputAction: TextInputAction.search,
@@ -69,72 +60,83 @@ class _RemoteNovelSearchPageState extends State<RemoteNovelSearchPage> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
-                        onPressed: () => _model.search(_query.text),
+                        onPressed: _model.state is RemoteNovelSearchLoading
+                            ? null
+                            : () => _model.search(_query.text),
                         icon: const Icon(Icons.search),
                         label: const Text('Search'),
                       ),
                     ),
-                    Expanded(child: _results()),
+                    Expanded(child: _buildResults(_model.state)),
                   ],
                 ),
         ),
       ),
     ),
   );
-  Widget _results() {
-    if (_model.loading) return const Center(child: CircularProgressIndicator());
-    if (_model.failed) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+
+  Widget _buildSourcePicker() => DropdownButton<SourceId>(
+    value: _model.selectedSource!.id,
+    isExpanded: true,
+    onChanged: _model.selectSource,
+    items: [
+      for (final source in _model.sources)
+        DropdownMenuItem(value: source.id, child: Text(source.name)),
+    ],
+  );
+
+  Widget _buildResults(RemoteNovelSearchUiState state) => switch (state) {
+    RemoteNovelSearchIdle() => const Center(
+      child: Text('Search for a novel title.'),
+    ),
+    RemoteNovelSearchLoading() => const Center(
+      child: CircularProgressIndicator(),
+    ),
+    RemoteNovelSearchFailure() => Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Could not search. Check source access and try again.'),
+          TextButton(onPressed: _model.retry, child: const Text('Try again')),
+        ],
+      ),
+    ),
+    RemoteNovelSearchReady() => _buildReady(state),
+  };
+
+  Widget _buildReady(RemoteNovelSearchReady state) => ListView.builder(
+    itemCount: state.results.length + 1,
+    itemBuilder: (context, index) {
+      if (index == state.results.length) {
+        return Column(
           children: [
-            const Text('Could not search. Check source access and try again.'),
-            TextButton(onPressed: _model.retry, child: const Text('Try again')),
+            if (state.results.isEmpty) const Text('No novels found.'),
+            if (state.loadingMore)
+              const Center(child: CircularProgressIndicator())
+            else if (state.hasNextPage != false)
+              TextButton(
+                onPressed: _model.loadMore,
+                child: Text(state.pageFailed ? 'Retry next page' : 'Load more'),
+              ),
           ],
-        ),
-      );
-    }
-    if (!_model.searched) {
-      return const Center(child: Text('Search for a novel title.'));
-    }
-    return ListView.builder(
-      itemCount: _model.results.length + 1,
-      itemBuilder: (context, index) {
-        if (index == _model.results.length) {
-          return Column(
-            children: [
-              if (_model.results.isEmpty) const Text('No novels found.'),
-              if (_model.loadingMore)
-                const Center(child: CircularProgressIndicator())
-              else if (_model.hasNextPage != false)
-                TextButton(
-                  onPressed: _model.loadMore,
-                  child: Text(
-                    _model.pageFailed ? 'Retry next page' : 'Load more',
-                  ),
-                ),
-            ],
-          );
-        }
-        final preview = _model.results[index];
-        return ListTile(
-          key: ValueKey(preview.media.source),
-          title: Text(preview.media.title),
-          subtitle: Text(
-            [
-              _model.selectedSource!.name,
-              ...preview.metadata.authors,
-            ].join(' · '),
-          ),
-          onTap: () => widget.openMedia(context, preview.media),
-          trailing: widget.library == null
-              ? null
-              : LibraryButton(
-                  repository: widget.library!,
-                  media: preview.media,
-                ),
         );
-      },
-    );
-  }
+      }
+
+      final preview = state.results[index];
+      return ListTile(
+        key: ValueKey(preview.media.source),
+        title: Text(preview.media.title),
+        subtitle: Text(
+          [
+            _model.selectedSource!.name,
+            ...preview.metadata.authors,
+          ].join(' · '),
+        ),
+        onTap: () => widget.openMedia(context, preview.media),
+        trailing: widget.library == null
+            ? null
+            : LibraryButton(repository: widget.library!, media: preview.media),
+      );
+    },
+  );
 }

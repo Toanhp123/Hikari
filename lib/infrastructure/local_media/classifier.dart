@@ -22,14 +22,12 @@ class LocalEntry {
     required this.parentId,
     required this.name,
     required this.isDirectory,
-    this.isArchive = false,
   });
 
   final String id;
   final String? parentId;
   final String name;
   final bool isDirectory;
-  final bool isArchive;
 }
 
 String _extension(String name) =>

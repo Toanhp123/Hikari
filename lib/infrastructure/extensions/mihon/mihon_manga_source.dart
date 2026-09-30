@@ -116,7 +116,7 @@ final class MihonMangaSource
   }
 
   @override
-  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async {
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async {
     _requireOwns(manga);
     final mangaReference = await _restore(manga.itemId, 'manga');
     final result = await _gateway.loadSeries(
@@ -149,7 +149,12 @@ final class MihonMangaSource
               ),
               scanlator: chapter.scanlator,
               chapterNumber: chapter.chapterNumber,
-              dateUpload: chapter.dateUpload,
+              uploadedAt: chapter.dateUpload == null || chapter.dateUpload! <= 0
+                  ? null
+                  : DateTime.fromMillisecondsSinceEpoch(
+                      chapter.dateUpload!,
+                      isUtc: true,
+                    ),
             ),
           )
           .toList(growable: false),

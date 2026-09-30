@@ -7,12 +7,30 @@ import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 
 void main() {
+  test('media metadata defensively copies normalized collections', () {
+    final authors = ['Author'];
+    final metadata = MediaMetadata(
+      title: 'Example',
+      authors: authors,
+      artists: ['Artist'],
+      genres: ['Action'],
+      tags: ['Tag'],
+    );
+
+    authors.add('Changed');
+    expect(metadata.authors, ['Author']);
+    expect(() => metadata.authors.add('Other'), throwsUnsupportedError);
+    expect(() => metadata.artists.clear(), throwsUnsupportedError);
+    expect(() => metadata.genres.clear(), throwsUnsupportedError);
+    expect(() => metadata.tags.clear(), throwsUnsupportedError);
+  });
+
   test('manga metadata keeps normalized fields and opaque cover reference', () {
     const cover = SourceMediaRef(
       sourceId: SourceId('mihon:42'),
       itemId: 'mihon-art-v1:cover',
     );
-    const metadata = MediaMetadata(
+    final metadata = MediaMetadata(
       title: 'Example',
       cover: cover,
       summary: 'Summary',
@@ -31,31 +49,61 @@ void main() {
     expect(metadata.rating, 8.5);
   });
 
-  test('search page validates page and exposes chapter metadata', () {
-    const media = Media(
-      title: 'Example',
-      type: MediaType.manga,
-      source: SourceMediaRef(sourceId: SourceId('mihon:42'), itemId: 'series'),
-    );
-    const preview = MangaPreview(media: media);
-    const page = MangaSearchPage(
-      results: [preview],
-      hasNextPage: true,
-      page: 1,
-    );
-    const chapter = MangaChapter(
-      title: 'Chapter 1',
-      source: SourceMediaRef(sourceId: SourceId('mihon:42'), itemId: 'chapter'),
-      chapterNumber: 1,
-      dateUpload: 123456789,
-    );
+  test(
+    'manga pages and series enforce runtime invariants and immutability',
+    () {
+      const media = Media(
+        title: 'Example',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('mihon:42'),
+          itemId: 'series',
+        ),
+      );
+      const preview = MangaPreview(media: media);
+      final page = MangaSearchPage(
+        results: [preview],
+        hasNextPage: true,
+        page: 1,
+      );
+      final chapter = MangaChapter(
+        title: 'Chapter 1',
+        source: const SourceMediaRef(
+          sourceId: SourceId('mihon:42'),
+          itemId: 'chapter',
+        ),
+        chapterNumber: 1,
+        uploadedAt: DateTime.fromMillisecondsSinceEpoch(123456789, isUtc: true),
+      );
+      final details = MangaSeriesDetails(
+        metadata: MediaMetadata(title: 'Example'),
+        chapters: [chapter],
+      );
 
-    expect(page.page, 1);
-    expect(page.hasNextPage, isTrue);
-    expect(page.results.single.media, media);
-    expect(chapter.chapterNumber, 1);
-    expect(chapter.dateUpload, 123456789);
-  });
+      expect(page.page, 1);
+      expect(page.hasNextPage, isTrue);
+      expect(page.results.single.media, media);
+      expect(chapter.chapterNumber, 1);
+      expect(chapter.uploadedAt?.millisecondsSinceEpoch, 123456789);
+      expect(() => page.results.clear(), throwsUnsupportedError);
+      expect(() => details.chapters.clear(), throwsUnsupportedError);
+      expect(
+        () => MangaSearchPage(results: const [], hasNextPage: false, page: 0),
+        throwsArgumentError,
+      );
+      expect(
+        () => MangaChapter(
+          title: 'Invalid',
+          source: const SourceMediaRef(
+            sourceId: SourceId('mihon:42'),
+            itemId: 'invalid',
+          ),
+          chapterNumber: double.nan,
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
 
   test('artwork source owns cover byte loading', () async {
     final source = _ArtworkSource();

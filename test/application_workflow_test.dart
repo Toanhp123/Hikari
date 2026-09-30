@@ -54,18 +54,18 @@ class _PublicationSource implements PublicationSource, NovelTextSource {
   @override
   bool canOpenPublication(SourceMediaRef publication) => canOpen;
   @override
-  Future<Publication> publication(SourceMediaRef publication) async =>
+  Future<Publication> loadPublication(SourceMediaRef publication) async =>
       Publication(
-        metadata: const MediaMetadata(title: 'Book'),
+        metadata: MediaMetadata(title: 'Book'),
         spine: const [
           PublicationSection(resource: 'chapter.xhtml', title: 'Chapter'),
         ],
       );
   @override
-  Future<NovelChapterContent> readSection(
+  Future<RichReadingContent> readSection(
     SourceMediaRef publication,
     String resource,
-  ) async => NovelChapterContent(html: '<p>chapter</p>');
+  ) async => RichReadingContent(html: '<p>chapter</p>');
   @override
   Future<Uint8List> readResource(SourceMediaRef resource) async => Uint8List(0);
   @override
@@ -81,6 +81,41 @@ class _VideoSource implements DirectVideoSource {
   String playbackLocator(SourceMediaRef media) => 'play://${media.itemId}';
 }
 
+class _TestLease implements MediaOpenLease {
+  _TestLease(this._onRelease);
+
+  final void Function() _onRelease;
+  bool _released = false;
+
+  @override
+  Future<void> release() async {
+    if (_released) return;
+    _released = true;
+    _onRelease();
+  }
+}
+
+class _LeasedVideoSource extends _VideoSource implements MediaOpenLeaseSource {
+  int acquires = 0;
+  int releases = 0;
+
+  @override
+  MediaOpenLease? acquireOpenLease(SourceMediaRef media) {
+    acquires++;
+    return _TestLease(() => releases++);
+  }
+}
+
+class _LeasedNovelSource extends _NovelSource implements MediaOpenLeaseSource {
+  int acquires = 0;
+
+  @override
+  MediaOpenLease? acquireOpenLease(SourceMediaRef media) {
+    acquires++;
+    return _TestLease(() {});
+  }
+}
+
 class _MangaSource
     implements MangaSearchSource, MangaSeriesSource, MangaPageSource {
   @override
@@ -89,10 +124,10 @@ class _MangaSource
   String get name => 'Manga source';
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(results: const [], hasNextPage: false, page: page);
+      MangaSearchPage(results: [], hasNextPage: false, page: page);
   @override
-  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async =>
-      const MangaSeriesDetails(
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
+      MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
         chapters: [],
       );
@@ -111,7 +146,7 @@ class _SearchOnlySource implements MangaSearchSource {
   String get name => 'Search only';
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(results: const [], hasNextPage: false, page: page);
+      MangaSearchPage(results: [], hasNextPage: false, page: page);
 }
 
 class _InvalidSearchSource implements MangaSearchSource, MangaPageSource {
@@ -122,7 +157,7 @@ class _InvalidSearchSource implements MangaSearchSource, MangaPageSource {
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
       MangaSearchPage(
-        results: const [
+        results: [
           MangaPreview(
             media: Media(
               title: 'Wrong source',
@@ -154,7 +189,7 @@ class _ForeignMangaSource extends _MangaSource {
               type: MediaType.manga,
               source: SourceMediaRef(sourceId: id, itemId: 'series'),
             ),
-            metadata: const MediaMetadata(
+            metadata: MediaMetadata(
               title: 'Series',
               cover: SourceMediaRef(
                 sourceId: SourceId('foreign'),
@@ -171,8 +206,8 @@ class _ForeignMangaSource extends _MangaSource {
     const SourceMediaRef(sourceId: SourceId('foreign'), itemId: 'page'),
   ];
   @override
-  Future<MangaSeriesDetails> loadSeries(SourceMediaRef manga) async =>
-      const MangaSeriesDetails(
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
+      MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
         chapters: [
           MangaChapter(
@@ -204,13 +239,13 @@ class _RichNovelSource implements NovelSeriesSource, NovelChapterSource {
   @override
   String get name => 'Rich novel';
   @override
-  Future<NovelDetails> novelDetails(SourceMediaRef novel) async => NovelDetails(
-    metadata: const MediaMetadata(title: 'Rich book'),
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
+    metadata: MediaMetadata(title: 'Rich book'),
     chapters: [],
   );
   @override
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter) async =>
-      NovelChapterContent(html: '<p>Rich text</p>');
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async =>
+      RichReadingContent(html: '<p>Rich text</p>');
   @override
   Future<Uint8List> readResource(SourceMediaRef resource) async => Uint8List(0);
 }
@@ -326,19 +361,41 @@ void main() {
     expect((target as VideoOpenTarget).locator, 'play://episode');
   });
 
+  test(
+    'open target owns the optional source lease until route completion',
+    () async {
+      const media = Media(
+        title: 'Episode',
+        type: MediaType.anime,
+        source: SourceMediaRef(sourceId: _videoSourceId, itemId: 'episode'),
+      );
+      final source = _LeasedVideoSource();
+      final target = await OpenMedia(
+        SourceRegistry([source]),
+        _MemoryProgressRepository(),
+      ).execute(media);
+      expect(source.acquires, 1);
+      expect(source.releases, 0);
+      await target.release();
+      expect(source.releases, 1);
+    },
+  );
+
   test('anime requires explicit direct video capability', () async {
     const media = Media(
       title: 'Episode',
       type: MediaType.anime,
       source: SourceMediaRef(sourceId: _novelSourceId, itemId: 'episode'),
     );
+    final source = _LeasedNovelSource();
     await expectLater(
       OpenMedia(
-        SourceRegistry([_NovelSource()]),
+        SourceRegistry([source]),
         _MemoryProgressRepository(),
       ).execute(media),
       throwsStateError,
     );
+    expect(source.acquires, 0);
   });
 
   test(
@@ -371,7 +428,7 @@ void main() {
 
   test('series open defers progress until chapter selected', () async {
     const series = SourceMediaRef(sourceId: _mangaSourceId, itemId: 'series');
-    const chapter = MangaChapter(
+    final chapter = MangaChapter(
       title: 'Chapter 1',
       source: SourceMediaRef(sourceId: _mangaSourceId, itemId: 'chapter'),
     );
@@ -395,7 +452,7 @@ void main() {
   });
 
   test('open chapter rejects unavailable source', () async {
-    const chapter = MangaChapter(
+    final chapter = MangaChapter(
       title: 'Unavailable chapter',
       source: SourceMediaRef(sourceId: _mangaSourceId, itemId: 'chapter'),
     );

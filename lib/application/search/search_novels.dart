@@ -37,7 +37,7 @@ final class SearchNovels {
     if (!_canOpen(source) || !_isAvailable(source)) {
       throw StateError('Novel source $sourceId cannot open search results.');
     }
-    final result = await source.searchNovels(normalizedQuery, page: page);
+    final result = await source.search(normalizedQuery, page: page);
     if (result.page != page ||
         result.results.any(
           (preview) =>

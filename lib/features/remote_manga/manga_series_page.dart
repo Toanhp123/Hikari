@@ -1,13 +1,13 @@
-import 'package:flutter/material.dart';
-
 import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
 
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/reading/media_metadata_view.dart';
 
-class MangaChapterPage extends StatefulWidget {
-  const MangaChapterPage({
+class MangaSeriesPage extends StatefulWidget {
+  const MangaSeriesPage({
     super.key,
     required this.title,
     required this.sourceName,
@@ -20,10 +20,10 @@ class MangaChapterPage extends StatefulWidget {
   final Future<Uint8List> Function(SourceMediaRef)? readArtwork;
   final Future<void> Function(BuildContext, MangaChapter) openChapter;
   @override
-  State<MangaChapterPage> createState() => _MangaChapterPageState();
+  State<MangaSeriesPage> createState() => _MangaSeriesPageState();
 }
 
-class _MangaChapterPageState extends State<MangaChapterPage> {
+class _MangaSeriesPageState extends State<MangaSeriesPage> {
   late Future<List<MangaChapter>> _chaptersFuture;
   bool _isOpeningChapter = false;
   MangaSeriesDetails? _details;
@@ -120,11 +120,8 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                       chapter.scanlator ?? widget.sourceName,
                       if (chapter.chapterNumber != null)
                         'Chapter ${chapter.chapterNumber}',
-                      if (chapter.dateUpload != null && chapter.dateUpload! > 0)
-                        DateTime.fromMillisecondsSinceEpoch(
-                          chapter.dateUpload!,
-                          isUtc: true,
-                        ).toIso8601String().split('T').first,
+                      if (chapter.uploadedAt != null)
+                        chapter.uploadedAt!.toIso8601String().split('T').first,
                       if (!chapter.canReadPages) 'Not readable in Hikari',
                     ].join(' · ');
                     return ListTile(

@@ -56,8 +56,8 @@ final class NovelDetails {
   final List<NovelChapter> chapters;
 }
 
-final class NovelChapterContent {
-  NovelChapterContent({
+final class RichReadingContent {
+  RichReadingContent({
     required this.html,
     Map<String, SourceMediaRef> resources = const {},
   }) : resources = Map.unmodifiable(resources);
@@ -68,15 +68,15 @@ final class NovelChapterContent {
 }
 
 abstract interface class NovelSearchSource implements MediaSource {
-  Future<NovelSearchPage> searchNovels(String query, {int page = 1});
+  Future<NovelSearchPage> search(String query, {int page = 1});
 }
 
 abstract interface class NovelSeriesSource implements MediaSource {
-  Future<NovelDetails> novelDetails(SourceMediaRef novel);
+  Future<NovelDetails> loadDetails(SourceMediaRef novel);
 }
 
 abstract interface class NovelChapterSource implements MediaSource {
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter);
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter);
   Future<Uint8List> readResource(SourceMediaRef resource);
 }
 

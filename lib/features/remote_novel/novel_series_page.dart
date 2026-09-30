@@ -3,11 +3,11 @@ import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
-import 'package:hikari/features/library/library_page.dart';
+import 'package:hikari/features/library/library_button.dart';
 import 'package:hikari/features/reading/media_metadata_view.dart';
 
-class NovelChapterPage extends StatefulWidget {
-  const NovelChapterPage({
+class NovelSeriesPage extends StatefulWidget {
+  const NovelSeriesPage({
     super.key,
     required this.target,
     required this.openChapter,
@@ -17,10 +17,10 @@ class NovelChapterPage extends StatefulWidget {
   final Future<void> Function(BuildContext, NovelChapter) openChapter;
   final LibraryRepository? library;
   @override
-  State<NovelChapterPage> createState() => _NovelChapterPageState();
+  State<NovelSeriesPage> createState() => _NovelSeriesPageState();
 }
 
-class _NovelChapterPageState extends State<NovelChapterPage> {
+class _NovelSeriesPageState extends State<NovelSeriesPage> {
   late Future<NovelDetails> _details = widget.target.loadDetails();
   bool _opening = false;
   Future<void> _open(NovelChapter chapter) async {
