@@ -1,13 +1,32 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/patterns/media_progress.dart' as ui;
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
-import 'package:hikari/features/novel_reader/novel_content_view.dart';
-
-import 'package:flutter/material.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
+import 'package:hikari/features/novel_reader/novel_content_view.dart';
+
+enum NovelReaderTheme {
+  oled(label: 'OLED', bg: Color(0xFF000000), fg: Color(0xFFD1D5DB)),
+  charcoal(label: 'Charcoal', bg: Color(0xFF161B26), fg: Color(0xFFF8FAFC)),
+  sepia(label: 'Sepia', bg: Color(0xFFFBF0D9), fg: Color(0xFF452B14)),
+  white(label: 'White', bg: Color(0xFFFFFFFF), fg: Color(0xFF111827));
+
+  const NovelReaderTheme({
+    required this.label,
+    required this.bg,
+    required this.fg,
+  });
+
+  final String label;
+  final Color bg;
+  final Color fg;
+}
 
 class NovelReaderPage extends StatefulWidget {
   const NovelReaderPage({
@@ -42,6 +61,11 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   bool _completed = false;
   (double, bool)? _lastSaved;
 
+  NovelReaderTheme _readerTheme = NovelReaderTheme.charcoal;
+  double _fontSize = 16.0;
+  final double _lineHeight = 1.6;
+  final double _horizontalPadding = 20.0;
+
   void _changed() {
     if (!_restored || !_scroll.hasClients) return;
     _position = textProgression(
@@ -51,6 +75,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     _completed = textAtEnd(_scroll.offset, _scroll.position.maxScrollExtent);
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), _flush);
+    if (mounted) setState(() {});
   }
 
   Future<void> _flush() async {
@@ -127,6 +152,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         );
         _lastSaved = (_position, _completed);
         _restored = true;
+        if (mounted) setState(() {});
       });
     } catch (error) {
       if (!mounted) return;
@@ -137,46 +163,213 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     }
   }
 
+  void _showPreferencesSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.hikariColors.surfaceElevated,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final colors = context.hikariColors;
+            return Padding(
+              padding: const EdgeInsets.all(HikariSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reading Preferences',
+                    style: HikariTypography.titleMedium.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: HikariSpacing.md),
+
+                  // Reading Themes
+                  Text(
+                    'Color Theme',
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  ),
+                  const SizedBox(height: HikariSpacing.xs),
+                  Row(
+                    children: NovelReaderTheme.values.map((t) {
+                      final isSelected = _readerTheme == t;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: HikariSpacing.sm),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() => _readerTheme = t);
+                            setModalState(() {});
+                          },
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: t.bg,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected
+                                    ? colors.primaryGlow
+                                    : colors.border,
+                                width: isSelected ? 2.5 : 1.0,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Aa',
+                                style: TextStyle(
+                                  color: t.fg,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: HikariSpacing.md),
+
+                  // Font Size
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Font Size',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '${_fontSize.toInt()}sp',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _fontSize,
+                    min: 12,
+                    max: 26,
+                    divisions: 7,
+                    activeColor: colors.primary,
+                    inactiveColor: colors.surfaceHighlight,
+                    onChanged: (val) {
+                      setState(() => _fontSize = val);
+                      setModalState(() {});
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      backgroundColor: _readerTheme.bg,
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: _readerTheme.bg,
+        foregroundColor: _readerTheme.fg,
+        elevation: 0,
+        actions: [
+          HikariIconButton(
+            icon: const Icon(Icons.format_size_rounded),
+            tooltip: 'Reading Preferences',
+            color: _readerTheme.fg,
+            onPressed: _showPreferencesSheet,
+          ),
+          const SizedBox(width: HikariSpacing.xs),
+        ],
+      ),
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Could not load this novel.'),
+                          const SizedBox(height: HikariSpacing.sm),
+                          TextButton(
+                            onPressed: _load,
+                            child: const Text('Try again'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      controller: _scroll,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: _horizontalPadding,
+                        vertical: 20,
+                      ),
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: _content != null
+                              ? NovelContentView(
+                                  content: _content!,
+                                  readResource: widget.readResource!,
+                                )
+                              : SelectableText(
+                                  _text ?? '',
+                                  style: TextStyle(
+                                    color: _readerTheme.fg,
+                                    fontSize: _fontSize,
+                                    height: _lineHeight,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+            ),
+            // Bottom Elegant % Progress Indicator Bar
+            if (!_loading && _error == null)
+              Container(
+                height: 24,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: HikariSpacing.md,
+                ),
+                color: _readerTheme.bg,
+                child: Row(
                   children: [
-                    const Text('Could not load this novel.'),
-                    TextButton(
-                      onPressed: _load,
-                      child: const Text('Try again'),
+                    Expanded(
+                      child: ui.MediaProgress(
+                        progress: _position,
+                        height: 2.5,
+                        showGlow: false,
+                      ),
+                    ),
+                    const SizedBox(width: HikariSpacing.sm),
+                    Text(
+                      '${(_position * 100).toInt()}%',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _readerTheme.fg.withValues(alpha: 0.6),
+                      ),
                     ),
                   ],
                 ),
-              )
-            : SingleChildScrollView(
-                controller: _scroll,
-                padding: const EdgeInsets.all(20),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: _content != null
-                        ? NovelContentView(
-                            content: _content!,
-                            readResource: widget.readResource!,
-                          )
-                        : SelectableText(
-                            _text ?? '',
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(height: 1.6),
-                          ),
-                  ),
-                ),
               ),
+          ],
+        ),
       ),
     );
   }
