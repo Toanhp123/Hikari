@@ -6,3 +6,10 @@ analyzer:
     - android/**
     - ios/**
     - windows/**
+  language:
+    strict-inference: true
+
+linter:
+  rules:
+    no_dynamic_casts: true
+    no_raw_types: true

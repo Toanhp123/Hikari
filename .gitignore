@@ -1,3 +1,10 @@
+# Claude Code local-only instructions
+CLAUDE.local.md
+
+# Reproducible LNReader build-tool dependencies (lockfile is tracked)
+/tool/lnreader/node_modules/
+/android/app/.cxx/
+
 # Miscellaneous
 *.class
 *.log
@@ -13,6 +20,8 @@ Desktop.ini
 .svn/
 .swiftpm/
 migrate_working_dir/
+graphify-out
+.claude/worktrees
 
 # IntelliJ related
 *.iml
@@ -26,6 +35,7 @@ migrate_working_dir/
 #.vscode/
 
 # Flutter/Dart/Pub related
+.fvm/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -40,6 +50,9 @@ app.*.symbols
 
 # Obfuscation related
 app.*.map.json
+
+# Kotlin compiler session/cache output
+/android/.kotlin/
 
 # Android Studio will place build artifacts here
 /android/app/debug
