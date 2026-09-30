@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+
 import 'package:hikari/app/theme/hikari_theme.dart';
 
 enum AppTab {
@@ -56,15 +57,15 @@ class AppNavigationShell extends StatefulWidget {
   const AppNavigationShell({
     super.key,
     required this.tabs,
-    this.initialIndex = 0,
+    this.initialTab = AppTab.home,
     this.controller,
     this.onTabChanged,
   });
 
   final Map<AppTab, Widget> tabs;
-  final int initialIndex;
+  final AppTab initialTab;
   final AppNavigationController? controller;
-  final ValueChanged<int>? onTabChanged;
+  final ValueChanged<AppTab>? onTabChanged;
 
   @override
   State<AppNavigationShell> createState() => _AppNavigationShellState();
@@ -82,7 +83,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     _ownsController = widget.controller == null;
     _controller =
         widget.controller ??
-        AppNavigationController(initialTab: AppTab.values[widget.initialIndex]);
+        AppNavigationController(initialTab: widget.initialTab);
     _currentIndex = _controller.currentTab.index;
     _loadedIndices = {_currentIndex};
     _controller.addListener(_handleControllerChanged);
@@ -102,11 +103,11 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       _currentIndex = nextIndex;
       _loadedIndices.add(nextIndex);
     });
-    widget.onTabChanged?.call(nextIndex);
+    widget.onTabChanged?.call(_controller.currentTab);
   }
 
-  void _selectTab(int index) {
-    _controller.selectTab(AppTab.values[index]);
+  void _selectTab(AppTab tab) {
+    _controller.selectTab(tab);
   }
 
   @override
@@ -184,7 +185,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                     final isSelected = tab.index == _currentIndex;
                     return Expanded(
                       child: GestureDetector(
-                        onTap: () => _selectTab(tab.index),
+                        onTap: () => _selectTab(tab),
                         behavior: HitTestBehavior.opaque,
                         child: Tooltip(
                           message: tab.label,
@@ -315,7 +316,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                 padding: const EdgeInsets.symmetric(vertical: HikariSpacing.sm),
                 child: IconButton(
                   tooltip: tab.label,
-                  onPressed: () => _selectTab(tab.index),
+                  onPressed: () => _selectTab(tab),
                   icon: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

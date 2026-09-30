@@ -18,13 +18,13 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      int? selected;
+      AppTab? selected;
       await tester.pumpWidget(
         MaterialApp(
           theme: HikariTheme.darkTheme(),
           home: AppNavigationShell(
             tabs: tabs,
-            onTabChanged: (index) => selected = index,
+            onTabChanged: (tab) => selected = tab,
           ),
         ),
       );
@@ -33,7 +33,7 @@ void main() {
         await tester.tap(find.byTooltip(tab.label));
         await tester.pumpAndSettle();
         expect(find.text('${tab.label} View'), findsOneWidget);
-        expect(selected, tab.index);
+        expect(selected, tab);
       }
       expect(tester.takeException(), isNull);
     });

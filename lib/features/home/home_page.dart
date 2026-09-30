@@ -34,7 +34,7 @@ class HomePage extends StatefulWidget {
     this.trendingItems = const [],
     this.onNavigateToSearch,
     this.onNavigateToLibrary,
-    this.showLocalMediaPrompt = false,
+    this.showLocalMediaEntry = false,
     this.onNavigateToLocal,
     this.openRemoteManga,
     this.openRemoteNovels,
@@ -47,7 +47,7 @@ class HomePage extends StatefulWidget {
   final List<Media> trendingItems;
   final VoidCallback? onNavigateToSearch;
   final VoidCallback? onNavigateToLibrary;
-  final bool showLocalMediaPrompt;
+  final bool showLocalMediaEntry;
   final VoidCallback? onNavigateToLocal;
   final VoidCallback? openRemoteManga;
   final VoidCallback? openRemoteNovels;
@@ -97,7 +97,7 @@ class _HomePageState extends State<HomePage> {
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(child: _buildHeader(context, colors)),
-              if (widget.showLocalMediaPrompt)
+              if (widget.showLocalMediaEntry)
                 SliverToBoxAdapter(child: _buildLocalMediaCard(colors)),
               if (widget.featuredItems.isNotEmpty)
                 SliverToBoxAdapter(
