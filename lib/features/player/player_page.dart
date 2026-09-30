@@ -99,8 +99,7 @@ class _PlayerPageState extends State<PlayerPage> {
     try {
       await controls.seek(
         Duration(
-          microseconds:
-              (controls.duration.inMicroseconds * progress).round(),
+          microseconds: (controls.duration.inMicroseconds * progress).round(),
         ),
       );
       _restartHideTimer();
@@ -111,9 +110,9 @@ class _PlayerPageState extends State<PlayerPage> {
 
   void _showPlaybackError() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not update playback.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Could not update playback.')));
   }
 
   Future<void> _exit() async {

@@ -124,9 +124,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         publication,
       ),
     };
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => page));
   }
 
   Widget _buildVideoPage(VideoOpenTarget target) {

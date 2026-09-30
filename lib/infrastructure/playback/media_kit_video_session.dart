@@ -250,10 +250,7 @@ final class MediaKitVideoSession {
     });
   }
 
-  Future<void> _setPlaying(
-    MediaKitVideoPlayback session,
-    bool playing,
-  ) {
+  Future<void> _setPlaying(MediaKitVideoPlayback session, bool playing) {
     return _enqueue(() async {
       if (!_isCurrentPhase(session, _Phase.active)) return;
       if (playing) {
@@ -264,10 +261,7 @@ final class MediaKitVideoSession {
     });
   }
 
-  Future<void> _seek(
-    MediaKitVideoPlayback session,
-    Duration position,
-  ) {
+  Future<void> _seek(MediaKitVideoPlayback session, Duration position) {
     return _enqueue(() async {
       if (!_isCurrentPhase(session, _Phase.active)) return;
       final duration = session._playbackDuration;

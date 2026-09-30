@@ -48,15 +48,17 @@ final class UnifiedSearchUiState {
 
   List<UnifiedSearchResult> get visibleResults {
     if (filter == SearchMediaTypeFilter.all) return results;
-    return results.where((result) {
-      return switch (filter) {
-        SearchMediaTypeFilter.all => true,
-        SearchMediaTypeFilter.anime => result.media.type == MediaType.anime,
-        SearchMediaTypeFilter.manga => result.media.type == MediaType.manga,
-        SearchMediaTypeFilter.novel =>
-          result.media.type == MediaType.lightNovel,
-      };
-    }).toList(growable: false);
+    return results
+        .where((result) {
+          return switch (filter) {
+            SearchMediaTypeFilter.all => true,
+            SearchMediaTypeFilter.anime => result.media.type == MediaType.anime,
+            SearchMediaTypeFilter.manga => result.media.type == MediaType.manga,
+            SearchMediaTypeFilter.novel =>
+              result.media.type == MediaType.lightNovel,
+          };
+        })
+        .toList(growable: false);
   }
 
   UnifiedSearchUiState copyWith({
@@ -154,9 +156,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     if (_disposed || generation != _generation) return;
 
     final failedSourceCount = batches.where((batch) => batch.failed).length;
-    final results = _deduplicate(
-      batches.expand((batch) => batch.results),
-    );
+    final results = _deduplicate(batches.expand((batch) => batch.results));
 
     if (results.isEmpty && failedSourceCount == batches.length) {
       _publish(
@@ -235,14 +235,10 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
       final catalog = await _localCatalog();
       final normalized = query.toLowerCase();
       return catalog
-          .where(
-            (media) => media.title.toLowerCase().contains(normalized),
-          )
+          .where((media) => media.title.toLowerCase().contains(normalized))
           .map(
-            (media) => UnifiedSearchResult(
-              media: media,
-              sourceName: 'Local media',
-            ),
+            (media) =>
+                UnifiedSearchResult(media: media, sourceName: 'Local media'),
           )
           .toList(growable: false);
     });

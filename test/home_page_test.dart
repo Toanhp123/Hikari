@@ -78,10 +78,6 @@ void main() {
 
     expect(find.text('Attack on Titan'), findsNothing);
     expect(find.text('Demon Slayer'), findsNothing);
-    expect(
-      find.textContaining('Add media to your Library'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Add media to your Library'), findsOneWidget);
   });
-
 }

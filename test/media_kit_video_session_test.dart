@@ -311,27 +311,29 @@ void main() {
       await b.finish();
     },
   );
-  test('playback controls expose real playing position duration and seek', () async {
-    final playback = open('A');
-    await playback.ready;
+  test(
+    'playback controls expose real playing position duration and seek',
+    () async {
+      final playback = open('A');
+      await playback.ready;
 
-    expect(playback.duration, const Duration(seconds: 100));
-    expect(playback.playing, isTrue);
+      expect(playback.duration, const Duration(seconds: 100));
+      expect(playback.playing, isTrue);
 
-    await playback.pause();
-    expect(playback.playing, isFalse);
+      await playback.pause();
+      expect(playback.playing, isFalse);
 
-    await playback.seek(const Duration(seconds: 25));
-    expect(playback.position, const Duration(seconds: 25));
-    expect(driver.seeks.last, const Duration(seconds: 25));
+      await playback.seek(const Duration(seconds: 25));
+      expect(playback.position, const Duration(seconds: 25));
+      expect(driver.seeks.last, const Duration(seconds: 25));
 
-    await playback.seek(const Duration(seconds: 999));
-    expect(playback.position, const Duration(seconds: 100));
-    expect(driver.seeks.last, const Duration(seconds: 100));
+      await playback.seek(const Duration(seconds: 999));
+      expect(playback.position, const Duration(seconds: 100));
+      expect(driver.seeks.last, const Duration(seconds: 100));
 
-    await playback.play();
-    expect(playback.playing, isTrue);
-    await playback.finish();
-  });
-
+      await playback.play();
+      expect(playback.playing, isTrue);
+      await playback.finish();
+    },
+  );
 }

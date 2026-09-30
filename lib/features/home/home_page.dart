@@ -69,14 +69,16 @@ class _HomePageState extends State<HomePage> {
 
   List<Media> _filteredItems(List<Media> items) {
     if (_selectedFilter == HomeFilterType.all) return items;
-    return items.where((item) {
-      return switch (_selectedFilter) {
-        HomeFilterType.all => true,
-        HomeFilterType.anime => item.type == MediaType.anime,
-        HomeFilterType.manga => item.type == MediaType.manga,
-        HomeFilterType.novel => item.type == MediaType.lightNovel,
-      };
-    }).toList(growable: false);
+    return items
+        .where((item) {
+          return switch (_selectedFilter) {
+            HomeFilterType.all => true,
+            HomeFilterType.anime => item.type == MediaType.anime,
+            HomeFilterType.manga => item.type == MediaType.manga,
+            HomeFilterType.novel => item.type == MediaType.lightNovel,
+          };
+        })
+        .toList(growable: false);
   }
 
   void _navigateToSearch(BuildContext context) {
@@ -103,9 +105,7 @@ class _HomePageState extends State<HomePage> {
         final colors = context.hikariColors;
         final state = _model.state;
         final usesBrowseFeed = widget.trendingItems.isNotEmpty;
-        final feed = usesBrowseFeed
-            ? widget.trendingItems
-            : state.libraryItems;
+        final feed = usesBrowseFeed ? widget.trendingItems : state.libraryItems;
         final filteredFeed = _filteredItems(feed);
 
         return HikariScaffold(
@@ -165,10 +165,7 @@ class _HomePageState extends State<HomePage> {
                             ? 'Add media to your Library to populate Home.'
                             : 'Could not load recent Library items.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: colors.textMuted,
-                          fontSize: 13,
-                        ),
+                        style: TextStyle(color: colors.textMuted, fontSize: 13),
                       ),
                     ),
                   ),

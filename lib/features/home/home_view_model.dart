@@ -43,12 +43,7 @@ final class HomeViewModel extends ChangeNotifier {
   Future<void> reload() async {
     final repository = _repository;
     if (repository == null || _disposed) return;
-    _publish(
-      HomeUiState(
-        loading: true,
-        libraryItems: _state.libraryItems,
-      ),
-    );
+    _publish(HomeUiState(loading: true, libraryItems: _state.libraryItems));
     try {
       _acceptEntries(await repository.loadAll());
     } catch (error) {
@@ -59,20 +54,13 @@ final class HomeViewModel extends ChangeNotifier {
   void _acceptEntries(List<LibraryEntry> entries) {
     _publish(
       HomeUiState(
-        libraryItems: List.unmodifiable(
-          entries.map((entry) => entry.media),
-        ),
+        libraryItems: List.unmodifiable(entries.map((entry) => entry.media)),
       ),
     );
   }
 
   void _acceptError(Object error) {
-    _publish(
-      HomeUiState(
-        libraryItems: _state.libraryItems,
-        error: error,
-      ),
-    );
+    _publish(HomeUiState(libraryItems: _state.libraryItems, error: error));
   }
 
   void _publish(HomeUiState state) {

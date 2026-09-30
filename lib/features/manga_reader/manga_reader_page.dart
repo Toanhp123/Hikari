@@ -285,7 +285,6 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                             ],
                           ),
                         ),
-
                       ],
                     ),
                   ),
@@ -364,19 +363,13 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                                       onChanged: _loading
                                           ? null
                                           : (value) {
-                                              setState(
-                                                () => _dragPage = value,
-                                              );
+                                              setState(() => _dragPage = value);
                                             },
                                       onChangeEnd: _loading
                                           ? null
                                           : (value) {
-                                              setState(
-                                                () => _dragPage = null,
-                                              );
-                                              _jumpToPage(
-                                                value.round() - 1,
-                                              );
+                                              setState(() => _dragPage = null);
+                                              _jumpToPage(value.round() - 1);
                                             },
                                     ),
                                   ),

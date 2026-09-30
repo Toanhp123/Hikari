@@ -117,10 +117,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
                   ),
                   child: Text(
                     'Some configured sources could not be searched.',
-                    style: TextStyle(
-                      color: colors.warning,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.warning, fontSize: 12),
                   ),
                 ),
               Expanded(child: _buildBody(context, state, colors)),
@@ -218,10 +215,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
               Positioned(
                 top: HikariSpacing.xs,
                 right: HikariSpacing.xs,
-                child: LibraryButton(
-                  repository: widget.library!,
-                  media: media,
-                ),
+                child: LibraryButton(repository: widget.library!, media: media),
               ),
           ],
         );

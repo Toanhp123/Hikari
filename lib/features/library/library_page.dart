@@ -86,7 +86,10 @@ class _LibraryPageState extends State<LibraryPage> {
           children: [
             const Text('Could not load your library.'),
             const SizedBox(height: HikariSpacing.sm),
-            TextButton(onPressed: _model.reload, child: const Text('Try again')),
+            TextButton(
+              onPressed: _model.reload,
+              child: const Text('Try again'),
+            ),
           ],
         ),
       );
@@ -231,14 +234,11 @@ class _LibraryPageState extends State<LibraryPage> {
                 color: colors.textPrimary,
               ),
             ),
-            subtitle: Text(
-              switch (media.type) {
-                MediaType.anime => 'Anime',
-                MediaType.manga => 'Manga',
-                MediaType.lightNovel => 'Light Novel',
-              },
-              style: TextStyle(color: colors.textSecondary, fontSize: 12),
-            ),
+            subtitle: Text(switch (media.type) {
+              MediaType.anime => 'Anime',
+              MediaType.manga => 'Manga',
+              MediaType.lightNovel => 'Light Novel',
+            }, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
             onTap: () => widget.openMedia(context, media),
             trailing: LibraryButton(
               repository: widget.repository,

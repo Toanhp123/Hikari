@@ -63,9 +63,8 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       await clearCache();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Cache cleared.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Cache cleared.')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -165,10 +164,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       const SizedBox(height: HikariSpacing.xs),
                       Text(
                         'Appearance preferences currently apply to this app session.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colors.textMuted,
-                        ),
+                        style: TextStyle(fontSize: 11, color: colors.textMuted),
                       ),
                     ],
                   ),
