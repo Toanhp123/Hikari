@@ -1,3 +1,6 @@
+diff --git a/lib/app/app.dart b/lib/app/app.dart
+--- a/lib/app/app.dart
++++ b/lib/app/app.dart
 @@ -3,22 +3,21 @@ import 'dart:async';
  import 'package:flutter/material.dart';
  import 'package:hikari/app/app_dependencies.dart';
@@ -80,6 +83,9 @@
                onChooseLocalFolder: localSource.chooseRoot,
              ),
            ],
+diff --git a/lib/core/ui/patterns/media_poster.dart b/lib/core/ui/patterns/media_poster.dart
+--- a/lib/core/ui/patterns/media_poster.dart
++++ b/lib/core/ui/patterns/media_poster.dart
 @@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
  import 'package:hikari/app/theme/hikari_theme.dart';
  import 'package:hikari/core/ui/patterns/media_progress.dart';
@@ -465,6 +471,9 @@
        decoration: BoxDecoration(
          gradient: LinearGradient(
            begin: Alignment.topLeft,
+diff --git a/lib/domain/library/library.dart b/lib/domain/library/library.dart
+--- a/lib/domain/library/library.dart
++++ b/lib/domain/library/library.dart
 @@ -3,6 +3,7 @@ import 'package:hikari/domain/media/media.dart';
  final class LibraryEntry {
    LibraryEntry({required this.media, required DateTime addedAt})
@@ -486,6 +495,9 @@
 +    implements LibraryRepository {
 +  Stream<List<LibraryEntry>> watchAll();
 +}
+diff --git a/lib/domain/playback/video_playback.dart b/lib/domain/playback/video_playback.dart
+--- a/lib/domain/playback/video_playback.dart
++++ b/lib/domain/playback/video_playback.dart
 @@ -0,0 +1,14 @@
 +/// Platform-independent controls exposed by an active video playback.
 +///
@@ -501,6 +513,9 @@
 +  Future<void> pause();
 +  Future<void> seek(Duration position);
 +}
+diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
+--- a/lib/features/home/home_page.dart
++++ b/lib/features/home/home_page.dart
 @@ -1,5 +1,3 @@
 -import 'dart:async';
 -
@@ -1338,6 +1353,9 @@
 +    );
 +  }
  }
+diff --git a/lib/features/home/home_view_model.dart b/lib/features/home/home_view_model.dart
+--- a/lib/features/home/home_view_model.dart
++++ b/lib/features/home/home_view_model.dart
 @@ -0,0 +1,104 @@
 +import 'dart:async';
 +
@@ -1443,6 +1461,9 @@
 +    super.dispose();
 +  }
 +}
+diff --git a/lib/features/library/library_page.dart b/lib/features/library/library_page.dart
+--- a/lib/features/library/library_page.dart
++++ b/lib/features/library/library_page.dart
 @@ -7,237 +7,155 @@ import 'package:hikari/core/ui/patterns/media_poster.dart';
  import 'package:hikari/domain/library/library.dart';
  import 'package:hikari/domain/media/media.dart';
@@ -1860,6 +1881,9 @@
              ),
            ),
          );
+diff --git a/lib/features/library/library_view_model.dart b/lib/features/library/library_view_model.dart
+--- a/lib/features/library/library_view_model.dart
++++ b/lib/features/library/library_view_model.dart
 @@ -0,0 +1,161 @@
 +import 'dart:async';
 +
@@ -2022,6 +2046,9 @@
 +    super.dispose();
 +  }
 +}
+diff --git a/lib/features/manga_reader/manga_reader_page.dart b/lib/features/manga_reader/manga_reader_page.dart
+--- a/lib/features/manga_reader/manga_reader_page.dart
++++ b/lib/features/manga_reader/manga_reader_page.dart
 @@ -9,17 +9,7 @@ import 'package:hikari/domain/media/media.dart';
  import 'package:hikari/domain/progress/progress.dart';
  import 'package:hikari/domain/progress/resume.dart';
@@ -2216,6 +2243,9 @@
                                      ),
                                    ),
                                  ],
+diff --git a/lib/features/novel_reader/novel_content_view.dart b/lib/features/novel_reader/novel_content_view.dart
+--- a/lib/features/novel_reader/novel_content_view.dart
++++ b/lib/features/novel_reader/novel_content_view.dart
 @@ -13,12 +13,14 @@ class NovelContentView extends StatelessWidget {
      required this.readResource,
      this.onTapLink,
@@ -2242,6 +2272,9 @@
    );
  }
  
+diff --git a/lib/features/novel_reader/novel_reader_page.dart b/lib/features/novel_reader/novel_reader_page.dart
+--- a/lib/features/novel_reader/novel_reader_page.dart
++++ b/lib/features/novel_reader/novel_reader_page.dart
 @@ -60,6 +60,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
    double _position = 0;
    bool _completed = false;
@@ -2350,6 +2383,9 @@
                  ),
                ),
            ],
+diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_page.dart
+--- a/lib/features/player/player_page.dart
++++ b/lib/features/player/player_page.dart
 @@ -1,23 +1,24 @@
  import 'dart:async';
 -import 'dart:ui';
@@ -2877,6 +2913,9 @@
      );
    }
  }
+diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/unified_search_page.dart
+--- a/lib/features/search/unified_search_page.dart
++++ b/lib/features/search/unified_search_page.dart
 @@ -1,5 +1,3 @@
 -import 'dart:async';
 -
@@ -3380,6 +3419,9 @@
      );
    }
  }
+diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/search/unified_search_view_model.dart
+--- a/lib/features/search/unified_search_view_model.dart
++++ b/lib/features/search/unified_search_view_model.dart
 @@ -0,0 +1,315 @@
 +import 'package:flutter/foundation.dart';
 +import 'package:hikari/application/search/search_manga.dart';
@@ -3696,6 +3738,9 @@
 +  final List<UnifiedSearchResult> results;
 +  final bool failed;
 +}
+diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
+--- a/lib/features/settings/settings_page.dart
++++ b/lib/features/settings/settings_page.dart
 @@ -3,21 +3,26 @@ import 'package:hikari/app/theme/hikari_theme.dart';
  import 'package:hikari/core/ui/components/hikari_button.dart';
  import 'package:hikari/core/ui/components/hikari_scaffold.dart';
@@ -4054,6 +4099,9 @@
                    style: TextStyle(fontSize: 12),
                  ),
                ),
+diff --git a/lib/infrastructure/playback/media_kit_video_session.dart b/lib/infrastructure/playback/media_kit_video_session.dart
+--- a/lib/infrastructure/playback/media_kit_video_session.dart
++++ b/lib/infrastructure/playback/media_kit_video_session.dart
 @@ -1,5 +1,6 @@
  import 'dart:async';
  
@@ -4236,6 +4284,9 @@
    Future<void> setForeground(bool foreground) {
      _isForeground = foreground;
      final session = _currentPlayback;
+diff --git a/lib/infrastructure/repositories/sqlite_library_repository.dart b/lib/infrastructure/repositories/sqlite_library_repository.dart
+--- a/lib/infrastructure/repositories/sqlite_library_repository.dart
++++ b/lib/infrastructure/repositories/sqlite_library_repository.dart
 @@ -3,7 +3,7 @@ import 'package:hikari/domain/library/library.dart';
  import 'package:hikari/domain/media/media.dart';
  import 'package:hikari/infrastructure/persistence/user_database.dart';
@@ -4270,6 +4321,9 @@
    }
  }
  
+diff --git a/test/app_smoke_test.dart b/test/app_smoke_test.dart
+--- a/test/app_smoke_test.dart
++++ b/test/app_smoke_test.dart
 @@ -57,9 +57,8 @@ void main() {
            utf8.encode(List.filled(150, 'Persisted text').join('\n')),
          );
@@ -4282,15 +4336,16 @@
        await tester.pumpAndSettle();
        await tester.tap(find.byTooltip('Library'));
        await tester.pumpAndSettle();
-@@ -78,6 +77,7 @@ void main() {
+@@ -78,6 +77,8 @@ void main() {
        );
        expect(calls, ['selectedTree', 'read']);
        await tester.pumpWidget(const SizedBox());
 +      await tester.pump();
++      await dependencies.dispose();
        await db.close();
      },
    );
-@@ -102,16 +102,17 @@ void main() {
+@@ -102,16 +103,17 @@ void main() {
        expect(call.method, 'read');
        return Uint8List.fromList(const [1, 2, 3]);
      });
@@ -4311,7 +4366,7 @@
      await db.close();
    });
  
-@@ -121,10 +122,15 @@ void main() {
+@@ -121,10 +123,15 @@ void main() {
        return null;
      });
  
@@ -4328,6 +4383,9 @@
 +    await dependencies.dispose();
    });
  }
+diff --git a/test/home_page_test.dart b/test/home_page_test.dart
+--- a/test/home_page_test.dart
++++ b/test/home_page_test.dart
 @@ -65,4 +65,19 @@ void main() {
      await tester.pumpAndSettle();
      expect(find.text('One Piece'), findsWidgets);
@@ -4348,6 +4406,9 @@
 +    expect(find.textContaining('Add media to your Library'), findsOneWidget);
 +  });
  }
+diff --git a/test/library_page_test.dart b/test/library_page_test.dart
+--- a/test/library_page_test.dart
++++ b/test/library_page_test.dart
 @@ -60,6 +60,11 @@ void main() {
        expect(await library.contains(media.source), isFalse);
        await tester.pumpAndSettle();
@@ -4389,6 +4450,9 @@
 +    await tester.pumpAndSettle();
 +  });
  }
+diff --git a/test/media_kit_video_session_test.dart b/test/media_kit_video_session_test.dart
+--- a/test/media_kit_video_session_test.dart
++++ b/test/media_kit_video_session_test.dart
 @@ -311,4 +311,29 @@ void main() {
        await b.finish();
      },
@@ -4419,6 +4483,9 @@
 +    },
 +  );
  }
+diff --git a/test/settings_page_test.dart b/test/settings_page_test.dart
+--- a/test/settings_page_test.dart
++++ b/test/settings_page_test.dart
 @@ -34,6 +34,6 @@ void main() {
      await tester.tap(find.text('Clear'));
      await tester.pumpAndSettle();
@@ -4427,6 +4494,9 @@
 +    expect(find.text('Cache cleared.'), findsOneWidget);
    });
  }
+diff --git a/test/unified_search_view_model_test.dart b/test/unified_search_view_model_test.dart
+--- a/test/unified_search_view_model_test.dart
++++ b/test/unified_search_view_model_test.dart
 @@ -0,0 +1,64 @@
 +import 'package:flutter_test/flutter_test.dart';
 +import 'package:hikari/domain/media/media.dart';
