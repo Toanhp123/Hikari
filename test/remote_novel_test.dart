@@ -254,6 +254,8 @@ void main() {
         .load(source.ref('chapter'));
     expect(saved, isNotNull);
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
     await dependencies.dispose();
     await db.close();
 
@@ -282,6 +284,8 @@ void main() {
       greaterThan(0),
     );
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
     await dependencies.dispose();
     await db.close();
 
@@ -299,6 +303,8 @@ void main() {
       isTrue,
     );
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
     await dependencies.dispose();
     await db.close();
     debugDefaultTargetPlatformOverride = null;

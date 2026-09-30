@@ -309,6 +309,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
   });
 
   test('duplicate source ids fail fast during app composition', () async {
@@ -344,6 +346,9 @@ void main() {
 
         expect(find.byTooltip('Search manga'), findsNothing);
       } finally {
+        await tester.pumpWidget(const SizedBox());
+        // Advance fake time so Drift's deferred stream disposal can finish.
+        await tester.pump(Duration.zero);
         debugDefaultTargetPlatformOverride = null;
       }
     },
@@ -379,6 +384,9 @@ void main() {
 
         expect(find.text('Second series'), findsOneWidget);
       } finally {
+        await tester.pumpWidget(const SizedBox());
+        // Advance fake time so Drift's deferred stream disposal can finish.
+        await tester.pump(Duration.zero);
         debugDefaultTargetPlatformOverride = null;
       }
     },
@@ -420,6 +428,9 @@ void main() {
         findsOneWidget,
       );
     } finally {
+      await tester.pumpWidget(const SizedBox());
+      // Advance fake time so Drift's deferred stream disposal can finish.
+      await tester.pump(Duration.zero);
       debugDefaultTargetPlatformOverride = null;
     }
   });
@@ -453,6 +464,8 @@ void main() {
     expect(find.byType(MangaReaderPage), findsOneWidget);
     expect(find.textContaining('Fake remote · Group'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
     await db.close();
     debugDefaultTargetPlatformOverride = null;
   });
@@ -493,6 +506,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Page 2 of 2'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
     await db.close();
     debugDefaultTargetPlatformOverride = null;
   });
@@ -532,6 +547,8 @@ void main() {
     expect(find.text('Chapter'), findsOneWidget);
     expect(searches, 0);
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
     await db.close();
     debugDefaultTargetPlatformOverride = null;
   });

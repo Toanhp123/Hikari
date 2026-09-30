@@ -51,15 +51,13 @@ void main() {
       final calls = <String>[];
       messenger.setMockMethodCallHandler(channel, (call) async {
         calls.add(call.method);
-        if (call.method == 'selectedTree') return null;
         expect(call.method, 'read');
         return Uint8List.fromList(
           utf8.encode(List.filled(150, 'Persisted text').join('\n')),
         );
       });
-      await tester.pumpWidget(
-        HikariApp(dependencies: AppDependencies.create(database: db)),
-      );
+      final dependencies = AppDependencies.create(database: db);
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
@@ -76,8 +74,11 @@ void main() {
         scroll.offset / scroll.position.maxScrollExtent,
         closeTo(0.6, 0.001),
       );
-      expect(calls, ['selectedTree', 'read']);
+      expect(calls, ['read']);
       await tester.pumpWidget(const SizedBox());
+      // Advance fake time so Drift's deferred stream disposal can finish.
+      await tester.pump(Duration.zero);
+      await dependencies.dispose();
       await db.close();
     },
   );
@@ -98,13 +99,11 @@ void main() {
       ),
     );
     messenger.setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'selectedTree') return null;
-      expect(call.method, 'read');
-      return Uint8List.fromList(const [1, 2, 3]);
+      expect(call.method, 'children');
+      return <Object?>[];
     });
-    await tester.pumpWidget(
-      HikariApp(dependencies: AppDependencies.create(database: db)),
-    );
+    final dependencies = AppDependencies.create(database: db);
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
@@ -112,6 +111,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MangaReaderPage), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
     await db.close();
   });
 
@@ -121,10 +123,20 @@ void main() {
       return null;
     });
 
-    await tester.pumpWidget(HikariApp(dependencies: AppDependencies.create()));
+    final db = UserDatabase(NativeDatabase.memory());
+    final dependencies = AppDependencies.create(
+      database: db,
+      ownsDatabase: true,
+    );
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
     expect(find.text('Local media'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    // Advance fake time so Drift's deferred stream disposal can finish.
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
   });
 }

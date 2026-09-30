@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_progress.dart';
 
-/// A 2:3 aspect ratio media poster with scrim gradient, badges, shimmer skeleton, and hero animation.
+/// Shared 2:3 media artwork pattern.
+///
+/// Feature-owned cards decide which product metadata belongs around this visual
+/// primitive; the poster itself only owns artwork, identity labels and progress.
 class MediaPoster extends StatelessWidget {
   const MediaPoster({
     super.key,
@@ -14,9 +17,6 @@ class MediaPoster extends StatelessWidget {
     this.heroTag,
     this.badgeText,
     this.badgeColor,
-    this.rating,
-    this.statusText,
-    this.statusColor,
     this.progress,
     this.subtitle,
     this.onTap,
@@ -31,9 +31,6 @@ class MediaPoster extends StatelessWidget {
   final String? heroTag;
   final String? badgeText;
   final Color? badgeColor;
-  final String? rating;
-  final String? statusText;
-  final Color? statusColor;
   final double? progress;
   final String? subtitle;
   final VoidCallback? onTap;
@@ -45,7 +42,7 @@ class MediaPoster extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
 
-    Widget posterContent = AspectRatio(
+    Widget content = AspectRatio(
       aspectRatio: 2 / 3,
       child: Container(
         decoration: BoxDecoration(
@@ -64,46 +61,14 @@ class MediaPoster extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Image or Skeleton or Fallback
-            if (isLoading)
-              _ShimmerBox(
-                baseColor: colors.surfaceContainer,
-                highlightColor: colors.surfaceHighlight,
-              )
-            else if (imageBytes != null && imageBytes!.isNotEmpty)
-              Image.memory(
-                imageBytes!,
-                fit: BoxFit.cover,
-                cacheWidth: 360,
-                errorBuilder: (context, error, stackTrace) =>
-                    _fallbackPlaceholder(colors),
-              )
-            else if (imageUrl != null && imageUrl!.isNotEmpty)
-              Image.network(
-                imageUrl!,
-                fit: BoxFit.cover,
-                cacheWidth: 360,
-                errorBuilder: (context, error, stackTrace) =>
-                    _fallbackPlaceholder(colors),
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return _ShimmerBox(
-                    baseColor: colors.surfaceContainer,
-                    highlightColor: colors.surfaceHighlight,
-                  );
-                },
-              )
-            else
-              _fallbackPlaceholder(colors),
-
-            // Bottom 35% scrim gradient to protect title text
-            Positioned(
+            _buildArtwork(colors),
+            const Positioned(
               left: 0,
               right: 0,
               bottom: 0,
               height: 90,
-              child: Container(
-                decoration: const BoxDecoration(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -116,126 +81,15 @@ class MediaPoster extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Top-left Star Rating or Badge
-            if (rating != null && rating!.isNotEmpty)
+            if (badgeText != null && badgeText!.isNotEmpty)
               Positioned(
                 top: 8,
                 left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xD90B0F17),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      width: 0.8,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 13,
-                        color: Color(0xFFFBBF24),
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        rating!,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (badgeText != null && badgeText!.isNotEmpty)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (badgeColor ?? colors.primary).withValues(
-                      alpha: 0.9,
-                    ),
-                    borderRadius: HikariRadius.borderXs,
-                    boxShadow: [
-                      BoxShadow(
-                        color: (badgeColor ?? colors.primary).withValues(
-                          alpha: 0.4,
-                        ),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    badgeText!,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                child: _MediaBadge(
+                  label: badgeText!,
+                  color: badgeColor ?? colors.primary,
                 ),
               ),
-
-            // Top-right Status Pill (Watching / Plan to Watch / Type)
-            if (statusText != null && statusText!.isNotEmpty)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (statusColor ?? colors.surfaceElevated).withValues(
-                      alpha: 0.85,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      width: 0.8,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    statusText!,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFF1F5F9),
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-              ),
-
-            // Title & Subtitle in bottom scrim
             Positioned(
               left: 8,
               right: 8,
@@ -270,40 +124,71 @@ class MediaPoster extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Progress bar at very bottom
             if (progress != null && progress! > 0)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: MediaProgress(progress: progress!, height: 3.0),
+                child: MediaProgress(progress: progress!, height: 3),
               ),
           ],
         ),
       ),
     );
 
-    if (heroTag != null) {
-      posterContent = Hero(tag: heroTag!, child: posterContent);
+    final tag = heroTag;
+    if (tag != null) {
+      content = Hero(tag: tag, child: content);
     }
-
     if (onTap != null) {
-      posterContent = GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: posterContent,
-      );
+      content = InkWell(onTap: onTap, child: content);
     }
 
-    // Isolate repaint with RepaintBoundary
     return RepaintBoundary(
-      child: SizedBox(width: width, height: height, child: posterContent),
+      child: SizedBox(width: width, height: height, child: content),
     );
   }
 
+  Widget _buildArtwork(HikariColors colors) {
+    if (isLoading) {
+      return _PosterSkeleton(
+        baseColor: colors.surfaceContainer,
+        highlightColor: colors.surfaceHighlight,
+      );
+    }
+
+    final bytes = imageBytes;
+    if (bytes != null && bytes.isNotEmpty) {
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        cacheWidth: 360,
+        errorBuilder: (_, _, _) => _fallbackPlaceholder(colors),
+      );
+    }
+
+    final url = imageUrl;
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        cacheWidth: 360,
+        errorBuilder: (_, _, _) => _fallbackPlaceholder(colors),
+        loadingBuilder: (_, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _PosterSkeleton(
+            baseColor: colors.surfaceContainer,
+            highlightColor: colors.surfaceHighlight,
+          );
+        },
+      );
+    }
+
+    return _fallbackPlaceholder(colors);
+  }
+
   Widget _fallbackPlaceholder(HikariColors colors) {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -316,21 +201,38 @@ class MediaPoster extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors.primary.withValues(alpha: 0.12),
-            border: Border.all(
-              color: colors.primaryGlow.withValues(alpha: 0.25),
-              width: 1.0,
-            ),
-          ),
-          child: Icon(
-            Icons.movie_filter_rounded,
-            size: 24,
-            color: colors.primaryGlow.withValues(alpha: 0.8),
+        child: Icon(
+          Icons.movie_filter_rounded,
+          size: 28,
+          color: colors.primaryGlow.withValues(alpha: 0.75),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaBadge extends StatelessWidget {
+  const _MediaBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.9),
+        borderRadius: HikariRadius.borderXs,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: 0.5,
           ),
         ),
       ),
@@ -338,15 +240,18 @@ class MediaPoster extends StatelessWidget {
   }
 }
 
-class _ShimmerBox extends StatelessWidget {
-  const _ShimmerBox({required this.baseColor, required this.highlightColor});
+class _PosterSkeleton extends StatelessWidget {
+  const _PosterSkeleton({
+    required this.baseColor,
+    required this.highlightColor,
+  });
 
   final Color baseColor;
   final Color highlightColor;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
